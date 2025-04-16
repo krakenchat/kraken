@@ -1,0 +1,37 @@
+{
+  "name": "frontend",
+  "main": "electron/dist/main.cjs",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "clean": "rimraf dist electron/dist",
+    "build": "vite build",
+    "build-electron": "tsc --project electron/tsconfig.electron.json && mv electron/dist/main.js electron/dist/main.cjs",
+    "dev": "vite",
+    "start": "npm run build-electron && electron .",
+    "electron-dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5174 && npm run build-electron && electron .\"",
+    "win-electron-dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && npm run build-electron && cmd.exe /C node_modules/.bin/electron .\""
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.1.5",
+    "eslint": "^9.22.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "typescript": "~5.7.2",
+    "typescript-eslint": "^8.26.1",
+    "vite": "^6.3.0",
+    "wait-on": "^8.0.3"
+  }
+}
