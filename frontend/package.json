@@ -8,7 +8,7 @@
     "clean": "rimraf dist electron/dist",
     "build": "vite build",
     "build-electron": "tsc --project electron/tsconfig.electron.json && mv electron/dist/main.js electron/dist/main.cjs",
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "start": "npm run build-electron && electron .",
     "electron-dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5174 && npm run build-electron && electron .\"",
     "win-electron-dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && npm run build-electron && cmd.exe /C node_modules/.bin/electron .\""

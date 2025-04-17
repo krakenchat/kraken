@@ -1,47 +1,31 @@
-# This is for local dev
+# TODO: actually make this prod ready -- use env
 services:
   backend:
     build:
       context: ./backend
-    command: npm run start:dev
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kraken
       - MONGODB_URL=mongodb://mongo:27017/kraken
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
     depends_on:
       - postgres
       - mongo
 
-  migrate:
-    build:
-      context: ./backend
-    # You only want the migrate command (NOT server start)
-    command: sh -c "npm ci && npx prisma migrate deploy --schema=prisma/schema.prisma"
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kraken
-      - MONGODB_URL=mongodb://mongo:27017/kraken
-    depends_on:
-      - postgres
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-
   frontend:
     build:
       context: ./frontend
-    command: npm run dev
-    ports:
-      - "5173:5173"
-    environment:
-      - NODE_ENV=development
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_URL=http://backend:3000
     depends_on:
       - backend
 
@@ -58,13 +42,14 @@ services:
 
   mongo:
     image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: mongo
     volumes:
       - mongodata:/data/db
-      - mongodb_config:/data/configdb
     ports:
       - "27017:27017"
 
 volumes:
   pgdata:
   mongodata:
-  mongodb_config:

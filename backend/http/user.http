@@ -1,0 +1,33 @@
+### Register a new user
+POST http://localhost:3000/users
+Content-Type: application/json
+
+{
+  "username": "adminuser",
+  "password": "supersecurepw123",
+  "email": "admin@example.com"
+}
+
+###
+
+### Register another user (normal)
+POST http://localhost:3000/users
+Content-Type: application/json
+
+{
+  "username": "normaluser",
+  "password": "regularpw456",
+  "email": "user@example.com"
+}
+
+###
+
+### Get user by username (not implemented, but plan for it!)
+GET http://localhost:3000/users/username/adminuser
+
+###
+
+### Get user by id (replace with actual ID returned above)
+GET http://localhost:3000/users/90166844-b535-414d-af16-3ef24aa40ab9
+
+###

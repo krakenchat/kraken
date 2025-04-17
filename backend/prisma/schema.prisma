@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/postgres-client"
+}
+
+model User {
+  id             String       @id @default(uuid())
+  username       String       @unique
+  email          String?      @unique
+  verified       Boolean      @default(false)
+  hashedPassword String
+  memberships    Membership[]
+  role           InstanceRole @default(USER)
+  createdAt      DateTime     @default(now())
+}
+
+model Community {
+  id           String        @id @default(uuid())
+  name         String
+  memberships  Membership[]
+  channels     Channel[]
+  createdAt    DateTime      @default(now())
+}
+
+model Channel {
+  id           String       @id @default(uuid())
+  name         String
+  communityId  String
+  community    Community    @relation(fields: [communityId], references: [id])
+  createdAt    DateTime     @default(now())
+  type         ChannelType  @default(TEXT)
+}
+
+model Membership {
+  id           String        @id @default(uuid())
+  userId       String
+  communityId  String
+  role         CommunityRole @default(MEMBER)
+  joinedAt     DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id])
+  community    Community     @relation(fields: [communityId], references: [id])
+
+  @@unique([userId, communityId])
+}
+
+model AliasGroup {
+  id           String        @id @default(uuid())
+  name         String
+  communityId  String
+  members      AliasGroupMember[]
+  createdAt    DateTime      @default(now())
+
+  // UNIQUE constraint: alias name must be unique in a community
+  @@unique([communityId, name])
+}
+
+model AliasGroupMember {
+  id           String        @id @default(uuid())
+  aliasGroupId String
+  userId       String
+  aliasGroup   AliasGroup @relation(fields: [aliasGroupId], references: [id])
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+  VIDEO
+}
+
+enum CommunityRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum InstanceRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
