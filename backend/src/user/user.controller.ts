@@ -8,8 +8,16 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  async register(@Body() dto: CreateUserDto): Promise<User> {
-    return this.userService.createUser(dto.username, dto.password, dto.email);
+  async register(
+    @Body() dto: CreateUserDto,
+  ): Promise<Omit<User, 'hashedPassword'>> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { hashedPassword, ...created } = await this.userService.createUser(
+      dto.username,
+      dto.password,
+      dto.email,
+    );
+    return created;
   }
 
   @Get(':id')

@@ -5,7 +5,7 @@ import { User } from '@prisma/postgres-client';
 
 @Injectable()
 export class AuthService {
-  constructor(private userService: UserService) {}
+  constructor(private readonly userService: UserService) {}
 
   async validateUser(
     username: string,

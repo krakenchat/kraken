@@ -11,6 +11,8 @@ CREATE TYPE "InstanceRole" AS ENUM ('SUPER_ADMIN', 'ADMIN', 'USER');
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "username" TEXT NOT NULL,
+    "email" TEXT,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
     "hashedPassword" TEXT NOT NULL,
     "role" "InstanceRole" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -70,6 +72,9 @@ CREATE TABLE "AliasGroupMember" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Membership_userId_communityId_key" ON "Membership"("userId", "communityId");
