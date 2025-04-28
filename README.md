@@ -11,7 +11,6 @@ This guide will help you spin up a local development environment with Docker, ho
   [NestJS](https://docs.nestjs.com/) (TypeScript), modular structure (`/src`), real-time via WebSockets, REST endpoints.
 - **Data Layer:**  
   [Prisma ORM](https://www.prisma.io/docs/)
-  - **PostgreSQL:** for users, communities, roles, channels, memberships (`prisma/schema.prisma`)
   - **MongoDB:** for message documents, spans, attachments, reactions, and mentions (`prisma/mongo.schema.prisma`)
 - **Frontend:**  
   [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/docs/), rapid HMR via [Vite](https://vitejs.dev/).
@@ -26,8 +25,7 @@ This guide will help you spin up a local development environment with Docker, ho
 repo-root/
   backend/
     prisma/
-      schema.prisma             # PostgreSQL schema
-      mongo.schema.prisma       # MongoDB schema (no migrations, just push)
+      schema.prisma       # MongoDB schema (no migrations, just push)
       generated/
     src/
     ...
@@ -49,7 +47,6 @@ This will bring up:
 
 - **backend** (NestJS backend, Node.js, hot reload)
 - **frontend** (React+Vite, hot reload)
-- **postgres** (persistent via Docker volume)
 - **mongo** (persistent via Docker volume)
 
 ### 2. Access the app
@@ -68,7 +65,6 @@ This will bring up:
 
 ## Database Migrations & Prisma
 
-- **Postgres (relational data):** Uses [Prisma Migrate](https://www.prisma.io/docs/orm/migrate/) and the `prisma/schema.prisma` file for schema and migration history.
 - **MongoDB (messages):** Uses `prisma db push` from `prisma/mongo.schema.prisma` to sync types in Mongo (no migrations engine).
 
 ### Running migrations in the backend container:
@@ -95,7 +91,7 @@ docker-compose run backend npx prisma db push --schema=prisma/mongo.schema.prism
 ## Troubleshooting
 
 - **Prisma errors about missing schema:**  
-  Ensure your `prisma/` directory is present, and not ignored in `.dockerignore`. The default expected Postgres file is now `prisma/schema.prisma`.
+  Ensure your `prisma/` directory is present, and not ignored in `.dockerignore`.
 - **Dependency or OpenSSL errors in Docker:**  
   The backend Dockerfile installs the OpenSSL library needed by Prisma. If you see errors, rebuild your containers with:
   ```
@@ -109,21 +105,18 @@ docker-compose run backend npx prisma db push --schema=prisma/mongo.schema.prism
 ## Useful commands
 
 - Enter a backend container shell:
+
   ```
-  docker-compose run backend bash
+  docker compose run backend bash
   ```
-- Apply latest Postgres migrations:
-  ```
-  docker-compose run backend npx prisma migrate deploy --schema=prisma/schema.prisma
-  ```
+
 - Push latest Mongo schema:
   ```
-  docker-compose run backend npx prisma db push --schema=prisma/mongo.schema.prisma
+  docker compose run backend npm run prisma:generate && npm run prisma:push
   ```
 
 ---
 
 ## Support
 
-For issues or questions, please open a pull request or GitHub issue.  
-Happy coding!
+For issues or questions, please open a pull request or GitHub issue.

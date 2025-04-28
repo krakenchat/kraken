@@ -8,28 +8,14 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kraken
-      - MONGODB_URL=mongodb://mongo:27017/kraken
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend:/app
       - /app/node_modules
     depends_on:
-      - postgres
-      - mongo
-
-  migrate:
-    build:
-      context: ./backend
-    # You only want the migrate command (NOT server start)
-    command: sh -c "npm ci && npx prisma migrate deploy --schema=prisma/schema.prisma"
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kraken
-      - MONGODB_URL=mongodb://mongo:27017/kraken
-    depends_on:
-      - postgres
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+      mongo:
+        condition: service_healthy
 
   frontend:
     build:
@@ -45,24 +31,23 @@ services:
     depends_on:
       - backend
 
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: kraken
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
   mongo:
-    image: mongo:8.0
-    volumes:
-      - mongodata:/data/db
-      - mongodb_config:/data/configdb
+    image: mongo:7.0
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
     ports:
-      - "27017:27017"
+      - 27017:27017
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'host.docker.internal:27017'}]}) }" | mongosh --port 27017 --quiet
+      interval: 5s
+      timeout: 30s
+      start_period: 0s
+      start_interval: 1s
+      retries: 30
+    volumes:
+      - "mongodata:/data/db"
+      - "mongodb_config:/data/configdb"
 
 volumes:
   pgdata:

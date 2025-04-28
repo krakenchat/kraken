@@ -16,10 +16,6 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false,
-    "paths": {
-      "@prisma/postgres-client": ["prisma/generated/postgres-client"],
-      "@prisma/mongo-client": ["prisma/generated/mongo-client"]
-    }
+    "noFallthroughCasesInSwitch": false
   }
 }

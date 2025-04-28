@@ -1,73 +1,84 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "mongodb"
+  url      = env("MONGODB_URL")
 }
+
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated/postgres-client"
+  output = "../node_modules/.prisma/client"
+}
+
+model Message {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  channelId   String
+  authorId    String
+  spans       Span[]     
+  attachments Attachment[]
+  reactions   Reaction[]
+  sentAt      DateTime    @default(now())
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  mentions    Mention[]   // Denormalized for fast querying
 }
 
 model User {
-  id             String       @id @default(uuid())
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
   username       String       @unique
   email          String?      @unique
   verified       Boolean      @default(false)
   hashedPassword String
-  memberships    Membership[]
+  memberships    Membership[] @relation("UserMemberships")
   role           InstanceRole @default(USER)
   createdAt      DateTime     @default(now())
+  avatarUrl      String?
+  lastSeen       DateTime?
 }
 
 model Community {
-  id           String        @id @default(uuid())
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
   name         String
-  memberships  Membership[]
-  channels     Channel[]
+  memberships  Membership[]  @relation("CommunityMemberships")
+  channels     Channel[]     @relation(fields: [], references: [])
   createdAt    DateTime      @default(now())
 }
 
+model Membership {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String        @db.ObjectId
+  communityId  String        @db.ObjectId
+  role         CommunityRole @default(MEMBER)
+  joinedAt     DateTime      @default(now())
+
+  user         User          @relation("UserMemberships", fields: [userId], references: [id])
+  community    Community     @relation("CommunityMemberships", fields: [communityId], references: [id])
+
+  @@unique([userId, communityId]) // Ensure a user can only join a community once
+}
+
 model Channel {
-  id           String       @id @default(uuid())
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
   name         String
-  communityId  String
-  community    Community    @relation(fields: [communityId], references: [id])
+  communityId  String       @db.ObjectId
+  community    Community?   @relation(fields: [communityId], references: [id])
   createdAt    DateTime     @default(now())
   type         ChannelType  @default(TEXT)
 }
 
-model Membership {
-  id           String        @id @default(uuid())
-  userId       String
-  communityId  String
-  role         CommunityRole @default(MEMBER)
-  joinedAt     DateTime      @default(now())
-  user         User          @relation(fields: [userId], references: [id])
-  community    Community     @relation(fields: [communityId], references: [id])
-
-  @@unique([userId, communityId])
-}
-
 model AliasGroup {
-  id           String        @id @default(uuid())
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
   name         String
-  communityId  String
-  members      AliasGroupMember[]
-  createdAt    DateTime      @default(now())
+  communityId  String             @db.ObjectId
+  members      AliasGroupMember[] @relation(fields: [], references: [])
+  createdAt    DateTime           @default(now())
 
-  // UNIQUE constraint: alias name must be unique in a community
   @@unique([communityId, name])
 }
 
 model AliasGroupMember {
-  id           String        @id @default(uuid())
-  aliasGroupId String
-  userId       String
-  aliasGroup   AliasGroup @relation(fields: [aliasGroupId], references: [id])
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+  aliasGroupId String      @db.ObjectId
+  userId       String      @db.ObjectId
+  aliasGroup   AliasGroup? @relation(fields: [aliasGroupId], references: [id])
 }
 
 enum ChannelType {
@@ -87,4 +98,45 @@ enum InstanceRole {
   SUPER_ADMIN
   ADMIN
   USER
+}
+
+type Span {
+  type        SpanType
+  text        String?
+  userId      String?     // For USER_MENTION
+  specialKind String?     // For SPECIAL_MENTION: "here", "everyone", etc
+  channelId   String?     // For CHANNEL_MENTION
+  communityId String?     // For COMMUNITY_MENTION
+  aliasId     String?     // For ALIAS_MENTION
+}
+
+// New enum with more mention types
+enum SpanType {
+  PLAINTEXT
+  USER_MENTION
+  SPECIAL_MENTION
+  CHANNEL_MENTION
+  COMMUNITY_MENTION
+  ALIAS_MENTION
+}
+
+type Attachment {
+  url        String
+  filename   String
+  filetype   String
+  size       Int
+}
+
+type Reaction {
+  emoji      String
+  userIds    String[]
+}
+
+// Mentions array denormalized for notifications/etc
+type Mention {
+  userId      String?
+  specialKind String?
+  channelId   String?
+  communityId String?
+  aliasId     String?
 }

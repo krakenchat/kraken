@@ -1,13 +1,13 @@
 import { Controller, Post, UseGuards, Request } from '@nestjs/common';
-import { User } from '@prisma/postgres-client';
 import { LocalAuthGuard } from './local-auth.guard';
+import { UserEntity } from 'src/user/dto/user-response.dto';
 
 @Controller('auth')
 export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@Request() req: { user: Omit<User, 'hashedPassword'> }) {
-    return req.user;
+  login(@Request() req: { user: UserEntity }) {
+    return new UserEntity(req.user);
   }
 
   @UseGuards(LocalAuthGuard)

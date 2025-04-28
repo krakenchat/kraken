@@ -1,20 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { InstanceRole, User } from '@prisma/postgres-client';
+import { InstanceRole, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { PostgresPrismaService } from 'src/database/postgres-prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PostgresPrismaService) {}
+  constructor(private database: DatabaseService) {}
 
   async findByUsername(username: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
+    return this.database.user.findUnique({
       where: { username },
     });
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
+    return this.database.user.findUnique({
       where: { id },
     });
   }
@@ -24,12 +24,12 @@ export class UserService {
     password: string,
     email?: string,
   ): Promise<User> {
-    const userCount = await this.prisma.user.count();
+    const userCount = await this.database.user.count();
     const role = userCount === 0 ? InstanceRole.SUPER_ADMIN : InstanceRole.USER;
     const verified = userCount === 0;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    return this.prisma.user.create({
+    return this.database.user.create({
       data: {
         username,
         email,

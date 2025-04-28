@@ -43,6 +43,6 @@ GET http://localhost:3000/users/username/adminuser
 ###
 
 ### Get user by id (replace with actual ID returned above)
-GET http://localhost:3000/users/90166844-b535-414d-af16-3ef24aa40ab9
+GET http://localhost:3000/users/680ff0d909e7b7793e603230
 
 ###
