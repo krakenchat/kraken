@@ -9,7 +9,7 @@ Content-Type: application/json
 }
 
 ###
-
+# @name login
 POST http://localhost:3000/auth/login
 Content-Type: application/json
 
@@ -20,8 +20,20 @@ Content-Type: application/json
 
 ###
 
+@jwt = {{login.response.body.access_token}}
+
+###
+GET http://localhost:3000/users/profile
+Authorization: Bearer {{jwt}}
+###
+
 POST http://localhost:3000/auth/logout
 Content-Type: application/json
+
+{
+  "username": "adminuser",
+  "password": "supersecurepw123"
+}
 
 ###
 
@@ -37,7 +49,6 @@ Content-Type: application/json
 
 ###
 
-### Get user by username (not implemented, but plan for it!)
 GET http://localhost:3000/users/username/adminuser
 
 ###

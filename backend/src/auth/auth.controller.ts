@@ -1,19 +1,22 @@
 import { Controller, Post, UseGuards, Request } from '@nestjs/common';
 import { LocalAuthGuard } from './local-auth.guard';
 import { UserEntity } from 'src/user/dto/user-response.dto';
+import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
   @UseGuards(LocalAuthGuard)
   @Post('login')
   login(@Request() req: { user: UserEntity }) {
-    return new UserEntity(req.user);
+    return this.authService.login(req.user);
   }
 
-  @UseGuards(LocalAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(@Request() req) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    return req.logout();
+  logout() {
+    return 'Logged out successfully';
   }
 }
