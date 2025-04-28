@@ -1,4 +1,5 @@
 ### Register a new user
+# @name register
 POST http://localhost:3000/users
 Content-Type: application/json
 
@@ -29,11 +30,7 @@ Authorization: Bearer {{jwt}}
 
 POST http://localhost:3000/auth/logout
 Content-Type: application/json
-
-{
-  "username": "adminuser",
-  "password": "supersecurepw123"
-}
+Authorization: Bearer {{jwt}}
 
 ###
 
@@ -50,10 +47,13 @@ Content-Type: application/json
 ###
 
 GET http://localhost:3000/users/username/adminuser
+Authorization: Bearer {{jwt}}
 
 ###
+@userId = {{register.response.body.id}}
 
-### Get user by id (replace with actual ID returned above)
-GET http://localhost:3000/users/680ff0d909e7b7793e603230
+### 
+GET http://localhost:3000/users/{{userId}}
+Authorization: Bearer {{jwt}}
 
 ###

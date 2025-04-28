@@ -11,6 +11,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   login(@Request() req: { user: UserEntity }) {
+    console.log('here we are');
     return this.authService.login(req.user);
   }
 
