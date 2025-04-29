@@ -5,20 +5,20 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  output = "../node_modules/.prisma/client"
+  output   = "../node_modules/.prisma/client"
 }
 
 model Message {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
   channelId   String
   authorId    String
-  spans       Span[]     
+  spans       Span[]
   attachments Attachment[]
   reactions   Reaction[]
-  sentAt      DateTime    @default(now())
+  sentAt      DateTime     @default(now())
   editedAt    DateTime?
   deletedAt   DateTime?
-  mentions    Mention[]   // Denormalized for fast querying
+  mentions    Mention[] // Denormalized for fast querying
 }
 
 model User {
@@ -32,44 +32,61 @@ model User {
   createdAt      DateTime     @default(now())
   avatarUrl      String?
   lastSeen       DateTime?
+  displayName    String?
+
+  InstanceInvite InstanceInvite[]
+
+  UserRoles UserRoles[]
 }
 
-model Community {
-  id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  name         String
-  memberships  Membership[]  @relation("CommunityMemberships")
-  channels     Channel[]     @relation(fields: [], references: [])
-  createdAt    DateTime      @default(now())
+model InstanceInvite {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  code               String    @unique
+  createdById        String?   @db.ObjectId
+  createdBy          User?     @relation(fields: [createdById], references: [id])
+  defaultCommunityId String[]  @db.ObjectId
+  maxUses            Int?
+  uses               Int       @default(0)
+  validUntil         DateTime?
+  createdAt          DateTime  @default(now())
+  usedByIds          String[]  @db.ObjectId
+  disabled           Boolean   @default(false)
 }
 
 model Membership {
-  id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String        @db.ObjectId
-  communityId  String        @db.ObjectId
-  role         CommunityRole @default(MEMBER)
-  joinedAt     DateTime      @default(now())
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  user        User      @relation("UserMemberships", fields: [userId], references: [id])
+  community   Community @relation("CommunityMemberships", fields: [communityId], references: [id])
+  joinedAt    DateTime  @default(now())
+  userId      String    @db.ObjectId
+  communityId String    @db.ObjectId
+}
 
-  user         User          @relation("UserMemberships", fields: [userId], references: [id])
-  community    Community     @relation("CommunityMemberships", fields: [communityId], references: [id])
+model Community {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  memberships Membership[] @relation("CommunityMemberships")
+  channels    Channel[]
+  createdAt   DateTime     @default(now())
 
-  @@unique([userId, communityId]) // Ensure a user can only join a community once
+  UserRoles UserRoles[]
 }
 
 model Channel {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  name         String
-  communityId  String       @db.ObjectId
-  community    Community?   @relation(fields: [communityId], references: [id])
-  createdAt    DateTime     @default(now())
-  type         ChannelType  @default(TEXT)
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  communityId String      @db.ObjectId
+  community   Community?  @relation(fields: [communityId], references: [id])
+  createdAt   DateTime    @default(now())
+  type        ChannelType @default(TEXT)
 }
 
 model AliasGroup {
-  id           String             @id @default(auto()) @map("_id") @db.ObjectId
-  name         String
-  communityId  String             @db.ObjectId
-  members      AliasGroupMember[] @relation(fields: [], references: [])
-  createdAt    DateTime           @default(now())
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  communityId String             @db.ObjectId
+  members     AliasGroupMember[] @relation(fields: [], references: [])
+  createdAt   DateTime           @default(now())
 
   @@unique([communityId, name])
 }
@@ -81,33 +98,85 @@ model AliasGroupMember {
   aliasGroup   AliasGroup? @relation(fields: [aliasGroupId], references: [id])
 }
 
+model Role {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  actions   RbacActions[] @default([])
+  createdAt DateTime      @default(now())
+
+  UserRoles UserRoles[]
+}
+
+model UserRoles {
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  // This is the same relationship as Membership, but it simplifies the auth lookup since our token only has the userId
+  userId         String     @db.ObjectId
+  communityId    String?    @db.ObjectId
+  roleId         String     @db.ObjectId
+  isInstanceRole Boolean    @default(false)
+  user           User       @relation(fields: [userId], references: [id])
+  community      Community? @relation(fields: [communityId], references: [id])
+  role           Role       @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, communityId, roleId])
+}
+
 enum ChannelType {
   TEXT
   VOICE
   VIDEO
 }
 
-enum CommunityRole {
-  OWNER
-  ADMIN
-  MODERATOR
-  MEMBER
+enum RbacActions {
+  // These are just a bunch I randomly thought of but we'll modify this as we go
+  DELETE_MESSAGE
+  DELETE_CHANNEL
+  DELETE_COMMUNITY
+  DELETE_INVITE
+  DELETE_USER
+  DELETE_ROLE
+  DELETE_ALIAS_GROUP
+  DELETE_ALIAS_GROUP_MEMBER
+  DELETE_INSTANCE_INVITE
+  DELETE_MEMBER
+  DELETE_REACTION
+  DELETE_ATTACHMENT
+  CREATE_MESSAGE
+  CREATE_CHANNEL
+  CREATE_COMMUNITY
+  CREATE_INVITE
+  CREATE_USER
+  CREATE_ROLE
+  CREATE_ALIAS_GROUP
+  CREATE_ALIAS_GROUP_MEMBER
+  CREATE_INSTANCE_INVITE
+  CREATE_MEMBER
+  CREATE_REACTION
+  CREATE_ATTACHMENT
+  READ_MESSAGE
+  READ_CHANNEL
+  READ_COMMUNITY
+  READ_USER
+  READ_ROLE
+  READ_ALIAS_GROUP
+  READ_ALIAS_GROUP_MEMBER
+  READ_INSTANCE_INVITE
+  READ_MEMBER
 }
 
 enum InstanceRole {
-  SUPER_ADMIN
-  ADMIN
+  OWNER
   USER
 }
 
 type Span {
   type        SpanType
   text        String?
-  userId      String?     // For USER_MENTION
-  specialKind String?     // For SPECIAL_MENTION: "here", "everyone", etc
-  channelId   String?     // For CHANNEL_MENTION
-  communityId String?     // For COMMUNITY_MENTION
-  aliasId     String?     // For ALIAS_MENTION
+  userId      String? // For USER_MENTION
+  specialKind String? // For SPECIAL_MENTION: "here", "everyone", etc
+  channelId   String? // For CHANNEL_MENTION
+  communityId String? // For COMMUNITY_MENTION
+  aliasId     String? // For ALIAS_MENTION
 }
 
 // New enum with more mention types
@@ -121,15 +190,15 @@ enum SpanType {
 }
 
 type Attachment {
-  url        String
-  filename   String
-  filetype   String
-  size       Int
+  url      String
+  filename String
+  filetype String
+  size     Int
 }
 
 type Reaction {
-  emoji      String
-  userIds    String[]
+  emoji   String
+  userIds String[]
 }
 
 // Mentions array denormalized for notifications/etc

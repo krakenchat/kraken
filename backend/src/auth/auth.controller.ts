@@ -1,6 +1,13 @@
-import { Controller, Post, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UseGuards,
+  Request,
+  HttpStatus,
+  HttpCode,
+} from '@nestjs/common';
 import { LocalAuthGuard } from './local-auth.guard';
-import { UserEntity } from 'src/user/dto/user-response.dto';
+import { UserEntity } from '@/user/dto/user-response.dto';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -10,14 +17,15 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   login(@Request() req: { user: UserEntity }) {
-    console.log('here we are');
     return this.authService.login(req.user);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   logout() {
+    // This will probably never do anything, but it's here as a test for the JWT guard.
     return 'Logged out successfully';
   }
 }

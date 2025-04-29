@@ -15,7 +15,9 @@ export class AuthService {
     username: string,
     pass: string,
   ): Promise<UserEntity | null> {
-    const user = await this.userService.findByUsername(username);
+    const user = await this.userService.findByUsername(
+      username.toLocaleLowerCase(),
+    );
     if (user && (await bcrypt.compare(pass, user.hashedPassword))) {
       return new UserEntity(user);
     }

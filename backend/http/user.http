@@ -15,8 +15,8 @@ POST http://localhost:3000/auth/login
 Content-Type: application/json
 
 {
-  "username": "adminuser",
-  "password": "supersecurepw123"
+  "username": "admin",
+  "password": "admin"
 }
 
 ###
@@ -46,7 +46,7 @@ Content-Type: application/json
 
 ###
 
-GET http://localhost:3000/users/username/adminuser
+GET http://localhost:3000/users/username/admin
 Authorization: Bearer {{jwt}}
 
 ###

@@ -24,4 +24,6 @@ export class UserEntity implements User {
   constructor(partial: Partial<UserEntity>) {
     Object.assign(this, partial);
   }
+
+  displayName: string | null;
 }
