@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  LoggerService,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { RBAC_ACTION_KEY } from './rbac-action.decorator';
@@ -14,7 +9,6 @@ import { RolesService } from '@/roles/roles.service';
 export class RbacGuard implements CanActivate {
   constructor(
     private readonly rolesService: RolesService,
-    private readonly logger: LoggerService,
     private reflector: Reflector,
   ) {}
 
@@ -24,9 +18,7 @@ export class RbacGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    this.logger.log(
-      `requiredRbacActions: ${JSON.stringify(requiredRbacActions)}`,
-    );
+    console.log(`requiredRbacActions: ${JSON.stringify(requiredRbacActions)}`);
 
     if (!requiredRbacActions || !requiredRbacActions.length) {
       return true;
@@ -39,8 +31,8 @@ export class RbacGuard implements CanActivate {
       .switchToHttp()
       .getRequest();
 
-    this.logger.log(`user: ${JSON.stringify(user)}`);
-    this.logger.log(`params: ${JSON.stringify(params)}`);
+    console.log(`user: ${JSON.stringify(user)}`);
+    console.log(`params: ${JSON.stringify(params)}`);
 
     if (!user) {
       return false;

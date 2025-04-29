@@ -60,6 +60,8 @@ model Membership {
   joinedAt    DateTime  @default(now())
   userId      String    @db.ObjectId
   communityId String    @db.ObjectId
+
+  @@unique([userId, communityId])
 }
 
 model Community {
@@ -70,6 +72,8 @@ model Community {
   createdAt   DateTime     @default(now())
 
   UserRoles UserRoles[]
+
+  @@unique([name])
 }
 
 model Channel {
@@ -79,6 +83,8 @@ model Channel {
   community   Community?  @relation(fields: [communityId], references: [id])
   createdAt   DateTime    @default(now())
   type        ChannelType @default(TEXT)
+
+  @@unique([communityId, name])
 }
 
 model AliasGroup {
@@ -105,6 +111,8 @@ model Role {
   createdAt DateTime      @default(now())
 
   UserRoles UserRoles[]
+
+  @@unique([name])
 }
 
 model UserRoles {

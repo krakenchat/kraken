@@ -1,0 +1,40 @@
+###
+# @name login
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin"
+}
+
+###
+
+@jwt = {{login.response.body.access_token}}
+
+###
+# @name invite
+POST http://localhost:3000/invite
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+    "maxUses": 5,
+    "communityIds": []
+}
+###
+
+@code = {{invite.response.body.code}}
+
+### Register another user (normal)
+POST http://localhost:3000/users
+Content-Type: application/json
+
+{
+  "username": "normaluser",
+  "password": "regularpw456",
+  "email": "user@example.com",
+  "code": "{{code}}"
+}
+
+###

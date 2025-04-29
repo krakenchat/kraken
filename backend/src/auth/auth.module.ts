@@ -8,12 +8,15 @@ import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { RolesModule } from '@/roles/roles.module';
+import { DatabaseModule } from '@/database/database.module';
+import { RbacGuard } from './rbac-roles.guard';
 
 @Module({
   imports: [
     UserModule,
     RolesModule,
     PassportModule,
+    DatabaseModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -23,8 +26,8 @@ import { RolesModule } from '@/roles/roles.module';
       }),
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, LocalStrategy, JwtStrategy, RbacGuard], // Add RbacGuard here
+  exports: [AuthService, JwtStrategy, JwtModule, RbacGuard], // Ensure RbacGuard is exported
   controllers: [AuthController],
 })
 export class AuthModule {}

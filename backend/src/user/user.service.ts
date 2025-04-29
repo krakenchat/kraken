@@ -30,12 +30,13 @@ export class UserService {
   }
 
   async createUser(
+    code: string,
     username: string,
     password: string,
     email?: string,
   ): Promise<User> {
     await this.checkForFieldConflicts(username, email);
-    const invite = await this.getInvite(username);
+    const invite = await this.getInvite(code);
     if (!invite) {
       throw new NotFoundException('No invite found for the provided code.');
     }
@@ -60,8 +61,8 @@ export class UserService {
 
       const upatedInvite = await this.instanceInviteService.redeemInviteWithTx(
         tx,
-        user.id,
         invite.code,
+        createdUser.id,
       );
 
       if (!upatedInvite) {

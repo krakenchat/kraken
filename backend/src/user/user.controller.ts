@@ -22,7 +22,12 @@ export class UserController {
   @Public()
   async register(@Body() dto: CreateUserDto): Promise<UserEntity> {
     const user = new UserEntity(
-      await this.userService.createUser(dto.username, dto.password, dto.email),
+      await this.userService.createUser(
+        dto.code,
+        dto.username,
+        dto.password,
+        dto.email,
+      ),
     );
 
     return user;
