@@ -10,6 +10,18 @@ Content-Type: application/json
 
 ###
 
+###
+# @name login
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "username": "normaluser",
+  "password": "regularpw456"
+}
+
+###
+
 @jwt = {{login.response.body.access_token}}
 
 ###

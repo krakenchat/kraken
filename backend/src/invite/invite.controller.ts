@@ -1,4 +1,11 @@
-import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { InviteService } from './invite.service';
 import { InstanceInvite, RbacActions } from '@prisma/client';
 import { CreateInviteDto } from './dto/create-invite.dto';
@@ -10,10 +17,26 @@ import { UserEntity } from '@/user/dto/user-response.dto';
 @Controller('invite')
 export class InviteController {
   constructor(private readonly inviteService: InviteService) {}
+
   @Post()
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.CREATE_INVITE)
   async createInvite(
+    @Request() req: { user: UserEntity },
+    @Body() dto: CreateInviteDto,
+  ): Promise<InstanceInvite> {
+    return this.inviteService.createInvite(
+      req.user,
+      dto.maxUses,
+      dto.validUntil,
+      dto.communityIds,
+    );
+  }
+
+  @Delete(':invite')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.DELETE_INVITE)
+  async deleteInvite(
     @Request() req: { user: UserEntity },
     @Body() dto: CreateInviteDto,
   ): Promise<InstanceInvite> {
