@@ -9,7 +9,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { RolesModule } from '@/roles/roles.module';
 import { DatabaseModule } from '@/database/database.module';
-import { RbacGuard } from './rbac-roles.guard';
+import { RbacGuard } from './rbac.guard';
 
 @Module({
   imports: [

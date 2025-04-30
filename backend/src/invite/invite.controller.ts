@@ -10,7 +10,7 @@ import { InviteService } from './invite.service';
 import { InstanceInvite, RbacActions } from '@prisma/client';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac-roles.guard';
+import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { UserEntity } from '@/user/dto/user-response.dto';
 

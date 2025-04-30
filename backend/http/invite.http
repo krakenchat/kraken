@@ -1,6 +1,6 @@
 ###
 # @name login
-POST http://localhost:3000/auth/login
+POST http://localhost:3000/api/auth/login
 Content-Type: application/json
 
 {
@@ -12,7 +12,7 @@ Content-Type: application/json
 
 ###
 # @name login
-POST http://localhost:3000/auth/login
+POST http://localhost:3000/api/auth/login
 Content-Type: application/json
 
 {
@@ -26,7 +26,7 @@ Content-Type: application/json
 
 ###
 # @name invite
-POST http://localhost:3000/invite
+POST http://localhost:3000/api/invite
 Content-Type: application/json
 Authorization: Bearer {{jwt}}
 
@@ -39,13 +39,13 @@ Authorization: Bearer {{jwt}}
 @code = {{invite.response.body.code}}
 
 ### Register another user (normal)
-POST http://localhost:3000/users
+POST http://localhost:3000/api/users
 Content-Type: application/json
 
 {
-  "username": "normaluser",
+  "username": "user-{{$guid}}",
   "password": "regularpw456",
-  "email": "user@example.com",
+  "email": "user-{{$guid}}@example.com",
   "code": "{{code}}"
 }
 
