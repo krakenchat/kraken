@@ -5,9 +5,7 @@ import { InstanceInvite, Prisma } from '@prisma/client';
 
 @Injectable()
 export class InviteService {
-  constructor(private readonly database: DatabaseService) {
-    console.log('InviteService initialized');
-  }
+  constructor(private readonly database: DatabaseService) {}
 
   async createInvite(
     creator: UserEntity,

@@ -5,21 +5,23 @@ import {
   ConsoleLogger,
   ValidationPipe,
 } from '@nestjs/common';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: new ConsoleLogger({
       prefix: 'KrakenChat',
       timestamp: true,
+      json: true,
     }),
     bufferLogs: true,
   });
 
   app.setGlobalPrefix('api');
-  app.enableCors();
+  app.use(cookieParser());
+  app.enableCors({ origin: true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-  app.useLogger(['log', 'error', 'warn', 'fatal']);
 
   await app.listen(process.env.PORT ?? 3000);
 }

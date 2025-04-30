@@ -11,6 +11,7 @@
 - [ ] Bake in default roles for a new instance but allow these to be changed
 - [ ] Always allow owners to do everything to prevent lockout
 - [ ] Check channel/communtiy membership separately of role
+- [x] Implement refresh tokens
 
 ### Database Seeding
 
@@ -21,3 +22,7 @@
 ### Caching:
 
 - [ ] Add it.
+
+### Reverse proxy:
+
+- [ ] Test out the throttler if we are behind NPM or another reverse proxy

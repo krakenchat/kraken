@@ -18,8 +18,6 @@ export class RbacGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    console.log(`requiredRbacActions: ${JSON.stringify(requiredRbacActions)}`);
-
     if (!requiredRbacActions || !requiredRbacActions.length) {
       return true;
     }
@@ -30,9 +28,6 @@ export class RbacGuard implements CanActivate {
     }: { user: UserEntity; params: Record<string, string> } = context
       .switchToHttp()
       .getRequest();
-
-    console.log(`user: ${JSON.stringify(user)}`);
-    console.log(`params: ${JSON.stringify(params)}`);
 
     if (!user) {
       return false;

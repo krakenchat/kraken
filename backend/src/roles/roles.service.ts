@@ -4,9 +4,7 @@ import { RbacActions } from '@prisma/client';
 
 @Injectable()
 export class RolesService {
-  constructor(private readonly database: DatabaseService) {
-    console.log('RolesService initialized');
-  }
+  constructor(private readonly database: DatabaseService) {}
 
   async verifyActionsForUserAndResource(
     userId: string,

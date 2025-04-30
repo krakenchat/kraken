@@ -13,9 +13,7 @@ export class UserService {
   constructor(
     private database: DatabaseService,
     private instanceInviteService: InviteService,
-  ) {
-    console.log('UserService initialized');
-  }
+  ) {}
 
   async findByUsername(username: string): Promise<User | null> {
     return this.database.user.findUnique({

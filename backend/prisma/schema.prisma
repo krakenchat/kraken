@@ -37,6 +37,17 @@ model User {
   InstanceInvite InstanceInvite[]
 
   UserRoles UserRoles[]
+
+  RefreshToken RefreshToken[]
+}
+
+model RefreshToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  tokenHash  String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  user       User     @relation(fields: [userId], references: [id])
 }
 
 model InstanceInvite {
