@@ -9,6 +9,7 @@ export interface User {
   avatarUrl: string | null;
   lastSeen: Date | null;
   displayName: string | null;
+  role: string;
 }
 
 export interface Register {

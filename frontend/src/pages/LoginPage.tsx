@@ -34,7 +34,6 @@ const LoginPage: React.FC = () => {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        height: "100vh",
         backgroundColor: "#f5f5f5",
         padding: 2,
       }}
@@ -50,7 +49,6 @@ const LoginPage: React.FC = () => {
           padding: 4,
           borderRadius: 2,
           boxShadow: 3,
-          width: "100%",
           maxWidth: 400,
         }}
         aria-labelledby="login-title"

@@ -13,7 +13,13 @@ export const authApi = createApi({
       }),
       transformResponse: (response: AuthResponse) => response.accessToken,
     }),
+    logout: builder.query({
+      query: () => ({
+        url: "/logout",
+        method: "POST",
+      }),
+    }),
   }),
 });
 
-export const { useLazyLoginQuery } = authApi;
+export const { useLazyLoginQuery, useLazyLogoutQuery } = authApi;

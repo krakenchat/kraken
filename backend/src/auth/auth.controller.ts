@@ -11,7 +11,6 @@ import {
 import { LocalAuthGuard } from './local-auth.guard';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
@@ -87,11 +86,25 @@ export class AuthController {
     return { accessToken: this.authService.login(user) };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
   @Post('logout')
-  logout() {
-    // This will probably never do anything, but it's here as a test for the JWT guard.
-    return 'Logged out successfully';
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies[this.REFRESH_TOKEN_COOKIE_NAME] as
+      | string
+      | undefined;
+
+    if (refreshToken) {
+      await this.databaseService.$transaction(async (tx) => {
+        const user = await this.authService.verifyRefreshToken(refreshToken);
+        if (user) {
+          await this.authService.removeRefreshToken(user.id, refreshToken, tx);
+        }
+      });
+
+      res.clearCookie(this.REFRESH_TOKEN_COOKIE_NAME);
+    }
+
+    return { message: 'Logged out successfully' };
   }
 
   private setRefreshCookie(res: Response, refreshToken: string) {
