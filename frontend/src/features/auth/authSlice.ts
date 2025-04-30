@@ -11,7 +11,7 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
-      transformResponse: (response: AuthResponse) => response.access_token,
+      transformResponse: (response: AuthResponse) => response.accessToken,
     }),
   }),
 });

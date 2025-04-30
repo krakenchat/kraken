@@ -25,7 +25,8 @@ POST http://localhost:3000/api/auth/refresh
 
 ###
 
-@jwt = {{login.response.body.access_token}}
+@jwt = {{login.response.body.accessToken}}
+@jwt = {{refresh.response.body.accessToken}}
 
 ###
 GET http://localhost:3000/api/users/profile

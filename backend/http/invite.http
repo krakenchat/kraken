@@ -22,7 +22,7 @@ Content-Type: application/json
 
 ###
 
-@jwt = {{login.response.body.access_token}}
+@jwt = {{login.response.body.accessToken}}
 
 ###
 # @name invite
