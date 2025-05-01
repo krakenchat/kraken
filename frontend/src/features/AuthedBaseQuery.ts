@@ -33,4 +33,13 @@ const getBaseAuthedQuery = (
   };
 };
 
+export const prepareHeaders = (headers: Headers) => {
+  const token = localStorage.getItem("accessToken");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  headers.set("Content-Type", "application/json");
+  return headers;
+};
+
 export default getBaseAuthedQuery;

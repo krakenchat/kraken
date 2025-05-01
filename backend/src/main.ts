@@ -6,6 +6,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
+import { TimingInterceptor } from './timing/timing.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,6 +18,7 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
+  app.useGlobalInterceptors(new TimingInterceptor());
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.enableCors({ origin: true, credentials: true });

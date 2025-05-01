@@ -64,19 +64,29 @@ export class CommunityService {
     }
   }
 
-  update(id: string, updateCommunityDto: UpdateCommunityDto) {
+  async update(id: string, updateCommunityDto: UpdateCommunityDto) {
     // TODO: error handling and stuff
-    return this.databaseService.community.update({
-      where: { id },
-      data: updateCommunityDto,
-    });
+    try {
+      return await this.databaseService.community.update({
+        where: { id },
+        data: updateCommunityDto,
+      });
+    } catch (error) {
+      this.logger.error(error);
+      throw new NotFoundException('Community not found');
+    }
   }
 
   async remove(id: string) {
     // TODO: do we force them to remove all users first?
-    await this.databaseService.$transaction(async (tx) => {
-      await tx.membership.deleteMany({ where: { communityId: id } });
-      return tx.community.delete({ where: { id } });
-    });
+    try {
+      await this.databaseService.$transaction(async (tx) => {
+        await tx.membership.deleteMany({ where: { communityId: id } });
+        return tx.community.delete({ where: { id } });
+      });
+    } catch (error) {
+      this.logger.error(error);
+      throw new NotFoundException('Community not found');
+    }
   }
 }

@@ -4,6 +4,10 @@ import { Link, Outlet } from "react-router-dom";
 import { useProfileQuery } from "./features/users/usersSlice";
 import { useLazyLogoutQuery } from "./features/auth/authSlice";
 import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
+import CommunityToggle from "./components/Community/CommunityToggle";
+
+const APPBAR_HEIGHT = 64; // px, adjust if your AppBar is a different height
+const SIDEBAR_WIDTH = 80; // px, matches CommunityToggle Drawer
 
 const Layout: React.FC = () => {
   const { data, isLoading, isError } = useProfileQuery(undefined);
@@ -17,19 +21,18 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <Box
-      sx={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <AppBar position="sticky" sx={{ zIndex: 1201 }}>
-        <Toolbar>
+    <>
+      <AppBar
+        position="fixed"
+        sx={{
+          zIndex: 1201,
+          width: "100vw",
+          left: 0,
+          top: 0,
+          height: APPBAR_HEIGHT,
+        }}
+      >
+        <Toolbar sx={{ minHeight: APPBAR_HEIGHT }}>
           <div
             style={{
               flexGrow: 1,
@@ -67,10 +70,7 @@ const Layout: React.FC = () => {
               >
                 Login
               </Link>
-              <Link
-                to="/register"
-                style={{ color: "white", textDecoration: "none" }}
-              >
+              <Link to="/register" style={{ textDecoration: "none" }}>
                 Register
               </Link>
             </>
@@ -85,22 +85,22 @@ const Layout: React.FC = () => {
           )}
         </Toolbar>
       </AppBar>
+      <CommunityToggle appBarHeight={APPBAR_HEIGHT} />
       <Box
         sx={{
-          flexGrow: 1,
-          overflowY: "auto",
+          position: "absolute",
+          top: APPBAR_HEIGHT,
+          left: SIDEBAR_WIDTH,
+          right: 0,
+          bottom: 0,
+          overflow: "auto",
         }}
       >
-        <Box
-          sx={{
-            padding: 2,
-            boxShadow: 3,
-          }}
-        >
+        <Box sx={{ p: 2, boxShadow: 3 }}>
           <Outlet />
         </Box>
       </Box>
-    </Box>
+    </>
   );
 };
 
