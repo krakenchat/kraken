@@ -3,9 +3,10 @@ import { CommunityService } from './community.service';
 import { CommunityController } from './community.controller';
 import { AuthModule } from '@/auth/auth.module';
 import { RolesModule } from '@/roles/roles.module';
+import { DatabaseModule } from '@/database/database.module';
 
 @Module({
-  imports: [AuthModule, RolesModule],
+  imports: [AuthModule, RolesModule, DatabaseModule],
   controllers: [CommunityController],
   providers: [CommunityService],
 })

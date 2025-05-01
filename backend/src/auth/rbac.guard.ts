@@ -29,6 +29,12 @@ export class RbacGuard implements CanActivate {
       .switchToHttp()
       .getRequest();
 
+    console.log(`Params: ${JSON.stringify(params)}`);
+    console.log(
+      `Required RBAC Actions: ${JSON.stringify(requiredRbacActions)}`,
+    );
+    console.log(`User role: ${user.role}`);
+
     if (!user) {
       return false;
     }
@@ -39,7 +45,7 @@ export class RbacGuard implements CanActivate {
 
     return this.rolesService.verifyActionsForUserAndResource(
       user.id,
-      params.communityId,
+      params.id, // TODO: this is not right, we should explicitly get a reference to the resource. Leaving for now to show the intention
       requiredRbacActions,
     );
   }

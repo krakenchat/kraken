@@ -12,6 +12,7 @@
 - [ ] Always allow owners to do everything to prevent lockout
 - [ ] Check channel/communtiy membership separately of role
 - [x] Implement refresh tokens
+- [ ] Roles are going to get convoluted fast especially when we have things like create but not update
 
 ### Database Seeding
 
@@ -26,3 +27,11 @@
 ### Reverse proxy:
 
 - [ ] Test out the throttler if we are behind NPM or another reverse proxy
+
+### On the fly updates
+
+- [ ] Implement websocket messages that "invalidate" certain aspects of the frontend cache and re-trigger a fetch (eg. new community, new channel, etc.)
+
+### Configuration Management:
+
+- [ ] Add configuration management for server-wide settings like max # of communities and max # of members per community etc

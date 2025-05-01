@@ -1,28 +1,82 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
+import { DatabaseService } from '@/database/database.service';
 
 @Injectable()
 export class CommunityService {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  create(createCommunityDto: CreateCommunityDto) {
-    return 'This action adds a new community';
+  private readonly logger = new Logger(CommunityService.name);
+  constructor(private readonly databaseService: DatabaseService) {}
+  async create(createCommunityDto: CreateCommunityDto, creatorId: string) {
+    try {
+      return await this.databaseService.$transaction(async (tx) => {
+        const community = await tx.community.create({
+          data: createCommunityDto,
+        });
+
+        await tx.membership.create({
+          data: {
+            userId: creatorId,
+            communityId: community.id,
+          },
+        });
+
+        return community;
+      });
+    } catch (error) {
+      // TODO: handle this better
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (error.code === 'P2002') {
+        throw new ConflictException('Duplicate community name');
+      } else {
+        throw error;
+      }
+    }
   }
 
-  findAll() {
-    return `This action returns all community`;
+  async findAll(userId?: string) {
+    if (userId) {
+      const communities = await this.databaseService.membership.findMany({
+        where: { userId },
+        include: { community: true },
+      });
+
+      return communities.map((membership) => membership.community);
+    } else {
+      return this.databaseService.community.findMany();
+    }
   }
 
-  findOne(id: string) {
-    return `This action returns a #${id} community`;
+  async findOne(id: string) {
+    // TODO: do we want to do it by user id?
+    try {
+      return await this.databaseService.community.findUniqueOrThrow({
+        where: { id },
+      });
+    } catch (error) {
+      this.logger.error(error);
+      throw new NotFoundException('Community not found');
+    }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(id: string, updateCommunityDto: UpdateCommunityDto) {
-    return `This action updates a #${id} community`;
+    // TODO: error handling and stuff
+    return this.databaseService.community.update({
+      where: { id },
+      data: updateCommunityDto,
+    });
   }
 
-  remove(id: string) {
-    return `This action removes a #${id} community`;
+  async remove(id: string) {
+    // TODO: do we force them to remove all users first?
+    await this.databaseService.$transaction(async (tx) => {
+      await tx.membership.deleteMany({ where: { communityId: id } });
+      return tx.community.delete({ where: { id } });
+    });
   }
 }

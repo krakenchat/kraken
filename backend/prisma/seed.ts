@@ -99,6 +99,7 @@ async function main() {
     where: { name: 'default' },
     create: {
       name: 'default',
+      description: 'This is a default test community',
     },
     update: {},
   });

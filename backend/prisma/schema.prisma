@@ -81,7 +81,9 @@ model Community {
   memberships Membership[] @relation("CommunityMemberships")
   channels    Channel[]
   createdAt   DateTime     @default(now())
-
+  avatar      String?
+  banner      String?
+  description String?
   UserRoles UserRoles[]
 
   @@unique([name])
@@ -175,6 +177,7 @@ enum RbacActions {
   READ_MESSAGE
   READ_CHANNEL
   READ_COMMUNITY
+  READ_ALL_COMMUNITIES // TODO: we need to rethink this
   READ_USER
   READ_ROLE
   READ_ALIAS_GROUP

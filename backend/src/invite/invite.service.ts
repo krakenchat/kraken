@@ -29,7 +29,7 @@ export class InviteService {
     }
 
     // Logic to create an invite for a user to join an instance
-    return await this.database.instanceInvite.create({
+    return this.database.instanceInvite.create({
       data: {
         code: shortCode,
         createdById: creator.id,
