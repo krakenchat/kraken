@@ -34,7 +34,6 @@ const LoginPage: React.FC = () => {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#f5f5f5",
         padding: 2,
       }}
     >
@@ -45,7 +44,6 @@ const LoginPage: React.FC = () => {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          backgroundColor: "white",
           padding: 4,
           borderRadius: 2,
           boxShadow: 3,

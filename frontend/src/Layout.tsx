@@ -3,6 +3,7 @@ import { Box, AppBar, Toolbar, Typography, Button } from "@mui/material";
 import { Link, Outlet } from "react-router-dom";
 import { useProfileQuery } from "./features/users/usersSlice";
 import { useLazyLogoutQuery } from "./features/auth/authSlice";
+import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
 
 const Layout: React.FC = () => {
   const { data, isLoading, isError } = useProfileQuery(undefined);
@@ -29,9 +30,18 @@ const Layout: React.FC = () => {
     >
       <AppBar position="sticky" sx={{ zIndex: 1201 }}>
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Kraken
-          </Typography>
+          <div
+            style={{
+              flexGrow: 1,
+              flexDirection: "row",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25em",
+            }}
+          >
+            <Typography variant="h6">Kraken</Typography>
+            <ThemeToggle />
+          </div>
           <Link
             to="/"
             style={{ color: "white", textDecoration: "none", marginRight: 16 }}
@@ -79,13 +89,11 @@ const Layout: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
-          backgroundColor: "#f5f5f5",
         }}
       >
         <Box
           sx={{
             padding: 2,
-            backgroundColor: "white",
             boxShadow: 3,
           }}
         >

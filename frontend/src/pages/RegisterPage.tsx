@@ -17,7 +17,6 @@ const FormContainer = styled(Box)({
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
-  backgroundColor: "#f5f5f5",
   padding: "16px",
 });
 
@@ -25,7 +24,6 @@ const FormBox = styled(Box)({
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  backgroundColor: "white",
   padding: "32px",
   borderRadius: "8px",
   boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",

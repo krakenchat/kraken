@@ -21,7 +21,6 @@ const HomePage: React.FC = () => {
         alignItems: "center",
         justifyContent: "center",
         height: "400px",
-        backgroundColor: "#f5f5f5",
         padding: 2,
       }}
     >
