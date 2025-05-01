@@ -1,3 +1,5 @@
+[![License: AGPL v3 + Commercial](https://img.shields.io/badge/license-AGPL%20v3%20%2F%20Commercial-blue)](LICENSE)
+
 # Kraken Chat Backend — Developer Setup
 
 Welcome to the Kraken Chat backend!  
@@ -120,3 +122,12 @@ docker-compose run backend npx prisma db push --schema=prisma/mongo.schema.prism
 ## Support
 
 For issues or questions, please open a pull request or GitHub issue.
+
+## 📜 License
+
+Kraken Chat is **dual-licensed**:
+
+- **AGPLv3** — for personal, open-source, research, non-profits, and self-hosters (see [LICENSE](./LICENSE)).
+- **Commercial License Required** — for business, enterprise, hosted SaaS, or any commercial use (see [LICENSE_COM](./LICENSE_COM) and [LICENSE-FAQ.md](./LICENSE-FAQ.md)).
+
+Commercial users: Contact us for licensing — licensing {at} krakenchat [dot] app
