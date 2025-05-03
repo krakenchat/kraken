@@ -7,6 +7,7 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { LocalAuthGuard } from './local-auth.guard';
 import { UserEntity } from '@/user/dto/user-response.dto';
@@ -17,13 +18,14 @@ import { DatabaseService } from '@/database/database.service';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   private readonly REFRESH_TOKEN_COOKIE_NAME = 'refresh_token';
   constructor(
     private readonly authService: AuthService,
     private readonly databaseService: DatabaseService,
   ) {}
 
-  @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
+  @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -41,7 +43,7 @@ export class AuthController {
     return { accessToken };
   }
 
-  @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
+  @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -56,27 +58,23 @@ export class AuthController {
       throw new UnauthorizedException('No refresh token provided');
     }
 
-    const user = await this.authService.verifyRefreshToken(refreshToken);
-    if (!user) {
-      throw new UnauthorizedException(
-        'Invalid refresh token (signature or expired)',
-      );
-    }
+    const [user, jti] = await this.authService.verifyRefreshToken(refreshToken);
 
     // Do this in a tx so we don't have dangling refresh tokens or something weird
     const token = await this.databaseService.$transaction(async (tx) => {
       const tokenId = await this.authService.validateRefreshToken(
-        user.id,
+        jti,
         refreshToken,
         tx,
       );
 
       if (!tokenId) {
+        this.logger.error('Could not find token by id');
         throw new UnauthorizedException('Invalid refresh token');
       }
 
       // Delete old token
-      await this.authService.removeRefreshToken(user.id, refreshToken, tx);
+      await this.authService.removeRefreshToken(jti, refreshToken, tx);
       // Generate new token
       return this.authService.generateRefreshToken(user.id, tx);
     });
@@ -95,9 +93,11 @@ export class AuthController {
 
     if (refreshToken) {
       await this.databaseService.$transaction(async (tx) => {
-        const user = await this.authService.verifyRefreshToken(refreshToken);
+        const [user, jti] =
+          await this.authService.verifyRefreshToken(refreshToken);
+
         if (user) {
-          await this.authService.removeRefreshToken(user.id, refreshToken, tx);
+          await this.authService.removeRefreshToken(jti, refreshToken, tx);
         }
       });
 

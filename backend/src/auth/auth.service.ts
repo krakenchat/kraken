@@ -1,12 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
 import { UserEntity } from 'src/user/dto/user-response.dto';
 import { JwtService } from '@nestjs/jwt';
 import { DatabaseService } from '@/database/database.service';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, RefreshToken } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class AuthService {
@@ -43,31 +44,35 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  async verifyRefreshToken(refreshToken: string) {
-    const payload = await this.jwtService.verifyAsync<{ sub: string }>(
-      refreshToken,
-      {
-        secret: this.jwtRefreshSecret,
-        ignoreExpiration: false,
-      },
-    );
+  async verifyRefreshToken(
+    refreshToken: string,
+  ): Promise<[UserEntity, string]> {
+    const payload = await this.jwtService.verifyAsync<{
+      sub: string;
+      jti: string;
+    }>(refreshToken, {
+      secret: this.jwtRefreshSecret,
+      ignoreExpiration: false,
+    });
 
     if (!payload) {
-      return null;
+      throw new UnauthorizedException('Could not verify refresh token');
     }
 
     const user = await this.userService.findById(payload.sub);
 
     if (!user) {
-      return null;
+      throw new UnauthorizedException('Could not find user');
     }
 
-    return user;
+    return [user, payload.jti];
   }
 
   async generateRefreshToken(userId: string, tx?: Prisma.TransactionClient) {
+    // generate a MongoDB ObjectId for the jti
+    const jti = new ObjectId().toHexString();
     const refreshToken = this.jwtService.sign(
-      { sub: userId },
+      { sub: userId, jti },
       {
         secret: this.jwtRefreshSecret,
         expiresIn: '30d',
@@ -78,6 +83,7 @@ export class AuthService {
     const client = tx ?? this.databaseService;
     await client.refreshToken.create({
       data: {
+        id: jti,
         userId,
         tokenHash: hashed,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -88,55 +94,52 @@ export class AuthService {
   }
 
   async removeRefreshToken(
-    userId: string,
+    jti: string,
     refreshToken: string,
     tx?: Prisma.TransactionClient,
   ) {
     const client = tx ?? this.databaseService;
-    for await (const token of this.findMatchingTokens(
-      userId,
-      refreshToken,
-      tx,
-    )) {
-      await client.refreshToken.delete({
-        where: { id: token.id },
-      });
+    const token = await this.findMatchingToken(jti, refreshToken, tx);
+
+    if (!token) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
+
+    await client.refreshToken.delete({
+      where: { id: token.id },
+    });
   }
 
   async validateRefreshToken(
-    userId: string,
+    jti: string,
     refreshToken: string,
     tx?: Prisma.TransactionClient,
   ): Promise<string | null> {
-    for await (const token of this.findMatchingTokens(
-      userId,
-      refreshToken,
-      tx,
-    )) {
-      if (token.expiresAt > new Date()) {
-        return token.id;
-      }
+    const token = await this.findMatchingToken(jti, refreshToken, tx);
+    if (token && token.expiresAt > new Date()) {
+      return token.id;
     }
 
     return null;
   }
 
-  private async *findMatchingTokens(
-    userId: string,
+  private async findMatchingToken(
+    jti: string,
     refreshToken: string,
     tx?: Prisma.TransactionClient,
-  ): AsyncGenerator<RefreshToken> {
+  ) {
     const client = tx ?? this.databaseService;
-    const tokens = await client.refreshToken.findMany({
-      where: { userId },
+    const token = await client.refreshToken.findUnique({
+      where: { id: jti },
     });
 
-    for (const token of tokens) {
-      const isMatch = await bcrypt.compare(refreshToken, token.tokenHash);
-      if (isMatch) {
-        yield token;
-      }
+    if (!token) {
+      return null;
+    }
+
+    const isMatch = await bcrypt.compare(refreshToken, token.tokenHash);
+    if (isMatch) {
+      return token;
     }
   }
 
