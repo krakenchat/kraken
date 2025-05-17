@@ -2,15 +2,10 @@ import React from "react";
 import { useMyCommunitiesQuery } from "../../features/community/communityApiSlice";
 import Drawer from "@mui/material/Drawer";
 import Box from "@mui/material/Box";
-import Avatar from "@mui/material/Avatar";
-import Tooltip from "@mui/material/Tooltip";
 import { styled } from "@mui/system";
-import IconButton from "@mui/material/IconButton";
-import MenuOpenIcon from "@mui/icons-material/MenuOpen";
-import MenuIcon from "@mui/icons-material/Menu";
-import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
+import CommunityListItem from "./CommunityListItem";
 
 export interface Community {
   id: string;
@@ -22,6 +17,7 @@ export interface Community {
 }
 
 interface CommunityToggleProps {
+  isExpanded: boolean;
   appBarHeight: number;
 }
 
@@ -50,7 +46,6 @@ const Sidebar = styled(Drawer, {
     top: appBarHeight,
     height: `calc(100vh - ${appBarHeight}px)`,
     transition: "width 0.3s cubic-bezier(0.4,0,0.2,1)",
-    // Remove explicit background, let theme handle it
     overflowX: "hidden",
   },
   "&.MuiDrawer-root": {
@@ -61,162 +56,53 @@ const Sidebar = styled(Drawer, {
 
 const CommunityList = styled(Box, {
   shouldForwardProp: (prop) => prop !== "expanded",
-})<{ expanded: boolean }>(({ expanded }) => ({
-  display: "flex",
-  flexDirection: "column",
-  alignItems: expanded ? "stretch" : "center",
-  gap: 12,
-  width: "100%",
-  paddingLeft: expanded ? 12 : 0,
-  paddingRight: expanded ? 12 : 0,
-}));
+})<{ expanded: boolean }>(({ expanded }) => {
+  return {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: expanded ? "stretch" : "center",
+    gap: 12,
+    width: "100%",
+    paddingRight: expanded ? 4 : 0,
+    paddingLeft: expanded ? 4 : 0,
+  };
+});
 
-// Deterministic hash to color function
-function stringToColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  // Generate color in HSL for better distribution
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 65%, 55%)`;
-}
-
-const CommunityToggle: React.FC<CommunityToggleProps> = ({ appBarHeight }) => {
+const CommunityToggle: React.FC<CommunityToggleProps> = ({
+  appBarHeight,
+  isExpanded,
+}) => {
   const { data: communities, isLoading, error } = useMyCommunitiesQuery();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [expanded, setExpanded] = React.useState(false);
-
-  const getCommunityAvatar = (community: Community) => {
-    return (
-      community.avatar ||
-      community.name
-        .split(" ")
-        .slice(0, 2)
-        .map((char) => char[0].toUpperCase())
-        .join("")
-    );
-  };
 
   return (
     <Sidebar
       variant="permanent"
       anchor="left"
       appBarHeight={appBarHeight}
-      expanded={expanded}
+      expanded={isExpanded}
       isMobile={isMobile}
     >
       <Box
         sx={{
           width: "100%",
           display: "flex",
-          justifyContent: expanded ? "flex-end" : "center",
+          justifyContent: isExpanded ? "flex-end" : "center",
           mb: 2,
         }}
-      >
-        <IconButton
-          size="small"
-          onClick={() => setExpanded((e) => !e)}
-          sx={{
-            // Remove explicit color/background, let theme handle it
-            mb: 1,
-          }}
-        >
-          {expanded ? <MenuOpenIcon /> : <MenuIcon />}
-        </IconButton>
-      </Box>
-      <CommunityList expanded={expanded}>
+      ></Box>
+      <CommunityList expanded={isExpanded}>
         {isLoading && <Box color="grey.500">Loading...</Box>}
         {error && <Box color="error.main">Error loading</Box>}
         {communities && communities.length > 0
-          ? communities.map((community: Community) => {
-              const content = (
-                <Box
-                  key={community.id}
-                  sx={{
-                    position: "relative",
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    minHeight: 56,
-                    // Remove explicit background, let theme handle it
-                    mb: 1,
-                    cursor: "pointer",
-                    transition: "background 0.2s",
-                  }}
-                >
-                  <Avatar
-                    sx={{
-                      width: 48,
-                      height: 48,
-                      bgcolor: !community.avatar
-                        ? stringToColor(community.id)
-                        : undefined,
-                      fontWeight: 700,
-                      fontSize: 24,
-                      border: "2px solid transparent",
-                      ml: expanded ? 0 : "auto",
-                      mr: expanded ? 2 : "auto",
-                      zIndex: 1,
-                      transition: "box-shadow 0.2s",
-                      "&:hover": {
-                        boxShadow: "0 0 0 2px #5865f2",
-                      },
-                      cursor: "pointer",
-                    }}
-                    src={community.avatar || undefined}
-                    alt={community.name}
-                  >
-                    {getCommunityAvatar(community)}
-                  </Avatar>
-                  {expanded && (
-                    <Box sx={{ flex: 1, minWidth: 0, zIndex: 1 }}>
-                      <Typography
-                        variant="subtitle1"
-                        noWrap
-                        sx={{ fontWeight: 600 }}
-                      >
-                        {community.name}
-                      </Typography>
-                      {community.description && (
-                        <Typography
-                          variant="body2"
-                          noWrap
-                          sx={{ opacity: 0.8, fontSize: 13 }}
-                        >
-                          {community.description}
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-                  {community.banner && expanded && (
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        inset: 0,
-                        zIndex: 0,
-                        background: `linear-gradient(90deg, rgba(24,25,28,0.7) 60%, rgba(24,25,28,0.2) 100%)`,
-                      }}
-                    />
-                  )}
-                </Box>
-              );
-              return expanded ? (
-                content
-              ) : (
-                <Tooltip
-                  title={community.name}
-                  placement="right"
-                  key={community.id}
-                  arrow
-                >
-                  {content}
-                </Tooltip>
-              );
-            })
+          ? communities.map((community: Community) => (
+              <CommunityListItem
+                key={community.id}
+                community={community}
+                isExpanded={isExpanded}
+              />
+            ))
           : !isLoading && (
               <Box color="grey.500" fontSize={12}>
                 No communities

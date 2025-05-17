@@ -1,37 +1,52 @@
 import React from "react";
-import { Box, AppBar, Toolbar, Typography, Button } from "@mui/material";
-import { Link, Outlet } from "react-router-dom";
+import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import { Outlet } from "react-router-dom";
 import { useProfileQuery } from "./features/users/usersSlice";
 import { useLazyLogoutQuery } from "./features/auth/authSlice";
 import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
 import CommunityToggle from "./components/Community/CommunityToggle";
+import NavigationLinks from "./components/NavBar/NavigationLinks";
+import ProfileIcon from "./components/NavBar/ProfileIcon";
+import type { User } from "./types/auth.type";
 
-const APPBAR_HEIGHT = 64; // px, adjust if your AppBar is a different height
-const SIDEBAR_WIDTH = 80; // px, matches CommunityToggle Drawer
+const APPBAR_HEIGHT = 64;
+const SIDEBAR_WIDTH = 80;
+const settings = ["Profile", "Account", "Dashboard", "Logout"];
 
 const Layout: React.FC = () => {
-  const { data, isLoading, isError } = useProfileQuery(undefined);
+  const { data: userData, isLoading, isError } = useProfileQuery(undefined);
   const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
+  const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
+  const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
+    null
+  );
+
+  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElUser(event.currentTarget);
+  };
+
+  const handleCloseUserMenu = () => {
+    setAnchorElUser(null);
+  };
 
   const handleLogout = async () => {
-    // Clear any authentication tokens or session data here
     await logout(null, false).unwrap();
-    localStorage.removeItem("accessToken"); // Assuming you store the token in local storage
-    window.location.href = "/login"; // Redirect to login after logout
+    localStorage.removeItem("accessToken");
+    window.location.href = "/login";
   };
+
+  // Fix userData type for ProfileIcon
+  const profileUserData = userData
+    ? {
+        displayName: userData.displayName ?? undefined,
+        avatarUrl: userData.avatarUrl ?? undefined,
+      }
+    : undefined;
 
   return (
     <>
-      <AppBar
-        position="fixed"
-        sx={{
-          zIndex: 1201,
-          width: "100vw",
-          left: 0,
-          top: 0,
-          height: APPBAR_HEIGHT,
-        }}
-      >
+      <AppBar position="fixed">
         <Toolbar sx={{ minHeight: APPBAR_HEIGHT }}>
           <div
             style={{
@@ -42,50 +57,42 @@ const Layout: React.FC = () => {
               gap: "0.25em",
             }}
           >
+            <IconButton
+              size="large"
+              edge="start"
+              color="inherit"
+              aria-label="menu"
+              onClick={() => setIsMenuExpanded(!isMenuExpanded)}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
             <Typography variant="h6">Kraken</Typography>
-            <ThemeToggle />
           </div>
-          <Link
-            to="/"
-            style={{ color: "white", textDecoration: "none", marginRight: 16 }}
-          >
-            Home
-          </Link>
-          {isLoading ? (
-            <Typography
-              variant="body2"
-              sx={{ color: "white", marginRight: 16 }}
-            >
-              Loading...
-            </Typography>
-          ) : isError || !data ? (
-            <>
-              <Link
-                to="/login"
-                style={{
-                  color: "white",
-                  textDecoration: "none",
-                  marginRight: 16,
-                }}
-              >
-                Login
-              </Link>
-              <Link to="/register" style={{ textDecoration: "none" }}>
-                Register
-              </Link>
-            </>
-          ) : (
-            <Button
-              onClick={handleLogout}
-              disabled={logoutLoading}
-              sx={{ color: "white", textTransform: "none" }}
-            >
-              Logout
-            </Button>
+          <NavigationLinks
+            isLoading={isLoading}
+            isError={isError}
+            userData={userData as User | undefined}
+            handleLogout={handleLogout}
+            logoutLoading={logoutLoading}
+          />
+          <ThemeToggle />
+          &nbsp;
+          {!isLoading && (
+            <ProfileIcon
+              userData={profileUserData}
+              anchorElUser={anchorElUser}
+              handleOpenUserMenu={handleOpenUserMenu}
+              handleCloseUserMenu={handleCloseUserMenu}
+              settings={settings}
+            />
           )}
         </Toolbar>
       </AppBar>
-      <CommunityToggle appBarHeight={APPBAR_HEIGHT} />
+      <CommunityToggle
+        isExpanded={isMenuExpanded}
+        appBarHeight={APPBAR_HEIGHT}
+      />
       <Box
         sx={{
           position: "absolute",

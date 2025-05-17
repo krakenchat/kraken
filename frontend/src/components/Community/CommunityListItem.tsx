@@ -1,0 +1,134 @@
+import React from "react";
+import Box from "@mui/material/Box";
+import Avatar from "@mui/material/Avatar";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { Community } from "../../types/community.type";
+import { Button } from "@mui/material";
+
+interface CommunityListItemProps {
+  community: Community;
+  isExpanded: boolean;
+}
+
+// Deterministic hash to color function
+function stringToColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Generate color in HSL for better distribution
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 65%, 55%)`;
+}
+
+function getCommunityAvatar(community: Community): string {
+  return (
+    community.avatar ||
+    community.name
+      .split(" ")
+      .slice(0, 2)
+      .map((char) => char[0].toUpperCase())
+      .join("")
+  );
+}
+
+const CommunityListItem: React.FC<CommunityListItemProps> = ({
+  community,
+  isExpanded,
+}) => {
+  const content = (
+    <Button variant="text" sx={{ width: "100%", padding: 0 }}>
+      <Box
+        sx={{
+          position: "relative",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          borderRadius: 2,
+          overflow: "hidden",
+          padding: "8px",
+          // mb: 1,
+          transition: "background 0.2s",
+        }}
+      >
+        <Avatar
+          sx={{
+            width: 48,
+            height: 48,
+            bgcolor: !community.avatar
+              ? stringToColor(community.id)
+              : undefined,
+            fontWeight: 700,
+            fontSize: 24,
+            ml: isExpanded ? 0 : "auto",
+            mr: isExpanded ? 2 : "auto",
+            zIndex: 1,
+            transition: "box-shadow 0.2s",
+          }}
+          src={community.avatar || undefined}
+          alt={community.name}
+        >
+          {getCommunityAvatar(community)}
+        </Avatar>
+        {isExpanded && (
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              zIndex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "start",
+              textTransform: "none",
+            }}
+          >
+            <Typography
+              variant="subtitle1"
+              noWrap
+              sx={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "text.primary",
+                alignItems: "left",
+              }}
+            >
+              {community.name}
+            </Typography>
+            {community.description && (
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{ opacity: 0.8, fontSize: 12, color: "text.secondary" }}
+              >
+                {community.description}
+              </Typography>
+            )}
+          </Box>
+        )}
+        {community.banner && isExpanded && (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 0,
+              background: `url(${community.banner})`,
+              backgroundSize: "cover",
+              backgroundRepeat: "no-repeat",
+              filter: "blur(2px)",
+            }}
+          />
+        )}
+      </Box>
+    </Button>
+  );
+  return isExpanded ? (
+    content
+  ) : (
+    <Tooltip title={community.name} placement="right" arrow>
+      {content}
+    </Tooltip>
+  );
+};
+
+export default CommunityListItem;
