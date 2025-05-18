@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { TimingInterceptor } from './timing/timing.interceptor';
+import { RedisIoAdapter } from './adapters/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,6 +18,11 @@ async function bootstrap() {
     }),
     bufferLogs: true,
   });
+
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+
+  app.useWebSocketAdapter(redisIoAdapter);
 
   app.useGlobalInterceptors(new TimingInterceptor());
   app.setGlobalPrefix('api');

@@ -9,16 +9,20 @@ generator client {
 }
 
 model Message {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
-  channelId   String
-  authorId    String
-  spans       Span[]
-  attachments Attachment[]
-  reactions   Reaction[]
-  sentAt      DateTime     @default(now())
-  editedAt    DateTime?
-  deletedAt   DateTime?
-  mentions    Mention[] // Denormalized for fast querying
+  id                   String       @id @default(auto()) @map("_id") @db.ObjectId
+  channelId            String?      @db.ObjectId // Now optional, for DMs
+  directMessageGroupId String?      @db.ObjectId // New, for DMs
+  authorId             String
+  spans                Span[]
+  attachments          Attachment[]
+  reactions            Reaction[]
+  sentAt               DateTime     @default(now())
+  editedAt             DateTime?
+  deletedAt            DateTime?
+  mentions             Mention[] // Denormalized for fast querying
+
+  channel            Channel?            @relation(fields: [channelId], references: [id])
+  directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id])
 }
 
 model User {
@@ -39,15 +43,19 @@ model User {
   UserRoles UserRoles[]
 
   RefreshToken RefreshToken[]
+
+  directMessageGroupMemberships DirectMessageGroupMember[]
+  friendshipsA                  Friendship[]               @relation("FriendshipA")
+  friendshipsB                  Friendship[]               @relation("FriendshipB")
 }
 
 model RefreshToken {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String   @db.ObjectId
-  tokenHash  String
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
-  user       User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  tokenHash String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model InstanceInvite {
@@ -84,7 +92,7 @@ model Community {
   avatar      String?
   banner      String?
   description String?
-  UserRoles UserRoles[]
+  UserRoles   UserRoles[]
 
   @@unique([name])
 }
@@ -96,6 +104,7 @@ model Channel {
   community   Community?  @relation(fields: [communityId], references: [id])
   createdAt   DateTime    @default(now())
   type        ChannelType @default(TEXT)
+  Message     Message[]
 
   @@unique([communityId, name])
 }
@@ -140,6 +149,44 @@ model UserRoles {
   role           Role       @relation(fields: [roleId], references: [id])
 
   @@unique([userId, communityId, roleId])
+}
+
+model DirectMessageGroup {
+  id        String                     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String? // Optional, for group DMs
+  members   DirectMessageGroupMember[]
+  createdAt DateTime                   @default(now())
+  messages  Message[]                  @relation("DirectMessageGroupMessages")
+  isGroup   Boolean                    @default(false) // true for group DMs, false for 1:1
+}
+
+model DirectMessageGroupMember {
+  id       String             @id @default(auto()) @map("_id") @db.ObjectId
+  groupId  String             @db.ObjectId
+  userId   String             @db.ObjectId
+  group    DirectMessageGroup @relation(fields: [groupId], references: [id])
+  user     User               @relation(fields: [userId], references: [id])
+  joinedAt DateTime           @default(now())
+
+  @@unique([groupId, userId])
+}
+
+model Friendship {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  userAId   String           @db.ObjectId
+  userBId   String           @db.ObjectId
+  createdAt DateTime         @default(now())
+  status    FriendshipStatus @default(PENDING)
+  userA     User             @relation("FriendshipA", fields: [userAId], references: [id])
+  userB     User             @relation("FriendshipB", fields: [userBId], references: [id])
+
+  @@unique([userAId, userBId])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
 }
 
 enum ChannelType {
