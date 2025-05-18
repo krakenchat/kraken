@@ -1,0 +1,98 @@
+### Login
+# @name login
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin"
+}
+
+###
+# @name refresh
+POST http://localhost:3000/api/auth/refresh
+
+###
+# @name createCommunity
+POST http://localhost:3000/api/community
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+    "name": "{{$guid}} Community",
+    "description": "Another new community"
+}
+
+### 
+
+@jwt = {{login.response.body.accessToken}}
+@jwt = {{refresh.response.body.accessToken}}
+@communityId = {{createCommunity.response.body.id}}
+
+###
+# @name createChannel
+POST http://localhost:3000/api/channels
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+    "name": "My New Text Chnanel - {{$guid}}",
+    "communityId": "{{communityId}}",
+    "type": "TEXT"
+}
+
+### 
+
+@channelId = {{createChannel.response.body.id}}
+
+### Create a new message
+# @name createMessage
+POST http://localhost:3000/api/messages
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+  "channelId": "{{channelId}}",
+  "spans": [
+    {
+      "text": "Hello, this is a test message!",
+      "type": "PLAINTEXT"
+    }
+  ],
+  "attachments": [],
+  "reactions": []
+}
+
+###
+@messageId = {{createMessage.response.body.id}}
+
+
+### Get all messages for a channel
+GET http://localhost:3000/api/messages/channel/{{channelId}}?limit=50
+Authorization: Bearer {{jwt}}
+
+### Get a single message by ID
+GET http://localhost:3000/api/messages/{{messageId}}
+Authorization: Bearer {{jwt}}
+
+### Update a message
+PATCH http://localhost:3000/api/messages/{{messageId}}
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+  "spans": [
+    {
+      "text": "Updated message content",
+      "type": "PLAINTEXT"
+    }
+  ]
+}
+
+### Delete a message
+DELETE http://localhost:3000/api/messages/{{messageId}}
+Authorization: Bearer {{jwt}}
+
+### Get a single message by ID
+GET http://localhost:3000/api/messages/{{messageId}}
+Authorization: Bearer {{jwt}}

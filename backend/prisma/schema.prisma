@@ -19,7 +19,6 @@ model Message {
   sentAt               DateTime     @default(now())
   editedAt             DateTime?
   deletedAt            DateTime?
-  mentions             Mention[] // Denormalized for fast querying
 
   channel            Channel?            @relation(fields: [channelId], references: [id])
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id])
@@ -249,7 +248,7 @@ type Span {
   type        SpanType
   text        String?
   userId      String? // For USER_MENTION
-  specialKind String? // For SPECIAL_MENTION: "here", "everyone", etc
+  specialKind String? // For SPECIAL_MENTION: "here", "everyone", "mods", "channel" etc
   channelId   String? // For CHANNEL_MENTION
   communityId String? // For COMMUNITY_MENTION
   aliasId     String? // For ALIAS_MENTION
@@ -275,13 +274,4 @@ type Attachment {
 type Reaction {
   emoji   String
   userIds String[]
-}
-
-// Mentions array denormalized for notifications/etc
-type Mention {
-  userId      String?
-  specialKind String?
-  channelId   String?
-  communityId String?
-  aliasId     String?
 }

@@ -12,6 +12,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ChannelsModule } from './channels/channels.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ChannelsModule } from './channels/channels.module';
     RolesModule,
     UserModule,
     CommunityModule,
+    MessagesModule,
     ThrottlerModule.forRoot([
       {
         name: 'short',
