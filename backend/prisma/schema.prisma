@@ -192,7 +192,6 @@ enum FriendshipStatus {
 enum ChannelType {
   TEXT
   VOICE
-  VIDEO
 }
 
 enum RbacActions {
@@ -232,6 +231,7 @@ enum RbacActions {
   READ_INSTANCE_INVITE
   READ_MEMBER
   UPDATE_COMMUNITY
+  UPDATE_CHANNEL
   UPDATE_USER
   UPDATE_ROLE
   UPDATE_ALIAS_GROUP

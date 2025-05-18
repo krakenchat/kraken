@@ -1,0 +1,94 @@
+###
+# @name login
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin"
+}
+
+###
+# @name refresh
+POST http://localhost:3000/api/auth/refresh
+
+###
+
+###
+
+# @name createCommunity
+POST http://localhost:3000/api/community
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+    "name": "{{$guid}} Community",
+    "description": "Another new community"
+}
+
+### 
+
+@jwt = {{login.response.body.accessToken}}
+@jwt = {{refresh.response.body.accessToken}}
+@communityId = {{createCommunity.response.body.id}}
+
+###
+# @name createChannel
+POST http://localhost:3000/api/channels
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+    "name": "My New Text Chnanel - {{$guid}}",
+    "communityId": "{{communityId}}",
+    "type": "TEXT"
+}
+
+### 
+
+###
+# @name createVoiceChannel
+POST http://localhost:3000/api/channels
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+    "name": "My New Voice Chnanel",
+    "communityId": "{{communityId}}",
+    "type": "VOICE"
+}
+
+### 
+
+@channelId = {{createChannel.response.body.id}}
+
+
+### 
+
+GET http://localhost:3000/api/channels/{{channelId}}
+Authorization: Bearer {{jwt}}
+
+###
+
+PATCH http://localhost:3000/api/channels/{{channelId}}
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+    "name": "My New Voice Chnanel {{$guid}}",
+    "communityId": "{{communityId}}",
+    "type": "VOICE"
+}
+
+### 
+
+DELETE http://localhost:3000/api/channels/{{channelId}}
+Authorization: Bearer {{jwt}}
+
+
+### 
+
+GET http://localhost:3000/api/channels/{{channelId}}
+Authorization: Bearer {{jwt}}
+
+###

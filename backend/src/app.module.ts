@@ -11,6 +11,7 @@ import { CommunityModule } from './community/community.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ChannelsModule } from './channels/channels.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
         limit: 100,
       },
     ]),
+    ChannelsModule,
   ],
   controllers: [AppController],
   providers: [

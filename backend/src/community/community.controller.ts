@@ -19,6 +19,7 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import { UserEntity } from '@/user/dto/user-response.dto';
+import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 
 @Controller('community')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -49,12 +50,14 @@ export class CommunityController {
 
   @Get(':id')
   @RequiredActions(RbacActions.READ_COMMUNITY)
+  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id' })
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.communityService.findOne(id);
   }
 
   @Patch(':id')
   @RequiredActions(RbacActions.UPDATE_COMMUNITY)
+  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id' })
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateCommunityDto: UpdateCommunityDto,
@@ -65,6 +68,7 @@ export class CommunityController {
   @Delete(':id')
   @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_COMMUNITY)
+  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id' })
   remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.communityService.remove(id);
   }
