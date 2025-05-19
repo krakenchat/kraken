@@ -7,9 +7,10 @@ export enum RbacResourceType {
 }
 
 export enum ResourceIdSource {
-  PARAM = 'param',
   BODY = 'body',
   QUERY = 'query',
+  PARAM = 'param',
+  PAYLOAD = 'payload', // Add this for WebSocket message payloads
 }
 
 export interface RbacResourceOptions {

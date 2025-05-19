@@ -40,7 +40,10 @@ export class RbacGuard implements CanActivate {
     this.logRbacCheck(requiredRbacActions, user, resourceId, resourceType);
 
     if (!user) return false;
-    if (user.role === InstanceRole.OWNER) return true;
+    if (user.role === InstanceRole.OWNER) {
+      this.logger.log('User is an owner, skipping RBAC check');
+      return true;
+    }
 
     return this.rolesService.verifyActionsForUserAndResource(
       user.id,
@@ -69,8 +72,24 @@ export class RbacGuard implements CanActivate {
   }
 
   private getUser(context: ExecutionContext): UserEntity | undefined {
-    const req: Request = context.switchToHttp().getRequest();
-    return req.user as UserEntity | undefined;
+    if (context.getType() === 'http') {
+      const req: Request = context.switchToHttp().getRequest();
+      return req.user as UserEntity | undefined;
+    }
+    if (context.getType() === 'ws') {
+      const client = context.switchToWs().getClient<Record<string, any>>();
+      if (
+        client &&
+        typeof client === 'object' &&
+        'handshake' in client &&
+        typeof client.handshake === 'object'
+      ) {
+        // The JWT guard should have attached the user to the handshake
+        const handshake = client.handshake as { user?: UserEntity };
+        return handshake.user;
+      }
+    }
+    return undefined;
   }
 
   private logRbacCheck(
@@ -93,17 +112,25 @@ export class RbacGuard implements CanActivate {
     context: ExecutionContext,
     resourceOptions: RbacResourceOptions,
   ): string | undefined {
-    const req: Request = context.switchToHttp().getRequest();
-    switch (resourceOptions.source) {
-      case ResourceIdSource.BODY:
-        return (req.body as Record<string, any>)?.[resourceOptions.idKey] as
-          | string
-          | undefined;
-      case ResourceIdSource.QUERY:
-        return req.query?.[resourceOptions.idKey] as string | undefined;
-      case ResourceIdSource.PARAM:
-      default:
-        return req.params?.[resourceOptions.idKey] as string | undefined;
+    if (context.getType() === 'http') {
+      const req: Request = context.switchToHttp().getRequest();
+      switch (resourceOptions.source) {
+        case ResourceIdSource.BODY:
+          return (req.body as Record<string, any>)?.[resourceOptions.idKey] as
+            | string
+            | undefined;
+        case ResourceIdSource.QUERY:
+          return req.query?.[resourceOptions.idKey] as string | undefined;
+        case ResourceIdSource.PARAM:
+        default:
+          return req.params?.[resourceOptions.idKey] as string | undefined;
+      }
     }
+    if (context.getType() === 'ws') {
+      // For WebSocket, extract from the message payload
+      const data: Record<string, any> = context.switchToWs().getData();
+      return data[resourceOptions.idKey] as string | undefined;
+    }
+    return undefined;
   }
 }
