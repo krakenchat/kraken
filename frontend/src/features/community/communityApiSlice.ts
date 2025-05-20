@@ -17,7 +17,13 @@ export const communityApi = createApi({
         method: "GET",
       }),
     }),
+    getCommunityById: builder.query<Community, string>({
+      query: (communityId) => ({
+        url: `/${communityId}`,
+        method: "GET",
+      }),
+    }),
   }),
 });
 
-export const { useMyCommunitiesQuery } = communityApi;
+export const { useMyCommunitiesQuery, useGetCommunityByIdQuery } = communityApi;

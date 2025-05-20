@@ -1,7 +1,5 @@
 # TODOs
 
-## RBAC
-
 ### Auth:
 
 - [x] Implement Role-Based Access Control (RBAC) for different user roles.
@@ -23,7 +21,8 @@
 
 ### Caching:
 
-- [ ] Add it.
+- [x] Add it.
+- [ ] Instrument the app and find what calls are taking time and are good cache candidates
 
 ### Reverse proxy:
 
@@ -45,3 +44,8 @@
 ### Resource Limits
 
 - [ ] Need to enforce some degree of resource limits -- max # communities, max # channels, maybe some user-level message limit as well
+
+### Presence
+
+- [ ] Go through the cases to handle there since it's kind of a lot
+- [ ] Scope down presence lists somehow

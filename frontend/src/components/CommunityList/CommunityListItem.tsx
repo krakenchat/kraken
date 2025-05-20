@@ -5,10 +5,12 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { Community } from "../../types/community.type";
 import { Button } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 interface CommunityListItemProps {
   community: Community;
   isExpanded: boolean;
+  selected?: boolean;
 }
 
 // Deterministic hash to color function
@@ -36,9 +38,21 @@ function getCommunityAvatar(community: Community): string {
 const CommunityListItem: React.FC<CommunityListItemProps> = ({
   community,
   isExpanded,
+  selected = false,
 }) => {
+  const navigate = useNavigate();
+
+  const navigateToCommunity = (communityId: string) => {
+    // use react router to go to community/:communityId
+    navigate(`/community/${communityId}`);
+  };
+
   const content = (
-    <Button variant="text" sx={{ width: "100%", padding: 0 }}>
+    <Button
+      onClick={() => navigateToCommunity(community.id)}
+      variant="text"
+      sx={{ width: "100%", padding: 0 }}
+    >
       <Box
         sx={{
           position: "relative",
@@ -48,8 +62,9 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
           borderRadius: 2,
           overflow: "hidden",
           padding: "8px",
-          // mb: 1,
-          transition: "background 0.2s",
+          transition: "background 0.2s, box-shadow 0.2s",
+          background: selected ? "rgba(25, 118, 210, 0.12)" : undefined,
+          boxShadow: selected ? "0 0 0 2px #1976d2" : undefined,
         }}
       >
         <Avatar

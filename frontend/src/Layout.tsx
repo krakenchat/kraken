@@ -5,7 +5,7 @@ import { Outlet } from "react-router-dom";
 import { useProfileQuery } from "./features/users/usersSlice";
 import { useLazyLogoutQuery } from "./features/auth/authSlice";
 import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
-import CommunityToggle from "./components/Community/CommunityToggle";
+import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
 import type { User } from "./types/auth.type";
@@ -103,7 +103,7 @@ const Layout: React.FC = () => {
           overflow: "auto",
         }}
       >
-        <Box sx={{ p: 2, boxShadow: 3 }}>
+        <Box>
           <Outlet />
         </Box>
       </Box>

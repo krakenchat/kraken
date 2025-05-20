@@ -6,6 +6,7 @@ import RegisterPage from "./pages/RegisterPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import LoremIpsum from "./pages/LoremIpsum";
+import CommunityPage from "./pages/CommunityPage";
 
 const darkTheme = createTheme({
   colorSchemes: {
@@ -23,6 +24,10 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="community/:communityId">
+            <Route index element={<CommunityPage />} />
+            <Route path="channel/:channelId" element={<CommunityPage />} />
+          </Route>
           <Route path="lorem" element={<LoremIpsum />} />
         </Route>
       </Routes>

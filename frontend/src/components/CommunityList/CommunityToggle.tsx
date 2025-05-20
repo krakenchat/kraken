@@ -6,6 +6,7 @@ import { styled } from "@mui/system";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import CommunityListItem from "./CommunityListItem";
+import { useParams } from "react-router-dom";
 
 export interface Community {
   id: string;
@@ -75,6 +76,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
   const { data: communities, isLoading, error } = useMyCommunitiesQuery();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { communityId } = useParams();
 
   return (
     <Sidebar
@@ -101,6 +103,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
                 key={community.id}
                 community={community}
                 isExpanded={isExpanded}
+                selected={communityId === community.id}
               />
             ))
           : !isLoading && (

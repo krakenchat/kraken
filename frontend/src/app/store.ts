@@ -2,18 +2,24 @@ import { configureStore } from "@reduxjs/toolkit";
 import { authApi } from "../features/auth/authSlice";
 import { usersApi } from "../features/users/usersSlice";
 import { communityApi } from "../features/community/communityApiSlice";
+import { channelApi } from "../features/channel/channelApiSlice";
+import { messagesApi } from "../features/messages/messagesApiSlice";
 
 export const store = configureStore({
   reducer: {
     [authApi.reducerPath]: authApi.reducer,
     [usersApi.reducerPath]: usersApi.reducer,
     [communityApi.reducerPath]: communityApi.reducer,
+    [channelApi.reducerPath]: channelApi.reducer,
+    [messagesApi.reducerPath]: messagesApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
       authApi.middleware,
       usersApi.middleware,
-      communityApi.middleware
+      communityApi.middleware,
+      channelApi.middleware,
+      messagesApi.middleware
     ),
 });
 
