@@ -16,6 +16,9 @@ import { MessagesModule } from './messages/messages.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { WebsocketService } from './websocket/websocket.service';
 import { WebsocketModule } from './websocket/websocket.module';
+import { RedisModule } from './redis/redis.module';
+import { CacheModule } from './cache/cache.module';
+import { PresenceModule } from './presence/presence.module';
 
 @Module({
   imports: [
@@ -48,6 +51,9 @@ import { WebsocketModule } from './websocket/websocket.module';
     ChannelsModule,
     RoomsModule,
     WebsocketModule,
+    RedisModule,
+    CacheModule,
+    PresenceModule,
   ],
   controllers: [AppController],
   providers: [

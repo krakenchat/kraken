@@ -10,12 +10,7 @@ export class WebsocketService {
   }
 
   sendToRoom(room: string, event: string, payload: any) {
-    console.log(`Sending to room ${room}:`, event, payload);
-    if (!this.server.to(room).emit(event, payload)) {
-      console.error(`Failed to send to room ${room}`);
-    } else {
-      console.log(`Successfully sent to room ${room}`);
-    }
+    this.server.to(room).emit(event, payload);
   }
 
   sendToAll(event: string, payload: any) {

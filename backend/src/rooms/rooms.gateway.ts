@@ -89,8 +89,9 @@ export class RoomsGateway
   @SubscribeMessage(ClientEvents.JOIN_ALL)
   joinAll(
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @MessageBody() communityId: string,
   ) {
-    return this.roomsService.joinAll(client);
+    return this.roomsService.joinAll(client, communityId);
   }
 
   @SubscribeMessage(ClientEvents.JOIN_ROOM)

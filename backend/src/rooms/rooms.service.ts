@@ -6,12 +6,18 @@ import { DatabaseService } from '@/database/database.service';
 export class RoomsService {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async joinAll(client: Socket & { handshake: { user: { id: string } } }) {
+  async joinAll(
+    client: Socket & { handshake: { user: { id: string } } },
+    communityId: string,
+  ) {
     // Get all channels for the user
     const channelMemberships =
       await this.databaseService.channelMembership.findMany({
         where: {
           userId: client.handshake.user.id,
+          channel: {
+            communityId,
+          },
         },
         include: {
           channel: true,

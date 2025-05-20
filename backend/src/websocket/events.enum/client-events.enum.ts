@@ -8,6 +8,7 @@ export enum ClientEvents {
   JOIN_ALL = 'joinAll',
   JOIN_ROOM = 'joinRoom',
   LEAVE_ROOM = 'leaveRoom',
+  PRESENCE_ONLINE = 'presenceOnline',
 
   // Messaging: Channels
   SEND_MESSAGE = 'sendMessage',
