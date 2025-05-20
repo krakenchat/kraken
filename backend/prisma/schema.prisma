@@ -46,6 +46,8 @@ model User {
   directMessageGroupMemberships DirectMessageGroupMember[]
   friendshipsA                  Friendship[]               @relation("FriendshipA")
   friendshipsB                  Friendship[]               @relation("FriendshipB")
+
+  ChannelMembership ChannelMembership[] @relation("UserChannelMemberships")
 }
 
 model RefreshToken {
@@ -97,15 +99,27 @@ model Community {
 }
 
 model Channel {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  communityId String      @db.ObjectId
-  community   Community?  @relation(fields: [communityId], references: [id])
-  createdAt   DateTime    @default(now())
-  type        ChannelType @default(TEXT)
-  Message     Message[]
+  id                String              @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  communityId       String              @db.ObjectId
+  community         Community?          @relation(fields: [communityId], references: [id])
+  createdAt         DateTime            @default(now())
+  type              ChannelType         @default(TEXT)
+  Message           Message[]
+  ChannelMembership ChannelMembership[] @relation("ChannelMembership")
 
   @@unique([communityId, name])
+}
+
+model ChannelMembership {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  user      User     @relation("UserChannelMemberships", fields: [userId], references: [id])
+  channel   Channel  @relation("ChannelMembership", fields: [channelId], references: [id])
+  joinedAt  DateTime @default(now())
+  userId    String   @db.ObjectId
+  channelId String   @db.ObjectId
+
+  @@unique([userId, channelId])
 }
 
 model AliasGroup {

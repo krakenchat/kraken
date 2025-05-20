@@ -7,6 +7,7 @@ import {
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import { DatabaseService } from '@/database/database.service';
+import { UserEntity } from '@/user/dto/user-response.dto';
 
 @Injectable()
 export class ChannelsService {
@@ -14,11 +15,22 @@ export class ChannelsService {
 
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async create(createChannelDto: CreateChannelDto) {
+  async create(createChannelDto: CreateChannelDto, user: UserEntity) {
     try {
-      return await this.databaseService.channel.create({
-        data: createChannelDto,
+      // Use a transaction to create the channel and the membership
+      const result = await this.databaseService.$transaction(async (prisma) => {
+        const channel = await prisma.channel.create({
+          data: createChannelDto,
+        });
+        await prisma.channelMembership.create({
+          data: {
+            userId: user.id,
+            channelId: channel.id,
+          },
+        });
+        return channel;
       });
+      return result;
     } catch (error) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error.code === 'P2002') {

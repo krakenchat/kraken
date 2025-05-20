@@ -13,6 +13,9 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
+import { RoomsModule } from './rooms/rooms.module';
+import { WebsocketService } from './websocket/websocket.service';
+import { WebsocketModule } from './websocket/websocket.module';
 
 @Module({
   imports: [
@@ -43,6 +46,8 @@ import { MessagesModule } from './messages/messages.module';
       },
     ]),
     ChannelsModule,
+    RoomsModule,
+    WebsocketModule,
   ],
   controllers: [AppController],
   providers: [
@@ -51,6 +56,7 @@ import { MessagesModule } from './messages/messages.module';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    WebsocketService,
   ],
 })
 export class AppModule {}

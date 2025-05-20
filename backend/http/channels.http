@@ -39,7 +39,7 @@ Content-Type: application/json
 Authorization: Bearer {{jwt}}
 
 {
-    "name": "My New Text Chnanel - {{$guid}}",
+    "name": "My New Text Channel - {{$guid}}",
     "communityId": "{{communityId}}",
     "type": "TEXT"
 }
@@ -53,7 +53,7 @@ Content-Type: application/json
 Authorization: Bearer {{jwt}}
 
 {
-    "name": "My New Voice Chnanel",
+    "name": "My New Voice Channel",
     "communityId": "{{communityId}}",
     "type": "VOICE"
 }
@@ -75,7 +75,7 @@ Content-Type: application/json
 Authorization: Bearer {{jwt}}
 
 {
-    "name": "My New Voice Chnanel {{$guid}}",
+    "name": "My New Voice Channel {{$guid}}",
     "communityId": "{{communityId}}",
     "type": "VOICE"
 }

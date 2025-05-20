@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   HttpCode,
+  Req,
 } from '@nestjs/common';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -18,6 +19,7 @@ import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
+import { UserEntity } from '@/user/dto/user-response.dto';
 
 @Controller('channels')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -28,8 +30,11 @@ export class ChannelsController {
   @HttpCode(201)
   @RequiredActions(RbacActions.CREATE_CHANNEL)
   @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id' })
-  create(@Body() createChannelDto: CreateChannelDto) {
-    return this.channelsService.create(createChannelDto);
+  create(
+    @Body() createChannelDto: CreateChannelDto,
+    @Req() req: { user: UserEntity },
+  ) {
+    return this.channelsService.create(createChannelDto, req.user);
   }
 
   @Get('/community/:communityId')

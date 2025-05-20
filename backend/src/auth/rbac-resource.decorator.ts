@@ -4,6 +4,7 @@ export enum RbacResourceType {
   COMMUNITY = 'COMMUNITY',
   CHANNEL = 'CHANNEL',
   INSTANCE = 'INSTANCE',
+  DM_GROUP = 'DM_GROUP',
 }
 
 export enum ResourceIdSource {
@@ -11,11 +12,12 @@ export enum ResourceIdSource {
   QUERY = 'query',
   PARAM = 'param',
   PAYLOAD = 'payload', // Add this for WebSocket message payloads
+  TEXT_PAYLOAD = 'text_payload', // Add this for WebSocket message payloads
 }
 
 export interface RbacResourceOptions {
   type: RbacResourceType;
-  idKey: string; // e.g., 'communityId'
+  idKey?: string; // e.g., 'communityId'
   source?: ResourceIdSource;
 }
 

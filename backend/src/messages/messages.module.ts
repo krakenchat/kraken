@@ -5,10 +5,18 @@ import { MessagesGateway } from './messages.gateway';
 import { DatabaseModule } from '@/database/database.module';
 import { UserModule } from '@/user/user.module';
 import { RolesModule } from '@/roles/roles.module';
+import { WebsocketModule } from '@/websocket/websocket.module';
+import { RoomsModule } from '@/rooms/rooms.module';
 
 @Module({
   controllers: [MessagesController],
   providers: [MessagesService, MessagesGateway],
-  imports: [DatabaseModule, UserModule, RolesModule],
+  imports: [
+    DatabaseModule,
+    UserModule,
+    RolesModule,
+    WebsocketModule,
+    RoomsModule,
+  ],
 })
 export class MessagesModule {}

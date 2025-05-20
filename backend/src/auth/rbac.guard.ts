@@ -114,22 +114,26 @@ export class RbacGuard implements CanActivate {
   ): string | undefined {
     if (context.getType() === 'http') {
       const req: Request = context.switchToHttp().getRequest();
+      const key = resourceOptions.idKey!;
       switch (resourceOptions.source) {
         case ResourceIdSource.BODY:
-          return (req.body as Record<string, any>)?.[resourceOptions.idKey] as
-            | string
-            | undefined;
+          return (req.body as Record<string, any>)?.[key] as string | undefined;
         case ResourceIdSource.QUERY:
-          return req.query?.[resourceOptions.idKey] as string | undefined;
+          return req.query?.[key] as string | undefined;
         case ResourceIdSource.PARAM:
+          return req.params?.[key] as string | undefined;
         default:
-          return req.params?.[resourceOptions.idKey] as string | undefined;
+          return undefined;
       }
     }
     if (context.getType() === 'ws') {
       // For WebSocket, extract from the message payload
-      const data: Record<string, any> = context.switchToWs().getData();
-      return data[resourceOptions.idKey] as string | undefined;
+      if (resourceOptions.source === ResourceIdSource.TEXT_PAYLOAD) {
+        return context.switchToWs().getData();
+      } else {
+        const data: Record<string, any> = context.switchToWs().getData();
+        return data[resourceOptions.idKey!] as string | undefined;
+      }
     }
     return undefined;
   }
