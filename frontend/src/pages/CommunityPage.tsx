@@ -44,13 +44,12 @@ const CommunityHeader = styled(Box)(({ theme }) => ({
   borderBottom: `1px solid ${theme.palette.divider}`,
 }));
 
-const Content = styled(Box)(({ theme }) => ({
+const Content = styled(Box)(() => ({
   flex: 1,
   display: "flex",
-  flexDirection: "column",
+  flexDirection: "column-reverse",
   alignItems: "center",
   justifyContent: "flex-start",
-  padding: theme.spacing(4, 2),
   overflowY: "auto",
   marginLeft: 280, // match Sidebar width
   height: "100%",
@@ -88,7 +87,7 @@ const CommunityPage: React.FC = () => {
       </Sidebar>
       <Content>
         {channelId && (
-          <Box sx={{ width: "100%", maxWidth: 600, mt: 4 }}>
+          <Box sx={{ width: "100%" }}>
             <ChannelMessageContainer channelId={channelId} />
           </Box>
         )}

@@ -1,6 +1,8 @@
-import { Typography } from "@mui/material";
+import Avatar from "@mui/material/Avatar";
+import { styled, Typography } from "@mui/material";
 import type { Message as MessageType, Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
+import { useGetUserByIdWithCacheQuery } from "../../features/users/usersSlice";
 
 interface MessageProps {
   message: MessageType;
@@ -44,19 +46,51 @@ function renderSpan(span: Span, idx: number) {
   }
 }
 
+const Container = styled("div")(({ theme }) => ({
+  padding: theme.spacing(0.5, 2),
+  display: "flex",
+  alignItems: "flex-start",
+  width: "100%",
+  marginBottom: theme.spacing(1),
+  "&:hover": {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
+
 function MessageComponent({ message }: MessageProps) {
+  const { data: author } = useGetUserByIdWithCacheQuery(message.authorId);
+
   return (
-    <div style={{ marginBottom: 12 }}>
-      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-        {message.authorId}
-      </Typography>
-      <Typography variant="body1">
-        {message.spans.map((span, idx) => renderSpan(span, idx))}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {new Date(message.sentAt).toLocaleString()}
-      </Typography>
-    </div>
+    <Container>
+      <div style={{ marginRight: 12, marginTop: 4 }}>
+        {author?.avatarUrl ? (
+          <Avatar
+            src={author.avatarUrl}
+            alt={author.displayName || author.username}
+            sx={{ width: 32, height: 32 }}
+          />
+        ) : (
+          <Avatar sx={{ width: 32, height: 32 }}>
+            {author?.displayName?.[0] || author?.username?.[0] || "?"}
+          </Avatar>
+        )}
+      </div>
+      <div>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          {author?.displayName || author?.username || message.authorId}
+          <Typography
+            sx={{ marginLeft: "6px" }}
+            variant="caption"
+            color="text.secondary"
+          >
+            {new Date(message.sentAt).toLocaleString()}
+          </Typography>
+        </Typography>
+        <Typography variant="body1">
+          {message.spans.map((span, idx) => renderSpan(span, idx))}
+        </Typography>
+      </div>
+    </Container>
   );
 }
 

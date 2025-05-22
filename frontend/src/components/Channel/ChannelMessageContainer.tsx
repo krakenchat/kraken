@@ -22,11 +22,13 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 
   return (
     <div
+      className="channel-message-container"
       style={{
         display: "flex",
         flexDirection: "column-reverse",
         gap: 0,
         height: "100%",
+        width: "100%",
         overflowY: "auto",
       }}
     >
