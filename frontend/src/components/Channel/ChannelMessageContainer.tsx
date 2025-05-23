@@ -83,9 +83,6 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   }
   if (error)
     return <Typography color="error">Error loading messages</Typography>;
-  if (!messages || messages.length === 0) {
-    return <Typography>No messages found.</Typography>;
-  }
 
   return (
     <div
