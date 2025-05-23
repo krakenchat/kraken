@@ -1,8 +1,8 @@
 import { useContext, useEffect } from "react";
-import { SocketContext } from "./SocketContext";
+import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from "../types/client-events.enum";
 
-export function useCommunitySocketJoin(communityId: string | undefined) {
+export function useCommunityJoin(communityId: string | undefined) {
   const socket = useContext(SocketContext);
   useEffect(() => {
     if (!socket || !communityId) return;

@@ -11,10 +11,15 @@ export interface ErrorPayload {
   [key: string]: unknown;
 }
 
-export type NewMessagePayload = Message;
-export type UpdateMessagePayload = Message;
+export interface NewMessagePayload {
+  message: Message;
+}
+export interface UpdateMessagePayload {
+  message: Message;
+}
 export interface DeleteMessagePayload {
   id: string;
+  channelId: string;
 }
 
 export type WebSocketEventPayloads = {

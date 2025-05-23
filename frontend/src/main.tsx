@@ -11,11 +11,11 @@ import { SocketProvider } from "./utils/SocketProvider";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Provider store={store}>
-      <SocketProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <SocketProvider>
           <App />
-        </BrowserRouter>
-      </SocketProvider>
+        </SocketProvider>
+      </BrowserRouter>
     </Provider>
   </StrictMode>
 );

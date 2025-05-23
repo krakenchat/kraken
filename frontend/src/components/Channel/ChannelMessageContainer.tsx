@@ -1,12 +1,20 @@
+import React from "react";
 import { useGetMessagesByChannelQuery } from "../../features/messages/messagesApiSlice";
 import MessageComponent from "../Message/MessageComponent";
 import { Typography } from "@mui/material";
 import MessageSkeleton from "../Message/MessageSkeleton";
 import MessageInput from "../Message/MessageInput";
 import { useProfileQuery } from "../../features/users/usersSlice";
-import { useCommunitySocketJoin } from "../../utils/useCommunitySocketJoin";
+import { useCommunityJoin } from "../../hooks/useCommunityJoin";
 import { useParams } from "react-router-dom";
-import { useChannelWebSocket } from "../../utils/useChannelWebSocket";
+import { useChannelWebSocket } from "../../hooks/useChannelWebSocket";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  appendMessages,
+  makeSelectMessagesByChannel,
+} from "../../features/messages/messagesSlice";
+import type { RootState } from "../../app/store";
+import type { Message } from "../../types/message.type";
 
 interface ChannelMessageContainerProps {
   channelId: string;
@@ -18,6 +26,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const { data, error, isLoading } = useGetMessagesByChannelQuery({
     channelId,
   });
+  const dispatch = useDispatch();
   const { data: user } = useProfileQuery();
   const authorId = user?.id || "";
 
@@ -25,8 +34,30 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const { communityId } = useParams<{
     communityId: string;
   }>();
-  useCommunitySocketJoin(communityId);
+  useCommunityJoin(communityId);
   useChannelWebSocket(communityId);
+
+  // Sync RTK Query data to Redux slice
+  React.useEffect(() => {
+    if (data && data.messages) {
+      dispatch(
+        appendMessages({
+          channelId,
+          messages: data.messages,
+          continuationToken: data.continuationToken,
+        })
+      );
+    }
+  }, [data, channelId, dispatch]);
+
+  // Memoized selector instance per component instance
+  const selectMessagesByChannel = React.useMemo(
+    makeSelectMessagesByChannel,
+    []
+  );
+  const messages: Message[] = useSelector((state: RootState) =>
+    selectMessagesByChannel(state, channelId)
+  );
 
   if (isLoading) {
     // Estimate how many skeletons to fill the viewport (e.g., 18px+8px per message, 100vh)
@@ -52,7 +83,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   }
   if (error)
     return <Typography color="error">Error loading messages</Typography>;
-  if (!data || !data.messages || data.messages.length === 0) {
+  if (!messages || messages.length === 0) {
     return <Typography>No messages found.</Typography>;
   }
 
@@ -76,7 +107,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       >
         <MessageInput channelId={channelId} authorId={authorId} />
       </div>
-      {data.messages.map((msg) => (
+      {messages.map((msg: Message) => (
         <MessageComponent key={msg.id} message={msg} />
       ))}
     </div>

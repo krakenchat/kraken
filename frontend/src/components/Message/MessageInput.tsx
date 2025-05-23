@@ -12,7 +12,7 @@ import { SpanType } from "../../types/message.type";
 import {
   useSendMessageSocket,
   NewMessagePayload,
-} from "../../utils/useSendMessageSocket";
+} from "../../hooks/useSendMessageSocket";
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -33,7 +33,7 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const sendMessage = useSendMessageSocket();
+  const sendMessage = useSendMessageSocket(() => setSending(false));
 
   const handleSend = async () => {
     if (!text.trim()) return;

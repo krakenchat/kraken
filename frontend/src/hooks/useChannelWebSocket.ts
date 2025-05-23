@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Message } from "../types/message.type";
 import { ServerEvents } from "../types/server-events.enum";
 import { ClientEvents } from "../types/client-events.enum";
-import { useDispatch } from "react-redux";
+import { useAppDispatch } from "../app/hooks";
 import {
   prependMessage,
   updateMessage,
@@ -11,19 +11,34 @@ import {
 } from "../features/messages/messagesSlice";
 
 export function useChannelWebSocket(communityId: string | undefined) {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const socket = useSocket();
 
   useEffect(() => {
-    if (!socket) return;
-    const handleNewMessage = (data: Message) => {
-      dispatch(prependMessage(data));
+    if (!socket || !communityId) return;
+    // No need to join/leave community here; handled by useCommunityJoin
+
+    const handleNewMessage = ({ message }: { message: Message }) => {
+      if (message.channelId) {
+        console.log("New message", message.channelId);
+        dispatch(prependMessage({ channelId: message.channelId, message }));
+      }
     };
-    const handleUpdateMessage = (data: Message) => {
-      dispatch(updateMessage(data));
+    const handleUpdateMessage = ({ message }: { message: Message }) => {
+      if (message.channelId) {
+        dispatch(updateMessage({ channelId: message.channelId, message }));
+      }
     };
-    const handleDeleteMessage = (data: { id: string }) => {
-      dispatch(deleteMessage(data.id));
+    const handleDeleteMessage = ({
+      id,
+      channelId,
+    }: {
+      id: string;
+      channelId: string;
+    }) => {
+      if (channelId) {
+        dispatch(deleteMessage({ channelId, id }));
+      }
     };
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
@@ -36,6 +51,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
   }, [socket, communityId, dispatch]);
 
   const sendMessage = (msg: Omit<Message, "id">) => {
+    // @ts-expect-error: id will be assigned by the server
     socket.emit(ClientEvents.SEND_MESSAGE, msg);
   };
 

@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { SocketContext } from "./SocketContext";
+import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from "../types/client-events.enum";
 import type { Message } from "../types/message.type";
 
