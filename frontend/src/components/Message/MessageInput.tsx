@@ -8,9 +8,11 @@ import {
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { styled } from "@mui/material/styles";
-import { Message } from "../../types/message.type";
-import { useChannelWebSocket } from "../../utils/useChannelWebSocket";
 import { SpanType } from "../../types/message.type";
+import {
+  useSendMessageSocket,
+  NewMessagePayload,
+} from "../../utils/useSendMessageSocket";
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -31,12 +33,12 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const { sendMessage } = useChannelWebSocket(channelId);
+  const sendMessage = useSendMessageSocket();
 
   const handleSend = async () => {
     if (!text.trim()) return;
     setSending(true);
-    const msg: Omit<Message, "id"> = {
+    const msg: NewMessagePayload = {
       channelId,
       authorId,
       spans: [{ type: SpanType.PLAINTEXT, text }],

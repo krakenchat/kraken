@@ -1,4 +1,3 @@
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
@@ -11,12 +10,13 @@ import {
 import { Socket } from 'socket.io';
 import { PresenceService } from './presence.service';
 import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
+import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 
 @WebSocketGateway()
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
-@UseGuards(JwtAuthGuard, RbacGuard)
+@UseGuards(WsJwtAuthGuard, RbacGuard)
 export class PresenceGateway {
   constructor(private readonly presenceService: PresenceService) {}
   @SubscribeMessage(ClientEvents.PRESENCE_ONLINE)

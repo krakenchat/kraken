@@ -4,6 +4,8 @@ import { Typography } from "@mui/material";
 import MessageSkeleton from "../Message/MessageSkeleton";
 import MessageInput from "../Message/MessageInput";
 import { useProfileQuery } from "../../features/users/usersSlice";
+import { useCommunitySocketJoin } from "../../utils/useCommunitySocketJoin";
+import { useParams } from "react-router-dom";
 
 interface ChannelMessageContainerProps {
   channelId: string;
@@ -17,6 +19,12 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   });
   const { data: user } = useProfileQuery();
   const authorId = user?.id || "";
+
+  // Get communityId from context
+  const { communityId } = useParams<{
+    communityId: string;
+  }>();
+  useCommunitySocketJoin(communityId);
 
   if (isLoading) {
     // Estimate how many skeletons to fill the viewport (e.g., 18px+8px per message, 100vh)
@@ -47,24 +55,29 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   }
 
   return (
-    <>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column-reverse",
+        height: "100%",
+        width: "100%",
+        position: "relative",
+      }}
+    >
       <div
-        className="channel-message-container"
         style={{
-          display: "flex",
-          flexDirection: "column-reverse",
-          gap: 0,
-          height: "100%",
-          width: "100%",
-          overflowY: "auto",
+          position: "sticky",
+          bottom: 0,
+          background: "inherit",
+          zIndex: 2,
         }}
       >
-        {data.messages.map((msg) => (
-          <MessageComponent key={msg.id} message={msg} />
-        ))}
+        <MessageInput channelId={channelId} authorId={authorId} />
       </div>
-      <MessageInput channelId={channelId} authorId={authorId} />
-    </>
+      {data.messages.map((msg) => (
+        <MessageComponent key={msg.id} message={msg} />
+      ))}
+    </div>
   );
 };
 

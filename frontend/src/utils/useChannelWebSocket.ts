@@ -10,13 +10,12 @@ import {
   deleteMessage,
 } from "../features/messages/messagesSlice";
 
-export function useChannelWebSocket(channelId: string) {
+export function useChannelWebSocket(communityId: string) {
   const dispatch = useDispatch();
   const socket = useSocket();
 
   useEffect(() => {
     if (!socket) return;
-    socket.emit(ClientEvents.JOIN_ROOM, { channelId });
     const handleNewMessage = (data: Message) => {
       dispatch(prependMessage(data));
     };
@@ -30,12 +29,12 @@ export function useChannelWebSocket(channelId: string) {
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
     return () => {
-      socket.emit(ClientEvents.LEAVE_ROOM, { channelId });
+      // socket.emit(ClientEvents.LEAVE_ROOM, communityId);
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
       socket.off(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
       socket.off(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
     };
-  }, [socket, channelId, dispatch]);
+  }, [socket, communityId, dispatch]);
 
   const sendMessage = (msg: Omit<Message, "id">) => {
     if (socket) {

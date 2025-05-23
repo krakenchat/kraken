@@ -7,6 +7,7 @@ import { UserModule } from '@/user/user.module';
 import { RolesModule } from '@/roles/roles.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
 import { RoomsModule } from '@/rooms/rooms.module';
+import { AuthModule } from '@/auth/auth.module';
 
 @Module({
   controllers: [MessagesController],
@@ -17,6 +18,7 @@ import { RoomsModule } from '@/rooms/rooms.module';
     RolesModule,
     WebsocketModule,
     RoomsModule,
+    AuthModule,
   ],
 })
 export class MessagesModule {}

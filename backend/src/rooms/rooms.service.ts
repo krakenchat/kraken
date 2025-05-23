@@ -1,15 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { DatabaseService } from '@/database/database.service';
 
 @Injectable()
 export class RoomsService {
+  private readonly logger = new Logger(RoomsService.name);
   constructor(private readonly databaseService: DatabaseService) {}
 
   async joinAll(
     client: Socket & { handshake: { user: { id: string } } },
     communityId: string,
   ) {
+    await client.join(client.handshake.user.id);
     // Get all channels for the user
     const channelMemberships =
       await this.databaseService.channelMembership.findMany({

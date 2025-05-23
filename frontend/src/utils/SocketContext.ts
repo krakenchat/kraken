@@ -19,12 +19,15 @@ export type ServerToClientEvents = {
 };
 
 export type ClientToServerEvents = {
-  [ClientEvents.JOIN_ROOM]: (data: { channelId: string }) => void;
-  [ClientEvents.LEAVE_ROOM]: (data: { channelId: string }) => void;
+  [ClientEvents.JOIN_ALL]: (communityId: string) => void;
+  [ClientEvents.JOIN_ROOM]: (channelId: string) => void;
+  [ClientEvents.LEAVE_ROOM]: (channelId: string) => void;
   [ClientEvents.SEND_MESSAGE]: (data: Omit<NewMessagePayload, "id">) => void;
 };
 
-export const SocketContext = createContext<Socket<
-  ServerToClientEvents,
-  ClientToServerEvents
-> | null>(null);
+export interface ISocketContext {
+  socket: Socket<ServerToClientEvents, ClientToServerEvents> | null;
+  connected: boolean;
+}
+
+export const SocketContext = createContext<ISocketContext | null>(null);

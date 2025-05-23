@@ -1,4 +1,3 @@
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import {
   RbacResource,
@@ -22,12 +21,13 @@ import { Socket } from 'socket.io';
 import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 
 @WebSocketGateway()
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
-@UseGuards(JwtAuthGuard, RbacGuard)
+@UseGuards(WsJwtAuthGuard, RbacGuard)
 export class MessagesGateway {
   constructor(
     private readonly messagesService: MessagesService,

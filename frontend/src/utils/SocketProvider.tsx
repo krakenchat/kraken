@@ -1,66 +1,88 @@
 import type { Socket } from "socket.io-client";
-import React, { useRef, useEffect, useState } from "react";
-import { io } from "socket.io-client";
+import React, { useEffect, useState, useMemo } from "react";
+import { getSocketSingleton } from "./socketSingleton";
 import {
   SocketContext,
   ServerToClientEvents,
   ClientToServerEvents,
 } from "./SocketContext";
-import { getCachedItem, setCachedItem } from "../utils/storage";
-import axios from "axios";
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const socketRef = useRef<Socket<
+  const [ready, setReady] = useState(false);
+  const [socket, setSocket] = useState<Socket<
     ServerToClientEvents,
     ClientToServerEvents
   > | null>(null);
-  const [ready, setReady] = useState(false);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    async function connectSocket() {
-      // Centralized token refresh logic
-      let token = getCachedItem<string>("accessToken");
-      if (!token) {
-        // Try to refresh using the httpOnly cookie
-        try {
-          const refreshResponse = await axios.post<{ accessToken: string }>(
-            "/api/auth/refresh"
-          );
-          if (refreshResponse.data?.accessToken) {
-            setCachedItem("accessToken", refreshResponse.data.accessToken);
-            token = refreshResponse.data.accessToken;
-          }
-        } catch {
-          token = null;
+    let isMounted = true;
+    let sock: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+    getSocketSingleton()
+      .then((s) => {
+        sock = s;
+        console.log("[SocketProvider] Got socket", sock, "connected:", sock.connected);
+        if (isMounted) {
+          setSocket(sock);
+          setConnected(sock.connected);
+          if (sock.connected) setReady(true);
+          const handleConnect = () => {
+            if (isMounted) {
+              setSocket(sock!);
+              setConnected(true);
+              setReady(true);
+              console.log("[SocketProvider] Socket connected", sock!.id);
+            }
+          };
+          const handleDisconnect = (reason?: unknown) => {
+            if (isMounted) {
+              setConnected(false);
+              console.log("[SocketProvider] Socket disconnected", reason);
+            }
+          };
+          const handleConnectError = (err: unknown) => {
+            console.error("[SocketProvider] Socket connect_error", err);
+          };
+          sock.on("connect", handleConnect);
+          sock.on("disconnect", handleDisconnect);
+          sock.on("connect_error", handleConnectError);
+          // Log all events for debugging
+          sock.onAny((event, ...args) => {
+            console.log(`[SocketProvider] Socket event: ${event}`, ...args);
+          });
+          // Cleanup listeners on unmount
+          return () => {
+            sock?.off("connect", handleConnect);
+            sock?.off("disconnect", handleDisconnect);
+            sock?.off("connect_error", handleConnectError);
+            sock?.offAny();
+            isMounted = false;
+          };
         }
-      }
-      const url = "http://localhost:3000";
-
-      if (!token) {
-        console.error("No token available for socket connection");
-        return;
-      }
-
-      const socket = io(url, {
-        transports: ["websocket"],
-        auth: { token: `Bearer ${token}` },
+      })
+      .catch((err) => {
+        console.error("Socket connection failed", err);
       });
-      socketRef.current = socket;
-      setReady(true);
-    }
-    connectSocket().then(() => console.log("Socket connected"));
     return () => {
-      if (socketRef.current && socketRef.current.connected) {
-        console.log("Disconnecting socket");
-        socketRef.current.disconnect();
+      isMounted = false;
+      if (sock) {
+        sock.off("connect");
+        sock.off("disconnect");
+        sock.off("connect_error");
+        sock.offAny();
       }
     };
   }, []);
 
+  const contextValue = useMemo(
+    () => ({ socket, connected }),
+    [socket, connected]
+  );
+
   if (!ready) return null;
 
   return (
-    <SocketContext.Provider value={socketRef.current}>
+    <SocketContext.Provider value={contextValue}>
       {children}
     </SocketContext.Provider>
   );

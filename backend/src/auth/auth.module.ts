@@ -10,6 +10,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { RolesModule } from '@/roles/roles.module';
 import { DatabaseModule } from '@/database/database.module';
 import { RbacGuard } from './rbac.guard';
+import { WsJwtAuthGuard } from './ws-jwt-auth.guard';
 
 @Module({
   imports: [
@@ -26,8 +27,14 @@ import { RbacGuard } from './rbac.guard';
       }),
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy, RbacGuard], // Add RbacGuard here
-  exports: [AuthService, JwtStrategy, JwtModule, RbacGuard], // Ensure RbacGuard is exported
+  providers: [
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    RbacGuard,
+    WsJwtAuthGuard,
+  ],
+  exports: [AuthService, JwtStrategy, JwtModule, RbacGuard, WsJwtAuthGuard],
   controllers: [AuthController],
 })
 export class AuthModule {}
