@@ -22,12 +22,13 @@ export type ClientToServerEvents = {
   [ClientEvents.JOIN_ALL]: (communityId: string) => void;
   [ClientEvents.JOIN_ROOM]: (channelId: string) => void;
   [ClientEvents.LEAVE_ROOM]: (channelId: string) => void;
-  [ClientEvents.SEND_MESSAGE]: (data: Omit<NewMessagePayload, "id">) => void;
+  [ClientEvents.SEND_MESSAGE]: (
+    data: Omit<NewMessagePayload, "id">,
+    callback?: (messageId: string) => void
+  ) => void;
 };
 
-export interface ISocketContext {
-  socket: Socket<ServerToClientEvents, ClientToServerEvents> | null;
-  connected: boolean;
-}
-
-export const SocketContext = createContext<ISocketContext | null>(null);
+export const SocketContext = createContext<Socket<
+  ServerToClientEvents,
+  ClientToServerEvents
+> | null>(null);

@@ -10,7 +10,7 @@ import {
   deleteMessage,
 } from "../features/messages/messagesSlice";
 
-export function useChannelWebSocket(communityId: string) {
+export function useChannelWebSocket(communityId: string | undefined) {
   const dispatch = useDispatch();
   const socket = useSocket();
 
@@ -29,7 +29,6 @@ export function useChannelWebSocket(communityId: string) {
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
     return () => {
-      // socket.emit(ClientEvents.LEAVE_ROOM, communityId);
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
       socket.off(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
       socket.off(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
@@ -37,9 +36,7 @@ export function useChannelWebSocket(communityId: string) {
   }, [socket, communityId, dispatch]);
 
   const sendMessage = (msg: Omit<Message, "id">) => {
-    if (socket) {
-      socket.emit(ClientEvents.SEND_MESSAGE, msg);
-    }
+    socket.emit(ClientEvents.SEND_MESSAGE, msg);
   };
 
   return { sendMessage };

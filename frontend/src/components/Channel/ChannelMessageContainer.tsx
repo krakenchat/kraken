@@ -6,6 +6,7 @@ import MessageInput from "../Message/MessageInput";
 import { useProfileQuery } from "../../features/users/usersSlice";
 import { useCommunitySocketJoin } from "../../utils/useCommunitySocketJoin";
 import { useParams } from "react-router-dom";
+import { useChannelWebSocket } from "../../utils/useChannelWebSocket";
 
 interface ChannelMessageContainerProps {
   channelId: string;
@@ -25,6 +26,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     communityId: string;
   }>();
   useCommunitySocketJoin(communityId);
+  useChannelWebSocket(communityId);
 
   if (isLoading) {
     // Estimate how many skeletons to fill the viewport (e.g., 18px+8px per message, 100vh)

@@ -6,26 +6,16 @@ import type { Message } from "../types/message.type";
 // Omit id for new message payloads
 export type NewMessagePayload = Omit<Message, "id">;
 
-export function useSendMessageSocket() {
-  const ctx = useContext(SocketContext);
-  console.log("[useSendMessageSocket] Context:", ctx);
-  // Always use the latest context/socket when sendMessage is called
+export function useSendMessageSocket(callback?: (messageId: string) => void) {
+  const socket = useContext(SocketContext);
   function sendMessage(payload: NewMessagePayload) {
-    if (!ctx || !ctx.socket) {
+    if (!socket) {
       console.error("Socket not initialized");
       return;
     }
-    if (!ctx.connected) {
-      console.warn("Socket not connected, cannot emit SEND_MESSAGE");
-      return;
-    }
-    console.log("[useSendMessageSocket] About to emit:", {
-      event: ClientEvents.SEND_MESSAGE,
-      payload,
-      socketConnected: ctx.connected,
-      socketId: ctx.socket.id,
-    });
-    ctx.socket.emit(ClientEvents.SEND_MESSAGE, payload);
+    socket.emit(ClientEvents.SEND_MESSAGE, payload, (messageId: string) =>
+      callback ? callback(messageId) : undefined
+    );
   }
   return sendMessage;
 }
