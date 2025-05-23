@@ -4,6 +4,7 @@ import type {
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
 import axios from "axios";
+import { getCachedItem, setCachedItem } from "../utils/storage";
 
 const getBaseAuthedQuery = (
   baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError>
@@ -23,7 +24,7 @@ const getBaseAuthedQuery = (
 
       console.log("Refresh response", refreshResponse);
       if (refreshResponse.data) {
-        localStorage.setItem("accessToken", refreshResponse.data.accessToken);
+        setCachedItem("accessToken", refreshResponse.data.accessToken);
       }
 
       return baseQuery(args, api, extraOptions);
@@ -34,7 +35,7 @@ const getBaseAuthedQuery = (
 };
 
 export const prepareHeaders = (headers: Headers) => {
-  const token = localStorage.getItem("accessToken");
+  const token = getCachedItem<string>("accessToken");
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }

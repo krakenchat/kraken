@@ -6,13 +6,16 @@ import { store } from "./app/store.ts";
 
 import App from "./App.tsx";
 import { BrowserRouter } from "react-router-dom";
+import { SocketProvider } from "./utils/SocketProvider";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Provider store={store}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <SocketProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </SocketProvider>
     </Provider>
   </StrictMode>
 );

@@ -16,13 +16,16 @@ const darkTheme = createTheme({
 });
 
 function App() {
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    return <LoginPage />;
+  }
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
-          <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="community/:communityId">
             <Route index element={<CommunityPage />} />

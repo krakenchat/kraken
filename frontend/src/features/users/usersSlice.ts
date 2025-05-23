@@ -4,7 +4,7 @@ import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
 import { getCachedItem, setCachedItem } from "../../utils/storage";
 
 const USER_CACHE_PREFIX = "user_";
-const USER_CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
+const USER_CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 export const usersApi = createApi({
   reducerPath: "usersApi",

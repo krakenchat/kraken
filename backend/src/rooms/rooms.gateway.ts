@@ -70,7 +70,18 @@ export class RoomsGateway
   }
 
   private getUserIdFromClient(client: Socket) {
-    const token = client.handshake.headers.authorization?.split(' ')[1];
+    // Try to get token from Socket.IO handshake auth first, then headers
+    const authToken =
+      typeof client.handshake.auth?.token === 'string'
+        ? client.handshake.auth.token
+        : undefined;
+    const headerToken =
+      typeof client.handshake.headers.authorization === 'string'
+        ? client.handshake.headers.authorization
+        : undefined;
+    const token =
+      (authToken ? authToken.split(' ')[1] : undefined) ||
+      (headerToken ? headerToken.split(' ')[1] : undefined);
 
     if (!token) {
       this.logger.warn('No token provided');

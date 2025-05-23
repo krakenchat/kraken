@@ -4,6 +4,7 @@ import { usersApi } from "../features/users/usersSlice";
 import { communityApi } from "../features/community/communityApiSlice";
 import { channelApi } from "../features/channel/channelApiSlice";
 import { messagesApi } from "../features/messages/messagesApiSlice";
+import messagesReducer from "../features/messages/messagesSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     [communityApi.reducerPath]: communityApi.reducer,
     [channelApi.reducerPath]: channelApi.reducer,
     [messagesApi.reducerPath]: messagesApi.reducer,
+    messages: messagesReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(

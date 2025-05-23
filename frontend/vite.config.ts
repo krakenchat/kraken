@@ -11,6 +11,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false, // Set to true if using HTTPS
       },
+      // Proxy websocket requests
+      "/socket.io": {
+        target: "ws://localhost:3000",
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });
