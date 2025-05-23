@@ -5,6 +5,7 @@ import { Avatar, Box, Typography, Paper } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
 import { styled } from "@mui/material/styles";
+import { useCommunityJoin } from "../hooks/useCommunityJoin";
 
 const Root = styled(Box)({
   display: "flex",
@@ -64,6 +65,8 @@ const CommunityPage: React.FC = () => {
   const { data, error, isLoading } = useGetCommunityByIdQuery(communityId!, {
     skip: !communityId,
   });
+
+  useCommunityJoin(communityId);
 
   if (!communityId) return <div>Community ID is required</div>;
   if (isLoading) return <div>Loading...</div>;

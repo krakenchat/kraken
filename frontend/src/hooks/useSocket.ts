@@ -1,8 +1,8 @@
 import { useContext } from "react";
-import { SocketContext } from "./SocketContext";
+import { SocketContext } from "../utils/SocketContext";
 
 export function useSocket() {
   const socket = useContext(SocketContext);
-  if (!socket) throw new Error("Socket not available in context");
+  if (!socket) return null;
   return socket;
 }

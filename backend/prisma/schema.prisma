@@ -107,17 +107,20 @@ model Channel {
   type              ChannelType         @default(TEXT)
   Message           Message[]
   ChannelMembership ChannelMembership[] @relation("ChannelMembership")
+  isPrivate         Boolean             @default(false)
 
   @@unique([communityId, name])
 }
 
 model ChannelMembership {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  user      User     @relation("UserChannelMemberships", fields: [userId], references: [id])
-  channel   Channel  @relation("ChannelMembership", fields: [channelId], references: [id])
-  joinedAt  DateTime @default(now())
-  userId    String   @db.ObjectId
-  channelId String   @db.ObjectId
+  id        String                @id @default(auto()) @map("_id") @db.ObjectId
+  user      User                  @relation("UserChannelMemberships", fields: [userId], references: [id])
+  channel   Channel               @relation("ChannelMembership", fields: [channelId], references: [id])
+  joinedAt  DateTime              @default(now())
+  userId    String                @db.ObjectId
+  channelId String                @db.ObjectId
+  role      ChannelMembershipRole @default(MEMBER)
+  addedBy   String?               @db.ObjectId // Who added this user (for private channels)
 
   @@unique([userId, channelId])
 }
@@ -256,6 +259,12 @@ enum RbacActions {
 enum InstanceRole {
   OWNER
   USER
+}
+
+enum ChannelMembershipRole {
+  MEMBER
+  MODERATOR
+  ADMIN
 }
 
 type Span {

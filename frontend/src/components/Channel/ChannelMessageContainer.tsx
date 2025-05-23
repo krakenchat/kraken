@@ -5,14 +5,10 @@ import { Typography } from "@mui/material";
 import MessageSkeleton from "../Message/MessageSkeleton";
 import MessageInput from "../Message/MessageInput";
 import { useProfileQuery } from "../../features/users/usersSlice";
-import { useCommunityJoin } from "../../hooks/useCommunityJoin";
 import { useParams } from "react-router-dom";
 import { useChannelWebSocket } from "../../hooks/useChannelWebSocket";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  appendMessages,
-  makeSelectMessagesByChannel,
-} from "../../features/messages/messagesSlice";
+import { useSelector } from "react-redux";
+import { makeSelectMessagesByChannel } from "../../features/messages/messagesSlice";
 import type { RootState } from "../../app/store";
 import type { Message } from "../../types/message.type";
 
@@ -23,10 +19,9 @@ interface ChannelMessageContainerProps {
 const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   channelId,
 }) => {
-  const { data, error, isLoading } = useGetMessagesByChannelQuery({
+  const { error, isLoading } = useGetMessagesByChannelQuery({
     channelId,
   });
-  const dispatch = useDispatch();
   const { data: user } = useProfileQuery();
   const authorId = user?.id || "";
 
@@ -34,21 +29,9 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const { communityId } = useParams<{
     communityId: string;
   }>();
-  useCommunityJoin(communityId);
   useChannelWebSocket(communityId);
 
-  // Sync RTK Query data to Redux slice
-  React.useEffect(() => {
-    if (data && data.messages) {
-      dispatch(
-        appendMessages({
-          channelId,
-          messages: data.messages,
-          continuationToken: data.continuationToken,
-        })
-      );
-    }
-  }, [data, channelId, dispatch]);
+  // Note: RTK Query now automatically syncs data to Redux slice via onQueryStarted
 
   // Memoized selector instance per component instance
   const selectMessagesByChannel = React.useMemo(

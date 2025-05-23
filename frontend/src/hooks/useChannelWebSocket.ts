@@ -1,4 +1,4 @@
-import { useSocket } from "../utils/useSocket";
+import { useSocket } from "./useSocket";
 import { useEffect } from "react";
 import { Message } from "../types/message.type";
 import { ServerEvents } from "../types/server-events.enum";
@@ -20,7 +20,6 @@ export function useChannelWebSocket(communityId: string | undefined) {
 
     const handleNewMessage = ({ message }: { message: Message }) => {
       if (message.channelId) {
-        console.log("New message", message.channelId);
         dispatch(prependMessage({ channelId: message.channelId, message }));
       }
     };

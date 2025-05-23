@@ -12,13 +12,28 @@ export class RoomsService {
     communityId: string,
   ) {
     await client.join(client.handshake.user.id);
-    // Get all channels for the user
-    const channelMemberships =
+
+    // Get all public channels in the community (user joins automatically if they're a community member)
+    const publicChannels = await this.databaseService.channel.findMany({
+      where: {
+        communityId,
+        isPrivate: false,
+      },
+    });
+
+    // Join all public channels
+    for (const channel of publicChannels) {
+      await client.join(channel.id);
+    }
+
+    // Get private channels the user has explicit membership to
+    const privateChannelMemberships =
       await this.databaseService.channelMembership.findMany({
         where: {
           userId: client.handshake.user.id,
           channel: {
             communityId,
+            isPrivate: true,
           },
         },
         include: {
@@ -26,9 +41,9 @@ export class RoomsService {
         },
       });
 
-    // Join all channels
-    for (const channelMembership of channelMemberships) {
-      await client.join(channelMembership.channelId);
+    // Join private channels based on membership
+    for (const membership of privateChannelMemberships) {
+      await client.join(membership.channelId);
     }
 
     // Get all direct messages for the user

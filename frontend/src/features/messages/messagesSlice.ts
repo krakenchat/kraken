@@ -23,6 +23,21 @@ const messagesSlice = createSlice({
   name: "messagesSlice",
   initialState,
   reducers: {
+    setMessages(
+      state,
+      action: PayloadAction<{
+        channelId: string;
+        messages: Message[];
+        continuationToken?: string;
+      }>
+    ) {
+      const { channelId, messages, continuationToken } = action.payload;
+      // Replace all messages for this channel (used for initial loads)
+      state.byChannelId[channelId] = {
+        messages: messages.slice(-MAX_MESSAGES),
+        continuationToken,
+      };
+    },
     appendMessages(
       state,
       action: PayloadAction<{
@@ -33,8 +48,15 @@ const messagesSlice = createSlice({
     ) {
       const { channelId, messages, continuationToken } = action.payload;
       const existing = state.byChannelId[channelId]?.messages || [];
+
+      // Create a Set of existing message IDs for fast lookup
+      const existingIds = new Set(existing.map((msg) => msg.id));
+
+      // Filter out messages that already exist
+      const newMessages = messages.filter((msg) => !existingIds.has(msg.id));
+
       state.byChannelId[channelId] = {
-        messages: [...existing, ...messages].slice(-MAX_MESSAGES),
+        messages: [...existing, ...newMessages].slice(-MAX_MESSAGES),
         continuationToken,
       };
     },
@@ -45,6 +67,14 @@ const messagesSlice = createSlice({
       console.log("Prepend message", action.payload);
       const { channelId, message } = action.payload;
       const existing = state.byChannelId[channelId]?.messages || [];
+
+      // Check if message already exists
+      const messageExists = existing.some((msg) => msg.id === message.id);
+      if (messageExists) {
+        console.log("Message already exists, skipping prepend");
+        return;
+      }
+
       state.byChannelId[channelId] = {
         ...state.byChannelId[channelId],
         messages: [message, ...existing].slice(0, MAX_MESSAGES),
@@ -92,6 +122,7 @@ export const makeSelectMessagesByChannel = () =>
   );
 
 export const {
+  setMessages,
   appendMessages,
   prependMessage,
   updateMessage,
