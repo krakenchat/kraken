@@ -58,26 +58,50 @@ function renderSpan(span: Span, idx: number) {
   }
 }
 
-const Container = styled("div")(({ theme }) => ({
-  padding: theme.spacing(0.5, 2),
-  display: "flex",
-  alignItems: "flex-start",
-  width: "100%",
-  marginBottom: theme.spacing(1),
-  position: "relative",
-  "&:hover": {
-    backgroundColor: theme.palette.action.hover,
-    "& .message-tools": {
-      opacity: 1,
+const Container = styled("div", {
+  shouldForwardProp: (prop) =>
+    prop !== "stagedForDelete" && prop !== "isDeleting",
+})<{ stagedForDelete?: boolean; isDeleting?: boolean }>(
+  ({ theme, stagedForDelete, isDeleting }) => ({
+    padding: theme.spacing(0.5, 2),
+    display: "flex",
+    alignItems: "flex-start",
+    width: "100%",
+    marginBottom: isDeleting ? 0 : theme.spacing(1),
+    position: "relative",
+    backgroundColor: "transparent",
+    border: stagedForDelete
+      ? `2px solid ${theme.palette.error.main}`
+      : "2px solid transparent",
+    borderRadius: stagedForDelete ? theme.spacing(1) : 0,
+    transition: isDeleting ? "all 0.3s ease-out" : "all 0.2s ease-in-out",
+    opacity: isDeleting ? 0 : 1,
+    transform: isDeleting
+      ? "translateY(-10px) scale(0.98)"
+      : "translateY(0) scale(1)",
+    maxHeight: isDeleting ? 0 : "none",
+    overflow: isDeleting ? "hidden" : "visible",
+    paddingTop: isDeleting ? 0 : theme.spacing(0.5),
+    paddingBottom: isDeleting ? 0 : theme.spacing(0.5),
+    "&:hover": {
+      backgroundColor: stagedForDelete
+        ? theme.palette.error.light
+        : theme.palette.action.hover,
+      "& .message-tools": {
+        opacity: 1,
+      },
     },
-  },
-}));
+  })
+);
 
-const MessageTools = styled(Box)(({ theme }) => ({
+const MessageTools = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "stagedForDelete",
+})<{ stagedForDelete?: boolean }>(({ theme, stagedForDelete }) => ({
+  alignItems: "center",
   position: "absolute",
   right: theme.spacing(1),
   top: theme.spacing(0.5),
-  opacity: 0,
+  opacity: stagedForDelete ? 1 : 0,
   transition: "opacity 0.2s ease-in-out",
   backgroundColor: theme.palette.background.paper,
   borderRadius: theme.spacing(0.5),
@@ -85,6 +109,7 @@ const MessageTools = styled(Box)(({ theme }) => ({
   display: "flex",
   gap: theme.spacing(0.5),
   padding: theme.spacing(0.25),
+  border: stagedForDelete ? `1px solid ${theme.palette.error.main}` : "none",
 }));
 
 function MessageComponent({ message }: MessageProps) {
@@ -94,6 +119,8 @@ function MessageComponent({ message }: MessageProps) {
   const [deleteMessage] = useDeleteMessageMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
+  const [stagedForDelete, setStagedForDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isOwnMessage = currentUser?.id === message.authorId;
 
@@ -129,26 +156,36 @@ function MessageComponent({ message }: MessageProps) {
     setEditText("");
   };
 
-  const handleDeleteClick = async () => {
+  const handleDeleteClick = () => {
+    setStagedForDelete(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!message.channelId) return;
 
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this message?"
-    );
-    if (!confirmed) return;
+    setIsDeleting(true);
 
-    try {
-      await deleteMessage({
-        id: message.id,
-        channelId: message.channelId,
-      }).unwrap();
-    } catch (error) {
-      console.error("Failed to delete message:", error);
-    }
+    // Wait for animation to complete before actually deleting
+    setTimeout(async () => {
+      try {
+        await deleteMessage({
+          id: message.id,
+          channelId: message.channelId!,
+        }).unwrap();
+      } catch (error) {
+        console.error("Failed to delete message:", error);
+        setIsDeleting(false);
+        setStagedForDelete(false);
+      }
+    }, 300); // Match the animation duration
+  };
+
+  const handleCancelDelete = () => {
+    setStagedForDelete(false);
   };
 
   return (
-    <Container>
+    <Container stagedForDelete={stagedForDelete} isDeleting={isDeleting}>
       <div style={{ marginRight: 12, marginTop: 4 }}>
         {author?.avatarUrl ? (
           <Avatar
@@ -212,13 +249,50 @@ function MessageComponent({ message }: MessageProps) {
         )}
       </div>
       {isOwnMessage && !isEditing && (
-        <MessageTools className="message-tools">
-          <IconButton size="small" onClick={handleEditClick}>
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" onClick={handleDeleteClick} color="error">
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+        <MessageTools
+          className="message-tools"
+          stagedForDelete={stagedForDelete}
+        >
+          {stagedForDelete ? (
+            <>
+              <Typography
+                variant="caption"
+                sx={{
+                  px: 1,
+                  color: "error.main",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  lineHeight: 1,
+                }}
+              >
+                Delete?
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={handleConfirmDelete}
+                color="error"
+              >
+                <CheckIcon fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={handleCancelDelete}>
+                <CancelIcon fontSize="small" />
+              </IconButton>
+            </>
+          ) : (
+            <>
+              <IconButton size="small" onClick={handleEditClick}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={handleDeleteClick}
+                color="error"
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </>
+          )}
         </MessageTools>
       )}
     </Container>

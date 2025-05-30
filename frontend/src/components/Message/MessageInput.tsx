@@ -18,20 +18,10 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
 }));
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
-  "& .MuiInputBase-root.Mui-disabled": {
-    backgroundColor: theme.palette.background.paper,
-    color: theme.palette.text.primary,
-    // Simulate focus border
-    borderColor: theme.palette.primary.main,
-    boxShadow: `0 0 0 2px ${theme.palette.primary.main}33`,
-  },
   "& .MuiOutlinedInput-notchedOutline": {
     borderColor: theme.palette.divider,
   },
   "& .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: theme.palette.primary.main,
-  },
-  "& .MuiInputBase-root.Mui-disabled .MuiOutlinedInput-notchedOutline": {
     borderColor: theme.palette.primary.main,
   },
 }));
@@ -51,10 +41,8 @@ export default function MessageInput({
   const sendMessage = useSendMessageSocket(() => setSending(false));
 
   useEffect(() => {
-    if (!sending) {
-      inputRef.current?.focus();
-    }
-  }, [sending]);
+    inputRef.current?.focus();
+  }, []);
 
   const handleSend = async () => {
     if (!text.trim()) return;
@@ -92,7 +80,6 @@ export default function MessageInput({
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
-            disabled={sending}
             sx={{ flex: 1 }}
             inputRef={inputRef}
           />

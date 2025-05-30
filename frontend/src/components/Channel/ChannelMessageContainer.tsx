@@ -68,7 +68,6 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       return;
     }
 
-    console.log("🚀 Loading more messages with token:", continuationToken);
     setIsLoadingMore(true);
 
     try {
@@ -108,7 +107,6 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       setShowJumpToBottom(!isAtBottom);
 
       if (scrolledToBottom && continuationToken) {
-        console.log("🚀 Scrolled to bottom, loading more messages...");
         handleLoadMore();
       } else if (scrolledToBottom && !continuationToken) {
         console.log("📄 Reached the end - no more messages to load");
