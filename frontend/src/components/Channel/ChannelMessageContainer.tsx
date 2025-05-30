@@ -1,5 +1,8 @@
-import React from "react";
-import { useGetMessagesByChannelQuery } from "../../features/messages/messagesApiSlice";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useGetMessagesByChannelQuery,
+  useLazyGetMessagesByChannelQuery,
+} from "../../features/messages/messagesApiSlice";
 import MessageComponent from "../Message/MessageComponent";
 import { Typography } from "@mui/material";
 import MessageSkeleton from "../Message/MessageSkeleton";
@@ -8,7 +11,10 @@ import { useProfileQuery } from "../../features/users/usersSlice";
 import { useParams } from "react-router-dom";
 import { useChannelWebSocket } from "../../hooks/useChannelWebSocket";
 import { useSelector } from "react-redux";
-import { makeSelectMessagesByChannel } from "../../features/messages/messagesSlice";
+import {
+  makeSelectMessagesByChannel,
+  makeSelectContinuationTokenByChannel,
+} from "../../features/messages/messagesSlice";
 import type { RootState } from "../../app/store";
 import type { Message } from "../../types/message.type";
 
@@ -24,6 +30,8 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   });
   const { data: user } = useProfileQuery();
   const authorId = user?.id || "";
+  const channelRef = useRef<HTMLDivElement>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Get communityId from context
   const { communityId } = useParams<{
@@ -33,14 +41,75 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 
   // Note: RTK Query now automatically syncs data to Redux slice via onQueryStarted
 
-  // Memoized selector instance per component instance
+  // Memoized selector instances per component instance
   const selectMessagesByChannel = React.useMemo(
     makeSelectMessagesByChannel,
     []
   );
+  const selectContinuationTokenByChannel = React.useMemo(
+    makeSelectContinuationTokenByChannel,
+    []
+  );
+
   const messages: Message[] = useSelector((state: RootState) =>
     selectMessagesByChannel(state, channelId)
   );
+  const continuationToken = useSelector((state: RootState) =>
+    selectContinuationTokenByChannel(state, channelId)
+  );
+
+  // RTK Query lazy query for loading more messages
+  const [loadMoreMessages] = useLazyGetMessagesByChannelQuery();
+
+  const handleLoadMore = useCallback(async () => {
+    if (isLoadingMore || !continuationToken) {
+      return;
+    }
+
+    console.log("🚀 Loading more messages with token:", continuationToken);
+    setIsLoadingMore(true);
+
+    try {
+      await loadMoreMessages({
+        channelId,
+        continuationToken,
+        limit: 25,
+      }).unwrap();
+    } catch (error) {
+      console.error("Failed to load more messages:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [channelId, continuationToken, isLoadingMore, loadMoreMessages]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!channelRef.current || isLoadingMore) return;
+
+      const el = channelRef.current;
+
+      // For flex-direction: column-reverse, scrollTop will be 0 when at the "bottom"
+      // (which is visually the top due to reverse direction)
+      // We want to detect when user scrolls to the actual bottom (oldest messages)
+      const scrolledToBottom =
+        Math.abs(el.scrollTop) + el.clientHeight >= el.scrollHeight - 10;
+
+      if (scrolledToBottom && continuationToken) {
+        console.log("🚀 Scrolled to bottom, loading more messages...");
+        handleLoadMore();
+      } else if (scrolledToBottom && !continuationToken) {
+        console.log("📄 Reached the end - no more messages to load");
+      }
+    };
+
+    const element = channelRef.current;
+    if (element) {
+      element.addEventListener("scroll", handleScroll, { passive: true });
+      return () => {
+        element.removeEventListener("scroll", handleScroll);
+      };
+    }
+  }, [handleLoadMore, isLoadingMore, continuationToken]);
 
   if (isLoading) {
     // Estimate how many skeletons to fill the viewport (e.g., 18px+8px per message, 100vh)
@@ -75,7 +144,10 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         height: "100%",
         width: "100%",
         position: "relative",
+        overflowY: "auto", // Enable vertical scrolling
+        overflowX: "hidden", // Prevent horizontal scrolling
       }}
+      ref={channelRef}
     >
       <div
         style={{
@@ -90,6 +162,13 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       {messages.map((msg: Message) => (
         <MessageComponent key={msg.id} message={msg} />
       ))}
+      {isLoadingMore && (
+        <div style={{ padding: "16px", textAlign: "center" }}>
+          <MessageSkeleton />
+          <MessageSkeleton />
+          <MessageSkeleton />
+        </div>
+      )}
     </div>
   );
 };

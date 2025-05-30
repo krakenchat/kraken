@@ -119,6 +119,16 @@ export const makeSelectMessagesByChannel = () =>
     (byChannelId, channelId) => byChannelId[channelId]?.messages || []
   );
 
+// Memoized selector for continuation token by channelId
+export const makeSelectContinuationTokenByChannel = () =>
+  createSelector(
+    [
+      (state: RootState) => state.messages.byChannelId,
+      (_: RootState, channelId: string) => channelId,
+    ],
+    (byChannelId, channelId) => byChannelId[channelId]?.continuationToken
+  );
+
 export const {
   setMessages,
   appendMessages,

@@ -107,6 +107,7 @@ export const messagesApi = createApi({
 
 export const {
   useGetMessagesByChannelQuery,
+  useLazyGetMessagesByChannelQuery,
   useUpdateMessageMutation,
   useDeleteMessageMutation,
 } = messagesApi;

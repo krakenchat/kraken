@@ -89,11 +89,7 @@ const CommunityPage: React.FC = () => {
         <ChannelList communityId={communityId} />
       </Sidebar>
       <Content>
-        {channelId && (
-          <Box sx={{ width: "100%" }}>
-            <ChannelMessageContainer channelId={channelId} />
-          </Box>
-        )}
+        {channelId && <ChannelMessageContainer channelId={channelId} />}
       </Content>
     </Root>
   );
