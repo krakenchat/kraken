@@ -4,7 +4,8 @@ import {
   useLazyGetMessagesByChannelQuery,
 } from "../../features/messages/messagesApiSlice";
 import MessageComponent from "../Message/MessageComponent";
-import { Typography } from "@mui/material";
+import { Typography, Fab } from "@mui/material";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "../Message/MessageSkeleton";
 import MessageInput from "../Message/MessageInput";
 import { useProfileQuery } from "../../features/users/usersSlice";
@@ -32,6 +33,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const authorId = user?.id || "";
   const channelRef = useRef<HTMLDivElement>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
 
   // Get communityId from context
   const { communityId } = useParams<{
@@ -82,6 +84,13 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     }
   }, [channelId, continuationToken, isLoadingMore, loadMoreMessages]);
 
+  const scrollToBottom = useCallback(() => {
+    if (channelRef.current) {
+      channelRef.current.scrollTop = 0; // For column-reverse, 0 is the bottom
+      setShowJumpToBottom(false);
+    }
+  }, []);
+
   useEffect(() => {
     const handleScroll = () => {
       if (!channelRef.current || isLoadingMore) return;
@@ -93,6 +102,10 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       // We want to detect when user scrolls to the actual bottom (oldest messages)
       const scrolledToBottom =
         Math.abs(el.scrollTop) + el.clientHeight >= el.scrollHeight - 10;
+
+      // Show jump to bottom button when user scrolls up from the bottom
+      const isAtBottom = Math.abs(el.scrollTop) < 50; // Allow some tolerance
+      setShowJumpToBottom(!isAtBottom);
 
       if (scrolledToBottom && continuationToken) {
         console.log("🚀 Scrolled to bottom, loading more messages...");
@@ -110,6 +123,17 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       };
     }
   }, [handleLoadMore, isLoadingMore, continuationToken]);
+
+  // Auto-hide jump button when new messages arrive and user is at bottom
+  useEffect(() => {
+    if (channelRef.current) {
+      const el = channelRef.current;
+      const isAtBottom = Math.abs(el.scrollTop) < 50;
+      if (isAtBottom) {
+        setShowJumpToBottom(false);
+      }
+    }
+  }, [messages.length]); // React to new messages
 
   if (isLoading) {
     // Estimate how many skeletons to fill the viewport (e.g., 18px+8px per message, 100vh)
@@ -144,31 +168,60 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         height: "100%",
         width: "100%",
         position: "relative",
-        overflowY: "auto", // Enable vertical scrolling
-        overflowX: "hidden", // Prevent horizontal scrolling
       }}
-      ref={channelRef}
     >
       <div
         style={{
-          position: "sticky",
-          bottom: 0,
-          background: "inherit",
-          zIndex: 2,
+          display: "flex",
+          flexDirection: "column-reverse",
+          height: "100%",
+          width: "100%",
+          overflowY: "auto", // Enable vertical scrolling
+          overflowX: "hidden", // Prevent horizontal scrolling
         }}
+        ref={channelRef}
       >
-        <MessageInput channelId={channelId} authorId={authorId} />
-      </div>
-      {messages.map((msg: Message) => (
-        <MessageComponent key={msg.id} message={msg} />
-      ))}
-      {isLoadingMore && (
-        <div style={{ padding: "16px", textAlign: "center" }}>
-          <MessageSkeleton />
-          <MessageSkeleton />
-          <MessageSkeleton />
+        <div
+          style={{
+            position: "sticky",
+            bottom: 0,
+            background: "inherit",
+            zIndex: 2,
+          }}
+        >
+          <MessageInput channelId={channelId} authorId={authorId} />
         </div>
-      )}
+        {messages.map((msg: Message) => (
+          <MessageComponent key={msg.id} message={msg} />
+        ))}
+        {isLoadingMore && (
+          <div style={{ padding: "16px", textAlign: "center" }}>
+            <MessageSkeleton />
+            <MessageSkeleton />
+            <MessageSkeleton />
+          </div>
+        )}
+      </div>
+      <Fab
+        size="small"
+        color="primary"
+        onClick={scrollToBottom}
+        style={{
+          position: "absolute",
+          bottom: "80px", // Position above the message input
+          left: "50%",
+          transform: showJumpToBottom
+            ? "translateX(-50%) scale(1)"
+            : "translateX(-50%) scale(0)",
+          zIndex: 3,
+          transition: "opacity 0.3s ease-in-out, transform 0.3s ease-in-out",
+          opacity: showJumpToBottom ? 1 : 0,
+          pointerEvents: showJumpToBottom ? "auto" : "none",
+        }}
+        aria-label="Jump to bottom"
+      >
+        <KeyboardArrowDownIcon />
+      </Fab>
     </div>
   );
 };
