@@ -49,3 +49,7 @@
 
 - [ ] Go through the cases to handle there since it's kind of a lot
 - [ ] Scope down presence lists somehow
+
+https://github.com/l7mp/stunner
+
+https://github.com/livekit/livekit

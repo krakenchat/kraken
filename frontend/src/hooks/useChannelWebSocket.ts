@@ -19,24 +19,29 @@ export function useChannelWebSocket(communityId: string | undefined) {
     // No need to join/leave community here; handled by useCommunityJoin
 
     const handleNewMessage = ({ message }: { message: Message }) => {
-      if (message.channelId) {
-        dispatch(prependMessage({ channelId: message.channelId, message }));
+      const targetChannelId = message.channelId || message.directMessageGroupId;
+      if (targetChannelId) {
+        dispatch(prependMessage({ channelId: targetChannelId, message }));
       }
     };
     const handleUpdateMessage = ({ message }: { message: Message }) => {
-      if (message.channelId) {
-        dispatch(updateMessage({ channelId: message.channelId, message }));
+      const targetChannelId = message.channelId || message.directMessageGroupId;
+      if (targetChannelId) {
+        dispatch(updateMessage({ channelId: targetChannelId, message }));
       }
     };
     const handleDeleteMessage = ({
-      id,
+      messageId,
       channelId,
+      directMessageGroupId,
     }: {
-      id: string;
-      channelId: string;
+      messageId: string;
+      channelId?: string | null;
+      directMessageGroupId?: string | null;
     }) => {
-      if (channelId) {
-        dispatch(deleteMessage({ channelId, id }));
+      const targetChannelId = channelId || directMessageGroupId;
+      if (targetChannelId) {
+        dispatch(deleteMessage({ channelId: targetChannelId, id: messageId }));
       }
     };
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);

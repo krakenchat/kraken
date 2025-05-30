@@ -18,8 +18,9 @@ export interface UpdateMessagePayload {
   message: Message;
 }
 export interface DeleteMessagePayload {
-  id: string;
-  channelId: string;
+  messageId: string;
+  channelId?: string | null;
+  directMessageGroupId?: string | null;
 }
 
 export type WebSocketEventPayloads = {

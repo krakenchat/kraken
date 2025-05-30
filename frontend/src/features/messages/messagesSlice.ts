@@ -64,14 +64,12 @@ const messagesSlice = createSlice({
       state,
       action: PayloadAction<{ channelId: string; message: Message }>
     ) {
-      console.log("Prepend message", action.payload);
       const { channelId, message } = action.payload;
       const existing = state.byChannelId[channelId]?.messages || [];
 
       // Check if message already exists
       const messageExists = existing.some((msg) => msg.id === message.id);
       if (messageExists) {
-        console.log("Message already exists, skipping prepend");
         return;
       }
 

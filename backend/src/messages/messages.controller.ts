@@ -25,11 +25,16 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { UserEntity } from '@/user/dto/user-response.dto';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly websocketService: WebsocketService,
+  ) {}
 
   @Post()
   @HttpCode(201)
@@ -108,11 +113,29 @@ export class MessagesController {
     type: RbacResourceType.CHANNEL,
     idKey: 'id',
   })
-  update(
+  async update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateMessageDto: UpdateMessageDto,
   ) {
-    return this.messagesService.update(id, updateMessageDto);
+    // First get the original message to know which channel to notify
+    const originalMessage = await this.messagesService.findOne(id);
+
+    // Update the message
+    const updatedMessage = await this.messagesService.update(
+      id,
+      updateMessageDto,
+    );
+
+    // Emit WebSocket event to the channel room
+    const roomId =
+      originalMessage.channelId || originalMessage.directMessageGroupId;
+    if (roomId) {
+      this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
+        message: updatedMessage,
+      });
+    }
+
+    return updatedMessage;
   }
 
   @HttpCode(204)
@@ -122,7 +145,22 @@ export class MessagesController {
     type: RbacResourceType.CHANNEL,
     idKey: 'id',
   })
-  remove(@Param('id', ParseObjectIdPipe) id: string) {
-    return this.messagesService.remove(id);
+  async remove(@Param('id', ParseObjectIdPipe) id: string) {
+    // First get the message to know which channel to notify
+    const messageToDelete = await this.messagesService.findOne(id);
+
+    // Delete the message
+    await this.messagesService.remove(id);
+
+    // Emit WebSocket event to the channel room
+    const roomId =
+      messageToDelete.channelId || messageToDelete.directMessageGroupId;
+    if (roomId) {
+      this.websocketService.sendToRoom(roomId, ServerEvents.DELETE_MESSAGE, {
+        messageId: id,
+        channelId: messageToDelete.channelId,
+        directMessageGroupId: messageToDelete.directMessageGroupId,
+      });
+    }
   }
 }
