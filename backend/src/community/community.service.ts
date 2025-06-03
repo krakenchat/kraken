@@ -7,11 +7,15 @@ import {
 import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
 import { DatabaseService } from '@/database/database.service';
+import { ChannelsService } from '@/channels/channels.service';
 
 @Injectable()
 export class CommunityService {
   private readonly logger = new Logger(CommunityService.name);
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly channelsService: ChannelsService,
+  ) {}
   async create(createCommunityDto: CreateCommunityDto, creatorId: string) {
     try {
       return await this.databaseService.$transaction(async (tx) => {
@@ -25,6 +29,13 @@ export class CommunityService {
             communityId: community.id,
           },
         });
+
+        // Create default "general" channel and add creator as member
+        await this.channelsService.createDefaultGeneralChannel(
+          community.id,
+          creatorId,
+          tx,
+        );
 
         return community;
       });
@@ -74,6 +85,18 @@ export class CommunityService {
     } catch (error) {
       this.logger.error(error);
       throw new NotFoundException('Community not found');
+    }
+  }
+
+  async addMemberToGeneralChannel(communityId: string, userId: string) {
+    try {
+      await this.channelsService.addUserToGeneralChannel(communityId, userId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to add user ${userId} to general channel in community ${communityId}`,
+        error,
+      );
+      // Don't throw error to avoid breaking membership creation
     }
   }
 

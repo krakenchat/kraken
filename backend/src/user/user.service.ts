@@ -7,12 +7,14 @@ import { InstanceInvite, InstanceRole, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { InviteService } from '../invite/invite.service';
+import { ChannelsService } from '../channels/channels.service';
 
 @Injectable()
 export class UserService {
   constructor(
     private database: DatabaseService,
     private instanceInviteService: InviteService,
+    private channelsService: ChannelsService,
   ) {}
 
   async findByUsername(username: string): Promise<User | null> {
@@ -75,6 +77,22 @@ export class UserService {
             communityId,
           })),
         });
+
+        // Add user to general channel in each community they joined
+        for (const communityId of upatedInvite.defaultCommunityId) {
+          try {
+            await this.channelsService.addUserToGeneralChannel(
+              communityId,
+              createdUser.id,
+            );
+          } catch (error) {
+            // Log error but don't fail user creation
+            console.warn(
+              `Failed to add user ${createdUser.id} to general channel in community ${communityId}:`,
+              error,
+            );
+          }
+        }
       }
 
       return createdUser;

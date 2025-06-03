@@ -8,5 +8,6 @@ import { DatabaseModule } from '@/database/database.module';
   controllers: [ChannelsController],
   providers: [ChannelsService],
   imports: [RolesModule, DatabaseModule],
+  exports: [ChannelsService],
 })
 export class ChannelsModule {}

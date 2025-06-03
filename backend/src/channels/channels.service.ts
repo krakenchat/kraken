@@ -8,6 +8,7 @@ import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
+import { ChannelType, Prisma } from '@prisma/client';
 
 @Injectable()
 export class ChannelsService {
@@ -88,5 +89,86 @@ export class ChannelsService {
     return this.databaseService.channel.delete({
       where: { id },
     });
+  }
+
+  async createDefaultGeneralChannel(
+    communityId: string,
+    userId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const prisma = tx || this.databaseService;
+
+    try {
+      const channel = await prisma.channel.create({
+        data: {
+          name: 'general',
+          communityId,
+          type: ChannelType.TEXT,
+          isPrivate: false,
+        },
+      });
+
+      await prisma.channelMembership.create({
+        data: {
+          userId,
+          channelId: channel.id,
+        },
+      });
+
+      return channel;
+    } catch (error) {
+      this.logger.error('Error creating default general channel', error);
+      throw error;
+    }
+  }
+
+  async addUserToGeneralChannel(communityId: string, userId: string) {
+    try {
+      // Find the general channel in the community
+      const generalChannel = await this.databaseService.channel.findFirst({
+        where: {
+          communityId,
+          name: 'general',
+        },
+      });
+
+      if (!generalChannel) {
+        this.logger.warn(
+          `No general channel found for community ${communityId}`,
+        );
+        return;
+      }
+
+      // Check if user is already a member
+      const existingMembership =
+        await this.databaseService.channelMembership.findFirst({
+          where: {
+            userId,
+            channelId: generalChannel.id,
+          },
+        });
+
+      if (existingMembership) {
+        this.logger.debug(
+          `User ${userId} is already a member of general channel`,
+        );
+        return;
+      }
+
+      // Add user to the general channel
+      await this.databaseService.channelMembership.create({
+        data: {
+          userId,
+          channelId: generalChannel.id,
+        },
+      });
+
+      this.logger.debug(
+        `Added user ${userId} to general channel in community ${communityId}`,
+      );
+    } catch (error) {
+      this.logger.error('Error adding user to general channel', error);
+      throw error;
+    }
   }
 }
