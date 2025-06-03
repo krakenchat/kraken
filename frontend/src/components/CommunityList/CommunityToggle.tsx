@@ -6,7 +6,8 @@ import { styled } from "@mui/system";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import CommunityListItem from "./CommunityListItem";
-import { useParams } from "react-router-dom";
+import CreateCommunityButton from "./CreateCommunityButton";
+import { useParams, useNavigate } from "react-router-dom";
 
 export interface Community {
   id: string;
@@ -77,6 +78,12 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { communityId } = useParams();
+  const navigate = useNavigate();
+
+  const handleCreateCommunity = () => {
+    // Navigate to create community page (you may need to adjust this route)
+    navigate("/community/create");
+  };
 
   return (
     <Sidebar
@@ -111,6 +118,10 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
                 No communities
               </Box>
             )}
+        <CreateCommunityButton
+          isExpanded={isExpanded}
+          onClick={handleCreateCommunity}
+        />
       </CommunityList>
     </Sidebar>
   );

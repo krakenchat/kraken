@@ -18,6 +18,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@fontsource/roboto": "^5.2.5",
+    "@livekit/components-react": "^2.9.9",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
     "@reduxjs/toolkit": "^2.7.0",

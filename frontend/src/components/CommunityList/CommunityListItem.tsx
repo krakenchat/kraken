@@ -51,7 +51,7 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
     <Button
       onClick={() => navigateToCommunity(community.id)}
       variant="text"
-      sx={{ width: "100%", padding: 0 }}
+      sx={{ width: "90%", padding: 0 }}
     >
       <Box
         sx={{

@@ -46,6 +46,7 @@
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.7",
     "ioredis": "^5.6.1",
+    "livekit-server-sdk": "^2.13.0",
     "nestjs-object-id": "^3.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
