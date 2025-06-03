@@ -4,6 +4,7 @@ import { usersApi } from "../features/users/usersSlice";
 import { communityApi } from "../features/community/communityApiSlice";
 import { channelApi } from "../features/channel/channelApiSlice";
 import { messagesApi } from "../features/messages/messagesApiSlice";
+import { rolesApi } from "../features/roles/rolesApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 
 export const store = configureStore({
@@ -13,6 +14,7 @@ export const store = configureStore({
     [communityApi.reducerPath]: communityApi.reducer,
     [channelApi.reducerPath]: channelApi.reducer,
     [messagesApi.reducerPath]: messagesApi.reducer,
+    [rolesApi.reducerPath]: rolesApi.reducer,
     messages: messagesReducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -21,7 +23,8 @@ export const store = configureStore({
       usersApi.middleware,
       communityApi.middleware,
       channelApi.middleware,
-      messagesApi.middleware
+      messagesApi.middleware,
+      rolesApi.middleware
     ),
 });
 
