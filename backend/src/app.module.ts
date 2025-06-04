@@ -19,6 +19,7 @@ import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
 import { CacheModule } from './cache/cache.module';
 import { PresenceModule } from './presence/presence.module';
+import { MembershipModule } from './membership/membership.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { PresenceModule } from './presence/presence.module';
     RedisModule,
     CacheModule,
     PresenceModule,
+    MembershipModule,
   ],
   controllers: [AppController],
   providers: [
