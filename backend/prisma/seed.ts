@@ -105,6 +105,78 @@ async function main() {
   });
   console.log({ community });
 
+  // Create community-specific roles
+  const communityAdminRole = await prisma.role.upsert({
+    where: { name: `Community Admin - ${community.id}` },
+    update: {},
+    create: {
+      name: `Community Admin - ${community.id}`,
+      actions: [
+        RbacActions.UPDATE_COMMUNITY,
+        RbacActions.DELETE_COMMUNITY,
+        RbacActions.READ_COMMUNITY,
+        RbacActions.CREATE_CHANNEL,
+        RbacActions.UPDATE_CHANNEL,
+        RbacActions.DELETE_CHANNEL,
+        RbacActions.READ_CHANNEL,
+        RbacActions.CREATE_MEMBER,
+        RbacActions.UPDATE_MEMBER,
+        RbacActions.DELETE_MEMBER,
+        RbacActions.READ_MEMBER,
+        RbacActions.CREATE_MESSAGE,
+        RbacActions.DELETE_MESSAGE,
+        RbacActions.READ_MESSAGE,
+        RbacActions.CREATE_ROLE,
+        RbacActions.UPDATE_ROLE,
+        RbacActions.DELETE_ROLE,
+        RbacActions.READ_ROLE,
+        RbacActions.CREATE_INVITE,
+        RbacActions.DELETE_INVITE,
+        RbacActions.READ_INSTANCE_INVITE,
+        RbacActions.CREATE_ALIAS_GROUP,
+        RbacActions.UPDATE_ALIAS_GROUP,
+        RbacActions.DELETE_ALIAS_GROUP,
+        RbacActions.READ_ALIAS_GROUP,
+        RbacActions.CREATE_ALIAS_GROUP_MEMBER,
+        RbacActions.DELETE_ALIAS_GROUP_MEMBER,
+        RbacActions.READ_ALIAS_GROUP_MEMBER,
+        RbacActions.CREATE_REACTION,
+        RbacActions.DELETE_REACTION,
+        RbacActions.CREATE_ATTACHMENT,
+        RbacActions.DELETE_ATTACHMENT,
+      ],
+    },
+  });
+  console.log({ communityAdminRole });
+
+  const communityModeratorRole = await prisma.role.upsert({
+    where: { name: `Moderator - ${community.id}` },
+    update: {},
+    create: {
+      name: `Moderator - ${community.id}`,
+      actions: [
+        RbacActions.READ_COMMUNITY,
+        RbacActions.READ_CHANNEL,
+        RbacActions.READ_MEMBER,
+        RbacActions.READ_MESSAGE,
+        RbacActions.READ_ROLE,
+        RbacActions.CREATE_MESSAGE,
+        RbacActions.DELETE_MESSAGE,
+        RbacActions.CREATE_CHANNEL,
+        RbacActions.UPDATE_CHANNEL,
+        RbacActions.CREATE_MEMBER,
+        RbacActions.UPDATE_MEMBER,
+        RbacActions.CREATE_REACTION,
+        RbacActions.DELETE_REACTION,
+        RbacActions.CREATE_ATTACHMENT,
+        RbacActions.DELETE_ATTACHMENT,
+        RbacActions.READ_ALIAS_GROUP,
+        RbacActions.READ_ALIAS_GROUP_MEMBER,
+      ],
+    },
+  });
+  console.log({ communityModeratorRole });
+
   const member = await prisma.membership.upsert({
     where: {
       userId_communityId: {
@@ -119,6 +191,25 @@ async function main() {
     update: {},
   });
   console.log({ member });
+
+  // Assign admin user to the community admin role
+  const adminUserRole = await prisma.userRoles.upsert({
+    where: {
+      userId_communityId_roleId: {
+        userId: admin.id,
+        communityId: community.id,
+        roleId: communityAdminRole.id,
+      },
+    },
+    create: {
+      userId: admin.id,
+      communityId: community.id,
+      roleId: communityAdminRole.id,
+      isInstanceRole: false,
+    },
+    update: {},
+  });
+  console.log({ adminUserRole });
 
   const channel = await prisma.channel.upsert({
     where: { communityId_name: { communityId: community.id, name: 'general' } },

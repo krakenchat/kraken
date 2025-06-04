@@ -1,8 +1,12 @@
 import { RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { DatabaseService } from '@/database/database.service';
 import { Injectable } from '@nestjs/common';
-import { RbacActions } from '@prisma/client';
+import { RbacActions, Prisma } from '@prisma/client';
 import { UserRolesResponseDto, RoleDto } from './dto/user-roles-response.dto';
+import {
+  getDefaultCommunityRoles,
+  DEFAULT_ADMIN_ROLE,
+} from './default-roles.config';
 
 @Injectable()
 export class RolesService {
@@ -136,6 +140,103 @@ export class RolesService {
       resourceId: null,
       resourceType: 'INSTANCE',
       roles,
+    };
+  }
+
+  /**
+   * Creates default roles for a new community
+   * Returns the admin role ID for assigning to the creator
+   */
+  async createDefaultCommunityRoles(
+    communityId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<string> {
+    const database = tx || this.database;
+    const defaultRoles = getDefaultCommunityRoles();
+
+    let adminRoleId: string;
+
+    for (const defaultRole of defaultRoles) {
+      const role = await database.role.create({
+        data: {
+          name: `${defaultRole.name} - ${communityId}`, // Make role names unique per community
+          actions: defaultRole.actions,
+        },
+      });
+
+      // Store admin role ID to return it
+      if (defaultRole.name === DEFAULT_ADMIN_ROLE.name) {
+        adminRoleId = role.id;
+      }
+    }
+
+    return adminRoleId!;
+  }
+
+  /**
+   * Assigns a user to a role in a community
+   */
+  async assignUserToCommunityRole(
+    userId: string,
+    communityId: string,
+    roleId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const database = tx || this.database;
+
+    await database.userRoles.create({
+      data: {
+        userId,
+        communityId,
+        roleId,
+        isInstanceRole: false,
+      },
+    });
+  }
+
+  /**
+   * Gets the admin role for a specific community
+   */
+  async getCommunityAdminRole(communityId: string): Promise<RoleDto | null> {
+    const adminRoleName = `${DEFAULT_ADMIN_ROLE.name} - ${communityId}`;
+
+    const role = await this.database.role.findFirst({
+      where: {
+        name: adminRoleName,
+      },
+    });
+
+    if (!role) return null;
+
+    return {
+      id: role.id,
+      name: role.name,
+      actions: role.actions,
+      createdAt: role.createdAt,
+    };
+  }
+
+  /**
+   * Gets the moderator role for a specific community
+   */
+  async getCommunityModeratorRole(
+    communityId: string,
+  ): Promise<RoleDto | null> {
+    const modRoleName = `Moderator - ${communityId}`;
+
+    const role = await this.database.role.findFirst({
+      where: {
+        name: modRoleName,
+      },
+    });
+
+    if (!role) return null;
+
+    return {
+      id: role.id,
+      name: role.name,
+      actions: role.actions,
+      createdAt: role.createdAt,
     };
   }
 }

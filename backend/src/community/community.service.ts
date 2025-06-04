@@ -8,6 +8,7 @@ import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
+import { RolesService } from '@/roles/roles.service';
 
 @Injectable()
 export class CommunityService {
@@ -15,6 +16,7 @@ export class CommunityService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly channelsService: ChannelsService,
+    private readonly rolesService: RolesService,
   ) {}
   async create(createCommunityDto: CreateCommunityDto, creatorId: string) {
     try {
@@ -34,6 +36,20 @@ export class CommunityService {
         await this.channelsService.createDefaultGeneralChannel(
           community.id,
           creatorId,
+          tx,
+        );
+
+        // Create default roles for the community
+        const adminRoleId = await this.rolesService.createDefaultCommunityRoles(
+          community.id,
+          tx,
+        );
+
+        // Assign the creator as admin of the community
+        await this.rolesService.assignUserToCommunityRole(
+          creatorId,
+          community.id,
+          adminRoleId,
           tx,
         );
 
