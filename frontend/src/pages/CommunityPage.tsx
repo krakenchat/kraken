@@ -4,6 +4,7 @@ import { useGetCommunityByIdQuery } from "../features/community/communityApiSlic
 import { Avatar, Box, Typography, Paper } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
+import EditCommunityButton from "../components/Community/EditCommunityButton";
 import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
 
@@ -40,9 +41,18 @@ const Sidebar = styled(Paper)(({ theme }) => ({
 const CommunityHeader = styled(Box)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
+  justifyContent: "space-between",
   gap: theme.spacing(1.5),
   padding: theme.spacing(0, 2, 2, 2),
   borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+const CommunityInfo = styled(Box)(({ theme }) => ({
+  display: "flex",
+  alignItems: "center",
+  gap: theme.spacing(1.5),
+  flex: 1,
+  minWidth: 0, // Allow text to truncate
 }));
 
 const Content = styled(Box)(() => ({
@@ -77,14 +87,17 @@ const CommunityPage: React.FC = () => {
     <Root>
       <Sidebar>
         <CommunityHeader>
-          <Avatar
-            src={data.avatar || ""}
-            alt={`${data.name} logo`}
-            sx={{ width: 40, height: 40 }}
-          />
-          <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
-            {data.name}
-          </Typography>
+          <CommunityInfo>
+            <Avatar
+              src={data.avatar || ""}
+              alt={`${data.name} logo`}
+              sx={{ width: 40, height: 40 }}
+            />
+            <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
+              {data.name}
+            </Typography>
+          </CommunityInfo>
+          <EditCommunityButton communityId={communityId} />
         </CommunityHeader>
         <ChannelList communityId={communityId} />
       </Sidebar>

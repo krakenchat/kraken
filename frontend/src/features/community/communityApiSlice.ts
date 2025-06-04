@@ -3,6 +3,9 @@ import type { Community } from "../../types/community.type";
 import type { CreateCommunity } from "../../types/create-community.type";
 import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
 
+// Add UpdateCommunity type for the update mutation
+type UpdateCommunity = Partial<Omit<CreateCommunity, "id">>;
+
 export const communityApi = createApi({
   reducerPath: "communityApi",
   baseQuery: getBaseAuthedQuery(
@@ -36,6 +39,20 @@ export const communityApi = createApi({
       }),
       invalidatesTags: ["Community"],
     }),
+    updateCommunity: builder.mutation<
+      Community,
+      { id: string; data: UpdateCommunity }
+    >({
+      query: ({ id, data }) => ({
+        url: `/${id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Community", id },
+        "Community",
+      ],
+    }),
   }),
   tagTypes: ["Community"],
 });
@@ -44,4 +61,5 @@ export const {
   useMyCommunitiesQuery,
   useGetCommunityByIdQuery,
   useCreateCommunityMutation,
+  useUpdateCommunityMutation,
 } = communityApi;

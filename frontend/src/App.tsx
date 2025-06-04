@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
 import RegisterPage from "./pages/RegisterPage";
 import CreateCommunityPage from "./pages/CreateCommunityPage";
+import EditCommunityPage from "./pages/EditCommunityPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import LoremIpsum from "./pages/LoremIpsum";
@@ -32,6 +33,7 @@ function App() {
           <Route path="community/create" element={<CreateCommunityPage />} />
           <Route path="community/:communityId">
             <Route index element={<CommunityPage />} />
+            <Route path="edit" element={<EditCommunityPage />} />
             <Route path="channel/:channelId" element={<CommunityPage />} />
           </Route>
           <Route path="lorem" element={<LoremIpsum />} />
