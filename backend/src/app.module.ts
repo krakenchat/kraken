@@ -20,6 +20,7 @@ import { RedisModule } from './redis/redis.module';
 import { CacheModule } from './cache/cache.module';
 import { PresenceModule } from './presence/presence.module';
 import { MembershipModule } from './membership/membership.module';
+import { ChannelMembershipModule } from './channel-membership/channel-membership.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { MembershipModule } from './membership/membership.module';
     CacheModule,
     PresenceModule,
     MembershipModule,
+    ChannelMembershipModule,
   ],
   controllers: [AppController],
   providers: [
