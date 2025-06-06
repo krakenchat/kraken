@@ -1,0 +1,29 @@
+### Generate LiveKit Token
+POST http://localhost:3000/api/livekit/token
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "identity": "user123",
+  "roomId": "room123",
+  "name": "John Doe",
+  "ttl": 3600
+}
+
+### Generate LiveKit Token (minimal)
+POST http://localhost:3000/api/livekit/token
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "identity": "user456",
+  "roomId": "room456"
+}
+
+### Get LiveKit Connection Info
+GET http://localhost:3000/api/livekit/connection-info
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### Check LiveKit Health
+GET http://localhost:3000/api/livekit/health
+Authorization: Bearer YOUR_JWT_TOKEN_HERE

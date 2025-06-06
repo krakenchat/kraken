@@ -1,12 +1,15 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { useGetCommunityByIdQuery } from "../features/community/communityApiSlice";
+import { useGetChannelByIdQuery } from "../features/channel/channelApiSlice";
 import { Avatar, Box, Typography, Paper } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
+import LiveKitVideoCall from "../components/LiveKit/LiveKitVideoCall";
 import EditCommunityButton from "../components/Community/EditCommunityButton";
 import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
+import { ChannelType } from "../types/channel.type";
 
 const Root = styled(Box)({
   display: "flex",
@@ -76,12 +79,35 @@ const CommunityPage: React.FC = () => {
     skip: !communityId,
   });
 
+  // Get channel information to determine type
+  const { data: channelData } = useGetChannelByIdQuery(channelId!, {
+    skip: !channelId,
+  });
+
   useCommunityJoin(communityId);
 
   if (!communityId) return <div>Community ID is required</div>;
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading community data</div>;
   if (!data) return <div>No community data found</div>;
+
+  // Determine what to render in the content area
+  const renderChannelContent = () => {
+    if (!channelId) return null;
+    
+    // If channel is VOICE type, render LiveKit video call
+    if (channelData?.type === ChannelType.VOICE) {
+      return (
+        <LiveKitVideoCall 
+          channelId={channelId} 
+          channelName={channelData.name}
+        />
+      );
+    }
+    
+    // Otherwise, render text message container
+    return <ChannelMessageContainer channelId={channelId} />;
+  };
 
   return (
     <Root>
@@ -102,7 +128,7 @@ const CommunityPage: React.FC = () => {
         <ChannelList communityId={communityId} />
       </Sidebar>
       <Content>
-        {channelId && <ChannelMessageContainer channelId={channelId} />}
+        {renderChannelContent()}
       </Content>
     </Root>
   );

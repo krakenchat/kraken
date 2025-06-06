@@ -21,6 +21,7 @@ import { CacheModule } from './cache/cache.module';
 import { PresenceModule } from './presence/presence.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChannelMembershipModule } from './channel-membership/channel-membership.module';
+import { LivekitModule } from './livekit/livekit.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { ChannelMembershipModule } from './channel-membership/channel-membership
     PresenceModule,
     MembershipModule,
     ChannelMembershipModule,
+    LivekitModule,
   ],
   controllers: [AppController],
   providers: [

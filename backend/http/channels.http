@@ -55,6 +55,7 @@ Authorization: Bearer {{jwt}}
 {
     "name": "My New Voice Channel",
     "communityId": "{{communityId}}",
+    "isPrivate": false,
     "type": "VOICE"
 }
 

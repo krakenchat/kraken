@@ -17,7 +17,13 @@ export const channelApi = createApi({
         method: "GET",
       }),
     }),
+    getChannelById: builder.query<Channel, string>({
+      query: (channelId) => ({
+        url: `/${channelId}`,
+        method: "GET",
+      }),
+    }),
   }),
 });
 
-export const { useGetChannelsForCommunityQuery } = channelApi;
+export const { useGetChannelsForCommunityQuery, useGetChannelByIdQuery } = channelApi;

@@ -5,6 +5,7 @@ import { communityApi } from "../features/community/communityApiSlice";
 import { channelApi } from "../features/channel/channelApiSlice";
 import { messagesApi } from "../features/messages/messagesApiSlice";
 import { rolesApi } from "../features/roles/rolesApiSlice";
+import { livekitApi } from "../features/livekit/livekitApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 
 export const store = configureStore({
@@ -15,6 +16,7 @@ export const store = configureStore({
     [channelApi.reducerPath]: channelApi.reducer,
     [messagesApi.reducerPath]: messagesApi.reducer,
     [rolesApi.reducerPath]: rolesApi.reducer,
+    [livekitApi.reducerPath]: livekitApi.reducer,
     messages: messagesReducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -24,7 +26,8 @@ export const store = configureStore({
       communityApi.middleware,
       channelApi.middleware,
       messagesApi.middleware,
-      rolesApi.middleware
+      rolesApi.middleware,
+      livekitApi.middleware
     ),
 });
 
