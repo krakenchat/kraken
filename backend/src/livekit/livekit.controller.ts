@@ -18,7 +18,7 @@ export class LivekitController {
   constructor(private readonly livekitService: LivekitService) {}
 
   @Post('token')
-  @RequiredActions(RbacActions.READ_CHANNEL) // TODO: change this
+  @RequiredActions(RbacActions.JOIN_CHANNEL)
   @RbacResource({
     type: RbacResourceType.CHANNEL,
     idKey: 'roomId',

@@ -7,7 +7,6 @@ import CreateCommunityPage from "./pages/CreateCommunityPage";
 import EditCommunityPage from "./pages/EditCommunityPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import LoremIpsum from "./pages/LoremIpsum";
 import CommunityPage from "./pages/CommunityPage";
 
 const darkTheme = createTheme({
@@ -36,7 +35,6 @@ function App() {
             <Route path="edit" element={<EditCommunityPage />} />
             <Route path="channel/:channelId" element={<CommunityPage />} />
           </Route>
-          <Route path="lorem" element={<LoremIpsum />} />
         </Route>
       </Routes>
     </ThemeProvider>
