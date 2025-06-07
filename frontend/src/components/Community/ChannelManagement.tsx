@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   TextField,
   FormControlLabel,
@@ -45,7 +46,9 @@ interface ChannelFormData {
 const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+  const [channelToDelete, setChannelToDelete] = useState<{id: string, name: string} | null>(null);
   const [formData, setFormData] = useState<ChannelFormData>({
     name: "",
     description: "",
@@ -143,14 +146,27 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
     }
   };
 
-  const handleDeleteChannel = async (channelId: string, channelName: string) => {
-    if (!window.confirm(`Are you sure you want to delete the channel "${channelName}"? This action cannot be undone.`)) return;
+  const handleDeleteChannel = (channelId: string, channelName: string) => {
+    setChannelToDelete({ id: channelId, name: channelName });
+    setConfirmDeleteOpen(true);
+  };
+
+  const confirmDeleteChannel = async () => {
+    if (!channelToDelete) return;
 
     try {
-      await deleteChannel(channelId).unwrap();
+      await deleteChannel(channelToDelete.id).unwrap();
     } catch (error) {
       console.error("Failed to delete channel:", error);
+    } finally {
+      setConfirmDeleteOpen(false);
+      setChannelToDelete(null);
     }
+  };
+
+  const cancelDeleteChannel = () => {
+    setConfirmDeleteOpen(false);
+    setChannelToDelete(null);
   };
 
   const handleCloseCreateDialog = () => {
@@ -356,6 +372,35 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
               disabled={!formData.name.trim() || updatingChannel}
             >
               {updatingChannel ? <CircularProgress size={20} /> : "Update Channel"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={confirmDeleteOpen}
+          onClose={cancelDeleteChannel}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Delete Channel</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to delete the channel <strong>"{channelToDelete?.name}"</strong>? 
+              This action cannot be undone and all messages in this channel will be permanently lost.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={cancelDeleteChannel}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmDeleteChannel} 
+              color="error" 
+              variant="contained"
+              disabled={deletingChannel}
+            >
+              {deletingChannel ? <CircularProgress size={20} /> : "Delete Channel"}
             </Button>
           </DialogActions>
         </Dialog>

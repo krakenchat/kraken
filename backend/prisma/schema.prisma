@@ -20,8 +20,8 @@ model Message {
   editedAt             DateTime?
   deletedAt            DateTime?
 
-  channel            Channel?            @relation(fields: [channelId], references: [id])
-  directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id])
+  channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
 }
 
 model User {
@@ -102,7 +102,7 @@ model Channel {
   id                String              @id @default(auto()) @map("_id") @db.ObjectId
   name              String
   communityId       String              @db.ObjectId
-  community         Community?          @relation(fields: [communityId], references: [id])
+  community         Community?          @relation(fields: [communityId], references: [id], onDelete: Cascade)
   createdAt         DateTime            @default(now())
   type              ChannelType         @default(TEXT)
   Message           Message[]
@@ -113,14 +113,13 @@ model Channel {
 }
 
 model ChannelMembership {
-  id        String                @id @default(auto()) @map("_id") @db.ObjectId
-  user      User                  @relation("UserChannelMemberships", fields: [userId], references: [id])
-  channel   Channel               @relation("ChannelMembership", fields: [channelId], references: [id])
-  joinedAt  DateTime              @default(now())
-  userId    String                @db.ObjectId
-  channelId String                @db.ObjectId
-  role      ChannelMembershipRole @default(MEMBER)
-  addedBy   String?               @db.ObjectId // Who added this user (for private channels)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  user      User     @relation("UserChannelMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  channel   Channel  @relation("ChannelMembership", fields: [channelId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+  userId    String   @db.ObjectId
+  channelId String   @db.ObjectId
+  addedBy   String?  @db.ObjectId // Who added this user (for private channels)
 
   @@unique([userId, channelId])
 }
@@ -160,9 +159,9 @@ model UserRoles {
   communityId    String?    @db.ObjectId
   roleId         String     @db.ObjectId
   isInstanceRole Boolean    @default(false)
-  user           User       @relation(fields: [userId], references: [id])
-  community      Community? @relation(fields: [communityId], references: [id])
-  role           Role       @relation(fields: [roleId], references: [id])
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community      Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  role           Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, communityId, roleId])
 }
@@ -180,8 +179,8 @@ model DirectMessageGroupMember {
   id       String             @id @default(auto()) @map("_id") @db.ObjectId
   groupId  String             @db.ObjectId
   userId   String             @db.ObjectId
-  group    DirectMessageGroup @relation(fields: [groupId], references: [id])
-  user     User               @relation(fields: [userId], references: [id])
+  group    DirectMessageGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   joinedAt DateTime           @default(now())
 
   @@unique([groupId, userId])
@@ -193,8 +192,8 @@ model Friendship {
   userBId   String           @db.ObjectId
   createdAt DateTime         @default(now())
   status    FriendshipStatus @default(PENDING)
-  userA     User             @relation("FriendshipA", fields: [userAId], references: [id])
-  userB     User             @relation("FriendshipB", fields: [userBId], references: [id])
+  userA     User             @relation("FriendshipA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User             @relation("FriendshipB", fields: [userBId], references: [id], onDelete: Cascade)
 
   @@unique([userAId, userBId])
 }
@@ -260,12 +259,6 @@ enum RbacActions {
 enum InstanceRole {
   OWNER
   USER
-}
-
-enum ChannelMembershipRole {
-  MEMBER
-  MODERATOR
-  ADMIN
 }
 
 type Span {

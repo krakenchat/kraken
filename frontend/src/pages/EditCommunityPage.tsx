@@ -280,6 +280,7 @@ const EditCommunityPage: React.FC = () => {
           {canManageChannels && channels ? (
             <PrivateChannelMembership 
               channels={channels}
+              communityId={communityId!}
             />
           ) : canManageChannels ? (
             <Box display="flex" justifyContent="center" p={2}>
