@@ -3,6 +3,9 @@ export interface Channel {
   id: string;
   communityId: string;
   type: ChannelType;
+  isPrivate: boolean;
+  description?: string;
+  createdAt: string;
 }
 
 export enum ChannelType {

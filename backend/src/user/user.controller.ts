@@ -7,12 +7,17 @@ import {
   Request,
   NotFoundException,
   UseGuards,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEntity } from './dto/user-response.dto';
 import { Public } from 'src/auth/public.decorator';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { RequiredActions } from '@/auth/rbac-action.decorator';
+import { RbacActions } from '@prisma/client';
+import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 
 @Controller('users')
 export class UserController {
@@ -60,6 +65,20 @@ export class UserController {
     return mapped;
   }
 
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  @RequiredActions(RbacActions.READ_USER)
+  @RbacResource({
+    type: RbacResourceType.INSTANCE,
+  })
+  searchUsers(
+    @Query('q') query: string,
+    @Query('communityId') communityId?: string,
+    @Query('limit', ParseIntPipe) limit?: number,
+  ): Promise<UserEntity[]> {
+    return this.userService.searchUsers(query, communityId, limit);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   async getUserById(@Param('id') id: string): Promise<UserEntity> {
@@ -71,5 +90,18 @@ export class UserController {
 
     const mapped = new UserEntity(user);
     return mapped;
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @RequiredActions(RbacActions.READ_USER)
+  @RbacResource({
+    type: RbacResourceType.INSTANCE,
+  })
+  findAllUsers(
+    @Query('limit', ParseIntPipe) limit?: number,
+    @Query('continuationToken') continuationToken?: string,
+  ): Promise<{ users: UserEntity[]; continuationToken?: string }> {
+    return this.userService.findAll(limit, continuationToken);
   }
 }

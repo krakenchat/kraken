@@ -102,14 +102,7 @@ export class MembershipService {
       const memberships = await this.databaseService.membership.findMany({
         where: { communityId },
         include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true,
-            },
-          },
+          user: true,
         },
       });
 

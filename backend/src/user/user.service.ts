@@ -3,11 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InstanceInvite, InstanceRole, User } from '@prisma/client';
+import { InstanceInvite, InstanceRole, User, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { InviteService } from '../invite/invite.service';
 import { ChannelsService } from '../channels/channels.service';
+import { UserEntity } from './dto/user-response.dto';
 
 @Injectable()
 export class UserService {
@@ -122,5 +123,54 @@ export class UserService {
         `A user with this ${conflictField} already exists.`,
       );
     }
+  }
+
+  async findAll(limit: number = 50, continuationToken?: string) {
+    const query = {
+      where: {},
+      take: limit,
+      orderBy: { createdAt: 'desc' as const },
+      ...(continuationToken ? { cursor: { id: continuationToken } } : {}),
+    };
+
+    const users = (await this.database.user.findMany(query)).map(
+      (u) => new UserEntity(u),
+    );
+    const nextToken =
+      users.length === limit ? users[users.length - 1].id : undefined;
+
+    return { users, continuationToken: nextToken };
+  }
+
+  async searchUsers(
+    query: string,
+    communityId?: string,
+    limit: number = 50,
+  ): Promise<UserEntity[]> {
+    const whereClause: Prisma.UserWhereInput = {
+      OR: [
+        { username: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ],
+    };
+
+    // If communityId is provided, filter to users who are NOT already members
+    if (communityId) {
+      whereClause.NOT = {
+        memberships: {
+          some: {
+            communityId: communityId,
+          },
+        },
+      };
+    }
+
+    const users = await this.database.user.findMany({
+      where: whereClause,
+      take: limit,
+      orderBy: { username: 'asc' },
+    });
+
+    return users.map((u) => new UserEntity(u));
   }
 }

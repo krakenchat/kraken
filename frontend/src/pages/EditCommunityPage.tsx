@@ -1,42 +1,107 @@
-import React, { useEffect } from "react";
-import { Box, CircularProgress, Alert } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import { 
+  Box, 
+  CircularProgress, 
+  Alert, 
+  Tabs, 
+  Tab, 
+  Paper,
+  Typography,
+  Button,
+  Container,
+  Breadcrumbs,
+  Link,
+} from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
+import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import {
   useGetCommunityByIdQuery,
   useUpdateCommunityMutation,
 } from "../features/community/communityApiSlice";
+import { useGetChannelsForCommunityQuery } from "../features/channel/channelApiSlice";
 import { useCommunityForm } from "../hooks/useCommunityForm";
+import { useUserPermissions } from "../features/roles/useUserPermissions";
 import {
-  CommunityFormLayout,
-  CommunityBannerUpload,
-  CommunityAvatarUpload,
-  CommunityFormFields,
+  CommunitySettingsForm,
+  CommunityFormContent,
+  MemberManagement,
+  ChannelManagement,
+  PrivateChannelMembership,
+  RoleManagement,
 } from "../components/Community";
 
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`community-tabpanel-${index}`}
+      aria-labelledby={`community-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
+function a11yProps(index: number) {
+  return {
+    id: `community-tab-${index}`,
+    'aria-controls': `community-tabpanel-${index}`,
+  };
+}
+
 const Root = ({ children }: { children: React.ReactNode }) => (
-  <Box
-    sx={{
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      minHeight: "100vh",
-      padding: 2,
-      background: "background.default",
-    }}
-  >
+  <Container maxWidth="lg" sx={{ py: 3 }}>
     {children}
-  </Box>
+  </Container>
 );
 
 const EditCommunityPage: React.FC = () => {
   const navigate = useNavigate();
   const { communityId } = useParams<{ communityId: string }>();
+  const [tabValue, setTabValue] = useState(0);
+
   const {
     data: community,
     isLoading: isLoadingCommunity,
     error: communityError,
   } = useGetCommunityByIdQuery(communityId!);
+
+  const {
+    data: channels,
+    isLoading: isLoadingChannels,
+  } = useGetChannelsForCommunityQuery(communityId!, {
+    skip: !communityId,
+  });
+
   const [updateCommunity, { isLoading, error }] = useUpdateCommunityMutation();
+
+  const { hasPermissions: canUpdateCommunity } = useUserPermissions({
+    resourceType: "COMMUNITY",
+    resourceId: communityId!,
+    actions: ["UPDATE_COMMUNITY"],
+  });
+
+  const { hasPermissions: canManageMembers } = useUserPermissions({
+    resourceType: "COMMUNITY",
+    resourceId: communityId!,
+    actions: ["READ_MEMBER"],
+  });
+
+  const { hasPermissions: canManageChannels } = useUserPermissions({
+    resourceType: "COMMUNITY",
+    resourceId: communityId!,
+    actions: ["CREATE_CHANNEL"],
+  });
 
   const {
     formData,
@@ -97,10 +162,14 @@ const EditCommunityPage: React.FC = () => {
     navigate(`/community/${communityId}`);
   };
 
-  if (isLoadingCommunity) {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  if (isLoadingCommunity || isLoadingChannels) {
     return (
       <Root>
-        <Box display="flex" justifyContent="center" alignItems="center">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
           <CircularProgress />
         </Box>
       </Root>
@@ -118,36 +187,116 @@ const EditCommunityPage: React.FC = () => {
   }
 
   return (
-    <CommunityFormLayout
-      title="Edit Community"
-      onGoBack={handleGoBack}
-      onSubmit={handleSubmit}
-      error={error}
-      errorMessage="Failed to update community. Please try again."
-      isLoading={isLoading}
-      isFormValid={!!formData.name.trim()}
-      submitButtonText="Update Community"
-      loadingText="Updating..."
-    >
-      <CommunityBannerUpload
-        previewUrl={previewUrls.banner}
-        onChange={handleInputChange("banner")}
-      />
+    <Root>
+      {/* Header */}
+      <Box mb={3}>
+        <Box display="flex" alignItems="center" gap={2} mb={2}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={handleGoBack}
+            color="inherit"
+          >
+            Back to Community
+          </Button>
+        </Box>
+        
+        <Breadcrumbs>
+          <Link 
+            component="button" 
+            variant="body1" 
+            onClick={handleGoBack}
+            sx={{ textDecoration: 'none' }}
+          >
+            {community.name}
+          </Link>
+          <Typography color="text.primary">Manage Community</Typography>
+        </Breadcrumbs>
+      </Box>
 
-      <CommunityAvatarUpload
-        previewUrl={previewUrls.avatar}
-        communityName={formData.name}
-        onChange={handleInputChange("avatar")}
-      />
+      {/* Tabs */}
+      <Paper>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={tabValue} onChange={handleTabChange} aria-label="community management tabs">
+            <Tab label="Settings" {...a11yProps(0)} disabled={!canUpdateCommunity} />
+            <Tab label="Members" {...a11yProps(1)} disabled={!canManageMembers} />
+            <Tab label="Channels" {...a11yProps(2)} disabled={!canManageChannels} />
+            <Tab label="Private Channels" {...a11yProps(3)} disabled={!canManageChannels} />
+            <Tab label="Roles" {...a11yProps(4)} />
+          </Tabs>
+        </Box>
 
-      <CommunityFormFields
-        name={formData.name}
-        description={formData.description}
-        onNameChange={handleInputChange("name")}
-        onDescriptionChange={handleInputChange("description")}
-        errors={formErrors}
-      />
-    </CommunityFormLayout>
+        {/* Tab Panels */}
+        <TabPanel value={tabValue} index={0}>
+          {canUpdateCommunity ? (
+            <div style={{ maxWidth: 600, margin: "0 auto" }}>
+              <CommunitySettingsForm
+                onSubmit={handleSubmit}
+                error={error}
+                errorMessage="Failed to update community. Please try again."
+                isLoading={isLoading}
+                isFormValid={!!formData.name.trim()}
+                submitButtonText="Update Community"
+                loadingText="Updating..."
+              >
+                <CommunityFormContent
+                  formData={formData}
+                  previewUrls={previewUrls}
+                  formErrors={formErrors}
+                  onNameChange={handleInputChange("name")}
+                  onDescriptionChange={handleInputChange("description")}
+                  onAvatarChange={handleInputChange("avatar")}
+                  onBannerChange={handleInputChange("banner")}
+                />
+              </CommunitySettingsForm>
+            </div>
+          ) : (
+            <Alert severity="warning">
+              You don't have permission to update community settings.
+            </Alert>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          {canManageMembers ? (
+            <MemberManagement communityId={communityId!} />
+          ) : (
+            <Alert severity="warning">
+              You don't have permission to manage community members.
+            </Alert>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          {canManageChannels ? (
+            <ChannelManagement communityId={communityId!} />
+          ) : (
+            <Alert severity="warning">
+              You don't have permission to manage channels.
+            </Alert>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={3}>
+          {canManageChannels && channels ? (
+            <PrivateChannelMembership 
+              channels={channels}
+            />
+          ) : canManageChannels ? (
+            <Box display="flex" justifyContent="center" p={2}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Alert severity="warning">
+              You don't have permission to manage private channel membership.
+            </Alert>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={4}>
+          <RoleManagement communityId={communityId!} />
+        </TabPanel>
+      </Paper>
+    </Root>
   );
 };
 

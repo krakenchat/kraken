@@ -4,9 +4,7 @@ import { useCreateCommunityMutation } from "../features/community/communityApiSl
 import { useCommunityForm } from "../hooks/useCommunityForm";
 import {
   CommunityFormLayout,
-  CommunityBannerUpload,
-  CommunityAvatarUpload,
-  CommunityFormFields,
+  CommunityFormContent,
 } from "../components/Community";
 
 const CreateCommunityPage: React.FC = () => {
@@ -63,23 +61,14 @@ const CreateCommunityPage: React.FC = () => {
       submitButtonText="Create Community"
       loadingText="Creating..."
     >
-      <CommunityBannerUpload
-        previewUrl={previewUrls.banner}
-        onChange={handleInputChange("banner")}
-      />
-
-      <CommunityAvatarUpload
-        previewUrl={previewUrls.avatar}
-        communityName={formData.name}
-        onChange={handleInputChange("avatar")}
-      />
-
-      <CommunityFormFields
-        name={formData.name}
-        description={formData.description}
+      <CommunityFormContent
+        formData={formData}
+        previewUrls={previewUrls}
+        formErrors={formErrors}
         onNameChange={handleInputChange("name")}
         onDescriptionChange={handleInputChange("description")}
-        errors={formErrors}
+        onAvatarChange={handleInputChange("avatar")}
+        onBannerChange={handleInputChange("banner")}
       />
     </CommunityFormLayout>
   );

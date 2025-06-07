@@ -48,6 +48,18 @@ export const usersApi = createApi({
         return { error: { status: 404, data: "User not found" } };
       },
     }),
+    searchUsers: builder.query<User[], { query: string; communityId?: string }>(
+      {
+        query: ({ query, communityId }) => ({
+          url: "/search",
+          method: "GET",
+          params: {
+            q: query,
+            communityId,
+          },
+        }),
+      }
+    ),
   }),
 });
 
@@ -55,4 +67,5 @@ export const {
   useLazyRegisterQuery,
   useProfileQuery,
   useGetUserByIdWithCacheQuery,
+  useLazySearchUsersQuery,
 } = usersApi;
