@@ -1,46 +1,40 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Autocomplete,
   Alert,
   CircularProgress,
   Chip,
   Avatar,
+  Divider,
+  IconButton,
+  alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
-import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { Delete as DeleteIcon, PersonAdd as PersonAddIcon } from "@mui/icons-material";
 import {
   useGetMembersForCommunityQuery,
   useCreateMembershipMutation,
   useRemoveMembershipMutation,
 } from "../../features/membership";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
-import { useLazySearchUsersQuery } from "../../features/users/usersSlice";
+import { useGetAllUsersQuery } from "../../features/users/usersSlice";
 
 interface MemberManagementProps {
   communityId: string;
 }
 
-interface UserSearchOption {
-  id: string;
-  username: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-}
-
 const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
-  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserSearchOption | null>(null);
-  const [userSearchInput, setUserSearchInput] = useState("");
-  const [userSearchOptions, setUserSearchOptions] = useState<UserSearchOption[]>([]);
+  const usersPerPage = 10;
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const [userToRemove, setUserToRemove] = useState<{id: string, name: string} | null>(null);
 
   const {
     data: members,
@@ -48,9 +42,16 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
     error: membersError,
   } = useGetMembersForCommunityQuery(communityId);
 
+  const {
+    data: usersData,
+    isLoading: loadingUsers,
+    error: usersError,
+  } = useGetAllUsersQuery({
+    limit: usersPerPage,
+  });
+
   const [createMembership, { isLoading: addingMember }] = useCreateMembershipMutation();
   const [removeMembership, { isLoading: removingMember }] = useRemoveMembershipMutation();
-  const [searchUsers] = useLazySearchUsersQuery();
 
   const { hasPermissions: canCreateMembers } = useUserPermissions({
     resourceType: "COMMUNITY",
@@ -64,51 +65,40 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
     actions: ["DELETE_MEMBER"],
   });
 
-  const canManageMembers = canCreateMembers || canDeleteMembers;
+  const memberUserIds = useMemo(() => new Set(members?.map(member => member.userId || null) || []), [members]);
 
-  const handleAddMember = async () => {
-    if (!selectedUser) return;
-
+  const handleAddMember = async (userId: string) => {
     try {
       await createMembership({
-        userId: selectedUser.id,
+        userId,
         communityId,
       }).unwrap();
-      
-      setAddMemberDialogOpen(false);
-      setSelectedUser(null);
-      setUserSearchInput("");
     } catch (error) {
       console.error("Failed to add member:", error);
     }
   };
 
-  const handleRemoveMember = async (userId: string) => {
-    if (!window.confirm("Are you sure you want to remove this member?")) return;
+  const handleRemoveMember = (userId: string, username: string) => {
+    setUserToRemove({ id: userId, name: username });
+    setConfirmRemoveOpen(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!userToRemove) return;
 
     try {
-      await removeMembership({ userId, communityId }).unwrap();
+      await removeMembership({ userId: userToRemove.id, communityId }).unwrap();
     } catch (error) {
       console.error("Failed to remove member:", error);
+    } finally {
+      setConfirmRemoveOpen(false);
+      setUserToRemove(null);
     }
   };
 
-  const handleUserSearch = async (searchValue: string) => {
-    if (searchValue.length < 2) {
-      setUserSearchOptions([]);
-      return;
-    }
-
-    try {
-      const users = await searchUsers({
-        query: searchValue,
-        communityId, // Filter out users already in this community
-      }).unwrap();
-      setUserSearchOptions(users);
-    } catch (error) {
-      console.error("Failed to search users:", error);
-      setUserSearchOptions([]);
-    }
+  const cancelRemoveMember = () => {
+    setConfirmRemoveOpen(false);
+    setUserToRemove(null);
   };
 
   if (loadingMembers) {
@@ -128,103 +118,226 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Community Members</Typography>
-          {canManageMembers && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setAddMemberDialogOpen(true)}
-            >
-              Add Member
-            </Button>
-          )}
-        </Box>
-
-        <Box display="flex" flexDirection="column" gap={1}>
-          {members?.map((member) => (
-            <Box
-              key={member.id}
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              p={1}
-              border={1}
-              borderColor="divider"
-              borderRadius={1}
-            >
-              <Box display="flex" alignItems="center" gap={1}>
-                <Avatar src={member.user?.avatarUrl || ""} />
-                <Typography variant="body2">
-                  {member.user?.displayName || member.user?.username}
-                </Typography>
-                <Chip label="Member" size="small" />
-              </Box>
-              {canManageMembers && canDeleteMembers && (
-                <Button
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={() => handleRemoveMember(member.userId)}
-                  disabled={removingMember}
+    <Box display="flex" flexDirection="column" gap={3}>
+      {/* Current Members Section */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Current Members ({members?.length || 0})
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          
+          {members && members.length > 0 ? (
+            <Box display="flex" flexDirection="column" gap={1}>
+              {members.map((member) => (
+                <Box
+                  key={member.id}
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  p={2}
+                  sx={{
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    "&:hover": {
+                      bgcolor: alpha("#000", 0.02),
+                    },
+                  }}
                 >
-                  Remove
-                </Button>
-              )}
-            </Box>
-          ))}
-        </Box>
-
-        {/* Add Member Dialog */}
-        <Dialog
-          open={addMemberDialogOpen}
-          onClose={() => setAddMemberDialogOpen(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Add Member to Community</DialogTitle>
-          <DialogContent>
-            <Autocomplete
-              options={userSearchOptions}
-              getOptionLabel={(option) => option.username}
-              value={selectedUser}
-              onChange={(_, newValue) => setSelectedUser(newValue)}
-              inputValue={userSearchInput}
-              onInputChange={(_, newInputValue) => {
-                setUserSearchInput(newInputValue);
-                handleUserSearch(newInputValue);
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Search for user"
-                  placeholder="Type username to search"
-                  fullWidth
-                  margin="normal"
-                />
-              )}
-              renderOption={(props, option) => (
-                <Box component="li" {...props}>
-                  <Typography>{option.displayName || option.username}</Typography>
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Avatar 
+                      src={member.user?.avatarUrl || ""} 
+                      sx={{ width: 40, height: 40 }}
+                    />
+                    <Box>
+                      <Typography variant="body1" fontWeight="medium">
+                        {member.user?.username}
+                      </Typography>
+                      {member.user?.displayName && (
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary"
+                          sx={{ mt: -0.5 }}
+                        >
+                          {member.user.displayName}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Chip 
+                      label="Member" 
+                      size="small" 
+                      variant="outlined"
+                      color="primary"
+                    />
+                  </Box>
+                  {canDeleteMembers && (
+                    <IconButton
+                      color="error"
+                      onClick={() => handleRemoveMember(member.userId, member.user?.username || 'Unknown User')}
+                      disabled={removingMember}
+                      sx={{ ml: 1 }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  )}
                 </Box>
-              )}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setAddMemberDialogOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleAddMember}
-              variant="contained"
-              disabled={!selectedUser || addingMember}
+              ))}
+            </Box>
+          ) : (
+            <Box 
+              display="flex" 
+              justifyContent="center" 
+              alignItems="center" 
+              py={4}
             >
-              {addingMember ? <CircularProgress size={20} /> : "Add Member"}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </CardContent>
-    </Card>
+              <Typography variant="body2" color="text.secondary">
+                No members yet
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Members Section */}
+      {canCreateMembers && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Add New Members
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            
+            {loadingUsers ? (
+              <Box display="flex" justifyContent="center" p={2}>
+                <CircularProgress />
+              </Box>
+            ) : usersError ? (
+              <Alert severity="error">
+                Failed to load users. Please try again.
+              </Alert>
+            ) : (
+              <>
+                <Box display="flex" flexDirection="column" gap={1}>
+                  {usersData?.users?.map((user) => {
+                    const isAlreadyMember = memberUserIds.has(user.id);
+                    
+                    return (
+                      <Box
+                        key={user.id}
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        p={2}
+                        sx={{
+                          border: 1,
+                          borderColor: "divider",
+                          borderRadius: 1,
+                          opacity: isAlreadyMember ? 0.5 : 1,
+                          "&:hover": !isAlreadyMember ? {
+                            bgcolor: alpha("#000", 0.02),
+                          } : {},
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" gap={2}>
+                          <Avatar 
+                            src={user.avatarUrl || ""} 
+                            sx={{ width: 40, height: 40 }}
+                          />
+                          <Box>
+                            <Typography 
+                              variant="body1" 
+                              fontWeight="medium"
+                              color={isAlreadyMember ? "text.secondary" : "text.primary"}
+                            >
+                              {user.username}
+                            </Typography>
+                            {user.displayName && (
+                              <Typography 
+                                variant="body2" 
+                                color="text.secondary"
+                                sx={{ mt: -0.5 }}
+                              >
+                                {user.displayName}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                        {isAlreadyMember ? (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            disabled
+                            sx={{ 
+                              color: 'text.secondary',
+                              borderColor: 'text.disabled'
+                            }}
+                          >
+                            Already Member
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<PersonAddIcon />}
+                            onClick={() => handleAddMember(user.id)}
+                            disabled={addingMember}
+                          >
+                            {addingMember ? <CircularProgress size={16} /> : "Add"}
+                          </Button>
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Box>
+                
+                {usersData?.users && usersData.users.length === 0 && (
+                  <Box 
+                    display="flex" 
+                    justifyContent="center" 
+                    alignItems="center" 
+                    py={4}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      No users found
+                    </Typography>
+                  </Box>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmRemoveOpen}
+        onClose={cancelRemoveMember}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Remove Member</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to remove <strong>{userToRemove?.name}</strong> from this community? 
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelRemoveMember}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmRemoveMember} 
+            color="error" 
+            variant="contained"
+            disabled={removingMember}
+          >
+            {removingMember ? <CircularProgress size={20} /> : "Remove Member"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

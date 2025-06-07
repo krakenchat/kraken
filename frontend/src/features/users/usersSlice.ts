@@ -60,6 +60,19 @@ export const usersApi = createApi({
         }),
       }
     ),
+    getAllUsers: builder.query<
+      { users: User[]; continuationToken?: string },
+      { limit?: number; continuationToken?: string }
+    >({
+      query: ({ limit = 20, continuationToken }) => ({
+        url: "/",
+        method: "GET",
+        params: {
+          limit,
+          ...(continuationToken && { continuationToken }),
+        },
+      }),
+    }),
   }),
 });
 
@@ -68,4 +81,5 @@ export const {
   useProfileQuery,
   useGetUserByIdWithCacheQuery,
   useLazySearchUsersQuery,
+  useGetAllUsersQuery,
 } = usersApi;

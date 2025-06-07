@@ -15,6 +15,24 @@ async function main() {
     },
   });
 
+  await Promise.all(
+    ['bob', 'alice', 'charlie', 'john', 'sally', 'joe', 'todd'].map(
+      (username) =>
+        prisma.user.upsert({
+          where: { email: `${username}@fake.com` },
+          update: {},
+          create: {
+            email: `${username}@fake.com`,
+            username,
+            displayName: username.charAt(0).toUpperCase() + username.slice(1),
+            role: 'USER',
+            hashedPassword: bcrypt.hashSync('password', 10),
+            verified: true,
+          },
+        }),
+    ),
+  );
+
   console.log({ admin });
 
   const adminRole = await prisma.role.upsert({

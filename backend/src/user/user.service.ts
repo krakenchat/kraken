@@ -129,7 +129,7 @@ export class UserService {
     const query = {
       where: {},
       take: limit,
-      orderBy: { createdAt: 'desc' as const },
+      orderBy: { username: 'asc' as const },
       ...(continuationToken ? { cursor: { id: continuationToken } } : {}),
     };
 

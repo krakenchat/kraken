@@ -10,12 +10,12 @@ export class MembershipResponseDto {
 
   constructor(membership: Membership & { user?: User }) {
     this.id = membership.id;
-    if (membership.user) {
-      this.user = new UserEntity(membership.user);
-    } else {
-      this.userId = membership.userId;
-    }
+    this.userId = membership.userId;
     this.communityId = membership.communityId;
     this.joinedAt = membership.joinedAt;
+
+    if (membership.user) {
+      this.user = new UserEntity(membership.user);
+    }
   }
 }

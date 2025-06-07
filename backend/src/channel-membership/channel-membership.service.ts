@@ -129,14 +129,7 @@ export class ChannelMembershipService {
         {
           where: { channelId },
           include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
+            user: true,
           },
         },
       );
