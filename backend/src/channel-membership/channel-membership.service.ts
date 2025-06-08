@@ -20,7 +20,7 @@ export class ChannelMembershipService {
     createChannelMembershipDto: CreateChannelMembershipDto,
     addedById?: string,
   ): Promise<ChannelMembershipResponseDto> {
-    const { userId, channelId, role } = createChannelMembershipDto;
+    const { userId, channelId } = createChannelMembershipDto;
 
     try {
       // Check if channel exists and get its details
@@ -78,7 +78,6 @@ export class ChannelMembershipService {
           data: {
             userId,
             channelId,
-            role: role || 'MEMBER',
             addedBy: addedById,
           },
         });
