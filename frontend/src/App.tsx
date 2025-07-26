@@ -8,6 +8,7 @@ import EditCommunityPage from "./pages/EditCommunityPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import CommunityPage from "./pages/CommunityPage";
+import { VoiceConnectionProvider } from "./contexts/VoiceConnectionContext";
 
 const darkTheme = createTheme({
   colorSchemes: {
@@ -24,19 +25,21 @@ function App() {
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="login" element={<LoginPage />} />
-          <Route path="register" element={<RegisterPage />} />
-          <Route path="community/create" element={<CreateCommunityPage />} />
-          <Route path="community/:communityId">
-            <Route index element={<CommunityPage />} />
-            <Route path="edit" element={<EditCommunityPage />} />
-            <Route path="channel/:channelId" element={<CommunityPage />} />
+      <VoiceConnectionProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route path="login" element={<LoginPage />} />
+            <Route path="register" element={<RegisterPage />} />
+            <Route path="community/create" element={<CreateCommunityPage />} />
+            <Route path="community/:communityId">
+              <Route index element={<CommunityPage />} />
+              <Route path="edit" element={<EditCommunityPage />} />
+              <Route path="channel/:channelId" element={<CommunityPage />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
+        </Routes>
+      </VoiceConnectionProvider>
     </ThemeProvider>
   );
 }

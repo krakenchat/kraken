@@ -5,7 +5,7 @@ import { useGetChannelByIdQuery } from "../features/channel/channelApiSlice";
 import { Avatar, Box, Typography, Paper } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
-import LiveKitVideoCall from "../components/LiveKit/LiveKitVideoCall";
+import { VoiceChannelUserList } from "../components/Voice";
 import EditCommunityButton from "../components/Community/EditCommunityButton";
 import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
@@ -93,15 +93,58 @@ const CommunityPage: React.FC = () => {
 
   // Determine what to render in the content area
   const renderChannelContent = () => {
-    if (!channelId) return null;
+    if (!channelId) {
+      return (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <Typography variant="h5" color="text.secondary">
+            Welcome to {data.name}
+          </Typography>
+          <Typography variant="body1" color="text.secondary" textAlign="center">
+            Select a channel from the sidebar to get started
+          </Typography>
+        </Box>
+      );
+    }
     
-    // If channel is VOICE type, render LiveKit video call
+    // If channel is VOICE type, show voice channel interface
     if (channelData?.type === ChannelType.VOICE) {
       return (
-        <LiveKitVideoCall 
-          channelId={channelId} 
-          channelName={channelData.name}
-        />
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            flexDirection: 'column',
+            gap: 3,
+            p: 4,
+          }}
+        >
+          <Typography variant="h4" textAlign="center">
+            🔊 {channelData.name}
+          </Typography>
+          <Typography variant="body1" color="text.secondary" textAlign="center">
+            This is a voice channel. Use the join button in the sidebar to connect to voice chat.
+          </Typography>
+          
+          {/* Show voice channel participants */}
+          <Box sx={{ maxWidth: 600, width: '100%' }}>
+            <VoiceChannelUserList channel={channelData} />
+          </Box>
+          
+          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ maxWidth: 400 }}>
+            Once connected, you'll see voice controls at the bottom of the screen and can enable video to see other participants.
+          </Typography>
+        </Box>
       );
     }
     

@@ -19,4 +19,10 @@ export enum ClientEvents {
   // Presence & Typing
   TYPING_START = 'typingStart',
   TYPING_STOP = 'typingStop',
+
+  // Voice Channels
+  VOICE_CHANNEL_JOIN = 'voice_channel_join',
+  VOICE_CHANNEL_LEAVE = 'voice_channel_leave',
+  VOICE_STATE_UPDATE = 'voice_state_update',
+  VOICE_PRESENCE_REFRESH = 'voice_presence_refresh',
 }

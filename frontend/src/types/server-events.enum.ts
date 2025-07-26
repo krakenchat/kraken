@@ -9,6 +9,9 @@ export enum ServerEvents {
   USER_ONLINE = "userOnline",
   USER_OFFLINE = "userOffline",
   USER_TYPING = "userTyping",
+  VOICE_CHANNEL_USER_JOINED = "voiceChannelUserJoined",
+  VOICE_CHANNEL_USER_LEFT = "voiceChannelUserLeft",
+  VOICE_CHANNEL_USER_UPDATED = "voiceChannelUserUpdated",
   ACK = "ack",
   ERROR = "error",
 }

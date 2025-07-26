@@ -8,6 +8,7 @@ import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
 import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
+import { VoiceBottomBar, VideoTiles } from "./components/Voice";
 import type { User } from "./types/auth.type";
 
 const APPBAR_HEIGHT = 64;
@@ -107,6 +108,10 @@ const Layout: React.FC = () => {
           <Outlet />
         </Box>
       </Box>
+      
+      {/* Voice Components */}
+      <VoiceBottomBar />
+      <VideoTiles />
     </>
   );
 };

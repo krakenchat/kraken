@@ -2,6 +2,7 @@ import {
   Channel as ChannelType,
   ChannelType as ChannelKind,
 } from "../../types/channel.type";
+import { Box } from "@mui/material";
 import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
@@ -9,6 +10,7 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import { styled } from "@mui/material/styles";
 import { useNavigate, useParams } from "react-router-dom";
+import { VoiceChannelJoinButton, VoiceChannelUserList } from "../Voice";
 import type { ListItemProps } from "@mui/material/ListItem";
 
 interface ChannelProps {
@@ -52,19 +54,37 @@ export function Channel({ channel }: ChannelProps) {
   };
 
   return (
-    <ChannelContainer
-      isSelected={channelId === channel.id}
-      sx={{ pl: 2, cursor: "pointer" }}
-      onClick={handleClick}
-    >
-      <ListItemIcon sx={{ minWidth: 32 }}>
-        {channel.type === ChannelKind.TEXT ? (
-          <ChatBubbleOutlineIcon fontSize="small" />
-        ) : (
-          <VolumeUpOutlinedIcon fontSize="small" />
-        )}
-      </ListItemIcon>
-      <ChannelName primary={channel.name} />
-    </ChannelContainer>
+    <Box>
+      <ChannelContainer
+        isSelected={channelId === channel.id}
+        sx={{ pl: 2, cursor: channel.type === ChannelKind.TEXT ? "pointer" : "default" }}
+        onClick={channel.type === ChannelKind.TEXT ? handleClick : undefined}
+      >
+        <ListItemIcon sx={{ minWidth: 32 }}>
+          {channel.type === ChannelKind.TEXT ? (
+            <ChatBubbleOutlineIcon fontSize="small" />
+          ) : (
+            <VolumeUpOutlinedIcon fontSize="small" />
+          )}
+        </ListItemIcon>
+        <ChannelName 
+          primary={
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>{channel.name}</span>
+              {channel.type === ChannelKind.VOICE && (
+                <VoiceChannelUserList channel={channel} showInline />
+              )}
+            </Box>
+          } 
+        />
+      </ChannelContainer>
+      
+      {/* Voice Channel Controls */}
+      {channel.type === ChannelKind.VOICE && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <VoiceChannelJoinButton channel={channel} />
+        </Box>
+      )}
+    </Box>
   );
 }

@@ -30,6 +30,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Private channels and direct messaging
 - User presence and online status
 
+### Voice Channel Implementation Notes
+
+- **LiveKit Integration**: Channel IDs are used as LiveKit room IDs for voice/video sessions
+- **Persistent Connections**: Voice connections should persist across page navigation (similar to Discord)
+- **Presence System**: Track users currently in voice channels for REST API and real-time updates
+- **Channel Types**: `VOICE` channels support both audio-only and video modes with screen sharing
+- **UI Pattern**: Bottom persistent bar when connected + video tiles overlay when video enabled
+
 ## Development Commands
 
 ### Backend (NestJS)

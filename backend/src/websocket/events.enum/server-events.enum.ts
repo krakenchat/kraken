@@ -21,6 +21,11 @@ export enum ServerEvents {
   USER_OFFLINE = 'userOffline',
   USER_TYPING = 'userTyping',
 
+  // Voice Channels
+  VOICE_CHANNEL_USER_JOINED = 'voiceChannelUserJoined',
+  VOICE_CHANNEL_USER_LEFT = 'voiceChannelUserLeft',
+  VOICE_CHANNEL_USER_UPDATED = 'voiceChannelUserUpdated',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',
