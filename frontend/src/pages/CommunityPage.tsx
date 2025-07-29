@@ -10,7 +10,7 @@ import EditCommunityButton from "../components/Community/EditCommunityButton";
 import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
 import { ChannelType } from "../types/channel.type";
-import { useVoiceConnection } from "../contexts/VoiceConnectionContext";
+import { useVoiceConnection } from "../hooks/useVoiceConnection";
 
 const Root = styled(Box)({
   display: "flex",

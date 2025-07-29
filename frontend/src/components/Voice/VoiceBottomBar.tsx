@@ -27,7 +27,7 @@ import {
   ExpandMore,
   VolumeUp,
 } from "@mui/icons-material";
-import { useVoiceConnection } from "../../contexts/VoiceConnectionContext";
+import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { ChannelType } from "../../types/channel.type";
 

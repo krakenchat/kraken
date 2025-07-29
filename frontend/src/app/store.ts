@@ -9,6 +9,7 @@ import { livekitApi } from "../features/livekit/livekitApiSlice";
 import { voicePresenceApi } from "../features/voice-presence/voicePresenceApiSlice";
 import { membershipApi, channelMembershipApi } from "../features/membership";
 import messagesReducer from "../features/messages/messagesSlice";
+import voiceReducer from "../features/voice/voiceSlice";
 
 export const store = configureStore({
   reducer: {
@@ -23,6 +24,7 @@ export const store = configureStore({
     [membershipApi.reducerPath]: membershipApi.reducer,
     [channelMembershipApi.reducerPath]: channelMembershipApi.reducer,
     messages: messagesReducer,
+    voice: voiceReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(

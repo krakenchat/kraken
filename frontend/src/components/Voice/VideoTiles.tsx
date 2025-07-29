@@ -23,7 +23,7 @@ import {
   PushPin,
   PushPinOutlined,
 } from '@mui/icons-material';
-import { useVoiceConnection } from '../../contexts/VoiceConnectionContext';
+import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { 
   TrackPublication, 
   RemoteTrack, 
@@ -493,29 +493,35 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
     const gridSize = Math.floor(12 / cols);
 
     return (
-      <Grid container spacing={1} sx={{ height: '100%', overflow: 'hidden' }}>
+      <Grid container spacing={1} sx={{ 
+        height: '100%', 
+        overflow: 'hidden',
+        alignItems: 'stretch'
+      }}>
         {videoTiles.map((tile) => (
           <Grid 
             item 
             xs={gridSize}
             key={tile.tileId}
             sx={{ 
-              maxHeight,
-              minHeight: '200px',
-              height: videoTiles.length === 1 ? '100%' : 'auto'
+              height: videoTiles.length === 1 ? '100%' : maxHeight,
+              display: 'flex',
+              minHeight: 0
             }}
           >
-            <VideoTile
-              participant={tile.participant}
-              videoTrack={tile.videoTrack}
-              audioTrack={tile.audioTrack}
-              screenTrack={tile.screenTrack}
-              isLocal={tile.isLocal}
-              onToggleFullscreen={() => handleTileSpotlight(tile.tileId)}
-              onPin={() => handleTilePin(tile.tileId)}
-              isPinned={pinnedTileId === tile.tileId}
-              isSpotlighted={spotlightTileId === tile.tileId}
-            />
+            <Box sx={{ width: '100%', height: '100%' }}>
+              <VideoTile
+                participant={tile.participant}
+                videoTrack={tile.videoTrack}
+                audioTrack={tile.audioTrack}
+                screenTrack={tile.screenTrack}
+                isLocal={tile.isLocal}
+                onToggleFullscreen={() => handleTileSpotlight(tile.tileId)}
+                onPin={undefined}
+                isPinned={pinnedTileId === tile.tileId}
+                isSpotlighted={spotlightTileId === tile.tileId}
+              />
+            </Box>
           </Grid>
         ))}
       </Grid>
@@ -527,9 +533,9 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
     const otherTiles = videoTiles.filter(tile => tile.tileId !== pinnedTile.tileId).slice(0, 6); // Limit sidebar tiles
 
     return (
-      <Box sx={{ display: 'flex', height: '100%', gap: 1 }}>
+      <Box sx={{ display: 'flex', height: '100%', gap: 1, overflow: 'hidden' }}>
         {/* Main pinned video */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0, height: '100%' }}>
           <VideoTile
             participant={pinnedTile.participant}
             videoTrack={pinnedTile.videoTrack}
@@ -537,7 +543,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
             screenTrack={pinnedTile.screenTrack}
             isLocal={pinnedTile.isLocal}
             onToggleFullscreen={() => handleTileSpotlight(pinnedTile.tileId)}
-            onPin={() => handleTilePin(pinnedTile.tileId)}
+            onPin={undefined}
             isPinned={true}
             isSpotlighted={spotlightTileId === pinnedTile.tileId}
           />
@@ -545,9 +551,20 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
         
         {/* Sidebar with other videos */}
         {otherTiles.length > 0 && (
-          <Box sx={{ width: 200, display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
+          <Box sx={{ 
+            width: 200, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 1, 
+            overflowY: 'auto',
+            height: '100%',
+            flexShrink: 0
+          }}>
             {otherTiles.map((tile) => (
-              <Box key={tile.tileId} sx={{ height: 150, flexShrink: 0 }}>
+              <Box key={tile.tileId} sx={{ 
+                height: 150, 
+                flexShrink: 0
+              }}>
                 <VideoTile
                   participant={tile.participant}
                   videoTrack={tile.videoTrack}
@@ -555,7 +572,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
                   screenTrack={tile.screenTrack}
                   isLocal={tile.isLocal}
                   onToggleFullscreen={() => handleTilePin(tile.tileId)}
-                  onPin={() => handleTilePin(tile.tileId)}
+                  onPin={undefined}
                   isPinned={pinnedTileId === tile.tileId}
                   isSpotlighted={spotlightTileId === tile.tileId}
                 />
@@ -571,7 +588,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
     const spotlightedTile = videoTiles.find(tile => tile.tileId === spotlightTileId) || videoTiles[0];
 
     return (
-      <Box sx={{ height: '100%' }}>
+      <Box sx={{ height: '100%', width: '100%' }}>
         <VideoTile
           participant={spotlightedTile.participant}
           videoTrack={spotlightedTile.videoTrack}
@@ -593,23 +610,21 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
       height: '100%',
       backgroundColor: 'grey.900',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      overflow: 'hidden'
     }}>
       {/* Layout Controls Header */}
       <Box
         sx={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           p: 1,
           borderBottom: '1px solid rgba(255,255,255,0.1)',
-          minHeight: 48
+          minHeight: 48,
+          flexShrink: 0
         }}
       >
-        <Typography variant="h6" color="white" sx={{ fontSize: '1rem' }}>
-          {state.channelName} • {videoTiles.length} participant{videoTiles.length !== 1 ? 's' : ''}
-        </Typography>
-        
         {/* Layout mode buttons */}
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           <Tooltip title="Grid Layout">
@@ -663,7 +678,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
       </Box>
 
       {/* Main Video Area */}
-      <Box sx={{ flex: 1, overflow: 'hidden', p: 1 }}>
+      <Box sx={{ flex: 1, overflow: 'hidden', p: 1, minHeight: 0 }}>
         {layoutMode === 'grid' && renderGridLayout()}
         {layoutMode === 'sidebar' && renderSidebarLayout()}
         {layoutMode === 'spotlight' && renderSpotlightLayout()}

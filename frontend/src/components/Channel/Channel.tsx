@@ -11,7 +11,7 @@ import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import { styled } from "@mui/material/styles";
 import { useNavigate, useParams } from "react-router-dom";
 import { VoiceChannelUserList } from "../Voice";
-import { useVoiceConnection } from "../../contexts/VoiceConnectionContext";
+import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import type { ListItemProps } from "@mui/material/ListItem";
 
 interface ChannelProps {
@@ -93,17 +93,13 @@ export function Channel({ channel }: ChannelProps) {
             <VolumeUpOutlinedIcon fontSize="small" />
           )}
         </ListItemIcon>
-        <ChannelName 
-          primary={
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <span>{channel.name}</span>
-              {channel.type === ChannelKind.VOICE && (
-                <VoiceChannelUserList channel={channel} showInline />
-              )}
-            </Box>
-          } 
-        />
+        <ChannelName primary={channel.name} />
       </ChannelContainer>
+      
+      {/* Discord-style voice users nested under the channel */}
+      {channel.type === ChannelKind.VOICE && (
+        <VoiceChannelUserList channel={channel} showDiscordStyle />
+      )}
     </Box>
   );
 }
