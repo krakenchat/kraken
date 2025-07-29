@@ -5,11 +5,12 @@ import { useGetChannelByIdQuery } from "../features/channel/channelApiSlice";
 import { Avatar, Box, Typography, Paper } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
-import { VoiceChannelUserList } from "../components/Voice";
+import { VoiceChannelUserList, VideoTiles } from "../components/Voice";
 import EditCommunityButton from "../components/Community/EditCommunityButton";
 import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
 import { ChannelType } from "../types/channel.type";
+import { useVoiceConnection } from "../contexts/VoiceConnectionContext";
 
 const Root = styled(Box)({
   display: "flex",
@@ -84,6 +85,9 @@ const CommunityPage: React.FC = () => {
     skip: !channelId,
   });
 
+  // Get voice connection state to check if video tiles should be shown
+  const { state: voiceState } = useVoiceConnection();
+
   useCommunityJoin(communityId);
 
   if (!communityId) return <div>Community ID is required</div>;
@@ -115,8 +119,29 @@ const CommunityPage: React.FC = () => {
       );
     }
     
-    // If channel is VOICE type, show voice channel interface
+    // If channel is VOICE type, show voice channel interface  
     if (channelData?.type === ChannelType.VOICE) {
+      // Check if we're connected to this specific voice channel
+      const isConnectedToThisChannel = voiceState.isConnected && 
+        voiceState.currentChannelId === channelId;
+
+      if (isConnectedToThisChannel) {
+        // Show video tiles interface when connected to this voice channel
+        return (
+          <Box
+            sx={{
+              height: '100%',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <VideoTiles />
+          </Box>
+        );
+      }
+
+      // Show default voice channel interface when not connected to this channel
       return (
         <Box
           sx={{
@@ -133,7 +158,7 @@ const CommunityPage: React.FC = () => {
             🔊 {channelData.name}
           </Typography>
           <Typography variant="body1" color="text.secondary" textAlign="center">
-            This is a voice channel. Use the join button in the sidebar to connect to voice chat.
+            Click on this voice channel in the sidebar to join and see video tiles.
           </Typography>
           
           {/* Show voice channel participants */}
@@ -141,11 +166,20 @@ const CommunityPage: React.FC = () => {
             <VoiceChannelUserList channel={channelData} />
           </Box>
           
-          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ maxWidth: 400 }}>
-            Once connected, you'll see voice controls at the bottom of the screen and can enable video to see other participants.
-          </Typography>
+          {voiceState.isConnected && voiceState.currentChannelId !== channelId && (
+            <Typography variant="body2" color="warning.main" textAlign="center" sx={{ maxWidth: 400 }}>
+              You're currently connected to "{voiceState.channelName}". Click this channel to switch.
+            </Typography>
+          )}
         </Box>
       );
+    }
+    
+    // Check if we're connected to a voice channel while viewing a text channel
+    // In this case, show a small indicator or keep text interface
+    if (voiceState.isConnected && channelData?.type === ChannelType.TEXT) {
+      // Show normal text channel interface - voice controls are in bottom bar
+      return <ChannelMessageContainer channelId={channelId} />;
     }
     
     // Otherwise, render text message container

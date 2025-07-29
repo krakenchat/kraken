@@ -10,7 +10,8 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import { styled } from "@mui/material/styles";
 import { useNavigate, useParams } from "react-router-dom";
-import { VoiceChannelJoinButton, VoiceChannelUserList } from "../Voice";
+import { VoiceChannelUserList } from "../Voice";
+import { useVoiceConnection } from "../../contexts/VoiceConnectionContext";
 import type { ListItemProps } from "@mui/material/ListItem";
 
 interface ChannelProps {
@@ -48,17 +49,42 @@ export function Channel({ channel }: ChannelProps) {
     communityId: string;
     channelId: string;
   }>();
+  const { state: voiceState, actions: voiceActions } = useVoiceConnection();
 
-  const handleClick = () => {
-    navigate(`/community/${communityId}/channel/${channel.id}`);
+  const handleClick = async () => {
+    if (channel.type === ChannelKind.TEXT) {
+      // Navigate to text channel
+      navigate(`/community/${communityId}/channel/${channel.id}`);
+    } else if (channel.type === ChannelKind.VOICE) {
+      // For voice channels, join the voice channel and navigate
+      try {
+        if (voiceState.currentChannelId === channel.id && voiceState.isConnected) {
+          // Already connected to this channel, just navigate to show video tiles
+          navigate(`/community/${communityId}/channel/${channel.id}`);
+        } else {
+          // Join the voice channel
+          await voiceActions.joinVoiceChannel(
+            channel.id,
+            channel.name,
+            communityId!,
+            channel.isPrivate || false,
+            channel.createdAt
+          );
+          // Navigate to the voice channel page
+          navigate(`/community/${communityId}/channel/${channel.id}`);
+        }
+      } catch (error) {
+        console.error('Failed to join voice channel:', error);
+      }
+    }
   };
 
   return (
     <Box>
       <ChannelContainer
         isSelected={channelId === channel.id}
-        sx={{ pl: 2, cursor: channel.type === ChannelKind.TEXT ? "pointer" : "default" }}
-        onClick={channel.type === ChannelKind.TEXT ? handleClick : undefined}
+        sx={{ pl: 2, cursor: "pointer" }}
+        onClick={handleClick}
       >
         <ListItemIcon sx={{ minWidth: 32 }}>
           {channel.type === ChannelKind.TEXT ? (
@@ -78,13 +104,6 @@ export function Channel({ channel }: ChannelProps) {
           } 
         />
       </ChannelContainer>
-      
-      {/* Voice Channel Controls */}
-      {channel.type === ChannelKind.VOICE && (
-        <Box sx={{ px: 2, pb: 1 }}>
-          <VoiceChannelJoinButton channel={channel} />
-        </Box>
-      )}
     </Box>
   );
 }
