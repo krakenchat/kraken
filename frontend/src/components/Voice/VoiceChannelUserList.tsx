@@ -11,7 +11,6 @@ import {
   ListItemAvatar,
   ListItemText,
   Divider,
-  Badge,
 } from "@mui/material";
 import {
   Mic,
@@ -19,7 +18,6 @@ import {
   Videocam,
   ScreenShare,
   VolumeOff,
-  FiberManualRecord,
 } from "@mui/icons-material";
 import { useGetChannelPresenceQuery } from "../../features/voice-presence/voicePresenceApiSlice";
 import { formatDistanceToNow } from "date-fns";
@@ -76,15 +74,15 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 
   const DiscordStyleUserItem: React.FC<{
     user: (typeof presence.users)[0];
-  }> = ({ user }) => {
+  }> = React.memo(({ user }) => {
     const isSpeaking = false; // TODO: Add speaking detection from LiveKit
     
     // Ensure all boolean values are properly defined (handle undefined as false)
     const userState = {
-      isMuted: user.isMuted ?? false,
-      isDeafened: user.isDeafened ?? false,
-      isVideoEnabled: user.isVideoEnabled ?? false,
-      isScreenSharing: user.isScreenSharing ?? false,
+      isMuted: Boolean(user.isMuted),
+      isDeafened: Boolean(user.isDeafened),
+      isVideoEnabled: Boolean(user.isVideoEnabled),
+      isScreenSharing: Boolean(user.isScreenSharing),
     };
     
     return (
@@ -210,12 +208,12 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         />
       </ListItem>
     );
-  };
+  });
 
   const UserItem: React.FC<{
     user: (typeof presence.users)[0];
     index: number;
-  }> = ({ user, index }) => {
+  }> = React.memo(({ user, index }) => {
     const statusIcons = [];
 
     if (user.isMuted) statusIcons.push(<MicOff key="muted" fontSize="small" />);
@@ -282,7 +280,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         {index < presence.users.length - 1 && <Divider />}
       </React.Fragment>
     );
-  };
+  });
 
   if (showInline) {
     return (

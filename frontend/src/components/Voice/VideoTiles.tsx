@@ -16,20 +16,24 @@ import {
   VideocamOff,
   ScreenShare,
   Fullscreen,
-  Close,
-  PictureInPicture,
   GridView,
   ViewSidebar,
   PushPin,
   PushPinOutlined,
 } from '@mui/icons-material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
+
+// Constants
+const GRID_CONSTANTS = {
+  MIN_TILE_HEIGHT: 200,
+  SIDEBAR_WIDTH: 200,
+  SIDEBAR_TILE_HEIGHT: 150,
+  HEADER_HEIGHT: 48,
+  MAX_SIDEBAR_TILES: 6
+} as const;
 import { 
   TrackPublication, 
-  RemoteTrack, 
-  Track, 
   VideoTrack, 
-  LocalTrack,
   RemoteParticipant,
   LocalParticipant
 } from 'livekit-client';
@@ -295,10 +299,10 @@ const VideoTile: React.FC<VideoTileProps> = ({
 type VideoLayoutMode = 'grid' | 'sidebar' | 'spotlight';
 
 interface VideoTile {
-  participant: any;
-  videoTrack?: any;
-  screenTrack?: any;
-  audioTrack?: any;
+  participant: RemoteParticipant | LocalParticipant;
+  videoTrack?: TrackPublication;
+  screenTrack?: TrackPublication;
+  audioTrack?: TrackPublication;
   isLocal: boolean;
   tileType: 'camera' | 'screen';
   tileId: string; // unique identifier for this tile
@@ -309,11 +313,8 @@ interface VideoTilesProps {
   onExitFullscreen?: () => void;
 }
 
-export const VideoTiles: React.FC<VideoTilesProps> = ({
-  isFullscreen = false,
-  onExitFullscreen,
-}) => {
-  const { state, actions } = useVoiceConnection();
+export const VideoTiles: React.FC<VideoTilesProps> = () => {
+  const { state } = useVoiceConnection();
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>('grid');
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
@@ -334,10 +335,10 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
       const audioTrack = Array.from(localParticipant.audioTrackPublications.values())[0];
       
-      const videoTrack = videoTracks.find((track: any) => 
+      const videoTrack = videoTracks.find((track: TrackPublication) => 
         track.source !== 'screen_share' && track.source !== 'screen_share_audio'
       );
-      const screenTrack = videoTracks.find((track: any) => 
+      const screenTrack = videoTracks.find((track: TrackPublication) => 
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
@@ -385,10 +386,10 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
       const videoTracks = Array.from(participant.videoTrackPublications.values());
       const audioTrack = Array.from(participant.audioTrackPublications.values())[0];
       
-      const videoTrack = videoTracks.find((track: any) => 
+      const videoTrack = videoTracks.find((track: TrackPublication) => 
         track.source !== 'screen_share' && track.source !== 'screen_share_audio'
       );
-      const screenTrack = videoTracks.find((track: any) => 
+      const screenTrack = videoTracks.find((track: TrackPublication) => 
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
@@ -506,7 +507,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
             sx={{ 
               height: videoTiles.length === 1 ? '100%' : maxHeight,
               display: 'flex',
-              minHeight: 0
+              minHeight: GRID_CONSTANTS.MIN_TILE_HEIGHT
             }}
           >
             <Box sx={{ width: '100%', height: '100%' }}>
@@ -530,7 +531,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
 
   const renderSidebarLayout = () => {
     const pinnedTile = videoTiles.find(tile => tile.tileId === pinnedTileId) || videoTiles[0];
-    const otherTiles = videoTiles.filter(tile => tile.tileId !== pinnedTile.tileId).slice(0, 6); // Limit sidebar tiles
+    const otherTiles = videoTiles.filter(tile => tile.tileId !== pinnedTile.tileId).slice(0, GRID_CONSTANTS.MAX_SIDEBAR_TILES);
 
     return (
       <Box sx={{ display: 'flex', height: '100%', gap: 1, overflow: 'hidden' }}>
@@ -552,7 +553,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
         {/* Sidebar with other videos */}
         {otherTiles.length > 0 && (
           <Box sx={{ 
-            width: 200, 
+            width: GRID_CONSTANTS.SIDEBAR_WIDTH, 
             display: 'flex', 
             flexDirection: 'column', 
             gap: 1, 
@@ -562,7 +563,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
           }}>
             {otherTiles.map((tile) => (
               <Box key={tile.tileId} sx={{ 
-                height: 150, 
+                height: GRID_CONSTANTS.SIDEBAR_TILE_HEIGHT, 
                 flexShrink: 0
               }}>
                 <VideoTile
@@ -621,7 +622,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = ({
           alignItems: 'center',
           p: 1,
           borderBottom: '1px solid rgba(255,255,255,0.1)',
-          minHeight: 48,
+          minHeight: GRID_CONSTANTS.HEADER_HEIGHT,
           flexShrink: 0
         }}
       >

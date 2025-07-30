@@ -92,9 +92,13 @@ export const joinVoiceChannel = createAsyncThunk<
         socket.emit(ClientEvents.VOICE_CHANNEL_JOIN, { channelId });
       }
     } catch (error) {
+      console.error("Failed to join voice channel:", error);
       const message =
         error instanceof Error ? error.message : "Failed to join voice channel";
       dispatch(setConnectionError(message));
+      
+      // Clean up any partial state
+      setRoom(null);
       throw error;
     }
   }

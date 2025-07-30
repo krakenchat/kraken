@@ -11,7 +11,9 @@ describe('ChannelMembershipController', () => {
       providers: [ChannelMembershipService],
     }).compile();
 
-    controller = module.get<ChannelMembershipController>(ChannelMembershipController);
+    controller = module.get<ChannelMembershipController>(
+      ChannelMembershipController,
+    );
   });
 
   it('should be defined', () => {

@@ -1,5 +1,4 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Room } from 'livekit-client';
 import { VoicePresenceUser } from '../voice-presence/voicePresenceApiSlice';
 
 export interface VoiceState {

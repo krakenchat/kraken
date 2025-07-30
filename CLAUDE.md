@@ -57,6 +57,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Development**: `npm run dev` (hot reload on port 5173)
 - **Electron dev**: `npm run electron-dev`
 - **Clean**: `npm run clean`
+- **Lint**: `npm run lint`
+- **Lint with fix**: `npm run lint:fix`
 
 ### Database (Prisma + MongoDB)
 - **Generate client**: `npm run prisma:generate` (from backend/)
