@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Button, Tooltip, CircularProgress } from '@mui/material';
 import { VolumeUp, VolumeOff, VideoCall } from '@mui/icons-material';
-import { useVoiceConnection } from '../../contexts/VoiceConnectionContext';
+import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { ChannelType } from '../../types/channel.type';
 import { Channel } from '../../types/channel.type';
 

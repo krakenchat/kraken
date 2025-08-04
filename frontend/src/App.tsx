@@ -8,7 +8,7 @@ import EditCommunityPage from "./pages/EditCommunityPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import CommunityPage from "./pages/CommunityPage";
-import { VoiceConnectionProvider } from "./contexts/VoiceConnectionContext";
+import { RoomProvider } from "./contexts/RoomContext";
 
 const darkTheme = createTheme({
   colorSchemes: {
@@ -25,7 +25,7 @@ function App() {
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      <VoiceConnectionProvider>
+      <RoomProvider>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
@@ -39,7 +39,7 @@ function App() {
             </Route>
           </Route>
         </Routes>
-      </VoiceConnectionProvider>
+      </RoomProvider>
     </ThemeProvider>
   );
 }

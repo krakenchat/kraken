@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { RootState } from "../../app/store";
 
 export interface VoicePresenceUser {
   id: string;
@@ -83,9 +84,48 @@ export const voicePresenceApi = createApi({
         method: "PUT",
         body: updates,
       }),
-      invalidatesTags: (result, error, { channelId }) => [
-        { type: "VoicePresence", id: channelId },
-      ],
+      // Don't invalidate cache - rely on optimistic updates and WebSocket events for real-time updates
+      // invalidatesTags: (result, error, { channelId }) => [
+      //   { type: "VoicePresence", id: channelId },
+      // ],
+      // Optimistic update to preserve existing state and reduce flicker
+      onQueryStarted: async ({ channelId, updates }, { dispatch, queryFulfilled, getState }) => {
+        
+        // Get current user ID from profile query cache
+        const state = getState() as RootState;
+        const profileQueryState = state.usersApi?.queries?.[`profile(undefined)`];
+        const currentUserId = profileQueryState?.data?.id;
+        
+        const patchResult = dispatch(
+          voicePresenceApi.util.updateQueryData('getChannelPresence', channelId, (draft) => {
+            if (currentUserId) {
+              const userIndex = draft.users.findIndex(user => user.id === currentUserId);
+              if (userIndex !== -1) {
+                // Preserve existing state and only update the provided fields
+                const existingUser = draft.users[userIndex];
+                
+                const updatedUser = {
+                  ...existingUser,
+                  ...updates,
+                  // Ensure undefined values don't overwrite existing values
+                  isMuted: updates.isMuted !== undefined ? updates.isMuted : existingUser.isMuted,
+                  isDeafened: updates.isDeafened !== undefined ? updates.isDeafened : existingUser.isDeafened,
+                  isVideoEnabled: updates.isVideoEnabled !== undefined ? updates.isVideoEnabled : existingUser.isVideoEnabled,
+                  isScreenSharing: updates.isScreenSharing !== undefined ? updates.isScreenSharing : existingUser.isScreenSharing,
+                };
+                draft.users[userIndex] = updatedUser;
+              }
+            }
+          })
+        );
+        
+        try {
+          await queryFulfilled;
+        } catch (error) {
+          patchResult.undo();
+          throw error;
+        }
+      },
     }),
     refreshPresence: builder.mutation<VoiceActionResponse, string>({
       query: (channelId) => ({

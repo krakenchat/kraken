@@ -27,11 +27,13 @@ import { ChannelType } from "../../types/channel.type";
 interface VoiceChannelUserListProps {
   channel: Channel;
   showInline?: boolean;
+  showDiscordStyle?: boolean;
 }
 
 export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   channel,
   showInline = false,
+  showDiscordStyle = false,
 }) => {
   const {
     data: presence,
@@ -67,19 +69,151 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   }
 
   if (!presence || presence.users.length === 0) {
-    return showInline ? null : (
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <Typography variant="body2" color="text.secondary">
-          No one in voice channel
-        </Typography>
-      </Box>
-    );
+    return null;
   }
+
+  const DiscordStyleUserItem: React.FC<{
+    user: (typeof presence.users)[0];
+  }> = React.memo(({ user }) => {
+    const isSpeaking = false; // TODO: Add speaking detection from LiveKit
+    
+    // Ensure all boolean values are properly defined (handle undefined as false)
+    const userState = {
+      isMuted: Boolean(user.isMuted),
+      isDeafened: Boolean(user.isDeafened),
+      isVideoEnabled: Boolean(user.isVideoEnabled),
+      isScreenSharing: Boolean(user.isScreenSharing),
+    };
+    
+    return (
+      <ListItem
+        sx={{
+          px: 1,
+          py: 0.5,
+          pl: 4, // Indent under voice channel like Discord
+          minHeight: 40,
+          "&:hover": {
+            backgroundColor: "rgba(255, 255, 255, 0.03)",
+          },
+        }}
+      >
+        <ListItemAvatar sx={{ minWidth: 40 }}>
+          <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <Avatar
+              src={user.avatarUrl}
+              alt={user.displayName || user.username}
+              sx={{
+                width: 32,
+                height: 32,
+                border: isSpeaking ? "2px solid #00ff00" : "2px solid transparent",
+                transition: "border-color 0.2s ease",
+              }}
+            >
+              {(user.displayName || user.username).charAt(0).toUpperCase()}
+            </Avatar>
+            
+            {/* Muted indicator badge */}
+            {userState.isMuted && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: -2,
+                  right: -2,
+                  backgroundColor: "#f04747",
+                  borderRadius: "50%",
+                  width: 16,
+                  height: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid",
+                  borderColor: "background.paper",
+                }}
+              >
+                <MicOff sx={{ fontSize: 10, color: "white" }} />
+              </Box>
+            )}
+            
+            {/* Deafened indicator badge */}
+            {userState.isDeafened && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: -2,
+                  left: -2,
+                  backgroundColor: "#f04747",
+                  borderRadius: "50%",
+                  width: 16,
+                  height: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid",
+                  borderColor: "background.paper",
+                }}
+              >
+                <VolumeOff sx={{ fontSize: 10, color: "white" }} />
+              </Box>
+            )}
+          </Box>
+        </ListItemAvatar>
+
+        <ListItemText
+          primary={
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontWeight: 500,
+                  color: userState.isMuted ? "text.secondary" : "text.primary",
+                  fontSize: "14px"
+                }}
+              >
+                {user.displayName || user.username}
+              </Typography>
+              
+              {/* Status indicators - show ALL active states */}
+              <Box sx={{ display: "flex", gap: 0.5, ml: "auto", alignItems: "center" }}>
+                
+                {/* Muted state */}
+                {userState.isMuted && (
+                  <Tooltip title="Muted">
+                    <MicOff sx={{ fontSize: 16, color: "#f04747" }} />
+                  </Tooltip>
+                )}
+                
+                {/* Deafened state */}
+                {userState.isDeafened && (
+                  <Tooltip title="Deafened">
+                    <VolumeOff sx={{ fontSize: 16, color: "#f04747" }} />
+                  </Tooltip>
+                )}
+                
+                {/* Video enabled state */}
+                {userState.isVideoEnabled && (
+                  <Tooltip title="Camera">
+                    <Videocam sx={{ fontSize: 16, color: "#43b581" }} />
+                  </Tooltip>
+                )}
+                
+                {/* Screen sharing state */}
+                {userState.isScreenSharing && (
+                  <Tooltip title="Screen Share">
+                    <ScreenShare sx={{ fontSize: 16, color: "#593695" }} />
+                  </Tooltip>
+                )}
+              </Box>
+            </Box>
+          }
+        />
+      </ListItem>
+    );
+  });
 
   const UserItem: React.FC<{
     user: (typeof presence.users)[0];
     index: number;
-  }> = ({ user, index }) => {
+  }> = React.memo(({ user, index }) => {
     const statusIcons = [];
 
     if (user.isMuted) statusIcons.push(<MicOff key="muted" fontSize="small" />);
@@ -146,7 +280,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         {index < presence.users.length - 1 && <Divider />}
       </React.Fragment>
     );
-  };
+  });
 
   if (showInline) {
     return (
@@ -181,6 +315,17 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
             sx={{ height: 24, fontSize: "0.75rem" }}
           />
         )}
+      </Box>
+    );
+  }
+
+  // Discord-style nested display under voice channels
+  if (showDiscordStyle) {
+    return (
+      <Box>
+        {presence.users.map((user) => (
+          <DiscordStyleUserItem key={user.id} user={user} />
+        ))}
       </Box>
     );
   }

@@ -17,7 +17,7 @@ export type ServerToClientEvents = {
   [ServerEvents.DELETE_MESSAGE]: (data: DeleteMessagePayload) => void;
   [ServerEvents.VOICE_CHANNEL_USER_JOINED]: (data: { channelId: string; user: VoicePresenceUser }) => void;
   [ServerEvents.VOICE_CHANNEL_USER_LEFT]: (data: { channelId: string; userId: string; user: VoicePresenceUser }) => void;
-  [ServerEvents.VOICE_CHANNEL_USER_UPDATED]: (data: { channelId: string; userId: string; user: VoicePresenceUser; updates: any }) => void;
+  [ServerEvents.VOICE_CHANNEL_USER_UPDATED]: (data: { channelId: string; userId: string; user: VoicePresenceUser; updates: Record<string, unknown> }) => void;
   [ServerEvents.ACK]: (data: AckPayload) => void;
   [ServerEvents.ERROR]: (data: ErrorPayload) => void;
 };
