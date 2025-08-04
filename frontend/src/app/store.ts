@@ -8,6 +8,7 @@ import { rolesApi } from "../features/roles/rolesApiSlice";
 import { livekitApi } from "../features/livekit/livekitApiSlice";
 import { voicePresenceApi } from "../features/voice-presence/voicePresenceApiSlice";
 import { membershipApi, channelMembershipApi } from "../features/membership";
+import { inviteApi } from "../features/invite/inviteApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
 
@@ -23,6 +24,7 @@ export const store = configureStore({
     [voicePresenceApi.reducerPath]: voicePresenceApi.reducer,
     [membershipApi.reducerPath]: membershipApi.reducer,
     [channelMembershipApi.reducerPath]: channelMembershipApi.reducer,
+    [inviteApi.reducerPath]: inviteApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
   },
@@ -37,7 +39,8 @@ export const store = configureStore({
       livekitApi.middleware,
       voicePresenceApi.middleware,
       membershipApi.middleware,
-      channelMembershipApi.middleware
+      channelMembershipApi.middleware,
+      inviteApi.middleware
     ),
 });
 

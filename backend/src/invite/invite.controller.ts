@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
+  Param,
   Post,
   Request,
   UseGuards,
@@ -20,7 +22,7 @@ export class InviteController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RbacGuard)
-  @RequiredActions(RbacActions.CREATE_INVITE)
+  @RequiredActions(RbacActions.CREATE_INSTANCE_INVITE)
   async createInvite(
     @Request() req: { user: UserEntity },
     @Body() dto: CreateInviteDto,
@@ -33,18 +35,29 @@ export class InviteController {
     );
   }
 
-  @Delete(':invite')
+  @Get()
   @UseGuards(JwtAuthGuard, RbacGuard)
-  @RequiredActions(RbacActions.DELETE_INVITE)
+  @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
+  async getInvites(
+    @Request() req: { user: UserEntity },
+  ): Promise<InstanceInvite[]> {
+    return this.inviteService.getInvites(req.user);
+  }
+
+  @Get(':code')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
+  async getInvite(@Param('code') code: string): Promise<InstanceInvite | null> {
+    return this.inviteService.getInviteByCode(code);
+  }
+
+  @Delete(':code')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.DELETE_INSTANCE_INVITE)
   async deleteInvite(
     @Request() req: { user: UserEntity },
-    @Body() dto: CreateInviteDto,
-  ): Promise<InstanceInvite> {
-    return this.inviteService.createInvite(
-      req.user,
-      dto.maxUses,
-      dto.validUntil,
-      dto.communityIds,
-    );
+    @Param('code') code: string,
+  ): Promise<void> {
+    return this.inviteService.deleteInvite(req.user, code);
   }
 }

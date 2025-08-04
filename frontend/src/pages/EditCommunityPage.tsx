@@ -28,6 +28,7 @@ import {
   ChannelManagement,
   PrivateChannelMembership,
   RoleManagement,
+  InviteManagement,
 } from "../components/Community";
 
 interface TabPanelProps {
@@ -101,6 +102,12 @@ const EditCommunityPage: React.FC = () => {
     resourceType: "COMMUNITY",
     resourceId: communityId!,
     actions: ["CREATE_CHANNEL"],
+  });
+
+  const { hasPermissions: canManageInvites } = useUserPermissions({
+    resourceType: "COMMUNITY",
+    resourceId: communityId!,
+    actions: ["READ_INSTANCE_INVITE"],
   });
 
   const {
@@ -222,6 +229,7 @@ const EditCommunityPage: React.FC = () => {
             <Tab label="Channels" {...a11yProps(2)} disabled={!canManageChannels} />
             <Tab label="Private Channels" {...a11yProps(3)} disabled={!canManageChannels} />
             <Tab label="Roles" {...a11yProps(4)} />
+            <Tab label="Invites" {...a11yProps(5)} disabled={!canManageInvites} />
           </Tabs>
         </Box>
 
@@ -295,6 +303,16 @@ const EditCommunityPage: React.FC = () => {
 
         <TabPanel value={tabValue} index={4}>
           <RoleManagement communityId={communityId!} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={5}>
+          {canManageInvites ? (
+            <InviteManagement communityId={communityId!} />
+          ) : (
+            <Alert severity="warning">
+              You don't have permission to manage community invites.
+            </Alert>
+          )}
         </TabPanel>
       </Paper>
     </Root>

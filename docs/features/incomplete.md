@@ -255,6 +255,60 @@ backend/src/storage/                              # Storage abstraction
 
 ---
 
+### 8. Instance Onboarding Wizard
+
+**Status**: 🔧 **0% Complete - Not Started**
+
+#### What's Needed
+- **Fresh Install Detection**: Check if database has zero users on startup
+- **Admin User Creation**: Guided form to create the first administrator
+- **Default Community Setup**: Auto-create initial community/server
+- **Basic Configuration**: Set instance name, description, and basic settings
+- **Welcome Flow**: Guide new admin through key features and setup steps
+
+#### What's Missing
+- **Everything**: Complete feature needs to be implemented from scratch
+- **Detection Logic**: Database user count checking on app startup
+- **Onboarding UI**: Multi-step wizard interface
+- **Admin Creation**: Secure admin user registration flow
+- **Community Creation**: Auto-generate default community with channels
+- **Configuration Setup**: Instance-wide settings initialization
+- **Skip Options**: Allow advanced users to bypass wizard
+
+#### Implementation Effort
+- **Time**: 1-2 weeks
+- **Complexity**: Medium - requires startup logic and UI flow
+- **Impact**: High - essential for self-hosted deployments
+
+#### Files to Create
+```
+frontend/src/components/Onboarding/
+├── OnboardingWizard.tsx          # Main wizard container
+├── WelcomeStep.tsx               # Welcome/detection step
+├── AdminCreationStep.tsx         # Create admin user
+├── InstanceSetupStep.tsx         # Instance configuration
+├── CommunityCreationStep.tsx     # Default community setup
+└── CompletionStep.tsx            # Finish and redirect
+
+backend/src/onboarding/           # New module
+├── onboarding.module.ts
+├── onboarding.service.ts         # Fresh install detection
+├── onboarding.controller.ts      # Wizard API endpoints
+└── dto/create-instance.dto.ts    # Onboarding data transfer objects
+
+frontend/src/pages/OnboardingPage.tsx
+backend/src/auth/guards/onboarding.guard.ts  # Redirect to wizard if needed
+```
+
+#### Implementation Notes
+- Wizard should trigger automatically on fresh installs
+- Admin user should get all instance-level permissions
+- Default community should have basic channels (general, announcements)
+- Should be skippable for development/testing environments
+- Must handle edge cases (partial setup, interrupted wizard)
+
+---
+
 ## 🔬 Foundation Only - Needs Major Work
 
 ### 9. Friend System
@@ -318,6 +372,7 @@ backend/src/storage/                              # Storage abstraction
 ### Medium/Low Impact (Future)
 1. **Friend System** (2-3 weeks)
 2. **Alias Groups** (1-2 weeks)
+3. **Instance Onboarding Wizard** (1-2 weeks)
 
 ## 🚀 Quick Wins (1 week each)
 

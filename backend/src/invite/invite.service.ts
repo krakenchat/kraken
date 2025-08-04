@@ -97,6 +97,41 @@ export class InviteService {
     return updated;
   }
 
+  async getInvites(user: UserEntity): Promise<InstanceInvite[]> {
+    return this.database.instanceInvite.findMany({
+      where: { createdById: user.id },
+      include: { createdBy: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getInviteByCode(code: string): Promise<InstanceInvite | null> {
+    return this.database.instanceInvite.findUnique({
+      where: { code },
+      include: { createdBy: true },
+    });
+  }
+
+  async deleteInvite(user: UserEntity, code: string): Promise<void> {
+    const invite = await this.database.instanceInvite.findUnique({
+      where: { code },
+    });
+
+    if (!invite) {
+      throw new Error('Invite not found');
+    }
+
+    // Only allow the creator or an admin to delete the invite
+    if (invite.createdById !== user.id) {
+      // TODO: Check if user has admin permissions
+      throw new Error('Unauthorized to delete this invite');
+    }
+
+    await this.database.instanceInvite.delete({
+      where: { code },
+    });
+  }
+
   private generateInviteCode(length: number = 6) {
     const chars =
       'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
