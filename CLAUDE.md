@@ -184,3 +184,100 @@ Copy `backend/env.sample` to `backend/.env` and configure:
 - Prettier for code formatting
 - TypeScript strict mode enabled
 - Consistent import path aliases using `@/` for backend src
+
+## 📚 Comprehensive Documentation
+
+**Full documentation is available in the `docs/` folder:**
+
+### Architecture Documentation
+- **[Backend Architecture](docs/architecture/backend.md)** - NestJS modules, services, and design patterns
+- **[Frontend Architecture](docs/architecture/frontend.md)** - React components, Redux state management, and UI patterns  
+- **[Database Schema](docs/architecture/database.md)** - MongoDB models, relationships, and query patterns
+
+### Feature Analysis
+- **[Discord Feature Parity](docs/features/discord-parity.md)** - Comprehensive comparison (~51% parity achieved)
+- **[Incomplete Features](docs/features/incomplete.md)** - Foundation features ready for completion
+
+### Key Findings from Codebase Analysis
+
+#### Current Feature Status (High-Level)
+- **✅ Core Chat**: 80% complete - Real-time messaging, channels, basic mentions
+- **✅ Voice/Video**: 60% complete - LiveKit integration, voice channels, video calls
+- **✅ Communities**: 69% complete - Server management, member management, basic roles
+- **🔧 RBAC System**: 40% complete - Strong backend foundation, needs frontend completion
+- **🔧 Direct Messages**: 30% complete - Database schema ready, needs UI implementation
+- **🔧 File Attachments**: 25% complete - Upload infrastructure exists, needs message integration
+
+#### High-Impact, Low-Effort Completions Available
+1. **Community Invitations** (1 week) - Backend complete, needs frontend UI
+2. **Message Editing** (1 week) - Backend ready, needs edit interface
+3. **RBAC Management** (2-3 weeks) - Strong foundation, needs admin interface
+4. **Voice Persistence** (1-2 weeks) - Core working, needs navigation persistence
+5. **File Attachments** (2-3 weeks) - Upload system exists, needs message integration
+
+#### Critical Architecture Strengths
+- **Modular Design**: Clean separation between features and concerns
+- **Type Safety**: Full TypeScript coverage with Prisma type generation
+- **Real-time Foundation**: Robust WebSocket system with Redis scaling
+- **Permission System**: Comprehensive RBAC with 57 granular permissions
+- **Rich Text**: Flexible span-based message system supporting mentions and formatting
+- **Voice Integration**: Professional LiveKit WebRTC implementation
+
+#### Areas Needing Attention
+- **Mobile Experience**: Currently desktop-focused, needs responsive optimization
+- **Permission UI**: RBAC backend is solid, but admin interfaces are incomplete
+- **DM System**: Database models complete, entire frontend needs implementation
+- **File Handling**: Basic upload works, needs security, processing, and UI integration
+- **Testing Coverage**: Unit tests exist but need expansion for complex features
+
+### Development Priorities (Based on Analysis)
+
+#### Phase 1: Complete Foundation Features (4-6 weeks)
+1. Community invitation system (frontend)
+2. Message editing interface  
+3. Basic message reactions
+4. Voice connection persistence
+
+#### Phase 2: Major Features (6-8 weeks)
+1. Complete RBAC management interface
+2. File attachment system
+3. Direct message interface
+4. Mobile responsiveness
+
+#### Phase 3: Advanced Features (Future)
+1. Rich text editor with markdown
+2. Advanced moderation tools
+3. Mobile applications
+4. Bot/webhook system
+
+### Important Code Patterns
+
+#### RBAC Usage
+```typescript
+@RequiredActions(RbacActions.CREATE_MESSAGE)
+@RbacResource({
+  type: RbacResourceType.CHANNEL,
+  idKey: 'channelId',
+  source: ResourceIdSource.PAYLOAD,
+})
+```
+
+#### WebSocket Event Pattern
+```typescript
+@SubscribeMessage(ClientEvents.SEND_MESSAGE)
+async handleMessage(@MessageBody() payload: CreateMessageDto) {
+  // Process message
+  this.websocketService.sendToRoom(channelId, ServerEvents.NEW_MESSAGE, data);
+}
+```
+
+#### Redux State Management
+```typescript
+// Feature-based API slices with RTK Query
+export const messagesApi = createApi({
+  reducerPath: 'messagesApi',
+  baseQuery: authedBaseQuery,
+  tagTypes: ['Messages'],
+  endpoints: (builder) => ({ ... })
+});
+```
