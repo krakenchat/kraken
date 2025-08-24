@@ -29,6 +29,7 @@ import {
 } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
+import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
 import { ChannelType } from "../../types/channel.type";
 
 export const VoiceBottomBar: React.FC = () => {
@@ -37,6 +38,7 @@ export const VoiceBottomBar: React.FC = () => {
     null
   );
   const [showUserList, setShowUserList] = useState(false);
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
 
   if (!state.isConnected || !state.currentChannelId) {
     return null;
@@ -54,6 +56,28 @@ export const VoiceBottomBar: React.FC = () => {
     actions.toggleVideo();
     if (!state.isVideoEnabled) {
       actions.setShowVideoTiles(true);
+    }
+  };
+
+  const handleDeviceSettingsOpen = (type?: 'audio' | 'video') => {
+    setShowDeviceSettings(true);
+    handleSettingsClose();
+  };
+
+  const handleDeviceSettingsClose = () => {
+    setShowDeviceSettings(false);
+  };
+
+  const handleDeviceChange = async (type: 'audio' | 'video', deviceId: string) => {
+    try {
+      if (type === 'audio') {
+        await actions.switchAudioInputDevice(deviceId);
+      } else if (type === 'video') {
+        await actions.switchVideoInputDevice(deviceId);
+      }
+      console.log(`Successfully switched ${type} device to: ${deviceId}`);
+    } catch (error) {
+      console.error(`Failed to switch ${type} device:`, error);
     }
   };
 
@@ -302,23 +326,20 @@ export const VoiceBottomBar: React.FC = () => {
           >
             {state.showVideoTiles ? "Hide Video Tiles" : "Show Video Tiles"}
           </MenuItem>
-          <MenuItem
-            onClick={() => {
-              // TODO: Add audio device selection
-              handleSettingsClose();
-            }}
-          >
+          <MenuItem onClick={() => handleDeviceSettingsOpen('audio')}>
             Audio Settings
           </MenuItem>
-          <MenuItem
-            onClick={() => {
-              // TODO: Add video device selection
-              handleSettingsClose();
-            }}
-          >
+          <MenuItem onClick={() => handleDeviceSettingsOpen('video')}>
             Video Settings
           </MenuItem>
         </Menu>
+
+        {/* Device Settings Dialog */}
+        <DeviceSettingsDialog
+          open={showDeviceSettings}
+          onClose={handleDeviceSettingsClose}
+          onDeviceChange={handleDeviceChange}
+        />
       </Paper>
     </>
   );

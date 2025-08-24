@@ -12,6 +12,9 @@ import {
   setScreenSharing,
   setMuted,
   setDeafened,
+  setSelectedAudioInputId,
+  setSelectedAudioOutputId,
+  setSelectedVideoInputId,
 } from "./voiceSlice";
 import { voicePresenceApi } from "../voice-presence/voicePresenceApiSlice";
 import { livekitApi } from "../livekit/livekitApiSlice";
@@ -305,6 +308,91 @@ export const toggleDeafen = createAsyncThunk<void, void, { state: RootState }>(
       console.error("Failed to toggle deafen:", error);
       // Revert local state on failure
       dispatch(setDeafened(isDeafened));
+      throw error;
+    }
+  }
+);
+
+// Device switching thunks
+export const switchAudioInputDevice = createAsyncThunk<
+  void,
+  { deviceId: string; getRoom: () => Room | null },
+  { state: RootState }
+>(
+  "voice/switchAudioInputDevice",
+  async ({ deviceId, getRoom }, { dispatch, getState }) => {
+    const state = getState();
+    const { currentChannelId, isAudioEnabled } = state.voice;
+    const room = getRoom();
+
+    if (!room || !currentChannelId) return;
+
+    try {
+      // Switch the microphone device
+      await room.switchActiveDevice('audioinput', deviceId);
+      
+      // Update Redux state
+      dispatch(setSelectedAudioInputId(deviceId));
+      
+      console.log(`Switched audio input device to: ${deviceId}`);
+    } catch (error) {
+      console.error("Failed to switch audio input device:", error);
+      throw error;
+    }
+  }
+);
+
+export const switchAudioOutputDevice = createAsyncThunk<
+  void,
+  { deviceId: string; getRoom: () => Room | null },
+  { state: RootState }
+>(
+  "voice/switchAudioOutputDevice",
+  async ({ deviceId, getRoom }, { dispatch, getState }) => {
+    const state = getState();
+    const { currentChannelId } = state.voice;
+    const room = getRoom();
+
+    if (!room || !currentChannelId) return;
+
+    try {
+      // Switch the audio output device
+      await room.switchActiveDevice('audiooutput', deviceId);
+      
+      // Update Redux state
+      dispatch(setSelectedAudioOutputId(deviceId));
+      
+      console.log(`Switched audio output device to: ${deviceId}`);
+    } catch (error) {
+      console.error("Failed to switch audio output device:", error);
+      throw error;
+    }
+  }
+);
+
+export const switchVideoInputDevice = createAsyncThunk<
+  void,
+  { deviceId: string; getRoom: () => Room | null },
+  { state: RootState }
+>(
+  "voice/switchVideoInputDevice",
+  async ({ deviceId, getRoom }, { dispatch, getState }) => {
+    const state = getState();
+    const { currentChannelId, isVideoEnabled } = state.voice;
+    const room = getRoom();
+
+    if (!room || !currentChannelId) return;
+
+    try {
+      // Switch the video input device
+      await room.switchActiveDevice('videoinput', deviceId);
+      
+      // Update Redux state
+      dispatch(setSelectedVideoInputId(deviceId));
+      
+      console.log(`Switched video input device to: ${deviceId}`);
+    } catch (error) {
+      console.error("Failed to switch video input device:", error);
       throw error;
     }
   }

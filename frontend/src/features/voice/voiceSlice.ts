@@ -28,6 +28,11 @@ export interface VoiceState {
   
   // UI state
   showVideoTiles: boolean;
+  
+  // Device preferences
+  selectedAudioInputId: string | null;
+  selectedAudioOutputId: string | null;
+  selectedVideoInputId: string | null;
 }
 
 const initialState: VoiceState = {
@@ -46,6 +51,9 @@ const initialState: VoiceState = {
   isMuted: false,
   isDeafened: false,
   showVideoTiles: false,
+  selectedAudioInputId: null,
+  selectedAudioOutputId: null,
+  selectedVideoInputId: null,
 };
 
 const voiceSlice = createSlice({
@@ -132,6 +140,19 @@ const voiceSlice = createSlice({
     setShowVideoTiles: (state, action: PayloadAction<boolean>) => {
       state.showVideoTiles = action.payload;
     },
+    
+    // Device preference actions
+    setSelectedAudioInputId: (state, action: PayloadAction<string | null>) => {
+      state.selectedAudioInputId = action.payload;
+    },
+    
+    setSelectedAudioOutputId: (state, action: PayloadAction<string | null>) => {
+      state.selectedAudioOutputId = action.payload;
+    },
+    
+    setSelectedVideoInputId: (state, action: PayloadAction<string | null>) => {
+      state.selectedVideoInputId = action.payload;
+    },
   },
 });
 
@@ -149,6 +170,9 @@ export const {
   updateParticipant,
   removeParticipant,
   setShowVideoTiles,
+  setSelectedAudioInputId,
+  setSelectedAudioOutputId,
+  setSelectedVideoInputId,
 } = voiceSlice.actions;
 
 export default voiceSlice.reducer;

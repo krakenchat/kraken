@@ -15,6 +15,9 @@ import {
   toggleScreenShare,
   toggleMute,
   toggleDeafen,
+  switchAudioInputDevice,
+  switchAudioOutputDevice,
+  switchVideoInputDevice,
 } from "../features/voice/voiceThunks";
 
 export const useVoiceConnection = () => {
@@ -94,6 +97,27 @@ export const useVoiceConnection = () => {
     [dispatch]
   );
 
+  const handleSwitchAudioInputDevice = useCallback(
+    async (deviceId: string) => {
+      await dispatch(switchAudioInputDevice({ deviceId, getRoom })).unwrap();
+    },
+    [dispatch, getRoom]
+  );
+
+  const handleSwitchAudioOutputDevice = useCallback(
+    async (deviceId: string) => {
+      await dispatch(switchAudioOutputDevice({ deviceId, getRoom })).unwrap();
+    },
+    [dispatch, getRoom]
+  );
+
+  const handleSwitchVideoInputDevice = useCallback(
+    async (deviceId: string) => {
+      await dispatch(switchVideoInputDevice({ deviceId, getRoom })).unwrap();
+    },
+    [dispatch, getRoom]
+  );
+
   return {
     state: { ...voiceState, room },
     actions: {
@@ -105,6 +129,9 @@ export const useVoiceConnection = () => {
       toggleMute: handleToggleMute,
       toggleDeafen: handleToggleDeafen,
       setShowVideoTiles: handleSetShowVideoTiles,
+      switchAudioInputDevice: handleSwitchAudioInputDevice,
+      switchAudioOutputDevice: handleSwitchAudioOutputDevice,
+      switchVideoInputDevice: handleSwitchVideoInputDevice,
     },
   };
 };
