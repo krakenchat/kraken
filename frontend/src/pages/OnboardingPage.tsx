@@ -9,9 +9,8 @@ const OnboardingPage: React.FC = () => {
   const { data: status, error, isLoading } = useGetOnboardingStatusQuery();
 
   const handleComplete = () => {
-    // Clear any cached auth data and redirect to login
-    localStorage.removeItem('accessToken');
-    navigate('/login', { replace: true });
+    // Redirect to home page (user should be logged in automatically)
+    navigate('/', { replace: true });
   };
 
   if (isLoading) {

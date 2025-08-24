@@ -38,7 +38,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
         control over your team's chat experience. Let's get you set up in just a few minutes.
       </Typography>
 
-      <Card sx={{ mb: 4, textAlign: 'left' }}>
+      <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             What you'll get:

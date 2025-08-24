@@ -20,7 +20,9 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await login({ username, password }).unwrap();
+      const accessToken = await login({ username, password }).unwrap();
+      // Store the token in localStorage
+      localStorage.setItem('accessToken', JSON.stringify(accessToken));
       navigate("/");
     } catch (err) {
       console.error("Login failed:", err);

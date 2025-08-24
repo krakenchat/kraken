@@ -21,6 +21,7 @@ import {
 } from '@mui/icons-material';
 import { OnboardingData } from './OnboardingWizard';
 import { useSetupInstanceMutation } from '../../features/onboarding/onboardingApiSlice';
+import { useLazyLoginQuery } from '../../features/auth/authSlice';
 
 interface CompletionStepProps {
   data: OnboardingData;
@@ -36,6 +37,7 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
   onComplete,
 }) => {
   const [setupInstance, { isLoading, error }] = useSetupInstanceMutation();
+  const [login] = useLazyLoginQuery();
   const [isCompleted, setIsCompleted] = useState(false);
 
   const handleSetup = async () => {
@@ -53,10 +55,28 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
 
       if (result.success) {
         setIsCompleted(true);
-        // Give user a moment to see the success message, then redirect
-        setTimeout(() => {
-          onComplete();
-        }, 2000);
+        
+        // Automatically login with the admin credentials
+        try {
+          const accessToken = await login({ 
+            username: data.adminUsername, 
+            password: data.adminPassword 
+          }).unwrap();
+          
+          // Store the token
+          localStorage.setItem('accessToken', JSON.stringify(accessToken));
+          
+          // Give user a moment to see the success message, then redirect
+          setTimeout(() => {
+            onComplete();
+          }, 2000);
+        } catch (loginError) {
+          console.error('Auto-login failed:', loginError);
+          // Still complete but redirect to login page
+          setTimeout(() => {
+            onComplete();
+          }, 2000);
+        }
       }
     } catch (err) {
       console.error('Setup failed:', err);
@@ -71,7 +91,7 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
           🎉 Setup Complete!
         </Typography>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          Your Kraken instance is ready to use. Redirecting you to the login page...
+          Your Kraken instance is ready to use. Logging you in automatically...
         </Typography>
         <CircularProgress size={24} />
       </Box>
