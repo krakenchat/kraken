@@ -1,0 +1,84 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Box, CircularProgress, Alert } from '@mui/material';
+import OnboardingWizard from '../components/Onboarding/OnboardingWizard';
+import { useGetOnboardingStatusQuery } from '../features/onboarding/onboardingApiSlice';
+
+const OnboardingPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { data: status, error, isLoading } = useGetOnboardingStatusQuery();
+
+  const handleComplete = () => {
+    // Clear any cached auth data and redirect to login
+    localStorage.removeItem('accessToken');
+    navigate('/login', { replace: true });
+  };
+
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <CircularProgress size={40} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          p: 2,
+        }}
+      >
+        <Alert severity="error" sx={{ maxWidth: 400 }}>
+          Failed to load onboarding status. Please refresh the page or contact support.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!status?.needsSetup) {
+    // Redirect to login if setup is not needed
+    navigate('/login', { replace: true });
+    return null;
+  }
+
+  if (!status.setupToken) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          p: 2,
+        }}
+      >
+        <Alert severity="error" sx={{ maxWidth: 400 }}>
+          Setup token is missing. Please refresh the page.
+        </Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <OnboardingWizard
+        setupToken={status.setupToken}
+        onComplete={handleComplete}
+      />
+    </Box>
+  );
+};
+
+export default OnboardingPage;

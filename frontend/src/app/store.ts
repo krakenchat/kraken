@@ -9,6 +9,7 @@ import { livekitApi } from "../features/livekit/livekitApiSlice";
 import { voicePresenceApi } from "../features/voice-presence/voicePresenceApiSlice";
 import { membershipApi, channelMembershipApi } from "../features/membership";
 import { inviteApi } from "../features/invite/inviteApiSlice";
+import { onboardingApi } from "../features/onboarding/onboardingApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
 
@@ -25,6 +26,7 @@ export const store = configureStore({
     [membershipApi.reducerPath]: membershipApi.reducer,
     [channelMembershipApi.reducerPath]: channelMembershipApi.reducer,
     [inviteApi.reducerPath]: inviteApi.reducer,
+    [onboardingApi.reducerPath]: onboardingApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
   },
@@ -40,7 +42,8 @@ export const store = configureStore({
       voicePresenceApi.middleware,
       membershipApi.middleware,
       channelMembershipApi.middleware,
-      inviteApi.middleware
+      inviteApi.middleware,
+      onboardingApi.middleware
     ),
 });
 

@@ -23,6 +23,7 @@ import { MembershipModule } from './membership/membership.module';
 import { ChannelMembershipModule } from './channel-membership/channel-membership.module';
 import { LivekitModule } from './livekit/livekit.module';
 import { VoicePresenceModule } from './voice-presence/voice-presence.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { VoicePresenceModule } from './voice-presence/voice-presence.module';
     ChannelMembershipModule,
     LivekitModule,
     VoicePresenceModule,
+    OnboardingModule,
   ],
   controllers: [AppController],
   providers: [

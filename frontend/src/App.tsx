@@ -6,10 +6,13 @@ import RegisterPage from "./pages/RegisterPage";
 import CreateCommunityPage from "./pages/CreateCommunityPage";
 import EditCommunityPage from "./pages/EditCommunityPage";
 import JoinInvitePage from "./pages/JoinInvitePage";
+import OnboardingPage from "./pages/OnboardingPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import CommunityPage from "./pages/CommunityPage";
 import { RoomProvider } from "./contexts/RoomContext";
+import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApiSlice";
+import { CircularProgress, Box } from "@mui/material";
 
 const darkTheme = createTheme({
   colorSchemes: {
@@ -22,11 +25,47 @@ function App() {
   const location = useLocation();
   const token = localStorage.getItem("accessToken");
   
+  // Check if onboarding is needed - but only make the request if we're not already on the onboarding page
+  const shouldCheckOnboarding = location.pathname !== "/onboarding";
+  const { data: onboardingStatus, isLoading: isCheckingOnboarding } = useGetOnboardingStatusQuery(
+    undefined,
+    { skip: !shouldCheckOnboarding }
+  );
+  
   // Allow access to certain routes without authentication
-  const publicRoutes = ["/login", "/register", "/join"];
+  const publicRoutes = ["/login", "/register", "/join", "/onboarding"];
   const isPublicRoute = publicRoutes.some(route => 
     location.pathname === route || location.pathname.startsWith(route + "/")
   );
+  
+  // Show loading spinner while checking onboarding status
+  if (shouldCheckOnboarding && isCheckingOnboarding) {
+    return (
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '100vh',
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      </ThemeProvider>
+    );
+  }
+  
+  // Redirect to onboarding if setup is needed
+  if (onboardingStatus?.needsSetup && location.pathname !== "/onboarding") {
+    return (
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <OnboardingPage />
+      </ThemeProvider>
+    );
+  }
   
   if (!token && !isPublicRoute) {
     return (
@@ -43,6 +82,7 @@ function App() {
       <RoomProvider>
         <Routes>
           {/* Public routes */}
+          <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/join/:inviteCode" element={<JoinInvitePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
