@@ -281,3 +281,148 @@ export const messagesApi = createApi({
   endpoints: (builder) => ({ ... })
 });
 ```
+
+## 🤖 AI Assistant Documentation System
+
+This project includes a comprehensive documentation system designed to accelerate AI-assisted development. **ALWAYS reference these docs before writing or modifying code.**
+
+### Documentation Structure
+
+```
+docs/
+├── api/                    # REST & WebSocket API documentation
+├── components/            # React component reference docs
+├── modules/               # Backend NestJS module documentation
+├── hooks/                 # Custom React hooks documentation  
+├── state/                 # Redux slices & RTK Query APIs
+├── templates/             # Documentation templates for new code
+├── architecture/          # High-level architecture docs
+└── features/              # Feature analysis and specifications
+```
+
+### **MANDATORY: Pre-Development Documentation Lookup**
+
+Before implementing any feature or modifying existing code, you MUST:
+
+1. **Check Component Docs**: `docs/components/[feature]/[ComponentName].md`
+   - Understand props, usage patterns, and integration points
+   - Follow established patterns and conventions
+   - Identify related components and dependencies
+
+2. **Check Module Docs**: `docs/modules/[module-name].md`
+   - Understand service methods, DTOs, and business logic
+   - Follow RBAC patterns and database query conventions
+   - Identify existing endpoints and WebSocket events
+
+3. **Check API Docs**: `docs/api/[controller-name].md`
+   - Understand existing endpoints and their contracts
+   - Follow authentication and permission patterns
+   - Identify WebSocket events triggered by API changes
+
+4. **Check Hook Docs**: `docs/hooks/[hookName].md`
+   - Understand custom hook APIs and usage patterns
+   - Identify existing hooks that might satisfy requirements
+   - Follow established state management patterns
+
+5. **Check State Docs**: `docs/state/[entity]Api.md`
+   - Understand RTK Query endpoints and caching strategies
+   - Follow established mutation and query patterns
+   - Identify existing WebSocket integrations
+
+### **AI Development Workflow**
+
+#### 1. Research Phase (MANDATORY)
+```typescript
+// ALWAYS start by reading relevant documentation:
+// 1. docs/components/[feature]/[RelatedComponent].md
+// 2. docs/modules/[related-module].md  
+// 3. docs/api/[related-api].md
+// 4. docs/hooks/[related-hook].md
+// 5. docs/state/[related-state].md
+```
+
+#### 2. Implementation Phase
+- **Follow Documented Patterns**: Use existing patterns from the docs rather than creating new ones
+- **Maintain Consistency**: Match the documented code style, naming conventions, and architectural decisions
+- **Integrate Properly**: Use documented APIs, props, and integration points
+- **Handle Errors**: Follow documented error handling patterns
+
+#### 3. Documentation Update Phase  
+After implementing new code:
+- **Update Existing Docs**: Modify docs to reflect any changes to existing components/modules
+- **Create New Docs**: Use templates in `docs/templates/` for new components/modules
+- **Cross-Reference**: Add links between related documentation
+
+### **Quick Reference Commands**
+
+```bash
+# Find component documentation
+find docs/components -name "*ComponentName*"
+
+# Find API documentation  
+find docs/api -name "*endpoint*"
+
+# Find hook documentation
+find docs/hooks -name "*hookName*"
+
+# Search all documentation for a pattern
+grep -r "pattern" docs/
+```
+
+### **Documentation Templates**
+
+When creating new code, use these templates:
+
+- **React Component**: `docs/templates/component.template.md`
+- **NestJS Module**: `docs/templates/module.template.md`
+- **API Endpoints**: `docs/templates/api.template.md`
+- **Custom Hooks**: `docs/templates/hook.template.md`
+- **Redux Slices**: `docs/templates/slice.template.md`
+- **WebSocket Events**: `docs/templates/websocket.template.md`
+
+### **Integration Patterns**
+
+#### Component Integration
+```typescript
+// ALWAYS check docs/components/[feature]/ first
+import { ExistingComponent } from '@/components/[feature]/ExistingComponent';
+// Follow documented prop patterns and usage examples
+```
+
+#### API Integration  
+```typescript
+// ALWAYS check docs/api/[controller].md first
+// Follow documented endpoint patterns, RBAC, and error handling
+```
+
+#### State Management
+```typescript
+// ALWAYS check docs/state/[entity]Api.md first  
+// Follow documented RTK Query patterns and caching strategies
+```
+
+### **Cross-Reference System**
+
+Each documentation file includes:
+- **Related Components**: Links to connected frontend components
+- **Related Modules**: Links to backend services and controllers
+- **Related APIs**: Links to REST and WebSocket endpoints
+- **Related Documentation**: Links to architecture and feature docs
+
+### **Maintenance Guidelines**
+
+- **Keep Docs Updated**: Update documentation when modifying code
+- **Use Consistent Format**: Follow the established template structure
+- **Add Usage Examples**: Include practical code examples
+- **Cross-Reference**: Maintain links between related components
+- **Test Examples**: Ensure code examples are current and working
+
+### **AI Performance Tips**
+
+1. **Batch Documentation Reads**: Read multiple related docs before starting implementation
+2. **Follow Established Patterns**: Don't reinvent - use documented approaches
+3. **Leverage Cross-References**: Follow links to understand component relationships
+4. **Use Search**: Grep documentation for patterns before writing new code
+5. **Check Templates**: Use templates for consistency when creating new files
+
+**This documentation system is designed to make you 10x more effective. Use it religiously.**
