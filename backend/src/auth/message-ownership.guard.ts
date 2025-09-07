@@ -4,10 +4,10 @@ import {
   ExecutionContext,
   Logger,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import { MessagesService } from '@/messages/messages.service';
 import { RbacGuard } from './rbac.guard';
 import { UserEntity } from '@/user/dto/user-response.dto';
+import { Request } from 'express';
 
 @Injectable()
 export class MessageOwnershipGuard implements CanActivate {
@@ -16,11 +16,12 @@ export class MessageOwnershipGuard implements CanActivate {
   constructor(
     private readonly messagesService: MessagesService,
     private readonly rbacGuard: RbacGuard,
-    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request: Request & { user: UserEntity } = context
+      .switchToHttp()
+      .getRequest();
     const user: UserEntity = request.user;
     const messageId = request.params?.id;
 
@@ -39,17 +40,23 @@ export class MessageOwnershipGuard implements CanActivate {
     try {
       // Fetch the message to check ownership
       const message = await this.messagesService.findOne(messageId);
-      
+
       // Allow message owners to edit/delete their own messages
       if (message.authorId === user.id) {
-        this.logger.debug(`User ${user.id} is owner of message ${messageId}, allowing access`);
+        this.logger.debug(
+          `User ${user.id} is owner of message ${messageId}, allowing access`,
+        );
         return true;
       }
 
-      this.logger.debug(`User ${user.id} is not owner of message ${messageId}, checking RBAC permissions`);
-    } catch (error) {
+      this.logger.debug(
+        `User ${user.id} is not owner of message ${messageId}, checking RBAC permissions`,
+      );
+    } catch {
       // If message not found, let RBAC handle the response
-      this.logger.debug(`Message ${messageId} not found, falling back to RBAC check`);
+      this.logger.debug(
+        `Message ${messageId} not found, falling back to RBAC check`,
+      );
     }
 
     // Fall back to RBAC for moderator actions
