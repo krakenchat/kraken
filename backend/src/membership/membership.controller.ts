@@ -9,6 +9,7 @@ import {
   HttpCode,
   Req,
   ForbiddenException,
+  Query,
 } from '@nestjs/common';
 import { MembershipService } from './membership.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
@@ -55,6 +56,22 @@ export class MembershipController {
     @Param('communityId', ParseObjectIdPipe) communityId: string,
   ): Promise<MembershipResponseDto[]> {
     return this.membershipService.findAllForCommunity(communityId);
+  }
+
+  @Get('/community/:communityId/search')
+  @RequiredActions(RbacActions.READ_MEMBER)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  searchCommunityMembers(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Query('query') query: string,
+    @Query('limit') limit?: string,
+  ): Promise<MembershipResponseDto[]> {
+    const limitNumber = limit ? parseInt(limit, 10) : 10;
+    return this.membershipService.searchMembers(communityId, query || '', limitNumber);
   }
 
   @Get('/user/:userId')

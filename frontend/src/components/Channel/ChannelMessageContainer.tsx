@@ -187,7 +187,11 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
             zIndex: 2,
           }}
         >
-          <MessageInput channelId={channelId} authorId={authorId} />
+          <MessageInput 
+            channelId={channelId} 
+            authorId={authorId} 
+            communityId={communityId || ""}
+          />
         </div>
         {messages.map((msg: Message) => (
           <MessageComponent key={msg.id} message={msg} />

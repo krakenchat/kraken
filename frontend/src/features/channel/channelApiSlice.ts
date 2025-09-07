@@ -79,6 +79,15 @@ export const channelApi = createApi({
         "Channel",
       ],
     }),
+    getMentionableChannels: builder.query<Channel[], string>({
+      query: (communityId) => ({
+        url: `/community/${communityId}/mentionable`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, communityId) => [
+        { type: "Channel", id: `mentionable-${communityId}` },
+      ],
+    }),
   }),
 });
 
@@ -88,4 +97,5 @@ export const {
   useCreateChannelMutation,
   useUpdateChannelMutation,
   useDeleteChannelMutation,
+  useGetMentionableChannelsQuery,
 } = channelApi;

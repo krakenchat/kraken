@@ -145,13 +145,13 @@ function renderSpan(span: Span, idx: number) {
     case SpanType.USER_MENTION:
       return (
         <span key={idx} style={{ color: "#1976d2", fontWeight: 600 }}>
-          @{span.text || span.userId}
+          {span.text || span.userId}
         </span>
       );
     case SpanType.CHANNEL_MENTION:
       return (
         <span key={idx} style={{ color: "#7b1fa2", fontWeight: 600 }}>
-          #{span.text || span.channelId}
+          {span.text || span.channelId}
         </span>
       );
     case SpanType.PLAINTEXT:
@@ -293,17 +293,19 @@ test('should handle inline editing with keyboard shortcuts', () => {
 ## Rich Text Support
 
 ### Span Types and Styling
-- **USER_MENTION** - Blue color (`#1976d2`) with bold weight
+- **USER_MENTION** - Blue color (`#1976d2`) with bold weight, no @ prefix in display
 - **SPECIAL_MENTION** - Green color (`#388e3c`) for @everyone, @here
-- **CHANNEL_MENTION** - Purple color (`#7b1fa2`) with # prefix
+- **CHANNEL_MENTION** - Purple color (`#7b1fa2`) with bold weight, no # prefix in display
 - **COMMUNITY_MENTION** - Light blue color (`#0288d1`)
 - **ALIAS_MENTION** - Yellow color (`#fbc02d`) for role mentions
 - **PLAINTEXT** - Default styling for regular text
 
 ### Mention Rendering
-- Displays mention text if available, falls back to ID
-- Preserves mention functionality for clickable interactions
-- Consistent styling across all mention types
+- **Clean Display:** Mention text is displayed without @ or # prefixes for cleaner appearance
+- **Fallback Logic:** Displays mention text if available, falls back to ID
+- **Interactive Design:** Preserves mention functionality for clickable interactions (future feature)
+- **Consistent Styling:** All mention types follow consistent color and weight patterns
+- **Semantic Accuracy:** The `span.text` field contains the complete mention including prefixes when needed
 
 ## Message Operations
 

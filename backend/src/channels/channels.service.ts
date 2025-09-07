@@ -171,4 +171,40 @@ export class ChannelsService {
       throw error;
     }
   }
+
+  // Get mentionable channels for a user in a community
+  async findMentionableChannels(communityId: string, userId: string) {
+    try {
+      // Get channels that are either:
+      // 1. Public channels in the community
+      // 2. Private channels where the user is a member
+      const channels = await this.databaseService.channel.findMany({
+        where: {
+          communityId,
+          OR: [
+            { isPrivate: false },
+            {
+              isPrivate: true,
+              ChannelMembership: {
+                some: {
+                  userId,
+                },
+              },
+            },
+          ],
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
+
+      return channels;
+    } catch (error) {
+      this.logger.error(
+        `Error finding mentionable channels for user ${userId} in community ${communityId}`,
+        error,
+      );
+      throw error;
+    }
+  }
 }

@@ -45,6 +45,15 @@ export class ChannelsController {
     return this.channelsService.findAll(communityId);
   }
 
+  @Get('/community/:communityId/mentionable')
+  @RequiredActions(RbacActions.READ_CHANNEL)
+  getMentionableChannels(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Req() req: { user: UserEntity },
+  ) {
+    return this.channelsService.findMentionableChannels(communityId, req.user.id);
+  }
+
   @Get(':id')
   @RequiredActions(RbacActions.READ_CHANNEL)
   @RbacResource({ type: RbacResourceType.CHANNEL, idKey: 'id' })

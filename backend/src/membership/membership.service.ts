@@ -247,4 +247,54 @@ export class MembershipService {
       return false;
     }
   }
+
+  // Search members for mention autocomplete
+  async searchMembers(
+    communityId: string,
+    query: string,
+    limit: number = 10,
+  ): Promise<MembershipResponseDto[]> {
+    try {
+      const memberships = await this.databaseService.membership.findMany({
+        where: {
+          communityId,
+          user: {
+            OR: [
+              {
+                username: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                displayName: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          },
+        },
+        include: {
+          user: true,
+        },
+        take: limit,
+        orderBy: {
+          user: {
+            username: 'asc',
+          },
+        },
+      });
+
+      return memberships.map(
+        (membership) => new MembershipResponseDto(membership),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error searching members in community ${communityId} with query "${query}"`,
+        error,
+      );
+      throw error;
+    }
+  }
 }

@@ -172,9 +172,42 @@ deleteChannel: builder.mutation<void, string>({
 })
 ```
 
-**Purpose:** Permanently deletes a channel and all its messages (requires admin permissions).
+#### getMentionableChannels
+```typescript
+getMentionableChannels: builder.query<Channel[], string>({
+  query: (communityId) => ({
+    url: `/community/${communityId}/mentionable`,
+    method: "GET",
+  }),
+  providesTags: (_result, _error, communityId) => [
+    { type: "Channel", id: `mentionable-${communityId}` },
+  ],
+})
+```
+
+**Purpose:** Fetches channels that the current user can mention in messages within a specific community. Returns public channels plus private channels where the user is a member.
 
 **Usage:**
+```typescript
+const { 
+  data: mentionableChannels = [], 
+  error, 
+  isLoading 
+} = useChannelApi.useGetMentionableChannelsQuery(communityId, {
+  skip: !communityId,
+});
+
+// Transform for mention autocomplete
+const channelMentions = mentionableChannels.map(channel => ({
+  id: channel.id,
+  name: channel.name,
+  type: 'channel' as const
+}));
+```
+
+**Purpose (deleteChannel):** Permanently deletes a channel and all its messages (requires admin permissions).
+
+**Usage (deleteChannel):**
 ```typescript
 const [deleteChannel, { isLoading }] = useChannelApi.useDeleteChannelMutation();
 
@@ -244,6 +277,7 @@ tagTypes: ["Channel"]
 // Tagging patterns:
 // - Community channels: { type: "Channel", id: `community-${communityId}` }
 // - Individual channels: { type: "Channel", id: channelId }
+// - Mentionable channels: { type: "Channel", id: `mentionable-${communityId}` }
 // - Generic tag: "Channel"
 ```
 
@@ -270,6 +304,7 @@ export const {
   // Query hooks
   useGetChannelsForCommunityQuery,
   useGetChannelByIdQuery,
+  useGetMentionableChannelsQuery,
   
   // Mutation hooks  
   useCreateChannelMutation,
@@ -394,6 +429,91 @@ useWebSocket('CHANNEL_DELETED', ({ channelId, communityId }) => {
     { type: 'Channel', id: `community-${communityId}` }
   ]));
 });
+```
+
+## Mention System Integration
+
+### Channel Mention Autocomplete
+
+The `getMentionableChannels` endpoint integrates with the mention autocomplete system:
+
+```typescript
+import { useMentionAutocomplete } from '@/hooks/useMentionAutocomplete';
+import { useGetMentionableChannelsQuery } from '@/features/channel/channelApiSlice';
+
+function MessageInputWithMentions({ communityId }: { communityId: string }) {
+  // Fetch mentionable channels for the community
+  const { data: channelData = [] } = useGetMentionableChannelsQuery(communityId);
+  
+  // Transform to mention format
+  const channelMentions = channelData.map(channel => ({
+    id: channel.id,
+    name: channel.name,
+    type: 'channel' as const
+  }));
+
+  // Use mention autocomplete hook
+  const {
+    state: mentionState,
+    selectSuggestion,
+    handleKeyDown
+  } = useMentionAutocomplete({
+    communityId,
+    text: inputText,
+    cursorPosition
+  });
+
+  return (
+    <div className="message-input-container">
+      <input 
+        value={inputText}
+        onChange={handleTextChange}
+        onKeyDown={handleKeyDown}
+        placeholder="Type @ for users, # for channels"
+      />
+      
+      {mentionState.isOpen && (
+        <MentionDropdown
+          suggestions={mentionState.suggestions}
+          selectedIndex={mentionState.selectedIndex}
+          onSelectSuggestion={selectSuggestion}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+### Access Control for Mentions
+
+The mentionable channels endpoint respects channel access control:
+
+```typescript
+// Frontend logic matches backend access control
+function useChannelMentionFiltering(communityId: string) {
+  const { data: mentionableChannels = [] } = useGetMentionableChannelsQuery(communityId);
+  
+  // Backend already filters by:
+  // 1. Public channels (isPrivate: false)
+  // 2. Private channels where user is member
+  // So no additional filtering needed on frontend
+  
+  return mentionableChannels;
+}
+```
+
+### Cache Optimization for Mentions
+
+```typescript
+// Prefetch mentionable channels when entering a community
+const prefetchMentionableChannels = usePrefetch('getMentionableChannels');
+
+useEffect(() => {
+  if (communityId) {
+    // Prefetch for mention autocomplete
+    prefetchMentionableChannels(communityId, { force: false });
+  }
+}, [communityId, prefetchMentionableChannels]);
 ```
 
 ## Component Integration

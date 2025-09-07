@@ -119,6 +119,20 @@ export const membershipApi = createApi({
         "Membership",
       ],
     }),
+
+    // Search community members for mentions
+    searchCommunityMembers: builder.query<
+      MembershipResponseDto[],
+      { communityId: string; query: string; limit?: number }
+    >({
+      query: ({ communityId, query, limit = 10 }) => ({
+        url: `/community/${communityId}/search?query=${encodeURIComponent(query)}&limit=${limit}`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, { communityId, query }) => [
+        { type: "Membership", id: `search-${communityId}-${query}` },
+      ],
+    }),
   }),
 });
 
@@ -130,4 +144,5 @@ export const {
   useGetMembershipQuery,
   useRemoveMembershipMutation,
   useLeaveCommunityMutation,
+  useSearchCommunityMembersQuery,
 } = membershipApi;

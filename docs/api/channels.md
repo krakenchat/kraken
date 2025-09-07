@@ -20,6 +20,7 @@ Channel management API for creating and managing text and voice channels within 
 |--------|----------|-------------|-----------------|
 | POST | `/` | Create new channel | `CREATE_CHANNEL` |
 | GET | `/community/:communityId` | List channels in community | `READ_CHANNEL` |
+| GET | `/community/:communityId/mentionable` | Get mentionable channels in community | `READ_CHANNEL` |
 | GET | `/:id` | Get channel by ID | `READ_CHANNEL` |
 | PATCH | `/:id` | Update channel | `UPDATE_CHANNEL` |
 | DELETE | `/:id` | Delete channel | `DELETE_CHANNEL` |
@@ -152,6 +153,105 @@ curl -H "Authorization: Bearer <token>" \
 - `403 Forbidden` - Insufficient permissions (requires `READ_CHANNEL`)
 - `404 Not Found` - Community not found
 - `500 Internal Server Error` - Server error
+
+---
+
+## GET `/api/channels/community/:communityId/mentionable`
+
+**Description:** Returns channels within a community that the current user can mention in messages. This includes all public channels plus any private channels where the user is a member. Used by the mention autocomplete system.
+
+### Request
+
+**Path Parameters:**
+- `communityId` (string, required) - Community ID (MongoDB ObjectId)
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/channels/community/64f7b1234567890abcdef123/mentionable"
+```
+
+### Response
+
+**Success (200):**
+```json
+[
+  {
+    "id": "64f7b1234567890abcdef456",
+    "name": "general",
+    "communityId": "64f7b1234567890abcdef123",
+    "type": "TEXT",
+    "isPrivate": false,
+    "createdAt": "2024-01-01T12:00:00.000Z"
+  },
+  {
+    "id": "64f7b1234567890abcdef789",
+    "name": "voice-chat",
+    "communityId": "64f7b1234567890abcdef123",
+    "type": "VOICE",
+    "isPrivate": false,
+    "createdAt": "2024-01-01T12:30:00.000Z"
+  },
+  {
+    "id": "64f7b1234567890abcdef012",
+    "name": "private-staff",
+    "communityId": "64f7b1234567890abcdef123",
+    "type": "TEXT",
+    "isPrivate": true,
+    "createdAt": "2024-01-01T13:00:00.000Z"
+  }
+]
+```
+
+**Note:** The private channel "private-staff" is included because the current user is a member. Users will only see private channels they have access to.
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions (requires `READ_CHANNEL`)
+- `404 Not Found` - Community not found
+- `500 Internal Server Error` - Server error
+
+### Mention System Integration
+
+This endpoint is specifically designed for mention autocomplete functionality:
+
+```typescript
+// Frontend usage with RTK Query
+const { data: mentionableChannels = [] } = useGetMentionableChannelsQuery(communityId);
+
+// Filter channels by user input
+const filteredChannels = mentionableChannels.filter(channel => 
+  channel.name.toLowerCase().includes(searchQuery.toLowerCase())
+);
+
+// Render in mention dropdown
+{filteredChannels.map(channel => (
+  <MentionOption key={channel.id} type="channel">
+    #{channel.name}
+  </MentionOption>
+))}
+```
+
+### Access Control Logic
+
+The endpoint implements the following access control:
+
+```sql
+-- Pseudo-SQL representation of the access logic
+SELECT * FROM channels 
+WHERE communityId = ? 
+AND (
+  isPrivate = false  -- All public channels
+  OR (
+    isPrivate = true 
+    AND id IN (
+      SELECT channelId FROM channelMemberships 
+      WHERE userId = ? -- Current user's private channel memberships
+    )
+  )
+)
+ORDER BY name ASC
+```
 
 ---
 

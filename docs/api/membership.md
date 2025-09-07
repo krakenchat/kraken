@@ -20,6 +20,7 @@ Community membership management API for adding users to communities, viewing mem
 |--------|----------|-------------|-----------------|
 | POST | `/` | Add user to community | `CREATE_MEMBER` |
 | GET | `/community/:communityId` | List community members | `READ_MEMBER` |
+| GET | `/community/:communityId/search` | Search community members | `READ_MEMBER` |
 | GET | `/user/:userId` | List user's memberships | `READ_MEMBER` |
 | GET | `/my` | Get current user's memberships | `READ_MEMBER` |
 | GET | `/community/:communityId/user/:userId` | Get specific membership | `READ_MEMBER` |
@@ -145,6 +146,128 @@ curl -H "Authorization: Bearer <token>" \
 - `403 Forbidden` - Insufficient permissions (requires `READ_MEMBER`)
 - `404 Not Found` - Community not found
 - `500 Internal Server Error` - Server error
+
+---
+
+## GET `/api/membership/community/:communityId/search`
+
+**Description:** Searches for members within a community by username or display name. Designed for mention autocomplete functionality, returns up to a specified limit of matching members sorted alphabetically by username.
+
+### Request
+
+**Path Parameters:**
+- `communityId` (string, required) - Community ID (MongoDB ObjectId)
+
+**Query Parameters:**
+- `query` (string, optional) - Search term to match against usernames and display names (case-insensitive)
+- `limit` (number, optional) - Maximum number of results to return (defaults to 10)
+
+**Examples:**
+```bash
+# Search for members with "john" in username or display name
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/membership/community/64f7b1234567890abcdef123/search?query=john&limit=5"
+
+# Get first 10 members (no query parameter)
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/membership/community/64f7b1234567890abcdef123/search?limit=10"
+```
+
+### Response
+
+**Success (200):**
+```json
+[
+  {
+    "id": "64f7b1234567890abcdef789",
+    "userId": "64f7b1234567890abcdef456",
+    "communityId": "64f7b1234567890abcdef123",
+    "joinedAt": "2024-01-01T10:00:00.000Z",
+    "user": {
+      "id": "64f7b1234567890abcdef456",
+      "username": "john_doe",
+      "role": "USER",
+      "avatarUrl": "https://example.com/avatar.jpg",
+      "lastSeen": "2024-01-01T11:30:00.000Z",
+      "displayName": "John Doe"
+    }
+  },
+  {
+    "id": "64f7b1234567890abcdef012",
+    "userId": "64f7b1234567890abcdef345",
+    "communityId": "64f7b1234567890abcdef123",
+    "joinedAt": "2024-01-01T08:00:00.000Z",
+    "user": {
+      "id": "64f7b1234567890abcdef345",
+      "username": "johnny_smith",
+      "role": "USER",
+      "avatarUrl": null,
+      "lastSeen": "2024-01-01T12:00:00.000Z",
+      "displayName": "Johnny Smith"
+    }
+  }
+]
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions (requires `READ_MEMBER`)
+- `404 Not Found` - Community not found
+- `500 Internal Server Error` - Server error
+
+### Mention System Integration
+
+This endpoint is specifically designed for user mention autocomplete functionality:
+
+```typescript
+// Frontend usage with RTK Query
+const { data: searchResults = [] } = useSearchCommunityMembersQuery({
+  communityId,
+  query: searchTerm,
+  limit: 10
+}, {
+  skip: searchTerm.length < 2 // Only search with 2+ characters
+});
+
+// Transform for mention dropdown
+const mentionSuggestions = searchResults.map(member => ({
+  id: member.userId,
+  type: 'user' as const,
+  displayName: member.user.username,
+  subtitle: member.user.displayName,
+  avatar: member.user.avatarUrl
+}));
+```
+
+### Search Behavior
+
+The search functionality:
+
+- **Case Insensitive:** Matches are case-insensitive
+- **Partial Matching:** Uses `CONTAINS` matching (substring search)
+- **Multiple Fields:** Searches both `username` and `displayName` fields
+- **Sorted Results:** Results are alphabetically sorted by username
+- **Limited Results:** Returns up to the specified limit (default 10)
+
+```sql
+-- Pseudo-SQL representation of the search logic
+SELECT m.*, u.* FROM memberships m
+JOIN users u ON m.userId = u.id
+WHERE m.communityId = ?
+AND (
+  LOWER(u.username) LIKE '%' + LOWER(?) + '%'
+  OR LOWER(u.displayName) LIKE '%' + LOWER(?) + '%'
+)
+ORDER BY u.username ASC
+LIMIT ?
+```
+
+### Performance Considerations
+
+- **Database Indexes:** The endpoint benefits from indexes on `username` and `displayName`
+- **Query Debouncing:** Frontend should debounce search queries to reduce API load
+- **Caching:** Results are cached by RTK Query based on `communityId` and `query` parameters
+- **Minimum Query Length:** Consider requiring minimum 2-3 characters before searching
 
 ---
 

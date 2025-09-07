@@ -233,9 +233,52 @@ leaveCommunity: builder.mutation<void, string>({
 })
 ```
 
-**Purpose:** Allows the current user to leave a community.
+#### searchCommunityMembers
+```typescript
+searchCommunityMembers: builder.query<
+  MembershipResponseDto[],
+  { communityId: string; query: string; limit?: number }
+>({
+  query: ({ communityId, query, limit = 10 }) => ({
+    url: `/community/${communityId}/search?query=${encodeURIComponent(query)}&limit=${limit}`,
+    method: "GET",
+  }),
+  providesTags: (_result, _error, { communityId, query }) => [
+    { type: "Membership", id: `search-${communityId}-${query}` },
+  ],
+})
+```
 
-**Usage:**
+**Purpose (searchCommunityMembers):** Searches for members within a community by username or display name. Designed for mention autocomplete functionality with debounced queries and caching.
+
+**Usage (searchCommunityMembers):**
+```typescript
+const { 
+  data: searchResults = [], 
+  error, 
+  isLoading,
+  isFetching 
+} = useMembershipApi.useSearchCommunityMembersQuery({
+  communityId,
+  query: searchTerm,
+  limit: 10
+}, {
+  skip: searchTerm.length < 2, // Only search with 2+ characters
+});
+
+// Transform for mention autocomplete
+const userMentions = searchResults.map(member => ({
+  id: member.userId,
+  type: 'user' as const,
+  displayName: member.user.username,
+  subtitle: member.user.displayName,
+  avatar: member.user.avatarUrl
+}));
+```
+
+**Purpose (leaveCommunity):** Allows the current user to leave a community.
+
+**Usage (leaveCommunity):**
 ```typescript
 const [leaveCommunity, { isLoading }] = useMembershipApi.useLeaveCommunityMutation();
 
@@ -292,6 +335,7 @@ tagTypes: ["Membership"]
 // - User memberships: { type: "Membership", id: `user-${userId}` }
 // - Specific membership: { type: "Membership", id: `${userId}-${communityId}` }
 // - Current user's memberships: { type: "Membership", id: "my" }
+// - Search results: { type: "Membership", id: `search-${communityId}-${query}` }
 // - Generic tag: "Membership"
 ```
 
@@ -320,6 +364,7 @@ export const {
   useGetMembershipsForUserQuery,
   useGetMyMembershipsQuery,
   useGetMembershipQuery,
+  useSearchCommunityMembersQuery,
   
   // Mutation hooks  
   useCreateMembershipMutation,
@@ -436,6 +481,136 @@ useWebSocket('MEMBERSHIP_UPDATED', (updatedMembership) => {
     () => updatedMembership
   ));
 });
+```
+
+## Mention System Integration
+
+### User Mention Autocomplete
+
+The `searchCommunityMembers` endpoint integrates seamlessly with the mention autocomplete system:
+
+```typescript
+import { useMentionAutocomplete } from '@/hooks/useMentionAutocomplete';
+import { useSearchCommunityMembersQuery } from '@/features/membership/membershipApiSlice';
+
+function MentionEnabledInput({ communityId }: { communityId: string }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Search community members for mentions
+  const {
+    data: searchResults = [],
+    isLoading: isSearching,
+    isFetching
+  } = useSearchCommunityMembersQuery({
+    communityId,
+    query: searchTerm,
+    limit: 10
+  }, {
+    skip: searchTerm.length < 2, // Debounce with minimum length
+  });
+
+  // Transform results for mention dropdown
+  const userMentions = searchResults.map(member => ({
+    id: member.userId,
+    type: 'user' as const,
+    displayName: member.user.username,
+    subtitle: member.user.displayName || undefined,
+    avatar: member.user.avatarUrl || undefined
+  }));
+
+  return (
+    <div>
+      {/* Input with mention integration */}
+      <MentionDropdown
+        suggestions={userMentions}
+        isLoading={isFetching}
+        onSelect={handleMentionSelect}
+      />
+    </div>
+  );
+}
+```
+
+### Performance Optimization for Mentions
+
+```typescript
+// Debounced search for better performance
+function useDebouncedMemberSearch(communityId: string, query: string, delay = 300) {
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), delay);
+    return () => clearTimeout(timer);
+  }, [query, delay]);
+
+  return useSearchCommunityMembersQuery({
+    communityId,
+    query: debouncedQuery,
+    limit: 10
+  }, {
+    skip: debouncedQuery.length < 2
+  });
+}
+```
+
+### Cache Strategy for Search Results
+
+The search endpoint uses smart caching based on query and community:
+
+```typescript
+// Cache tags are specific to communityId and query
+// This means different searches are cached separately
+const cacheKey = `search-${communityId}-${query}`;
+
+// Example: Prefetch common search results
+const prefetchSearch = usePrefetch('searchCommunityMembers');
+
+// Prefetch popular usernames when component mounts
+useEffect(() => {
+  const commonSearches = ['admin', 'mod', 'user'];
+  commonSearches.forEach(searchTerm => {
+    prefetchSearch({ communityId, query: searchTerm, limit: 5 });
+  });
+}, [communityId, prefetchSearch]);
+```
+
+### Search Result Management
+
+```typescript
+// Advanced search result handling
+function useSmartMemberSearch(communityId: string) {
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [currentQuery, setCurrentQuery] = useState('');
+
+  const {
+    data: results = [],
+    isLoading,
+    error
+  } = useSearchCommunityMembersQuery({
+    communityId,
+    query: currentQuery,
+    limit: 10
+  }, {
+    skip: currentQuery.length < 2
+  });
+
+  const handleSearch = useCallback((query: string) => {
+    setCurrentQuery(query);
+    
+    // Track search history for analytics
+    if (query.length >= 2 && !searchHistory.includes(query)) {
+      setSearchHistory(prev => [...prev.slice(-9), query]); // Keep last 10
+    }
+  }, [searchHistory]);
+
+  return {
+    results,
+    isLoading,
+    error,
+    handleSearch,
+    searchHistory
+  };
+}
 ```
 
 ## Component Integration
