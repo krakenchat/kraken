@@ -210,10 +210,9 @@ Copy `backend/env.sample` to `backend/.env` and configure:
 
 #### High-Impact, Low-Effort Completions Available
 1. **Community Invitations** (1 week) - Backend complete, needs frontend UI
-2. **Message Editing** (1 week) - Backend ready, needs edit interface
-3. **RBAC Management** (2-3 weeks) - Strong foundation, needs admin interface
-4. **Voice Persistence** (1-2 weeks) - Core working, needs navigation persistence
-5. **File Attachments** (2-3 weeks) - Upload system exists, needs message integration
+2. **RBAC Management** (2-3 weeks) - Strong foundation, needs admin interface  
+3. **Voice Persistence** (1-2 weeks) - Core working, needs navigation persistence
+4. **File Attachments** (2-3 weeks) - Upload system exists, needs message integration
 
 #### Critical Architecture Strengths
 - **Modular Design**: Clean separation between features and concerns
@@ -234,9 +233,8 @@ Copy `backend/env.sample` to `backend/.env` and configure:
 
 #### Phase 1: Complete Foundation Features (4-6 weeks)
 1. Community invitation system (frontend)
-2. Message editing interface  
-3. Basic message reactions
-4. Voice connection persistence
+2. Basic message reactions
+3. Voice connection persistence
 
 #### Phase 2: Major Features (6-8 weeks)
 1. Complete RBAC management interface

@@ -16,6 +16,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
+import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import {
@@ -108,13 +109,15 @@ export class MessagesController {
   }
 
   @Patch(':id')
-  @RequiredActions(RbacActions.UPDATE_CHANNEL)
+  @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
+  @RequiredActions(RbacActions.UPDATE_MESSAGE)
   @RbacResource({
     type: RbacResourceType.CHANNEL,
     idKey: 'id',
   })
   async update(
     @Param('id', ParseObjectIdPipe) id: string,
+    @Req() req: { user: UserEntity },
     @Body() updateMessageDto: UpdateMessageDto,
   ) {
     // First get the original message to know which channel to notify
@@ -140,6 +143,7 @@ export class MessagesController {
 
   @HttpCode(204)
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
   @RequiredActions(RbacActions.DELETE_MESSAGE)
   @RbacResource({
     type: RbacResourceType.CHANNEL,

@@ -15,7 +15,8 @@ import {
   useUpdateMessageMutation,
   useDeleteMessageMutation,
 } from "../../features/messages/messagesApiSlice";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 
 interface MessageProps {
   message: MessageType;
@@ -137,6 +138,19 @@ function MessageComponent({ message }: MessageProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const isOwnMessage = currentUser?.id === message.authorId;
+
+  // Check if user can moderate messages in this channel
+  const canUpdateMessage = useCanPerformAction("CHANNEL", message.channelId, "UPDATE_MESSAGE");
+  const canDeleteMessage = useCanPerformAction("CHANNEL", message.channelId, "DELETE_MESSAGE");
+
+  // Combined permission checks: owner can always edit/delete, or user has moderator permissions
+  const canEditMessage = useMemo(() => {
+    return isOwnMessage || canUpdateMessage;
+  }, [isOwnMessage, canUpdateMessage]);
+
+  const canRemoveMessage = useMemo(() => {
+    return isOwnMessage || canDeleteMessage;
+  }, [isOwnMessage, canDeleteMessage]);
 
   const handleEditClick = () => {
     // Get the text from the first plaintext span or empty string
@@ -266,7 +280,7 @@ function MessageComponent({ message }: MessageProps) {
           </Typography>
         )}
       </div>
-      {isOwnMessage && !isEditing && (
+      {(canEditMessage || canRemoveMessage) && !isEditing && (
         <MessageTools
           className="message-tools"
           stagedForDelete={stagedForDelete}
@@ -299,16 +313,20 @@ function MessageComponent({ message }: MessageProps) {
             </>
           ) : (
             <>
-              <IconButton size="small" onClick={handleEditClick}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                onClick={handleDeleteClick}
-                color="error"
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+              {canEditMessage && (
+                <IconButton size="small" onClick={handleEditClick}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              )}
+              {canRemoveMessage && (
+                <IconButton
+                  size="small"
+                  onClick={handleDeleteClick}
+                  color="error"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              )}
             </>
           )}
         </MessageTools>
