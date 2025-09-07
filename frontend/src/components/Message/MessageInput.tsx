@@ -129,8 +129,8 @@ export default function MessageInput({
             selectedSuggestion.type === "user"
               ? selectedSuggestion.displayName
               : undefined,
-          name:
-            selectedSuggestion.type === "channel"
+          specialKind:
+            selectedSuggestion.type === "special"
               ? selectedSuggestion.displayName
               : undefined,
         };
@@ -209,8 +209,8 @@ export default function MessageInput({
                 selectedSuggestion.type === "user"
                   ? selectedSuggestion.displayName
                   : undefined,
-              name:
-                selectedSuggestion.type === "channel"
+              specialKind:
+                selectedSuggestion.type === "special"
                   ? selectedSuggestion.displayName
                   : undefined,
             };
@@ -275,7 +275,7 @@ export default function MessageInput({
             fullWidth
             size="small"
             variant="outlined"
-            placeholder="Type a message... Use @ for members, # for channels"
+            placeholder="Type a message... Use @ for members, @here, @channel"
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}

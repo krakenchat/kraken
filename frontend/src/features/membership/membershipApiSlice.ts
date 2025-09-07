@@ -120,7 +120,18 @@ export const membershipApi = createApi({
       ],
     }),
 
-    // Search community members for mentions
+    // Get all community members (for mention caching)
+    getAllCommunityMembers: builder.query<MembershipResponseDto[], string>({
+      query: (communityId) => ({
+        url: `/community/${communityId}`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, communityId) => [
+        { type: "Membership", id: `all-${communityId}` },
+      ],
+    }),
+
+    // Search community members for mentions (fallback for large communities)
     searchCommunityMembers: builder.query<
       MembershipResponseDto[],
       { communityId: string; query: string; limit?: number }
@@ -144,5 +155,6 @@ export const {
   useGetMembershipQuery,
   useRemoveMembershipMutation,
   useLeaveCommunityMutation,
+  useGetAllCommunityMembersQuery,
   useSearchCommunityMembersQuery,
 } = membershipApi;

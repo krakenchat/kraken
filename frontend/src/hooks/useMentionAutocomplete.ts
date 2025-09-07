@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchCommunityMembersQuery } from '../features/membership/membershipApiSlice';
-import { useGetMentionableChannelsQuery } from '../features/channel/channelApiSlice';
+import { useGetAllCommunityMembersQuery } from '../features/membership/membershipApiSlice';
 import { getCurrentMention } from '../utils/mentionParser';
 
 export interface MentionSuggestion {
   id: string;
-  type: 'user' | 'channel';
+  type: 'user' | 'special';
   displayName: string;
   subtitle?: string;
   avatar?: string;
@@ -16,7 +15,7 @@ export interface MentionAutocompleteState {
   suggestions: MentionSuggestion[];
   selectedIndex: number;
   query: string;
-  type: 'user' | 'channel' | null;
+  type: 'user' | 'special' | null;
   isLoading: boolean;
 }
 
@@ -39,60 +38,98 @@ export function useMentionAutocomplete({
     return getCurrentMention(text, cursorPosition);
   }, [text, cursorPosition]);
 
-  // Search queries
+  // Get all community members (cached)
   const {
-    data: memberResults = [],
+    data: allMembers = [],
     isLoading: isLoadingMembers,
     isFetching: isFetchingMembers,
-  } = useSearchCommunityMembersQuery(
-    {
-      communityId,
-      query: currentMention?.query || '',
-      limit: 10,
-    },
-    {
-      skip: !currentMention || currentMention.type !== 'user' || currentMention.query.length === 0,
-    }
-  );
+  } = useGetAllCommunityMembersQuery(communityId);
 
-  const {
-    data: channelResults = [],
-    isLoading: isLoadingChannels,
-    isFetching: isFetchingChannels,
-  } = useGetMentionableChannelsQuery(communityId, {
-    skip: !currentMention || currentMention.type !== 'channel',
-  });
 
-  // Process suggestions
+  // Client-side filtering and processing
   const suggestions = useMemo((): MentionSuggestion[] => {
     if (!currentMention) return [];
 
-    if (currentMention.type === 'user') {
-      return memberResults.map(member => ({
-        id: member.user!.id,
-        type: 'user' as const,
-        displayName: member.user!.username,
-        subtitle: member.user!.displayName || undefined,
-        avatar: member.user!.avatarUrl || undefined,
+    const query = currentMention.query.toLowerCase();
+    const results: MentionSuggestion[] = [];
+
+    // Always include special mentions when relevant
+    const specialMentions = [
+      { id: 'here', name: 'here', description: 'Notify online members in this channel' },
+      { id: 'channel', name: 'channel', description: 'Notify all members in this channel' },
+    ];
+    
+    // Add matching special mentions
+    const matchingSpecials = specialMentions
+      .filter(special => 
+        query === '' || special.name.toLowerCase().includes(query)
+      )
+      .map(special => ({
+        id: special.id,
+        type: 'special' as const,
+        displayName: special.name,
+        subtitle: special.description,
       }));
-    }
+    
+    results.push(...matchingSpecials);
 
-    if (currentMention.type === 'channel') {
-      const query = currentMention.query.toLowerCase();
-      return channelResults
-        .filter(channel => 
-          query === '' || channel.name.toLowerCase().includes(query)
-        )
-        .map(channel => ({
-          id: channel.id,
-          type: 'channel' as const,
-          displayName: channel.name,
-          subtitle: channel.description || undefined,
+    // Add user mentions with smart filtering and ordering
+    if (currentMention.type === 'user' || query !== '') {
+      const userMatches = allMembers
+        .filter(member => {
+          if (!member.user) return false;
+          const username = member.user.username.toLowerCase();
+          const displayName = (member.user.displayName || '').toLowerCase();
+          
+          return query === '' ||
+                 username.includes(query) ||
+                 displayName.includes(query);
+        })
+        .sort((a, b) => {
+          const aUser = a.user!;
+          const bUser = b.user!;
+          const aUsername = aUser.username.toLowerCase();
+          const bUsername = bUser.username.toLowerCase();
+          const aDisplayName = (aUser.displayName || '').toLowerCase();
+          const bDisplayName = (bUser.displayName || '').toLowerCase();
+          
+          if (query === '') return aUsername.localeCompare(bUsername);
+          
+          // Priority 1: Exact matches
+          const aExactUsername = aUsername === query;
+          const bExactUsername = bUsername === query;
+          if (aExactUsername && !bExactUsername) return -1;
+          if (!aExactUsername && bExactUsername) return 1;
+          
+          // Priority 2: Username starts with query
+          const aUsernameStarts = aUsername.startsWith(query);
+          const bUsernameStarts = bUsername.startsWith(query);
+          if (aUsernameStarts && !bUsernameStarts) return -1;
+          if (!aUsernameStarts && bUsernameStarts) return 1;
+          
+          // Priority 3: Display name starts with query
+          const aDisplayStarts = aDisplayName.startsWith(query);
+          const bDisplayStarts = bDisplayName.startsWith(query);
+          if (aDisplayStarts && !bDisplayStarts) return -1;
+          if (!aDisplayStarts && bDisplayStarts) return 1;
+          
+          // Priority 4: Alphabetical by username
+          return aUsername.localeCompare(bUsername);
+        })
+        .slice(0, 8) // Limit to 8 user results for performance
+        .map(member => ({
+          id: member.user!.id,
+          type: 'user' as const,
+          displayName: member.user!.username,
+          subtitle: member.user!.displayName || undefined,
+          avatar: member.user!.avatarUrl || undefined,
         }));
+      
+      results.push(...userMatches);
     }
 
-    return [];
-  }, [currentMention, memberResults, channelResults]);
+    return results.slice(0, 10); // Total limit of 10 results
+  }, [currentMention, allMembers]);
 
   // Update open state based on suggestions
   useEffect(() => {
@@ -115,20 +152,11 @@ export function useMentionAutocomplete({
     }
   }, [suggestions.length, selectedIndex]);
 
-  // Loading state
+  // Loading state - only show loading if we don't have any members cached yet
   const isLoading = useMemo(() => {
     if (!currentMention) return false;
-    
-    if (currentMention.type === 'user') {
-      return isLoadingMembers || isFetchingMembers;
-    }
-    
-    if (currentMention.type === 'channel') {
-      return isLoadingChannels || isFetchingChannels;
-    }
-    
-    return false;
-  }, [currentMention, isLoadingMembers, isFetchingMembers, isLoadingChannels, isFetchingChannels]);
+    return isLoadingMembers && allMembers.length === 0;
+  }, [currentMention, isLoadingMembers, allMembers.length]);
 
   // Navigation functions
   const selectNext = useCallback(() => {

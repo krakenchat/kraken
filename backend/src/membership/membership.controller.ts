@@ -71,7 +71,11 @@ export class MembershipController {
     @Query('limit') limit?: string,
   ): Promise<MembershipResponseDto[]> {
     const limitNumber = limit ? parseInt(limit, 10) : 10;
-    return this.membershipService.searchMembers(communityId, query || '', limitNumber);
+    return this.membershipService.searchMembers(
+      communityId,
+      query || '',
+      limitNumber,
+    );
   }
 
   @Get('/user/:userId')

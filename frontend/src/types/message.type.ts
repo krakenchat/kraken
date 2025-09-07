@@ -2,7 +2,6 @@ export enum SpanType {
   PLAINTEXT = "PLAINTEXT",
   USER_MENTION = "USER_MENTION",
   SPECIAL_MENTION = "SPECIAL_MENTION",
-  CHANNEL_MENTION = "CHANNEL_MENTION",
   COMMUNITY_MENTION = "COMMUNITY_MENTION",
   ALIAS_MENTION = "ALIAS_MENTION",
 }
@@ -12,7 +11,6 @@ export interface Span {
   text?: string;
   userId?: string;
   specialKind?: string;
-  channelId?: string;
   communityId?: string;
   aliasId?: string;
 }

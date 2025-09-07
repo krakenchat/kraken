@@ -248,6 +248,7 @@ enum RbacActions {
   READ_MEMBER
   UPDATE_COMMUNITY
   UPDATE_CHANNEL
+  UPDATE_MESSAGE
   UPDATE_USER
   UPDATE_ROLE
   UPDATE_ALIAS_GROUP
@@ -265,8 +266,7 @@ type Span {
   type        SpanType
   text        String?
   userId      String? // For USER_MENTION
-  specialKind String? // For SPECIAL_MENTION: "here", "everyone", "mods", "channel" etc
-  channelId   String? // For CHANNEL_MENTION
+  specialKind String? // For SPECIAL_MENTION: "here", "channel"
   communityId String? // For COMMUNITY_MENTION
   aliasId     String? // For ALIAS_MENTION
 }
@@ -276,7 +276,6 @@ enum SpanType {
   PLAINTEXT
   USER_MENTION
   SPECIAL_MENTION
-  CHANNEL_MENTION
   COMMUNITY_MENTION
   ALIAS_MENTION
 }

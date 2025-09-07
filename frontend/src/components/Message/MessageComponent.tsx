@@ -10,6 +10,7 @@ import {
   useGetUserByIdWithCacheQuery,
   useProfileQuery,
 } from "../../features/users/usersSlice";
+import { alpha } from '@mui/material/styles';
 import {
   useUpdateMessageMutation,
   useDeleteMessageMutation,
@@ -31,13 +32,7 @@ function renderSpan(span: Span, idx: number) {
     case SpanType.SPECIAL_MENTION:
       return (
         <span key={idx} style={{ color: "#388e3c", fontWeight: 600 }}>
-          {span.text || span.specialKind}
-        </span>
-      );
-    case SpanType.CHANNEL_MENTION:
-      return (
-        <span key={idx} style={{ color: "#7b1fa2", fontWeight: 600 }}>
-          {span.text || span.channelId}
+          @{span.specialKind}
         </span>
       );
     case SpanType.COMMUNITY_MENTION:
@@ -60,18 +55,22 @@ function renderSpan(span: Span, idx: number) {
 
 const Container = styled("div", {
   shouldForwardProp: (prop) =>
-    prop !== "stagedForDelete" && prop !== "isDeleting",
-})<{ stagedForDelete?: boolean; isDeleting?: boolean }>(
-  ({ theme, stagedForDelete, isDeleting }) => ({
+    prop !== "stagedForDelete" && prop !== "isDeleting" && prop !== "isHighlighted",
+})<{ stagedForDelete?: boolean; isDeleting?: boolean; isHighlighted?: boolean }>(
+  ({ theme, stagedForDelete, isDeleting, isHighlighted }) => ({
     padding: theme.spacing(0.5, 2),
     display: "flex",
     alignItems: "flex-start",
     width: "100%",
     marginBottom: isDeleting ? 0 : theme.spacing(1),
     position: "relative",
-    backgroundColor: "transparent",
+    backgroundColor: isHighlighted 
+      ? alpha(theme.palette.primary.main, 0.08)
+      : "transparent",
     border: stagedForDelete
       ? `2px solid ${theme.palette.error.main}`
+      : isHighlighted
+      ? `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
       : "2px solid transparent",
     borderRadius: stagedForDelete ? theme.spacing(1) : 0,
     transition: isDeleting ? "all 0.3s ease-out" : "all 0.2s ease-in-out",
@@ -86,6 +85,8 @@ const Container = styled("div", {
     "&:hover": {
       backgroundColor: stagedForDelete
         ? theme.palette.error.light
+        : isHighlighted
+        ? alpha(theme.palette.primary.main, 0.12)
         : theme.palette.action.hover,
       "& .message-tools": {
         opacity: 1,
@@ -115,6 +116,19 @@ const MessageTools = styled(Box, {
 function MessageComponent({ message }: MessageProps) {
   const { data: author } = useGetUserByIdWithCacheQuery(message.authorId);
   const { data: currentUser } = useProfileQuery();
+  
+  // Check if this message mentions the current user
+  const isMentioned = currentUser && message.spans.some(span => {
+    if (span.type === SpanType.USER_MENTION && span.userId === currentUser.id) {
+      return true;
+    }
+    if (span.type === SpanType.SPECIAL_MENTION && (span.specialKind === 'here' || span.specialKind === 'channel')) {
+      // User is mentioned by @here/@channel if they are in the channel
+      // For now, we'll assume they are since they can see the message
+      return true;
+    }
+    return false;
+  });
   const [updateMessage] = useUpdateMessageMutation();
   const [deleteMessage] = useDeleteMessageMutation();
   const [isEditing, setIsEditing] = useState(false);
@@ -185,7 +199,11 @@ function MessageComponent({ message }: MessageProps) {
   };
 
   return (
-    <Container stagedForDelete={stagedForDelete} isDeleting={isDeleting}>
+    <Container 
+      stagedForDelete={stagedForDelete} 
+      isDeleting={isDeleting}
+      isHighlighted={isMentioned}
+    >
       <div style={{ marginRight: 12, marginTop: 4 }}>
         {author?.avatarUrl ? (
           <Avatar

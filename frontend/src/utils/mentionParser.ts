@@ -1,7 +1,7 @@
 import { SpanType, MessageSpan } from "../types/message.type";
 
 export interface MentionMatch {
-  type: 'user' | 'channel';
+  type: 'user' | 'special';
   start: number;
   end: number;
   text: string;
@@ -15,13 +15,8 @@ export interface UserMention {
   displayName?: string;
 }
 
-export interface ChannelMention {
-  id: string;
-  name: string;
-}
-
 /**
- * Parse message text for potential mentions (@user, #channel)
+ * Parse message text for potential mentions (@user, @here, @channel)
  * Returns array of mention objects with positions
  */
 export function findMentions(text: string): MentionMatch[] {
@@ -32,26 +27,25 @@ export function findMentions(text: string): MentionMatch[] {
   let match;
   
   while ((match = userMentionRegex.exec(text)) !== null) {
-    mentions.push({
-      type: 'user',
-      start: match.index,
-      end: match.index + match[0].length,
-      text: match[0],
-      query: match[1],
-    });
-  }
-  
-  // Channel mentions pattern: #word
-  const channelMentionRegex = /#(\w[\w\-_]*)/g;
-  
-  while ((match = channelMentionRegex.exec(text)) !== null) {
-    mentions.push({
-      type: 'channel',
-      start: match.index,
-      end: match.index + match[0].length,
-      text: match[0],
-      query: match[1],
-    });
+    const query = match[1];
+    // Check if this is a special mention
+    if (query === 'here' || query === 'channel') {
+      mentions.push({
+        type: 'special',
+        start: match.index,
+        end: match.index + match[0].length,
+        text: match[0],
+        query: query,
+      });
+    } else {
+      mentions.push({
+        type: 'user',
+        start: match.index,
+        end: match.index + match[0].length,
+        text: match[0],
+        query: query,
+      });
+    }
   }
   
   return mentions.sort((a, b) => a.start - b.start);
@@ -63,8 +57,7 @@ export function findMentions(text: string): MentionMatch[] {
  */
 export function parseMessageWithMentions(
   text: string,
-  userMentions: UserMention[] = [],
-  channelMentions: ChannelMention[] = []
+  userMentions: UserMention[] = []
 ): MessageSpan[] {
   const spans: MessageSpan[] = [];
   const mentions = findMentions(text);
@@ -102,24 +95,13 @@ export function parseMessageWithMentions(
           text: mention.text,
         });
       }
-    } else if (mention.type === 'channel') {
-      const resolvedChannel = channelMentions.find(
-        channel => channel.name.toLowerCase() === mention.query.toLowerCase()
-      );
-      
-      if (resolvedChannel) {
-        spans.push({
-          type: SpanType.CHANNEL_MENTION,
-          text: `#${resolvedChannel.name}`,
-          channelId: resolvedChannel.id,
-        });
-      } else {
-        // Unresolved mention becomes plaintext
-        spans.push({
-          type: SpanType.PLAINTEXT,
-          text: mention.text,
-        });
-      }
+    } else if (mention.type === 'special') {
+      // Special mentions (@here, @channel)
+      spans.push({
+        type: SpanType.SPECIAL_MENTION,
+        text: mention.text,
+        specialKind: mention.query,
+      });
     }
     
     lastIndex = mention.end;
@@ -156,8 +138,8 @@ export function spansToText(spans: MessageSpan[]): string {
     switch (span.type) {
       case SpanType.USER_MENTION:
         return span.text || `@user`;
-      case SpanType.CHANNEL_MENTION:
-        return span.text || `#channel`;
+      case SpanType.SPECIAL_MENTION:
+        return span.text || `@${span.specialKind}`;
       case SpanType.PLAINTEXT:
       default:
         return span.text || '';
@@ -172,23 +154,24 @@ export function spansToText(spans: MessageSpan[]): string {
 export function getCurrentMention(
   text: string,
   cursorPosition: number
-): { type: 'user' | 'channel'; query: string; start: number; end: number } | null {
+): { type: 'user' | 'special'; query: string; start: number; end: number } | null {
   // Look backwards from cursor to find start of potential mention
   let start = cursorPosition;
   
   // Find the start of the current word/mention
   while (start > 0) {
     const char = text[start - 1];
-    if (char === '@' || char === '#') {
-      const mentionType = char === '@' ? 'user' : 'channel';
+    if (char === '@') {
       const query = text.substring(start, cursorPosition);
       
       // Validate query (should only contain valid mention characters)
       if (/^[\w\-_]*$/.test(query)) {
+        // Determine if this is a special mention
+        const mentionType = (query === 'here' || query === 'channel') ? 'special' : 'user';
         return {
           type: mentionType,
           query,
-          start: start - 1, // Include the @ or #
+          start: start - 1, // Include the @
           end: cursorPosition,
         };
       }
@@ -211,15 +194,14 @@ export function getCurrentMention(
 export function insertMention(
   text: string,
   cursorPosition: number,
-  mention: { type: 'user' | 'channel'; username?: string; name?: string }
+  mention: { type: 'user' | 'special'; username?: string; specialKind?: string }
 ): { newText: string; newCursorPosition: number } {
   const currentMention = getCurrentMention(text, cursorPosition);
   
   if (!currentMention) {
     // No current mention, just insert at cursor
-    const prefix = mention.type === 'user' ? '@' : '#';
-    const mentionText = mention.type === 'user' ? mention.username : mention.name;
-    const insertText = `${prefix}${mentionText} `;
+    const mentionText = mention.type === 'user' ? mention.username : mention.specialKind;
+    const insertText = `@${mentionText} `;
     
     const newText = text.slice(0, cursorPosition) + insertText + text.slice(cursorPosition);
     return {
@@ -229,8 +211,8 @@ export function insertMention(
   }
   
   // Replace current mention
-  const mentionText = mention.type === 'user' ? mention.username : mention.name;
-  const insertText = `${mention.type === 'user' ? '@' : '#'}${mentionText} `;
+  const mentionText = mention.type === 'user' ? mention.username : mention.specialKind;
+  const insertText = `@${mentionText} `;
   
   const newText = text.slice(0, currentMention.start) + insertText + text.slice(currentMention.end);
   return {
@@ -245,8 +227,7 @@ export function insertMention(
  */
 export function resolveMentionText(
   span: MessageSpan,
-  users: UserMention[] = [],
-  channels: ChannelMention[] = []
+  users: UserMention[] = []
 ): string {
   switch (span.type) {
     case SpanType.USER_MENTION:
@@ -258,14 +239,8 @@ export function resolveMentionText(
       }
       return span.text || '@unknown';
       
-    case SpanType.CHANNEL_MENTION:
-      if (span.channelId) {
-        const channel = channels.find(c => c.id === span.channelId);
-        if (channel) {
-          return `#${channel.name}`;
-        }
-      }
-      return span.text || '#unknown';
+    case SpanType.SPECIAL_MENTION:
+      return span.text || `@${span.specialKind}`;
       
     case SpanType.PLAINTEXT:
     default:

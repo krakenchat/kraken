@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import {
   Person as PersonIcon,
-  Tag as ChannelIcon,
+  Notifications as NotificationIcon,
 } from '@mui/icons-material';
 import { MentionSuggestion } from '../../hooks/useMentionAutocomplete';
 
@@ -136,7 +136,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
             letterSpacing: 0.5,
           }}
         >
-          {suggestions[0]?.type === 'user' ? 'Members' : 'Channels'}
+          {suggestions[0]?.type === 'user' ? 'Members' : 'Special Mentions'}
         </Typography>
       </Box>
 
@@ -225,15 +225,15 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
                   sx={{
                     width: 32,
                     height: 32,
-                    bgcolor: alpha(theme.palette.secondary.main, 0.1),
-                    color: 'secondary.main',
+                    bgcolor: alpha(theme.palette.success.main, 0.1),
+                    color: 'success.main',
                     border: index === selectedIndex
-                      ? `2px solid ${alpha(theme.palette.secondary.main, 0.5)}`
+                      ? `2px solid ${alpha(theme.palette.success.main, 0.5)}`
                       : `2px solid ${alpha(theme.palette.divider, 0.1)}`,
                     transition: 'all 0.15s ease-in-out',
                   }}
                 >
-                  <ChannelIcon fontSize="small" />
+                  <NotificationIcon fontSize="small" />
                 </Avatar>
               )}
             </ListItemAvatar>
@@ -249,7 +249,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
                     transition: 'all 0.15s ease-in-out',
                   }}
                 >
-                  {suggestion.type === 'user' ? '@' : '#'}{suggestion.displayName}
+                  @{suggestion.displayName}
                 </Typography>
               }
               secondary={
