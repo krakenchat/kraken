@@ -51,7 +51,10 @@ export class ChannelsController {
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Req() req: { user: UserEntity },
   ) {
-    return this.channelsService.findMentionableChannels(communityId, req.user.id);
+    return this.channelsService.findMentionableChannels(
+      communityId,
+      req.user.id,
+    );
   }
 
   @Get(':id')

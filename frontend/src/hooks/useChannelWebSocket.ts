@@ -1,9 +1,9 @@
 import { useSocket } from "./useSocket";
 import { useEffect } from "react";
-import { Message } from "../types/message.type";
+import { Message, Reaction } from "../types/message.type";
 import { ServerEvents } from "../types/server-events.enum";
 import { ClientEvents } from "../types/client-events.enum";
-import { useAppDispatch } from "../app/hooks";
+import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
   prependMessage,
   updateMessage,
@@ -13,6 +13,7 @@ import {
 export function useChannelWebSocket(communityId: string | undefined) {
   const dispatch = useAppDispatch();
   const socket = useSocket();
+  const messagesByChannelId = useAppSelector((state) => state.messages.byChannelId);
 
   useEffect(() => {
     if (!socket || !communityId) return;
@@ -44,15 +45,72 @@ export function useChannelWebSocket(communityId: string | undefined) {
         dispatch(deleteMessage({ channelId: targetChannelId, id: messageId }));
       }
     };
+
+    const handleReactionAdded = ({
+      messageId,
+      reaction,
+    }: {
+      messageId: string;
+      reaction: Reaction;
+    }) => {
+      // Find the message in all channels and update it
+      Object.keys(messagesByChannelId).forEach((channelId) => {
+        const messages = messagesByChannelId[channelId]?.messages || [];
+        const messageToUpdate = messages.find(msg => msg.id === messageId);
+        if (messageToUpdate) {
+          const updatedReactions = [...messageToUpdate.reactions];
+          const existingIndex = updatedReactions.findIndex(r => r.emoji === reaction.emoji);
+          
+          if (existingIndex >= 0) {
+            updatedReactions[existingIndex] = reaction;
+          } else {
+            updatedReactions.push(reaction);
+          }
+          
+          dispatch(updateMessage({
+            channelId,
+            message: { ...messageToUpdate, reactions: updatedReactions }
+          }));
+        }
+      });
+    };
+
+    const handleReactionRemoved = ({
+      messageId,
+      emoji,
+    }: {
+      messageId: string;
+      emoji: string;
+    }) => {
+      // Find the message in all channels and update it
+      Object.keys(messagesByChannelId).forEach((channelId) => {
+        const messages = messagesByChannelId[channelId]?.messages || [];
+        const messageToUpdate = messages.find(msg => msg.id === messageId);
+        if (messageToUpdate) {
+          const updatedReactions = messageToUpdate.reactions.filter(r => r.emoji !== emoji);
+          
+          dispatch(updateMessage({
+            channelId,
+            message: { ...messageToUpdate, reactions: updatedReactions }
+          }));
+        }
+      });
+    };
+
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
+    socket.on(ServerEvents.REACTION_ADDED, handleReactionAdded);
+    socket.on(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
+    
     return () => {
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
       socket.off(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
       socket.off(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
+      socket.off(ServerEvents.REACTION_ADDED, handleReactionAdded);
+      socket.off(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
     };
-  }, [socket, communityId, dispatch]);
+  }, [socket, communityId, dispatch, messagesByChannelId]);
 
   const sendMessage = (msg: Omit<Message, "id">) => {
     // @ts-expect-error: id will be assigned by the server

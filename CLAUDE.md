@@ -185,6 +185,12 @@ Copy `backend/env.sample` to `backend/.env` and configure:
 - TypeScript strict mode enabled
 - Consistent import path aliases using `@/` for backend src
 
+### Documentation Updates
+- **ALWAYS update documentation when adding new features or modifying existing code**
+- Update relevant files in `docs/` after implementing new components, modules, or APIs
+- Create new documentation using templates in `docs/templates/` for new features
+- Keep cross-references updated between related components and modules
+
 ## 📚 Comprehensive Documentation
 
 **Full documentation is available in the `docs/` folder:**

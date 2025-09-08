@@ -8,7 +8,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
-import { SetupInstanceDto, OnboardingStatusDto } from './dto/setup-instance.dto';
+import {
+  SetupInstanceDto,
+  OnboardingStatusDto,
+} from './dto/setup-instance.dto';
 import { Public } from '@/auth/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 
@@ -19,7 +22,7 @@ export class OnboardingController {
   @Get('status')
   @Public()
   async getStatus(): Promise<OnboardingStatusDto> {
-    return await this.onboardingService.getStatus();
+    return this.onboardingService.getStatus();
   }
 
   @Post('setup')
@@ -31,8 +34,11 @@ export class OnboardingController {
       throw new BadRequestException('Setup token is required');
     }
 
-    const result = await this.onboardingService.completeSetup(dto, dto.setupToken);
-    
+    const result = await this.onboardingService.completeSetup(
+      dto,
+      dto.setupToken,
+    );
+
     return {
       success: true,
       message: 'Instance setup completed successfully',

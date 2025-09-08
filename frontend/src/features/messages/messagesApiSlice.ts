@@ -102,6 +102,26 @@ export const messagesApi = createApi({
         }
       },
     }),
+    addReaction: builder.mutation<
+      Message,
+      { messageId: string; emoji: string }
+    >({
+      query: ({ messageId, emoji }) => ({
+        url: "/reactions",
+        method: "POST",
+        body: { messageId, emoji },
+      }),
+    }),
+    removeReaction: builder.mutation<
+      Message,
+      { messageId: string; emoji: string }
+    >({
+      query: ({ messageId, emoji }) => ({
+        url: "/reactions",
+        method: "DELETE",
+        body: { messageId, emoji },
+      }),
+    }),
   }),
 });
 
@@ -110,4 +130,6 @@ export const {
   useLazyGetMessagesByChannelQuery,
   useUpdateMessageMutation,
   useDeleteMessageMutation,
+  useAddReactionMutation,
+  useRemoveReactionMutation,
 } = messagesApi;

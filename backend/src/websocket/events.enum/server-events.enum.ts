@@ -9,6 +9,10 @@ export enum ServerEvents {
   UPDATE_MESSAGE = 'updateMessage',
   DELETE_MESSAGE = 'deleteMessage',
 
+  // Message Reactions
+  REACTION_ADDED = 'reactionAdded',
+  REACTION_REMOVED = 'reactionRemoved',
+
   // Messaging: Direct Messages
   NEW_DM = 'newDirectMessage',
 

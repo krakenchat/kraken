@@ -14,6 +14,8 @@ import {
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
+import { AddReactionDto } from './dto/add-reaction.dto';
+import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
@@ -166,5 +168,66 @@ export class MessagesController {
         directMessageGroupId: messageToDelete.directMessageGroupId,
       });
     }
+  }
+
+  @Post('reactions')
+  @RequiredActions(RbacActions.CREATE_REACTION)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'messageId',
+    source: ResourceIdSource.BODY,
+  })
+  async addReaction(
+    @Body() addReactionDto: AddReactionDto,
+    @Req() req: { user: UserEntity },
+  ) {
+    const result = await this.messagesService.addReaction(
+      addReactionDto.messageId,
+      addReactionDto.emoji,
+      req.user.id,
+    );
+
+    // Emit WebSocket event
+    const roomId = result.channelId || result.directMessageGroupId;
+    if (roomId) {
+      const reaction = result.reactions.find(
+        (r) => r.emoji === addReactionDto.emoji,
+      );
+      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
+        messageId: result.id,
+        reaction: reaction,
+      });
+    }
+
+    return result;
+  }
+
+  @Delete('reactions')
+  @RequiredActions(RbacActions.DELETE_REACTION)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'messageId',
+    source: ResourceIdSource.BODY,
+  })
+  async removeReaction(
+    @Body() removeReactionDto: RemoveReactionDto,
+    @Req() req: { user: UserEntity },
+  ) {
+    const result = await this.messagesService.removeReaction(
+      removeReactionDto.messageId,
+      removeReactionDto.emoji,
+      req.user.id,
+    );
+
+    // Emit WebSocket event
+    const roomId = result.channelId || result.directMessageGroupId;
+    if (roomId) {
+      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
+        messageId: result.id,
+        emoji: removeReactionDto.emoji,
+      });
+    }
+
+    return result;
   }
 }

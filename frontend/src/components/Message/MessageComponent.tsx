@@ -14,7 +14,11 @@ import { alpha } from '@mui/material/styles';
 import {
   useUpdateMessageMutation,
   useDeleteMessageMutation,
+  useAddReactionMutation,
+  useRemoveReactionMutation,
 } from "../../features/messages/messagesApiSlice";
+import { MessageReactions } from "./MessageReactions";
+import { EmojiPicker } from "./EmojiPicker";
 import { useState, useMemo } from "react";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 
@@ -132,6 +136,8 @@ function MessageComponent({ message }: MessageProps) {
   });
   const [updateMessage] = useUpdateMessageMutation();
   const [deleteMessage] = useDeleteMessageMutation();
+  const [addReaction] = useAddReactionMutation();
+  const [removeReaction] = useRemoveReactionMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [stagedForDelete, setStagedForDelete] = useState(false);
@@ -212,6 +218,31 @@ function MessageComponent({ message }: MessageProps) {
     setStagedForDelete(false);
   };
 
+  const handleReactionClick = async (emoji: string) => {
+    if (!currentUser) return;
+
+    const reaction = message.reactions.find(r => r.emoji === emoji);
+    const userHasReacted = reaction?.userIds.includes(currentUser.id) ?? false;
+
+    try {
+      if (userHasReacted) {
+        await removeReaction({ messageId: message.id, emoji });
+      } else {
+        await addReaction({ messageId: message.id, emoji });
+      }
+    } catch (error) {
+      console.error("Failed to update reaction:", error);
+    }
+  };
+
+  const handleEmojiSelect = async (emoji: string) => {
+    try {
+      await addReaction({ messageId: message.id, emoji });
+    } catch (error) {
+      console.error("Failed to add reaction:", error);
+    }
+  };
+
   return (
     <Container 
       stagedForDelete={stagedForDelete} 
@@ -275,9 +306,16 @@ function MessageComponent({ message }: MessageProps) {
             </IconButton>
           </Box>
         ) : (
-          <Typography variant="body1">
-            {message.spans.map((span, idx) => renderSpan(span, idx))}
-          </Typography>
+          <>
+            <Typography variant="body1">
+              {message.spans.map((span, idx) => renderSpan(span, idx))}
+            </Typography>
+            <MessageReactions
+              messageId={message.id}
+              reactions={message.reactions}
+              onReactionClick={handleReactionClick}
+            />
+          </>
         )}
       </div>
       {(canEditMessage || canRemoveMessage) && !isEditing && (
@@ -313,6 +351,7 @@ function MessageComponent({ message }: MessageProps) {
             </>
           ) : (
             <>
+              <EmojiPicker onEmojiSelect={handleEmojiSelect} />
               {canEditMessage && (
                 <IconButton size="small" onClick={handleEditClick}>
                   <EditIcon fontSize="small" />

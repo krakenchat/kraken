@@ -18,7 +18,7 @@ export class OnboardingService {
    */
   async needsSetup(): Promise<boolean> {
     const userCount = await this.database.user.count();
-    
+
     if (userCount > 0) {
       return false;
     }
@@ -28,7 +28,7 @@ export class OnboardingService {
     const activeInvites = await this.database.instanceInvite.count({
       where: {
         disabled: false,
-      }
+      },
     });
 
     return activeInvites === 0;
@@ -61,7 +61,10 @@ export class OnboardingService {
   /**
    * Complete the instance setup process
    */
-  async completeSetup(dto: SetupInstanceDto, setupToken: string): Promise<{
+  async completeSetup(
+    dto: SetupInstanceDto,
+    setupToken: string,
+  ): Promise<{
     adminUser: any;
     defaultCommunity?: any;
   }> {
@@ -75,7 +78,7 @@ export class OnboardingService {
       throw new ConflictException('Instance setup is no longer needed');
     }
 
-    return await this.database.$transaction(async (tx) => {
+    return this.database.$transaction(async (tx) => {
       // 1. Create admin user
       const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
       const adminUser = await tx.user.create({
@@ -95,11 +98,12 @@ export class OnboardingService {
       let defaultCommunity: { id: string; name: string } | null = null;
       if (dto.createDefaultCommunity !== false) {
         const communityName = dto.defaultCommunityName || 'General';
-        
+
         defaultCommunity = await tx.community.create({
           data: {
             name: communityName,
-            description: dto.instanceDescription || `Welcome to ${dto.instanceName}!`,
+            description:
+              dto.instanceDescription || `Welcome to ${dto.instanceName}!`,
           },
         });
 
@@ -159,7 +163,9 @@ export class OnboardingService {
           },
         });
 
-        this.logger.log(`Created default community: ${communityName} with channels`);
+        this.logger.log(
+          `Created default community: ${communityName} with channels`,
+        );
       }
 
       // 3. Create a permanent instance invite for future users

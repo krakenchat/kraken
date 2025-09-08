@@ -13,6 +13,10 @@ export enum ClientEvents {
   // Messaging: Channels
   SEND_MESSAGE = 'sendMessage',
 
+  // Message Reactions
+  ADD_REACTION = 'addReaction',
+  REMOVE_REACTION = 'removeReaction',
+
   // Messaging: Direct Messages
   SEND_DM = 'sendDirectMessage',
 

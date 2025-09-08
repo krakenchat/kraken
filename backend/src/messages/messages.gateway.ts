@@ -17,6 +17,8 @@ import {
 import { RbacActions } from '@prisma/client';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { AddReactionDto } from './dto/add-reaction.dto';
+import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { Socket } from 'socket.io';
 import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -88,5 +90,60 @@ export class MessagesGateway {
     );
 
     return message.id;
+  }
+
+  @SubscribeMessage(ClientEvents.ADD_REACTION)
+  @RequiredActions(RbacActions.CREATE_REACTION)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'messageId',
+    source: ResourceIdSource.PAYLOAD,
+  })
+  async handleAddReaction(
+    @MessageBody() payload: AddReactionDto,
+    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+  ): Promise<void> {
+    const result = await this.messagesService.addReaction(
+      payload.messageId,
+      payload.emoji,
+      client.handshake.user.id,
+    );
+
+    // Broadcast to all users in the channel
+    const roomId = result.channelId || result.directMessageGroupId;
+    if (roomId) {
+      const reaction = result.reactions.find((r) => r.emoji === payload.emoji);
+      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
+        messageId: result.id,
+        reaction: reaction,
+      });
+    }
+  }
+
+  @SubscribeMessage(ClientEvents.REMOVE_REACTION)
+  @RequiredActions(RbacActions.DELETE_REACTION)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'messageId',
+    source: ResourceIdSource.PAYLOAD,
+  })
+  async handleRemoveReaction(
+    @MessageBody() payload: RemoveReactionDto,
+    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+  ): Promise<void> {
+    const result = await this.messagesService.removeReaction(
+      payload.messageId,
+      payload.emoji,
+      client.handshake.user.id,
+    );
+
+    // Broadcast to all users in the channel
+    const roomId = result.channelId || result.directMessageGroupId;
+    if (roomId) {
+      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
+        messageId: result.id,
+        emoji: payload.emoji,
+      });
+    }
   }
 }
