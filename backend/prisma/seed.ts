@@ -1,5 +1,6 @@
 import { PrismaClient, RbacActions } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { DEFAULT_MEMBER_ROLE } from '../src/roles/default-roles.config';
 const prisma = new PrismaClient();
 async function main() {
   const admin = await prisma.user.upsert({
@@ -192,6 +193,16 @@ async function main() {
   });
   console.log({ communityModeratorRole });
 
+  const communityMemberRole = await prisma.role.upsert({
+    where: { name: `${DEFAULT_MEMBER_ROLE.name} - ${community.id}` },
+    update: {},
+    create: {
+      name: `${DEFAULT_MEMBER_ROLE.name} - ${community.id}`,
+      actions: DEFAULT_MEMBER_ROLE.actions,
+    },
+  });
+  console.log({ communityMemberRole });
+
   const member = await prisma.membership.upsert({
     where: {
       userId_communityId: {
@@ -235,6 +246,47 @@ async function main() {
     update: {},
   });
   console.log({ channel });
+
+  // Add user-0 to the community to test Member role assignment
+  const user0 = await prisma.user.findUnique({
+    where: { username: 'user-0' },
+  });
+
+  if (user0) {
+    const user0Member = await prisma.membership.upsert({
+      where: {
+        userId_communityId: {
+          userId: user0.id,
+          communityId: community.id,
+        },
+      },
+      create: {
+        userId: user0.id,
+        communityId: community.id,
+      },
+      update: {},
+    });
+    console.log({ user0Member });
+
+    // Assign Member role to user-0
+    const user0UserRole = await prisma.userRoles.upsert({
+      where: {
+        userId_communityId_roleId: {
+          userId: user0.id,
+          communityId: community.id,
+          roleId: communityMemberRole.id,
+        },
+      },
+      create: {
+        userId: user0.id,
+        communityId: community.id,
+        roleId: communityMemberRole.id,
+        isInstanceRole: false,
+      },
+      update: {},
+    });
+    console.log({ user0UserRole });
+  }
 }
 main()
   .then(async () => {

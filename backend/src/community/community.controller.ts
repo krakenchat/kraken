@@ -19,7 +19,7 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
+import { RbacResource, RbacResourceType, ResourceIdSource } from '@/auth/rbac-resource.decorator';
 
 @Controller('community')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -43,21 +43,21 @@ export class CommunityController {
   }
 
   @Get('/mine')
-  @RequiredActions(RbacActions.READ_COMMUNITY)
+  // No RBAC check needed - users can always see their own communities
   findAllMine(@Req() req: { user: UserEntity }) {
     return this.communityService.findAll(req.user.id);
   }
 
   @Get(':id')
   @RequiredActions(RbacActions.READ_COMMUNITY)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id' })
+  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id', source: ResourceIdSource.PARAM })
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.communityService.findOne(id);
   }
 
   @Patch(':id')
   @RequiredActions(RbacActions.UPDATE_COMMUNITY)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id' })
+  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id', source: ResourceIdSource.PARAM })
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateCommunityDto: UpdateCommunityDto,
@@ -68,7 +68,7 @@ export class CommunityController {
   @Delete(':id')
   @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_COMMUNITY)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id' })
+  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id', source: ResourceIdSource.PARAM })
   remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.communityService.remove(id);
   }

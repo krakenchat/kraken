@@ -8,6 +8,7 @@ import { CreateMembershipDto } from './dto/create-membership.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
+import { RolesService } from '@/roles/roles.service';
 import type { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class MembershipService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly communityService: CommunityService,
+    private readonly rolesService: RolesService,
   ) {}
 
   async create(
@@ -68,6 +70,39 @@ export class MembershipService {
       } catch (error) {
         this.logger.warn(
           `Failed to add user ${userId} to general channel in community ${communityId}`,
+          error,
+        );
+        // Don't fail the membership creation for this
+      }
+
+      // Assign default member role to the user
+      try {
+        let memberRole = await this.rolesService.getCommunityMemberRole(communityId);
+        
+        // If Member role doesn't exist for this community, create it
+        if (!memberRole) {
+          this.logger.log(
+            `Member role not found for community ${communityId}, creating it...`,
+          );
+          // Create just the Member role for this community
+          await this.rolesService.createMemberRoleForCommunity(communityId);
+          memberRole = await this.rolesService.getCommunityMemberRole(communityId);
+        }
+
+        if (memberRole) {
+          await this.rolesService.assignUserToCommunityRole(
+            userId,
+            communityId,
+            memberRole.id,
+          );
+        } else {
+          this.logger.error(
+            `Failed to create or find member role for community ${communityId}`,
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Failed to assign default member role to user ${userId} in community ${communityId}`,
           error,
         );
         // Don't fail the membership creation for this

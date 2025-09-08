@@ -61,8 +61,8 @@ export class MessagesController {
   @Get('/group/:groupId')
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
-    type: RbacResourceType.CHANNEL,
-    idKey: 'channelId',
+    type: RbacResourceType.DM_GROUP,
+    idKey: 'groupId',
     source: ResourceIdSource.PARAM,
   })
   findAllForGroup(
@@ -105,6 +105,7 @@ export class MessagesController {
   @RbacResource({
     type: RbacResourceType.CHANNEL,
     idKey: 'id',
+    source: ResourceIdSource.PARAM,
   })
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.messagesService.findOne(id);
@@ -116,6 +117,7 @@ export class MessagesController {
   @RbacResource({
     type: RbacResourceType.CHANNEL,
     idKey: 'id',
+    source: ResourceIdSource.PARAM,
   })
   async update(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -150,6 +152,7 @@ export class MessagesController {
   @RbacResource({
     type: RbacResourceType.CHANNEL,
     idKey: 'id',
+    source: ResourceIdSource.PARAM,
   })
   async remove(@Param('id', ParseObjectIdPipe) id: string) {
     // First get the message to know which channel to notify

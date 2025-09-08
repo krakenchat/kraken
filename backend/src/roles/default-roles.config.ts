@@ -103,10 +103,38 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
 };
 
 /**
+ * Default member role with basic permissions for regular users
+ */
+export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
+  name: 'Member',
+  actions: [
+    // Basic read permissions
+    RbacActions.READ_COMMUNITY,
+    RbacActions.READ_CHANNEL,
+    RbacActions.READ_MEMBER,
+    RbacActions.READ_MESSAGE,
+
+    // Basic message permissions
+    RbacActions.CREATE_MESSAGE,
+
+    // Basic reaction permissions
+    RbacActions.CREATE_REACTION,
+    RbacActions.DELETE_REACTION,
+
+    // Basic attachment permissions
+    RbacActions.CREATE_ATTACHMENT,
+
+    // Basic alias group reading
+    RbacActions.READ_ALIAS_GROUP,
+    RbacActions.READ_ALIAS_GROUP_MEMBER,
+  ],
+};
+
+/**
  * Get all default roles for a community
  */
 export function getDefaultCommunityRoles(): DefaultRoleConfig[] {
-  return [DEFAULT_ADMIN_ROLE, DEFAULT_MODERATOR_ROLE];
+  return [DEFAULT_ADMIN_ROLE, DEFAULT_MODERATOR_ROLE, DEFAULT_MEMBER_ROLE];
 }
 
 /**
