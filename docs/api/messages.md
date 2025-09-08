@@ -24,6 +24,8 @@ Message management API for creating, reading, updating, and deleting messages in
 | GET | `/:id` | Get message by ID | `READ_MESSAGE` |
 | PATCH | `/:id` | Update message | `UPDATE_CHANNEL` |
 | DELETE | `/:id` | Delete message | `DELETE_MESSAGE` |
+| POST | `/reactions` | Add reaction to message | `CREATE_REACTION` |
+| DELETE | `/reactions` | Remove reaction from message | `DELETE_REACTION` |
 
 ---
 
@@ -890,6 +892,132 @@ describe('Messages (e2e)', () => {
   });
 });
 ```
+
+---
+
+## POST `/api/messages/reactions`
+
+**Description:** Adds an emoji reaction to a message. Users can react to any message they can read. If the user already has the same reaction, it will not be duplicated. Creates a new reaction entry or adds the user to an existing reaction for the same emoji.
+
+### Request
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "messageId": "60d21b4667d0d8992e610c85",  // Required: Target message ID
+  "emoji": "👍"                              // Required: Unicode emoji
+}
+```
+
+### Response
+
+**Success (200):**
+```json
+{
+  "id": "60d21b4667d0d8992e610c85",
+  "channelId": "60d21b4567d0d8992e610c83",
+  "authorId": "60d21b4167d0d8992e610c82",
+  "spans": [...],
+  "reactions": [
+    {
+      "emoji": "👍",
+      "userIds": ["60d21b4167d0d8992e610c82", "60d21b4267d0d8992e610c84"]
+    }
+  ],
+  "sentAt": "2023-06-22T10:30:00.000Z",
+  "editedAt": null,
+  "deletedAt": null
+}
+```
+
+### RBAC Requirements
+
+- **Resource:** `CHANNEL` (based on message's channel)
+- **Action:** `CREATE_REACTION`
+- **Validation:** Message must exist and user must have read access to the channel
+
+### WebSocket Events
+
+Triggers real-time event to all channel members:
+```json
+{
+  "event": "reactionAdded",
+  "data": {
+    "messageId": "60d21b4667d0d8992e610c85",
+    "reaction": {
+      "emoji": "👍",
+      "userIds": ["60d21b4167d0d8992e610c82", "60d21b4267d0d8992e610c84"]
+    }
+  }
+}
+```
+
+---
+
+## DELETE `/api/messages/reactions`
+
+**Description:** Removes an emoji reaction from a message. Only removes the current user's reaction. If the user was the last person with that reaction, the entire reaction entry is removed from the message.
+
+### Request
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "messageId": "60d21b4667d0d8992e610c85",  // Required: Target message ID
+  "emoji": "👍"                              // Required: Unicode emoji to remove
+}
+```
+
+### Response
+
+**Success (200):**
+```json
+{
+  "id": "60d21b4667d0d8992e610c85",
+  "channelId": "60d21b4567d0d8992e610c83",
+  "authorId": "60d21b4167d0d8992e610c82",
+  "spans": [...],
+  "reactions": [
+    // Reaction removed or user removed from userIds array
+  ],
+  "sentAt": "2023-06-22T10:30:00.000Z",
+  "editedAt": null,
+  "deletedAt": null
+}
+```
+
+### RBAC Requirements
+
+- **Resource:** `CHANNEL` (based on message's channel)  
+- **Action:** `DELETE_REACTION`
+- **Validation:** Message must exist and user must have read access to the channel
+
+### WebSocket Events
+
+Triggers real-time event to all channel members:
+```json
+{
+  "event": "reactionRemoved", 
+  "data": {
+    "messageId": "60d21b4667d0d8992e610c85",
+    "emoji": "👍"
+  }
+}
+```
+
+---
 
 ## Related Documentation
 

@@ -209,6 +209,60 @@ interface SendDMPayload extends Omit<SendMessagePayload, 'channelId'> {
 
 ---
 
+### ADD_REACTION
+
+**Event:** `addReaction`  
+**Purpose:** Add emoji reaction to a message  
+**Authentication:** Required (JWT)  
+**RBAC Required:** `CREATE_REACTION` for the channel
+
+#### Payload Structure
+
+```typescript
+interface AddReactionPayload {
+  messageId: string;  // Target message ID
+  emoji: string;      // Unicode emoji (e.g., "👍", "❤️")
+}
+```
+
+#### Usage Example
+
+```typescript
+socket.emit(ClientEvents.ADD_REACTION, {
+  messageId: "60d21b4667d0d8992e610c85",
+  emoji: "👍"
+});
+```
+
+---
+
+### REMOVE_REACTION
+
+**Event:** `removeReaction`  
+**Purpose:** Remove emoji reaction from a message  
+**Authentication:** Required (JWT)  
+**RBAC Required:** `DELETE_REACTION` for the channel
+
+#### Payload Structure
+
+```typescript
+interface RemoveReactionPayload {
+  messageId: string;  // Target message ID  
+  emoji: string;      // Unicode emoji to remove
+}
+```
+
+#### Usage Example
+
+```typescript
+socket.emit(ClientEvents.REMOVE_REACTION, {
+  messageId: "60d21b4667d0d8992e610c85", 
+  emoji: "👍"
+});
+```
+
+---
+
 ### PRESENCE_ONLINE
 
 **Event:** `presenceOnline`  
@@ -500,6 +554,122 @@ interface DeleteMessagePayload {
 ```typescript
 // Automatically handled by useChannelWebSocket hook
 // Removes message from Redux store
+```
+
+---
+
+### REACTION_ADDED
+
+**Event:** `reactionAdded`  
+**Purpose:** Notify clients when a reaction is added to a message  
+**Scope:** Room-specific (channel or DM group)  
+**Trigger:** User adds emoji reaction to a message
+
+#### Payload Structure
+
+```typescript
+interface ReactionAddedPayload {
+  messageId: string;
+  reaction: Reaction;
+}
+
+interface Reaction {
+  emoji: string;      // Unicode emoji (e.g., "👍", "❤️")
+  userIds: string[];  // Array of user IDs who reacted
+}
+```
+
+#### Backend Emission
+
+```typescript
+// In messages.controller.ts addReaction endpoint
+this.websocketService.sendToRoom(
+  message.channelId!,
+  ServerEvents.REACTION_ADDED,
+  {
+    messageId: message.id,
+    reaction: { emoji, userIds: reactionUserIds }
+  }
+);
+```
+
+#### Frontend Handling
+
+```typescript
+// Automatically handled by useChannelWebSocket hook
+const handleReactionAdded = ({ messageId, reaction }: ReactionAddedPayload) => {
+  const messagesByChannelId = useAppSelector(state => state.messages.channelMessages);
+  
+  Object.keys(messagesByChannelId).forEach((channelId) => {
+    const messages = messagesByChannelId[channelId]?.messages || [];
+    const messageToUpdate = messages.find(msg => msg.id === messageId);
+    if (messageToUpdate) {
+      dispatch(updateMessageReaction({ 
+        channelId, 
+        messageId, 
+        reaction, 
+        action: 'add' 
+      }));
+    }
+  });
+};
+```
+
+---
+
+### REACTION_REMOVED
+
+**Event:** `reactionRemoved`  
+**Purpose:** Notify clients when a reaction is removed from a message  
+**Scope:** Room-specific (channel or DM group)  
+**Trigger:** User removes emoji reaction from a message
+
+#### Payload Structure
+
+```typescript
+interface ReactionRemovedPayload {
+  messageId: string;
+  emoji: string;      // The emoji that was removed
+  userId: string;     // The user who removed the reaction
+}
+```
+
+#### Backend Emission
+
+```typescript
+// In messages.controller.ts removeReaction endpoint
+this.websocketService.sendToRoom(
+  message.channelId!,
+  ServerEvents.REACTION_REMOVED,
+  {
+    messageId: message.id,
+    emoji,
+    userId
+  }
+);
+```
+
+#### Frontend Handling
+
+```typescript
+// Automatically handled by useChannelWebSocket hook
+const handleReactionRemoved = ({ messageId, emoji, userId }: ReactionRemovedPayload) => {
+  const messagesByChannelId = useAppSelector(state => state.messages.channelMessages);
+  
+  Object.keys(messagesByChannelId).forEach((channelId) => {
+    const messages = messagesByChannelId[channelId]?.messages || [];
+    const messageToUpdate = messages.find(msg => msg.id === messageId);
+    if (messageToUpdate) {
+      dispatch(updateMessageReaction({ 
+        channelId, 
+        messageId, 
+        emoji,
+        userId,
+        action: 'remove' 
+      }));
+    }
+  });
+};
 ```
 
 ---
