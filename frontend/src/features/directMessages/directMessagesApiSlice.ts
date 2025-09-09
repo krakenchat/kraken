@@ -6,6 +6,7 @@ import {
   AddMembersDto,
 } from "../../types/direct-message.type";
 import { Message } from "../../types/message.type";
+import { setMessages } from "../messages/messagesSlice";
 
 export const directMessagesApi = createApi({
   reducerPath: "directMessagesApi",
@@ -41,6 +42,23 @@ export const directMessagesApi = createApi({
       providesTags: (result, error, dmGroupId) => [
         { type: "DirectMessages", id: dmGroupId },
       ],
+      async onQueryStarted(dmGroupId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          // Populate Redux store with DM messages, just like channel messages
+          if (data && data.messages) {
+            dispatch(
+              setMessages({
+                channelId: dmGroupId, // Use dmGroupId as channelId in the store
+                messages: data.messages,
+                continuationToken: data.continuationToken,
+              })
+            );
+          }
+        } catch (error) {
+          console.error("Failed to fetch DM messages:", error);
+        }
+      },
     }),
     addMembersToDmGroup: builder.mutation<
       DirectMessageGroup,
