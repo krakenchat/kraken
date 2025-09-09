@@ -9,15 +9,18 @@ import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
 import { VoiceBottomBar } from "./components/Voice";
+import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import type { User } from "./types/auth.type";
 
 const APPBAR_HEIGHT = 64;
 const SIDEBAR_WIDTH = 80;
+const VOICE_BAR_HEIGHT = 64;
 const settings = ["Profile", "Account", "Dashboard", "Logout"];
 
 const Layout: React.FC = () => {
   const { data: userData, isLoading, isError } = useProfileQuery(undefined);
   const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
+  const { state: voiceState } = useVoiceConnection();
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
@@ -100,7 +103,7 @@ const Layout: React.FC = () => {
           top: APPBAR_HEIGHT,
           left: SIDEBAR_WIDTH,
           right: 0,
-          bottom: 0,
+          bottom: voiceState.isConnected ? VOICE_BAR_HEIGHT : 0,
           overflow: "auto",
         }}
       >
