@@ -195,6 +195,7 @@ export class MessagesGateway {
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
         messageId: result.id,
         emoji: payload.emoji,
+        reactions: result.reactions,
       });
     }
   }

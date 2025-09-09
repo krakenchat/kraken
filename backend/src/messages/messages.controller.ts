@@ -100,6 +100,68 @@ export class MessagesController {
     );
   }
 
+  @Post('reactions')
+  @RequiredActions(RbacActions.CREATE_REACTION)
+  @RbacResource({
+    type: RbacResourceType.MESSAGE,
+    idKey: 'messageId',
+    source: ResourceIdSource.BODY,
+  })
+  async addReaction(
+    @Body() addReactionDto: AddReactionDto,
+    @Req() req: { user: UserEntity },
+  ) {
+    const result = await this.messagesService.addReaction(
+      addReactionDto.messageId,
+      addReactionDto.emoji,
+      req.user.id,
+    );
+
+    // Emit WebSocket event
+    const roomId = result.channelId || result.directMessageGroupId;
+    if (roomId) {
+      const reaction = result.reactions.find(
+        (r) => r.emoji === addReactionDto.emoji,
+      );
+      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
+        messageId: result.id,
+        reaction: reaction,
+      });
+    }
+
+    return result;
+  }
+
+  @Delete('reactions')
+  @RequiredActions(RbacActions.DELETE_REACTION)
+  @RbacResource({
+    type: RbacResourceType.MESSAGE,
+    idKey: 'messageId',
+    source: ResourceIdSource.BODY,
+  })
+  async removeReaction(
+    @Body() removeReactionDto: RemoveReactionDto,
+    @Req() req: { user: UserEntity },
+  ) {
+    const result = await this.messagesService.removeReaction(
+      removeReactionDto.messageId,
+      removeReactionDto.emoji,
+      req.user.id,
+    );
+
+    // Emit WebSocket event
+    const roomId = result.channelId || result.directMessageGroupId;
+    if (roomId) {
+      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
+        messageId: result.id,
+        emoji: removeReactionDto.emoji,
+        reactions: result.reactions,
+      });
+    }
+
+    return result;
+  }
+
   @Get(':id')
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
@@ -161,64 +223,4 @@ export class MessagesController {
     }
   }
 
-  @Post('reactions')
-  @RequiredActions(RbacActions.CREATE_REACTION)
-  @RbacResource({
-    type: RbacResourceType.MESSAGE,
-    idKey: 'messageId',
-    source: ResourceIdSource.BODY,
-  })
-  async addReaction(
-    @Body() addReactionDto: AddReactionDto,
-    @Req() req: { user: UserEntity },
-  ) {
-    const result = await this.messagesService.addReaction(
-      addReactionDto.messageId,
-      addReactionDto.emoji,
-      req.user.id,
-    );
-
-    // Emit WebSocket event
-    const roomId = result.channelId || result.directMessageGroupId;
-    if (roomId) {
-      const reaction = result.reactions.find(
-        (r) => r.emoji === addReactionDto.emoji,
-      );
-      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
-        messageId: result.id,
-        reaction: reaction,
-      });
-    }
-
-    return result;
-  }
-
-  @Delete('reactions')
-  @RequiredActions(RbacActions.DELETE_REACTION)
-  @RbacResource({
-    type: RbacResourceType.MESSAGE,
-    idKey: 'messageId',
-    source: ResourceIdSource.BODY,
-  })
-  async removeReaction(
-    @Body() removeReactionDto: RemoveReactionDto,
-    @Req() req: { user: UserEntity },
-  ) {
-    const result = await this.messagesService.removeReaction(
-      removeReactionDto.messageId,
-      removeReactionDto.emoji,
-      req.user.id,
-    );
-
-    // Emit WebSocket event
-    const roomId = result.channelId || result.directMessageGroupId;
-    if (roomId) {
-      this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
-        messageId: result.id,
-        emoji: removeReactionDto.emoji,
-      });
-    }
-
-    return result;
-  }
 }

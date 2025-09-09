@@ -78,20 +78,20 @@ export function useChannelWebSocket(communityId: string | undefined) {
     const handleReactionRemoved = ({
       messageId,
       emoji,
+      reactions,
     }: {
       messageId: string;
       emoji: string;
+      reactions: Reaction[];
     }) => {
-      // Find the message in all channels and update it
+      // Find the message in all channels and update it with the correct reactions array
       Object.keys(messagesByChannelId).forEach((channelId) => {
         const messages = messagesByChannelId[channelId]?.messages || [];
         const messageToUpdate = messages.find(msg => msg.id === messageId);
         if (messageToUpdate) {
-          const updatedReactions = messageToUpdate.reactions.filter(r => r.emoji !== emoji);
-          
           dispatch(updateMessage({
             channelId,
-            message: { ...messageToUpdate, reactions: updatedReactions }
+            message: { ...messageToUpdate, reactions }
           }));
         }
       });
