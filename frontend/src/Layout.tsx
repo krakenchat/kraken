@@ -10,6 +10,7 @@ import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
 import { VoiceBottomBar } from "./components/Voice";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
+import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import type { User } from "./types/auth.type";
 
 const APPBAR_HEIGHT = 64;
@@ -21,6 +22,9 @@ const Layout: React.FC = () => {
   const { data: userData, isLoading, isError } = useProfileQuery(undefined);
   const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
   const { state: voiceState } = useVoiceConnection();
+  
+  // Send presence heartbeat to keep user marked as online
+  usePresenceHeartbeat(!!userData && !isLoading && !isError);
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null

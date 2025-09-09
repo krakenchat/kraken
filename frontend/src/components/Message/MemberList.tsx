@@ -12,12 +12,14 @@ import {
   Alert,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import UserStatusIndicator from "./UserStatusIndicator";
 
 interface MemberData {
   id: string;
   username: string;
   displayName?: string | null;
   avatarUrl?: string | null;
+  isOnline?: boolean;
 }
 
 interface MemberListProps {
@@ -109,12 +111,15 @@ const MemberList: React.FC<MemberListProps> = ({
                   }}
                 >
                   <ListItemAvatar sx={{ minWidth: 40 }}>
-                    <Avatar
-                      src={member.avatarUrl || ""}
-                      sx={{ width: 32, height: 32 }}
-                    >
-                      {member.username.charAt(0).toUpperCase()}
-                    </Avatar>
+                    <Box sx={{ position: "relative", display: "inline-block" }}>
+                      <Avatar
+                        src={member.avatarUrl || ""}
+                        sx={{ width: 32, height: 32 }}
+                      >
+                        {member.username.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <UserStatusIndicator isOnline={member.isOnline} />
+                    </Box>
                   </ListItemAvatar>
                   <ListItemText
                     primary={

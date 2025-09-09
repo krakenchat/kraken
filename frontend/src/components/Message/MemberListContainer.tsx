@@ -2,12 +2,14 @@ import React from "react";
 import MemberList from "./MemberList";
 import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
 import { useGetDmGroupQuery } from "../../features/directMessages/directMessagesApiSlice";
+import { useGetMultipleUserPresenceQuery } from "../../features/presence/presenceApiSlice";
 
 interface MemberData {
   id: string;
   username: string;
   displayName?: string | null;
   avatarUrl?: string | null;
+  isOnline?: boolean;
 }
 
 interface MemberListContainerProps {
@@ -39,51 +41,87 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     skip: contextType !== "dm",
   });
 
-  // Transform and normalize member data based on context
-  const { members, isLoading, error, title } = React.useMemo(() => {
+  // Get base member data first
+  const baseMembers = React.useMemo(() => {
     if (contextType === "channel") {
-      const normalizedMembers: MemberData[] = (communityMembers || [])
+      return (communityMembers || [])
         .filter((membership) => membership.user) // Only include members with user data
         .map((membership) => ({
           id: membership.user!.id,
           username: membership.user!.username,
           displayName: membership.user!.displayName,
           avatarUrl: membership.user!.avatarUrl,
-        }))
-        .sort((a, b) => a.username.localeCompare(b.username)); // Sort alphabetically
-
-      return {
-        members: normalizedMembers,
-        isLoading: isCommunityLoading,
-        error: communityError,
-        title: "Members",
-      };
+        }));
     } else {
       // DM context
-      const normalizedMembers: MemberData[] = (dmGroup?.members || [])
+      return (dmGroup?.members || [])
         .map((member) => ({
           id: member.user.id,
           username: member.user.username,
           displayName: member.user.displayName,
           avatarUrl: member.user.avatarUrl,
-        }))
-        .sort((a, b) => a.username.localeCompare(b.username)); // Sort alphabetically
-
-      return {
-        members: normalizedMembers,
-        isLoading: isDmLoading,
-        error: dmError,
-        title: dmGroup?.isGroup ? "Group Members" : "Participants",
-      };
+        }));
     }
+  }, [contextType, communityMembers, dmGroup]);
+
+  // Extract user IDs for presence lookup
+  const userIds = React.useMemo(() => 
+    baseMembers.map(member => member.id), 
+    [baseMembers]
+  );
+
+  // Fetch presence data for all members
+  const {
+    data: presenceData,
+    isLoading: isPresenceLoading,
+    error: presenceError,
+  } = useGetMultipleUserPresenceQuery(userIds, {
+    skip: userIds.length === 0,
+  });
+
+  // Transform and normalize member data with presence
+  const { members, isLoading, error, title } = React.useMemo(() => {
+    const membersWithPresence: MemberData[] = baseMembers
+      .map((member) => ({
+        ...member,
+        isOnline: presenceData?.presence?.[member.id] || false,
+      }))
+      .sort((a, b) => {
+        // Sort by online status first (online users first), then alphabetically
+        if (a.isOnline && !b.isOnline) return -1;
+        if (!a.isOnline && b.isOnline) return 1;
+        return a.username.localeCompare(b.username);
+      });
+
+    const combinedLoading = contextType === "channel" 
+      ? isCommunityLoading || isPresenceLoading
+      : isDmLoading || isPresenceLoading;
+    
+    const combinedError = contextType === "channel" 
+      ? communityError || presenceError
+      : dmError || presenceError;
+
+    const listTitle = contextType === "channel" 
+      ? "Members" 
+      : (dmGroup?.isGroup ? "Group Members" : "Participants");
+
+    return {
+      members: membersWithPresence,
+      isLoading: combinedLoading,
+      error: combinedError,
+      title: listTitle,
+    };
   }, [
+    baseMembers,
+    presenceData,
     contextType,
-    communityMembers,
-    dmGroup,
     isCommunityLoading,
     isDmLoading,
+    isPresenceLoading,
     communityError,
     dmError,
+    presenceError,
+    dmGroup?.isGroup,
   ]);
 
   return (
