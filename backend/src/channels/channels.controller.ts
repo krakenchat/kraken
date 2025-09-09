@@ -17,7 +17,11 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
-import { RbacResource, RbacResourceType, ResourceIdSource } from '@/auth/rbac-resource.decorator';
+import {
+  RbacResource,
+  RbacResourceType,
+  ResourceIdSource,
+} from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
@@ -29,7 +33,11 @@ export class ChannelsController {
   @Post()
   @HttpCode(201)
   @RequiredActions(RbacActions.CREATE_CHANNEL)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'communityId', source: ResourceIdSource.BODY })
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.BODY,
+  })
   create(
     @Body() createChannelDto: CreateChannelDto,
     @Req() req: { user: UserEntity },
@@ -39,7 +47,11 @@ export class ChannelsController {
 
   @Get('/community/:communityId')
   @RequiredActions(RbacActions.READ_CHANNEL)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'communityId', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
   findAllForCommunity(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
   ) {
@@ -48,7 +60,11 @@ export class ChannelsController {
 
   @Get('/community/:communityId/mentionable')
   @RequiredActions(RbacActions.READ_CHANNEL)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'communityId', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
   getMentionableChannels(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Req() req: { user: UserEntity },
@@ -61,14 +77,22 @@ export class ChannelsController {
 
   @Get(':id')
   @RequiredActions(RbacActions.READ_CHANNEL)
-  @RbacResource({ type: RbacResourceType.CHANNEL, idKey: 'id', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'id',
+    source: ResourceIdSource.PARAM,
+  })
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.channelsService.findOne(id);
   }
 
   @Patch(':id')
   @RequiredActions(RbacActions.UPDATE_CHANNEL)
-  @RbacResource({ type: RbacResourceType.CHANNEL, idKey: 'id', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'id',
+    source: ResourceIdSource.PARAM,
+  })
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateChannelDto: UpdateChannelDto,
@@ -79,7 +103,11 @@ export class ChannelsController {
   @HttpCode(204)
   @Delete(':id')
   @RequiredActions(RbacActions.DELETE_CHANNEL)
-  @RbacResource({ type: RbacResourceType.CHANNEL, idKey: 'id', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'id',
+    source: ResourceIdSource.PARAM,
+  })
   remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.channelsService.remove(id);
   }

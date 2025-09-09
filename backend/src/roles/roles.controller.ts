@@ -1,4 +1,15 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Req,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
@@ -12,6 +23,10 @@ import {
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { UserRolesResponseDto } from './dto/user-roles-response.dto';
+import { CreateRoleDto } from './dto/create-role.dto';
+import { UpdateRoleDto } from './dto/update-role.dto';
+import { AssignRoleDto } from './dto/assign-role.dto';
+import { CommunityRolesResponseDto } from './dto/community-roles-response.dto';
 
 @Controller('roles')
 @UseGuards(JwtAuthGuard)
@@ -78,5 +93,109 @@ export class RolesController {
     @Param('userId', ParseObjectIdPipe) userId: string,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserInstanceRoles(userId);
+  }
+
+  // ===== ROLE MANAGEMENT ENDPOINTS =====
+
+  @Get('community/:communityId')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.READ_ROLE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  async getCommunityRoles(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+  ): Promise<CommunityRolesResponseDto> {
+    return this.rolesService.getCommunityRoles(communityId);
+  }
+
+  @Post('community/:communityId')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.CREATE_ROLE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  async createCommunityRole(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Body() createRoleDto: CreateRoleDto,
+  ) {
+    return this.rolesService.createCommunityRole(communityId, createRoleDto);
+  }
+
+  @Put(':roleId')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_ROLE)
+  async updateRole(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Body() updateRoleDto: UpdateRoleDto,
+  ) {
+    return this.rolesService.updateRole(roleId, updateRoleDto);
+  }
+
+  @Delete(':roleId')
+  @HttpCode(204)
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.DELETE_ROLE)
+  async deleteRole(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+  ): Promise<void> {
+    return this.rolesService.deleteRole(roleId);
+  }
+
+  // ===== USER-ROLE ASSIGNMENT ENDPOINTS =====
+
+  @Post('community/:communityId/assign')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_MEMBER)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  async assignRoleToUser(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Body() assignRoleDto: AssignRoleDto,
+  ): Promise<void> {
+    return this.rolesService.assignUserToCommunityRole(
+      assignRoleDto.userId,
+      communityId,
+      assignRoleDto.roleId,
+    );
+  }
+
+  @Delete('community/:communityId/users/:userId/roles/:roleId')
+  @HttpCode(204)
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_MEMBER)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  async removeRoleFromUser(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+  ): Promise<void> {
+    return this.rolesService.removeUserFromCommunityRole(
+      userId,
+      communityId,
+      roleId,
+    );
+  }
+
+  @Get(':roleId/users')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.READ_ROLE)
+  async getUsersForRole(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Req() req: { query: { communityId?: string } },
+  ) {
+    const communityId = req.query.communityId;
+    return this.rolesService.getUsersForRole(roleId, communityId);
   }
 }

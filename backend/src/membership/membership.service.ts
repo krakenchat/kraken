@@ -77,8 +77,9 @@ export class MembershipService {
 
       // Assign default member role to the user
       try {
-        let memberRole = await this.rolesService.getCommunityMemberRole(communityId);
-        
+        let memberRole =
+          await this.rolesService.getCommunityMemberRole(communityId);
+
         // If Member role doesn't exist for this community, create it
         if (!memberRole) {
           this.logger.log(
@@ -86,7 +87,8 @@ export class MembershipService {
           );
           // Create just the Member role for this community
           await this.rolesService.createMemberRoleForCommunity(communityId);
-          memberRole = await this.rolesService.getCommunityMemberRole(communityId);
+          memberRole =
+            await this.rolesService.getCommunityMemberRole(communityId);
         }
 
         if (memberRole) {

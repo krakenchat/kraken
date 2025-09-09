@@ -18,7 +18,7 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
-import { Delete as DeleteIcon, PersonAdd as PersonAddIcon } from "@mui/icons-material";
+import { Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon } from "@mui/icons-material";
 import {
   useGetMembersForCommunityQuery,
   useCreateMembershipMutation,
@@ -26,6 +26,7 @@ import {
 } from "../../features/membership";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { useGetAllUsersQuery } from "../../features/users/usersSlice";
+import RoleAssignmentDialog from "./RoleAssignmentDialog";
 
 interface MemberManagementProps {
   communityId: string;
@@ -35,6 +36,8 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
   const usersPerPage = 10;
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [userToRemove, setUserToRemove] = useState<{id: string, name: string} | null>(null);
+  const [roleAssignmentOpen, setRoleAssignmentOpen] = useState(false);
+  const [userForRoleAssignment, setUserForRoleAssignment] = useState<{id: string, name: string} | null>(null);
 
   const {
     data: members,
@@ -63,6 +66,12 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
     resourceType: "COMMUNITY",
     resourceId: communityId,
     actions: ["DELETE_MEMBER"],
+  });
+
+  const { hasPermissions: canManageRoles } = useUserPermissions({
+    resourceType: "COMMUNITY",
+    resourceId: communityId,
+    actions: ["UPDATE_MEMBER"],
   });
 
   const memberUserIds = useMemo(() => new Set(members?.map(member => member.userId || null) || []), [members]);
@@ -99,6 +108,16 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
   const cancelRemoveMember = () => {
     setConfirmRemoveOpen(false);
     setUserToRemove(null);
+  };
+
+  const handleManageRoles = (userId: string, username: string) => {
+    setUserForRoleAssignment({ id: userId, name: username });
+    setRoleAssignmentOpen(true);
+  };
+
+  const handleCloseRoleAssignment = () => {
+    setRoleAssignmentOpen(false);
+    setUserForRoleAssignment(null);
   };
 
   if (loadingMembers) {
@@ -171,16 +190,28 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
                       color="primary"
                     />
                   </Box>
-                  {canDeleteMembers && (
-                    <IconButton
-                      color="error"
-                      onClick={() => handleRemoveMember(member.userId, member.user?.username || 'Unknown User')}
-                      disabled={removingMember}
-                      sx={{ ml: 1 }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  )}
+                  <Box display="flex" gap={1}>
+                    {canManageRoles && (
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleManageRoles(member.userId, member.user?.username || 'Unknown User')}
+                        sx={{ ml: 1 }}
+                        title="Manage roles"
+                      >
+                        <SettingsIcon />
+                      </IconButton>
+                    )}
+                    {canDeleteMembers && (
+                      <IconButton
+                        color="error"
+                        onClick={() => handleRemoveMember(member.userId, member.user?.username || 'Unknown User')}
+                        disabled={removingMember}
+                        sx={{ ml: 1 }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    )}
+                  </Box>
                 </Box>
               ))}
             </Box>
@@ -337,6 +368,17 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Role Assignment Dialog */}
+      {userForRoleAssignment && (
+        <RoleAssignmentDialog
+          open={roleAssignmentOpen}
+          onClose={handleCloseRoleAssignment}
+          communityId={communityId}
+          userId={userForRoleAssignment.id}
+          userName={userForRoleAssignment.name}
+        />
+      )}
     </Box>
   );
 };

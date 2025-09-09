@@ -19,7 +19,11 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { RbacResource, RbacResourceType, ResourceIdSource } from '@/auth/rbac-resource.decorator';
+import {
+  RbacResource,
+  RbacResourceType,
+  ResourceIdSource,
+} from '@/auth/rbac-resource.decorator';
 
 @Controller('community')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -50,14 +54,22 @@ export class CommunityController {
 
   @Get(':id')
   @RequiredActions(RbacActions.READ_COMMUNITY)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'id',
+    source: ResourceIdSource.PARAM,
+  })
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.communityService.findOne(id);
   }
 
   @Patch(':id')
   @RequiredActions(RbacActions.UPDATE_COMMUNITY)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'id',
+    source: ResourceIdSource.PARAM,
+  })
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateCommunityDto: UpdateCommunityDto,
@@ -68,7 +80,11 @@ export class CommunityController {
   @Delete(':id')
   @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_COMMUNITY)
-  @RbacResource({ type: RbacResourceType.COMMUNITY, idKey: 'id', source: ResourceIdSource.PARAM })
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'id',
+    source: ResourceIdSource.PARAM,
+  })
   remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.communityService.remove(id);
   }
