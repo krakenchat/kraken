@@ -10,9 +10,10 @@ Instance invitation management API for creating, viewing, and managing invitatio
 
 ## Authentication
 
-- **Required:** ✅ All endpoints require authentication
+- **Required:** ✅ Most endpoints require authentication  
 - **Token Type:** JWT Bearer token
 - **Headers:** `Authorization: Bearer <jwt_token>`
+- **Exception:** `/public/:code` endpoint allows anonymous access for invite validation
 
 ## Endpoints Summary
 
@@ -21,6 +22,7 @@ Instance invitation management API for creating, viewing, and managing invitatio
 | POST | `/` | Create new invite | `CREATE_INSTANCE_INVITE` |
 | GET | `/` | List user's invites | `READ_INSTANCE_INVITE` |
 | GET | `/:code` | Get invite by code | `READ_INSTANCE_INVITE` |
+| GET | `/public/:code` | Get invite (public access) | *No auth required* |
 | DELETE | `/:code` | Delete invite | `DELETE_INSTANCE_INVITE` |
 
 ---
@@ -219,6 +221,62 @@ null
 
 ---
 
+## GET `/api/invite/public/:code`
+
+**Description:** Retrieves basic invitation information without authentication, designed for public invite link validation. This endpoint allows anonymous users to view invite details before registering.
+
+### Request
+
+**Path Parameters:**
+- `code` (string, required) - Invitation code to look up
+
+**Authentication:** ❌ No authentication required
+
+**Example:**
+```bash
+curl "http://localhost:3001/api/invite/public/INVITE_ABC123XYZ"
+```
+
+### Response
+
+**Success (200):**
+```json
+{
+  "id": "64f7b1234567890abcdef789",
+  "code": "INVITE_ABC123XYZ",
+  "createdById": "64f7b1234567890abcdef012",
+  "createdBy": {
+    "id": "64f7b1234567890abcdef012",
+    "username": "admin_user",
+    "displayName": "Admin User"
+  },
+  "defaultCommunityId": [
+    "64f7b1234567890abcdef123"
+  ],
+  "maxUses": 5,
+  "uses": 2,
+  "validUntil": "2024-06-01T00:00:00.000Z",
+  "createdAt": "2024-01-01T12:00:00.000Z",
+  "usedByIds": [
+    "64f7b1234567890abcdef345",
+    "64f7b1234567890abcdef678"
+  ],
+  "disabled": false
+}
+```
+
+**Invite Not Found (null response):**
+```json
+null
+```
+
+**Error Responses:**
+- `500 Internal Server Error` - Server error
+
+**Use Case:** This endpoint is specifically designed for the JoinInvitePage component to validate invite codes before user registration, allowing anonymous users to see invite details without requiring authentication.
+
+---
+
 ## DELETE `/api/invite/:code`
 
 **Description:** Deletes (disables) an invitation code, preventing it from being used for new registrations. Only the creator of the invite can delete it.
@@ -352,13 +410,13 @@ All invite operations are instance-level (no specific resource context required)
 ### Frontend Integration (RTK Query)
 
 ```typescript
-// Redux invite slice usage
-import { useInviteApi } from '@/features/invite/api/inviteApi';
+// Authenticated invite API usage
+import { useGetInvitesQuery, useCreateInviteMutation, useDeleteInviteMutation } from '@/features/invite/inviteApiSlice';
 
 function InviteManagement() {
-  const { data: invites, isLoading } = useInviteApi.useGetInvitesQuery();
-  const [createInvite] = useInviteApi.useCreateInviteMutation();
-  const [deleteInvite] = useInviteApi.useDeleteInviteMutation();
+  const { data: invites, isLoading } = useGetInvitesQuery();
+  const [createInvite] = useCreateInviteMutation();
+  const [deleteInvite] = useDeleteInviteMutation();
   
   const handleCreateInvite = async (inviteData: CreateInviteData) => {
     try {
@@ -378,8 +436,11 @@ function InviteManagement() {
   };
 }
 
+// Public invite API usage (no authentication required)
+import { useGetPublicInviteQuery } from '@/features/invite/publicInviteApiSlice';
+
 function InviteValidation({ code }: { code: string }) {
-  const { data: invite } = useInviteApi.useGetInviteQuery(code);
+  const { data: invite, isLoading, error } = useGetPublicInviteQuery(code);
   
   const isValid = invite && 
     (!invite.validUntil || new Date(invite.validUntil) > new Date()) &&

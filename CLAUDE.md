@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🐳 **CRITICAL**: ALL DEVELOPMENT USES DOCKER
+
+**Never run npm/yarn/node commands directly on the host. Always use Docker containers as shown in the Development Commands section below.**
+
 ## Project Overview
 
 **Kraken** is a Discord-like voice chat application built with NestJS backend and React frontend, designed to provide feature parity with popular voice chat platforms like Discord.
@@ -24,7 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Key Features
 
 - Real-time messaging via WebSockets
-- Voice/video calls powered by LiveKit integration  
+- Voice/video calls powered by LiveKit integration
 - Community-based organization similar to Discord servers
 - Role-based permissions system
 - Private channels and direct messaging
@@ -40,43 +44,81 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Backend (NestJS)
-- **Build**: `npm run build` (from backend/)
-- **Development**: `npm run start:dev` (hot reload)
-- **Debug**: `npm run start:debug`
-- **Production**: `npm run start:prod`
-- **Lint**: `npm run lint`
-- **Format**: `npm run format`
-- **Test**: `npm run test`
-- **Test with coverage**: `npm run test:cov`
-- **E2E tests**: `npm run test:e2e`
-- **Single test**: `jest <test-file-pattern>`
+**🐳 ALL DEVELOPMENT SHOULD BE DONE WITH DOCKER**
 
-### Frontend (React + Vite)
-- **Build**: `npm run build` (from frontend/)
-- **Development**: `npm run dev` (hot reload on port 5173)
-- **Electron dev**: `npm run electron-dev`
-- **Clean**: `npm run clean`
-- **Lint**: `npm run lint`
-- **Lint with fix**: `npm run lint:fix`
+### Essential Docker Commands
 
-### Database (Prisma + MongoDB)
-- **Generate client**: `npm run prisma:generate` (from backend/)
-- **Push schema**: `npm run prisma:push`
-- **Full setup**: `npm run prisma` (generates + pushes)
-- **Manual commands**:
-  - `npx prisma db push --schema=prisma/schema.prisma`
-  - `npx prisma generate --schema=prisma/schema.prisma`
-
-### Docker Development
-- **Start all services**: `docker-compose up`
-- **Backend shell**: `docker compose run backend bash`
-- **Push schema in container**: `docker compose run backend npm run prisma:generate && npm run prisma:push`
+- **Start development**: `docker-compose up` (starts all services with hot reload)
+- **Start in background**: `docker-compose up -d`
+- **Stop all services**: `docker-compose down`
+- **View logs**: `docker-compose logs [service-name]` (e.g., `docker-compose logs backend`)
 - **Rebuild containers**: `docker-compose build --no-cache`
+- **Clean up**: `docker-compose down -v` (removes volumes)
+
+### Backend Development (NestJS in Docker)
+
+- **Backend shell**: `docker compose run backend bash`
+- **Run tests**: `docker compose run backend npm run test`
+- **Run e2e tests**: `docker compose run backend npm run test:e2e`
+- **Lint code**: `docker compose run backend npm run lint`
+- **Build**: `docker compose run backend npm run build`
+- **Single test**: `docker compose run backend jest <test-pattern>`
+
+### Frontend Development (React + Vite in Docker)
+
+- **Frontend shell**: `docker compose run frontend bash`
+- **Lint frontend**: `docker compose run frontend npm run lint`
+- **Build frontend**: `docker compose run frontend npm run build`
+- **Type check**: `docker compose run frontend npm run type-check`
+
+### Database Operations (Prisma in Docker)
+
+- **Generate Prisma client**: `docker compose run backend npm run prisma:generate`
+- **Push schema to DB**: `docker compose run backend npm run prisma:push`
+- **Full setup**: `docker compose run backend npm run prisma` (generates + pushes)
+- **Prisma studio**: `docker compose run -p 5555:5555 backend npx prisma studio`
+
+### 🚨 **Important Notes**
+
+- **Never run npm commands directly on host** - always use Docker containers
+- **Hot reload is enabled** - file changes automatically update in containers
+- **Ports**: Frontend (5173), Backend (3001), MongoDB (27017), Redis (6379)
+- **Data persistence**: MongoDB and Redis data is persisted in Docker volumes
+
+### 📋 **Daily Development Workflow**
+
+```bash
+# 1. Start development environment
+docker-compose up
+
+# 2. In separate terminal: Run backend tests
+docker compose run backend npm run test
+
+# 3. In separate terminal: Check backend linting
+docker compose run backend npm run lint
+
+# 4. In separate terminal: Update database schema
+docker compose run backend npm run prisma:push
+
+# 5. View logs for specific service
+docker-compose logs backend -f
+
+# 6. Stop everything when done
+docker-compose down
+```
+
+### 🔧 **Troubleshooting**
+
+- **Services not starting**: Try `docker-compose down` then `docker-compose build --no-cache`
+- **Database connection issues**: Ensure MongoDB container is healthy with `docker-compose ps`
+- **Port conflicts**: Check if ports 3001, 5173, 27017, 6379 are available
+- **Permission issues**: Use `docker compose run --rm backend bash` to debug
+- **Fresh start**: `docker-compose down -v && docker-compose build --no-cache && docker-compose up`
 
 ## Architecture Overview
 
 ### Tech Stack
+
 - **Backend**: NestJS (TypeScript) with modular architecture
 - **Database**: MongoDB with Prisma ORM (no migrations, uses `db push`)
 - **Frontend**: React 19 + TypeScript + Vite + Material-UI
@@ -87,9 +129,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Development**: Docker Compose with hot reload
 
 ### Key Backend Modules
+
 The backend follows NestJS modular architecture in `backend/src/`:
 
 - **Core Modules**:
+
   - `auth/` - JWT authentication, RBAC guards, Passport strategies
   - `user/` - User management and profiles
   - `database/` - Prisma service and database connection
@@ -97,6 +141,7 @@ The backend follows NestJS modular architecture in `backend/src/`:
   - `cache/` - Redis caching service
 
 - **Chat Features**:
+
   - `community/` - Community/server management
   - `channels/` - Text and voice channels
   - `messages/` - Message handling with spans, attachments, reactions
@@ -106,6 +151,7 @@ The backend follows NestJS modular architecture in `backend/src/`:
   - `invite/` - Instance and community invitations
 
 - **Real-time**:
+
   - `websocket/` - WebSocket service and event handling
   - `messages.gateway` - Real-time message events
   - `presence.gateway` - User presence updates
@@ -116,18 +162,22 @@ The backend follows NestJS modular architecture in `backend/src/`:
   - `redis/` - Redis connection and pub/sub
 
 ### Frontend Architecture
+
 The frontend uses feature-based organization in `frontend/src/`:
 
 - **State Management** (`app/store.ts`):
+
   - Redux store with RTK Query APIs for each backend module
   - Separate slice for local message state
 
 - **Features** (`features/`):
+
   - Each feature has its own API slice using RTK Query
   - Matches backend module structure (auth, community, channels, etc.)
   - Role-based component rendering system
 
 - **Components** (`components/`):
+
   - Feature-organized component structure
   - Material-UI based design system
   - LiveKit integration for video calls
@@ -138,7 +188,9 @@ The frontend uses feature-based organization in `frontend/src/`:
   - Event-driven message updates
 
 ### Database Schema
+
 MongoDB with Prisma schema defines:
+
 - **Users**: Authentication, profiles, instance roles
 - **Communities**: Discord-like servers with channels
 - **Channels**: Text/voice channels with private channel support
@@ -149,6 +201,7 @@ MongoDB with Prisma schema defines:
 - **LiveKit Integration**: Video call room management
 
 ### Authentication & Authorization
+
 - JWT-based auth with refresh tokens
 - Role-based access control (RBAC) with granular permissions
 - Instance-level and community-level roles
@@ -156,6 +209,7 @@ MongoDB with Prisma schema defines:
 - Private channel membership system
 
 ### Development Environment
+
 - Docker Compose orchestrates MongoDB (replica set), Redis, backend, and frontend
 - Hot reload enabled for both frontend and backend
 - MongoDB requires replica set for change streams
@@ -164,28 +218,34 @@ MongoDB with Prisma schema defines:
 ## Important Notes
 
 ### Database Operations
+
 - MongoDB uses `prisma db push` instead of migrations
 - Always run `prisma generate` after schema changes
 - Database requires replica set configuration for real-time features
 
 ### Environment Variables
+
 Copy `backend/env.sample` to `backend/.env` and configure:
+
 - MongoDB connection string
 - JWT secrets (change defaults!)
 - Redis host configuration
 
 ### Testing
+
 - Backend uses Jest for unit and e2e tests
 - Test files follow `*.spec.ts` pattern
 - E2E tests in `backend/test/` directory
 
 ### Code Quality
+
 - ESLint configured for both backend and frontend
 - Prettier for code formatting
 - TypeScript strict mode enabled
 - Consistent import path aliases using `@/` for backend src
 
 ### Documentation Updates
+
 - **ALWAYS update documentation when adding new features or modifying existing code**
 - Update relevant files in `docs/` after implementing new components, modules, or APIs
 - Create new documentation using templates in `docs/templates/` for new features
@@ -196,67 +256,20 @@ Copy `backend/env.sample` to `backend/.env` and configure:
 **Full documentation is available in the `docs/` folder:**
 
 ### Architecture Documentation
+
 - **[Backend Architecture](docs/architecture/backend.md)** - NestJS modules, services, and design patterns
-- **[Frontend Architecture](docs/architecture/frontend.md)** - React components, Redux state management, and UI patterns  
+- **[Frontend Architecture](docs/architecture/frontend.md)** - React components, Redux state management, and UI patterns
 - **[Database Schema](docs/architecture/database.md)** - MongoDB models, relationships, and query patterns
 
 ### Feature Analysis
+
 - **[Discord Feature Parity](docs/features/discord-parity.md)** - Comprehensive comparison (~51% parity achieved)
 - **[Incomplete Features](docs/features/incomplete.md)** - Foundation features ready for completion
-
-### Key Findings from Codebase Analysis
-
-#### Current Feature Status (High-Level)
-- **✅ Core Chat**: 80% complete - Real-time messaging, channels, basic mentions
-- **✅ Voice/Video**: 60% complete - LiveKit integration, voice channels, video calls
-- **✅ Communities**: 69% complete - Server management, member management, basic roles
-- **🔧 RBAC System**: 40% complete - Strong backend foundation, needs frontend completion
-- **🔧 Direct Messages**: 30% complete - Database schema ready, needs UI implementation
-- **🔧 File Attachments**: 25% complete - Upload infrastructure exists, needs message integration
-
-#### High-Impact, Low-Effort Completions Available
-1. **Community Invitations** (1 week) - Backend complete, needs frontend UI
-2. **RBAC Management** (2-3 weeks) - Strong foundation, needs admin interface  
-3. **Voice Persistence** (1-2 weeks) - Core working, needs navigation persistence
-4. **File Attachments** (2-3 weeks) - Upload system exists, needs message integration
-
-#### Critical Architecture Strengths
-- **Modular Design**: Clean separation between features and concerns
-- **Type Safety**: Full TypeScript coverage with Prisma type generation
-- **Real-time Foundation**: Robust WebSocket system with Redis scaling
-- **Permission System**: Comprehensive RBAC with 57 granular permissions
-- **Rich Text**: Flexible span-based message system supporting mentions and formatting
-- **Voice Integration**: Professional LiveKit WebRTC implementation
-
-#### Areas Needing Attention
-- **Mobile Experience**: Currently desktop-focused, needs responsive optimization
-- **Permission UI**: RBAC backend is solid, but admin interfaces are incomplete
-- **DM System**: Database models complete, entire frontend needs implementation
-- **File Handling**: Basic upload works, needs security, processing, and UI integration
-- **Testing Coverage**: Unit tests exist but need expansion for complex features
-
-### Development Priorities (Based on Analysis)
-
-#### Phase 1: Complete Foundation Features (4-6 weeks)
-1. Community invitation system (frontend)
-2. Basic message reactions
-3. Voice connection persistence
-
-#### Phase 2: Major Features (6-8 weeks)
-1. Complete RBAC management interface
-2. File attachment system
-3. Direct message interface
-4. Mobile responsiveness
-
-#### Phase 3: Advanced Features (Future)
-1. Rich text editor with markdown
-2. Advanced moderation tools
-3. Mobile applications
-4. Bot/webhook system
 
 ### Important Code Patterns
 
 #### RBAC Usage
+
 ```typescript
 @RequiredActions(RbacActions.CREATE_MESSAGE)
 @RbacResource({
@@ -267,6 +280,7 @@ Copy `backend/env.sample` to `backend/.env` and configure:
 ```
 
 #### WebSocket Event Pattern
+
 ```typescript
 @SubscribeMessage(ClientEvents.SEND_MESSAGE)
 async handleMessage(@MessageBody() payload: CreateMessageDto) {
@@ -276,6 +290,7 @@ async handleMessage(@MessageBody() payload: CreateMessageDto) {
 ```
 
 #### Redux State Management
+
 ```typescript
 // Feature-based API slices with RTK Query
 export const messagesApi = createApi({
@@ -297,7 +312,7 @@ docs/
 ├── api/                    # REST & WebSocket API documentation
 ├── components/            # React component reference docs
 ├── modules/               # Backend NestJS module documentation
-├── hooks/                 # Custom React hooks documentation  
+├── hooks/                 # Custom React hooks documentation
 ├── state/                 # Redux slices & RTK Query APIs
 ├── templates/             # Documentation templates for new code
 ├── architecture/          # High-level architecture docs
@@ -309,21 +324,25 @@ docs/
 Before implementing any feature or modifying existing code, you MUST:
 
 1. **Check Component Docs**: `docs/components/[feature]/[ComponentName].md`
+
    - Understand props, usage patterns, and integration points
    - Follow established patterns and conventions
    - Identify related components and dependencies
 
 2. **Check Module Docs**: `docs/modules/[module-name].md`
+
    - Understand service methods, DTOs, and business logic
    - Follow RBAC patterns and database query conventions
    - Identify existing endpoints and WebSocket events
 
 3. **Check API Docs**: `docs/api/[controller-name].md`
+
    - Understand existing endpoints and their contracts
    - Follow authentication and permission patterns
    - Identify WebSocket events triggered by API changes
 
 4. **Check Hook Docs**: `docs/hooks/[hookName].md`
+
    - Understand custom hook APIs and usage patterns
    - Identify existing hooks that might satisfy requirements
    - Follow established state management patterns
@@ -336,23 +355,27 @@ Before implementing any feature or modifying existing code, you MUST:
 ### **AI Development Workflow**
 
 #### 1. Research Phase (MANDATORY)
+
 ```typescript
 // ALWAYS start by reading relevant documentation:
 // 1. docs/components/[feature]/[RelatedComponent].md
-// 2. docs/modules/[related-module].md  
+// 2. docs/modules/[related-module].md
 // 3. docs/api/[related-api].md
 // 4. docs/hooks/[related-hook].md
 // 5. docs/state/[related-state].md
 ```
 
 #### 2. Implementation Phase
+
 - **Follow Documented Patterns**: Use existing patterns from the docs rather than creating new ones
 - **Maintain Consistency**: Match the documented code style, naming conventions, and architectural decisions
 - **Integrate Properly**: Use documented APIs, props, and integration points
 - **Handle Errors**: Follow documented error handling patterns
 
-#### 3. Documentation Update Phase  
+#### 3. Documentation Update Phase
+
 After implementing new code:
+
 - **Update Existing Docs**: Modify docs to reflect any changes to existing components/modules
 - **Create New Docs**: Use templates in `docs/templates/` for new components/modules
 - **Cross-Reference**: Add links between related documentation
@@ -363,7 +386,7 @@ After implementing new code:
 # Find component documentation
 find docs/components -name "*ComponentName*"
 
-# Find API documentation  
+# Find API documentation
 find docs/api -name "*endpoint*"
 
 # Find hook documentation
@@ -387,27 +410,31 @@ When creating new code, use these templates:
 ### **Integration Patterns**
 
 #### Component Integration
+
 ```typescript
 // ALWAYS check docs/components/[feature]/ first
-import { ExistingComponent } from '@/components/[feature]/ExistingComponent';
+import { ExistingComponent } from "@/components/[feature]/ExistingComponent";
 // Follow documented prop patterns and usage examples
 ```
 
-#### API Integration  
+#### API Integration
+
 ```typescript
 // ALWAYS check docs/api/[controller].md first
 // Follow documented endpoint patterns, RBAC, and error handling
 ```
 
 #### State Management
+
 ```typescript
-// ALWAYS check docs/state/[entity]Api.md first  
+// ALWAYS check docs/state/[entity]Api.md first
 // Follow documented RTK Query patterns and caching strategies
 ```
 
 ### **Cross-Reference System**
 
 Each documentation file includes:
+
 - **Related Components**: Links to connected frontend components
 - **Related Modules**: Links to backend services and controllers
 - **Related APIs**: Links to REST and WebSocket endpoints
