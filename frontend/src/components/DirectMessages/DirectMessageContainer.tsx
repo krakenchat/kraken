@@ -1,9 +1,9 @@
 import React from "react";
-import MessageContainer from "../Message/MessageContainer";
-import DirectMessageInput from "./DirectMessageInput";
-import { useProfileQuery } from "../../features/users/usersSlice";
+import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import { useDirectMessages } from "../../hooks/useDirectMessages";
 import { useDirectMessageWebSocket } from "../../hooks/useDirectMessageWebSocket";
+import { useGetDmGroupQuery } from "../../features/directMessages/directMessagesApiSlice";
+import type { UserMention } from "../../utils/mentionParser";
 
 interface DirectMessageContainerProps {
   dmGroupId: string;
@@ -12,23 +12,25 @@ interface DirectMessageContainerProps {
 const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   dmGroupId,
 }) => {
-  const { data: user } = useProfileQuery();
-  const authorId = user?.id || "";
-  
   // Use DM-specific WebSocket hook for sending messages
   const { sendDirectMessage } = useDirectMessageWebSocket();
 
-  // Use the shared hook for DM messages
-  const {
-    messages,
-    isLoading,
-    error,
-    continuationToken,
-    isLoadingMore,
-    onLoadMore,
-  } = useDirectMessages(dmGroupId);
+  // Get DM group info to get members for mentions
+  const { data: dmGroup } = useGetDmGroupQuery(dmGroupId);
 
-  const handleSendMessage = (messageContent: string, spans: any[]) => {
+  // Convert DM group members to mention format
+  const userMentions: UserMention[] = React.useMemo(() => {
+    return dmGroup?.members?.map((member) => ({
+      id: member.user.id,
+      username: member.user.username,
+      displayName: member.user.displayName || undefined,
+    })) || [];
+  }, [dmGroup?.members]);
+
+  // Get messages using the hook directly (not in callback)
+  const messagesHookResult = useDirectMessages(dmGroupId);
+
+  const handleSendMessage = (messageContent: string, spans: unknown[]) => {
     console.log("[DirectMessageContainer] Received message to send:", { messageContent, spans, dmGroupId });
     // Send direct message via WebSocket
     console.log("[DirectMessageContainer] Calling sendDirectMessage...");
@@ -36,25 +38,14 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
     console.log("[DirectMessageContainer] sendDirectMessage called");
   };
 
-  // Create the message input component
-  const messageInput = (
-    <DirectMessageInput
-      dmGroupId={dmGroupId}
+  return (
+    <MessageContainerWrapper
+      contextType="dm"
+      contextId={dmGroupId}
+      useMessagesHook={() => messagesHookResult}
+      userMentions={userMentions}
       onSendMessage={handleSendMessage}
       placeholder="Type a direct message..."
-    />
-  );
-
-  return (
-    <MessageContainer
-      messages={messages}
-      isLoading={isLoading}
-      error={error}
-      authorId={authorId}
-      continuationToken={continuationToken}
-      isLoadingMore={isLoadingMore}
-      onLoadMore={onLoadMore}
-      messageInput={messageInput}
       emptyStateMessage="No messages yet. Start the conversation!"
     />
   );

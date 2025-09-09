@@ -1,9 +1,12 @@
 import React from "react";
-import MessageContainer from "../Message/MessageContainer";
-import MessageInput from "../Message/MessageInput";
-import { useProfileQuery } from "../../features/users/usersSlice";
+import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import { useParams } from "react-router-dom";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
+import { useSendMessageSocket } from "../../hooks/useSendMessageSocket";
+import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
+import { useGetMentionableChannelsQuery } from "../../features/channel/channelApiSlice";
+import { useProfileQuery } from "../../features/users/usersSlice";
+import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 
 interface ChannelMessageContainerProps {
   channelId: string;
@@ -20,35 +23,53 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     communityId: string;
   }>();
 
-  // Use the shared hook for channel messages
-  const {
-    messages,
-    isLoading,
-    error,
-    continuationToken,
-    isLoadingMore,
-    onLoadMore,
-  } = useChannelMessages(channelId);
+  const sendMessage = useSendMessageSocket(() => {});
 
-  // Create the message input component
-  const messageInput = (
-    <MessageInput 
-      channelId={channelId} 
-      authorId={authorId} 
-      communityId={communityId || ""}
-    />
-  );
+  // Fetch community members and channels for mention resolution
+  const { data: memberData = [] } = useGetMembersForCommunityQuery(communityId || "");
+  const { data: channelData = [] } = useGetMentionableChannelsQuery(communityId || "");
+
+  // Convert to mention format
+  const userMentions: UserMention[] = React.useMemo(() => 
+    memberData.map((member) => ({
+      id: member.user!.id,
+      username: member.user!.username,
+      displayName: member.user!.displayName || undefined,
+    })), [memberData]);
+
+  const channelMentions: ChannelMention[] = React.useMemo(() =>
+    channelData.map((channel) => ({
+      id: channel.id,
+      name: channel.name,
+    })), [channelData]);
+
+  // Get messages using the hook directly (not in callback)
+  const messagesHookResult = useChannelMessages(channelId);
+  
+  // For channel messages, we'll pass the hook function itself and let UnifiedMessageInput handle it
+
+  const handleSendMessage = (messageContent: string, spans: unknown[]) => {
+    const msg = {
+      channelId,
+      authorId,
+      spans,
+      attachments: [],
+      reactions: [],
+      sentAt: new Date().toISOString(),
+    };
+    sendMessage(msg);
+  };
 
   return (
-    <MessageContainer
-      messages={messages}
-      isLoading={isLoading}
-      error={error}
-      authorId={authorId}
-      continuationToken={continuationToken}
-      isLoadingMore={isLoadingMore}
-      onLoadMore={onLoadMore}
-      messageInput={messageInput}
+    <MessageContainerWrapper
+      contextType="channel"
+      contextId={channelId}
+      communityId={communityId}
+      useMessagesHook={() => messagesHookResult}
+      userMentions={userMentions}
+      channelMentions={channelMentions}
+      onSendMessage={handleSendMessage}
+      placeholder="Type a message... Use @ for members, @here, @channel"
       emptyStateMessage="No messages yet. Start the conversation!"
     />
   );
