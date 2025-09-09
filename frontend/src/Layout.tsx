@@ -12,6 +12,7 @@ import { VoiceBottomBar } from "./components/Voice";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
+import { useVoiceEvents } from "./hooks/useVoiceEvents";
 import type { User } from "./types/auth.type";
 
 const APPBAR_HEIGHT = 64;
@@ -29,6 +30,9 @@ const Layout: React.FC = () => {
   
   // Listen for real-time presence events
   usePresenceEvents();
+  
+  // Listen for real-time voice presence events globally
+  useVoiceEvents();
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
