@@ -38,12 +38,14 @@ export function useMentionAutocomplete({
     return getCurrentMention(text, cursorPosition);
   }, [text, cursorPosition]);
 
-  // Get all community members (cached)
+  // Get all community members (cached) - only if we have a valid communityId
   const {
     data: allMembers = [],
     isLoading: isLoadingMembers,
     isFetching: isFetchingMembers,
-  } = useGetAllCommunityMembersQuery(communityId);
+  } = useGetAllCommunityMembersQuery(communityId, {
+    skip: !communityId || communityId.trim() === '',
+  });
 
 
   // Client-side filtering and processing

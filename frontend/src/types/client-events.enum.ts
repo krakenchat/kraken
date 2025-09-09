@@ -3,6 +3,7 @@ export enum ClientEvents {
   JOIN_ALL = "joinAll",
   JOIN_ROOM = "joinRoom",
   LEAVE_ROOM = "leaveRoom",
+  JOIN_DM_ROOM = "joinDmRoom",
   PRESENCE_ONLINE = "presenceOnline",
   SEND_MESSAGE = "sendMessage",
   SEND_DM = "sendDirectMessage",

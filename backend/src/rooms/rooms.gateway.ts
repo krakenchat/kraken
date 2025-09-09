@@ -91,4 +91,18 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
   ) {
     return this.roomsService.join(client, id);
   }
+
+  @SubscribeMessage(ClientEvents.JOIN_DM_ROOM)
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.DM_GROUP,
+    source: ResourceIdSource.TEXT_PAYLOAD,
+  })
+  async joinDmRoom(
+    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @MessageBody() dmGroupId: string,
+  ) {
+    this.logger.log(`User ${client.handshake.user.id} joining DM room: ${dmGroupId}`);
+    return this.roomsService.join(client, dmGroupId);
+  }
 }

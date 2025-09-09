@@ -28,10 +28,6 @@ export class DirectMessagesController {
   ) {}
 
   @Get()
-  @RequiredActions(RbacActions.READ_MESSAGE)
-  @RbacResource({
-    type: RbacResourceType.INSTANCE,
-  })
   async findUserDmGroups(@Req() req: any): Promise<DmGroupResponseDto[]> {
     return this.directMessagesService.findUserDmGroups(req.user.id);
   }

@@ -133,7 +133,7 @@ export function useDirectMessageWebSocket() {
   };
 
   const joinDmGroup = (dmGroupId: string) => {
-    socket?.emit(ClientEvents.JOIN_ROOM, dmGroupId);
+    socket?.emit(ClientEvents.JOIN_DM_ROOM, dmGroupId);
   };
 
   const leaveDmGroup = (dmGroupId: string) => {
