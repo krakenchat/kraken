@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button, Typography } from "@mui/material";
 import type { User } from "../../types/auth.type";
 import styled from "@emotion/styled";
+import { useUserPermissions } from "../../features/roles/useUserPermissions";
 
 const NavLink = styled(Link)`
   color: white;
@@ -28,6 +29,11 @@ const NavigationLinks: React.FC<NavigationLinksProps> = ({
   handleLogout,
   logoutLoading,
 }) => {
+  const { hasPermissions: canViewInvites } = useUserPermissions({
+    resourceType: "INSTANCE",
+    actions: ["READ_INSTANCE_INVITE"],
+  });
+
   return (
     <>
       <NavLink to="/">Home</NavLink>
@@ -41,13 +47,16 @@ const NavigationLinks: React.FC<NavigationLinksProps> = ({
           <NavLink to="/register">Register</NavLink>
         </>
       ) : (
-        <Button
-          onClick={handleLogout}
-          disabled={logoutLoading}
-          sx={{ color: "white", textTransform: "none" }}
-        >
-          Logout
-        </Button>
+        <>
+          {canViewInvites && <NavLink to="/admin/invites">Invites</NavLink>}
+          <Button
+            onClick={handleLogout}
+            disabled={logoutLoading}
+            sx={{ color: "white", textTransform: "none" }}
+          >
+            Logout
+          </Button>
+        </>
       )}
     </>
   );

@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/system";
 import { useParams, useNavigate } from "react-router-dom";
-import { useGetInviteByCodeQuery } from "../features/invite/inviteApiSlice";
+import { useGetPublicInviteByCodeQuery } from "../features/invite/publicInviteApiSlice";
 import { useLazyRegisterQuery } from "../features/users/usersSlice";
 import { useLazyLoginQuery } from "../features/auth/authSlice";
 import { InstanceInvite } from "../types/invite.type";
@@ -49,7 +49,7 @@ const JoinInvitePage: React.FC = () => {
     data: invite,
     isLoading: loadingInvite,
     error: inviteError,
-  } = useGetInviteByCodeQuery(inviteCode || "", {
+  } = useGetPublicInviteByCodeQuery(inviteCode || "", {
     skip: !inviteCode,
   });
 

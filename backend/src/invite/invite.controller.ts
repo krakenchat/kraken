@@ -47,6 +47,11 @@ export class InviteController {
     return this.inviteService.getInvites(req.user);
   }
 
+  @Get('public/:code')
+  async getPublicInvite(@Param('code') code: string): Promise<InstanceInvite | null> {
+    return this.inviteService.getInviteByCode(code);
+  }
+
   @Get(':code')
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)

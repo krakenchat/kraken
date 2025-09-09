@@ -57,14 +57,12 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
   const [deleteInvite, { isLoading: deletingInvite }] = useDeleteInviteMutation();
 
   const { hasPermissions: canCreateInvites } = useUserPermissions({
-    resourceType: "COMMUNITY",
-    resourceId: communityId,
+    resourceType: "INSTANCE",
     actions: ["CREATE_INSTANCE_INVITE"],
   });
 
   const { hasPermissions: canDeleteInvites } = useUserPermissions({
-    resourceType: "COMMUNITY", 
-    resourceId: communityId,
+    resourceType: "INSTANCE",
     actions: ["DELETE_INSTANCE_INVITE"],
   });
 

@@ -5,6 +5,7 @@ import {
   useGetMyInstanceRolesQuery,
 } from "./rolesApiSlice";
 import { UserRoles, ResourceType } from "../../types/roles.type";
+import { useProfileQuery } from "../users/usersSlice";
 
 export interface UseUserPermissionsOptions {
   resourceType: ResourceType;
@@ -26,6 +27,9 @@ export function useUserPermissions({
   resourceId,
   actions,
 }: UseUserPermissionsOptions): UseUserPermissionsResult {
+  // Get user profile to check if they're an OWNER (which bypasses all RBAC checks)
+  const { data: userProfile } = useProfileQuery(undefined);
+  
   // Conditionally call the appropriate query based on resource type
   const { data: communityRoles, isLoading: isCommunityLoading } =
     useGetMyRolesForCommunityQuery(resourceId!, {
@@ -64,6 +68,11 @@ export function useUserPermissions({
   ]);
 
   const hasPermissions = useMemo(() => {
+    // OWNER users bypass all RBAC checks (same as backend logic)
+    if (userProfile?.role === "OWNER") {
+      return true;
+    }
+
     if (!roles || isLoading) return false;
 
     // Get all actions from all roles
@@ -71,7 +80,7 @@ export function useUserPermissions({
 
     // Check if user has all required actions
     return actions.every((action) => allActions.includes(action));
-  }, [roles, actions, isLoading]);
+  }, [roles, actions, isLoading, userProfile]);
 
   return {
     hasPermissions,

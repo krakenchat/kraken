@@ -42,6 +42,8 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     // Invite management
     RbacActions.CREATE_INVITE,
     RbacActions.DELETE_INVITE,
+    RbacActions.CREATE_INSTANCE_INVITE,
+    RbacActions.DELETE_INSTANCE_INVITE,
     RbacActions.READ_INSTANCE_INVITE,
 
     // Alias group management
