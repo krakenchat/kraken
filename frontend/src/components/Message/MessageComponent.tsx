@@ -146,14 +146,15 @@ function MessageComponent({ message }: MessageProps) {
   const isOwnMessage = currentUser?.id === message.authorId;
 
   // Check if user can moderate messages in this channel
-  const canUpdateMessage = useCanPerformAction("CHANNEL", message.channelId, "UPDATE_MESSAGE");
   const canDeleteMessage = useCanPerformAction("CHANNEL", message.channelId, "DELETE_MESSAGE");
 
-  // Combined permission checks: owner can always edit/delete, or user has moderator permissions
+  // Users can edit their own messages (backend MessageOwnershipGuard handles all permission logic)
   const canEditMessage = useMemo(() => {
-    return isOwnMessage || canUpdateMessage;
-  }, [isOwnMessage, canUpdateMessage]);
+    return isOwnMessage;
+  }, [isOwnMessage]);
 
+  // Users can delete their own messages (backend MessageOwnershipGuard handles all logic)
+  // Users with DELETE_MESSAGE permission can delete any message
   const canRemoveMessage = useMemo(() => {
     return isOwnMessage || canDeleteMessage;
   }, [isOwnMessage, canDeleteMessage]);

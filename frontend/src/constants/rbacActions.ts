@@ -2,6 +2,7 @@
 export const RBAC_ACTIONS = {
   // Message Management
   CREATE_MESSAGE: 'CREATE_MESSAGE',
+  UPDATE_MESSAGE: 'UPDATE_MESSAGE',
   DELETE_MESSAGE: 'DELETE_MESSAGE', 
   READ_MESSAGE: 'READ_MESSAGE',
 
@@ -68,6 +69,7 @@ export type RbacAction = typeof RBAC_ACTIONS[keyof typeof RBAC_ACTIONS];
 export const PERMISSION_GROUPS = {
   'Messages': [
     RBAC_ACTIONS.CREATE_MESSAGE,
+    RBAC_ACTIONS.UPDATE_MESSAGE,
     RBAC_ACTIONS.DELETE_MESSAGE,
     RBAC_ACTIONS.READ_MESSAGE,
   ],
@@ -132,6 +134,7 @@ export const PERMISSION_GROUPS = {
 export const ACTION_LABELS: Record<RbacAction, string> = {
   // Messages
   [RBAC_ACTIONS.CREATE_MESSAGE]: 'Send messages',
+  [RBAC_ACTIONS.UPDATE_MESSAGE]: 'Edit messages',
   [RBAC_ACTIONS.DELETE_MESSAGE]: 'Delete messages',
   [RBAC_ACTIONS.READ_MESSAGE]: 'Read messages',
 

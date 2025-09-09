@@ -113,12 +113,6 @@ export class MessagesController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
-  @RequiredActions(RbacActions.UPDATE_MESSAGE)
-  @RbacResource({
-    type: RbacResourceType.CHANNEL,
-    idKey: 'id',
-    source: ResourceIdSource.PARAM,
-  })
   async update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Req() req: { user: UserEntity },
@@ -148,12 +142,6 @@ export class MessagesController {
   @HttpCode(204)
   @Delete(':id')
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
-  @RequiredActions(RbacActions.DELETE_MESSAGE)
-  @RbacResource({
-    type: RbacResourceType.CHANNEL,
-    idKey: 'id',
-    source: ResourceIdSource.PARAM,
-  })
   async remove(@Param('id', ParseObjectIdPipe) id: string) {
     // First get the message to know which channel to notify
     const messageToDelete = await this.messagesService.findOne(id);
