@@ -12,53 +12,65 @@ export const useVoiceEvents = () => {
   const currentChannelId = useSelector((state: RootState) => state.voice.currentChannelId);
 
   useEffect(() => {
-    if (!socket || !currentChannelId) return;
+    if (!socket) return;
 
     const handleUserJoined = (data: { channelId: string; user: VoicePresenceUser }) => {
+      console.log('Voice user joined:', data);
+      
+      // Update RTK Query cache for all channels (global updates)
+      dispatch(
+        voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
+          const existingIndex = draft.users.findIndex(u => u.id === data.user.id);
+          if (existingIndex === -1) {
+            draft.users.push(data.user);
+            draft.count = draft.users.length;
+          }
+        })
+      );
+
+      // Only update Redux voice state for current channel
       if (data.channelId === currentChannelId) {
-        // Update both Redux state and RTK Query cache
         dispatch(updateParticipant(data.user));
-        dispatch(
-          voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
-            const existingIndex = draft.users.findIndex(u => u.id === data.user.id);
-            if (existingIndex === -1) {
-              draft.users.push(data.user);
-              draft.count = draft.users.length;
-            }
-          })
-        );
       }
     };
 
     const handleUserLeft = (data: { channelId: string; userId: string }) => {
+      console.log('Voice user left:', data);
+      
+      // Update RTK Query cache for all channels (global updates)
+      dispatch(
+        voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
+          const index = draft.users.findIndex(u => u.id === data.userId);
+          if (index !== -1) {
+            draft.users.splice(index, 1);
+            draft.count = draft.users.length;
+          }
+        })
+      );
+
+      // Only update Redux voice state for current channel
       if (data.channelId === currentChannelId) {
-        // Update both Redux state and RTK Query cache
         dispatch(removeParticipant(data.userId));
-        dispatch(
-          voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
-            const index = draft.users.findIndex(u => u.id === data.userId);
-            if (index !== -1) {
-              draft.users.splice(index, 1);
-              draft.count = draft.users.length;
-            }
-          })
-        );
       }
     };
 
     const handleUserUpdated = (data: { channelId: string; user: VoicePresenceUser }) => {
+      console.log('Voice user updated:', data);
+      
+      // Update RTK Query cache for all channels (global updates)
+      dispatch(
+        voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
+          const index = draft.users.findIndex(u => u.id === data.user.id);
+          if (index !== -1) {
+            // IMPORTANT: Replace the entire user object to preserve all fields
+            draft.users[index] = data.user;
+          }
+        })
+      );
+
+      // Only update Redux voice state for current channel
       if (data.channelId === currentChannelId) {
-        // Update both Redux state and RTK Query cache
         dispatch(updateParticipant(data.user));
-        dispatch(
-          voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
-            const index = draft.users.findIndex(u => u.id === data.user.id);
-            if (index !== -1) {
-              // IMPORTANT: Replace the entire user object to preserve all fields
-              draft.users[index] = data.user;
-            }
-          })
-        );
       }
     };
 

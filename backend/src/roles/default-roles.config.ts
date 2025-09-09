@@ -22,6 +22,9 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     RbacActions.DELETE_CHANNEL,
     RbacActions.READ_CHANNEL,
 
+    // Voice channel permissions
+    RbacActions.JOIN_CHANNEL,
+
     // Member management
     RbacActions.CREATE_MEMBER,
     RbacActions.UPDATE_MEMBER,
@@ -86,6 +89,9 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
     RbacActions.CREATE_CHANNEL,
     RbacActions.UPDATE_CHANNEL,
 
+    // Voice channel permissions
+    RbacActions.JOIN_CHANNEL,
+
     // Member management (limited)
     RbacActions.CREATE_MEMBER,
     RbacActions.UPDATE_MEMBER,
@@ -118,6 +124,9 @@ export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
 
     // Basic message permissions
     RbacActions.CREATE_MESSAGE,
+
+    // Voice channel permissions
+    RbacActions.JOIN_CHANNEL,
 
     // Basic reaction permissions
     RbacActions.CREATE_REACTION,

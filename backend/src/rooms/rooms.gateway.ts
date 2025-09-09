@@ -102,7 +102,9 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
     @MessageBody() dmGroupId: string,
   ) {
-    this.logger.log(`User ${client.handshake.user.id} joining DM room: ${dmGroupId}`);
+    this.logger.log(
+      `User ${client.handshake.user.id} joining DM room: ${dmGroupId}`,
+    );
     return this.roomsService.join(client, dmGroupId);
   }
 }

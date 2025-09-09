@@ -101,11 +101,14 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
   const [deleteRole, { isLoading: deletingRoleLoading }] = useDeleteRoleMutation();
 
-  const handleCreateRole = async (data: { name: string; actions: string[] }) => {
+  const handleCreateRole = async (data: { name?: string; actions: string[] }) => {
     try {
       await createRole({
         communityId,
-        data,
+        data: {
+          name: data.name!, // name is required for creating new roles
+          actions: data.actions,
+        },
       }).unwrap();
       setCreatingRole(false);
     } catch {
@@ -113,7 +116,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     }
   };
 
-  const handleUpdateRole = async (data: { name: string; actions: string[] }) => {
+  const handleUpdateRole = async (data: { name?: string; actions: string[] }) => {
     if (!editingRole) return;
 
     try {
@@ -281,7 +284,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
                             </IconButton>
                           </Tooltip>
                           
-                          {canUpdateRoles && !isDefaultRole(role.name) && (
+                          {canUpdateRoles && (
                             <Tooltip title="Edit role">
                               <IconButton
                                 size="small"

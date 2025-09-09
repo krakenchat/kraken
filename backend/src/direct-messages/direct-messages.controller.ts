@@ -11,7 +11,11 @@ import {
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
-import { RbacResource, RbacResourceType, ResourceIdSource } from '@/auth/rbac-resource.decorator';
+import {
+  RbacResource,
+  RbacResourceType,
+  ResourceIdSource,
+} from '@/auth/rbac-resource.decorator';
 import { RbacActions } from '@prisma/client';
 import { DirectMessagesService } from './direct-messages.service';
 import { CreateDmGroupDto } from './dto/create-dm-group.dto';
@@ -41,7 +45,10 @@ export class DirectMessagesController {
     @Body() createDmGroupDto: CreateDmGroupDto,
     @Req() req: any,
   ): Promise<DmGroupResponseDto> {
-    return this.directMessagesService.createDmGroup(createDmGroupDto, req.user.id);
+    return this.directMessagesService.createDmGroup(
+      createDmGroupDto,
+      req.user.id,
+    );
   }
 
   @Get(':id')
@@ -65,13 +72,10 @@ export class DirectMessagesController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  async getDmMessages(
-    @Param('id') id: string,
-    @Req() req: any,
-  ) {
+  async getDmMessages(@Param('id') id: string, @Req() req: any) {
     // First verify user is a member of this DM group
     await this.directMessagesService.findDmGroup(id, req.user.id);
-    
+
     // Then get the messages
     return this.messagesService.findAllForDirectMessageGroup(id);
   }
@@ -88,7 +92,11 @@ export class DirectMessagesController {
     @Body() addMembersDto: AddMembersDto,
     @Req() req: any,
   ): Promise<DmGroupResponseDto> {
-    return this.directMessagesService.addMembers(id, addMembersDto, req.user.id);
+    return this.directMessagesService.addMembers(
+      id,
+      addMembersDto,
+      req.user.id,
+    );
   }
 
   @Delete(':id/members/me')

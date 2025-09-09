@@ -23,6 +23,7 @@ import { useGetChannelPresenceQuery } from "../../features/voice-presence/voiceP
 import { formatDistanceToNow } from "date-fns";
 import { Channel } from "../../types/channel.type";
 import { ChannelType } from "../../types/channel.type";
+import { useVoiceEvents } from "../../hooks/useVoiceEvents";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -35,13 +36,15 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   showInline = false,
   showDiscordStyle = false,
 }) => {
+  // Set up WebSocket listeners for real-time voice presence updates
+  useVoiceEvents();
+  
   const {
     data: presence,
     isLoading,
     error,
   } = useGetChannelPresenceQuery(channel.id, {
     skip: channel.type !== ChannelType.VOICE,
-    pollingInterval: 10000, // Poll every 10 seconds
   });
 
   if (channel.type !== ChannelType.VOICE) {

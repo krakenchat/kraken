@@ -78,9 +78,12 @@ export class MessagesGateway {
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
     console.log('[MessagesGateway] *** DM HANDLER CALLED - RAW ***');
-    console.log('[MessagesGateway] Raw payload:', JSON.stringify(payload, null, 2));
+    console.log(
+      '[MessagesGateway] Raw payload:',
+      JSON.stringify(payload, null, 2),
+    );
     console.log('[MessagesGateway] User:', client.handshake?.user?.id);
-    
+
     try {
       console.log('[MessagesGateway] Creating message in database...');
       const message = await this.messagesService.create({
@@ -88,9 +91,12 @@ export class MessagesGateway {
         authorId: client.handshake.user.id,
         sentAt: new Date(),
       });
-      
+
       console.log('[MessagesGateway] Message created with ID:', message.id);
-      console.log('[MessagesGateway] Sending NEW_DM event to room:', payload.directMessageGroupId);
+      console.log(
+        '[MessagesGateway] Sending NEW_DM event to room:',
+        payload.directMessageGroupId,
+      );
 
       this.websocketService.sendToRoom(
         payload.directMessageGroupId,
@@ -120,9 +126,12 @@ export class MessagesGateway {
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
     console.log('[MessagesGateway] *** DM HANDLER WITH RBAC CALLED ***');
-    console.log('[MessagesGateway] handleDirectMessage called with payload:', payload);
+    console.log(
+      '[MessagesGateway] handleDirectMessage called with payload:',
+      payload,
+    );
     console.log('[MessagesGateway] User:', client.handshake.user.id);
-    
+
     const message = await this.messagesService.create({
       ...payload,
       authorId: client.handshake.user.id,
@@ -130,7 +139,10 @@ export class MessagesGateway {
     });
 
     console.log('[MessagesGateway] Created message:', message.id);
-    console.log('[MessagesGateway] Sending to room:', payload.directMessageGroupId);
+    console.log(
+      '[MessagesGateway] Sending to room:',
+      payload.directMessageGroupId,
+    );
 
     this.websocketService.sendToRoom(
       payload.directMessageGroupId!,

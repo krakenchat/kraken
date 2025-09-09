@@ -48,7 +48,9 @@ export class InviteController {
   }
 
   @Get('public/:code')
-  async getPublicInvite(@Param('code') code: string): Promise<InstanceInvite | null> {
+  async getPublicInvite(
+    @Param('code') code: string,
+  ): Promise<InstanceInvite | null> {
     return this.inviteService.getInviteByCode(code);
   }
 

@@ -512,15 +512,15 @@ export class RolesService {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
     }
 
-    // Prevent updating default roles
+    // Check if this is a default role and prevent name changes (but allow permission changes)
     const isDefaultRole =
       existingRole.name.includes('Community Admin -') ||
       existingRole.name.includes('Member -') ||
       existingRole.name.includes('Moderator -');
 
-    if (isDefaultRole) {
+    if (isDefaultRole && updateRoleDto.name && updateRoleDto.name.trim() !== existingRole.name.trim()) {
       throw new BadRequestException(
-        'Cannot update default roles. Create a custom role instead.',
+        'Cannot change the name of default roles. Only permissions can be modified.',
       );
     }
 

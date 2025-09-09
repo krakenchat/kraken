@@ -59,7 +59,7 @@ export class VoicePresenceService {
 
       // Notify other users in the channel
       this.websocketService.sendToRoom(
-        `channel_${channelId}`,
+        channelId,
         ServerEvents.VOICE_CHANNEL_USER_JOINED,
         {
           channelId,
@@ -100,7 +100,7 @@ export class VoicePresenceService {
 
       // Notify other users in the channel
       this.websocketService.sendToRoom(
-        `channel_${channelId}`,
+        channelId,
         ServerEvents.VOICE_CHANNEL_USER_LEFT,
         {
           channelId,
@@ -195,7 +195,7 @@ export class VoicePresenceService {
 
       // Notify other users of the state change
       this.websocketService.sendToRoom(
-        `channel_${channelId}`,
+        channelId,
         ServerEvents.VOICE_CHANNEL_USER_UPDATED,
         {
           channelId,

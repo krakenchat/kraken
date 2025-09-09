@@ -30,13 +30,13 @@ export class PresenceGateway implements OnGatewayDisconnect {
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
     const userId = client.handshake.user.id;
-    
+
     // Check if user was previously offline
     const wasOnline = await this.presenceService.isOnline(userId);
-    
+
     // Set user as online
     await this.presenceService.setOnline(userId, 60); // 1 minute TTL
-    
+
     // If user was offline and is now online, broadcast the presence change
     if (!wasOnline) {
       this.websocketService.sendToAll(ServerEvents.USER_ONLINE, {
@@ -58,10 +58,10 @@ export class PresenceGateway implements OnGatewayDisconnect {
   ): Promise<void> {
     if (client.handshake?.user?.id) {
       const userId = client.handshake.user.id;
-      
+
       // Set user as offline
       await this.presenceService.setOffline(userId);
-      
+
       // Broadcast offline status
       this.websocketService.sendToAll(ServerEvents.USER_OFFLINE, {
         userId,

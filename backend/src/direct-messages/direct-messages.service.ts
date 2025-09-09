@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { CreateDmGroupDto } from './dto/create-dm-group.dto';
 import { AddMembersDto } from './dto/add-members.dto';
@@ -12,42 +17,43 @@ export class DirectMessagesService {
 
   async findUserDmGroups(userId: string): Promise<DmGroupResponseDto[]> {
     try {
-      const memberships = await this.databaseService.directMessageGroupMember.findMany({
-        where: { userId },
-        include: {
-          group: {
-            include: {
-              members: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      username: true,
-                      displayName: true,
-                      avatarUrl: true,
+      const memberships =
+        await this.databaseService.directMessageGroupMember.findMany({
+          where: { userId },
+          include: {
+            group: {
+              include: {
+                members: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                      },
                     },
                   },
                 },
-              },
-              messages: {
-                take: 1,
-                orderBy: { sentAt: 'desc' },
-                select: {
-                  id: true,
-                  authorId: true,
-                  spans: true,
-                  sentAt: true,
+                messages: {
+                  take: 1,
+                  orderBy: { sentAt: 'desc' },
+                  select: {
+                    id: true,
+                    authorId: true,
+                    spans: true,
+                    sentAt: true,
+                  },
                 },
               },
             },
           },
-        },
-        orderBy: {
-          group: {
-            createdAt: 'desc',
+          orderBy: {
+            group: {
+              createdAt: 'desc',
+            },
           },
-        },
-      });
+        });
 
       return memberships.map((membership) => ({
         id: membership.group.id,
@@ -63,17 +69,25 @@ export class DirectMessagesService {
     }
   }
 
-  async createDmGroup(createDmGroupDto: CreateDmGroupDto, creatorId: string): Promise<DmGroupResponseDto> {
+  async createDmGroup(
+    createDmGroupDto: CreateDmGroupDto,
+    creatorId: string,
+  ): Promise<DmGroupResponseDto> {
     try {
       // Include the creator in the user list if not already present
-      const allUserIds = Array.from(new Set([creatorId, ...createDmGroupDto.userIds]));
-      
+      const allUserIds = Array.from(
+        new Set([creatorId, ...createDmGroupDto.userIds]),
+      );
+
       // Determine if it's a group (more than 2 users) or 1:1 DM
       const isGroup = createDmGroupDto.isGroup ?? allUserIds.length > 2;
 
       // For 1:1 DMs, check if one already exists
       if (!isGroup && allUserIds.length === 2) {
-        const existingDm = await this.findExisting1on1Dm(allUserIds[0], allUserIds[1]);
+        const existingDm = await this.findExisting1on1Dm(
+          allUserIds[0],
+          allUserIds[1],
+        );
         if (existingDm) {
           return this.formatDmGroupResponse(existingDm);
         }
@@ -123,47 +137,52 @@ export class DirectMessagesService {
     }
   }
 
-  async findDmGroup(groupId: string, userId: string): Promise<DmGroupResponseDto> {
+  async findDmGroup(
+    groupId: string,
+    userId: string,
+  ): Promise<DmGroupResponseDto> {
     try {
       // Verify user is a member of this DM group
-      const membership = await this.databaseService.directMessageGroupMember.findFirst({
-        where: {
-          groupId,
-          userId,
-        },
-      });
+      const membership =
+        await this.databaseService.directMessageGroupMember.findFirst({
+          where: {
+            groupId,
+            userId,
+          },
+        });
 
       if (!membership) {
         throw new ForbiddenException('You are not a member of this DM group');
       }
 
-      const dmGroup = await this.databaseService.directMessageGroup.findUniqueOrThrow({
-        where: { id: groupId },
-        include: {
-          members: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  displayName: true,
-                  avatarUrl: true,
+      const dmGroup =
+        await this.databaseService.directMessageGroup.findUniqueOrThrow({
+          where: { id: groupId },
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
+                  },
                 },
               },
             },
-          },
-          messages: {
-            take: 1,
-            orderBy: { sentAt: 'desc' },
-            select: {
-              id: true,
-              authorId: true,
-              spans: true,
-              sentAt: true,
+            messages: {
+              take: 1,
+              orderBy: { sentAt: 'desc' },
+              select: {
+                id: true,
+                authorId: true,
+                spans: true,
+                sentAt: true,
+              },
             },
           },
-        },
-      });
+        });
 
       return this.formatDmGroupResponse(dmGroup);
     } catch (error) {
@@ -175,7 +194,11 @@ export class DirectMessagesService {
     }
   }
 
-  async addMembers(groupId: string, addMembersDto: AddMembersDto, userId: string): Promise<DmGroupResponseDto> {
+  async addMembers(
+    groupId: string,
+    addMembersDto: AddMembersDto,
+    userId: string,
+  ): Promise<DmGroupResponseDto> {
     try {
       // Verify user is a member and the group is a group chat (not 1:1 DM)
       const dmGroup = await this.databaseService.directMessageGroup.findFirst({
@@ -206,7 +229,9 @@ export class DirectMessagesService {
           });
         } catch (error) {
           // Ignore duplicate member errors
-          this.logger.warn(`User ${newUserId} is already a member of group ${groupId}`);
+          this.logger.warn(
+            `User ${newUserId} is already a member of group ${groupId}`,
+          );
         }
       }
 

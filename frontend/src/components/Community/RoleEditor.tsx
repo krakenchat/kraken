@@ -27,7 +27,7 @@ import { RoleDto } from "../../features/roles/rolesApiSlice";
 
 interface RoleEditorProps {
   role?: RoleDto; // undefined for creating new role
-  onSave: (data: { name: string; actions: string[] }) => Promise<void>;
+  onSave: (data: { name?: string; actions: string[] }) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
   error?: string;
@@ -47,6 +47,10 @@ const RoleEditor: React.FC<RoleEditorProps> = ({
   const [nameError, setNameError] = useState("");
 
   const isEditing = !!role;
+  
+  const isDefaultRole = (roleName: string) => {
+    return ['Community Admin', 'Moderator', 'Member'].includes(roleName);
+  };
 
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newName = event.target.value;
@@ -100,10 +104,16 @@ const RoleEditor: React.FC<RoleEditorProps> = ({
     }
 
     try {
-      await onSave({
-        name: name.trim(),
+      const saveData: { name?: string; actions: string[] } = {
         actions: Array.from(selectedActions),
-      });
+      };
+
+      // Only include name if it's actually changed (for editing) or if creating new role
+      if (!isEditing || name.trim() !== (role?.name || '').trim()) {
+        saveData.name = name.trim();
+      }
+
+      await onSave(saveData);
     } catch {
       // Error handled by parent component
     }
@@ -144,6 +154,12 @@ const RoleEditor: React.FC<RoleEditorProps> = ({
           </Alert>
         )}
 
+        {isEditing && isDefaultRole(role?.name || "") && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            You are editing a default role. You can modify permissions but cannot change the role name.
+          </Alert>
+        )}
+
         <Box mb={4}>
           <TextField
             label="Role Name"
@@ -151,8 +167,12 @@ const RoleEditor: React.FC<RoleEditorProps> = ({
             onChange={handleNameChange}
             fullWidth
             error={!!nameError}
-            helperText={nameError || "Enter a descriptive name for this role"}
-            disabled={isLoading}
+            helperText={
+              isEditing && isDefaultRole(role?.name || "") 
+                ? "Default role name cannot be changed" 
+                : nameError || "Enter a descriptive name for this role"
+            }
+            disabled={isLoading || (isEditing && isDefaultRole(role?.name || ""))}
             inputProps={{ maxLength: 50 }}
           />
         </Box>

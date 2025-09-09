@@ -18,7 +18,9 @@ export class PresenceController {
   constructor(private readonly presenceService: PresenceService) {}
 
   @Get('user/:userId')
-  async getUserPresence(@Param('userId') userId: string): Promise<UserPresenceResponse> {
+  async getUserPresence(
+    @Param('userId') userId: string,
+  ): Promise<UserPresenceResponse> {
     const isOnline = await this.presenceService.isOnline(userId);
     return {
       userId,
@@ -30,7 +32,7 @@ export class PresenceController {
   async getBulkPresence(): Promise<BulkPresenceResponse> {
     const onlineUsers = await this.presenceService.getOnlineUsers();
     const presence: Record<string, boolean> = {};
-    
+
     // Mark all online users as true
     for (const userId of onlineUsers) {
       presence[userId] = true;
@@ -45,7 +47,7 @@ export class PresenceController {
   ): Promise<BulkPresenceResponse> {
     const userIdArray = userIds.split(',');
     const presence: Record<string, boolean> = {};
-    
+
     for (const userId of userIdArray) {
       const isOnline = await this.presenceService.isOnline(userId);
       presence[userId] = isOnline;
