@@ -1,5 +1,6 @@
 import React from "react";
 import MessageContainerWrapper from "../Message/MessageContainerWrapper";
+import MemberListContainer from "../Message/MemberListContainer";
 import { useDirectMessages } from "../../hooks/useDirectMessages";
 import { useDirectMessageWebSocket } from "../../hooks/useDirectMessageWebSocket";
 import { useGetDmGroupQuery } from "../../features/directMessages/directMessagesApiSlice";
@@ -38,6 +39,14 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
     console.log("[DirectMessageContainer] sendDirectMessage called");
   };
 
+  // Create member list component for the DM group
+  const memberListComponent = (
+    <MemberListContainer
+      contextType="dm"
+      contextId={dmGroupId}
+    />
+  );
+
   return (
     <MessageContainerWrapper
       contextType="dm"
@@ -45,6 +54,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
       useMessagesHook={() => messagesHookResult}
       userMentions={userMentions}
       onSendMessage={handleSendMessage}
+      memberListComponent={memberListComponent}
       placeholder="Type a direct message..."
       emptyStateMessage="No messages yet. Start the conversation!"
     />

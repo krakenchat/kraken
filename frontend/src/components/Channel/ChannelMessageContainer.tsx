@@ -1,5 +1,6 @@
 import React from "react";
 import MessageContainerWrapper from "../Message/MessageContainerWrapper";
+import MemberListContainer from "../Message/MemberListContainer";
 import { useParams } from "react-router-dom";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessageSocket } from "../../hooks/useSendMessageSocket";
@@ -60,6 +61,15 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     sendMessage(msg);
   };
 
+  // Create member list component for the channel
+  const memberListComponent = (
+    <MemberListContainer
+      contextType="channel"
+      contextId={channelId}
+      communityId={communityId}
+    />
+  );
+
   return (
     <MessageContainerWrapper
       contextType="channel"
@@ -69,6 +79,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       userMentions={userMentions}
       channelMentions={channelMentions}
       onSendMessage={handleSendMessage}
+      memberListComponent={memberListComponent}
       placeholder="Type a message... Use @ for members, @here, @channel"
       emptyStateMessage="No messages yet. Start the conversation!"
     />

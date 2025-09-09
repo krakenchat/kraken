@@ -23,6 +23,7 @@ export interface MessageContainerWrapperProps {
   userMentions: UserMention[];
   channelMentions?: ChannelMention[];
   onSendMessage: (messageContent: string, spans: unknown[]) => void;
+  memberListComponent?: React.ReactNode;
   placeholder?: string;
   emptyStateMessage?: string;
 }
@@ -35,6 +36,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
   userMentions,
   channelMentions,
   onSendMessage,
+  memberListComponent,
   placeholder = "Type a message...",
   emptyStateMessage = "No messages yet. Start the conversation!",
 }) => {
@@ -74,6 +76,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       isLoadingMore={isLoadingMore}
       onLoadMore={onLoadMore}
       messageInput={messageInput}
+      memberListComponent={memberListComponent}
       emptyStateMessage={emptyStateMessage}
     />
   );

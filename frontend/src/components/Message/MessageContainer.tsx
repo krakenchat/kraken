@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import MessageComponent from "./MessageComponent";
-import { Typography, Fab } from "@mui/material";
+import { Typography, Fab, useMediaQuery, useTheme } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
 import type { Message } from "../../types/message.type";
@@ -9,7 +9,7 @@ interface MessageContainerProps {
   // Data
   messages: Message[];
   isLoading: boolean;
-  error: any;
+  error: unknown;
   authorId: string;
   
   // Pagination
@@ -19,6 +19,10 @@ interface MessageContainerProps {
   
   // Message Input
   messageInput: React.ReactNode;
+  
+  // Member List
+  memberListComponent?: React.ReactNode;
+  showMemberList?: boolean;
   
   // Optional customization
   emptyStateMessage?: string;
@@ -33,8 +37,12 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   isLoadingMore,
   onLoadMore,
   messageInput,
+  memberListComponent,
+  showMemberList = true,
   emptyStateMessage = "No messages yet. Start the conversation!",
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const channelRef = useRef<HTMLDivElement>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
 
@@ -78,21 +86,32 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
   const skeletonCount = 10;
 
+  // Hide member list on mobile or when explicitly disabled
+  const shouldShowMemberList = showMemberList && !isMobile && memberListComponent;
+
   if (isLoading) {
     return (
       <div
         style={{
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: "16px",
+          flexDirection: "row",
+          width: "100%",
         }}
       >
-        {Array.from({ length: skeletonCount }).map((_, i) => (
-          <MessageSkeleton key={i} />
-        ))}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            padding: "16px",
+          }}
+        >
+          {Array.from({ length: skeletonCount }).map((_, i) => (
+            <MessageSkeleton key={i} />
+          ))}
+        </div>
+        {shouldShowMemberList && memberListComponent}
       </div>
     );
   }
@@ -103,12 +122,22 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         style={{
           height: "100%",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "16px",
+          flexDirection: "row",
+          width: "100%",
         }}
       >
-        <Typography color="error">Error loading messages</Typography>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+        >
+          <Typography color="error">Error loading messages</Typography>
+        </div>
+        {shouldShowMemberList && memberListComponent}
       </div>
     );
   }
@@ -117,24 +146,33 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     <div
       style={{
         display: "flex",
-        flexDirection: "column-reverse",
+        flexDirection: "row",
         height: "100%",
         width: "100%",
         position: "relative",
       }}
     >
+      {/* Message Area */}
       <div
         style={{
+          flex: 1,
           display: "flex",
           flexDirection: "column-reverse",
           height: "100%",
-          width: "100%",
-          overflowY: "auto",
-          overflowX: "hidden",
-          padding: "16px",
+          position: "relative",
         }}
-        ref={channelRef}
       >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column-reverse",
+            height: "100%",
+            overflowY: "auto",
+            overflowX: "hidden",
+            padding: "16px",
+          }}
+          ref={channelRef}
+        >
         <div
           style={{
             position: "sticky",
@@ -178,21 +216,25 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         )}
       </div>
 
-      {showJumpToBottom && (
-        <Fab
-          size="small"
-          onClick={scrollToBottom}
-          sx={{
-            position: "absolute",
-            bottom: 80,
-            right: 16,
-            backgroundColor: "primary.main",
-            "&:hover": { backgroundColor: "primary.dark" },
-          }}
-        >
-          <KeyboardArrowDownIcon />
-        </Fab>
-      )}
+        {showJumpToBottom && (
+          <Fab
+            size="small"
+            onClick={scrollToBottom}
+            sx={{
+              position: "absolute",
+              bottom: 80,
+              right: 16,
+              backgroundColor: "primary.main",
+              "&:hover": { backgroundColor: "primary.dark" },
+            }}
+          >
+            <KeyboardArrowDownIcon />
+          </Fab>
+        )}
+      </div>
+
+      {/* Member List */}
+      {shouldShowMemberList && memberListComponent}
     </div>
   );
 };
