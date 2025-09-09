@@ -23,10 +23,12 @@ import { Link } from "react-router-dom";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { useCreateInviteMutation } from "../features/invite/inviteApiSlice";
+import { useMyCommunitiesQuery } from "../features/community/communityApiSlice";
 import { CreateInviteDto } from "../types/invite.type";
 
 const HomePage: React.FC = () => {
   const { data, isLoading, isError } = useProfileQuery(undefined);
+  const { data: communities = [] } = useMyCommunitiesQuery();
   const [createInvite, { isLoading: creatingInvite }] = useCreateInviteMutation();
   const [lastCreatedInvite, setLastCreatedInvite] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -43,8 +45,12 @@ const HomePage: React.FC = () => {
 
   const handleQuickInvite = async () => {
     try {
+      // Auto-select communities (prefer "default" community if it exists, otherwise all communities)
+      const defaultCommunity = communities.find(c => c.name.toLowerCase() === 'default');
+      const selectedCommunities = defaultCommunity ? [defaultCommunity.id] : communities.map(c => c.id);
+      
       const createInviteDto: CreateInviteDto = {
-        communityIds: [],
+        communityIds: selectedCommunities,
         maxUses: 10,
         validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       };

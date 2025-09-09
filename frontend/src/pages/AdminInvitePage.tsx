@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Typography,
@@ -26,6 +26,10 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
+  FormLabel,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -40,6 +44,7 @@ import {
   useCreateInviteMutation,
   useDeleteInviteMutation,
 } from "../features/invite/inviteApiSlice";
+import { useMyCommunitiesQuery } from "../features/community/communityApiSlice";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../types/invite.type";
 
@@ -67,6 +72,11 @@ const AdminInvitePage: React.FC = () => {
     refetch,
   } = useGetInvitesQuery();
 
+  const {
+    data: communities = [],
+    isLoading: loadingCommunities,
+  } = useMyCommunitiesQuery();
+
   const [createInvite, { isLoading: creatingInvite }] = useCreateInviteMutation();
   const [deleteInvite, { isLoading: deletingInvite }] = useDeleteInviteMutation();
 
@@ -79,6 +89,20 @@ const AdminInvitePage: React.FC = () => {
     resourceType: "INSTANCE",
     actions: ["DELETE_INSTANCE_INVITE"],
   });
+
+  // Auto-select communities when dialog opens
+  useEffect(() => {
+    if (createDialogOpen && communities.length > 0 && selectedCommunities.length === 0) {
+      // Auto-select the "default" community if it exists, otherwise select all communities
+      const defaultCommunity = communities.find(c => c.name.toLowerCase() === 'default');
+      if (defaultCommunity) {
+        setSelectedCommunities([defaultCommunity.id]);
+      } else {
+        // If no default community, select all communities (assuming user wants to be inclusive)
+        setSelectedCommunities(communities.map(c => c.id));
+      }
+    }
+  }, [createDialogOpen, communities, selectedCommunities.length]);
 
   const { hasPermissions: canViewInvites } = useUserPermissions({
     resourceType: "INSTANCE", 
@@ -191,6 +215,14 @@ const AdminInvitePage: React.FC = () => {
 
   const handleFilterChange = (type: keyof InviteFilters) => (event: SelectChangeEvent) => {
     setFilters(prev => ({ ...prev, [type]: event.target.value }));
+  };
+
+  const handleCommunityToggle = (communityId: string) => {
+    setSelectedCommunities(prev => 
+      prev.includes(communityId)
+        ? prev.filter(id => id !== communityId)
+        : [...prev, communityId]
+    );
   };
 
   // Calculate stats
@@ -361,7 +393,7 @@ const AdminInvitePage: React.FC = () => {
                             </IconButton>
                           </Tooltip>
                         </Box>
-                        <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+                        <Box display="flex" gap={1} alignItems="center" flexWrap="wrap" mb={1}>
                           <Typography variant="caption" color="text.secondary">
                             Uses: {invite.uses}{invite.maxUses ? `/${invite.maxUses}` : ' (unlimited)'}
                           </Typography>
@@ -373,12 +405,32 @@ const AdminInvitePage: React.FC = () => {
                           <Typography variant="caption" color="text.secondary">
                             • Created: {formatDate(invite.createdAt)}
                           </Typography>
-                          {invite.defaultCommunityId.length > 0 && (
-                            <Typography variant="caption" color="text.secondary">
-                              • Communities: {invite.defaultCommunityId.length}
-                            </Typography>
-                          )}
                         </Box>
+                        {invite.defaultCommunityId.length > 0 && (
+                          <Box display="flex" gap={0.5} alignItems="center" flexWrap="wrap">
+                            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                              Communities:
+                            </Typography>
+                            {invite.defaultCommunityId.map(id => {
+                              const community = communities.find(c => c.id === id);
+                              return (
+                                <Chip
+                                  key={id}
+                                  label={community?.name || 'Unknown'}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ 
+                                    height: 20, 
+                                    fontSize: '0.7rem',
+                                    bgcolor: isDisabled ? 'transparent' : 'primary.50',
+                                    borderColor: isDisabled ? 'error.main' : 'primary.main',
+                                    color: isDisabled ? 'error.main' : 'primary.main',
+                                  }}
+                                />
+                              );
+                            })}
+                          </Box>
+                        )}
                       </Box>
                       <Box display="flex" gap={1}>
                         <Chip 
@@ -477,6 +529,51 @@ const AdminInvitePage: React.FC = () => {
               fullWidth
               InputLabelProps={{ shrink: true }}
             />
+
+            {/* Community Selection */}
+            <Box>
+              <FormLabel component="legend" sx={{ mb: 1 }}>
+                Communities to Auto-Join
+              </FormLabel>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                New users will automatically join the selected communities
+              </Typography>
+              {loadingCommunities ? (
+                <Box display="flex" alignItems="center" gap={1}>
+                  <CircularProgress size={16} />
+                  <Typography variant="body2" color="text.secondary">Loading communities...</Typography>
+                </Box>
+              ) : (
+                <FormGroup>
+                  {communities.map((community) => (
+                    <FormControlLabel
+                      key={community.id}
+                      control={
+                        <Checkbox
+                          checked={selectedCommunities.includes(community.id)}
+                          onChange={() => handleCommunityToggle(community.id)}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body2">{community.name}</Typography>
+                          {community.description && (
+                            <Typography variant="caption" color="text.secondary">
+                              {community.description}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                    />
+                  ))}
+                  {communities.length === 0 && (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      No communities available. Users will only join the instance.
+                    </Typography>
+                  )}
+                </FormGroup>
+              )}
+            </Box>
 
             {/* Quick presets */}
             <Box>
