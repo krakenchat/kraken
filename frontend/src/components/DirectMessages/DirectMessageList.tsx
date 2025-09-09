@@ -7,8 +7,6 @@ import {
   ListItemText,
   Avatar,
   Typography,
-  IconButton,
-  Fab,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,7 +18,6 @@ import {
   CircularProgress,
 } from "@mui/material";
 import {
-  Add as AddIcon,
   Group as GroupIcon,
   Person as PersonIcon,
 } from "@mui/icons-material";
@@ -31,6 +28,8 @@ import { DirectMessageGroup } from "../../types/direct-message.type";
 interface DirectMessageListProps {
   selectedDmGroupId?: string;
   onSelectDmGroup: (dmGroupId: string) => void;
+  showCreateDialog: boolean;
+  setShowCreateDialog: (show: boolean) => void;
 }
 
 interface User {
@@ -43,6 +42,8 @@ interface User {
 const DirectMessageList: React.FC<DirectMessageListProps> = ({
   selectedDmGroupId,
   onSelectDmGroup,
+  showCreateDialog,
+  setShowCreateDialog,
 }) => {
   const { data: dmGroups = [], isLoading } = useGetUserDmGroupsQuery();
   const { data: usersData } = useGetAllUsersQuery({ limit: 100 });
@@ -50,7 +51,6 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
   const { data: currentUser } = useProfileQuery();
   const [createDmGroup, { isLoading: isCreating }] = useCreateDmGroupMutation();
   
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [groupName, setGroupName] = useState("");
 
@@ -125,23 +125,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
   }
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Box
-        sx={{
-          p: 2,
-          borderBottom: 1,
-          borderColor: "divider",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography variant="h6">Direct Messages</Typography>
-        <IconButton onClick={() => setShowCreateDialog(true)} size="small">
-          <AddIcon />
-        </IconButton>
-      </Box>
-
+    <>
       <Box sx={{ flex: 1, overflow: "auto" }}>
         <List>
           {dmGroups.map((dmGroup) => (
@@ -152,8 +136,10 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
               onClick={() => onSelectDmGroup(dmGroup.id)}
               sx={{
                 borderRadius: 1,
-                margin: "4px 8px",
+                margin: "4px 0",
+                padding: "8px 16px",
                 cursor: "pointer",
+                minWidth: 0,
                 "&.Mui-selected": {
                   backgroundColor: "action.selected",
                 },
@@ -175,11 +161,28 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
                 primary={getDmDisplayName(dmGroup)}
                 secondary={
                   dmGroup.lastMessage ? (
-                    <Box component="span" sx={{ display: "flex", justifyContent: "space-between" }}>
-                      <Box component="span" sx={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <Box component="span" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                      <Box 
+                        component="span" 
+                        sx={{ 
+                          flex: 1, 
+                          overflow: "hidden", 
+                          textOverflow: "ellipsis", 
+                          whiteSpace: "nowrap",
+                          minWidth: 0
+                        }}
+                      >
                         {dmGroup.lastMessage.spans.find(s => s.type === "PLAINTEXT")?.text || "Message"}
                       </Box>
-                      <Box component="span" sx={{ ml: 1, fontSize: "0.75rem" }}>
+                      <Box 
+                        component="span" 
+                        sx={{ 
+                          ml: 1, 
+                          fontSize: "0.75rem",
+                          flexShrink: 0,
+                          whiteSpace: "nowrap"
+                        }}
+                      >
                         {formatLastMessageTime(dmGroup.lastMessage.sentAt)}
                       </Box>
                     </Box>
@@ -187,6 +190,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
                     "No messages yet"
                   )
                 }
+                sx={{ minWidth: 0 }}
               />
             </ListItem>
           ))}
@@ -253,7 +257,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 };
 

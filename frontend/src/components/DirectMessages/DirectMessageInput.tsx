@@ -126,22 +126,23 @@ export default function DirectMessageInput({
       if (!inputRef.current) return;
 
       setMentionState(prevState => {
-        const newText = insertMention(
+        const result = insertMention(
           text,
           cursorPosition,
-          prevState.query || "",
-          `@${mention.displayName || mention.username}`
+          { 
+            type: 'user', 
+            username: mention.displayName || mention.username 
+          }
         );
 
-        setText(newText);
+        setText(result.newText);
 
         // Focus and set cursor position after state updates
         requestAnimationFrame(() => {
           if (inputRef.current) {
-            const newCursorPos = cursorPosition + `@${mention.displayName || mention.username}`.length - (prevState.query?.length || 0);
             inputRef.current.focus();
-            inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
-            setCursorPosition(newCursorPos);
+            inputRef.current.setSelectionRange(result.newCursorPosition, result.newCursorPosition);
+            setCursorPosition(result.newCursorPosition);
           }
         });
 
@@ -213,7 +214,7 @@ export default function DirectMessageInput({
   }, [updateCursorPosition]);
 
   const handleSend = async () => {
-    if (!text.trim() || sending) return;
+    if (!text || typeof text !== 'string' || !text.trim() || sending) return;
 
     console.log("[DirectMessageInput] Sending message:", text);
     setSending(true);
@@ -256,9 +257,15 @@ export default function DirectMessageInput({
     <Box sx={{ position: "relative" }}>
       {mentionState.isOpen && (
         <MentionDropdown
-          mentionState={mentionState}
-          onSelect={handleMentionSelect}
-          getSelectedSuggestion={getSelectedSuggestion}
+          suggestions={mentionState.suggestions}
+          selectedIndex={mentionState.selectedIndex}
+          isLoading={mentionState.isLoading}
+          onSelectSuggestion={(index) => {
+            const suggestion = mentionState.suggestions[index];
+            if (suggestion) {
+              handleMentionSelect(suggestion);
+            }
+          }}
         />
       )}
       <StyledPaper elevation={1}>
@@ -278,7 +285,7 @@ export default function DirectMessageInput({
         <IconButton
           color="primary"
           onClick={handleSend}
-          disabled={!text.trim() || sending}
+          disabled={!text || typeof text !== 'string' || !text.trim() || sending}
           size="small"
         >
           {sending ? <CircularProgress size={20} /> : <SendIcon />}

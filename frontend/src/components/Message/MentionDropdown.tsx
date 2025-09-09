@@ -80,7 +80,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
     );
   }
 
-  if (suggestions.length === 0) {
+  if (!suggestions || suggestions.length === 0) {
     return null;
   }
 
