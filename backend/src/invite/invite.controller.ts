@@ -14,6 +14,7 @@ import { CreateInviteDto } from './dto/create-invite.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
+import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
 @Controller('invite')
@@ -23,6 +24,7 @@ export class InviteController {
   @Post()
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.CREATE_INSTANCE_INVITE)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   async createInvite(
     @Request() req: { user: UserEntity },
     @Body() dto: CreateInviteDto,
@@ -38,6 +40,7 @@ export class InviteController {
   @Get()
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   async getInvites(
     @Request() req: { user: UserEntity },
   ): Promise<InstanceInvite[]> {
@@ -47,6 +50,7 @@ export class InviteController {
   @Get(':code')
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   async getInvite(@Param('code') code: string): Promise<InstanceInvite | null> {
     return this.inviteService.getInviteByCode(code);
   }
@@ -54,6 +58,7 @@ export class InviteController {
   @Delete(':code')
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.DELETE_INSTANCE_INVITE)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   async deleteInvite(
     @Request() req: { user: UserEntity },
     @Param('code') code: string,

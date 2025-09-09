@@ -176,7 +176,7 @@ export class MessagesController {
   @Post('reactions')
   @RequiredActions(RbacActions.CREATE_REACTION)
   @RbacResource({
-    type: RbacResourceType.CHANNEL,
+    type: RbacResourceType.MESSAGE,
     idKey: 'messageId',
     source: ResourceIdSource.BODY,
   })
@@ -208,7 +208,7 @@ export class MessagesController {
   @Delete('reactions')
   @RequiredActions(RbacActions.DELETE_REACTION)
   @RbacResource({
-    type: RbacResourceType.CHANNEL,
+    type: RbacResourceType.MESSAGE,
     idKey: 'messageId',
     source: ResourceIdSource.BODY,
   })

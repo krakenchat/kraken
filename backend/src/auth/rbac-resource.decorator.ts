@@ -5,6 +5,7 @@ export enum RbacResourceType {
   CHANNEL = 'CHANNEL',
   INSTANCE = 'INSTANCE',
   DM_GROUP = 'DM_GROUP',
+  MESSAGE = 'MESSAGE',
 }
 
 export enum ResourceIdSource {

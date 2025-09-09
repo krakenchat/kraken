@@ -65,6 +65,7 @@ export class ChannelMembershipController {
 
   @Get('/user/:userId')
   @RequiredActions(RbacActions.READ_MEMBER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   findAllForUser(
     @Param('userId', ParseObjectIdPipe) userId: string,
     @Req() req: { user: UserEntity },
@@ -82,6 +83,7 @@ export class ChannelMembershipController {
 
   @Get('/my')
   @RequiredActions(RbacActions.READ_MEMBER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   findMyChannelMemberships(
     @Req() req: { user: UserEntity },
   ): Promise<ChannelMembershipResponseDto[]> {
@@ -119,6 +121,12 @@ export class ChannelMembershipController {
 
   @Delete('/leave/:channelId')
   @HttpCode(204)
+  @RequiredActions(RbacActions.DELETE_MEMBER)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
   leaveChannel(
     @Param('channelId', ParseObjectIdPipe) channelId: string,
     @Req() req: { user: UserEntity },
