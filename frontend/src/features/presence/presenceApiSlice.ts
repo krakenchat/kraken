@@ -47,6 +47,8 @@ export const presenceApi = createApi({
         { type: "Presence", id: `multi-${userIds.join(',')}` },
         ...userIds.map((userId) => ({ type: "Presence" as const, id: userId })),
       ],
+      // Refetch presence data every 60 seconds as fallback
+      refetchOnMountOrArgChange: 60,
     }),
   }),
 });

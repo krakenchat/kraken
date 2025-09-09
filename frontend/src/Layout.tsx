@@ -11,6 +11,7 @@ import ProfileIcon from "./components/NavBar/ProfileIcon";
 import { VoiceBottomBar } from "./components/Voice";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
+import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import type { User } from "./types/auth.type";
 
 const APPBAR_HEIGHT = 64;
@@ -25,6 +26,9 @@ const Layout: React.FC = () => {
   
   // Send presence heartbeat to keep user marked as online
   usePresenceHeartbeat(!!userData && !isLoading && !isError);
+  
+  // Listen for real-time presence events
+  usePresenceEvents();
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
