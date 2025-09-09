@@ -537,12 +537,95 @@ const canManageChannels = userRoles.roles.some(role =>
 - **Channel Module** - Channel-specific permission inheritance
 - **Database Module** - Role and permission data storage
 
+## Custom Role Management (NEW)
+
+### Enhanced Service Methods
+
+The RolesService now includes comprehensive role management capabilities:
+
+```typescript
+// Get all roles for a community (default + custom)
+async getCommunityRoles(communityId: string): Promise<CommunityRolesResponseDto>
+
+// Create custom roles with validation  
+async createCommunityRole(
+  communityId: string,
+  createRoleDto: CreateRoleDto,
+): Promise<RoleDto>
+
+// Update custom roles (prevents editing defaults)
+async updateRole(roleId: string, updateRoleDto: UpdateRoleDto): Promise<RoleDto>
+
+// Delete custom roles with safety checks
+async deleteRole(roleId: string): Promise<void>
+
+// Enhanced user-role management
+async removeUserFromCommunityRole(
+  userId: string,
+  communityId: string, 
+  roleId: string
+): Promise<void>
+
+// Get users assigned to specific roles
+async getUsersForRole(
+  roleId: string,
+  communityId?: string,
+): Promise<Array<{ userId: string; username: string; displayName?: string }>>
+```
+
+### Role Management Features
+
+**✅ Custom Role Creation**
+- Validate role names and prevent duplicates
+- Validate all permissions against RbacActions enum
+- Automatic community-scoped naming for uniqueness
+
+**✅ Safe Role Updates**  
+- Prevent editing default system roles (Admin, Moderator, Member)
+- Handle role name conflicts within communities
+- Validate permission changes
+
+**✅ Protected Role Deletion**
+- Cannot delete default system roles
+- Cannot delete roles with active user assignments
+- Detailed error messages for constraint violations
+
+**✅ Advanced User Management**
+- Bulk role assignment/removal
+- View all users assigned to specific roles
+- Maintain referential integrity
+
+## API Integration (NEW)
+
+### New REST Endpoints
+
+```typescript
+// Role CRUD Operations
+GET    /api/roles/community/:communityId     // Get all community roles
+POST   /api/roles/community/:communityId     // Create custom role
+PUT    /api/roles/:roleId                    // Update custom role  
+DELETE /api/roles/:roleId                    // Delete custom role
+
+// User-Role Assignment
+POST   /api/roles/community/:communityId/assign              // Assign role
+DELETE /api/roles/community/:communityId/users/:userId/roles/:roleId  // Remove role
+GET    /api/roles/:roleId/users             // Get role members
+```
+
+### RBAC-Protected Endpoints
+
+All role management endpoints are protected with appropriate permissions:
+- `CREATE_ROLE`, `UPDATE_ROLE`, `DELETE_ROLE`, `READ_ROLE`
+- `UPDATE_MEMBER` for role assignments
+- Community-scoped resource validation
+
 ## Migration Notes
 
 ### Role System Updates
 - **Adding New Permissions:** Add to RbacActions enum and update default roles
 - **Role Migration:** Update existing communities when default roles change
 - **Permission Restructuring:** May require data migration for role assignments
+- **Custom Roles:** Existing custom roles will continue to work seamlessly
 
 ## Troubleshooting
 
@@ -564,7 +647,20 @@ const canManageChannels = userRoles.roles.some(role =>
 
 ## Related Documentation
 
-- [Auth Module](auth.md)
-- [RBAC System Documentation](../../features/auth-rbac.md)
-- [Community Role Management](../features/community.md#role-management)
-- [API Role Endpoints](../../api/roles.md)
+### Core System Integration
+- **[Auth Module](auth.md)** - Authentication and authorization module
+- **[RBAC System Documentation](../../features/auth-rbac.md)** - Complete RBAC implementation guide
+
+### Frontend Integration  
+- **[Roles State Management](../../state/rolesApi.md)** - RTK Query API slice for role management
+- **[RoleEditor Component](../../components/community/RoleEditor.md)** - Role creation and editing interface
+- **[RoleAssignmentDialog Component](../../components/community/RoleAssignmentDialog.md)** - User-role assignment dialog
+- **[RoleManagement Component](../../components/community/RoleManagement.md)** - Complete role management dashboard
+
+### API Integration
+- **[API Role Endpoints](../../api/roles.md)** - REST API documentation for role management
+- **[Community Role Management](../features/community.md#role-management)** - Community-level role integration
+
+### System Architecture
+- **[Database Schema](../../architecture/database.md#roles)** - Role system data models
+- **[RBAC Actions Constants](../../constants/rbacActions.md)** - Permission definitions and labels

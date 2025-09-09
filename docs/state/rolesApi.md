@@ -30,7 +30,7 @@ export const rolesApi = createApi({
 - **Reducer Path:** `rolesApi`
 - **Base Query:** `getBaseAuthedQuery` (includes JWT authentication and token refresh)
 - **Base URL:** `/api/roles`
-- **Tag Types:** `["UserRoles"]`
+- **Tag Types:** `["UserRoles", "CommunityRoles", "RoleUsers"]`
 
 ## Endpoints
 
@@ -185,6 +185,253 @@ getUserInstanceRoles: builder.query<UserRoles, string>({
 
 **Purpose:** Fetches another user's instance-level roles and permissions (admin functionality).
 
+### Community Role Management Endpoints
+
+#### getCommunityRoles
+```typescript
+getCommunityRoles: builder.query<CommunityRolesResponse, string>({
+  query: (communityId) => ({
+    url: `/community/${communityId}`,
+    method: "GET",
+  }),
+  providesTags: (_result, _error, communityId) => [
+    { type: "CommunityRoles", id: communityId },
+  ],
+})
+```
+
+**Purpose:** Fetches all custom roles for a specific community.
+
+**Usage:**
+```typescript
+const { 
+  data: communityRoles, 
+  error, 
+  isLoading 
+} = useGetCommunityRolesQuery(communityId, {
+  skip: !communityId,
+});
+
+// Access role data
+const roles = communityRoles?.roles || [];
+const adminRole = roles.find(role => role.name === 'Admin');
+```
+
+#### createCommunityRole
+```typescript
+createCommunityRole: builder.mutation<
+  RoleDto,
+  { communityId: string; data: CreateRoleDto }
+>({
+  query: ({ communityId, data }) => ({
+    url: `/community/${communityId}`,
+    method: "POST",
+    body: data,
+  }),
+  invalidatesTags: (_result, _error, { communityId }) => [
+    { type: "CommunityRoles", id: communityId },
+  ],
+})
+```
+
+**Purpose:** Creates a new custom role for a community.
+
+**Usage:**
+```typescript
+const [createRole, { isLoading, error }] = useCreateCommunityRoleMutation();
+
+const handleCreateRole = async (roleData: { name: string; actions: string[] }) => {
+  try {
+    await createRole({
+      communityId,
+      data: roleData,
+    }).unwrap();
+    // Role created successfully
+  } catch (error) {
+    // Handle error
+  }
+};
+```
+
+#### updateRole
+```typescript
+updateRole: builder.mutation<
+  RoleDto,
+  { roleId: string; data: UpdateRoleDto }
+>({
+  query: ({ roleId, data }) => ({
+    url: `/${roleId}`,
+    method: "PUT",
+    body: data,
+  }),
+  invalidatesTags: (_result, _error, { roleId }) => [
+    { type: "CommunityRoles", id: "LIST" },
+    { type: "UserRoles", id: "LIST" },
+  ],
+})
+```
+
+**Purpose:** Updates an existing role's name and permissions.
+
+**Usage:**
+```typescript
+const [updateRole, { isLoading, error }] = useUpdateRoleMutation();
+
+const handleUpdateRole = async (roleId: string, updates: { name?: string; actions?: string[] }) => {
+  try {
+    await updateRole({
+      roleId,
+      data: updates,
+    }).unwrap();
+    // Role updated successfully
+  } catch (error) {
+    // Handle error
+  }
+};
+```
+
+#### deleteRole
+```typescript
+deleteRole: builder.mutation<void, string>({
+  query: (roleId) => ({
+    url: `/${roleId}`,
+    method: "DELETE",
+  }),
+  invalidatesTags: () => [
+    { type: "CommunityRoles", id: "LIST" },
+    { type: "UserRoles", id: "LIST" },
+  ],
+})
+```
+
+**Purpose:** Deletes a custom role and removes it from all users.
+
+**Usage:**
+```typescript
+const [deleteRole, { isLoading, error }] = useDeleteRoleMutation();
+
+const handleDeleteRole = async (roleId: string) => {
+  try {
+    await deleteRole(roleId).unwrap();
+    // Role deleted successfully
+  } catch (error) {
+    // Handle error
+  }
+};
+```
+
+### User-Role Assignment Endpoints
+
+#### assignRoleToUser
+```typescript
+assignRoleToUser: builder.mutation<
+  void,
+  { communityId: string; data: { userId: string; roleId: string } }
+>({
+  query: ({ communityId, data }) => ({
+    url: `/community/${communityId}/assign`,
+    method: "POST",
+    body: data,
+  }),
+  invalidatesTags: (_result, _error, { communityId, data }) => [
+    { type: "UserRoles", id: `${data.userId}-community-${communityId}` },
+    { type: "RoleUsers", id: data.roleId },
+  ],
+})
+```
+
+**Purpose:** Assigns a role to a user within a community.
+
+**Usage:**
+```typescript
+const [assignRole, { isLoading, error }] = useAssignRoleToUserMutation();
+
+const handleAssignRole = async (userId: string, roleId: string) => {
+  try {
+    await assignRole({
+      communityId,
+      data: { userId, roleId },
+    }).unwrap();
+    // Role assigned successfully
+  } catch (error) {
+    // Handle error
+  }
+};
+```
+
+#### removeRoleFromUser
+```typescript
+removeRoleFromUser: builder.mutation<
+  void,
+  { communityId: string; userId: string; roleId: string }
+>({
+  query: ({ communityId, userId, roleId }) => ({
+    url: `/community/${communityId}/user/${userId}/role/${roleId}`,
+    method: "DELETE",
+  }),
+  invalidatesTags: (_result, _error, { communityId, userId, roleId }) => [
+    { type: "UserRoles", id: `${userId}-community-${communityId}` },
+    { type: "RoleUsers", id: roleId },
+  ],
+})
+```
+
+**Purpose:** Removes a role from a user within a community.
+
+**Usage:**
+```typescript
+const [removeRole, { isLoading, error }] = useRemoveRoleFromUserMutation();
+
+const handleRemoveRole = async (userId: string, roleId: string) => {
+  try {
+    await removeRole({
+      communityId,
+      userId,
+      roleId,
+    }).unwrap();
+    // Role removed successfully
+  } catch (error) {
+    // Handle error
+  }
+};
+```
+
+#### getUsersForRole
+```typescript
+getUsersForRole: builder.query<
+  RoleUsersResponse,
+  { communityId: string; roleId: string }
+>({
+  query: ({ communityId, roleId }) => ({
+    url: `/community/${communityId}/role/${roleId}/users`,
+    method: "GET",
+  }),
+  providesTags: (_result, _error, { roleId }) => [
+    { type: "RoleUsers", id: roleId },
+  ],
+})
+```
+
+**Purpose:** Fetches all users who have a specific role within a community.
+
+**Usage:**
+```typescript
+const { 
+  data: roleUsers, 
+  error, 
+  isLoading 
+} = useGetUsersForRoleQuery({ 
+  communityId, 
+  roleId 
+}, {
+  skip: !communityId || !roleId,
+});
+
+// Access user data
+const users = roleUsers?.users || [];
+const userCount = roleUsers?.totalCount || 0;
+```
+
 ## Type Definitions
 
 ### Response Types
@@ -201,6 +448,40 @@ interface UserRoles {
     community?: string[];         // Community-level permissions
     channel?: string[];           // Channel-level permissions
   };
+}
+
+interface RoleDto {
+  id: string;
+  name: string;                   // Display name (without community suffix)
+  actions: string[];              // Array of permission actions
+  createdAt: Date;
+}
+
+interface CommunityRolesResponse {
+  roles: RoleDto[];               // Array of community roles
+  totalCount: number;             // Total number of roles
+}
+
+interface RoleUsersResponse {
+  users: Array<{
+    userId: string;
+    user?: {
+      username: string;
+      displayName?: string;
+      avatarUrl?: string;
+    };
+  }>;
+  totalCount: number;             // Total number of users with this role
+}
+
+interface CreateRoleDto {
+  name: string;                   // Role name (max 50 characters)
+  actions: string[];              // Array of permissions (min 1 required)
+}
+
+interface UpdateRoleDto {
+  name?: string;                  // Optional role name update
+  actions?: string[];             // Optional permissions update
 }
 ```
 
@@ -247,13 +528,15 @@ const CHANNEL_PERMISSIONS = [
 ### Cache Tags
 
 ```typescript
-tagTypes: ["UserRoles"]
+tagTypes: ["UserRoles", "CommunityRoles", "RoleUsers"]
 
 // Tagging patterns:
 // - My roles for community: { type: "UserRoles", id: `my-community-${communityId}` }
 // - My roles for channel: { type: "UserRoles", id: `my-channel-${channelId}` }
 // - My instance roles: { type: "UserRoles", id: "my-instance" }
 // - Other user roles: { type: "UserRoles", id: `${userId}-community-${communityId}` }
+// - Community roles list: { type: "CommunityRoles", id: communityId }
+// - Users with specific role: { type: "RoleUsers", id: roleId }
 ```
 
 ### Cache Invalidation
@@ -264,6 +547,31 @@ Role data is typically cached for the duration of the session since role changes
 - User joins/leaves communities
 - Channel permissions are updated
 - Instance roles are modified
+
+**Role Management Cache Invalidation:**
+- **Role Creation**: Invalidates `CommunityRoles` for the community
+- **Role Update**: Invalidates `CommunityRoles` and all `UserRoles` (broad invalidation due to permission changes)
+- **Role Deletion**: Invalidates `CommunityRoles` and all `UserRoles` 
+- **Role Assignment**: Invalidates specific user's `UserRoles` and the role's `RoleUsers` cache
+- **Role Removal**: Invalidates specific user's `UserRoles` and the role's `RoleUsers` cache
+
+**Invalidation Strategy Examples:**
+```typescript
+// Creating a role invalidates community roles list
+invalidatesTags: [{ type: "CommunityRoles", id: communityId }]
+
+// Updating a role affects all users (broad invalidation)
+invalidatesTags: [
+  { type: "CommunityRoles", id: "LIST" },
+  { type: "UserRoles", id: "LIST" }
+]
+
+// Assigning a role to a user (targeted invalidation)
+invalidatesTags: [
+  { type: "UserRoles", id: `${userId}-community-${communityId}` },
+  { type: "RoleUsers", id: roleId }
+]
+```
 
 ### Long-term Caching
 
@@ -290,6 +598,19 @@ export const {
   useGetUserRolesForCommunityQuery,
   useGetUserRolesForChannelQuery,
   useGetUserInstanceRolesQuery,
+  
+  // ===== NEW ROLE MANAGEMENT HOOKS =====
+  
+  // Role CRUD operations
+  useGetCommunityRolesQuery,
+  useCreateCommunityRoleMutation,
+  useUpdateRoleMutation,
+  useDeleteRoleMutation,
+  
+  // User-role assignment operations
+  useAssignRoleToUserMutation,
+  useRemoveRoleFromUserMutation,
+  useGetUsersForRoleQuery,
   
   // Utility hooks
   usePrefetch,
@@ -505,6 +826,213 @@ function UserRoleManager({ userId, communityId }: {
 }
 ```
 
+### Complete Role Management Dashboard
+
+```typescript
+function RoleManagementDashboard({ communityId }: { communityId: string }) {
+  const [selectedRole, setSelectedRole] = useState<RoleDto | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Role queries and mutations
+  const { data: communityRoles, isLoading: loadingRoles } = useGetCommunityRolesQuery(communityId);
+  const { data: myRoles } = useGetMyRolesForCommunityQuery(communityId);
+  const [createRole] = useCreateCommunityRoleMutation();
+  const [updateRole] = useUpdateRoleMutation();
+  const [deleteRole] = useDeleteRoleMutation();
+
+  const canManageRoles = myRoles?.actions.includes('MANAGE_ROLES');
+
+  if (!canManageRoles) {
+    return <div>You don't have permission to manage roles.</div>;
+  }
+
+  const handleCreateRole = async (roleData: CreateRoleDto) => {
+    try {
+      await createRole({ communityId, data: roleData }).unwrap();
+      setIsCreating(false);
+    } catch (error) {
+      console.error('Failed to create role:', error);
+    }
+  };
+
+  const handleUpdateRole = async (roleId: string, updates: UpdateRoleDto) => {
+    try {
+      await updateRole({ roleId, data: updates }).unwrap();
+      setSelectedRole(null);
+    } catch (error) {
+      console.error('Failed to update role:', error);
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    if (confirm('Are you sure you want to delete this role?')) {
+      try {
+        await deleteRole(roleId).unwrap();
+      } catch (error) {
+        console.error('Failed to delete role:', error);
+      }
+    }
+  };
+
+  return (
+    <div className="role-management-dashboard">
+      <div className="dashboard-header">
+        <h2>Role Management</h2>
+        <button onClick={() => setIsCreating(true)}>
+          Create New Role
+        </button>
+      </div>
+
+      {loadingRoles ? (
+        <div>Loading roles...</div>
+      ) : (
+        <div className="roles-grid">
+          {communityRoles?.roles.map(role => (
+            <div key={role.id} className="role-card">
+              <h3>{role.name}</h3>
+              <p>{role.actions.length} permissions</p>
+              <div className="role-actions">
+                <button onClick={() => setSelectedRole(role)}>
+                  Edit
+                </button>
+                <button onClick={() => handleDeleteRole(role.id)}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Role Editor Modal/Dialog */}
+      {(isCreating || selectedRole) && (
+        <RoleEditorModal
+          role={selectedRole}
+          onSave={selectedRole ? 
+            (data) => handleUpdateRole(selectedRole.id, data) : 
+            handleCreateRole
+          }
+          onClose={() => {
+            setIsCreating(false);
+            setSelectedRole(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+### User-Role Assignment Component
+
+```typescript
+function RoleAssignmentDialog({ 
+  userId, 
+  userName, 
+  communityId, 
+  open, 
+  onClose 
+}: {
+  userId: string;
+  userName: string;
+  communityId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
+
+  // Queries
+  const { data: communityRoles } = useGetCommunityRolesQuery(communityId, { skip: !open });
+  const { data: userRoles } = useGetUserRolesForCommunityQuery(
+    { userId, communityId }, 
+    { skip: !open }
+  );
+
+  // Mutations
+  const [assignRole] = useAssignRoleToUserMutation();
+  const [removeRole] = useRemoveRoleFromUserMutation();
+
+  // Initialize selected roles when user roles load
+  useEffect(() => {
+    if (userRoles?.roles) {
+      const currentRoleIds = new Set(userRoles.roles.map(role => role.id));
+      setSelectedRoles(currentRoleIds);
+    }
+  }, [userRoles]);
+
+  const handleRoleToggle = (roleId: string) => {
+    setSelectedRoles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(roleId)) {
+        newSet.delete(roleId);
+      } else {
+        newSet.add(roleId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSave = async () => {
+    const currentRoleIds = new Set(userRoles?.roles?.map(r => r.id) || []);
+    
+    // Find roles to add and remove
+    const rolesToAdd = Array.from(selectedRoles).filter(id => !currentRoleIds.has(id));
+    const rolesToRemove = Array.from(currentRoleIds).filter(id => !selectedRoles.has(id));
+
+    try {
+      // Add new roles
+      for (const roleId of rolesToAdd) {
+        await assignRole({ communityId, data: { userId, roleId } }).unwrap();
+      }
+
+      // Remove old roles  
+      for (const roleId of rolesToRemove) {
+        await removeRole({ communityId, userId, roleId }).unwrap();
+      }
+
+      onClose();
+    } catch (error) {
+      console.error('Failed to update user roles:', error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>Manage Roles for {userName}</DialogTitle>
+      <DialogContent>
+        <FormGroup>
+          {communityRoles?.roles.map(role => (
+            <FormControlLabel
+              key={role.id}
+              control={
+                <Checkbox
+                  checked={selectedRoles.has(role.id)}
+                  onChange={() => handleRoleToggle(role.id)}
+                />
+              }
+              label={
+                <div>
+                  <Typography variant="body2">{role.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {role.actions.length} permissions
+                  </Typography>
+                </div>
+              }
+            />
+          ))}
+        </FormGroup>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSave} variant="contained">
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+```
+
 ## Performance Optimization
 
 ### Permission Caching Strategy
@@ -642,9 +1170,22 @@ describe('useUserPermissions', () => {
 
 ## Related Documentation
 
-- [RBAC System Architecture](../features/auth-rbac.md) - Complete RBAC system overview
-- [Role-Based Components](./RoleBasedComponents.md) - UI components with role-based rendering
-- [User Permissions Hook](../hooks/useUserPermissions.md) - Permission checking utilities
-- [Community API](./communityApi.md) - Community management with role checks
-- [Channel API](./channelApi.md) - Channel management with permission validation
-- [Membership API](./membershipApi.md) - Member management with role considerations
+### Core RBAC System
+- **[RBAC System Architecture](../features/auth-rbac.md)** - Complete RBAC system overview
+- **[Roles Backend Module](../modules/auth/roles.md)** - Backend role management service and business logic
+- **[Roles API Endpoints](../api/roles.md)** - REST API documentation for role management
+
+### Frontend Components  
+- **[RoleEditor Component](../components/community/RoleEditor.md)** - Role creation and editing interface
+- **[RoleAssignmentDialog Component](../components/community/RoleAssignmentDialog.md)** - User-role assignment interface  
+- **[RoleManagement Component](../components/community/RoleManagement.md)** - Complete role management dashboard
+
+### State Management
+- **[Community API Slice](./communityApi.md)** - Community management with role checks
+- **[Channel API Slice](./channelApi.md)** - Channel management with permission validation
+- **[Membership API Slice](./membershipApi.md)** - Member management with role considerations
+
+### Utilities and Hooks
+- **[User Permissions Hook](../hooks/useUserPermissions.md)** - Permission checking utilities
+- **[Role-Based Components](./RoleBasedComponents.md)** - UI components with role-based rendering
+- **[RBAC Actions Constants](../constants/rbacActions.md)** - Permission system constants and labels

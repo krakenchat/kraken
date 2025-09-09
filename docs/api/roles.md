@@ -333,6 +333,385 @@ curl -H "Authorization: Bearer <token>" \
 
 **Description:** Retrieves a specific user's roles for a channel. Requires `READ_MEMBER` permission and channel context.
 
+---
+
+# ROLE MANAGEMENT ENDPOINTS (NEW)
+
+## GET `/api/roles/community/:communityId`
+
+**Description:** Retrieves all roles (default and custom) for a specific community. Used by role management dashboard to display available roles.
+
+### Request
+
+**Path Parameters:**
+- `communityId` (string, required) - Community ID (MongoDB ObjectId)
+
+**RBAC Requirements:**
+- Permission: `READ_ROLE`
+- Resource: `COMMUNITY`
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/roles/community/64f7b1234567890abcdef123"
+```
+
+### Response
+
+**Success (200):**
+```json
+{
+  "communityId": "64f7b1234567890abcdef123",
+  "roles": [
+    {
+      "id": "64f7b1234567890abcdef789",
+      "name": "Community Admin",
+      "actions": [
+        "UPDATE_COMMUNITY",
+        "DELETE_COMMUNITY", 
+        "CREATE_CHANNEL",
+        "UPDATE_CHANNEL",
+        "DELETE_CHANNEL",
+        "CREATE_MEMBER",
+        "DELETE_MEMBER",
+        "CREATE_ROLE",
+        "UPDATE_ROLE",
+        "DELETE_ROLE"
+      ],
+      "createdAt": "2024-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "64f7b1234567890abcdef012",
+      "name": "Custom Moderator",
+      "actions": [
+        "READ_COMMUNITY",
+        "READ_CHANNEL", 
+        "CREATE_MESSAGE",
+        "DELETE_MESSAGE",
+        "CREATE_MEMBER"
+      ],
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions (requires `READ_ROLE`)
+- `404 Not Found` - Community not found
+- `500 Internal Server Error` - Server error
+
+---
+
+## POST `/api/roles/community/:communityId`
+
+**Description:** Creates a new custom role within a community. Role names must be unique per community.
+
+### Request
+
+**Path Parameters:**
+- `communityId` (string, required) - Community ID (MongoDB ObjectId)
+
+**RBAC Requirements:**
+- Permission: `CREATE_ROLE`
+- Resource: `COMMUNITY`
+
+**Body Parameters:**
+```typescript
+{
+  name: string;        // Role name (max 50 characters)
+  actions: string[];   // Array of RbacActions (min 1 required)
+}
+```
+
+**Example:**
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Content Moderator",
+    "actions": [
+      "READ_COMMUNITY",
+      "READ_CHANNEL",
+      "READ_MESSAGE", 
+      "CREATE_MESSAGE",
+      "DELETE_MESSAGE",
+      "CREATE_REACTION",
+      "DELETE_REACTION"
+    ]
+  }' \
+  "http://localhost:3001/api/roles/community/64f7b1234567890abcdef123"
+```
+
+### Response
+
+**Success (201):**
+```json
+{
+  "id": "64f7b1234567890abcdef456",
+  "name": "Content Moderator",
+  "actions": [
+    "READ_COMMUNITY",
+    "READ_CHANNEL", 
+    "READ_MESSAGE",
+    "CREATE_MESSAGE",
+    "DELETE_MESSAGE",
+    "CREATE_REACTION",
+    "DELETE_REACTION"
+  ],
+  "createdAt": "2024-01-20T14:15:00.000Z"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid request body or role name already exists
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Server error
+
+---
+
+## PUT `/api/roles/:roleId`
+
+**Description:** Updates an existing custom role's name and/or permissions. Cannot update default system roles.
+
+### Request
+
+**Path Parameters:**
+- `roleId` (string, required) - Role ID (MongoDB ObjectId)
+
+**RBAC Requirements:**
+- Permission: `UPDATE_ROLE`
+
+**Body Parameters:**
+```typescript
+{
+  name?: string;        // Optional: New role name
+  actions?: string[];   // Optional: New permissions array
+}
+```
+
+**Example:**
+```bash
+curl -X PUT \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Senior Moderator",
+    "actions": [
+      "READ_COMMUNITY",
+      "READ_CHANNEL",
+      "READ_MESSAGE",
+      "CREATE_MESSAGE", 
+      "DELETE_MESSAGE",
+      "CREATE_MEMBER",
+      "UPDATE_MEMBER"
+    ]
+  }' \
+  "http://localhost:3001/api/roles/64f7b1234567890abcdef456"
+```
+
+### Response
+
+**Success (200):**
+```json
+{
+  "id": "64f7b1234567890abcdef456",
+  "name": "Senior Moderator", 
+  "actions": [
+    "READ_COMMUNITY",
+    "READ_CHANNEL",
+    "READ_MESSAGE",
+    "CREATE_MESSAGE",
+    "DELETE_MESSAGE", 
+    "CREATE_MEMBER",
+    "UPDATE_MEMBER"
+  ],
+  "createdAt": "2024-01-20T14:15:00.000Z"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Cannot update default roles or name conflicts
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Role not found
+- `500 Internal Server Error` - Server error
+
+---
+
+## DELETE `/api/roles/:roleId`
+
+**Description:** Deletes a custom role. Cannot delete default system roles or roles with active user assignments.
+
+### Request
+
+**Path Parameters:**
+- `roleId` (string, required) - Role ID (MongoDB ObjectId)
+
+**RBAC Requirements:**
+- Permission: `DELETE_ROLE`
+
+**Example:**
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/roles/64f7b1234567890abcdef456"
+```
+
+### Response
+
+**Success (204):** No content
+
+**Error Responses:**
+- `400 Bad Request` - Cannot delete default roles or roles with active users
+- `401 Unauthorized` - Invalid or missing token  
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Role not found
+- `500 Internal Server Error` - Server error
+
+---
+
+# USER-ROLE ASSIGNMENT ENDPOINTS (NEW)
+
+## POST `/api/roles/community/:communityId/assign`
+
+**Description:** Assigns a role to a user within a community context.
+
+### Request
+
+**Path Parameters:**
+- `communityId` (string, required) - Community ID (MongoDB ObjectId)
+
+**RBAC Requirements:**
+- Permission: `UPDATE_MEMBER`
+- Resource: `COMMUNITY`
+
+**Body Parameters:**
+```typescript
+{
+  userId: string;   // User ID (MongoDB ObjectId)
+  roleId: string;   // Role ID (MongoDB ObjectId)
+}
+```
+
+**Example:**
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "64f7b1234567890abcdef111",
+    "roleId": "64f7b1234567890abcdef456"
+  }' \
+  "http://localhost:3001/api/roles/community/64f7b1234567890abcdef123/assign"
+```
+
+### Response
+
+**Success (201):** No content
+
+**Error Responses:**
+- `400 Bad Request` - Invalid user or role IDs
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - User, role, or community not found
+- `500 Internal Server Error` - Server error
+
+---
+
+## DELETE `/api/roles/community/:communityId/users/:userId/roles/:roleId`
+
+**Description:** Removes a specific role from a user within a community.
+
+### Request
+
+**Path Parameters:**
+- `communityId` (string, required) - Community ID (MongoDB ObjectId)
+- `userId` (string, required) - User ID (MongoDB ObjectId)  
+- `roleId` (string, required) - Role ID (MongoDB ObjectId)
+
+**RBAC Requirements:**
+- Permission: `UPDATE_MEMBER`
+- Resource: `COMMUNITY`
+
+**Example:**
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/roles/community/64f7b1234567890abcdef123/users/64f7b1234567890abcdef111/roles/64f7b1234567890abcdef456"
+```
+
+### Response
+
+**Success (204):** No content
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions  
+- `404 Not Found` - User role assignment not found
+- `500 Internal Server Error` - Server error
+
+---
+
+## GET `/api/roles/:roleId/users`
+
+**Description:** Retrieves all users assigned to a specific role. Supports both community and instance-level roles.
+
+### Request
+
+**Path Parameters:**
+- `roleId` (string, required) - Role ID (MongoDB ObjectId)
+
+**Query Parameters:**
+- `communityId` (string, optional) - Community ID for community-scoped roles
+
+**RBAC Requirements:**
+- Permission: `READ_ROLE`
+
+**Example:**
+```bash
+# Get users for community role
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/roles/64f7b1234567890abcdef456/users?communityId=64f7b1234567890abcdef123"
+
+# Get users for instance role  
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:3001/api/roles/64f7b1234567890abcdef456/users"
+```
+
+### Response
+
+**Success (200):**
+```json
+[
+  {
+    "userId": "64f7b1234567890abcdef111",
+    "username": "moderator_user",
+    "displayName": "John Moderator"
+  },
+  {
+    "userId": "64f7b1234567890abcdef222", 
+    "username": "admin_user",
+    "displayName": "Jane Admin"
+  }
+]
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Role not found
+- `500 Internal Server Error` - Server error
+
+---
+
+## GET `/api/roles/user/:userId/channel/:channelId`
+
+**Description:** Retrieves a specific user's roles for a channel. Requires `READ_MEMBER` permission and channel context.
+
 ### Request
 
 **Path Parameters:**
@@ -658,9 +1037,22 @@ describe('Roles (e2e)', () => {
 
 ## Related Documentation
 
-- [RBAC System](../features/auth-rbac.md) - Complete RBAC implementation guide
-- [Auth API](auth.md) - Authentication system
-- [User API](user.md) - User management
-- [Community API](community.md) - Community roles
-- [Channels API](channels.md) - Channel permissions
-- [Database Schema](../architecture/database.md#roles)
+### Core System Integration
+- **[RBAC System](../features/auth-rbac.md)** - Complete RBAC implementation guide
+- **[Roles Backend Module](../modules/auth/roles.md)** - Backend service implementation and business logic
+
+### Frontend Integration
+- **[Roles State Management](../state/rolesApi.md)** - RTK Query API slice for role management
+- **[RoleEditor Component](../components/community/RoleEditor.md)** - Role creation and editing interface
+- **[RoleAssignmentDialog Component](../components/community/RoleAssignmentDialog.md)** - User-role assignment dialog
+- **[RoleManagement Component](../components/community/RoleManagement.md)** - Complete role management dashboard
+
+### Related APIs
+- **[Auth API](auth.md)** - Authentication system integration
+- **[User API](user.md)** - User management endpoints
+- **[Community API](community.md)** - Community management with role integration
+- **[Channels API](channels.md)** - Channel permissions and access control
+
+### System Documentation
+- **[Database Schema](../architecture/database.md#roles)** - Role system data models
+- **[RBAC Actions Constants](../constants/rbacActions.md)** - Permission definitions and labels
