@@ -8,6 +8,7 @@ import EditCommunityPage from "./pages/EditCommunityPage";
 import JoinInvitePage from "./pages/JoinInvitePage";
 import AdminInvitePage from "./pages/AdminInvitePage";
 import OnboardingPage from "./pages/OnboardingPage";
+import DirectMessagesPage from "./pages/DirectMessagesPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import CommunityPage from "./pages/CommunityPage";
@@ -91,6 +92,7 @@ function App() {
           {/* Authenticated routes */}
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
+            <Route path="direct-messages" element={<DirectMessagesPage />} />
             <Route path="admin/invites" element={<AdminInvitePage />} />
             <Route path="community/create" element={<CreateCommunityPage />} />
             <Route path="community/:communityId">

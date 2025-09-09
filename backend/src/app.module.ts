@@ -24,6 +24,7 @@ import { ChannelMembershipModule } from './channel-membership/channel-membership
 import { LivekitModule } from './livekit/livekit.module';
 import { VoicePresenceModule } from './voice-presence/voice-presence.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { DirectMessagesModule } from './direct-messages/direct-messages.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     LivekitModule,
     VoicePresenceModule,
     OnboardingModule,
+    DirectMessagesModule,
   ],
   controllers: [AppController],
   providers: [

@@ -8,6 +8,8 @@ import { useTheme } from "@mui/material/styles";
 import CommunityListItem from "./CommunityListItem";
 import CreateCommunityButton from "./CreateCommunityButton";
 import { useParams, useNavigate } from "react-router-dom";
+import { Tooltip, Button, Avatar } from "@mui/material";
+import ChatIcon from "@mui/icons-material/Chat";
 
 export interface Community {
   id: string;
@@ -85,6 +87,10 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
     navigate("/community/create");
   };
 
+  const handleDirectMessages = () => {
+    navigate("/direct-messages");
+  };
+
   return (
     <Sidebar
       variant="permanent"
@@ -102,6 +108,71 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
         }}
       ></Box>
       <CommunityList expanded={isExpanded}>
+        {/* Direct Messages button at the top */}
+        <Box sx={{ mb: 2 }}>
+          {isExpanded ? (
+            <Button
+              onClick={handleDirectMessages}
+              variant="text"
+              sx={{ 
+                width: "90%", 
+                padding: 0,
+                justifyContent: "flex-start",
+              }}
+            >
+              <Box
+                sx={{
+                  position: "relative",
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  padding: "8px",
+                  transition: "background 0.2s, box-shadow 0.2s",
+                  "&:hover": {
+                    backgroundColor: "action.hover",
+                  },
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    bgcolor: "primary.main",
+                    mr: 2,
+                  }}
+                >
+                  <ChatIcon />
+                </Avatar>
+                <Box sx={{ textAlign: "left", textTransform: "none" }}>
+                  <Box sx={{ fontSize: 14, fontWeight: 600, color: "text.primary" }}>
+                    Direct Messages
+                  </Box>
+                </Box>
+              </Box>
+            </Button>
+          ) : (
+            <Tooltip title="Direct Messages" placement="right" arrow>
+              <Button
+                onClick={handleDirectMessages}
+                variant="text"
+                sx={{ width: "90%", padding: 0 }}
+              >
+                <Avatar
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    bgcolor: "primary.main",
+                  }}
+                >
+                  <ChatIcon />
+                </Avatar>
+              </Button>
+            </Tooltip>
+          )}
+        </Box>
+        
         {isLoading && <Box color="grey.500">Loading...</Box>}
         {error && <Box color="error.main">Error loading</Box>}
         {communities && communities.length > 0

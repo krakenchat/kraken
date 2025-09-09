@@ -11,6 +11,7 @@ import { membershipApi, channelMembershipApi } from "../features/membership";
 import { inviteApi } from "../features/invite/inviteApiSlice";
 import { publicInviteApi } from "../features/invite/publicInviteApiSlice";
 import { onboardingApi } from "../features/onboarding/onboardingApiSlice";
+import { directMessagesApi } from "../features/directMessages/directMessagesApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
 
@@ -29,6 +30,7 @@ export const store = configureStore({
     [inviteApi.reducerPath]: inviteApi.reducer,
     [publicInviteApi.reducerPath]: publicInviteApi.reducer,
     [onboardingApi.reducerPath]: onboardingApi.reducer,
+    [directMessagesApi.reducerPath]: directMessagesApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
   },
@@ -46,7 +48,8 @@ export const store = configureStore({
       channelMembershipApi.middleware,
       inviteApi.middleware,
       publicInviteApi.middleware,
-      onboardingApi.middleware
+      onboardingApi.middleware,
+      directMessagesApi.middleware
     ),
 });
 

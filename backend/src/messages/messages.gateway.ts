@@ -36,6 +36,14 @@ export class MessagesGateway {
     private readonly websocketService: WebsocketService,
   ) {}
 
+  handleConnection(client: any) {
+    console.log('[MessagesGateway] Client connected:', client.id);
+  }
+
+  handleDisconnect(client: any) {
+    console.log('[MessagesGateway] Client disconnected:', client.id);
+  }
+
   @SubscribeMessage(ClientEvents.SEND_MESSAGE)
   @RequiredActions(RbacActions.CREATE_MESSAGE)
   @RbacResource({
@@ -64,6 +72,42 @@ export class MessagesGateway {
     return message.id;
   }
 
+  @SubscribeMessage('sendDirectMessage')
+  async handleDirectMessage(
+    @MessageBody() payload: any,
+    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+  ): Promise<string> {
+    console.log('[MessagesGateway] *** DM HANDLER CALLED - RAW ***');
+    console.log('[MessagesGateway] Raw payload:', JSON.stringify(payload, null, 2));
+    console.log('[MessagesGateway] User:', client.handshake?.user?.id);
+    
+    try {
+      console.log('[MessagesGateway] Creating message in database...');
+      const message = await this.messagesService.create({
+        ...payload,
+        authorId: client.handshake.user.id,
+        sentAt: new Date(),
+      });
+      
+      console.log('[MessagesGateway] Message created with ID:', message.id);
+      console.log('[MessagesGateway] Sending NEW_DM event to room:', payload.directMessageGroupId);
+
+      this.websocketService.sendToRoom(
+        payload.directMessageGroupId,
+        ServerEvents.NEW_DM,
+        {
+          message,
+        },
+      );
+
+      console.log('[MessagesGateway] NEW_DM event sent successfully');
+      return message.id;
+    } catch (error) {
+      console.error('[MessagesGateway] Error creating DM message:', error);
+      throw error;
+    }
+  }
+
   @SubscribeMessage(ClientEvents.SEND_DM)
   @RequiredActions(RbacActions.CREATE_MESSAGE)
   @RbacResource({
@@ -71,15 +115,22 @@ export class MessagesGateway {
     idKey: 'directMessageGroupId',
     source: ResourceIdSource.PAYLOAD,
   })
-  async handleDirectMessage(
+  async handleDirectMessageWithRBAC(
     @MessageBody() payload: CreateMessageDto,
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
+    console.log('[MessagesGateway] *** DM HANDLER WITH RBAC CALLED ***');
+    console.log('[MessagesGateway] handleDirectMessage called with payload:', payload);
+    console.log('[MessagesGateway] User:', client.handshake.user.id);
+    
     const message = await this.messagesService.create({
       ...payload,
       authorId: client.handshake.user.id,
       sentAt: new Date(),
     });
+
+    console.log('[MessagesGateway] Created message:', message.id);
+    console.log('[MessagesGateway] Sending to room:', payload.directMessageGroupId);
 
     this.websocketService.sendToRoom(
       payload.directMessageGroupId!,
@@ -89,6 +140,7 @@ export class MessagesGateway {
       },
     );
 
+    console.log('[MessagesGateway] NEW_DM event sent');
     return message.id;
   }
 

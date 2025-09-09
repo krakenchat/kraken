@@ -21,5 +21,6 @@ import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
     RoomsModule,
     AuthModule,
   ],
+  exports: [MessagesService],
 })
 export class MessagesModule {}
