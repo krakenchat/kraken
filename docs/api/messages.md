@@ -518,12 +518,17 @@ curl -X PATCH \
 
 ## DELETE `/api/messages/:id`
 
-**Description:** Permanently deletes a message. Only the message author or users with appropriate permissions can delete messages. Triggers real-time WebSocket notifications.
+**Description:** Permanently deletes a message. Uses the `MessageOwnershipGuard` to ensure only the message author can delete their own messages (or users with appropriate admin permissions). Triggers real-time WebSocket notifications to all channel/DM group members.
 
 ### Request
 
 **Path Parameters:**
-- `id` (string, required) - Message ID to delete
+- `id` (string, required) - Message ID to delete (MongoDB ObjectId)
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
 
 **Example:**
 ```bash
@@ -532,18 +537,53 @@ curl -X DELETE \
   "http://localhost:3001/api/messages/64f7b1234567890abcdef012"
 ```
 
+### Authorization
+
+**Guards:**
+- `JwtAuthGuard` - Requires valid authentication
+- `MessageOwnershipGuard` - Ensures user owns the message
+
+**Business Rules:**
+- User must be the original author of the message
+- Message must exist and not already be deleted
+- User must have access to the channel/DM group containing the message
+
 ### Response
 
 **Success (204):**
 ```
 No Content
 ```
+*Message successfully deleted, no response body*
 
 **Error Responses:**
-- `401 Unauthorized` - Invalid or missing token
-- `403 Forbidden` - Insufficient permissions (requires `DELETE_MESSAGE`)
-- `404 Not Found` - Message not found
-- `500 Internal Server Error` - Server error
+- `401 Unauthorized` - Invalid or missing authentication token
+- `403 Forbidden` - User does not own this message or lacks permissions
+- `404 Not Found` - Message not found or already deleted
+- `500 Internal Server Error` - Server error during deletion
+
+### WebSocket Events
+
+**Event:** `deleteMessage`
+**Scope:** All members of the channel or DM group
+**Room:** `channel:${channelId}` or `dm:${groupId}`
+
+**Event Payload:**
+```json
+{
+  "event": "deleteMessage",
+  "data": {
+    "messageId": "64f7b1234567890abcdef012",
+    "channelId": "64f7b1234567890abcdef123",           // Present for channel messages
+    "directMessageGroupId": "64f7b1234567890abcdef789" // Present for DM messages
+  }
+}
+```
+
+**Frontend Handling:**
+- Remove message from UI immediately
+- Update message counts and pagination
+- Clear any active reply/edit states for deleted message
 
 ---
 
@@ -938,16 +978,21 @@ Content-Type: application/json
 
 ### RBAC Requirements
 
-- **Resource:** `CHANNEL` (based on message's channel)
+- **Resource:** `MESSAGE` (validated against the specific message being reacted to)
 - **Action:** `CREATE_REACTION`
-- **Validation:** Message must exist and user must have read access to the channel
+- **Resource Context:** Uses message ID from request body to validate permissions
+- **Validation:** Message must exist and user must have read access to the containing channel/DM group
 
 ### WebSocket Events
 
-Triggers real-time event to all channel members:
+**Event:** `REACTION_ADDED`
+**Scope:** All members of the channel or DM group containing the message
+**Room:** `channel:${channelId}` or `dm:${groupId}` (automatically determined)
+
+**Event Payload:**
 ```json
 {
-  "event": "reactionAdded",
+  "event": "REACTION_ADDED",
   "data": {
     "messageId": "60d21b4667d0d8992e610c85",
     "reaction": {
@@ -957,6 +1002,11 @@ Triggers real-time event to all channel members:
   }
 }
 ```
+
+**Implementation Notes:**
+- Event is sent to both channel and DM contexts automatically
+- Room ID is determined from `message.channelId || message.directMessageGroupId`
+- Includes complete reaction object with all current users
 
 ---
 
@@ -1000,22 +1050,35 @@ Content-Type: application/json
 
 ### RBAC Requirements
 
-- **Resource:** `CHANNEL` (based on message's channel)  
-- **Action:** `DELETE_REACTION`
-- **Validation:** Message must exist and user must have read access to the channel
+- **Resource:** `MESSAGE` (validated against the specific message being unreacted)
+- **Action:** `DELETE_REACTION`  
+- **Resource Context:** Uses message ID from request body to validate permissions
+- **Validation:** Message must exist and user must have read access to the containing channel/DM group
 
 ### WebSocket Events
 
-Triggers real-time event to all channel members:
+**Event:** `REACTION_REMOVED`
+**Scope:** All members of the channel or DM group containing the message
+**Room:** `channel:${channelId}` or `dm:${groupId}` (automatically determined)
+
+**Event Payload:**
 ```json
 {
-  "event": "reactionRemoved", 
+  "event": "REACTION_REMOVED",
   "data": {
     "messageId": "60d21b4667d0d8992e610c85",
-    "emoji": "👍"
+    "emoji": "👍",
+    "reactions": [
+      // Updated reactions array after removal
+    ]
   }
 }
 ```
+
+**Implementation Notes:**
+- Event includes both the removed emoji and the complete updated reactions array
+- If user was the last person with that reaction, the reaction is completely removed
+- Room ID is determined from `message.channelId || message.directMessageGroupId`
 
 ---
 
