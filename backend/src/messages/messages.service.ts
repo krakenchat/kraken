@@ -10,11 +10,28 @@ export class MessagesService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async create(createMessageDto: CreateMessageDto) {
-    return this.databaseService.message.create({
+    const { fileIds, ...messageData } = createMessageDto;
+
+    const message = await this.databaseService.message.create({
       data: {
-        ...createMessageDto,
+        ...messageData,
       },
     });
+
+    // Create attachments if fileIds provided
+    if (fileIds && fileIds.length > 0) {
+      const attachmentData = fileIds.map((fileId, index) => ({
+        fileId,
+        messageId: message.id,
+        order: index,
+      }));
+
+      await this.databaseService.attachment.createMany({
+        data: attachmentData,
+      });
+    }
+
+    return message;
   }
 
   async findOne(id: string) {
@@ -30,10 +47,35 @@ export class MessagesService {
 
   async update(id: string, updateMessageDto: UpdateMessageDto) {
     try {
-      return await this.databaseService.message.update({
+      const { fileIds, ...messageData } = updateMessageDto;
+
+      const message = await this.databaseService.message.update({
         where: { id },
-        data: updateMessageDto,
+        data: messageData,
       });
+
+      // Update attachments if fileIds provided
+      if (fileIds !== undefined) {
+        // Delete existing attachments
+        await this.databaseService.attachment.deleteMany({
+          where: { messageId: id },
+        });
+
+        // Create new attachments
+        if (fileIds.length > 0) {
+          const attachmentData = fileIds.map((fileId, index) => ({
+            fileId,
+            messageId: id,
+            order: index,
+          }));
+
+          await this.databaseService.attachment.createMany({
+            data: attachmentData,
+          });
+        }
+      }
+
+      return message;
     } catch (error) {
       this.logger.error('Error updating message', error);
       throw error;

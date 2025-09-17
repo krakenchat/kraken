@@ -14,7 +14,6 @@ model Message {
   directMessageGroupId String?      @db.ObjectId // New, for DMs
   authorId             String
   spans                Span[]
-  attachments          Attachment[]
   reactions            Reaction[]
   sentAt               DateTime     @default(now())
   editedAt             DateTime?
@@ -22,6 +21,7 @@ model Message {
 
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
+  attachments        Attachment[]
 }
 
 model User {
@@ -280,11 +280,29 @@ enum SpanType {
   ALIAS_MENTION
 }
 
-type Attachment {
-  url      String
-  filename String
-  filetype String
-  size     Int
+model File {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename     String
+  mimeType     String
+  size         Int
+  isPublic     Boolean  @default(false)
+  uploadedById String   @db.ObjectId
+  createdAt    DateTime @default(now())
+
+  attachments Attachment[]
+}
+
+model Attachment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  fileId    String   @db.ObjectId
+  messageId String   @db.ObjectId
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  file    File    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, order])
 }
 
 type Reaction {
