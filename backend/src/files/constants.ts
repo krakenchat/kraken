@@ -1,0 +1,1 @@
+export const STORAGE_SERVICE = 'STORAGE_SERVICE';

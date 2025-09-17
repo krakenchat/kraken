@@ -10,7 +10,7 @@ export class MessagesService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async create(createMessageDto: CreateMessageDto) {
-    const { fileIds, ...messageData } = createMessageDto;
+    const { fileIds, attachments, ...messageData } = createMessageDto as any;
 
     const message = await this.databaseService.message.create({
       data: {
@@ -47,7 +47,7 @@ export class MessagesService {
 
   async update(id: string, updateMessageDto: UpdateMessageDto) {
     try {
-      const { fileIds, ...messageData } = updateMessageDto;
+      const { fileIds, attachments, ...messageData } = updateMessageDto as any;
 
       const message = await this.databaseService.message.update({
         where: { id },

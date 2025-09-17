@@ -3,7 +3,7 @@ import { DatabaseService } from '@/database/database.service';
 import { IStorageService } from './interfaces/storage.interface';
 import { FileMetadataDto } from './dto/file-metadata.dto';
 import { UploadFileDto } from './dto/upload-file.dto';
-import { STORAGE_SERVICE } from './files.module';
+import { STORAGE_SERVICE } from './constants';
 
 @Injectable()
 export class FilesService {

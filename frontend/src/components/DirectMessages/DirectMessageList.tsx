@@ -3,6 +3,7 @@ import {
   Box,
   List,
   ListItem,
+  ListItemButton,
   ListItemAvatar,
   ListItemText,
   Avatar,
@@ -129,22 +130,20 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
       <Box sx={{ flex: 1, overflow: "auto" }}>
         <List>
           {dmGroups.map((dmGroup) => (
-            <ListItem
-              key={dmGroup.id}
-              component="button"
-              selected={selectedDmGroupId === dmGroup.id}
-              onClick={() => onSelectDmGroup(dmGroup.id)}
-              sx={{
-                borderRadius: 1,
-                margin: "4px 0",
-                padding: "8px 16px",
-                cursor: "pointer",
-                minWidth: 0,
-                "&.Mui-selected": {
-                  backgroundColor: "action.selected",
-                },
-              }}
-            >
+            <ListItem key={dmGroup.id} disablePadding>
+              <ListItemButton
+                selected={selectedDmGroupId === dmGroup.id}
+                onClick={() => onSelectDmGroup(dmGroup.id)}
+                sx={{
+                  borderRadius: 1,
+                  margin: "4px 0",
+                  padding: "8px 16px",
+                  minWidth: 0,
+                  "&.Mui-selected": {
+                    backgroundColor: "action.selected",
+                  },
+                }}
+              >
               <ListItemAvatar>
                 <Avatar
                   src={getDmAvatar(dmGroup) || undefined}
@@ -192,6 +191,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
                 }
                 sx={{ minWidth: 0 }}
               />
+              </ListItemButton>
             </ListItem>
           ))}
           {dmGroups.length === 0 && (
@@ -224,14 +224,17 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
                 />
               )}
               renderTags={(tagValue, getTagProps) =>
-                tagValue.map((user, index) => (
-                  <Chip
-                    key={user.id}
-                    label={user.displayName || user.username}
-                    {...getTagProps({ index })}
-                    avatar={<Avatar src={user.avatarUrl || undefined} />}
-                  />
-                ))
+                tagValue.map((user, index) => {
+                  const { key, ...chipProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={user.id}
+                      label={user.displayName || user.username}
+                      {...chipProps}
+                      avatar={<Avatar src={user.avatarUrl || undefined} />}
+                    />
+                  );
+                })
               }
             />
           </Box>
