@@ -41,9 +41,13 @@ export class CreateMessageDto implements Message {
     aliasId: string | null;
   }[];
 
-  @IsOptional()
   @IsArray()
-  fileIds?: string[];
+  attachments: {
+    url: string;
+    filename: string;
+    filetype: string;
+    size: number;
+  }[];
 
   @IsArray()
   reactions: { emoji: string; userIds: string[] }[];

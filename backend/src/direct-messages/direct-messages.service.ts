@@ -262,29 +262,19 @@ export class DirectMessagesService {
     return this.databaseService.directMessageGroup.findFirst({
       where: {
         isGroup: false,
-        AND: [
-          {
-            members: {
-              some: {
-                userId: userId1,
-              },
+        members: {
+          every: {
+            userId: { in: [userId1, userId2] },
+          },
+        },
+        // Ensure we have exactly 2 members
+        AND: {
+          members: {
+            none: {
+              userId: { notIn: [userId1, userId2] },
             },
           },
-          {
-            members: {
-              some: {
-                userId: userId2,
-              },
-            },
-          },
-          {
-            members: {
-              every: {
-                userId: { in: [userId1, userId2] },
-              },
-            },
-          },
-        ],
+        },
       },
       include: {
         members: {
