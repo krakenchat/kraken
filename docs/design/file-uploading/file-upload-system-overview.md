@@ -1,19 +1,19 @@
-# File Upload System - Implementation Overview
+# File Upload System - Backend Implementation Overview
 
 ## Project Goals
 
-Implement a comprehensive file upload system for the Kraken chat application that provides:
+Implement a comprehensive file upload system for the Kraken chat application backend that provides:
 
 1. **Message Attachments**: Permission-controlled file uploads attached to messages
-2. **Public Instance Files**: Avatars, banners, and other instance-wide assets
-3. **Drag & Drop Interface**: Intuitive file upload UX similar to Discord
-4. **Multimedia Support**: Embedded media players for images, videos, and audio
-5. **Security & Access Control**: Robust permission checking and file validation
-6. **File Management**: Efficient storage, retrieval, and cleanup
+2. **User Assets**: Avatars and banners for user profiles
+3. **Community Assets**: Community banners, avatars, and custom emojis
+4. **Security & Access Control**: Robust permission checking and file validation
+5. **File Management**: Efficient storage, retrieval, and cleanup
+6. **Future Extensibility**: Easy migration to cloud storage (S3, Azure Blob)
 
-## Architecture Overview
+## Backend Architecture
 
-### Backend Components (NestJS)
+### Module Structure
 
 ```
 backend/src/
@@ -21,90 +21,152 @@ backend/src/
 │   ├── files.controller.ts     # Upload & download endpoints
 │   ├── files.service.ts        # File business logic
 │   ├── files.module.ts         # File module configuration
-│   ├── entities/
-│   │   ├── file.entity.ts      # Base file metadata
-│   │   ├── attachment.entity.ts # Message attachment links
-│   │   └── public-file.entity.ts # Instance public files
 │   ├── dto/
 │   │   ├── upload-file.dto.ts  # File upload validation
 │   │   └── file-metadata.dto.ts # File info responses
 │   ├── guards/
 │   │   └── file-access.guard.ts # Permission checking
-│   ├── interceptors/
-│   │   └── file-upload.interceptor.ts # Upload processing
 │   └── processors/
-│       ├── image.processor.ts   # Image processing & thumbnails
-│       ├── video.processor.ts   # Video processing
-│       └── metadata.processor.ts # File metadata extraction
-├── storage/                    # File storage abstraction
-│   ├── storage.service.ts      # Storage interface
-│   ├── local-storage.service.ts # Local filesystem storage
-│   └── cloud-storage.service.ts # Future cloud storage
-└── middleware/
-    └── file-access.middleware.ts # Route-level file access control
+│       ├── file-validator.service.ts # File validation & security
+│       └── metadata-extractor.service.ts # File metadata extraction
+└── storage/                    # File storage abstraction
+    ├── storage.interface.ts    # Storage abstraction interface
+    ├── local-storage.service.ts # Local filesystem storage
+    └── storage.module.ts       # Dynamic storage provider
 ```
 
-### Frontend Components (React)
+## Database Schema Design
 
+### Junction Table Approach
+
+Using separate junction tables for each file relationship type to maintain clear separation of concerns and allow for relationship-specific metadata.
+
+```prisma
+model File {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename    String   // Original filename
+  storedName  String   // UUID-based stored filename
+  mimeType    String   // MIME type (image/jpeg, etc.)
+  size        Int      // File size in bytes
+  checksum    String   // SHA-256 hash for integrity
+  uploadedBy  String   @db.ObjectId
+  uploadedAt  DateTime @default(now())
+  deletedAt   DateTime? // Soft delete
+
+  // Storage configuration
+  storageType StorageType @default(LOCAL)
+  storagePath String      // Local path or cloud key
+
+  // Relations
+  uploader           User                @relation("UploadedFiles", fields: [uploadedBy], references: [id])
+  messageAttachments MessageAttachment[]
+  userFiles          UserFile[]
+  communityFiles     CommunityFile[]
+}
+
+model MessageAttachment {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  messageId String  @db.ObjectId
+  fileId    String  @db.ObjectId
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  file      File    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, fileId])
+}
+
+model UserFile {
+  id     String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId String       @db.ObjectId
+  fileId String       @db.ObjectId
+  type   UserFileType // AVATAR, BANNER
+
+  user   User         @relation("UserFiles", fields: [userId], references: [id], onDelete: Cascade)
+  file   File         @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type]) // Only one avatar per user, etc.
+}
+
+model CommunityFile {
+  id          String            @id @default(auto()) @map("_id") @db.ObjectId
+  communityId String            @db.ObjectId
+  fileId      String            @db.ObjectId
+  type        CommunityFileType // BANNER, AVATAR, EMOJI
+  name        String?           // For custom emojis
+
+  community   Community         @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  file        File             @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, type, name]) // Unique emoji names per community
+}
+
+enum StorageType {
+  LOCAL
+  S3
+  AZURE_BLOB
+}
+
+enum UserFileType {
+  AVATAR
+  BANNER
+}
+
+enum CommunityFileType {
+  BANNER
+  AVATAR
+  EMOJI
+}
 ```
-frontend/src/
-├── components/files/
-│   ├── FileUpload/
-│   │   ├── DragDropZone.tsx    # Drag & drop handling
-│   │   ├── FileUploadProgress.tsx # Upload progress
-│   │   └── FileUploadQueue.tsx # Multiple upload management
-│   ├── MediaPlayer/
-│   │   ├── ImageViewer.tsx     # Image display
-│   │   ├── VideoPlayer.tsx     # Video playback
-│   │   ├── AudioPlayer.tsx     # Audio playback
-│   │   └── MediaEmbed.tsx      # Unified media component
-│   ├── FilePreview/
-│   │   ├── FileThumbnail.tsx   # File preview thumbnails
-│   │   ├── FileInfo.tsx        # File metadata display
-│   │   └── AttachmentList.tsx  # Message attachment display
-│   └── FileManagement/
-│       ├── FileBrowser.tsx     # File browsing (admin)
-│       └── FileSettings.tsx    # File upload settings
-├── hooks/
-│   ├── useFileUpload.ts        # File upload logic
-│   ├── useFileAccess.ts        # File permission checking
-│   └── useMediaPlayer.ts       # Media playback state
-└── features/files/
-    ├── filesApi.ts             # RTK Query file API
-    └── filesSlice.ts           # File-related state
+
+### Schema Updates to Existing Models
+
+```prisma
+model Message {
+  // ... existing fields
+  attachments MessageAttachment[]
+}
+
+model User {
+  // ... existing fields
+  uploadedFiles File[] @relation("UploadedFiles")
+  userFiles     UserFile[] @relation("UserFiles")
+}
+
+model Community {
+  // ... existing fields
+  files CommunityFile[]
+}
 ```
 
-## Implementation Phases
+## Access Control Strategy
 
-### Phase 1: Core Infrastructure
-- Database schema and entities
-- File storage service abstraction
-- Basic upload/download endpoints
-- File validation and security
+### Permission-Based File Access
 
-### Phase 2: Permission System
-- File access middleware
-- RBAC integration for file permissions
-- Message attachment linking
-- Public file management
+Files inherit permissions from their parent resources:
 
-### Phase 3: Frontend Upload Interface
-- Drag & drop components
-- Upload progress tracking
-- File preview and thumbnails
-- Integration with message system
+- **Message Attachments**: User must have READ_MESSAGE permission for the associated message
+- **User Files**:
+  - Avatars: Public access (no authentication required)
+  - Banners: Public access
+- **Community Files**:
+  - Community avatars/banners: Public access
+  - Custom emojis: Require community membership to view
 
-### Phase 4: Multimedia Support
-- Image/video/audio processing
-- Embedded media players
-- Thumbnail generation
-- Metadata extraction
+### RBAC Integration
 
-### Phase 5: Advanced Features
-- File management interfaces
-- Upload quotas and limits
-- File cleanup and maintenance
-- Performance optimizations
+New RBAC actions to be added:
+```prisma
+enum RbacActions {
+  // ... existing actions
+  UPLOAD_FILE           // General file upload permission
+  DELETE_FILE           // Delete own files
+  DELETE_ANY_FILE       // Delete any file (admin)
+  UPLOAD_AVATAR         // Upload user avatar
+  UPLOAD_BANNER         // Upload user banner
+  UPLOAD_COMMUNITY_ASSETS // Upload community files
+  MANAGE_COMMUNITY_EMOJIS // Add/remove custom emojis
+}
+```
 
 ## Technical Specifications
 
@@ -116,54 +178,122 @@ frontend/src/
 - **Archives**: ZIP, RAR, 7Z
 - **Code**: Various source code files
 
-### Size Limits (Hardcoded Initially)
+### Size Limits (Environment Configurable)
 - **Message Attachments**: 100MB per file, 200MB total per message
-- **Public Files**: 
+- **User Assets**:
   - Avatars: 10MB
+  - Banners: 25MB
+- **Community Assets**:
   - Banners: 25MB
   - Custom Emojis: 5MB
 
 ### Security Features
 - File type validation (MIME type + magic bytes)
-- Malware scanning (future enhancement)
-- Access control middleware
+- File size validation
+- Access control based on parent resource permissions
 - Rate limiting on uploads
-- Content Security Policy headers
 - Secure file serving with proper headers
+- SHA-256 checksum for file integrity
 
-### Performance Considerations
-- Streaming uploads for large files
-- Progressive image loading
-- Lazy loading for media players
-- CDN-ready file serving
-- Efficient thumbnail generation
-- File cleanup and garbage collection
+## Storage Configuration
 
-## Integration Points
+### Environment Variables
 
-### Message System Integration
-- Extend message entities to support attachments
-- WebSocket events for file upload progress
-- Message creation with attached files
-- File deletion when messages are deleted
+```env
+# File Upload Limits
+FILE_UPLOAD_MAX_SIZE_MB=100
+FILE_UPLOAD_MAX_TOTAL_SIZE_MB=200
+FILE_UPLOAD_ALLOWED_TYPES=image/*,video/*,audio/*,application/pdf,text/*
 
-### User System Integration
-- User avatar and banner management
-- File upload permissions based on roles
-- User file quotas and usage tracking
+# Asset-Specific Limits
+AVATAR_MAX_SIZE_MB=10
+BANNER_MAX_SIZE_MB=25
+EMOJI_MAX_SIZE_MB=5
 
-### Community System Integration
-- Community-specific file permissions
-- Custom emoji uploads for communities
-- Community banners and assets
+# Storage Configuration
+FILE_STORAGE_TYPE=LOCAL
+FILE_STORAGE_PATH=/app/uploads
+FILE_PUBLIC_URL_BASE=http://localhost:3000/files
 
-## Next Steps
+# Future Cloud Storage (not implemented yet)
+# AWS_S3_BUCKET=
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+# AZURE_STORAGE_CONNECTION_STRING=
+```
 
-1. Review and approve this design document
-2. Implement Phase 1 (Core Infrastructure)
-3. Set up database migrations for file entities
-4. Create basic file upload/download endpoints
-5. Implement security and validation layers
-6. Begin frontend drag & drop interface development
+### Docker Configuration
 
-This design provides a solid foundation for a scalable, secure file upload system that can grow with the application's needs while maintaining Discord-like functionality and user experience.
+```yaml
+# docker-compose.yml updates
+backend:
+  volumes:
+    - ./backend:/app
+    - /app/node_modules
+    - file-uploads:/app/uploads  # Persistent file storage
+
+volumes:
+  file-uploads:
+```
+
+## API Endpoints
+
+### File Upload
+- `POST /files/upload/message` - Upload message attachment
+- `POST /files/upload/avatar` - Upload user avatar
+- `POST /files/upload/banner` - Upload user banner
+- `POST /files/upload/community` - Upload community assets
+
+### File Access
+- `GET /files/:id` - Secure file download with access control
+- `GET /files/public/:id` - Public file access (avatars, banners)
+- `DELETE /files/:id` - Delete file (owner or admin)
+- `GET /files/:id/metadata` - Get file information
+
+### File Management
+- `GET /files/user/:userId` - List user's files
+- `GET /files/community/:communityId` - List community files
+- `GET /files/message/:messageId` - List message attachments
+
+## Implementation Plan
+
+### Phase 1: Core Infrastructure
+1. Update Prisma schema with File model and junction tables
+2. Create Files module with basic CRUD operations
+3. Implement local storage service with file validation
+4. Add file upload endpoints with proper access control
+5. Update existing models to support file relationships
+
+### Phase 2: Integration & Security
+1. Integrate with RBAC system for file permissions
+2. Add file access middleware and guards
+3. Implement file serving with proper security headers
+4. Add file cleanup and maintenance tasks
+5. Update message creation to support attachments
+
+### Phase 3: Advanced Features
+1. Add file metadata extraction
+2. Implement file thumbnail generation
+3. Add file usage tracking and quotas
+4. Prepare cloud storage interface for future migration
+
+## Future Extensibility
+
+The storage interface design allows for easy migration to cloud storage:
+
+```typescript
+interface StorageService {
+  upload(file: Buffer, path: string): Promise<string>;
+  download(path: string): Promise<Buffer>;
+  delete(path: string): Promise<void>;
+  getUrl(path: string): string;
+}
+```
+
+This abstraction will support:
+- Local filesystem storage (current)
+- AWS S3 storage (future)
+- Azure Blob storage (future)
+- Google Cloud Storage (future)
+
+The junction table approach provides clean separation of file relationships and supports Discord-like functionality with higher default upload limits.
