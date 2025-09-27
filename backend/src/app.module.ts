@@ -17,7 +17,6 @@ import { RoomsModule } from './rooms/rooms.module';
 import { WebsocketService } from './websocket/websocket.service';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
-import { CacheModule } from './cache/cache.module';
 import { PresenceModule } from './presence/presence.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChannelMembershipModule } from './channel-membership/channel-membership.module';
@@ -58,7 +57,6 @@ import { DirectMessagesModule } from './direct-messages/direct-messages.module';
     RoomsModule,
     WebsocketModule,
     RedisModule,
-    CacheModule,
     PresenceModule,
     MembershipModule,
     ChannelMembershipModule,
