@@ -518,7 +518,11 @@ export class RolesService {
       existingRole.name.includes('Member -') ||
       existingRole.name.includes('Moderator -');
 
-    if (isDefaultRole && updateRoleDto.name && updateRoleDto.name.trim() !== existingRole.name.trim()) {
+    if (
+      isDefaultRole &&
+      updateRoleDto.name &&
+      updateRoleDto.name.trim() !== existingRole.name.trim()
+    ) {
       throw new BadRequestException(
         'Cannot change the name of default roles. Only permissions can be modified.',
       );
