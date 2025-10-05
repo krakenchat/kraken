@@ -1,0 +1,537 @@
+{
+  "info": {
+    "name": "Kraken File Upload",
+    "description": "Test file upload functionality with message attachments",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', response.access_token);",
+                  "pm.collectionVariables.set('userId', response.user.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. File Upload",
+      "item": [
+        {
+          "name": "Upload Image (Message Attachment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('imageFileId', response.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/your/image.jpg"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "MESSAGE_ATTACHMENT",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{messageId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Video (Large File)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('videoFileId', response.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/your/video.mp4"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "MESSAGE_ATTACHMENT",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{messageId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload User Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/your/avatar.png"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "USER_AVATAR",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{userId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Custom Emoji (Small)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/your/emoji.png"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "CUSTOM_EMOJI",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{communityId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Zip Archive",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/your/archive.zip"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "MESSAGE_ATTACHMENT",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{messageId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Messages with Attachments",
+      "item": [
+        {
+          "name": "Create Message with Pending Attachments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('messageId', response.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channelId\": \"{{channelId}}\",\n  \"spans\": [\n    {\n      \"type\": \"PLAINTEXT\",\n      \"text\": \"Uploading 2 files...\",\n      \"userId\": null,\n      \"specialKind\": null,\n      \"channelId\": null,\n      \"communityId\": null,\n      \"aliasId\": null\n    }\n  ],\n  \"attachments\": [],\n  \"pendingAttachments\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Attachment to Message (Success)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileId\": \"{{imageFileId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages/{{messageId}}/attachments",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "{{messageId}}", "attachments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Attachment to Message (Failure - No File)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages/{{messageId}}/attachments",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "{{messageId}}", "attachments"]
+            },
+            "description": "Simulates a failed upload - just decrements pendingAttachments counter"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Message (Check Attachments)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/messages/{{messageId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "{{messageId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. File Access",
+      "item": [
+        {
+          "name": "Get File by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/file/{{imageFileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["file", "{{imageFileId}}"]
+            },
+            "description": "Downloads the file - should validate access permissions"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/file-upload/{{imageFileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload", "{{imageFileId}}"]
+            },
+            "description": "Soft deletes the file"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Validation Tests",
+      "item": [
+        {
+          "name": "Upload File Too Large (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/large/file.mp4",
+                  "description": "Upload a file > 500MB"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "MESSAGE_ATTACHMENT",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{messageId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            },
+            "description": "Should fail with 422 - exceeds 500MB limit"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Wrong File Type for Emoji (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/document.pdf",
+                  "description": "Upload PDF as emoji"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "CUSTOM_EMOJI",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{communityId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            },
+            "description": "Should fail - emojis must be PNG/GIF/WebP"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Large Image as Avatar (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/large-image.jpg",
+                  "description": "Upload image > 10MB"
+                },
+                {
+                  "key": "resourceType",
+                  "value": "USER_AVATAR",
+                  "type": "text"
+                },
+                {
+                  "key": "resourceId",
+                  "value": "{{userId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["file-upload"]
+            },
+            "description": "Should fail - avatars limited to 10MB"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "channelId",
+      "value": "",
+      "type": "string",
+      "description": "Set this to a valid channel ID before testing messages"
+    },
+    {
+      "key": "communityId",
+      "value": "",
+      "type": "string",
+      "description": "Set this to a valid community ID for emoji uploads"
+    },
+    {
+      "key": "messageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "imageFileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "videoFileId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

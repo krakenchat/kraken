@@ -11,9 +11,7 @@ export class MessagesService {
 
   async create(createMessageDto: CreateMessageDto) {
     return this.databaseService.message.create({
-      data: {
-        ...createMessageDto,
-      },
+      data: createMessageDto,
     });
   }
 

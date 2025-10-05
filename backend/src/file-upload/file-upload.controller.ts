@@ -33,7 +33,8 @@ export class FileUploadController {
         validators: [
           new MimeTypeAwareSizeValidator({}),
           new FileTypeValidator({
-            fileType: /(image|video|audio|application|text)\//,
+            fileType: /^(image|video|audio|application|text)/,
+            skipMagicNumbersValidation: true,
           }),
         ],
         errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,

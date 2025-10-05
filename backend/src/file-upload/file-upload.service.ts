@@ -45,7 +45,7 @@ export class FileUploadService {
 
       // Create database record
       try {
-        await this.databaseService.file.create({
+        return await this.databaseService.file.create({
           data: {
             ...createFileUploadDto,
             filename: file.originalname,

@@ -109,7 +109,7 @@ export class FileAccessGuard implements CanActivate {
         throw error;
       }
       this.logger.error(`Error checking file access for file ${fileId}`, error);
-      throw new ForbiddenException('Access denied');
+      throw new NotFoundException('File not found');
     }
   }
 }
