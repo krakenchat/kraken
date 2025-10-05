@@ -19,6 +19,7 @@ model Message {
   editedAt             DateTime?
   deletedAt            DateTime?
   attachments          String[]   @db.ObjectId
+  pendingAttachments   Int?       @default(0) // Count of files currently uploading
 
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)

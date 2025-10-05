@@ -9,13 +9,18 @@ import {
   ParseFilePipe,
   FileTypeValidator,
   HttpStatus,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileUploadService } from './file-upload.service';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { MimeTypeAwareSizeValidator } from './validators/mime-type-aware-size.validator';
+import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { UserEntity } from '@/user/dto/user-response.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('file-upload')
 export class FileUploadController {
   constructor(private readonly fileUploadService: FileUploadService) {}
@@ -36,8 +41,9 @@ export class FileUploadController {
     )
     file: Express.Multer.File,
     @Body() body: CreateFileUploadDto,
+    @Req() req: { user: UserEntity },
   ) {
-    return this.fileUploadService.uploadFile(file, body);
+    return this.fileUploadService.uploadFile(file, body, req.user);
   }
 
   @Delete(':id')

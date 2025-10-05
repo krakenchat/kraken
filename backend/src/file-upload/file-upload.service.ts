@@ -9,6 +9,7 @@ import { FileType, StorageType } from '@prisma/client';
 import { createHash } from 'crypto';
 import { readFile, unlink } from 'fs/promises';
 import { ResourceTypeFileValidator } from './validators';
+import { UserEntity } from '@/user/dto/user-response.dto';
 
 @Injectable()
 export class FileUploadService {
@@ -19,7 +20,7 @@ export class FileUploadService {
   async uploadFile(
     file: Express.Multer.File,
     createFileUploadDto: CreateFileUploadDto,
-    uploadedById?: string,
+    user: UserEntity,
   ) {
     try {
       // Validate file using strategy pattern
@@ -52,7 +53,7 @@ export class FileUploadService {
             fileType,
             size: file.size,
             checksum,
-            uploadedById: uploadedById,
+            uploadedById: user.id,
             storageType: StorageType.LOCAL,
             storagePath: file.path,
           },

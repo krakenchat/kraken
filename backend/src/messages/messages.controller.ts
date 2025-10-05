@@ -16,6 +16,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
+import { AddAttachmentDto } from './dto/add-attachment.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
@@ -162,6 +163,34 @@ export class MessagesController {
     return result;
   }
 
+  @Post(':id/attachments')
+  @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
+  async addAttachment(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() addAttachmentDto: AddAttachmentDto,
+  ) {
+    // First get the original message to know which room to notify
+    const originalMessage = await this.messagesService.findOne(id);
+
+    // Add the attachment and decrement pendingAttachments
+    // If fileId is omitted (upload failed), just decrements counter
+    const updatedMessage = await this.messagesService.addAttachment(
+      id,
+      addAttachmentDto.fileId,
+    );
+
+    // Emit WebSocket event to the room
+    const roomId =
+      originalMessage.channelId || originalMessage.directMessageGroupId;
+    if (roomId) {
+      this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
+        message: updatedMessage,
+      });
+    }
+
+    return updatedMessage;
+  }
+
   @Get(':id')
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
@@ -177,7 +206,6 @@ export class MessagesController {
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
   async update(
     @Param('id', ParseObjectIdPipe) id: string,
-    @Req() req: { user: UserEntity },
     @Body() updateMessageDto: UpdateMessageDto,
   ) {
     // First get the original message to know which channel to notify

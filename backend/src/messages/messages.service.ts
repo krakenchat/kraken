@@ -138,6 +138,31 @@ export class MessagesService {
     }
   }
 
+  async addAttachment(messageId: string, fileId?: string) {
+    try {
+      // If fileId is provided, add it to attachments array
+      // Always decrement pendingAttachments (handles both success and failure)
+      const updatedMessage = await this.databaseService.message.update({
+        where: { id: messageId },
+        data: {
+          ...(fileId && {
+            attachments: {
+              push: fileId,
+            },
+          }),
+          pendingAttachments: {
+            decrement: 1,
+          },
+        },
+      });
+
+      return updatedMessage;
+    } catch (error) {
+      this.logger.error('Error updating message attachments', error);
+      throw error;
+    }
+  }
+
   private async findAllByField(
     field: 'channelId' | 'directMessageGroupId',
     value: string,
