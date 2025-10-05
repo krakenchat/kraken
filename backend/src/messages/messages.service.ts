@@ -11,9 +11,7 @@ export class MessagesService {
 
   async create(createMessageDto: CreateMessageDto) {
     return this.databaseService.message.create({
-      data: {
-        ...createMessageDto,
-      },
+      data: createMessageDto,
     });
   }
 
@@ -134,6 +132,31 @@ export class MessagesService {
       return await this.update(messageId, { reactions: message.reactions });
     } catch (error) {
       this.logger.error('Error removing reaction', error);
+      throw error;
+    }
+  }
+
+  async addAttachment(messageId: string, fileId?: string) {
+    try {
+      // If fileId is provided, add it to attachments array
+      // Always decrement pendingAttachments (handles both success and failure)
+      const updatedMessage = await this.databaseService.message.update({
+        where: { id: messageId },
+        data: {
+          ...(fileId && {
+            attachments: {
+              push: fileId,
+            },
+          }),
+          pendingAttachments: {
+            decrement: 1,
+          },
+        },
+      });
+
+      return updatedMessage;
+    } catch (error) {
+      this.logger.error('Error updating message attachments', error);
       throw error;
     }
   }

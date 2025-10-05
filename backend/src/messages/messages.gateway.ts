@@ -36,14 +36,6 @@ export class MessagesGateway {
     private readonly websocketService: WebsocketService,
   ) {}
 
-  handleConnection(client: any) {
-    console.log('[MessagesGateway] Client connected:', client.id);
-  }
-
-  handleDisconnect(client: any) {
-    console.log('[MessagesGateway] Client disconnected:', client.id);
-  }
-
   @SubscribeMessage(ClientEvents.SEND_MESSAGE)
   @RequiredActions(RbacActions.CREATE_MESSAGE)
   @RbacResource({
@@ -74,7 +66,7 @@ export class MessagesGateway {
 
   @SubscribeMessage('sendDirectMessage')
   async handleDirectMessage(
-    @MessageBody() payload: any,
+    @MessageBody() payload: CreateMessageDto,
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
     console.log('[MessagesGateway] *** DM HANDLER CALLED - RAW ***');
@@ -99,7 +91,7 @@ export class MessagesGateway {
       );
 
       this.websocketService.sendToRoom(
-        payload.directMessageGroupId,
+        payload.directMessageGroupId!,
         ServerEvents.NEW_DM,
         {
           message,

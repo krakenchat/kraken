@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
+import { createKeyv } from '@keyv/redis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
@@ -17,7 +19,6 @@ import { RoomsModule } from './rooms/rooms.module';
 import { WebsocketService } from './websocket/websocket.service';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
-import { CacheModule } from './cache/cache.module';
 import { PresenceModule } from './presence/presence.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChannelMembershipModule } from './channel-membership/channel-membership.module';
@@ -25,6 +26,8 @@ import { LivekitModule } from './livekit/livekit.module';
 import { VoicePresenceModule } from './voice-presence/voice-presence.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { DirectMessagesModule } from './direct-messages/direct-messages.module';
+import { FileUploadModule } from './file-upload/file-upload.module';
+import { FileModule } from './file/file.module';
 
 @Module({
   imports: [
@@ -33,6 +36,30 @@ import { DirectMessagesModule } from './direct-messages/direct-messages.module';
     InviteModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    CacheModule.registerAsync({
+      useFactory: (configService: ConfigService) => {
+        const redisHost =
+          configService.get<string>('REDIS_HOST') || 'localhost';
+        const redisPort = configService.get<string>('REDIS_PORT') || '6379';
+        const redisPassword = configService.get<string>('REDIS_PASSWORD');
+        const redisDb = configService.get<string>('REDIS_DB') || '0';
+
+        let redisUrl = `redis://${redisHost}:${redisPort}`;
+        if (redisPassword) {
+          redisUrl = `redis://:${redisPassword}@${redisHost}:${redisPort}`;
+        }
+        if (redisDb !== '0') {
+          redisUrl += `/${redisDb}`;
+        }
+
+        return {
+          stores: [createKeyv(redisUrl)],
+          ttl: 60 * 1000, // 60 seconds in milliseconds
+        };
+      },
+      inject: [ConfigService],
+      isGlobal: true,
+    }),
     RolesModule,
     UserModule,
     CommunityModule,
@@ -58,7 +85,6 @@ import { DirectMessagesModule } from './direct-messages/direct-messages.module';
     RoomsModule,
     WebsocketModule,
     RedisModule,
-    CacheModule,
     PresenceModule,
     MembershipModule,
     ChannelMembershipModule,
@@ -66,6 +92,8 @@ import { DirectMessagesModule } from './direct-messages/direct-messages.module';
     VoicePresenceModule,
     OnboardingModule,
     DirectMessagesModule,
+    FileUploadModule,
+    FileModule,
   ],
   controllers: [AppController],
   providers: [

@@ -61,10 +61,6 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     // Reaction management
     RbacActions.CREATE_REACTION,
     RbacActions.DELETE_REACTION,
-
-    // Attachment management
-    RbacActions.CREATE_ATTACHMENT,
-    RbacActions.DELETE_ATTACHMENT,
   ],
 };
 
@@ -100,10 +96,6 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
     RbacActions.CREATE_REACTION,
     RbacActions.DELETE_REACTION,
 
-    // Attachment management
-    RbacActions.CREATE_ATTACHMENT,
-    RbacActions.DELETE_ATTACHMENT,
-
     // Alias group management (limited)
     RbacActions.READ_ALIAS_GROUP,
     RbacActions.READ_ALIAS_GROUP_MEMBER,
@@ -131,9 +123,6 @@ export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
     // Basic reaction permissions
     RbacActions.CREATE_REACTION,
     RbacActions.DELETE_REACTION,
-
-    // Basic attachment permissions
-    RbacActions.CREATE_ATTACHMENT,
 
     // Basic alias group reading
     RbacActions.READ_ALIAS_GROUP,
