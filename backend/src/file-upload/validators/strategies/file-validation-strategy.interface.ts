@@ -7,7 +7,7 @@ export interface IFileValidationStrategy {
   /**
    * Get the maximum file size in bytes for this resource type
    */
-  getMaxFileSize(): number;
+  getMaxFileSize(mimeType: string): number;
 
   /**
    * Perform additional validation (e.g., image dimensions)

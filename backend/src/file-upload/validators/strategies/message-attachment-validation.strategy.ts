@@ -48,9 +48,19 @@ export class MessageAttachmentValidationStrategy
     return this.allowedMimeTypes;
   }
 
-  getMaxFileSize(): number {
-    // Return the largest possible size (for message attachments, videos at 500MB)
-    return this.MAX_VIDEO_SIZE;
+  getMaxFileSize(mimeType: string): number {
+    // Validate size based on mimetype
+    if (mimeType.startsWith('video/')) {
+      return this.MAX_VIDEO_SIZE;
+    }
+    if (mimeType.startsWith('image/')) {
+      return this.MAX_IMAGE_SIZE;
+    }
+    if (mimeType.startsWith('audio/')) {
+      return this.MAX_AUDIO_SIZE;
+    }
+    // Documents (application/* and text/*)
+    return this.MAX_DOCUMENT_SIZE;
   }
 
   getValidationDescription(): string {

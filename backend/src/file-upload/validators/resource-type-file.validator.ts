@@ -59,7 +59,7 @@ export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileVal
     }
 
     // Check file size
-    const maxSize = strategy.getMaxFileSize();
+    const maxSize = strategy.getMaxFileSize(file.mimetype);
     if (file.size > maxSize) {
       return false;
     }
@@ -80,7 +80,7 @@ export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileVal
     }
 
     const allowedMimeTypes = strategy.getAllowedMimeTypes();
-    const maxSize = strategy.getMaxFileSize();
+    const maxSize = strategy.getMaxFileSize(file.mimetype);
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
       return `Invalid file type. ${strategy.getValidationDescription()}`;

@@ -14,7 +14,7 @@ export class FileService {
     });
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_10_MINUTES)
   async cleanupOldFiles() {
     this.logger.debug('Running cleanup of old files...');
     const deletedFiles = await this.databaseService.file.findMany({
