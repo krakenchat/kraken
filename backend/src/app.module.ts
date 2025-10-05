@@ -26,6 +26,8 @@ import { LivekitModule } from './livekit/livekit.module';
 import { VoicePresenceModule } from './voice-presence/voice-presence.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { DirectMessagesModule } from './direct-messages/direct-messages.module';
+import { FileUploadModule } from './file-upload/file-upload.module';
+import { FileModule } from './file/file.module';
 
 @Module({
   imports: [
@@ -90,6 +92,8 @@ import { DirectMessagesModule } from './direct-messages/direct-messages.module';
     VoicePresenceModule,
     OnboardingModule,
     DirectMessagesModule,
+    FileUploadModule,
+    FileModule,
   ],
   controllers: [AppController],
   providers: [

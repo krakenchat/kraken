@@ -9,15 +9,16 @@ generator client {
 }
 
 model Message {
-  id                   String       @id @default(auto()) @map("_id") @db.ObjectId
-  channelId            String?      @db.ObjectId // Now optional, for DMs
-  directMessageGroupId String?      @db.ObjectId // New, for DMs
+  id                   String     @id @default(auto()) @map("_id") @db.ObjectId
+  channelId            String?    @db.ObjectId // Now optional, for DMs
+  directMessageGroupId String?    @db.ObjectId // New, for DMs
   authorId             String
   spans                Span[]
   reactions            Reaction[]
-  sentAt               DateTime     @default(now())
+  sentAt               DateTime   @default(now())
   editedAt             DateTime?
   deletedAt            DateTime?
+  attachments          String[]   @db.ObjectId
 
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
@@ -47,6 +48,7 @@ model User {
   friendshipsB                  Friendship[]               @relation("FriendshipB")
 
   ChannelMembership ChannelMembership[] @relation("UserChannelMemberships")
+  File              File[]
 }
 
 model RefreshToken {
@@ -197,6 +199,52 @@ model Friendship {
   @@unique([userAId, userBId])
 }
 
+model File {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  filename     String // Original filename
+  mimeType     String // MIME type (image/jpeg, etc.)
+  fileType     FileType // Enum for different file types
+  size         Int // File size in bytes
+  checksum     String // SHA-256 hash for integrity
+  uploadedBy   User?     @relation(fields: [uploadedById], references: [id])
+  uploadedById String?   @db.ObjectId
+  uploadedAt   DateTime  @default(now())
+  deletedAt    DateTime? // Soft delete
+  resourceType ResourceType
+  resourceId   String? // ID of the resource this file is associated with (userId, communityId, messageId, etc.)
+
+  // Storage configuration
+  storageType StorageType @default(LOCAL)
+  storagePath String // Local path or cloud key
+
+  @@index([uploadedById]) // show my files or files for specific user
+  @@index([deletedAt]) // For cleaning up deleted files
+  @@index([resourceType, resourceId]) // For fetching files related to a specific resource
+}
+
+enum FileType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  OTHER
+}
+
+enum ResourceType {
+  USER_AVATAR
+  USER_BANNER
+  COMMUNITY_BANNER
+  COMMUNITY_AVATAR
+  MESSAGE_ATTACHMENT
+  CUSTOM_EMOJI
+}
+
+enum StorageType {
+  LOCAL
+  S3
+  AZURE_BLOB
+}
+
 enum FriendshipStatus {
   PENDING
   ACCEPTED
@@ -276,7 +324,6 @@ enum SpanType {
   COMMUNITY_MENTION
   ALIAS_MENTION
 }
-
 
 type Reaction {
   emoji   String

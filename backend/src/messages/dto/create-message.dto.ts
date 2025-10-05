@@ -42,12 +42,7 @@ export class CreateMessageDto implements Message {
   }[];
 
   @IsArray()
-  attachments: {
-    url: string;
-    filename: string;
-    filetype: string;
-    size: number;
-  }[];
+  attachments: string[];
 
   @IsArray()
   reactions: { emoji: string; userIds: string[] }[];
