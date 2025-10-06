@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useProfileQuery } from "./features/users/usersSlice";
 import { useLazyLogoutQuery } from "./features/auth/authSlice";
 import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
@@ -18,19 +18,20 @@ import type { User } from "./types/auth.type";
 const APPBAR_HEIGHT = 64;
 const SIDEBAR_WIDTH = 80;
 const VOICE_BAR_HEIGHT = 64;
-const settings = ["Profile", "Account", "Dashboard", "Logout"];
+const settings = ["Edit Profile", "Logout"];
 
 const Layout: React.FC = () => {
+  const navigate = useNavigate();
   const { data: userData, isLoading, isError } = useProfileQuery(undefined);
   const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
   const { state: voiceState } = useVoiceConnection();
-  
+
   // Send presence heartbeat to keep user marked as online
   usePresenceHeartbeat(!!userData && !isLoading && !isError);
-  
+
   // Listen for real-time presence events
   usePresenceEvents();
-  
+
   // Listen for real-time voice presence events globally
   useVoiceEvents();
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
@@ -44,6 +45,14 @@ const Layout: React.FC = () => {
 
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
+  };
+
+  const handleSettingClick = (setting: string) => {
+    if (setting === "Edit Profile") {
+      navigate("/profile/edit");
+    } else if (setting === "Logout") {
+      handleLogout();
+    }
   };
 
   const handleLogout = async () => {
@@ -101,6 +110,7 @@ const Layout: React.FC = () => {
               handleOpenUserMenu={handleOpenUserMenu}
               handleCloseUserMenu={handleCloseUserMenu}
               settings={settings}
+              onSettingClick={handleSettingClick}
             />
           )}
         </Toolbar>

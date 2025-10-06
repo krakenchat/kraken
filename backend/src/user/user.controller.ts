@@ -9,10 +9,12 @@ import {
   UseGuards,
   Query,
   ParseIntPipe,
+  Patch,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEntity } from './dto/user-response.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Public } from 'src/auth/public.decorator';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -50,6 +52,15 @@ export class UserController {
     }
 
     return new UserEntity(profile);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @Request() req: { user: { id: string } },
+    @Body() updateProfileDto: UpdateProfileDto,
+  ): Promise<UserEntity> {
+    return this.userService.updateProfile(req.user.id, updateProfileDto);
   }
 
   @Get('username/:name')

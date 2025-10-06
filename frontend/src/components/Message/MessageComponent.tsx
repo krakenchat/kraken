@@ -7,7 +7,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import type { Message as MessageType, Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
 import {
-  useGetUserByIdWithCacheQuery,
+  useGetUserByIdQuery,
   useProfileQuery,
 } from "../../features/users/usersSlice";
 import { alpha } from '@mui/material/styles';
@@ -120,7 +120,7 @@ const MessageTools = styled(Box, {
 }));
 
 function MessageComponent({ message }: MessageProps) {
-  const { data: author } = useGetUserByIdWithCacheQuery(message.authorId);
+  const { data: author } = useGetUserByIdQuery(message.authorId);
   const { data: currentUser } = useProfileQuery();
   
   // Check if this message mentions the current user

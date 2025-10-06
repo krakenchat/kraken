@@ -9,6 +9,7 @@ import { DatabaseService } from '../database/database.service';
 import { InviteService } from '../invite/invite.service';
 import { ChannelsService } from '../channels/channels.service';
 import { UserEntity } from './dto/user-response.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UserService {
@@ -172,5 +173,36 @@ export class UserService {
     });
 
     return users.map((u) => new UserEntity(u));
+  }
+
+  async updateProfile(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<UserEntity> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updateData: Prisma.UserUpdateInput = {};
+
+    if (updateProfileDto.displayName !== undefined) {
+      updateData.displayName = updateProfileDto.displayName.trim();
+    }
+
+    if (updateProfileDto.avatar !== undefined) {
+      updateData.avatarUrl = updateProfileDto.avatar;
+    }
+
+    if (updateProfileDto.banner !== undefined) {
+      updateData.bannerUrl = updateProfileDto.banner;
+    }
+
+    const updatedUser = await this.database.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    return new UserEntity(updatedUser);
   }
 }

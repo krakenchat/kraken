@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { useGetUserByIdWithCacheQuery } from '../../features/users/usersSlice';
+import { useGetUserByIdQuery } from '../../features/users/usersSlice';
 
 interface ReactionTooltipProps {
   userIds: string[];
@@ -9,7 +9,7 @@ interface ReactionTooltipProps {
 
 // Individual user name fetcher component
 const UserName: React.FC<{ userId: string }> = ({ userId }) => {
-  const { data: user, isLoading } = useGetUserByIdWithCacheQuery(userId);
+  const { data: user, isLoading } = useGetUserByIdQuery(userId);
   
   if (isLoading) return <Typography variant="body2" sx={{ fontSize: '12px' }}>Loading...</Typography>;
   

@@ -9,6 +9,8 @@ import JoinInvitePage from "./pages/JoinInvitePage";
 import AdminInvitePage from "./pages/AdminInvitePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
+import ProfilePage from "./pages/ProfilePage";
+import ProfileEditPage from "./pages/ProfileEditPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import CommunityPage from "./pages/CommunityPage";
@@ -96,6 +98,8 @@ function App() {
               <Route index element={<HomePage />} />
               <Route path="direct-messages" element={<DirectMessagesPage />} />
               <Route path="admin/invites" element={<AdminInvitePage />} />
+              <Route path="profile/edit" element={<ProfileEditPage />} />
+              <Route path="profile/:userId" element={<ProfilePage />} />
               <Route path="community/create" element={<CreateCommunityPage />} />
               <Route path="community/:communityId">
                 <Route index element={<CommunityPage />} />

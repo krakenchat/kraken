@@ -19,6 +19,7 @@ export class UserEntity implements User {
   hashedPassword: string;
 
   avatarUrl: string | null;
+  bannerUrl: string | null;
   lastSeen: Date | null;
 
   constructor(partial: Partial<UserEntity>) {

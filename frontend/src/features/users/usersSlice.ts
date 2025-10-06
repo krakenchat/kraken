@@ -1,10 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { Register, User } from "../../types/auth.type";
 import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
-import { getCachedItem, setCachedItem } from "../../utils/storage";
-
-const USER_CACHE_PREFIX = "user_";
-const USER_CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 export const usersApi = createApi({
   reducerPath: "usersApi",
@@ -14,6 +10,7 @@ export const usersApi = createApi({
       prepareHeaders,
     })
   ),
+  tagTypes: ["Profile", "User"],
   endpoints: (builder) => ({
     register: builder.query<User, Register>({
       query: (body) => ({
@@ -27,26 +24,23 @@ export const usersApi = createApi({
         url: "/profile",
         method: "GET",
       }),
+      providesTags: ["Profile"],
     }),
-    getUserByIdWithCache: builder.query<User, string>({
-      async queryFn(userId, _queryApi, _extraOptions, fetchWithBQ) {
-        // 1. Try localStorage cache
-        const cached = getCachedItem<User>(`${USER_CACHE_PREFIX}${userId}`);
-        if (cached) return { data: cached };
-        // 2. Fetch from API
-        const result = await fetchWithBQ(`/${userId}`);
-        if (result.data) {
-          setCachedItem(
-            `${USER_CACHE_PREFIX}${userId}`,
-            result.data as User,
-            USER_CACHE_TTL
-          );
-          return { data: result.data as User };
-        }
-        // Only return a valid FetchBaseQueryError or a minimal fallback
-        if (result.error) return { error: result.error };
-        return { error: { status: 404, data: "User not found" } };
-      },
+    updateProfile: builder.mutation<
+      User,
+      { displayName?: string; avatar?: string; banner?: string }
+    >({
+      query: (body) => ({
+        url: "/profile",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (result) =>
+        result ? ["Profile", { type: "User", id: result.id }] : ["Profile"],
+    }),
+    getUserById: builder.query<User, string>({
+      query: (userId) => `/${userId}`,
+      providesTags: (result, _error, userId) => [{ type: "User", id: userId }],
     }),
     searchUsers: builder.query<User[], { query: string; communityId?: string }>(
       {
@@ -79,7 +73,8 @@ export const usersApi = createApi({
 export const {
   useLazyRegisterQuery,
   useProfileQuery,
-  useGetUserByIdWithCacheQuery,
+  useUpdateProfileMutation,
+  useGetUserByIdQuery,
   useLazySearchUsersQuery,
   useGetAllUsersQuery,
 } = usersApi;

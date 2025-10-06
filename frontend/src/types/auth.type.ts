@@ -7,6 +7,7 @@ export interface User {
   id: string;
   username: string;
   avatarUrl: string | null;
+  bannerUrl?: string | null;
   lastSeen: Date | null;
   displayName: string | null;
   role: string;
