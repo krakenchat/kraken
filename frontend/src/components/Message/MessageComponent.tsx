@@ -19,6 +19,7 @@ import {
 } from "../../features/messages/messagesApiSlice";
 import { MessageReactions } from "./MessageReactions";
 import { EmojiPicker } from "./EmojiPicker";
+import { MessageAttachments } from "./MessageAttachments";
 import { useState, useMemo } from "react";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 
@@ -311,6 +312,7 @@ function MessageComponent({ message }: MessageProps) {
             <Typography variant="body1">
               {message.spans.map((span, idx) => renderSpan(span, idx))}
             </Typography>
+            <MessageAttachments attachments={message.attachments} />
             <MessageReactions
               messageId={message.id}
               reactions={message.reactions}
