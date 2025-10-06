@@ -22,7 +22,7 @@ export interface MessageContainerWrapperProps {
   useMessagesHook: () => MessagesHookResult;
   userMentions: UserMention[];
   channelMentions?: ChannelMention[];
-  onSendMessage: (messageContent: string, spans: unknown[]) => void;
+  onSendMessage: (messageContent: string, spans: unknown[], files?: File[]) => void;
   memberListComponent?: React.ReactNode;
   placeholder?: string;
   emptyStateMessage?: string;

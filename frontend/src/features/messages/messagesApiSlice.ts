@@ -122,6 +122,32 @@ export const messagesApi = createApi({
         body: { messageId, emoji },
       }),
     }),
+    addAttachment: builder.mutation<
+      Message,
+      { messageId: string; fileId?: string }
+    >({
+      query: ({ messageId, fileId }) => ({
+        url: `/${messageId}/attachments`,
+        method: "POST",
+        body: { fileId },
+      }),
+      async onQueryStarted({ messageId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updatedMessage } = await queryFulfilled;
+          // Update message in Redux store if channelId is available
+          if (updatedMessage.channelId) {
+            dispatch(
+              updateMessage({
+                channelId: updatedMessage.channelId,
+                message: updatedMessage,
+              })
+            );
+          }
+        } catch (error) {
+          console.error("Failed to add attachment:", error);
+        }
+      },
+    }),
   }),
 });
 
@@ -132,4 +158,5 @@ export const {
   useDeleteMessageMutation,
   useAddReactionMutation,
   useRemoveReactionMutation,
+  useAddAttachmentMutation,
 } = messagesApi;

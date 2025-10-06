@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Paper, IconButton, CircularProgress } from "@mui/material";
+import { Box, Paper, IconButton, CircularProgress, Chip } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
+import CloseIcon from "@mui/icons-material/Close";
 import { styled } from "@mui/material/styles";
 import TextField from "@mui/material/TextField";
 import { MentionDropdown } from "../Message/MentionDropdown";
@@ -43,7 +45,7 @@ export interface MessageInputProps {
   contextId: string;
   userMentions: UserMention[];
   channelMentions?: ChannelMention[];
-  onSendMessage: (messageContent: string, spans: unknown[]) => void;
+  onSendMessage: (messageContent: string, spans: unknown[], files?: File[]) => void;
   placeholder?: string;
   communityId?: string; // For channels to use mention autocomplete
 }
@@ -59,7 +61,10 @@ export default function MessageInput({
   const [text, setText] = useState("");
   const [cursorPosition, setCursorPosition] = useState(0);
   const [sending, setSending] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<Map<number, string>>(new Map());
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // For DMs, use simple mention state; for channels, use the advanced hook if provided
   const [simpleMentionState, setSimpleMentionState] = useState({
@@ -222,17 +227,67 @@ export default function MessageInput({
     };
   }, [updateCursorPosition]);
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files);
+      const startIndex = selectedFiles.length;
+
+      // Generate previews for image files
+      fileArray.forEach((file, idx) => {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            if (e.target?.result) {
+              setFilePreviews(prev => new Map(prev).set(startIndex + idx, e.target!.result as string));
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      setSelectedFiles(prev => [...prev, ...fileArray]);
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setFilePreviews(prev => {
+      const newPreviews = new Map(prev);
+      newPreviews.delete(index);
+      return newPreviews;
+    });
+  };
+
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleSend = async () => {
-    if (!text || typeof text !== 'string' || !text.trim() || sending) return;
+    if ((!text || !text.trim()) && selectedFiles.length === 0) return;
+    if (sending) return;
 
     setSending(true);
     try {
-      const spans = parseMessageWithMentions(text, userMentions, channelMentions);
-      await onSendMessage(text, spans);
+      const messageText = text.trim() || "";
+      let spans = parseMessageWithMentions(messageText, userMentions, channelMentions);
+
+      // Backend requires at least one span, so add empty PLAINTEXT if needed
+      if (spans.length === 0) {
+        spans = [{ type: 'PLAINTEXT', text: '' }];
+      }
+
+      await onSendMessage(messageText, spans, selectedFiles);
       setText("");
+      setSelectedFiles([]);
+      setFilePreviews(new Map());
       setSimpleMentionState(prev => ({ ...prev, isOpen: false }));
       closeMentions();
-      
+
       // Refocus the input after sending message
       requestAnimationFrame(() => {
         if (inputRef.current) {
@@ -307,7 +362,82 @@ export default function MessageInput({
           position={isChannelMode ? { bottom: 80, left: 20 } : undefined}
         />
       )}
-      
+
+      {/* File Preview */}
+      {selectedFiles.length > 0 && (
+        <Box sx={{ mb: 1, display: "flex", flexWrap: "wrap", gap: 1 }}>
+          {selectedFiles.map((file, index) => {
+            const preview = filePreviews.get(index);
+            const isImage = file.type.startsWith('image/');
+
+            if (isImage && preview) {
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    position: 'relative',
+                    width: 80,
+                    height: 80,
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <img
+                    src={preview}
+                    alt={file.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                  <IconButton
+                    onClick={() => handleRemoveFile(index)}
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: 2,
+                      right: 2,
+                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      },
+                      width: 20,
+                      height: 20,
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              );
+            }
+
+            return (
+              <Chip
+                key={index}
+                label={file.name}
+                onDelete={() => handleRemoveFile(index)}
+                deleteIcon={<CloseIcon />}
+                size="small"
+              />
+            );
+          })}
+        </Box>
+      )}
+
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        hidden
+        accept="image/*,video/*"
+        onChange={handleFileSelect}
+      />
+
       {isChannelMode ? (
         <form
           onSubmit={(e) => {
@@ -332,9 +462,16 @@ export default function MessageInput({
               autoComplete="off"
             />
             <IconButton
+              onClick={handleFileButtonClick}
+              disabled={sending}
+              aria-label="attach file"
+            >
+              <AttachFileIcon />
+            </IconButton>
+            <IconButton
               color="primary"
               type="submit"
-              disabled={sending || !text.trim()}
+              disabled={sending || ((!text || !text.trim()) && selectedFiles.length === 0)}
               aria-label="send"
             >
               {sending ? <CircularProgress size={24} /> : <SendIcon />}
@@ -357,9 +494,17 @@ export default function MessageInput({
             disabled={sending}
           />
           <IconButton
+            onClick={handleFileButtonClick}
+            disabled={sending}
+            size="small"
+            aria-label="attach file"
+          >
+            <AttachFileIcon />
+          </IconButton>
+          <IconButton
             color="primary"
             onClick={handleSend}
-            disabled={!text || typeof text !== 'string' || !text.trim() || sending}
+            disabled={sending || ((!text || !text.trim()) && selectedFiles.length === 0)}
             size="small"
           >
             {sending ? <CircularProgress size={20} /> : <SendIcon />}

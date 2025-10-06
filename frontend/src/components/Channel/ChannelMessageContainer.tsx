@@ -7,6 +7,8 @@ import { useSendMessageSocket } from "../../hooks/useSendMessageSocket";
 import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
 import { useGetMentionableChannelsQuery } from "../../features/channel/channelApiSlice";
 import { useProfileQuery } from "../../features/users/usersSlice";
+import { useFileUpload } from "../../hooks/useFileUpload";
+import { useAddAttachmentMutation } from "../../features/messages/messagesApiSlice";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 
 interface ChannelMessageContainerProps {
@@ -24,14 +26,16 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     communityId: string;
   }>();
 
-  const sendMessage = useSendMessageSocket(() => {});
+  const { uploadFile } = useFileUpload();
+  const [addAttachment] = useAddAttachmentMutation();
+  const pendingFilesRef = React.useRef<File[] | null>(null);
 
   // Fetch community members and channels for mention resolution
   const { data: memberData = [] } = useGetMembersForCommunityQuery(communityId || "");
   const { data: channelData = [] } = useGetMentionableChannelsQuery(communityId || "");
 
   // Convert to mention format
-  const userMentions: UserMention[] = React.useMemo(() => 
+  const userMentions: UserMention[] = React.useMemo(() =>
     memberData.map((member) => ({
       id: member.user!.id,
       username: member.user!.username,
@@ -46,18 +50,61 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 
   // Get messages using the hook directly (not in callback)
   const messagesHookResult = useChannelMessages(channelId);
-  
-  // For channel messages, we'll pass the hook function itself and let UnifiedMessageInput handle it
 
-  const handleSendMessage = (messageContent: string, spans: unknown[]) => {
+  // Setup socket send with callback
+  const sendMessage = useSendMessageSocket(async (messageId: string) => {
+    const files = pendingFilesRef.current;
+    if (!files || files.length === 0) return;
+
+    try {
+      // Upload all files in parallel
+      const uploadPromises = files.map(file =>
+        uploadFile(file, {
+          resourceType: "MESSAGE_ATTACHMENT",
+          resourceId: messageId,
+        })
+      );
+
+      const uploadedFiles = await Promise.all(uploadPromises);
+
+      // Add each uploaded file to the message
+      for (const uploadedFile of uploadedFiles) {
+        await addAttachment({
+          messageId,
+          fileId: uploadedFile.id,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to upload files:", error);
+      // Call addAttachment without fileId to decrement pendingAttachments
+      for (let i = 0; i < files.length; i++) {
+        await addAttachment({
+          messageId,
+          // No fileId means upload failed, just decrement counter
+        });
+      }
+    } finally {
+      // Clear pending files
+      pendingFilesRef.current = null;
+    }
+  });
+
+  const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[]) => {
+    // Create message with pendingAttachments count
     const msg = {
       channelId,
       authorId,
       spans,
       attachments: [],
+      pendingAttachments: files?.length || 0,
       reactions: [],
       sentAt: new Date().toISOString(),
     };
+
+    // Store files in ref for callback
+    pendingFilesRef.current = files || null;
+
+    // Send message immediately (optimistic)
     sendMessage(msg);
   };
 
