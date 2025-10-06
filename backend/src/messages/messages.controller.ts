@@ -179,16 +179,20 @@ export class MessagesController {
       addAttachmentDto.fileId,
     );
 
+    // Enrich message with file metadata before emitting
+    const enrichedMessage =
+      await this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
+
     // Emit WebSocket event to the room
     const roomId =
       originalMessage.channelId || originalMessage.directMessageGroupId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
-        message: updatedMessage,
+        message: enrichedMessage,
       });
     }
 
-    return updatedMessage;
+    return enrichedMessage;
   }
 
   @Get(':id')

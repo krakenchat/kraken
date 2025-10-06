@@ -53,11 +53,15 @@ export class MessagesGateway {
       sentAt: new Date(),
     });
 
+    // Enrich message with file metadata before emitting
+    const enrichedMessage =
+      await this.messagesService.enrichMessageWithFileMetadata(message);
+
     this.websocketService.sendToRoom(
       payload.channelId!,
       ServerEvents.NEW_MESSAGE,
       {
-        message,
+        message: enrichedMessage,
       },
     );
 
@@ -90,11 +94,15 @@ export class MessagesGateway {
         payload.directMessageGroupId,
       );
 
+      // Enrich message with file metadata before emitting
+      const enrichedMessage =
+        await this.messagesService.enrichMessageWithFileMetadata(message);
+
       this.websocketService.sendToRoom(
         payload.directMessageGroupId!,
         ServerEvents.NEW_DM,
         {
-          message,
+          message: enrichedMessage,
         },
       );
 
@@ -136,11 +144,15 @@ export class MessagesGateway {
       payload.directMessageGroupId,
     );
 
+    // Enrich message with file metadata before emitting
+    const enrichedMessage =
+      await this.messagesService.enrichMessageWithFileMetadata(message);
+
     this.websocketService.sendToRoom(
       payload.directMessageGroupId!,
       ServerEvents.NEW_DM,
       {
-        message,
+        message: enrichedMessage,
       },
     );
 

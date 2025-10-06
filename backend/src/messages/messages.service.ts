@@ -161,6 +161,35 @@ export class MessagesService {
     }
   }
 
+  async enrichMessageWithFileMetadata(message: any) {
+    if (!message.attachments || message.attachments.length === 0) {
+      return { ...message, attachments: [] };
+    }
+
+    // Fetch all file metadata for this message
+    const files = await this.databaseService.file.findMany({
+      where: { id: { in: message.attachments } },
+      select: {
+        id: true,
+        filename: true,
+        mimeType: true,
+        fileType: true,
+        size: true,
+      },
+    });
+
+    // Create a map for quick lookup
+    const fileMap = new Map(files.map((file) => [file.id, file]));
+
+    // Transform attachments to include file metadata
+    return {
+      ...message,
+      attachments: message.attachments
+        .map((fileId) => fileMap.get(fileId))
+        .filter((file): file is NonNullable<typeof file> => file !== undefined),
+    };
+  }
+
   private async findAllByField(
     field: 'channelId' | 'directMessageGroupId',
     value: string,
