@@ -119,9 +119,25 @@ export class FileUploadService {
       mimeType.startsWith(
         'application/vnd.openxmlformats-officedocument.spreadsheetml',
       ) ||
+      mimeType.startsWith('application/vnd.ms-powerpoint') ||
+      mimeType.startsWith(
+        'application/vnd.openxmlformats-officedocument.presentationml',
+      ) ||
       mimeType.startsWith('text/')
     ) {
       return FileType.DOCUMENT;
+    }
+    // Archives and other application types
+    if (
+      mimeType.includes('zip') ||
+      mimeType.includes('rar') ||
+      mimeType.includes('7z') ||
+      mimeType.includes('tar') ||
+      mimeType.includes('gzip') ||
+      mimeType.includes('bzip') ||
+      mimeType === 'application/octet-stream'
+    ) {
+      return FileType.OTHER;
     }
     return FileType.OTHER;
   }

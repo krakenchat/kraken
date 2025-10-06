@@ -13,6 +13,7 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import CommunityPage from "./pages/CommunityPage";
 import { RoomProvider } from "./contexts/RoomContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApiSlice";
 import { CircularProgress, Box } from "@mui/material";
 
@@ -81,28 +82,30 @@ function App() {
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      <RoomProvider>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/join/:inviteCode" element={<JoinInvitePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          
-          {/* Authenticated routes */}
-          <Route path="/" element={<Layout />}>
-            <Route index element={<HomePage />} />
-            <Route path="direct-messages" element={<DirectMessagesPage />} />
-            <Route path="admin/invites" element={<AdminInvitePage />} />
-            <Route path="community/create" element={<CreateCommunityPage />} />
-            <Route path="community/:communityId">
-              <Route index element={<CommunityPage />} />
-              <Route path="edit" element={<EditCommunityPage />} />
-              <Route path="channel/:channelId" element={<CommunityPage />} />
+      <NotificationProvider>
+        <RoomProvider>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/join/:inviteCode" element={<JoinInvitePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Authenticated routes */}
+            <Route path="/" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route path="direct-messages" element={<DirectMessagesPage />} />
+              <Route path="admin/invites" element={<AdminInvitePage />} />
+              <Route path="community/create" element={<CreateCommunityPage />} />
+              <Route path="community/:communityId">
+                <Route index element={<CommunityPage />} />
+                <Route path="edit" element={<EditCommunityPage />} />
+                <Route path="channel/:channelId" element={<CommunityPage />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </RoomProvider>
+          </Routes>
+        </RoomProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

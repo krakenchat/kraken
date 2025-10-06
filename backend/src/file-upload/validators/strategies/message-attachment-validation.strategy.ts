@@ -39,11 +39,18 @@ export class MessageAttachmentValidationStrategy
     // Archives
     'application/zip',
     'application/x-zip-compressed',
-    'application/x-rar-compressed',
+    'application/vnd.rar', // Official RAR MIME type (IANA registered)
+    'application/x-rar-compressed', // Deprecated but still common
+    'application/x-rar', // Alternative RAR type
+    'application/rar', // Some systems use this
     'application/x-7z-compressed',
+    'application/x-compressed',
     'application/gzip',
+    'application/x-gzip',
     'application/x-tar',
-    'application/octet-stream', // Generic binary - often used for zip files
+    'application/x-bzip',
+    'application/x-bzip2',
+    'application/octet-stream', // Generic binary - often used for zip/rar/archive files
     // Audio
     'audio/mpeg', // .mp3
     'audio/wav',

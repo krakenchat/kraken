@@ -9,6 +9,7 @@ import { useGetMentionableChannelsQuery } from "../../features/channel/channelAp
 import { useProfileQuery } from "../../features/users/usersSlice";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useAddAttachmentMutation } from "../../features/messages/messagesApiSlice";
+import { useNotification } from "../../contexts/NotificationContext";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 
 interface ChannelMessageContainerProps {
@@ -28,6 +29,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 
   const { uploadFile } = useFileUpload();
   const [addAttachment] = useAddAttachmentMutation();
+  const { showNotification } = useNotification();
   const pendingFilesRef = React.useRef<File[] | null>(null);
 
   // Fetch community members and channels for mention resolution
@@ -76,6 +78,13 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       }
     } catch (error) {
       console.error("Failed to upload files:", error);
+
+      // Show error notification to user
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to upload file(s)";
+      showNotification(errorMessage, "error");
+
       // Call addAttachment without fileId to decrement pendingAttachments
       for (let i = 0; i < files.length; i++) {
         await addAttachment({

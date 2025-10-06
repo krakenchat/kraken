@@ -434,7 +434,7 @@ export default function MessageInput({
         type="file"
         multiple
         hidden
-        accept="image/*,video/*,audio/*,application/pdf,application/zip,application/x-zip-compressed,application/x-rar-compressed,.zip,.rar,.7z,.tar,.gz,text/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+        accept="image/*,video/*,audio/*,application/pdf,.pdf,application/zip,.zip,application/vnd.rar,application/x-rar-compressed,application/x-rar,application/rar,.rar,.7z,.tar,.gz,.bz2,text/*,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv"
         onChange={handleFileSelect}
       />
 
