@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Box,
-  Avatar,
   Typography,
   List,
   ListItem,
@@ -12,7 +11,7 @@ import {
   Alert,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import UserStatusIndicator from "./UserStatusIndicator";
+import UserAvatar from "../Common/UserAvatar";
 
 interface MemberData {
   id: string;
@@ -111,15 +110,12 @@ const MemberList: React.FC<MemberListProps> = ({
                   }}
                 >
                   <ListItemAvatar sx={{ minWidth: 40 }}>
-                    <Box sx={{ position: "relative", display: "inline-block" }}>
-                      <Avatar
-                        src={member.avatarUrl || ""}
-                        sx={{ width: 32, height: 32 }}
-                      >
-                        {member.username.charAt(0).toUpperCase()}
-                      </Avatar>
-                      <UserStatusIndicator isOnline={member.isOnline} />
-                    </Box>
+                    <UserAvatar
+                      user={member}
+                      size="small"
+                      showStatus={true}
+                      isOnline={member.isOnline}
+                    />
                   </ListItemAvatar>
                   <ListItemText
                     primary={

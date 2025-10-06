@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { getCachedItem } from "../utils/storage";
+import { useFileCache } from "../contexts/AvatarCacheContext";
 
 /**
  * Hook to fetch an image with authentication and convert to blob URL
+ * Uses centralized fetchBlob to prevent race conditions and duplicate fetches
  * @param fileId - The file ID to fetch
  * @returns Object with blobUrl, loading state, and error
  */
 export const useAuthenticatedImage = (fileId: string | null | undefined) => {
+  const fileCache = useFileCache();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -21,30 +23,15 @@ export const useAuthenticatedImage = (fileId: string | null | undefined) => {
 
     let isCancelled = false;
 
-    const fetchImage = async () => {
+    const loadBlob = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const token = getCachedItem<string>("accessToken");
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-
-        const response = await fetch(`/api/file/${fileId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status}`);
-        }
-
-        const blob = await response.blob();
+        // Use centralized fetchBlob - handles caching and deduplication
+        const url = await fileCache.fetchBlob(fileId);
 
         if (!isCancelled) {
-          const url = URL.createObjectURL(blob);
           setBlobUrl(url);
         }
       } catch (err) {
@@ -60,12 +47,12 @@ export const useAuthenticatedImage = (fileId: string | null | undefined) => {
       }
     };
 
-    fetchImage();
+    loadBlob();
 
     return () => {
       isCancelled = true;
     };
-  }, [fileId]);
+  }, [fileId, fileCache]);
 
   return { blobUrl, isLoading, error };
 };

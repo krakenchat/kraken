@@ -8,7 +8,6 @@ import {
   Alert,
   CircularProgress,
   Chip,
-  Avatar,
   Divider,
   IconButton,
   alpha,
@@ -26,6 +25,7 @@ import {
 } from "../../features/membership";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { useGetAllUsersQuery } from "../../features/users/usersSlice";
+import UserAvatar from "../Common/UserAvatar";
 import RoleAssignmentDialog from "./RoleAssignmentDialog";
 
 interface MemberManagementProps {
@@ -165,10 +165,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
                   }}
                 >
                   <Box display="flex" alignItems="center" gap={2}>
-                    <Avatar 
-                      src={member.user?.avatarUrl || ""} 
-                      sx={{ width: 40, height: 40 }}
-                    />
+                    <UserAvatar user={member.user} size="medium" />
                     <Box>
                       <Typography variant="body1" fontWeight="medium">
                         {member.user?.username}
@@ -271,10 +268,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
                         }}
                       >
                         <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar 
-                            src={user.avatarUrl || ""} 
-                            sx={{ width: 40, height: 40 }}
-                          />
+                          <UserAvatar user={user} size="medium" />
                           <Box>
                             <Typography 
                               variant="body1" 

@@ -1,4 +1,3 @@
-import Avatar from "@mui/material/Avatar";
 import { styled, Typography, IconButton, Box, TextField } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -20,6 +19,7 @@ import {
 import { MessageReactions } from "./MessageReactions";
 import { EmojiPicker } from "./EmojiPicker";
 import { MessageAttachments } from "./MessageAttachments";
+import UserAvatar from "../Common/UserAvatar";
 import { useState, useMemo } from "react";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 
@@ -252,17 +252,7 @@ function MessageComponent({ message }: MessageProps) {
       isHighlighted={isMentioned}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
-        {author?.avatarUrl ? (
-          <Avatar
-            src={author.avatarUrl}
-            alt={author.displayName || author.username}
-            sx={{ width: 32, height: 32 }}
-          />
-        ) : (
-          <Avatar sx={{ width: 32, height: 32 }}>
-            {author?.displayName?.[0] || author?.username?.[0] || "?"}
-          </Avatar>
-        )}
+        <UserAvatar user={author} size="small" />
       </div>
       <div style={{ flex: 1 }}>
         <Typography variant="body2" sx={{ fontWeight: 700 }}>

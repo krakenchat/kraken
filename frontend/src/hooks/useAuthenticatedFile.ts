@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { getCachedItem } from "../utils/storage";
+import { useFileCache } from "../contexts/AvatarCacheContext";
 import type { FileMetadata } from "../types/message.type";
 
 /**
  * Hook to fetch file metadata and/or blob URL with authentication
+ * Uses global cache to prevent duplicate fetches for the same fileId
  * @param fileId - The file ID to fetch
  * @param options - Optional configuration
  * @returns Object with blobUrl, metadata, loading states, and errors
@@ -16,6 +18,7 @@ export const useAuthenticatedFile = (
   }
 ) => {
   const { fetchBlob = true, fetchMetadata = false } = options || {};
+  const fileCache = useFileCache();
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<FileMetadata | null>(null);
@@ -39,14 +42,26 @@ export const useAuthenticatedFile = (
       setError(null);
 
       try {
-        const token = getCachedItem<string>("accessToken");
-        if (!token) {
-          throw new Error("No authentication token found");
+        // Fetch blob using centralized fetchBlob (handles caching and deduplication)
+        if (fetchBlob) {
+          setIsLoadingBlob(true);
+          const url = await fileCache.fetchBlob(fileId);
+
+          if (!isCancelled) {
+            setBlobUrl(url);
+            setIsLoadingBlob(false);
+          }
         }
 
         // Fetch metadata if requested
         if (fetchMetadata) {
           setIsLoadingMetadata(true);
+
+          const token = getCachedItem<string>("accessToken");
+          if (!token) {
+            throw new Error("No authentication token found");
+          }
+
           const metadataResponse = await fetch(`/api/file/${fileId}/metadata`, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -60,27 +75,7 @@ export const useAuthenticatedFile = (
           const metadataData = await metadataResponse.json();
           if (!isCancelled) {
             setMetadata(metadataData);
-          }
-        }
-
-        // Fetch blob if requested
-        if (fetchBlob) {
-          setIsLoadingBlob(true);
-          const blobResponse = await fetch(`/api/file/${fileId}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (!blobResponse.ok) {
-            throw new Error(`Failed to fetch file: ${blobResponse.status}`);
-          }
-
-          const blob = await blobResponse.blob();
-
-          if (!isCancelled) {
-            const url = URL.createObjectURL(blob);
-            setBlobUrl(url);
+            setIsLoadingMetadata(false);
           }
         }
       } catch (err) {
@@ -89,9 +84,6 @@ export const useAuthenticatedFile = (
           setError(error);
           setBlobUrl(null);
           setMetadata(null);
-        }
-      } finally {
-        if (!isCancelled) {
           setIsLoadingBlob(false);
           setIsLoadingMetadata(false);
         }
@@ -102,12 +94,8 @@ export const useAuthenticatedFile = (
 
     return () => {
       isCancelled = true;
-      // Clean up blob URL if it was created
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
     };
-  }, [fileId, fetchBlob, fetchMetadata]);
+  }, [fileId, fetchBlob, fetchMetadata, fileCache]);
 
   return {
     blobUrl,
@@ -119,7 +107,7 @@ export const useAuthenticatedFile = (
   };
 };
 
-// Backward compatibility alias
+// Backward compatibility alias - delegates to useAuthenticatedFile with cache
 export const useAuthenticatedImage = (fileId: string | null | undefined) => {
   return useAuthenticatedFile(fileId, { fetchBlob: true, fetchMetadata: false });
 };
