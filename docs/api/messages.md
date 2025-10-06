@@ -24,6 +24,7 @@ Message management API for creating, reading, updating, and deleting messages in
 | GET | `/:id` | Get message by ID | `READ_MESSAGE` |
 | PATCH | `/:id` | Update message | `UPDATE_CHANNEL` |
 | DELETE | `/:id` | Delete message | `DELETE_MESSAGE` |
+| POST | `/:id/attachments` | Add attachment to message | Message ownership |
 | POST | `/reactions` | Add reaction to message | `CREATE_REACTION` |
 | DELETE | `/reactions` | Remove reaction from message | `DELETE_REACTION` |
 
@@ -51,15 +52,8 @@ Message management API for creating, reading, updating, and deleting messages in
       "aliasId": null
     }
   ],
-  "attachments": [                  // Optional: File attachments
-    {
-      "url": "https://example.com/file.jpg",
-      "filename": "screenshot.jpg",
-      "filetype": "image/jpeg",
-      "size": 102400
-    }
-  ],
-  "reactions": []                   // Optional: Initial reactions (usually empty)
+  "attachments": [],                // Optional: Array of file IDs (empty for new messages)
+  "pendingAttachments": 2,          // Optional: Count of files being uploaded (for progress tracking)
 }
 ```
 
@@ -239,14 +233,8 @@ curl -H "Authorization: Bearer <token>" \
           "aliasId": null
         }
       ],
-      "attachments": [
-        {
-          "url": "https://example.com/image.jpg",
-          "filename": "screenshot.jpg",
-          "filetype": "image/jpeg",
-          "size": 102400
-        }
-      ],
+      "attachments": ["64f7b1234567890abcdef999"],  // Array of file IDs
+      "pendingAttachments": 0,  // No pending uploads
       "reactions": [
         {
           "emoji": "👍",
@@ -513,6 +501,140 @@ curl -X PATCH \
 - `403 Forbidden` - Insufficient permissions (requires `UPDATE_CHANNEL`)
 - `404 Not Found` - Message not found
 - `500 Internal Server Error` - Server error
+
+---
+
+## POST `/api/messages/:id/attachments`
+
+**Description:** Confirms a file upload for a message, adding it to the attachments array and decrementing the pendingAttachments counter. Used for async file upload flow where files are uploaded separately after message creation.
+
+### Request
+
+**Path Parameters:**
+- `id` (string, required) - Message ID (MongoDB ObjectId)
+
+**Body (JSON):**
+```json
+{
+  "fileId": "string"  // Optional: File ID from file upload (omit if upload failed)
+}
+```
+
+**Authorization:**
+- User must be the message author (enforced by `MessageOwnershipGuard`)
+
+**Example (Success):**
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fileId": "64f7b1234567890abcdef789"
+  }' \
+  "http://localhost:3001/api/messages/64f7b1234567890abcdef012/attachments"
+```
+
+**Example (Failed Upload):**
+```bash
+# If file upload failed, still decrement pendingAttachments
+curl -X POST \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  "http://localhost:3001/api/messages/64f7b1234567890abcdef012/attachments"
+```
+
+### Response
+
+**Success (200):**
+```json
+{
+  "id": "64f7b1234567890abcdef012",
+  "channelId": "64f7b1234567890abcdef123",
+  "authorId": "64f7b1234567890abcdef456",
+  "spans": [
+    {
+      "type": "PLAINTEXT",
+      "text": "Uploading files..."
+    }
+  ],
+  "attachments": ["64f7b1234567890abcdef789"],  // File added
+  "pendingAttachments": 1,                       // Decremented from 2 to 1
+  "reactions": [],
+  "sentAt": "2024-01-01T12:00:00.000Z",
+  "editedAt": null,
+  "deletedAt": null
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - User is not the message author
+- `404 Not Found` - Message not found
+- `500 Internal Server Error` - Server error
+
+### WebSocket Event
+
+Triggers `MESSAGE_UPDATED` event to all channel/DM group members:
+
+```json
+{
+  "event": "MESSAGE_UPDATED",
+  "data": {
+    "message": { /* updated message */ }
+  }
+}
+```
+
+### Usage Pattern
+
+**Complete Async Upload Flow:**
+
+```typescript
+// 1. Create message with pendingAttachments
+const message = await fetch('/api/messages', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    channelId: '...',
+    spans: [{ type: 'PLAINTEXT', text: 'Uploading 2 files...' }],
+    attachments: [],
+    pendingAttachments: 2,  // Expecting 2 uploads
+  }),
+}).then(r => r.json());
+
+// 2. Upload files in parallel
+const [file1, file2] = await Promise.all([
+  uploadFile(fileInput1.files[0]),
+  uploadFile(fileInput2.files[0]),
+]);
+
+// 3. Confirm each upload (or handle failures)
+await fetch(`/api/messages/${message.id}/attachments`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ fileId: file1.id }),
+});
+
+await fetch(`/api/messages/${message.id}/attachments`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ fileId: file2.id }),
+});
+
+// Final state:
+// attachments: [file1.id, file2.id]
+// pendingAttachments: 0
+```
 
 ---
 
