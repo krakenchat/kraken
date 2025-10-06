@@ -15,10 +15,8 @@ import { createReadStream } from 'fs';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('file')
-@SkipThrottle({ default: true, short: true, medium: true, long: true }) // skip throttle for now so channel messages load okay
 export class FileController {
   constructor(private readonly fileService: FileService) {}
 
