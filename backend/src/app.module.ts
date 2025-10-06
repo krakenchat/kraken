@@ -68,12 +68,12 @@ import { FileModule } from './file/file.module';
       {
         name: 'short',
         ttl: 1000,
-        limit: 10,
+        limit: 20,
       },
       {
         name: 'medium',
         ttl: 10000,
-        limit: 50,
+        limit: 100,
       },
       {
         name: 'long',

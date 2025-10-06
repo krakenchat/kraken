@@ -35,16 +35,16 @@ interface CommunityBannerUploadProps {
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const CommunityBannerUpload: React.FC<CommunityBannerUploadProps> = ({
+const CommunityBannerUpload: React.FC<CommunityBannerUploadProps> = React.memo(({
   previewUrl,
   onChange,
 }) => {
   // Check if previewUrl is a local blob URL or a file ID
   const isLocalBlob = previewUrl?.startsWith("blob:");
 
-  // Only fetch authenticated image if it's NOT a local blob
+  // Only fetch authenticated image if it's NOT a local blob AND previewUrl exists
   const { blobUrl: authenticatedUrl } = useAuthenticatedImage(
-    isLocalBlob ? null : previewUrl
+    !isLocalBlob && previewUrl ? previewUrl : null
   );
 
   // Use local blob for previews, authenticated URL for existing images
@@ -89,6 +89,8 @@ const CommunityBannerUpload: React.FC<CommunityBannerUploadProps> = ({
       </label>
     </BannerSection>
   );
-};
+});
+
+CommunityBannerUpload.displayName = "CommunityBannerUpload";
 
 export default CommunityBannerUpload;

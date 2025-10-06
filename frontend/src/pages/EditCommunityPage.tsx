@@ -172,8 +172,7 @@ const EditCommunityPage: React.FC = () => {
         data: updateCommunityDto,
       }).unwrap();
 
-      // Navigate back to the community
-      navigate(`/community/${communityId}`);
+      // Stay on the page after successful update
     } catch (err) {
       console.error("Failed to update community:", err);
     }

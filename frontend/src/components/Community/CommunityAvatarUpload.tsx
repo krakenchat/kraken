@@ -25,7 +25,7 @@ interface CommunityAvatarUploadProps {
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const CommunityAvatarUpload: React.FC<CommunityAvatarUploadProps> = ({
+const CommunityAvatarUpload: React.FC<CommunityAvatarUploadProps> = React.memo(({
   previewUrl,
   communityName,
   onChange,
@@ -33,9 +33,9 @@ const CommunityAvatarUpload: React.FC<CommunityAvatarUploadProps> = ({
   // Check if previewUrl is a local blob URL or a file ID
   const isLocalBlob = previewUrl?.startsWith("blob:");
 
-  // Only fetch authenticated image if it's NOT a local blob
+  // Only fetch authenticated image if it's NOT a local blob AND previewUrl exists
   const { blobUrl: authenticatedUrl } = useAuthenticatedImage(
-    isLocalBlob ? null : previewUrl
+    !isLocalBlob && previewUrl ? previewUrl : null
   );
 
   // Use local blob for previews, authenticated URL for existing images
@@ -86,6 +86,8 @@ const CommunityAvatarUpload: React.FC<CommunityAvatarUploadProps> = ({
       </Typography>
     </AvatarSection>
   );
-};
+});
+
+CommunityAvatarUpload.displayName = "CommunityAvatarUpload";
 
 export default CommunityAvatarUpload;

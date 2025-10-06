@@ -94,9 +94,41 @@ export class CommunityService {
   async update(id: string, updateCommunityDto: UpdateCommunityDto) {
     // TODO: error handling and stuff
     try {
-      return await this.databaseService.community.update({
-        where: { id },
-        data: updateCommunityDto,
+      return await this.databaseService.$transaction(async (tx) => {
+        // Get the current community to check for old files
+        const currentCommunity = await tx.community.findUniqueOrThrow({
+          where: { id },
+        });
+
+        // Mark old avatar for deletion if being replaced
+        if (
+          updateCommunityDto.avatar &&
+          currentCommunity.avatar &&
+          updateCommunityDto.avatar !== currentCommunity.avatar
+        ) {
+          await tx.file.update({
+            where: { id: currentCommunity.avatar },
+            data: { deletedAt: new Date() },
+          });
+        }
+
+        // Mark old banner for deletion if being replaced
+        if (
+          updateCommunityDto.banner &&
+          currentCommunity.banner &&
+          updateCommunityDto.banner !== currentCommunity.banner
+        ) {
+          await tx.file.update({
+            where: { id: currentCommunity.banner },
+            data: { deletedAt: new Date() },
+          });
+        }
+
+        // Update the community
+        return await tx.community.update({
+          where: { id },
+          data: updateCommunityDto,
+        });
       });
     } catch (error) {
       this.logger.error(error);

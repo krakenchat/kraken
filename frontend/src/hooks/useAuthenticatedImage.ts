@@ -12,15 +12,6 @@ export const useAuthenticatedImage = (fileId: string | null | undefined) => {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // Clean up previous blob URL
-    return () => {
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
-    };
-  }, [blobUrl]);
-
-  useEffect(() => {
     if (!fileId) {
       setBlobUrl(null);
       setIsLoading(false);
@@ -53,10 +44,6 @@ export const useAuthenticatedImage = (fileId: string | null | undefined) => {
         const blob = await response.blob();
 
         if (!isCancelled) {
-          // Revoke old blob URL before setting new one
-          if (blobUrl) {
-            URL.revokeObjectURL(blobUrl);
-          }
           const url = URL.createObjectURL(blob);
           setBlobUrl(url);
         }
@@ -78,7 +65,7 @@ export const useAuthenticatedImage = (fileId: string | null | undefined) => {
     return () => {
       isCancelled = true;
     };
-  }, [fileId]); // Only depend on fileId, not blobUrl
+  }, [fileId]);
 
   return { blobUrl, isLoading, error };
 };
