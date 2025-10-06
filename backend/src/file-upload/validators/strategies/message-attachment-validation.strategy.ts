@@ -36,6 +36,13 @@ export class MessageAttachmentValidationStrategy
     'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
     'text/plain',
     'text/csv',
+    // Archives
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/x-rar-compressed',
+    'application/x-7z-compressed',
+    'application/gzip',
+    'application/x-tar',
     // Audio
     'audio/mpeg', // .mp3
     'audio/wav',

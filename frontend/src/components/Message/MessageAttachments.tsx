@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Box, styled } from "@mui/material";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { ImageLightbox } from "./ImageLightbox";
-import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
+import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
 
 const AttachmentsGrid = styled(Box)(({ theme }) => ({
   display: "grid",
@@ -21,8 +21,28 @@ interface MessageAttachmentsProps {
   attachments: string[];
 }
 
-// Helper component to manage media type detection for lightbox
-const LightboxManager: React.FC<{
+// Helper component to determine if attachment is an image
+const AttachmentWithMetadata: React.FC<{
+  fileId: string;
+  onImageClick?: () => void;
+}> = ({ fileId, onImageClick }) => {
+  const { metadata } = useAuthenticatedFile(fileId, {
+    fetchBlob: false,
+    fetchMetadata: true,
+  });
+
+  const isImage = metadata?.mimeType?.startsWith("image/");
+
+  return (
+    <AttachmentPreview
+      fileId={fileId}
+      onClick={isImage ? onImageClick : undefined}
+    />
+  );
+};
+
+// Helper component to manage lightbox for images only
+const ImageLightboxManager: React.FC<{
   fileId: string;
   onClose: () => void;
   onNext?: () => void;
@@ -30,32 +50,17 @@ const LightboxManager: React.FC<{
   hasNext?: boolean;
   hasPrevious?: boolean;
 }> = ({ fileId, onClose, onNext, onPrevious, hasNext, hasPrevious }) => {
-  const { blobUrl } = useAuthenticatedImage(fileId);
-  const [mediaType, setMediaType] = useState<"image" | "video">("image");
-
-  React.useEffect(() => {
-    if (!blobUrl) return;
-
-    fetch(blobUrl)
-      .then((response) => response.blob())
-      .then((blob) => {
-        if (blob.type.startsWith("video/")) {
-          setMediaType("video");
-        } else {
-          setMediaType("image");
-        }
-      })
-      .catch(() => {
-        setMediaType("image");
-      });
-  }, [blobUrl]);
+  const { blobUrl } = useAuthenticatedFile(fileId, {
+    fetchBlob: true,
+    fetchMetadata: false,
+  });
 
   if (!blobUrl) return null;
 
   return (
     <ImageLightbox
       blobUrl={blobUrl}
-      mediaType={mediaType}
+      mediaType="image"
       onClose={onClose}
       onNext={onNext}
       onPrevious={onPrevious}
@@ -69,13 +74,48 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
   attachments,
 }) => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [imageFileIds, setImageFileIds] = React.useState<string[]>([]);
+
+  // Track which attachments are images for lightbox navigation
+  React.useEffect(() => {
+    const checkImages = async () => {
+      const imageIds: string[] = [];
+
+      for (const fileId of attachments) {
+        try {
+          const token = localStorage.getItem("accessToken");
+          const response = await fetch(`/api/file/${fileId}/metadata`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const metadata = await response.json();
+            if (metadata.mimeType?.startsWith("image/")) {
+              imageIds.push(fileId);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking file type:", error);
+        }
+      }
+
+      setImageFileIds(imageIds);
+    };
+
+    checkImages();
+  }, [attachments]);
 
   if (!attachments || attachments.length === 0) {
     return null;
   }
 
-  const openLightbox = (index: number) => {
-    setLightboxIndex(index);
+  const openLightbox = (fileId: string) => {
+    const imageIndex = imageFileIds.indexOf(fileId);
+    if (imageIndex !== -1) {
+      setLightboxIndex(imageIndex);
+    }
   };
 
   const closeLightbox = () => {
@@ -83,7 +123,7 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
   };
 
   const nextImage = () => {
-    if (lightboxIndex !== null && lightboxIndex < attachments.length - 1) {
+    if (lightboxIndex !== null && lightboxIndex < imageFileIds.length - 1) {
       setLightboxIndex(lightboxIndex + 1);
     }
   };
@@ -99,11 +139,14 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
     return (
       <>
         <SingleAttachmentContainer>
-          <AttachmentPreview fileId={attachments[0]} onClick={() => openLightbox(0)} />
+          <AttachmentWithMetadata
+            fileId={attachments[0]}
+            onImageClick={() => openLightbox(attachments[0])}
+          />
         </SingleAttachmentContainer>
-        {lightboxIndex !== null && (
-          <LightboxManager
-            fileId={attachments[lightboxIndex]}
+        {lightboxIndex !== null && imageFileIds[lightboxIndex] && (
+          <ImageLightboxManager
+            fileId={imageFileIds[lightboxIndex]}
             onClose={closeLightbox}
           />
         )}
@@ -115,21 +158,21 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
   return (
     <>
       <AttachmentsGrid>
-        {attachments.map((fileId, index) => (
-          <AttachmentPreview
+        {attachments.map((fileId) => (
+          <AttachmentWithMetadata
             key={fileId}
             fileId={fileId}
-            onClick={() => openLightbox(index)}
+            onImageClick={() => openLightbox(fileId)}
           />
         ))}
       </AttachmentsGrid>
-      {lightboxIndex !== null && (
-        <LightboxManager
-          fileId={attachments[lightboxIndex]}
+      {lightboxIndex !== null && imageFileIds[lightboxIndex] && (
+        <ImageLightboxManager
+          fileId={imageFileIds[lightboxIndex]}
           onClose={closeLightbox}
           onNext={nextImage}
           onPrevious={previousImage}
-          hasNext={lightboxIndex < attachments.length - 1}
+          hasNext={lightboxIndex < imageFileIds.length - 1}
           hasPrevious={lightboxIndex > 0}
         />
       )}

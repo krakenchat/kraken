@@ -15,10 +15,35 @@ import { createReadStream } from 'fs';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle() // skip throttle for now so channel messages load okay
 @Controller('file')
 export class FileController {
   constructor(private readonly fileService: FileService) {}
+
+  @Get(':id/metadata')
+  @UseGuards(JwtAuthGuard, FileAccessGuard)
+  async getFileMetadata(@Param('id', ParseObjectIdPipe) id: string) {
+    try {
+      const file = await this.fileService.findOne(id);
+      if (!file) {
+        throw new NotFoundException('File not found');
+      }
+
+      // Return only metadata, not the file content
+      return {
+        id: file.id,
+        filename: file.filename,
+        mimeType: file.mimeType,
+        fileType: file.fileType,
+        size: file.size,
+      };
+    } catch (error) {
+      console.error('Error fetching file metadata:', error);
+      throw new NotFoundException('File not found');
+    }
+  }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, FileAccessGuard)

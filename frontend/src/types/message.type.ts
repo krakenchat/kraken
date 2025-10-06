@@ -15,13 +15,6 @@ export interface Span {
   aliasId?: string;
 }
 
-export interface Attachment {
-  url: string;
-  filename: string;
-  filetype: string;
-  size: number;
-}
-
 export interface Reaction {
   emoji: string;
   userIds: string[];
@@ -33,9 +26,18 @@ export interface Message {
   directMessageGroupId?: string;
   authorId: string;
   spans: Span[];
-  attachments: Attachment[];
+  attachments: string[]; // Array of file IDs
+  pendingAttachments?: number;
   reactions: Reaction[];
   sentAt: string;
   editedAt?: string;
   deletedAt?: string;
+}
+
+export interface FileMetadata {
+  id: string;
+  filename: string;
+  mimeType: string;
+  fileType: string;
+  size: number;
 }

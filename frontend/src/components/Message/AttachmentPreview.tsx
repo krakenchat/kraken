@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Box, Card, CircularProgress, Alert, styled } from "@mui/material";
-import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
+import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
+import { AudioPlayer } from "./AudioPlayer";
+import { DownloadLink } from "./DownloadLink";
 
 const AttachmentCard = styled(Card)(({ theme }) => ({
   position: "relative",
@@ -35,7 +37,6 @@ const StyledVideo = styled("video")({
   maxHeight: 400,
   objectFit: "contain",
   display: "block",
-  cursor: "pointer",
 });
 
 interface AttachmentPreviewProps {
@@ -49,33 +50,31 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
   alt = "Attachment",
   onClick,
 }) => {
-  const { blobUrl, isLoading, error } = useAuthenticatedImage(fileId);
-  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  const { blobUrl, metadata, isLoading, error } = useAuthenticatedFile(fileId, {
+    fetchBlob: true,
+    fetchMetadata: true,
+  });
+  const [mediaType, setMediaType] = useState<"image" | "video" | "audio" | "other" | null>(null);
 
-  // Detect media type from blob URL
+  // Detect media type from metadata
   useEffect(() => {
-    if (!blobUrl) {
+    if (!metadata) {
       setMediaType(null);
       return;
     }
 
-    // Fetch the blob to check its MIME type
-    fetch(blobUrl)
-      .then((response) => response.blob())
-      .then((blob) => {
-        if (blob.type.startsWith("video/")) {
-          setMediaType("video");
-        } else if (blob.type.startsWith("image/")) {
-          setMediaType("image");
-        } else {
-          // Default to image for now
-          setMediaType("image");
-        }
-      })
-      .catch(() => {
-        setMediaType("image"); // Fallback to image
-      });
-  }, [blobUrl]);
+    const mimeType = metadata.mimeType.toLowerCase();
+
+    if (mimeType.startsWith("image/")) {
+      setMediaType("image");
+    } else if (mimeType.startsWith("video/")) {
+      setMediaType("video");
+    } else if (mimeType.startsWith("audio/")) {
+      setMediaType("audio");
+    } else {
+      setMediaType("other");
+    }
+  }, [metadata]);
 
   if (error) {
     return (
@@ -87,7 +86,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     );
   }
 
-  if (isLoading || !blobUrl || !mediaType) {
+  if (isLoading || !blobUrl || !mediaType || !metadata) {
     return (
       <AttachmentCard>
         <LoadingContainer>
@@ -97,20 +96,25 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     );
   }
 
-  const handleClick = () => {
-    if (onClick) {
-      onClick();
-    }
-  };
+  // Audio files get their own specialized player
+  if (mediaType === "audio") {
+    return <AudioPlayer fileId={fileId} />;
+  }
 
+  // Other file types get a download link
+  if (mediaType === "other") {
+    return <DownloadLink fileId={fileId} />;
+  }
+
+  // Images and videos are displayed inline
   return (
     <AttachmentCard>
       {mediaType === "video" ? (
-        <StyledVideo src={blobUrl} controls onClick={handleClick}>
+        <StyledVideo src={blobUrl} controls>
           Your browser does not support the video tag.
         </StyledVideo>
       ) : (
-        <StyledImage src={blobUrl} alt={alt} onClick={handleClick} />
+        <StyledImage src={blobUrl} alt={alt} onClick={onClick} />
       )}
     </AttachmentCard>
   );
