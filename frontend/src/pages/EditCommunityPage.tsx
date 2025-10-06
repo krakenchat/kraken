@@ -21,6 +21,7 @@ import {
 import { useGetChannelsForCommunityQuery } from "../features/channel/channelApiSlice";
 import { useCommunityForm } from "../hooks/useCommunityForm";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
+import { useFileUpload } from "../hooks/useFileUpload";
 import {
   CommunitySettingsForm,
   CommunityFormContent,
@@ -84,6 +85,7 @@ const EditCommunityPage: React.FC = () => {
   });
 
   const [updateCommunity, { isLoading, error }] = useUpdateCommunityMutation();
+  const { uploadFile, isUploading, error: uploadError } = useFileUpload();
 
   const { hasPermissions: canUpdateCommunity } = useUserPermissions({
     resourceType: "COMMUNITY",
@@ -137,13 +139,32 @@ const EditCommunityPage: React.FC = () => {
     }
 
     try {
-      // For now, we'll submit without file uploads
-      // In a real app, you'd want to upload files to a storage service first
+      // Upload avatar file if selected
+      let avatarFileId: string | null = null;
+      if (formData.avatar) {
+        const uploadedAvatar = await uploadFile(formData.avatar, {
+          resourceType: "COMMUNITY_AVATAR",
+          resourceId: communityId,
+        });
+        avatarFileId = uploadedAvatar.id;
+      }
+
+      // Upload banner file if selected
+      let bannerFileId: string | null = null;
+      if (formData.banner) {
+        const uploadedBanner = await uploadFile(formData.banner, {
+          resourceType: "COMMUNITY_BANNER",
+          resourceId: communityId,
+        });
+        bannerFileId = uploadedBanner.id;
+      }
+
+      // Update community with file IDs (or existing values if no new upload)
       const updateCommunityDto = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        avatar: null, // TODO: Implement file upload
-        banner: null, // TODO: Implement file upload
+        avatar: avatarFileId || (community?.avatar ?? null),
+        banner: bannerFileId || (community?.banner ?? null),
       };
 
       await updateCommunity({
@@ -231,12 +252,16 @@ const EditCommunityPage: React.FC = () => {
             <div style={{ maxWidth: 600, margin: "0 auto" }}>
               <CommunitySettingsForm
                 onSubmit={handleSubmit}
-                error={error}
-                errorMessage="Failed to update community. Please try again."
-                isLoading={isLoading}
+                error={error || uploadError}
+                errorMessage={
+                  uploadError
+                    ? `File upload failed: ${uploadError.message}`
+                    : "Failed to update community. Please try again."
+                }
+                isLoading={isLoading || isUploading}
                 isFormValid={!!formData.name.trim()}
                 submitButtonText="Update Community"
-                loadingText="Updating..."
+                loadingText={isUploading ? "Uploading files..." : "Updating..."}
               >
                 <CommunityFormContent
                   formData={formData}

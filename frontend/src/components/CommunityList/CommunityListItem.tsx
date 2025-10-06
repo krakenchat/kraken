@@ -6,6 +6,7 @@ import Typography from "@mui/material/Typography";
 import { Community } from "../../types/community.type";
 import { Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 
 interface CommunityListItemProps {
   community: Community;
@@ -41,6 +42,8 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
   selected = false,
 }) => {
   const navigate = useNavigate();
+  const { blobUrl: avatarUrl } = useAuthenticatedImage(community.avatar);
+  const { blobUrl: bannerUrl } = useAuthenticatedImage(community.banner);
 
   const navigateToCommunity = (communityId: string) => {
     // use react router to go to community/:communityId
@@ -81,7 +84,7 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
             zIndex: 1,
             transition: "box-shadow 0.2s",
           }}
-          src={community.avatar || undefined}
+          src={avatarUrl || undefined}
           alt={community.name}
         >
           {getCommunityAvatar(community)}
@@ -121,13 +124,13 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
             )}
           </Box>
         )}
-        {community.banner && isExpanded && (
+        {bannerUrl && isExpanded && (
           <Box
             sx={{
               position: "absolute",
               inset: 0,
               zIndex: 0,
-              background: `url(${community.banner})`,
+              background: `url(${bannerUrl})`,
               backgroundSize: "cover",
               backgroundRepeat: "no-repeat",
               filter: "blur(2px)",

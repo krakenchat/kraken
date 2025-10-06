@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Typography, styled } from "@mui/material";
 import { Upload } from "@mui/icons-material";
+import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 
 const BannerSection = styled(Box)(({ theme }) => ({
   position: "relative",
@@ -38,6 +39,17 @@ const CommunityBannerUpload: React.FC<CommunityBannerUploadProps> = ({
   previewUrl,
   onChange,
 }) => {
+  // Check if previewUrl is a local blob URL or a file ID
+  const isLocalBlob = previewUrl?.startsWith("blob:");
+
+  // Only fetch authenticated image if it's NOT a local blob
+  const { blobUrl: authenticatedUrl } = useAuthenticatedImage(
+    isLocalBlob ? null : previewUrl
+  );
+
+  // Use local blob for previews, authenticated URL for existing images
+  const displayUrl = isLocalBlob ? previewUrl : authenticatedUrl;
+
   return (
     <BannerSection>
       <BannerInput
@@ -56,8 +68,8 @@ const CommunityBannerUpload: React.FC<CommunityBannerUploadProps> = ({
           justifyContent: "center",
         }}
       >
-        {previewUrl ? (
-          <BannerPreview src={previewUrl} alt="Banner preview" />
+        {displayUrl ? (
+          <BannerPreview src={displayUrl} alt="Banner preview" />
         ) : (
           <Box
             display="flex"

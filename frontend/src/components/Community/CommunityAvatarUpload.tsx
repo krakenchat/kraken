@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Typography, Avatar, IconButton, styled } from "@mui/material";
 import { PhotoCamera } from "@mui/icons-material";
+import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 
 const AvatarSection = styled(Box)(({ theme }) => ({
   display: "flex",
@@ -29,11 +30,22 @@ const CommunityAvatarUpload: React.FC<CommunityAvatarUploadProps> = ({
   communityName,
   onChange,
 }) => {
+  // Check if previewUrl is a local blob URL or a file ID
+  const isLocalBlob = previewUrl?.startsWith("blob:");
+
+  // Only fetch authenticated image if it's NOT a local blob
+  const { blobUrl: authenticatedUrl } = useAuthenticatedImage(
+    isLocalBlob ? null : previewUrl
+  );
+
+  // Use local blob for previews, authenticated URL for existing images
+  const displayUrl = isLocalBlob ? previewUrl : authenticatedUrl;
+
   return (
     <AvatarSection>
       <AvatarUpload>
         <Avatar
-          src={previewUrl || undefined}
+          src={displayUrl || undefined}
           sx={{
             width: 80,
             height: 80,
