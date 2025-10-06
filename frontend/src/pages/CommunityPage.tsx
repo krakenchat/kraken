@@ -11,6 +11,7 @@ import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
 import { ChannelType } from "../types/channel.type";
 import { useVoiceConnection } from "../hooks/useVoiceConnection";
+import { useAuthenticatedImage } from "../hooks/useAuthenticatedImage";
 
 const Root = styled(Box)({
   display: "flex",
@@ -87,6 +88,9 @@ const CommunityPage: React.FC = () => {
 
   // Get voice connection state to check if video tiles should be shown
   const { state: voiceState } = useVoiceConnection();
+
+  // Fetch authenticated community avatar
+  const { blobUrl: communityAvatarUrl } = useAuthenticatedImage(data?.avatar);
 
   useCommunityJoin(communityId);
 
@@ -192,10 +196,12 @@ const CommunityPage: React.FC = () => {
         <CommunityHeader>
           <CommunityInfo>
             <Avatar
-              src={data.avatar || ""}
+              src={communityAvatarUrl || undefined}
               alt={`${data.name} logo`}
               sx={{ width: 40, height: 40 }}
-            />
+            >
+              {data.name.charAt(0).toUpperCase()}
+            </Avatar>
             <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
               {data.name}
             </Typography>

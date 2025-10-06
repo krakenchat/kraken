@@ -116,22 +116,6 @@ export function useDirectMessageWebSocket() {
     };
   }, [socket, dispatch, messagesByChannelId]);
 
-  const sendDirectMessage = (dmGroupId: string, spans: any[]) => {
-    console.log("[useDirectMessageWebSocket] Preparing to send DM:", { dmGroupId, spans });
-    const messageData = {
-      directMessageGroupId: dmGroupId,
-      spans,
-      attachments: [],
-    };
-
-    console.log("[useDirectMessageWebSocket] Message data:", messageData);
-    console.log("[useDirectMessageWebSocket] Socket connected:", !!socket?.connected);
-    console.log("[useDirectMessageWebSocket] Emitting event:", ClientEvents.SEND_DM);
-    
-    socket?.emit(ClientEvents.SEND_DM, messageData);
-    console.log("[useDirectMessageWebSocket] Event emitted");
-  };
-
   const joinDmGroup = (dmGroupId: string) => {
     socket?.emit(ClientEvents.JOIN_DM_ROOM, dmGroupId);
   };
@@ -140,9 +124,8 @@ export function useDirectMessageWebSocket() {
     socket?.emit(ClientEvents.LEAVE_ROOM, dmGroupId);
   };
 
-  return { 
-    sendDirectMessage, 
-    joinDmGroup, 
-    leaveDmGroup 
+  return {
+    joinDmGroup,
+    leaveDmGroup
   };
 }

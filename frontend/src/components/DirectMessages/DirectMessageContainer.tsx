@@ -2,8 +2,12 @@ import React from "react";
 import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
 import { useDirectMessages } from "../../hooks/useDirectMessages";
-import { useDirectMessageWebSocket } from "../../hooks/useDirectMessageWebSocket";
 import { useGetDmGroupQuery } from "../../features/directMessages/directMessagesApiSlice";
+import { useProfileQuery } from "../../features/users/usersSlice";
+import { useFileUpload } from "../../hooks/useFileUpload";
+import { useAddAttachmentMutation } from "../../features/messages/messagesApiSlice";
+import { useNotification } from "../../contexts/NotificationContext";
+import { useSendMessage } from "../../hooks/useSendMessage";
 import type { UserMention } from "../../utils/mentionParser";
 
 interface DirectMessageContainerProps {
@@ -13,8 +17,13 @@ interface DirectMessageContainerProps {
 const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   dmGroupId,
 }) => {
-  // Use DM-specific WebSocket hook for sending messages
-  const { sendDirectMessage } = useDirectMessageWebSocket();
+  const { data: user } = useProfileQuery();
+  const authorId = user?.id || "";
+
+  const { uploadFile } = useFileUpload();
+  const [addAttachment] = useAddAttachmentMutation();
+  const { showNotification } = useNotification();
+  const pendingFilesRef = React.useRef<File[] | null>(null);
 
   // Get DM group info to get members for mentions
   const { data: dmGroup } = useGetDmGroupQuery(dmGroupId);
@@ -31,12 +40,68 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   // Get messages using the hook directly (not in callback)
   const messagesHookResult = useDirectMessages(dmGroupId);
 
-  const handleSendMessage = (messageContent: string, spans: unknown[]) => {
-    console.log("[DirectMessageContainer] Received message to send:", { messageContent, spans, dmGroupId });
-    // Send direct message via WebSocket
-    console.log("[DirectMessageContainer] Calling sendDirectMessage...");
-    sendDirectMessage(dmGroupId, spans);
-    console.log("[DirectMessageContainer] sendDirectMessage called");
+  // Setup unified send message hook with callback
+  const sendMessage = useSendMessage("dm", async (messageId: string) => {
+    const files = pendingFilesRef.current;
+    if (!files || files.length === 0) return;
+
+    try {
+      // Upload all files in parallel
+      const uploadPromises = files.map(file =>
+        uploadFile(file, {
+          resourceType: "MESSAGE_ATTACHMENT",
+          resourceId: messageId,
+        })
+      );
+
+      const uploadedFiles = await Promise.all(uploadPromises);
+
+      // Add each uploaded file to the message
+      for (const uploadedFile of uploadedFiles) {
+        await addAttachment({
+          messageId,
+          fileId: uploadedFile.id,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to upload files:", error);
+
+      // Show error notification to user
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to upload file(s)";
+      showNotification(errorMessage, "error");
+
+      // Call addAttachment without fileId to decrement pendingAttachments
+      for (let i = 0; i < files.length; i++) {
+        await addAttachment({
+          messageId,
+          // No fileId means upload failed, just decrement counter
+        });
+      }
+    } finally {
+      // Clear pending files
+      pendingFilesRef.current = null;
+    }
+  });
+
+  const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[]) => {
+    // Create message with pendingAttachments count
+    const msg = {
+      directMessageGroupId: dmGroupId,
+      authorId,
+      spans,
+      attachments: [],
+      pendingAttachments: files?.length || 0,
+      reactions: [],
+      sentAt: new Date().toISOString(),
+    };
+
+    // Store files in ref for callback
+    pendingFilesRef.current = files || null;
+
+    // Send message immediately (optimistic)
+    sendMessage(msg);
   };
 
   // Create member list component for the DM group

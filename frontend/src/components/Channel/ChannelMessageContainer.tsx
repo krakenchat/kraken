@@ -3,7 +3,7 @@ import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
 import { useParams } from "react-router-dom";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
-import { useSendMessageSocket } from "../../hooks/useSendMessageSocket";
+import { useSendMessage } from "../../hooks/useSendMessage";
 import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
 import { useGetMentionableChannelsQuery } from "../../features/channel/channelApiSlice";
 import { useProfileQuery } from "../../features/users/usersSlice";
@@ -53,8 +53,8 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   // Get messages using the hook directly (not in callback)
   const messagesHookResult = useChannelMessages(channelId);
 
-  // Setup socket send with callback
-  const sendMessage = useSendMessageSocket(async (messageId: string) => {
+  // Setup unified send message hook with callback
+  const sendMessage = useSendMessage("channel", async (messageId: string) => {
     const files = pendingFilesRef.current;
     if (!files || files.length === 0) return;
 

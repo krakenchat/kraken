@@ -68,52 +68,6 @@ export class MessagesGateway {
     return message.id;
   }
 
-  @SubscribeMessage('sendDirectMessage')
-  async handleDirectMessage(
-    @MessageBody() payload: CreateMessageDto,
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
-  ): Promise<string> {
-    console.log('[MessagesGateway] *** DM HANDLER CALLED - RAW ***');
-    console.log(
-      '[MessagesGateway] Raw payload:',
-      JSON.stringify(payload, null, 2),
-    );
-    console.log('[MessagesGateway] User:', client.handshake?.user?.id);
-
-    try {
-      console.log('[MessagesGateway] Creating message in database...');
-      const message = await this.messagesService.create({
-        ...payload,
-        authorId: client.handshake.user.id,
-        sentAt: new Date(),
-      });
-
-      console.log('[MessagesGateway] Message created with ID:', message.id);
-      console.log(
-        '[MessagesGateway] Sending NEW_DM event to room:',
-        payload.directMessageGroupId,
-      );
-
-      // Enrich message with file metadata before emitting
-      const enrichedMessage =
-        await this.messagesService.enrichMessageWithFileMetadata(message);
-
-      this.websocketService.sendToRoom(
-        payload.directMessageGroupId!,
-        ServerEvents.NEW_DM,
-        {
-          message: enrichedMessage,
-        },
-      );
-
-      console.log('[MessagesGateway] NEW_DM event sent successfully');
-      return message.id;
-    } catch (error) {
-      console.error('[MessagesGateway] Error creating DM message:', error);
-      throw error;
-    }
-  }
-
   @SubscribeMessage(ClientEvents.SEND_DM)
   @RequiredActions(RbacActions.CREATE_MESSAGE)
   @RbacResource({
