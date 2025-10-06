@@ -43,6 +43,7 @@ export class MessageAttachmentValidationStrategy
     'application/x-7z-compressed',
     'application/gzip',
     'application/x-tar',
+    'application/octet-stream', // Generic binary - often used for zip files
     // Audio
     'audio/mpeg', // .mp3
     'audio/wav',
@@ -71,6 +72,6 @@ export class MessageAttachmentValidationStrategy
   }
 
   getValidationDescription(): string {
-    return 'Images (25MB), Videos (500MB), Documents (100MB), Audio (50MB)';
+    return 'Images (25MB), Videos (500MB), Documents/Archives (100MB), Audio (50MB)';
   }
 }

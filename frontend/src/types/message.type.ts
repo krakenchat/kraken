@@ -20,24 +20,24 @@ export interface Reaction {
   userIds: string[];
 }
 
-export interface Message {
-  id: string;
-  channelId?: string;
-  directMessageGroupId?: string;
-  authorId: string;
-  spans: Span[];
-  attachments: string[]; // Array of file IDs
-  pendingAttachments?: number;
-  reactions: Reaction[];
-  sentAt: string;
-  editedAt?: string;
-  deletedAt?: string;
-}
-
 export interface FileMetadata {
   id: string;
   filename: string;
   mimeType: string;
   fileType: string;
   size: number;
+}
+
+export interface Message {
+  id: string;
+  channelId?: string;
+  directMessageGroupId?: string;
+  authorId: string;
+  spans: Span[];
+  attachments: FileMetadata[]; // Array of file metadata objects
+  pendingAttachments?: number;
+  reactions: Reaction[];
+  sentAt: string;
+  editedAt?: string;
+  deletedAt?: string;
 }

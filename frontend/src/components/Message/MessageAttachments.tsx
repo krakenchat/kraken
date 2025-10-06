@@ -3,6 +3,7 @@ import { Box, styled } from "@mui/material";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { ImageLightbox } from "./ImageLightbox";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
+import { FileMetadata } from "../../types/message.type";
 
 const AttachmentsGrid = styled(Box)(({ theme }) => ({
   display: "grid",
@@ -18,25 +19,19 @@ const SingleAttachmentContainer = styled(Box)(({ theme }) => ({
 }));
 
 interface MessageAttachmentsProps {
-  attachments: string[];
+  attachments: FileMetadata[];
 }
 
-// Helper component to determine if attachment is an image
-const AttachmentWithMetadata: React.FC<{
-  fileId: string;
+// Helper component - just passes through the click handler
+// AttachmentPreview will determine if it should be clickable based on file type
+const AttachmentWrapper: React.FC<{
+  metadata: FileMetadata;
   onImageClick?: () => void;
-}> = ({ fileId, onImageClick }) => {
-  const { metadata } = useAuthenticatedFile(fileId, {
-    fetchBlob: false,
-    fetchMetadata: true,
-  });
-
-  const isImage = metadata?.mimeType?.startsWith("image/");
-
+}> = ({ metadata, onImageClick }) => {
   return (
     <AttachmentPreview
-      fileId={fileId}
-      onClick={isImage ? onImageClick : undefined}
+      metadata={metadata}
+      onImageClick={onImageClick}
     />
   );
 };
@@ -74,45 +69,19 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
   attachments,
 }) => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [imageFileIds, setImageFileIds] = React.useState<string[]>([]);
 
-  // Track which attachments are images for lightbox navigation
-  React.useEffect(() => {
-    const checkImages = async () => {
-      const imageIds: string[] = [];
-
-      for (const fileId of attachments) {
-        try {
-          const token = localStorage.getItem("accessToken");
-          const response = await fetch(`/api/file/${fileId}/metadata`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (response.ok) {
-            const metadata = await response.json();
-            if (metadata.mimeType?.startsWith("image/")) {
-              imageIds.push(fileId);
-            }
-          }
-        } catch (error) {
-          console.error("Error checking file type:", error);
-        }
-      }
-
-      setImageFileIds(imageIds);
-    };
-
-    checkImages();
-  }, [attachments]);
+  // Filter image attachments for lightbox navigation (no API call needed!)
+  const imageAttachments = React.useMemo(
+    () => attachments.filter((a) => a.mimeType?.startsWith("image/")),
+    [attachments]
+  );
 
   if (!attachments || attachments.length === 0) {
     return null;
   }
 
-  const openLightbox = (fileId: string) => {
-    const imageIndex = imageFileIds.indexOf(fileId);
+  const openLightbox = (metadata: FileMetadata) => {
+    const imageIndex = imageAttachments.findIndex((a) => a.id === metadata.id);
     if (imageIndex !== -1) {
       setLightboxIndex(imageIndex);
     }
@@ -123,7 +92,7 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
   };
 
   const nextImage = () => {
-    if (lightboxIndex !== null && lightboxIndex < imageFileIds.length - 1) {
+    if (lightboxIndex !== null && lightboxIndex < imageAttachments.length - 1) {
       setLightboxIndex(lightboxIndex + 1);
     }
   };
@@ -139,14 +108,14 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
     return (
       <>
         <SingleAttachmentContainer>
-          <AttachmentWithMetadata
-            fileId={attachments[0]}
+          <AttachmentWrapper
+            metadata={attachments[0]}
             onImageClick={() => openLightbox(attachments[0])}
           />
         </SingleAttachmentContainer>
-        {lightboxIndex !== null && imageFileIds[lightboxIndex] && (
+        {lightboxIndex !== null && imageAttachments[lightboxIndex] && (
           <ImageLightboxManager
-            fileId={imageFileIds[lightboxIndex]}
+            fileId={imageAttachments[lightboxIndex].id}
             onClose={closeLightbox}
           />
         )}
@@ -158,21 +127,21 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
   return (
     <>
       <AttachmentsGrid>
-        {attachments.map((fileId) => (
-          <AttachmentWithMetadata
-            key={fileId}
-            fileId={fileId}
-            onImageClick={() => openLightbox(fileId)}
+        {attachments.map((metadata) => (
+          <AttachmentWrapper
+            key={metadata.id}
+            metadata={metadata}
+            onImageClick={() => openLightbox(metadata)}
           />
         ))}
       </AttachmentsGrid>
-      {lightboxIndex !== null && imageFileIds[lightboxIndex] && (
+      {lightboxIndex !== null && imageAttachments[lightboxIndex] && (
         <ImageLightboxManager
-          fileId={imageFileIds[lightboxIndex]}
+          fileId={imageAttachments[lightboxIndex].id}
           onClose={closeLightbox}
           onNext={nextImage}
           onPrevious={previousImage}
-          hasNext={lightboxIndex < imageFileIds.length - 1}
+          hasNext={lightboxIndex < imageAttachments.length - 1}
           hasPrevious={lightboxIndex > 0}
         />
       )}

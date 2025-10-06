@@ -4,6 +4,7 @@ import { styled } from "@mui/material/styles";
 import DownloadIcon from "@mui/icons-material/Download";
 import AudioFileIcon from "@mui/icons-material/AudioFile";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
+import { FileMetadata } from "../../types/message.type";
 
 const AudioCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -46,7 +47,7 @@ const StyledAudio = styled("audio")(({ theme }) => ({
 }));
 
 interface AudioPlayerProps {
-  fileId: string;
+  metadata: FileMetadata;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -57,14 +58,14 @@ const formatFileSize = (bytes: number): string => {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 };
 
-export const AudioPlayer: React.FC<AudioPlayerProps> = ({ fileId }) => {
-  const { blobUrl, metadata, isLoading, error } = useAuthenticatedFile(fileId, {
+export const AudioPlayer: React.FC<AudioPlayerProps> = ({ metadata }) => {
+  const { blobUrl, isLoading, error } = useAuthenticatedFile(metadata.id, {
     fetchBlob: true,
-    fetchMetadata: true,
+    fetchMetadata: false, // We already have metadata!
   });
 
   const handleDownload = () => {
-    if (!blobUrl || !metadata) return;
+    if (!blobUrl) return;
 
     const link = document.createElement("a");
     link.href = blobUrl;
@@ -82,7 +83,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ fileId }) => {
     );
   }
 
-  if (isLoading || !metadata || !blobUrl) {
+  if (isLoading || !blobUrl) {
     return (
       <AudioCard>
         <Box display="flex" alignItems="center" gap={2}>

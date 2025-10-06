@@ -177,8 +177,41 @@ export class MessagesService {
         : {}),
     };
     const messages = await this.databaseService.message.findMany(query);
+
+    // Collect all unique file IDs from all messages
+    const allFileIds = new Set<string>();
+    messages.forEach((message) => {
+      message.attachments.forEach((fileId) => allFileIds.add(fileId));
+    });
+
+    // Fetch all files in a single query
+    const files =
+      allFileIds.size > 0
+        ? await this.databaseService.file.findMany({
+            where: { id: { in: Array.from(allFileIds) } },
+            select: {
+              id: true,
+              filename: true,
+              mimeType: true,
+              fileType: true,
+              size: true,
+            },
+          })
+        : [];
+
+    // Create a map for quick lookup
+    const fileMap = new Map(files.map((file) => [file.id, file]));
+
+    // Transform messages to include file metadata
+    const messagesWithMetadata = messages.map((message) => ({
+      ...message,
+      attachments: message.attachments
+        .map((fileId) => fileMap.get(fileId))
+        .filter((file): file is NonNullable<typeof file> => file !== undefined), // Filter out any missing files
+    }));
+
     const nextToken =
       messages.length === limit ? messages[messages.length - 1].id : undefined;
-    return { messages, continuationToken: nextToken };
+    return { messages: messagesWithMetadata, continuationToken: nextToken };
   }
 }

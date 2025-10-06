@@ -8,6 +8,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import CodeIcon from "@mui/icons-material/Code";
 import ArchiveIcon from "@mui/icons-material/Archive";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
+import { FileMetadata } from "../../types/message.type";
 
 const DownloadCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -42,7 +43,7 @@ const FileInfo = styled(Box)({
 });
 
 interface DownloadLinkProps {
-  fileId: string;
+  metadata: FileMetadata;
 }
 
 const getFileIcon = (mimeType: string) => {
@@ -66,14 +67,14 @@ const formatFileSize = (bytes: number): string => {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 };
 
-export const DownloadLink: React.FC<DownloadLinkProps> = ({ fileId }) => {
-  const { blobUrl, metadata, isLoading, error } = useAuthenticatedFile(fileId, {
+export const DownloadLink: React.FC<DownloadLinkProps> = ({ metadata }) => {
+  const { blobUrl, isLoading, error } = useAuthenticatedFile(metadata.id, {
     fetchBlob: true,
-    fetchMetadata: true,
+    fetchMetadata: false, // We already have metadata!
   });
 
   const handleDownload = () => {
-    if (!blobUrl || !metadata) return;
+    if (!blobUrl) return;
 
     const link = document.createElement("a");
     link.href = blobUrl;
@@ -93,7 +94,7 @@ export const DownloadLink: React.FC<DownloadLinkProps> = ({ fileId }) => {
     );
   }
 
-  if (isLoading || !metadata) {
+  if (isLoading) {
     return (
       <DownloadCard>
         <CircularProgress size={24} />

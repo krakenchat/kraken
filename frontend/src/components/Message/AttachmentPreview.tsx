@@ -40,25 +40,27 @@ const StyledVideo = styled("video")({
 });
 
 interface AttachmentPreviewProps {
-  fileId: string;
+  metadata: import("../../types/message.type").FileMetadata;
   alt?: string;
   onClick?: () => void;
+  onImageClick?: () => void;
 }
 
 export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
-  fileId,
+  metadata,
   alt = "Attachment",
   onClick,
+  onImageClick,
 }) => {
-  const { blobUrl, metadata, isLoading, error } = useAuthenticatedFile(fileId, {
+  const { blobUrl, isLoading, error } = useAuthenticatedFile(metadata.id, {
     fetchBlob: true,
-    fetchMetadata: true,
+    fetchMetadata: false, // We already have metadata!
   });
   const [mediaType, setMediaType] = useState<"image" | "video" | "audio" | "other" | null>(null);
 
   // Detect media type from metadata
   useEffect(() => {
-    if (!metadata) {
+    if (!metadata?.mimeType) {
       setMediaType(null);
       return;
     }
@@ -74,7 +76,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     } else {
       setMediaType("other");
     }
-  }, [metadata]);
+  }, [metadata?.mimeType]);
 
   if (error) {
     return (
@@ -86,7 +88,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     );
   }
 
-  if (isLoading || !blobUrl || !mediaType || !metadata) {
+  if (isLoading || !blobUrl || !mediaType) {
     return (
       <AttachmentCard>
         <LoadingContainer>
@@ -98,12 +100,12 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
 
   // Audio files get their own specialized player
   if (mediaType === "audio") {
-    return <AudioPlayer fileId={fileId} />;
+    return <AudioPlayer metadata={metadata} />;
   }
 
   // Other file types get a download link
   if (mediaType === "other") {
-    return <DownloadLink fileId={fileId} />;
+    return <DownloadLink metadata={metadata} />;
   }
 
   // Images and videos are displayed inline
@@ -114,7 +116,11 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
           Your browser does not support the video tag.
         </StyledVideo>
       ) : (
-        <StyledImage src={blobUrl} alt={alt} onClick={onClick} />
+        <StyledImage
+          src={blobUrl}
+          alt={alt}
+          onClick={onImageClick || onClick}
+        />
       )}
     </AttachmentCard>
   );
