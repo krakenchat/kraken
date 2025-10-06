@@ -23,6 +23,11 @@ const StyledImage = styled("img")({
   maxHeight: 400,
   objectFit: "contain",
   display: "block",
+  cursor: "pointer",
+  transition: "opacity 0.2s",
+  "&:hover": {
+    opacity: 0.9,
+  },
 });
 
 const StyledVideo = styled("video")({
@@ -30,16 +35,19 @@ const StyledVideo = styled("video")({
   maxHeight: 400,
   objectFit: "contain",
   display: "block",
+  cursor: "pointer",
 });
 
 interface AttachmentPreviewProps {
   fileId: string;
   alt?: string;
+  onClick?: () => void;
 }
 
 export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
   fileId,
   alt = "Attachment",
+  onClick,
 }) => {
   const { blobUrl, isLoading, error } = useAuthenticatedImage(fileId);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
@@ -89,14 +97,20 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     );
   }
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <AttachmentCard>
       {mediaType === "video" ? (
-        <StyledVideo src={blobUrl} controls>
+        <StyledVideo src={blobUrl} controls onClick={handleClick}>
           Your browser does not support the video tag.
         </StyledVideo>
       ) : (
-        <StyledImage src={blobUrl} alt={alt} />
+        <StyledImage src={blobUrl} alt={alt} onClick={handleClick} />
       )}
     </AttachmentCard>
   );
