@@ -2,12 +2,17 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { DatabaseService } from '@/database/database.service';
+import { FileService } from '@/file/file.service';
+import { Message } from '@prisma/client';
 
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly fileService: FileService,
+  ) {}
 
   async create(createMessageDto: CreateMessageDto) {
     return this.databaseService.message.create({
@@ -26,8 +31,35 @@ export class MessagesService {
     }
   }
 
-  async update(id: string, updateMessageDto: UpdateMessageDto) {
+  async update(
+    id: string,
+    updateMessageDto: UpdateMessageDto,
+    originalAttachments?: string[],
+  ) {
     try {
+      // If attachments are being updated and we have the original list, mark removed ones for deletion
+      if (
+        updateMessageDto.attachments &&
+        originalAttachments &&
+        Array.isArray(originalAttachments)
+      ) {
+        const newAttachments = updateMessageDto.attachments;
+        const removedAttachments = originalAttachments.filter(
+          (oldId) => !newAttachments.includes(oldId),
+        );
+
+        // Mark removed attachments for deletion (cron job will clean them up)
+        for (const fileId of removedAttachments) {
+          await this.fileService.markForDeletion(fileId);
+        }
+
+        if (removedAttachments.length > 0) {
+          this.logger.debug(
+            `Marked ${removedAttachments.length} removed attachments for deletion`,
+          );
+        }
+      }
+
       return await this.databaseService.message.update({
         where: { id },
         data: updateMessageDto,
@@ -38,8 +70,18 @@ export class MessagesService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string, attachments?: string[]) {
     try {
+      // Mark all attachments for deletion before removing the message
+      if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+        for (const fileId of attachments) {
+          await this.fileService.markForDeletion(fileId);
+        }
+        this.logger.debug(
+          `Marked ${attachments.length} attachments for deletion`,
+        );
+      }
+
       return await this.databaseService.message.delete({
         where: { id },
       });
@@ -161,7 +203,7 @@ export class MessagesService {
     }
   }
 
-  async enrichMessageWithFileMetadata(message: any) {
+  async enrichMessageWithFileMetadata(message: Message) {
     if (!message.attachments || message.attachments.length === 0) {
       return { ...message, attachments: [] };
     }

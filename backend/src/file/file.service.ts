@@ -14,7 +14,21 @@ export class FileService {
     });
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES)
+  async markForDeletion(fileId: string) {
+    try {
+      await this.databaseService.file.update({
+        where: { id: fileId },
+        data: { deletedAt: new Date() },
+      });
+      this.logger.debug(`Marked file ${fileId} for deletion`);
+    } catch (error) {
+      this.logger.warn(`Failed to mark file ${fileId} for deletion:`, error);
+      // Don't throw - we don't want to fail message updates if file is already deleted
+    }
+  }
+
+  // @Cron(CronExpression.EVERY_10_MINUTES)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async cleanupOldFiles() {
     this.logger.debug('Running cleanup of old files...');
     const deletedFiles = await this.databaseService.file.findMany({

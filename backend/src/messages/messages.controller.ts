@@ -215,10 +215,11 @@ export class MessagesController {
     // First get the original message to know which channel to notify
     const originalMessage = await this.messagesService.findOne(id);
 
-    // Update the message
+    // Update the message, passing original attachments for cleanup
     const updatedMessage = await this.messagesService.update(
       id,
       updateMessageDto,
+      originalMessage.attachments,
     );
 
     // Emit WebSocket event to the channel room
@@ -240,8 +241,8 @@ export class MessagesController {
     // First get the message to know which channel to notify
     const messageToDelete = await this.messagesService.findOne(id);
 
-    // Delete the message
-    await this.messagesService.remove(id);
+    // Delete the message and mark attachments for cleanup
+    await this.messagesService.remove(id, messageToDelete.attachments);
 
     // Emit WebSocket event to the channel room
     const roomId =

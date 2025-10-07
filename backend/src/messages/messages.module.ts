@@ -8,6 +8,7 @@ import { RolesModule } from '@/roles/roles.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
 import { RoomsModule } from '@/rooms/rooms.module';
 import { AuthModule } from '@/auth/auth.module';
+import { FileModule } from '@/file/file.module';
 import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
 
 @Module({
@@ -20,6 +21,7 @@ import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
     WebsocketModule,
     RoomsModule,
     AuthModule,
+    FileModule,
   ],
   exports: [MessagesService],
 })

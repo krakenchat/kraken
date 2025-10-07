@@ -21,5 +21,6 @@ import {
     MessageAttachmentStrategy,
   ],
   imports: [DatabaseModule, MembershipModule, ChannelMembershipModule],
+  exports: [FileService],
 })
 export class FileModule {}
