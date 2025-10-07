@@ -62,20 +62,40 @@ export const messagesApi = createApi({
     }),
     updateMessage: builder.mutation<
       Message,
-      { id: string; channelId: string; data: Partial<Message> }
+      { id: string; channelId: string; data: Partial<Message>; originalAttachments?: Message['attachments'] }
     >({
       query: ({ id, data }) => ({
         url: `/${id}`,
         method: "PATCH",
         body: data,
       }),
-      async onQueryStarted({ channelId }, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ channelId, originalAttachments }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedMessage } = await queryFulfilled;
+
+          // If we have original attachments metadata, enrich the response
+          // Backend returns attachment IDs as strings, we need to convert back to FileMetadata
+          let enrichedMessage = updatedMessage;
+          if (originalAttachments && Array.isArray(updatedMessage.attachments)) {
+            const attachmentMap = new Map(originalAttachments.map(att => [att.id, att]));
+            enrichedMessage = {
+              ...updatedMessage,
+              attachments: updatedMessage.attachments
+                .map((idOrObj: any) => {
+                  // If it's already an object with metadata, use it
+                  if (typeof idOrObj === 'object' && idOrObj.id) return idOrObj;
+                  // If it's just an ID string, look up the metadata
+                  if (typeof idOrObj === 'string') return attachmentMap.get(idOrObj);
+                  return idOrObj;
+                })
+                .filter(Boolean) as Message['attachments'],
+            };
+          }
+
           dispatch(
             updateMessage({
               channelId,
-              message: updatedMessage,
+              message: enrichedMessage,
             })
           );
         } catch (error) {

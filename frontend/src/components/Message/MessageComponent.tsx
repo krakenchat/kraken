@@ -1,10 +1,12 @@
-import { styled, Typography, IconButton, Box, TextField } from "@mui/material";
+import { styled, Typography, IconButton, Box, TextField, Chip } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckIcon from "@mui/icons-material/Check";
 import CancelIcon from "@mui/icons-material/Cancel";
-import type { Message as MessageType, Span } from "../../types/message.type";
+import CloseIcon from "@mui/icons-material/Close";
+import type { Message as MessageType, Span, FileMetadata } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
+import { spansToText, parseMessageWithMentions } from "../../utils/mentionParser";
 import {
   useGetUserByIdQuery,
   useProfileQuery,
@@ -141,6 +143,7 @@ function MessageComponent({ message }: MessageProps) {
   const [removeReaction] = useRemoveReactionMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
+  const [editAttachments, setEditAttachments] = useState<FileMetadata[]>([]);
   const [stagedForDelete, setStagedForDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -161,27 +164,47 @@ function MessageComponent({ message }: MessageProps) {
   }, [isOwnMessage, canDeleteMessage]);
 
   const handleEditClick = () => {
-    // Get the text from the first plaintext span or empty string
-    const textSpan = message.spans.find(
-      (span) => span.type === SpanType.PLAINTEXT
-    );
-    setEditText(textSpan?.text || "");
+    // Convert all spans (including mentions) to editable text
+    const fullText = spansToText(message.spans);
+    setEditText(fullText);
+    // Initialize edit attachments with current attachments
+    setEditAttachments([...message.attachments]);
     setIsEditing(true);
   };
 
   const handleEditSave = async () => {
-    if (!message.channelId) return;
+    if (!message.channelId && !message.directMessageGroupId) return;
 
     try {
+      // Extract mentioned users from original message to preserve mentions
+      const mentionedUsers = message.spans
+        .filter(span => span.type === SpanType.USER_MENTION && span.userId)
+        .map(span => ({
+          id: span.userId!,
+          username: span.text?.replace('@', '') || 'user',
+          displayName: span.text?.replace('@', '') || 'user',
+        }));
+
+      // Parse edited text back to spans, preserving existing mentions
+      let parsedSpans = parseMessageWithMentions(editText, mentionedUsers);
+
+      // Ensure at least one span exists
+      if (parsedSpans.length === 0) {
+        parsedSpans = [{ type: SpanType.PLAINTEXT, text: editText || '' }];
+      }
+
       await updateMessage({
         id: message.id,
         channelId: message.channelId,
         data: {
-          spans: [{ type: SpanType.PLAINTEXT, text: editText }],
-          editedAt: new Date().toISOString(),
+          spans: parsedSpans,
+          attachments: editAttachments.map(att => att.id),
         },
+        originalAttachments: message.attachments,
       }).unwrap();
       setIsEditing(false);
+      setEditText("");
+      setEditAttachments([]);
     } catch (error) {
       console.error("Failed to update message:", error);
     }
@@ -190,6 +213,11 @@ function MessageComponent({ message }: MessageProps) {
   const handleEditCancel = () => {
     setIsEditing(false);
     setEditText("");
+    setEditAttachments([]);
+  };
+
+  const handleRemoveAttachment = (attachmentId: string) => {
+    setEditAttachments(prev => prev.filter(att => att.id !== attachmentId));
   };
 
   const handleDeleteClick = () => {
@@ -269,33 +297,50 @@ function MessageComponent({ message }: MessageProps) {
           </Typography>
         </Typography>
         {isEditing ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
-            <TextField
-              size="small"
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              fullWidth
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleEditSave();
-                } else if (e.key === "Escape") {
-                  handleEditCancel();
-                }
-              }}
-            />
-            <IconButton
-              size="small"
-              onClick={handleEditSave}
-              disabled={!editText.trim()}
-              color="primary"
-            >
-              <CheckIcon fontSize="small" />
-            </IconButton>
-            <IconButton size="small" onClick={handleEditCancel}>
-              <CancelIcon fontSize="small" />
-            </IconButton>
+          <Box sx={{ mt: 0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <TextField
+                size="small"
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                fullWidth
+                autoFocus
+                multiline
+                maxRows={4}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleEditSave();
+                  } else if (e.key === "Escape") {
+                    handleEditCancel();
+                  }
+                }}
+              />
+              <IconButton
+                size="small"
+                onClick={handleEditSave}
+                disabled={!editText.trim() && editAttachments.length === 0}
+                color="primary"
+              >
+                <CheckIcon fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={handleEditCancel}>
+                <CancelIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            {editAttachments.length > 0 && (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
+                {editAttachments.map((attachment) => (
+                  <Chip
+                    key={attachment.id}
+                    label={attachment.filename}
+                    size="small"
+                    onDelete={() => handleRemoveAttachment(attachment.id)}
+                    deleteIcon={<CloseIcon />}
+                  />
+                ))}
+              </Box>
+            )}
           </Box>
         ) : (
           <>
