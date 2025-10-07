@@ -17,9 +17,8 @@
 ```typescript
 export function useDirectMessageWebSocket() {
   // ... implementation
-  
+
   return {
-    sendDirectMessage: (dmGroupId: string, spans: any[]) => void;
     joinDmGroup: (dmGroupId: string) => void;
     leaveDmGroup: (dmGroupId: string) => void;
   };
@@ -30,11 +29,12 @@ export function useDirectMessageWebSocket() {
 
 ```typescript
 interface UseDirectMessageWebSocketReturn {
-  sendDirectMessage: (dmGroupId: string, spans: any[]) => void;  // Send DM message
-  joinDmGroup: (dmGroupId: string) => void;                      // Join DM WebSocket room
-  leaveDmGroup: (dmGroupId: string) => void;                     // Leave DM WebSocket room
+  joinDmGroup: (dmGroupId: string) => void;      // Join DM WebSocket room
+  leaveDmGroup: (dmGroupId: string) => void;     // Leave DM WebSocket room
 }
 ```
+
+**Note**: Message sending is now handled by the unified `useSendMessage` hook. This hook focuses solely on WebSocket event listening and room management.
 
 ## Core Functionality
 
@@ -168,44 +168,6 @@ const handleReactionAdded = ({
 - **Immutable Updates**: Creates new arrays to trigger React updates
 - **Context Filtering**: Only updates DM messages
 
-## Message Sending
-
-### sendDirectMessage Function
-
-```typescript
-const sendDirectMessage = (dmGroupId: string, spans: any[]) => {
-  console.log("[useDirectMessageWebSocket] Preparing to send DM:", { dmGroupId, spans });
-  const messageData = {
-    directMessageGroupId: dmGroupId,
-    spans,
-    attachments: [],
-  };
-
-  console.log("[useDirectMessageWebSocket] Message data:", messageData);
-  console.log("[useDirectMessageWebSocket] Socket connected:", !!socket?.connected);
-  console.log("[useDirectMessageWebSocket] Emitting event:", ClientEvents.SEND_DM);
-  
-  socket?.emit(ClientEvents.SEND_DM, messageData);
-  console.log("[useDirectMessageWebSocket] Event emitted");
-};
-```
-
-**Features:**
-- **Payload Construction**: Creates proper message payload for server
-- **Debug Logging**: Extensive logging for message send debugging
-- **Connection Validation**: Checks socket connection status
-- **Safe Emission**: Uses optional chaining for socket safety
-
-### Message Payload Structure
-
-```typescript
-interface DMMessagePayload {
-  directMessageGroupId: string;  // Target DM group ID
-  spans: any[];                  // Rich text spans (mentions, formatting, etc.)
-  attachments: any[];            // File attachments (empty for now)
-}
-```
-
 ## Room Management
 
 ### Join DM Group
@@ -250,9 +212,10 @@ const leaveDmGroup = (dmGroupId: string) => {
 
 | Event | Function | Description |
 |-------|----------|-------------|
-| `SEND_DM` | `sendDirectMessage` | Send new DM message |
 | `JOIN_DM_ROOM` | `joinDmGroup` | Join DM WebSocket room |
 | `LEAVE_ROOM` | `leaveDmGroup` | Leave DM WebSocket room |
+
+**Note**: `SEND_DM` event is now sent by the `useSendMessage` hook.
 
 ## Redux Integration
 
@@ -332,17 +295,23 @@ return () => {
 
 ```typescript
 import { useDirectMessageWebSocket } from '@/hooks/useDirectMessageWebSocket';
+import { useSendMessage } from '@/hooks/useSendMessage';
 
 function DirectMessageContainer({ dmGroupId }: { dmGroupId: string }) {
-  const { sendDirectMessage, joinDmGroup, leaveDmGroup } = useDirectMessageWebSocket();
+  const { joinDmGroup, leaveDmGroup } = useDirectMessageWebSocket();
+  const sendMessage = useSendMessage('dm');
 
   useEffect(() => {
     joinDmGroup(dmGroupId);
     return () => leaveDmGroup(dmGroupId);
   }, [dmGroupId, joinDmGroup, leaveDmGroup]);
 
-  const handleSendMessage = (content: string, spans: any[]) => {
-    sendDirectMessage(dmGroupId, spans);
+  const handleSendMessage = (messageContent: string, spans: any[]) => {
+    sendMessage({
+      directMessageGroupId: dmGroupId,
+      spans,
+      // ... other message fields
+    });
   };
 
   return (
@@ -355,7 +324,7 @@ function DirectMessageContainer({ dmGroupId }: { dmGroupId: string }) {
 
 ```typescript
 function MultiDMManager({ dmGroupIds }: { dmGroupIds: string[] }) {
-  const { joinDmGroup, leaveDmGroup, sendDirectMessage } = useDirectMessageWebSocket();
+  const { joinDmGroup, leaveDmGroup } = useDirectMessageWebSocket();
 
   useEffect(() => {
     // Join all DM groups
@@ -367,50 +336,11 @@ function MultiDMManager({ dmGroupIds }: { dmGroupIds: string[] }) {
     };
   }, [dmGroupIds, joinDmGroup, leaveDmGroup]);
 
-  const handleSendToGroup = (dmGroupId: string, spans: any[]) => {
-    sendDirectMessage(dmGroupId, spans);
-  };
-
   return (
     <div>
       {/* UI for multiple DM groups */}
+      {/* Message sending handled by useSendMessage in child components */}
     </div>
-  );
-}
-```
-
-### Message Sending with Validation
-
-```typescript
-function ValidatedMessageSender({ dmGroupId }: { dmGroupId: string }) {
-  const { sendDirectMessage } = useDirectMessageWebSocket();
-
-  const handleSendMessage = async (content: string, spans: any[]) => {
-    // Validation before sending
-    if (!content.trim()) {
-      console.warn('Cannot send empty message');
-      return;
-    }
-
-    if (!dmGroupId) {
-      console.error('No DM group ID provided');
-      return;
-    }
-
-    try {
-      sendDirectMessage(dmGroupId, spans);
-      // Show success feedback
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      // Show error feedback
-    }
-  };
-
-  return (
-    <MessageInput 
-      onSendMessage={handleSendMessage}
-      placeholder="Type a message..."
-    />
   );
 }
 ```
@@ -427,18 +357,6 @@ if (!socket?.connected) {
   // Could implement retry logic or show offline indicator
   console.warn('WebSocket not connected, message may not be sent');
 }
-```
-
-### Message Validation Errors
-
-```typescript
-// Server may reject messages with invalid structure
-// Client should validate before sending:
-const messageData = {
-  directMessageGroupId: dmGroupId,  // Required
-  spans,                            // Required, must be array
-  attachments: [],                  // Optional, defaults to empty
-};
 ```
 
 ### Event Handler Errors
@@ -501,17 +419,11 @@ describe('useDirectMessageWebSocket', () => {
     expect(mockSocket.on).toHaveBeenCalledWith(ServerEvents.REACTION_REMOVED, expect.any(Function));
   });
 
-  it('sends direct message with correct payload', () => {
+  it('provides room management functions', () => {
     const { result } = renderHook(() => useDirectMessageWebSocket());
-    const spans = [{ type: 'text', content: 'Hello' }];
 
-    result.current.sendDirectMessage('dm-group-1', spans);
-
-    expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.SEND_DM, {
-      directMessageGroupId: 'dm-group-1',
-      spans,
-      attachments: [],
-    });
+    expect(typeof result.current.joinDmGroup).toBe('function');
+    expect(typeof result.current.leaveDmGroup).toBe('function');
   });
 
   it('handles new DM event correctly', () => {

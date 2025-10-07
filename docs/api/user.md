@@ -20,6 +20,7 @@ User management API for user registration, profile retrieval, and user search fu
 |--------|----------|-------------|-----------------|
 | POST | `/` | Register new user (public) | None |
 | GET | `/profile` | Get current user profile | None (own profile) |
+| PATCH | `/profile` | Update current user profile | None (own profile) |
 | GET | `/username/:name` | Get user by username | None |
 | GET | `/search` | Search users with query | `READ_USER` |
 | GET | `/:id` | Get user by ID | None |
@@ -108,16 +109,115 @@ curl -H "Authorization: Bearer <token>" \
   "id": "64f7b1234567890abcdef123",
   "username": "john_doe",
   "role": "USER",
-  "avatarUrl": "https://example.com/avatar.jpg",
+  "avatarUrl": "file-id-avatar-123",
+  "bannerUrl": "file-id-banner-456",
   "lastSeen": "2024-01-01T12:00:00.000Z",
   "displayName": "John Doe"
 }
 ```
 
+**Note:** `avatarUrl` and `bannerUrl` are file IDs, not direct URLs. Use `/api/file/:fileId` to fetch the actual image with authentication.
+
 **Error Responses:**
 - `401 Unauthorized` - Invalid or missing token
 - `404 Not Found` - User not found (should not happen with valid token)
 - `500 Internal Server Error` - Server error
+
+---
+
+## PATCH `/api/users/profile`
+
+**Description:** Updates the current authenticated user's profile information. Allows updating display name, avatar, and banner. File IDs should be obtained by uploading files first via the file upload endpoint.
+
+### Request
+
+**Headers:**
+- `Authorization: Bearer <jwt_token>` (Required)
+- `Content-Type: application/json`
+
+**Body (JSON):**
+```json
+{
+  "displayName": "string",  // Optional: User's display name (1-32 chars)
+  "avatar": "string",       // Optional: File ID for avatar image
+  "banner": "string"        // Optional: File ID for banner image
+}
+```
+
+**Validation Rules:**
+- `displayName` - Optional string, min 1 char, max 32 chars, trimmed
+- `avatar` - Optional string, must be valid file ID
+- `banner` - Optional string, must be valid file ID
+- All fields are optional - send only fields you want to update
+
+**Example:**
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "displayName": "John D.",
+    "avatar": "64f7b1234567890abcdef789",
+    "banner": "64f7b1234567890abcdef012"
+  }' \
+  "http://localhost:3001/api/users/profile"
+```
+
+**Partial Update Example (Display Name Only):**
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "displayName": "New Display Name"
+  }' \
+  "http://localhost:3001/api/users/profile"
+```
+
+### Response
+
+**Success (200):**
+```json
+{
+  "id": "64f7b1234567890abcdef123",
+  "username": "john_doe",
+  "role": "USER",
+  "avatarUrl": "64f7b1234567890abcdef789",
+  "bannerUrl": "64f7b1234567890abcdef012",
+  "lastSeen": "2024-01-01T12:00:00.000Z",
+  "displayName": "John D."
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Validation errors (displayName too long, etc.)
+- `401 Unauthorized` - Invalid or missing token
+- `404 Not Found` - User not found
+- `500 Internal Server Error` - Server error
+
+**Usage Flow:**
+1. User uploads avatar/banner via `POST /api/file-upload` with `resourceType: "USER_AVATAR"` or `"USER_BANNER"`
+2. Upload response contains file ID
+3. User updates profile with `PATCH /api/users/profile` including the file ID(s)
+4. Frontend fetches avatar/banner images via `/api/file/:fileId` with authentication
+
+**Frontend Integration:**
+```typescript
+// 1. Upload avatar
+const avatarFile = await uploadFile(file, {
+  resourceType: "USER_AVATAR",
+  resourceId: userId,
+});
+
+// 2. Update profile
+const updatedUser = await updateProfile({
+  displayName: "New Name",
+  avatar: avatarFile.id,
+});
+
+// 3. Display avatar using authenticated image hook
+const { blobUrl } = useAuthenticatedImage(updatedUser.avatarUrl);
+```
 
 ---
 
@@ -147,7 +247,8 @@ curl -H "Authorization: Bearer <token>" \
   "id": "64f7b1234567890abcdef123",
   "username": "john_doe",
   "role": "USER",
-  "avatarUrl": "https://example.com/avatar.jpg",
+  "avatarUrl": "file-id-avatar-123",
+  "bannerUrl": "file-id-banner-456",
   "lastSeen": "2024-01-01T12:00:00.000Z",
   "displayName": "John Doe"
 }
@@ -193,7 +294,8 @@ curl -H "Authorization: Bearer <token>" \
     "id": "64f7b1234567890abcdef123",
     "username": "john_doe",
     "role": "USER",
-    "avatarUrl": "https://example.com/avatar.jpg",
+    "avatarUrl": "file-id-avatar-123",
+  "bannerUrl": "file-id-banner-456",
     "lastSeen": "2024-01-01T12:00:00.000Z",
     "displayName": "John Doe"
   },
@@ -242,7 +344,8 @@ curl -H "Authorization: Bearer <token>" \
   "id": "64f7b1234567890abcdef123",
   "username": "john_doe",
   "role": "USER",
-  "avatarUrl": "https://example.com/avatar.jpg",
+  "avatarUrl": "file-id-avatar-123",
+  "bannerUrl": "file-id-banner-456",
   "lastSeen": "2024-01-01T12:00:00.000Z",
   "displayName": "John Doe"
 }
@@ -294,7 +397,8 @@ curl -H "Authorization: Bearer <token>" \
       "id": "64f7b1234567890abcdef123",
       "username": "john_doe",
       "role": "USER",
-      "avatarUrl": "https://example.com/avatar.jpg",
+      "avatarUrl": "file-id-avatar-123",
+  "bannerUrl": "file-id-banner-456",
       "lastSeen": "2024-01-01T12:00:00.000Z",
       "displayName": "John Doe"
     },

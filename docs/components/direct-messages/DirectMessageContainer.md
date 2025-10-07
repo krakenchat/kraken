@@ -2,7 +2,7 @@
 
 ## Overview
 
-`DirectMessageContainer` is the main container component for displaying direct message conversations. It wraps the unified `MessageContainerWrapper` and provides DM-specific context, including member lists, message handling, and WebSocket integration for real-time messaging.
+`DirectMessageContainer` is the main container component for displaying direct message conversations. It wraps the unified `MessageContainerWrapper` and provides DM-specific context, including member lists, message handling with file upload support, and WebSocket integration for real-time messaging.
 
 ## Component Details
 
@@ -10,7 +10,9 @@
 
 **Type**: Functional Component with React hooks
 
-**Purpose**: Orchestrates direct message display with member management, real-time updates, and unified message interface
+**Purpose**: Orchestrates direct message display with member management, file uploads, real-time updates, and unified message interface
+
+**Last Updated**: 2025-01-06 (Unified messaging system with file upload support)
 
 ## Props
 
@@ -32,58 +34,134 @@ interface DirectMessageContainerProps {
 ### State Management Hooks
 
 ```typescript
+// User profile for author ID
+const { data: user } = useProfileQuery();
+const authorId = user?.id || "";
+
+// File upload support
+const { uploadFile } = useFileUpload();
+const [addAttachment] = useAddAttachmentMutation();
+const { showNotification } = useNotification();
+const pendingFilesRef = React.useRef<File[] | null>(null);
+
 // RTK Query for DM group data
 const { data: dmGroup } = useGetDmGroupQuery(dmGroupId);
 
 // Custom hook for DM messages with real-time updates
 const messagesHookResult = useDirectMessages(dmGroupId);
 
-// WebSocket hook for sending messages
-const { sendDirectMessage } = useDirectMessageWebSocket();
+// Unified send message hook with file upload callback
+const sendMessage = useSendMessage("dm", async (messageId: string) => {
+  // File upload callback logic
+});
 ```
 
 ### Hook Dependencies
 
-1. **`useGetDmGroupQuery(dmGroupId)`**
+1. **`useProfileQuery()`**
+   - Source: `usersSlice.ts`
+   - Fetches current user profile for authorId
+   - Required for message creation
+
+2. **`useFileUpload()`**
+   - Source: `hooks/useFileUpload.ts`
+   - Handles file uploads with resource types
+   - Supports multiple concurrent uploads
+
+3. **`useAddAttachmentMutation()`**
+   - Source: `messagesApiSlice.ts`
+   - Associates uploaded files with messages
+   - Handles pendingAttachments counter
+
+4. **`useGetDmGroupQuery(dmGroupId)`**
    - Source: `directMessagesApiSlice.ts`
    - Fetches DM group details including members
    - Provides member data for mentions and UI display
    - Auto-refetches on focus/reconnection
 
-2. **`useDirectMessages(dmGroupId)`**
-   - Source: `hooks/useDirectMessages.ts`  
+5. **`useDirectMessages(dmGroupId)`**
+   - Source: `hooks/useDirectMessages.ts`
    - Manages message state with real-time WebSocket updates
    - Returns messages, loading state, and pagination info
    - Integrates with Redux store for caching
 
-3. **`useDirectMessageWebSocket()`**
-   - Source: `hooks/useDirectMessageWebSocket.ts`
-   - Provides `sendDirectMessage` function for message sending
-   - Handles WebSocket connection and room management
-   - Manages real-time message events
+6. **`useSendMessage("dm", callback)`**
+   - Source: `hooks/useSendMessage.ts`
+   - Unified message sending for channels and DMs
+   - Supports acknowledgment callback for file uploads
+   - Emits SEND_DM WebSocket event
 
 ## Core Functionality
 
-### Message Handling
+### Message Handling with File Upload Support
 
 **Send Message Function:**
 ```typescript
-const handleSendMessage = (messageContent: string, spans: unknown[]) => {
-  console.log("[DirectMessageContainer] Received message to send:", { 
-    messageContent, 
-    spans, 
-    dmGroupId 
-  });
-  
-  sendDirectMessage(dmGroupId, spans);
+const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[]) => {
+  // Create message with pendingAttachments count
+  const msg = {
+    directMessageGroupId: dmGroupId,
+    authorId,
+    spans,
+    attachments: [],
+    pendingAttachments: files?.length || 0,
+    reactions: [],
+    sentAt: new Date().toISOString(),
+  };
+
+  // Store files in ref for callback
+  pendingFilesRef.current = files || null;
+
+  // Send message immediately (optimistic)
+  sendMessage(msg);
 };
 ```
 
+**File Upload Callback:**
+```typescript
+const sendMessage = useSendMessage("dm", async (messageId: string) => {
+  const files = pendingFilesRef.current;
+  if (!files || files.length === 0) return;
+
+  try {
+    // Upload all files in parallel
+    const uploadPromises = files.map(file =>
+      uploadFile(file, {
+        resourceType: "MESSAGE_ATTACHMENT",
+        resourceId: messageId,
+      })
+    );
+
+    const uploadedFiles = await Promise.all(uploadPromises);
+
+    // Add each uploaded file to the message
+    for (const uploadedFile of uploadedFiles) {
+      await addAttachment({
+        messageId,
+        fileId: uploadedFile.id,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to upload files:", error);
+    showNotification(error.message, "error");
+
+    // Decrement pendingAttachments counter for failed uploads
+    for (let i = 0; i < files.length; i++) {
+      await addAttachment({ messageId }); // No fileId = just decrement
+    }
+  } finally {
+    pendingFilesRef.current = null;
+  }
+});
+```
+
 **Features:**
-- Accepts rich text spans for mentions, formatting, etc.
-- Sends via WebSocket for real-time delivery
-- Includes debug logging for troubleshooting
-- Automatically includes DM group context
+- **Rich Text Support**: Spans for mentions, formatting, links
+- **File Attachments**: Multiple file upload support
+- **Optimistic Updates**: Message appears immediately with pending state
+- **Progress Tracking**: pendingAttachments counter shows upload status
+- **Error Handling**: User notification on upload failure
+- **Parallel Uploads**: All files uploaded concurrently for speed
 
 ### User Mentions Integration
 

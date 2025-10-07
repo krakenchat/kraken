@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Communities**: User/admin-created servers with members, channels, and voice/video contexts
 - **Members**: Users registered with the instance and added to communities
 - **Channels**: Text and voice channels within communities
-- **Direct Messages & Groups**: Private messaging with voice/video support (planned)
+- **Direct Messages & Groups**: Private messaging between users (✅ implemented with file attachments)
 
 ### Platform Goals
 
@@ -27,12 +27,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Key Features
 
-- Real-time messaging via WebSockets
+- Real-time messaging via WebSockets with file attachments
 - Voice/video calls powered by LiveKit integration
 - Community-based organization similar to Discord servers
-- Role-based permissions system
+- Role-based permissions system (RBAC)
 - Private channels and direct messaging
 - User presence and online status
+- User profiles with avatars and banners
+- Authenticated file caching system
 
 ### Voice Channel Implementation Notes
 

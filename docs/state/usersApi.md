@@ -19,6 +19,7 @@ export const usersApi = createApi({
       prepareHeaders,
     })
   ),
+  tagTypes: ["Profile", "User"],
   endpoints: (builder) => ({
     // Endpoints defined below
   }),
@@ -29,11 +30,13 @@ export const usersApi = createApi({
 - **Reducer Path:** `usersApi`
 - **Base Query:** `getBaseAuthedQuery` (includes JWT authentication and token refresh)
 - **Base URL:** `/api/users`
-- **Tag Types:** None (uses manual cache management with localStorage)
+- **Tag Types:** `["Profile", "User"]` (RTK Query tag-based cache invalidation)
 
 ## Endpoints
 
 ### Query Endpoints (Data Fetching)
+
+**Note:** All query endpoints use RTK Query's built-in caching. Tag-based invalidation ensures data stays fresh when mutations occur.
 
 #### register
 ```typescript
@@ -88,45 +91,33 @@ const {
 // Use refetch() to refresh profile data
 ```
 
-#### getUserByIdWithCache
+#### getUserById
 ```typescript
-getUserByIdWithCache: builder.query<User, string>({
-  async queryFn(userId, _queryApi, _extraOptions, fetchWithBQ) {
-    // 1. Try localStorage cache
-    const cached = getCachedItem<User>(`${USER_CACHE_PREFIX}${userId}`);
-    if (cached) return { data: cached };
-    
-    // 2. Fetch from API
-    const result = await fetchWithBQ(`/${userId}`);
-    if (result.data) {
-      setCachedItem(
-        `${USER_CACHE_PREFIX}${userId}`,
-        result.data as User,
-        USER_CACHE_TTL
-      );
-      return { data: result.data as User };
-    }
-    
-    return result.error ? { error: result.error } : { error: { status: 404, data: "User not found" } };
-  },
+getUserById: builder.query<User, string>({
+  query: (userId) => `/${userId}`,
+  providesTags: (result, _error, userId) => [{ type: "User", id: userId }],
 })
 ```
 
-**Purpose:** Fetches user data by ID with intelligent localStorage caching to reduce API calls.
+**Purpose:** Fetches user data by ID with RTK Query automatic caching.
 
 **Usage:**
 ```typescript
-const { 
-  data: user, 
-  error, 
-  isLoading 
-} = useUsersApi.useGetUserByIdWithCacheQuery(userId, {
+const {
+  data: user,
+  error,
+  isLoading
+} = useUsersApi.useGetUserByIdQuery(userId, {
   skip: !userId,
 });
 
-// First call fetches from API and caches result
-// Subsequent calls return cached data (1 hour TTL)
+// RTK Query handles caching automatically
+// Cache is invalidated when user profile is updated
 ```
+
+**Cache Tags:**
+- Provides tag: `{ type: "User", id: userId }`
+- Invalidated by: `updateProfile` mutation
 
 #### searchUsers
 ```typescript
@@ -191,6 +182,117 @@ const users = usersResponse?.users || [];
 const nextToken = usersResponse?.continuationToken;
 ```
 
+---
+
+### Mutation Endpoints (Data Modification)
+
+#### updateProfile
+```typescript
+updateProfile: builder.mutation<
+  User,
+  { displayName?: string; avatar?: string; banner?: string }
+>({
+  query: (body) => ({
+    url: "/profile",
+    method: "PATCH",
+    body,
+  }),
+  invalidatesTags: (result) =>
+    result ? ["Profile", { type: "User", id: result.id }] : ["Profile"],
+})
+```
+
+**Purpose:** Updates the current user's profile (display name, avatar, banner).
+
+**Usage:**
+```typescript
+const [updateProfile, { isLoading, error }] = useUsersApi.useUpdateProfileMutation();
+
+const handleProfileUpdate = async (displayName: string, avatarFileId?: string, bannerFileId?: string) => {
+  try {
+    const updatedUser = await updateProfile({
+      displayName,
+      avatar: avatarFileId,
+      banner: bannerFileId,
+    }).unwrap();
+
+    console.log('Profile updated:', updatedUser);
+    // RTK Query automatically invalidates cache
+    // All components using useProfileQuery or useGetUserByIdQuery will re-fetch
+  } catch (err) {
+    console.error('Failed to update profile:', err);
+  }
+};
+```
+
+**Complete Example with File Upload:**
+```typescript
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { useUpdateProfileMutation } from '@/features/users/usersSlice';
+
+function ProfileEditForm({ currentUser }: { currentUser: User }) {
+  const { uploadFile } = useFileUpload();
+  const [updateProfile, { isLoading }] = useUpdateProfileMutation();
+  const [displayName, setDisplayName] = useState(currentUser.displayName || '');
+
+  const handleAvatarChange = async (file: File) => {
+    try {
+      // 1. Upload avatar file
+      const uploadedFile = await uploadFile(file, {
+        resourceType: 'USER_AVATAR',
+        resourceId: currentUser.id,
+      });
+
+      // 2. Update profile with new avatar file ID
+      await updateProfile({
+        avatar: uploadedFile.id,
+      }).unwrap();
+
+      // Profile and User caches automatically invalidated
+    } catch (error) {
+      console.error('Avatar upload failed:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    await updateProfile({
+      displayName: displayName.trim(),
+    }).unwrap();
+  };
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+      <TextField
+        label="Display Name"
+        value={displayName}
+        onChange={(e) => setDisplayName(e.target.value)}
+      />
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => e.target.files?.[0] && handleAvatarChange(e.target.files[0])}
+      />
+      <Button type="submit" disabled={isLoading}>
+        {isLoading ? 'Saving...' : 'Save Profile'}
+      </Button>
+    </form>
+  );
+}
+```
+
+**Cache Invalidation:**
+- Invalidates `"Profile"` tag → `useProfileQuery` re-fetches
+- Invalidates `{ type: "User", id: userId }` tag → `useGetUserByIdQuery` re-fetches
+- All components displaying this user's profile update automatically
+
+**Validation:**
+- `displayName`: 1-32 characters, trimmed automatically
+- `avatar`: Must be valid file ID from file upload endpoint
+- `banner`: Must be valid file ID from file upload endpoint
+- All fields optional - only send fields you want to update
+
+---
+
 ## Type Definitions
 
 ### Request Types
@@ -221,6 +323,7 @@ interface User {
   id: string;
   username: string;
   avatarUrl: string | null;
+  bannerUrl: string | null;  // Profile banner image file ID
   lastSeen: Date | null;
   displayName: string | null;
   role: string;              // Instance-level role
@@ -234,34 +337,60 @@ interface GetAllUsersResponse {
   users: User[];
   continuationToken?: string;
 }
+
+interface UpdateProfilePayload {
+  displayName?: string;  // Optional: New display name (1-32 chars)
+  avatar?: string;       // Optional: File ID for avatar image
+  banner?: string;       // Optional: File ID for banner image
+}
 ```
 
 ## Caching Strategy
 
-### Dual Caching System
+### RTK Query Tag-Based Cache Invalidation
 
-The Users API implements a sophisticated dual caching system:
+The Users API uses RTK Query's built-in caching with tag-based invalidation for automatic cache management:
 
-1. **RTK Query Cache:** For query results and automatic invalidation
-2. **localStorage Cache:** For frequently accessed user data with TTL
+**Tag Types:**
+- `"Profile"` - Current user's profile data
+- `"User"` - Individual user data by ID
+
+**Cache Flow:**
+```typescript
+// Query provides tags
+useGetUserByIdQuery(userId) → Provides: [{ type: "User", id: userId }]
+useProfileQuery() → Provides: ["Profile"]
+
+// Mutation invalidates tags
+updateProfile() → Invalidates: ["Profile", { type: "User", id: userId }]
+
+// Result: All components using these queries automatically re-fetch
+```
+
+### Cache Invalidation Examples
 
 ```typescript
-const USER_CACHE_PREFIX = "user_";
-const USER_CACHE_TTL = 1000 * 60 * 60; // 1 hour
+// Scenario 1: User updates their profile
+await updateProfile({ displayName: "New Name" });
+// ✅ useProfileQuery() automatically re-fetches
+// ✅ useGetUserByIdQuery(currentUserId) automatically re-fetches
+// ✅ All components displaying this user update automatically
 
-// Cache user data in localStorage
-setCachedItem(`${USER_CACHE_PREFIX}${userId}`, userData, USER_CACHE_TTL);
-
-// Retrieve cached user data
-const cachedUser = getCachedItem<User>(`${USER_CACHE_PREFIX}${userId}`);
+// Scenario 2: Multiple components showing same user
+<UserAvatar userId="123" />           // useGetUserByIdQuery("123")
+<UserProfile userId="123" />          // useGetUserByIdQuery("123")
+<MessageAuthor authorId="123" />      // useGetUserByIdQuery("123")
+// All three components share the same cached data
+// When user "123" updates profile, all three update automatically
 ```
 
 ### Cache Benefits
 
-- **Reduced API Calls:** Frequently accessed users are served from cache
-- **Improved Performance:** Instant user data for message authors, mentions, etc.
-- **Offline Resilience:** Cached user data available when offline
-- **Cross-Session Persistence:** User data persists across browser sessions
+- **Automatic Invalidation:** No manual cache management required
+- **Deduplication:** Multiple components requesting same user share one fetch
+- **Performance:** RTK Query's normalized cache prevents duplicate data
+- **Real-time Updates:** Profile changes propagate instantly to all components
+- **Type Safety:** Full TypeScript support for cache tags and queries
 
 ## State Management
 
@@ -271,13 +400,16 @@ const cachedUser = getCachedItem<User>(`${USER_CACHE_PREFIX}${userId}`);
 export const {
   // Query hooks
   useProfileQuery,
-  useGetUserByIdWithCacheQuery,
+  useGetUserByIdQuery,       // Renamed from useGetUserByIdWithCacheQuery
   useGetAllUsersQuery,
-  
+
   // Lazy query hooks (manual trigger)
   useLazyRegisterQuery,
   useLazySearchUsersQuery,
-  
+
+  // Mutation hooks
+  useUpdateProfileMutation,  // NEW: Profile updates
+
   // Utility hooks
   usePrefetch,
 } = usersApi;
@@ -286,22 +418,34 @@ export const {
 ### Helper Functions
 
 ```typescript
+import { usersApi } from '@/features/users/usersSlice';
+import { useAppDispatch } from '@/app/hooks';
+
 // User API helper functions
 export const userApiHelpers = {
   // Prefetch user data for performance
-  prefetchUser: (userId: string) => {
-    dispatch(usersApi.util.prefetch('getUserByIdWithCache', userId));
+  prefetchUser: (userId: string, dispatch: AppDispatch) => {
+    dispatch(usersApi.util.prefetch('getUserById', userId));
   },
-  
-  // Clear user from cache
-  clearUserCache: (userId: string) => {
-    localStorage.removeItem(`${USER_CACHE_PREFIX}${userId}`);
+
+  // Invalidate user cache manually (if needed)
+  invalidateUser: (userId: string, dispatch: AppDispatch) => {
+    dispatch(
+      usersApi.util.invalidateTags([{ type: "User", id: userId }])
+    );
   },
-  
-  // Bulk prefetch users
-  prefetchUsers: (userIds: string[]) => {
+
+  // Invalidate profile cache
+  invalidateProfile: (dispatch: AppDispatch) => {
+    dispatch(
+      usersApi.util.invalidateTags(["Profile"])
+    );
+  },
+
+  // Bulk prefetch users (e.g., for message list)
+  prefetchUsers: (userIds: string[], dispatch: AppDispatch) => {
     userIds.forEach(id => {
-      dispatch(usersApi.util.prefetch('getUserByIdWithCache', id));
+      dispatch(usersApi.util.prefetch('getUserById', id));
     });
   },
 };
@@ -315,12 +459,16 @@ export const userApiHelpers = {
 import { useUsersApi } from '@/features/users/usersSlice';
 
 function UserProfile({ userId }: { userId: string }) {
-  const { 
-    data: user, 
-    error, 
+  const {
+    data: user,
+    error,
     isLoading,
-    refetch 
-  } = useUsersApi.useGetUserByIdWithCacheQuery(userId);
+    refetch
+  } = useUsersApi.useGetUserByIdQuery(userId);
+
+  // Use authenticated image hook for avatar
+  const { blobUrl: avatarUrl } = useAuthenticatedImage(user?.avatarUrl);
+  const { blobUrl: bannerUrl } = useAuthenticatedImage(user?.bannerUrl);
 
   if (isLoading) return <UserProfileSkeleton />;
   if (error) return <div>User not found</div>;
@@ -328,8 +476,17 @@ function UserProfile({ userId }: { userId: string }) {
 
   return (
     <div className="user-profile">
-      <img 
-        src={user.avatarUrl || '/default-avatar.png'} 
+      {/* Profile banner */}
+      {bannerUrl && (
+        <div
+          className="profile-banner"
+          style={{ backgroundImage: `url(${bannerUrl})` }}
+        />
+      )}
+
+      {/* Avatar */}
+      <img
+        src={avatarUrl || '/default-avatar.png'}
         alt={user.username}
         className="profile-avatar"
       />
