@@ -2,6 +2,144 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 📖 **CRITICAL**: DOCUMENTATION-FIRST DEVELOPMENT
+
+**⚠️ STOP: Before implementing ANY feature, fixing ANY bug, or modifying ANY code, you MUST read the relevant documentation first.**
+
+### WHY THIS MATTERS
+
+Without documentation:
+- ❌ You'll reinvent patterns that already exist
+- ❌ You'll miss existing utilities and components
+- ❌ You'll break established conventions
+- ❌ You'll create duplicate implementations
+- ❌ Your code won't integrate properly
+- ❌ You'll waste time on already-solved problems
+
+With documentation:
+- ✅ You understand existing patterns and follow them
+- ✅ You reuse components and utilities
+- ✅ You integrate seamlessly with existing code
+- ✅ You maintain consistency across the codebase
+- ✅ You work 10x faster with complete context
+
+### MANDATORY PRE-IMPLEMENTATION CHECKLIST
+
+**Before writing ANY code, check these docs (in order):**
+
+1. **Feature Docs** → `docs/features/[feature-name].md`
+   - Understand the feature's architecture and flow
+   - Identify all related components and modules
+   - See complete examples of the feature in action
+
+2. **Component Docs** → `docs/components/[feature]/[ComponentName].md`
+   - Understand props, state, and integration points
+   - See usage examples and common patterns
+   - Identify dependencies and related components
+
+3. **Hook Docs** → `docs/hooks/[hookName].md`
+   - Understand hook APIs and return values
+   - See integration examples
+   - Identify existing hooks that solve your problem
+
+4. **Module Docs** → `docs/modules/[module-name].md`
+   - Understand backend services and DTOs
+   - Follow RBAC and permission patterns
+   - See database query patterns
+
+5. **API Docs** → `docs/api/[controller-name].md`
+   - Understand endpoint contracts
+   - Follow authentication patterns
+   - Identify WebSocket events
+
+6. **State Docs** → `docs/state/[entity]Api.md`
+   - Understand RTK Query endpoints
+   - Follow caching strategies
+   - See mutation patterns
+
+### DOCUMENTATION-FIRST WORKFLOW
+
+```
+User asks to implement feature X
+         ↓
+❌ WRONG: Start coding immediately
+         ↓
+✅ CORRECT: Search docs for related components
+         ↓
+Read feature docs (docs/features/)
+         ↓
+Read component docs (docs/components/)
+         ↓
+Read hook docs (docs/hooks/)
+         ↓
+Read module docs (docs/modules/)
+         ↓
+Read API docs (docs/api/)
+         ↓
+Read state docs (docs/state/)
+         ↓
+NOW you have complete context
+         ↓
+Implement following documented patterns
+         ↓
+Update docs to reflect your changes
+```
+
+### REAL EXAMPLES
+
+**❌ BAD: Ignoring docs**
+```
+User: "Add user avatars to messages"
+AI: *Immediately starts implementing avatar component*
+Result: Creates duplicate of existing UserAvatar component,
+        doesn't use FileCacheContext, causes 50x duplicate fetches,
+        breaks existing patterns, wastes 2 hours
+```
+
+**✅ GOOD: Using docs**
+```
+User: "Add user avatars to messages"
+AI: *Searches docs/components/common/* → finds UserAvatar.md
+AI: *Reads UserAvatar.md* → learns about sizes, caching, props
+AI: *Reads FileCacheContext.md* → understands performance optimization
+AI: *Implements in 5 minutes using existing UserAvatar component*
+Result: <UserAvatar user={message.author} size="small" />
+        Uses existing caching, follows patterns, works perfectly
+```
+
+### QUICK REFERENCE
+
+```bash
+# Find docs before coding
+find docs/ -name "*pattern*" -type f
+
+# Search docs for keywords
+grep -r "authentication" docs/
+
+# List all component docs
+ls docs/components/*/
+
+# List all hook docs
+ls docs/hooks/
+```
+
+### DOCUMENTATION STRUCTURE
+
+```
+docs/
+├── features/          # Feature overviews and flows (START HERE)
+├── components/        # React component docs with props and examples
+├── hooks/             # Custom hook docs with usage patterns
+├── modules/           # Backend module/service docs
+├── api/               # REST & WebSocket endpoint docs
+├── state/             # Redux/RTK Query docs
+├── contexts/          # React context docs
+├── templates/         # Templates for creating new docs
+└── architecture/      # High-level system design
+```
+
+**🔥 REMEMBER: Documentation is not optional. It's your roadmap to working effectively in this codebase.**
+
 ## 🐳 **CRITICAL**: ALL DEVELOPMENT USES DOCKER
 
 **Never run npm/yarn/node commands directly on the host. Always use Docker containers as shown in the Development Commands section below.**
@@ -303,104 +441,9 @@ export const messagesApi = createApi({
 });
 ```
 
-## 🤖 AI Assistant Documentation System
+## Documentation Templates
 
-This project includes a comprehensive documentation system designed to accelerate AI-assisted development. **ALWAYS reference these docs before writing or modifying code.**
-
-### Documentation Structure
-
-```
-docs/
-├── api/                    # REST & WebSocket API documentation
-├── components/            # React component reference docs
-├── modules/               # Backend NestJS module documentation
-├── hooks/                 # Custom React hooks documentation
-├── state/                 # Redux slices & RTK Query APIs
-├── templates/             # Documentation templates for new code
-├── architecture/          # High-level architecture docs
-└── features/              # Feature analysis and specifications
-```
-
-### **MANDATORY: Pre-Development Documentation Lookup**
-
-Before implementing any feature or modifying existing code, you MUST:
-
-1. **Check Component Docs**: `docs/components/[feature]/[ComponentName].md`
-
-   - Understand props, usage patterns, and integration points
-   - Follow established patterns and conventions
-   - Identify related components and dependencies
-
-2. **Check Module Docs**: `docs/modules/[module-name].md`
-
-   - Understand service methods, DTOs, and business logic
-   - Follow RBAC patterns and database query conventions
-   - Identify existing endpoints and WebSocket events
-
-3. **Check API Docs**: `docs/api/[controller-name].md`
-
-   - Understand existing endpoints and their contracts
-   - Follow authentication and permission patterns
-   - Identify WebSocket events triggered by API changes
-
-4. **Check Hook Docs**: `docs/hooks/[hookName].md`
-
-   - Understand custom hook APIs and usage patterns
-   - Identify existing hooks that might satisfy requirements
-   - Follow established state management patterns
-
-5. **Check State Docs**: `docs/state/[entity]Api.md`
-   - Understand RTK Query endpoints and caching strategies
-   - Follow established mutation and query patterns
-   - Identify existing WebSocket integrations
-
-### **AI Development Workflow**
-
-#### 1. Research Phase (MANDATORY)
-
-```typescript
-// ALWAYS start by reading relevant documentation:
-// 1. docs/components/[feature]/[RelatedComponent].md
-// 2. docs/modules/[related-module].md
-// 3. docs/api/[related-api].md
-// 4. docs/hooks/[related-hook].md
-// 5. docs/state/[related-state].md
-```
-
-#### 2. Implementation Phase
-
-- **Follow Documented Patterns**: Use existing patterns from the docs rather than creating new ones
-- **Maintain Consistency**: Match the documented code style, naming conventions, and architectural decisions
-- **Integrate Properly**: Use documented APIs, props, and integration points
-- **Handle Errors**: Follow documented error handling patterns
-
-#### 3. Documentation Update Phase
-
-After implementing new code:
-
-- **Update Existing Docs**: Modify docs to reflect any changes to existing components/modules
-- **Create New Docs**: Use templates in `docs/templates/` for new components/modules
-- **Cross-Reference**: Add links between related documentation
-
-### **Quick Reference Commands**
-
-```bash
-# Find component documentation
-find docs/components -name "*ComponentName*"
-
-# Find API documentation
-find docs/api -name "*endpoint*"
-
-# Find hook documentation
-find docs/hooks -name "*hookName*"
-
-# Search all documentation for a pattern
-grep -r "pattern" docs/
-```
-
-### **Documentation Templates**
-
-When creating new code, use these templates:
+When creating new components, hooks, or modules, use these templates for documentation:
 
 - **React Component**: `docs/templates/component.template.md`
 - **NestJS Module**: `docs/templates/module.template.md`
@@ -409,53 +452,4 @@ When creating new code, use these templates:
 - **Redux Slices**: `docs/templates/slice.template.md`
 - **WebSocket Events**: `docs/templates/websocket.template.md`
 
-### **Integration Patterns**
-
-#### Component Integration
-
-```typescript
-// ALWAYS check docs/components/[feature]/ first
-import { ExistingComponent } from "@/components/[feature]/ExistingComponent";
-// Follow documented prop patterns and usage examples
-```
-
-#### API Integration
-
-```typescript
-// ALWAYS check docs/api/[controller].md first
-// Follow documented endpoint patterns, RBAC, and error handling
-```
-
-#### State Management
-
-```typescript
-// ALWAYS check docs/state/[entity]Api.md first
-// Follow documented RTK Query patterns and caching strategies
-```
-
-### **Cross-Reference System**
-
-Each documentation file includes:
-
-- **Related Components**: Links to connected frontend components
-- **Related Modules**: Links to backend services and controllers
-- **Related APIs**: Links to REST and WebSocket endpoints
-- **Related Documentation**: Links to architecture and feature docs
-
-### **Maintenance Guidelines**
-
-- **Keep Docs Updated**: Update documentation when modifying code
-- **Use Consistent Format**: Follow the established template structure
-- **Add Usage Examples**: Include practical code examples
-- **Cross-Reference**: Maintain links between related components
-- **Test Examples**: Ensure code examples are current and working
-
-### **AI Performance Tips**
-
-1. **Batch Documentation Reads**: Read multiple related docs before starting implementation
-2. **Follow Established Patterns**: Don't reinvent - use documented approaches
-3. **Leverage Cross-References**: Follow links to understand component relationships
-4. **Use Search**: Grep documentation for patterns before writing new code
-5. **Check Templates**: Use templates for consistency when creating new files
-
-**This documentation system is designed to make you 10x more effective. Use it religiously.**
+**After creating new code, ALWAYS create corresponding documentation using these templates.**
