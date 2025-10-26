@@ -69,7 +69,10 @@ export class RoomsService {
     for (const aliasGroup of aliasGroups) {
       await client.join(aliasGroup.aliasGroupId);
     }
-    console.log(client.rooms);
+
+    this.logger.debug(
+      `User ${client.handshake.user.id} joined ${client.rooms.size} rooms`,
+    );
   }
 
   async join(client: Socket, id: string) {

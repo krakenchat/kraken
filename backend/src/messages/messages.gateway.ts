@@ -47,6 +47,10 @@ export class MessagesGateway {
     @MessageBody() payload: CreateMessageDto,
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
+    if (!payload.channelId) {
+      throw new WsException('channelId is required for channel messages');
+    }
+
     const message = await this.messagesService.create({
       ...payload,
       authorId: client.handshake.user.id,
@@ -58,7 +62,7 @@ export class MessagesGateway {
       await this.messagesService.enrichMessageWithFileMetadata(message);
 
     this.websocketService.sendToRoom(
-      payload.channelId!,
+      payload.channelId,
       ServerEvents.NEW_MESSAGE,
       {
         message: enrichedMessage,
@@ -79,12 +83,11 @@ export class MessagesGateway {
     @MessageBody() payload: CreateMessageDto,
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
-    console.log('[MessagesGateway] *** DM HANDLER WITH RBAC CALLED ***');
-    console.log(
-      '[MessagesGateway] handleDirectMessage called with payload:',
-      payload,
-    );
-    console.log('[MessagesGateway] User:', client.handshake.user.id);
+    if (!payload.directMessageGroupId) {
+      throw new WsException(
+        'directMessageGroupId is required for direct messages',
+      );
+    }
 
     const message = await this.messagesService.create({
       ...payload,
@@ -92,25 +95,18 @@ export class MessagesGateway {
       sentAt: new Date(),
     });
 
-    console.log('[MessagesGateway] Created message:', message.id);
-    console.log(
-      '[MessagesGateway] Sending to room:',
-      payload.directMessageGroupId,
-    );
-
     // Enrich message with file metadata before emitting
     const enrichedMessage =
       await this.messagesService.enrichMessageWithFileMetadata(message);
 
     this.websocketService.sendToRoom(
-      payload.directMessageGroupId!,
+      payload.directMessageGroupId,
       ServerEvents.NEW_DM,
       {
         message: enrichedMessage,
       },
     );
 
-    console.log('[MessagesGateway] NEW_DM event sent');
     return message.id;
   }
 

@@ -27,8 +27,7 @@ export class FileService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_10_MINUTES)
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(CronExpression.EVERY_10_MINUTES)
   async cleanupOldFiles() {
     this.logger.debug('Running cleanup of old files...');
     const deletedFiles = await this.databaseService.file.findMany({
@@ -50,7 +49,7 @@ export class FileService {
         }
       } catch (error) {
         // Log error but continue with next file
-        console.error(`Failed to delete file with ID ${file.id}:`, error);
+        this.logger.error(`Failed to delete file with ID ${file.id}:`, error);
       }
     }
   }

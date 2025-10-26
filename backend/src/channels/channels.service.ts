@@ -33,8 +33,13 @@ export class ChannelsService {
       });
       return result;
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (error.code === 'P2002') {
+      // Check if error is a Prisma error with a code property
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
         this.logger.warn(
           'Channel already exists with the same name in this community',
         );
@@ -71,8 +76,13 @@ export class ChannelsService {
         data: updateChannelDto,
       });
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (error.code === 'P2002') {
+      // Check if error is a Prisma error with a code property
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
         this.logger.warn(
           'Channel already exists with the same name in this community',
         );

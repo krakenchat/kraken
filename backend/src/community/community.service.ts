@@ -56,13 +56,17 @@ export class CommunityService {
         return community;
       });
     } catch (error) {
-      // TODO: handle this better
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (error.code === 'P2002') {
+      // Check if error is a Prisma error with a code property
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
         throw new ConflictException('Duplicate community name');
-      } else {
-        throw error;
       }
+      this.logger.error('Error creating community', error);
+      throw error;
     }
   }
 

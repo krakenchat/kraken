@@ -20,7 +20,11 @@ export interface VoicePresenceUser {
 @Injectable()
 export class VoicePresenceService {
   private readonly logger = new Logger(VoicePresenceService.name);
-  private readonly VOICE_PRESENCE_KEY = 'voice_presence';
+  private readonly VOICE_PRESENCE_USER_DATA_PREFIX = 'voice_presence:user';
+  private readonly VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX =
+    'voice_presence:channel';
+  private readonly VOICE_PRESENCE_USER_CHANNELS_PREFIX =
+    'voice_presence:user_channels';
   private readonly VOICE_PRESENCE_TTL = 300; // 5 minutes
 
   constructor(
@@ -49,13 +53,31 @@ export class VoicePresenceService {
         isDeafened: false,
       };
 
-      // Store in Redis with expiration
-      const key = `${this.VOICE_PRESENCE_KEY}:${channelId}:${user.id}`;
-      await this.redisService.set(
-        key,
+      // Keys for Redis SET architecture
+      const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${user.id}`;
+      const channelMembersKey = `${this.VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX}:${channelId}:members`;
+      const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${user.id}`;
+
+      const client = this.redisService.getClient();
+
+      // Use pipeline for atomic operations
+      const pipeline = client.pipeline();
+
+      // Store user data with TTL
+      pipeline.set(
+        userDataKey,
         JSON.stringify(voiceUser),
+        'EX',
         this.VOICE_PRESENCE_TTL,
       );
+
+      // Add user to channel members set
+      pipeline.sadd(channelMembersKey, user.id);
+
+      // Add channel to user's channels set
+      pipeline.sadd(userChannelsKey, channelId);
+
+      await pipeline.exec();
 
       // Notify other users in the channel
       this.websocketService.sendToRoom(
@@ -82,10 +104,13 @@ export class VoicePresenceService {
    */
   async leaveVoiceChannel(channelId: string, userId: string): Promise<void> {
     try {
-      const key = `${this.VOICE_PRESENCE_KEY}:${channelId}:${userId}`;
+      // Keys for Redis SET architecture
+      const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
+      const channelMembersKey = `${this.VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX}:${channelId}:members`;
+      const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${userId}`;
 
       // Get user info before removing
-      const userDataStr = await this.redisService.get(key);
+      const userDataStr = await this.redisService.get(userDataKey);
       if (!userDataStr) {
         this.logger.warn(
           `User ${userId} not found in voice channel ${channelId}`,
@@ -95,8 +120,21 @@ export class VoicePresenceService {
 
       const userData = JSON.parse(userDataStr) as VoicePresenceUser;
 
-      // Remove from Redis
-      await this.redisService.del(key);
+      const client = this.redisService.getClient();
+
+      // Use pipeline for atomic operations
+      const pipeline = client.pipeline();
+
+      // Remove user data
+      pipeline.del(userDataKey);
+
+      // Remove user from channel members set
+      pipeline.srem(channelMembersKey, userId);
+
+      // Remove channel from user's channels set
+      pipeline.srem(userChannelsKey, channelId);
+
+      await pipeline.exec();
 
       // Notify other users in the channel
       this.websocketService.sendToRoom(
@@ -124,17 +162,29 @@ export class VoicePresenceService {
    */
   async getChannelPresence(channelId: string): Promise<VoicePresenceUser[]> {
     try {
-      const pattern = `${this.VOICE_PRESENCE_KEY}:${channelId}:*`;
-      const keys = await this.redisService.getClient().keys(pattern);
+      const channelMembersKey = `${this.VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX}:${channelId}:members`;
+      const client = this.redisService.getClient();
 
-      if (keys.length === 0) {
+      // Get all user IDs in the channel (O(1) operation)
+      const userIds = await client.smembers(channelMembersKey);
+
+      if (userIds.length === 0) {
         return [];
       }
 
-      const users: VoicePresenceUser[] = [];
-      const values = await this.redisService.getClient().mget(keys);
+      // Build keys for user data
+      const userDataKeys = userIds.map(
+        (userId) =>
+          `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`,
+      );
 
-      for (const value of values) {
+      // Fetch all user data in one operation (O(m) where m is number of users)
+      const values = await client.mget(userDataKeys);
+
+      const users: VoicePresenceUser[] = [];
+
+      for (let i = 0; i < values.length; i++) {
+        const value = values[i];
         if (value) {
           try {
             const user = JSON.parse(value) as VoicePresenceUser;
@@ -142,6 +192,13 @@ export class VoicePresenceService {
           } catch (error) {
             this.logger.warn('Failed to parse voice presence data', error);
           }
+        } else {
+          // User data expired but still in set - clean up
+          const userId = userIds[i];
+          this.logger.debug(
+            `Cleaning up expired presence for user ${userId} in channel ${channelId}`,
+          );
+          await client.srem(channelMembersKey, userId);
         }
       }
 
@@ -173,8 +230,8 @@ export class VoicePresenceService {
     >,
   ): Promise<void> {
     try {
-      const key = `${this.VOICE_PRESENCE_KEY}:${channelId}:${userId}`;
-      const userDataStr = await this.redisService.get(key);
+      const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
+      const userDataStr = await this.redisService.get(userDataKey);
 
       if (!userDataStr) {
         this.logger.warn(
@@ -188,7 +245,7 @@ export class VoicePresenceService {
 
       // Update in Redis with fresh TTL
       await this.redisService.set(
-        key,
+        userDataKey,
         JSON.stringify(updatedData),
         this.VOICE_PRESENCE_TTL,
       );
@@ -223,8 +280,8 @@ export class VoicePresenceService {
    */
   async refreshPresence(channelId: string, userId: string): Promise<void> {
     try {
-      const key = `${this.VOICE_PRESENCE_KEY}:${channelId}:${userId}`;
-      await this.redisService.expire(key, this.VOICE_PRESENCE_TTL);
+      const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
+      await this.redisService.expire(userDataKey, this.VOICE_PRESENCE_TTL);
     } catch (error) {
       this.logger.error(
         `Failed to refresh presence for user ${userId} in channel ${channelId}`,
@@ -235,23 +292,15 @@ export class VoicePresenceService {
 
   /**
    * Clean up expired presence entries (called periodically)
+   * Note: This is now less critical since getChannelPresence automatically
+   * cleans up stale entries when detected.
    */
   async cleanupExpiredPresence(): Promise<void> {
-    try {
-      const pattern = `${this.VOICE_PRESENCE_KEY}:*`;
-      const keys = await this.redisService.getClient().keys(pattern);
-
-      for (const key of keys) {
-        const ttl = await this.redisService.getClient().ttl(key);
-        if (ttl === -1) {
-          // Key exists but has no expiration, remove it
-          await this.redisService.del(key);
-          this.logger.warn(`Removed expired voice presence key: ${key}`);
-        }
-      }
-    } catch (error) {
-      this.logger.error('Failed to cleanup expired presence entries', error);
-    }
+    // With the new SET architecture, cleanup happens automatically:
+    // 1. User data keys have TTL and expire naturally
+    // 2. getChannelPresence() removes stale set members when detected
+    // 3. This method is kept for potential future needs but is essentially a no-op
+    this.logger.debug('Cleanup cron triggered (passive cleanup in use)');
   }
 
   /**
@@ -259,13 +308,13 @@ export class VoicePresenceService {
    */
   async getUserVoiceChannels(userId: string): Promise<string[]> {
     try {
-      const pattern = `${this.VOICE_PRESENCE_KEY}:*:${userId}`;
-      const keys = await this.redisService.getClient().keys(pattern);
+      const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${userId}`;
+      const client = this.redisService.getClient();
 
-      return keys.map((key) => {
-        const parts = key.split(':');
-        return parts[2]; // Extract channelId from key
-      });
+      // Get all channel IDs from the user's channels set (O(1) operation)
+      const channelIds = await client.smembers(userChannelsKey);
+
+      return channelIds;
     } catch (error) {
       this.logger.error(
         `Failed to get voice channels for user ${userId}`,

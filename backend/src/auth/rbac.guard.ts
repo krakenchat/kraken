@@ -98,14 +98,11 @@ export class RbacGuard implements CanActivate {
     resourceId: string | undefined,
     resourceType: RbacResourceType | undefined,
   ) {
-    // TODO: clean this up
-    this.logger.log('RBAC Check');
-    this.logger.log(
-      `Required RBAC Actions: ${JSON.stringify(requiredRbacActions)}`,
+    this.logger.debug(
+      `RBAC Check - User: ${user?.id}, Role: ${user?.role}, ` +
+        `Actions: ${requiredRbacActions.join(',')}, ` +
+        `ResourceType: ${resourceType}, ResourceID: ${resourceId}`,
     );
-    this.logger.log(`User role: ${user?.role}`);
-    this.logger.log(`Resource ID: ${resourceId}`);
-    this.logger.log(`Resource Type: ${resourceType}`);
   }
 
   private getResourceId(

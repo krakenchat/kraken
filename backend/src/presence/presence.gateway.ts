@@ -30,15 +30,17 @@ export class PresenceGateway implements OnGatewayDisconnect {
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
   ): Promise<string> {
     const userId = client.handshake.user.id;
+    const connectionId = client.id;
 
-    // Check if user was previously offline
-    const wasOnline = await this.presenceService.isOnline(userId);
+    // Add this connection and check if user went from offline to online
+    const wentOnline = await this.presenceService.addConnection(
+      userId,
+      connectionId,
+      60, // 1 minute TTL
+    );
 
-    // Set user as online
-    await this.presenceService.setOnline(userId, 60); // 1 minute TTL
-
-    // If user was offline and is now online, broadcast the presence change
-    if (!wasOnline) {
+    // Only broadcast if this is the user's first connection
+    if (wentOnline) {
       this.websocketService.sendToAll(ServerEvents.USER_ONLINE, {
         userId,
         username: client.handshake.user.username,
@@ -51,24 +53,30 @@ export class PresenceGateway implements OnGatewayDisconnect {
   }
 
   /**
-   * Handle user disconnection - mark them as offline
+   * Handle user disconnection - only mark offline if this was their last connection
    */
   async handleDisconnect(
     client: Socket & { handshake: { user: UserEntity } },
   ): Promise<void> {
     if (client.handshake?.user?.id) {
       const userId = client.handshake.user.id;
+      const connectionId = client.id;
 
-      // Set user as offline
-      await this.presenceService.setOffline(userId);
-
-      // Broadcast offline status
-      this.websocketService.sendToAll(ServerEvents.USER_OFFLINE, {
+      // Remove this connection and check if user went from online to offline
+      const wentOffline = await this.presenceService.removeConnection(
         userId,
-        username: client.handshake.user.username,
-        displayName: client.handshake.user.displayName,
-        avatarUrl: client.handshake.user.avatarUrl,
-      });
+        connectionId,
+      );
+
+      // Only broadcast if this was the user's last connection
+      if (wentOffline) {
+        this.websocketService.sendToAll(ServerEvents.USER_OFFLINE, {
+          userId,
+          username: client.handshake.user.username,
+          displayName: client.handshake.user.displayName,
+          avatarUrl: client.handshake.user.avatarUrl,
+        });
+      }
     }
   }
 }
