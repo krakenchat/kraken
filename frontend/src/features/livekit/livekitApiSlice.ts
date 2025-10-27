@@ -32,6 +32,13 @@ export const livekitApi = createApi({
         body,
       }),
     }),
+    generateDmToken: builder.mutation<TokenResponse, CreateTokenRequest>({
+      query: (body) => ({
+        url: "/dm-token",
+        method: "POST",
+        body,
+      }),
+    }),
     getConnectionInfo: builder.query<ConnectionInfo, void>({
       query: () => ({
         url: "/connection-info",
@@ -41,5 +48,5 @@ export const livekitApi = createApi({
   }),
 });
 
-export const { useGenerateTokenMutation, useGetConnectionInfoQuery } =
+export const { useGenerateTokenMutation, useGenerateDmTokenMutation, useGetConnectionInfoQuery } =
   livekitApi;

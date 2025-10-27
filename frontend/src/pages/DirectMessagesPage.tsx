@@ -3,6 +3,7 @@ import { Box, Typography, useTheme, useMediaQuery, Paper, Avatar, IconButton } f
 import { Add as AddIcon } from "@mui/icons-material";
 import DirectMessageList from "../components/DirectMessages/DirectMessageList";
 import DirectMessageContainer from "../components/DirectMessages/DirectMessageContainer";
+import { DMChatHeader } from "../components/DirectMessages/DMChatHeader";
 import { useGetDmGroupQuery } from "../features/directMessages/directMessagesApiSlice";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { styled } from "@mui/material/styles";
@@ -88,31 +89,12 @@ const DirectMessagesPage: React.FC = () => {
       <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
         {selectedDmGroupId ? (
           <>
-            <Box
-              sx={{
-                p: 2,
-                borderBottom: 1,
-                borderColor: "divider",
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-              }}
-            >
-              <button
-                onClick={() => setSelectedDmGroupId(undefined)}
-                style={{ 
-                  background: "none", 
-                  border: "none", 
-                  cursor: "pointer",
-                  fontSize: "18px"
-                }}
-              >
-                ←
-              </button>
-              <Typography variant="h6" noWrap>
-                {getDmDisplayName(selectedDmGroup)}
-              </Typography>
-            </Box>
+            <DMChatHeader
+              dmGroupId={selectedDmGroupId}
+              dmGroupName={getDmDisplayName(selectedDmGroup)}
+              showBackButton={true}
+              onBack={() => setSelectedDmGroupId(undefined)}
+            />
             <Box sx={{ flex: 1 }}>
               <DirectMessageContainer dmGroupId={selectedDmGroupId} />
             </Box>
@@ -160,7 +142,15 @@ const DirectMessagesPage: React.FC = () => {
       </Sidebar>
       <Content>
         {selectedDmGroupId ? (
-          <DirectMessageContainer dmGroupId={selectedDmGroupId} />
+          <>
+            <DMChatHeader
+              dmGroupId={selectedDmGroupId}
+              dmGroupName={getDmDisplayName(selectedDmGroup)}
+            />
+            <Box sx={{ flex: 1, overflow: "hidden" }}>
+              <DirectMessageContainer dmGroupId={selectedDmGroupId} />
+            </Box>
+          </>
         ) : (
           <Box
             sx={{

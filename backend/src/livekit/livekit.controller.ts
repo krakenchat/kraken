@@ -36,6 +36,20 @@ export class LivekitController {
     return this.livekitService.generateToken(tokenDto);
   }
 
+  @Post('dm-token')
+  async generateDmToken(
+    @Body() createTokenDto: CreateTokenDto,
+    @Req() req: { user: UserEntity },
+  ) {
+    // Use the authenticated user's ID as the identity if not provided
+    // Note: DM membership is verified in the voice presence service when joining
+    const tokenDto = {
+      ...createTokenDto,
+      identity: createTokenDto.identity || req.user.id,
+    };
+    return this.livekitService.generateToken(tokenDto);
+  }
+
   @Get('connection-info')
   getConnectionInfo() {
     return this.livekitService.getConnectionInfo();

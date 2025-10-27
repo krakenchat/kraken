@@ -38,6 +38,18 @@ export interface VoiceActionResponse {
   channelId: string;
 }
 
+export interface DmVoiceActionResponse {
+  success: boolean;
+  message: string;
+  dmGroupId: string;
+}
+
+export interface DmPresenceResponse {
+  dmGroupId: string;
+  users: VoicePresenceUser[];
+  count: number;
+}
+
 export const voicePresenceApi = createApi({
   reducerPath: "voicePresenceApi",
   baseQuery: getBaseAuthedQuery(
@@ -139,6 +151,78 @@ export const voicePresenceApi = createApi({
         method: "GET",
       }),
     }),
+
+    // DM Voice Presence Endpoints
+    getDmPresence: builder.query<DmPresenceResponse, string>({
+      query: (dmGroupId) => ({
+        url: `/dm-groups/${dmGroupId}/voice-presence`,
+        method: "GET",
+      }),
+      providesTags: (result, error, dmGroupId) => [
+        { type: "VoicePresence", id: `dm-${dmGroupId}` },
+      ],
+    }),
+    joinDmVoice: builder.mutation<DmVoiceActionResponse, string>({
+      query: (dmGroupId) => ({
+        url: `/dm-groups/${dmGroupId}/voice-presence/join`,
+        method: "POST",
+      }),
+      invalidatesTags: (result, error, dmGroupId) => [
+        { type: "VoicePresence", id: `dm-${dmGroupId}` },
+      ],
+    }),
+    leaveDmVoice: builder.mutation<DmVoiceActionResponse, string>({
+      query: (dmGroupId) => ({
+        url: `/dm-groups/${dmGroupId}/voice-presence/leave`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, dmGroupId) => [
+        { type: "VoicePresence", id: `dm-${dmGroupId}` },
+      ],
+    }),
+    updateDmVoiceState: builder.mutation<
+      DmVoiceActionResponse,
+      { dmGroupId: string; updates: VoiceStateUpdate }
+    >({
+      query: ({ dmGroupId, updates }) => ({
+        url: `/dm-groups/${dmGroupId}/voice-presence/state`,
+        method: "PUT",
+        body: updates,
+      }),
+      // Optimistic update for DM voice state
+      onQueryStarted: async ({ dmGroupId, updates }, { dispatch, queryFulfilled, getState }) => {
+        const state = getState() as RootState;
+        const profileQueryState = state.usersApi?.queries?.[`profile(undefined)`];
+        const currentUserId = profileQueryState?.data?.id;
+
+        const patchResult = dispatch(
+          voicePresenceApi.util.updateQueryData('getDmPresence', dmGroupId, (draft) => {
+            if (currentUserId) {
+              const userIndex = draft.users.findIndex(user => user.id === currentUserId);
+              if (userIndex !== -1) {
+                const existingUser = draft.users[userIndex];
+                const updatedUser = {
+                  ...existingUser,
+                  ...updates,
+                  isMuted: updates.isMuted !== undefined ? updates.isMuted : existingUser.isMuted,
+                  isDeafened: updates.isDeafened !== undefined ? updates.isDeafened : existingUser.isDeafened,
+                  isVideoEnabled: updates.isVideoEnabled !== undefined ? updates.isVideoEnabled : existingUser.isVideoEnabled,
+                  isScreenSharing: updates.isScreenSharing !== undefined ? updates.isScreenSharing : existingUser.isScreenSharing,
+                };
+                draft.users[userIndex] = updatedUser;
+              }
+            }
+          })
+        );
+
+        try {
+          await queryFulfilled;
+        } catch (error) {
+          patchResult.undo();
+          throw error;
+        }
+      },
+    }),
   }),
 });
 
@@ -149,4 +233,8 @@ export const {
   useUpdateVoiceStateMutation,
   useRefreshPresenceMutation,
   useGetMyVoiceChannelsQuery,
+  useGetDmPresenceQuery,
+  useJoinDmVoiceMutation,
+  useLeaveDmVoiceMutation,
+  useUpdateDmVoiceStateMutation,
 } = voicePresenceApi;

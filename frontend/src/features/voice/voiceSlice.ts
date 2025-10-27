@@ -1,34 +1,43 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { VoicePresenceUser } from '../voice-presence/voicePresenceApiSlice';
 
+export type VoiceContextType = 'channel' | 'dm' | null;
+
 export interface VoiceState {
   // Connection state
   isConnected: boolean;
   isConnecting: boolean;
   connectionError: string | null;
-  
-  // Current channel info
+
+  // Context type ('channel' or 'dm')
+  contextType: VoiceContextType;
+
+  // Current channel info (for channel voice)
   currentChannelId: string | null;
   channelName: string | null;
   communityId: string | null;
   isPrivate: boolean | null;
   createdAt: string | null;
-  
+
+  // Current DM info (for DM voice)
+  currentDmGroupId: string | null;
+  dmGroupName: string | null;
+
   // LiveKit room managed separately (not stored in Redux due to non-serializable nature)
-  
+
   // Participants (from voice presence)
   participants: VoicePresenceUser[];
-  
+
   // Local user voice states
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenSharing: boolean;
   isMuted: boolean;
   isDeafened: boolean;
-  
+
   // UI state
   showVideoTiles: boolean;
-  
+
   // Device preferences
   selectedAudioInputId: string | null;
   selectedAudioOutputId: string | null;
@@ -39,11 +48,14 @@ const initialState: VoiceState = {
   isConnected: false,
   isConnecting: false,
   connectionError: null,
+  contextType: null,
   currentChannelId: null,
   channelName: null,
   communityId: null,
   isPrivate: null,
   createdAt: null,
+  currentDmGroupId: null,
+  dmGroupName: null,
   participants: [],
   isAudioEnabled: true,
   isVideoEnabled: false,
@@ -77,11 +89,33 @@ const voiceSlice = createSlice({
       state.isConnected = true;
       state.isConnecting = false;
       state.connectionError = null;
+      state.contextType = 'channel';
       state.currentChannelId = action.payload.channelId;
       state.channelName = action.payload.channelName;
       state.communityId = action.payload.communityId;
       state.isPrivate = action.payload.isPrivate;
       state.createdAt = action.payload.createdAt;
+      // Clear DM fields
+      state.currentDmGroupId = null;
+      state.dmGroupName = null;
+    },
+
+    setDmConnected: (state, action: PayloadAction<{
+      dmGroupId: string;
+      dmGroupName: string;
+    }>) => {
+      state.isConnected = true;
+      state.isConnecting = false;
+      state.connectionError = null;
+      state.contextType = 'dm';
+      state.currentDmGroupId = action.payload.dmGroupId;
+      state.dmGroupName = action.payload.dmGroupName;
+      // Clear channel fields
+      state.currentChannelId = null;
+      state.channelName = null;
+      state.communityId = null;
+      state.isPrivate = null;
+      state.createdAt = null;
     },
     
     setDisconnected: (state) => {
@@ -159,6 +193,7 @@ const voiceSlice = createSlice({
 export const {
   setConnecting,
   setConnected,
+  setDmConnected,
   setDisconnected,
   setConnectionError,
   setAudioEnabled,

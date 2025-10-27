@@ -3,6 +3,7 @@ import { VoicePresenceService } from './voice-presence.service';
 import {
   VoicePresenceController,
   UserVoicePresenceController,
+  DmVoicePresenceController,
 } from './voice-presence.controller';
 import { VoicePresenceGateway } from './voice-presence.gateway';
 import { RedisModule } from '@/redis/redis.module';
@@ -11,6 +12,7 @@ import { ChannelsModule } from '@/channels/channels.module';
 import { AuthModule } from '@/auth/auth.module';
 import { UserModule } from '@/user/user.module';
 import { RolesModule } from '@/roles/roles.module';
+import { DatabaseModule } from '@/database/database.module';
 
 @Module({
   imports: [
@@ -20,8 +22,9 @@ import { RolesModule } from '@/roles/roles.module';
     AuthModule,
     UserModule,
     RolesModule,
+    DatabaseModule,
   ],
-  controllers: [VoicePresenceController, UserVoicePresenceController],
+  controllers: [VoicePresenceController, UserVoicePresenceController, DmVoicePresenceController],
   providers: [VoicePresenceService, VoicePresenceGateway],
   exports: [VoicePresenceService],
 })

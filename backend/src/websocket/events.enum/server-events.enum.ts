@@ -30,6 +30,12 @@ export enum ServerEvents {
   VOICE_CHANNEL_USER_LEFT = 'voiceChannelUserLeft',
   VOICE_CHANNEL_USER_UPDATED = 'voiceChannelUserUpdated',
 
+  // DM Voice Calls
+  DM_VOICE_CALL_STARTED = 'dmVoiceCallStarted',
+  DM_VOICE_USER_JOINED = 'dmVoiceUserJoined',
+  DM_VOICE_USER_LEFT = 'dmVoiceUserLeft',
+  DM_VOICE_USER_UPDATED = 'dmVoiceUserUpdated',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',

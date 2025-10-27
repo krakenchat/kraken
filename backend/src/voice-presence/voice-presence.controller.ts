@@ -126,6 +126,68 @@ export class VoicePresenceController {
   }
 }
 
+@Controller('dm-groups/:dmGroupId/voice-presence')
+@UseGuards(JwtAuthGuard)
+export class DmVoicePresenceController {
+  constructor(private readonly voicePresenceService: VoicePresenceService) {}
+
+  @Get()
+  async getDmPresence(@Param('dmGroupId') dmGroupId: string) {
+    const users = await this.voicePresenceService.getDmPresence(dmGroupId);
+    return {
+      dmGroupId,
+      users,
+      count: users.length,
+    };
+  }
+
+  @Post('join')
+  async joinDmVoice(
+    @Param('dmGroupId') dmGroupId: string,
+    @Req() req: { user: UserEntity },
+  ) {
+    // Membership verification is done in the service layer
+    await this.voicePresenceService.joinDmVoice(dmGroupId, req.user);
+    return {
+      success: true,
+      message: 'Successfully joined DM voice call',
+      dmGroupId,
+    };
+  }
+
+  @Delete('leave')
+  async leaveDmVoice(
+    @Param('dmGroupId') dmGroupId: string,
+    @Req() req: { user: UserEntity },
+  ) {
+    await this.voicePresenceService.leaveDmVoice(dmGroupId, req.user.id);
+    return {
+      success: true,
+      message: 'Successfully left DM voice call',
+      dmGroupId,
+    };
+  }
+
+  @Put('state')
+  async updateDmVoiceState(
+    @Param('dmGroupId') dmGroupId: string,
+    @Body() voiceStateUpdateDto: VoiceStateUpdateDto,
+    @Req() req: { user: UserEntity },
+  ) {
+    await this.voicePresenceService.updateDmVoiceState(
+      dmGroupId,
+      req.user.id,
+      voiceStateUpdateDto,
+    );
+    return {
+      success: true,
+      message: 'DM voice state updated successfully',
+      dmGroupId,
+      updates: voiceStateUpdateDto,
+    };
+  }
+}
+
 @Controller('voice-presence')
 @UseGuards(JwtAuthGuard)
 export class UserVoicePresenceController {

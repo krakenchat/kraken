@@ -40,9 +40,17 @@ export const VoiceBottomBar: React.FC = () => {
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
 
-  if (!state.isConnected || !state.currentChannelId) {
+  // Show bar if connected to either a channel or DM
+  if (!state.isConnected || (!state.currentChannelId && !state.currentDmGroupId)) {
     return null;
   }
+
+  // Determine display name and type
+  const displayName = state.contextType === 'dm'
+    ? state.dmGroupName || 'Direct Message'
+    : state.channelName || 'Voice Channel';
+
+  const displayType = state.contextType === 'dm' ? 'DM Voice Call' : 'Voice Connected';
 
   const handleSettingsClick = (event: React.MouseEvent<HTMLElement>) => {
     setSettingsAnchor(event.currentTarget);
@@ -83,34 +91,36 @@ export const VoiceBottomBar: React.FC = () => {
 
   return (
     <>
-      {/* User List Expansion */}
-      <Collapse in={showUserList} timeout={300}>
-        <Box
-          sx={{
-            position: "fixed",
-            bottom: 80,
-            left: 0,
-            right: 0,
-            zIndex: 1200,
-            display: "flex",
-            justifyContent: "center",
-            px: 2,
-          }}
-        >
-          <Box sx={{ maxWidth: 400, width: "100%" }}>
-            <VoiceChannelUserList
-              channel={{
-                id: state.currentChannelId,
-                name: state.channelName || "Voice Channel",
-                type: ChannelType.VOICE,
-                communityId: state.communityId || "",
-                isPrivate: state.isPrivate ?? false,
-                createdAt: state.createdAt || "",
-              }}
-            />
+      {/* User List Expansion - only for channels */}
+      {state.contextType === 'channel' && state.currentChannelId && (
+        <Collapse in={showUserList} timeout={300}>
+          <Box
+            sx={{
+              position: "fixed",
+              bottom: 80,
+              left: 0,
+              right: 0,
+              zIndex: 1200,
+              display: "flex",
+              justifyContent: "center",
+              px: 2,
+            }}
+          >
+            <Box sx={{ maxWidth: 400, width: "100%" }}>
+              <VoiceChannelUserList
+                channel={{
+                  id: state.currentChannelId,
+                  name: state.channelName || "Voice Channel",
+                  type: ChannelType.VOICE,
+                  communityId: state.communityId || "",
+                  isPrivate: state.isPrivate ?? false,
+                  createdAt: state.createdAt || "",
+                }}
+              />
+            </Box>
           </Box>
-        </Box>
-      </Collapse>
+        </Collapse>
+      )}
 
       {/* Main Bottom Bar */}
       <Paper
@@ -137,16 +147,16 @@ export const VoiceBottomBar: React.FC = () => {
             minHeight: 64,
           }}
         >
-          {/* Channel Info */}
+          {/* Channel/DM Info */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <VolumeUp color="primary" />
               <Box>
                 <Typography variant="body2" fontWeight="medium">
-                  {state.channelName}
+                  {displayName}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Voice Connected
+                  {displayType}
                 </Typography>
               </Box>
             </Box>
@@ -159,22 +169,24 @@ export const VoiceBottomBar: React.FC = () => {
               sx={{ height: 24 }}
             />
 
-            {/* Participants Count */}
-            <Tooltip title="Show participants">
-              <IconButton
-                size="small"
-                onClick={() => setShowUserList(!showUserList)}
-                sx={{
-                  backgroundColor: showUserList
-                    ? "action.selected"
-                    : "transparent",
-                }}
-              >
-                <Badge badgeContent={state.participants.length} color="primary">
-                  {showUserList ? <ExpandMore /> : <ExpandLess />}
-                </Badge>
-              </IconButton>
-            </Tooltip>
+            {/* Participants Count - only for channels */}
+            {state.contextType === 'channel' && (
+              <Tooltip title="Show participants">
+                <IconButton
+                  size="small"
+                  onClick={() => setShowUserList(!showUserList)}
+                  sx={{
+                    backgroundColor: showUserList
+                      ? "action.selected"
+                      : "transparent",
+                  }}
+                >
+                  <Badge badgeContent={state.participants.length} color="primary">
+                    {showUserList ? <ExpandMore /> : <ExpandLess />}
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
 
           {/* Voice Controls */}
