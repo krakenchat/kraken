@@ -112,8 +112,27 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
               {(user.displayName || user.username).charAt(0).toUpperCase()}
             </Avatar>
             
-            {/* Muted indicator badge */}
-            {userState.isMuted && (
+            {/* Audio status badge - Discord-style (deafen takes priority over mute) */}
+            {userState.isDeafened ? (
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: -2,
+                  right: -2,
+                  backgroundColor: "#f04747",
+                  borderRadius: "50%",
+                  width: 16,
+                  height: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid",
+                  borderColor: "background.paper",
+                }}
+              >
+                <VolumeOff sx={{ fontSize: 10, color: "white" }} />
+              </Box>
+            ) : userState.isMuted ? (
               <Box
                 sx={{
                   position: "absolute",
@@ -132,29 +151,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
               >
                 <MicOff sx={{ fontSize: 10, color: "white" }} />
               </Box>
-            )}
-            
-            {/* Deafened indicator badge */}
-            {userState.isDeafened && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: -2,
-                  left: -2,
-                  backgroundColor: "#f04747",
-                  borderRadius: "50%",
-                  width: 16,
-                  height: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "2px solid",
-                  borderColor: "background.paper",
-                }}
-              >
-                <VolumeOff sx={{ fontSize: 10, color: "white" }} />
-              </Box>
-            )}
+            ) : null}
           </Box>
         </ListItemAvatar>
 
@@ -172,30 +169,27 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                 {user.displayName || user.username}
               </Typography>
               
-              {/* Status indicators - show ALL active states */}
+              {/* Status indicators - Discord-style (deafen takes priority over mute) */}
               <Box sx={{ display: "flex", gap: 0.5, ml: "auto", alignItems: "center" }}>
-                
-                {/* Muted state */}
-                {userState.isMuted && (
-                  <Tooltip title="Muted">
-                    <MicOff sx={{ fontSize: 16, color: "#f04747" }} />
-                  </Tooltip>
-                )}
-                
-                {/* Deafened state */}
-                {userState.isDeafened && (
+
+                {/* Deafened state takes priority over muted */}
+                {userState.isDeafened ? (
                   <Tooltip title="Deafened">
                     <VolumeOff sx={{ fontSize: 16, color: "#f04747" }} />
                   </Tooltip>
-                )}
-                
+                ) : userState.isMuted ? (
+                  <Tooltip title="Muted">
+                    <MicOff sx={{ fontSize: 16, color: "#f04747" }} />
+                  </Tooltip>
+                ) : null}
+
                 {/* Video enabled state */}
                 {userState.isVideoEnabled && (
                   <Tooltip title="Camera">
                     <Videocam sx={{ fontSize: 16, color: "#43b581" }} />
                   </Tooltip>
                 )}
-                
+
                 {/* Screen sharing state */}
                 {userState.isScreenSharing && (
                   <Tooltip title="Screen Share">

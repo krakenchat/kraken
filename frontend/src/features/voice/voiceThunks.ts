@@ -288,7 +288,7 @@ export const toggleDeafen = createAsyncThunk<void, void, { state: RootState }>(
   "voice/toggleDeafen",
   async (_, { dispatch, getState }) => {
     const state = getState();
-    const { isDeafened, currentChannelId } = state.voice;
+    const { isDeafened, isMuted, currentChannelId } = state.voice;
 
     if (!currentChannelId) return;
 
@@ -297,17 +297,30 @@ export const toggleDeafen = createAsyncThunk<void, void, { state: RootState }>(
     try {
       dispatch(setDeafened(newDeafenedState));
 
+      // When deafening, automatically mute as well (Discord-style)
+      if (newDeafenedState && !isMuted) {
+        dispatch(setMuted(true));
+      }
+      // Note: When undeafening, we keep the current mute state
+
       // Update server state
       await dispatch(
         voicePresenceApi.endpoints.updateVoiceState.initiate({
           channelId: currentChannelId,
-          updates: { isDeafened: newDeafenedState },
+          updates: {
+            isDeafened: newDeafenedState,
+            // If deafening, also send muted as true
+            ...(newDeafenedState && !isMuted && { isMuted: true }),
+          },
         })
       ).unwrap();
     } catch (error) {
       console.error("Failed to toggle deafen:", error);
       // Revert local state on failure
       dispatch(setDeafened(isDeafened));
+      if (newDeafenedState && !isMuted) {
+        dispatch(setMuted(isMuted));
+      }
       throw error;
     }
   }

@@ -318,6 +318,35 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>('grid');
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
+  const [, setTrackUpdate] = useState(0); // Force re-render on track changes
+
+  // Listen to LiveKit room events for track publications/unpublications
+  useEffect(() => {
+    if (!state.room) return;
+
+    const handleTrackPublished = () => {
+      setTrackUpdate((prev) => prev + 1);
+    };
+
+    const handleTrackUnpublished = () => {
+      setTrackUpdate((prev) => prev + 1);
+    };
+
+    // Local participant events
+    state.room.localParticipant.on('trackPublished', handleTrackPublished);
+    state.room.localParticipant.on('trackUnpublished', handleTrackUnpublished);
+
+    // Remote participant events
+    state.room.on('trackPublished', handleTrackPublished);
+    state.room.on('trackUnpublished', handleTrackUnpublished);
+
+    return () => {
+      state.room?.localParticipant.off('trackPublished', handleTrackPublished);
+      state.room?.localParticipant.off('trackUnpublished', handleTrackUnpublished);
+      state.room?.off('trackPublished', handleTrackPublished);
+      state.room?.off('trackUnpublished', handleTrackUnpublished);
+    };
+  }, [state.room]);
 
   if (!state.isConnected || !state.room) {
     return null;
@@ -342,7 +371,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
-      if (videoTrack && !videoTrack.isMuted && screenTrack && !screenTrack.isMuted) {
+      if (videoTrack && !videoTrack.isMuted && screenTrack) {
         // Both camera and screen share - create two tiles
         tiles.push({
           participant: localParticipant,
@@ -369,7 +398,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           tileType: 'camera',
           tileId: `${localParticipant.identity}-camera`
         });
-      } else if (screenTrack && !screenTrack.isMuted) {
+      } else if (screenTrack) {
         tiles.push({
           participant: localParticipant,
           screenTrack,
@@ -393,7 +422,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
-      if (videoTrack && !videoTrack.isMuted && screenTrack && !screenTrack.isMuted) {
+      if (videoTrack && !videoTrack.isMuted && screenTrack) {
         // Both camera and screen share - create two tiles
         tiles.push({
           participant,
@@ -420,7 +449,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           tileType: 'camera',
           tileId: `${participant.identity}-camera`
         });
-      } else if (screenTrack && !screenTrack.isMuted) {
+      } else if (screenTrack) {
         tiles.push({
           participant,
           screenTrack,
