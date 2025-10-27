@@ -1,0 +1,229 @@
+import React from 'react';
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Avatar,
+  AppBar,
+  Toolbar,
+  Divider,
+  Card,
+  CardContent,
+} from '@mui/material';
+import {
+  Edit as EditIcon,
+  Logout as LogoutIcon,
+  AdminPanelSettings as AdminIcon,
+} from '@mui/icons-material';
+import { useProfileQuery } from '../../../features/users/usersSlice';
+import { useLazyLogoutQuery } from '../../../features/auth/authSlice';
+import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
+import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
+import { useNavigate } from 'react-router-dom';
+
+/**
+ * Profile panel - Shows user profile and settings
+ * First panel in the Profile tab
+ */
+export const MobileProfilePanel: React.FC = () => {
+  const navigate = useNavigate();
+  const { data: userData } = useProfileQuery();
+  const [logout] = useLazyLogoutQuery();
+
+  // Load authenticated images
+  const { blobUrl: avatarUrl } = useAuthenticatedImage(userData?.avatarUrl);
+  const { blobUrl: bannerUrl } = useAuthenticatedImage(userData?.bannerUrl);
+
+  const handleEditProfile = () => {
+    navigate('/profile/edit');
+  };
+
+  const handleAdminPanel = () => {
+    navigate('/admin/invites');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout().unwrap();
+      navigate('/login');
+    } catch (error) {
+      console.error('Failed to logout:', error);
+    }
+  };
+
+  const isAdmin = userData?.instanceRole === 'ADMIN';
+
+  return (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* App bar */}
+      <AppBar
+        position="sticky"
+        elevation={1}
+        sx={{ backgroundColor: 'background.paper' }}
+      >
+        <Toolbar sx={{ minHeight: LAYOUT_CONSTANTS.APPBAR_HEIGHT_MOBILE }}>
+          <Typography
+            variant="h6"
+            sx={{
+              flex: 1,
+              fontSize: '1.125rem',
+              fontWeight: 600,
+            }}
+          >
+            Profile
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      {/* Content */}
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          px: 2,
+          pb: 2,
+        }}
+      >
+        {/* Profile card with banner */}
+        {userData && (
+          <Card sx={{ mt: 2, mb: 2, overflow: 'hidden' }}>
+            {/* Banner */}
+            <Box
+              sx={{
+                height: 120,
+                background: bannerUrl
+                  ? `url(${bannerUrl}) center/cover`
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                position: 'relative',
+              }}
+            />
+
+            {/* Profile info */}
+            <CardContent sx={{ pt: 0 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  mt: -6,
+                }}
+              >
+                {/* Avatar with border */}
+                <Avatar
+                  src={avatarUrl || undefined}
+                  sx={{
+                    width: 96,
+                    height: 96,
+                    fontSize: '2.5rem',
+                    border: '4px solid',
+                    borderColor: 'background.paper',
+                    bgcolor: 'primary.main',
+                  }}
+                >
+                  {userData.displayName?.charAt(0).toUpperCase()}
+                </Avatar>
+
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                    {userData.displayName}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    @{userData.username}
+                  </Typography>
+                  {userData.instanceRole && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        mt: 1,
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 1,
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        display: 'inline-block',
+                      }}
+                    >
+                      {userData.instanceRole}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Settings list */}
+        <Box sx={{ mt: 2 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              color: 'text.secondary',
+              px: 2,
+            }}
+          >
+            Settings
+          </Typography>
+          <List sx={{ pt: 1 }}>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={handleEditProfile}
+                sx={{ minHeight: LAYOUT_CONSTANTS.MIN_TOUCH_TARGET }}
+              >
+                <ListItemIcon>
+                  <EditIcon />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Edit Profile"
+                  secondary="Update your display name and settings"
+                />
+              </ListItemButton>
+            </ListItem>
+
+            {isAdmin && (
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={handleAdminPanel}
+                  sx={{ minHeight: LAYOUT_CONSTANTS.MIN_TOUCH_TARGET }}
+                >
+                  <ListItemIcon>
+                    <AdminIcon />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Admin Panel"
+                    secondary="Manage instance invitations"
+                  />
+                </ListItemButton>
+              </ListItem>
+            )}
+          </List>
+
+          <Divider sx={{ my: 2 }} />
+
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={handleLogout}
+                sx={{
+                  minHeight: LAYOUT_CONSTANTS.MIN_TOUCH_TARGET,
+                  color: 'error.main',
+                }}
+              >
+                <ListItemIcon>
+                  <LogoutIcon sx={{ color: 'error.main' }} />
+                </ListItemIcon>
+                <ListItemText primary="Logout" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Box>
+      </Box>
+    </Box>
+  );
+};

@@ -25,8 +25,21 @@ import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { useCreateInviteMutation } from "../features/invite/inviteApiSlice";
 import { useMyCommunitiesQuery } from "../features/community/communityApiSlice";
 import { CreateInviteDto } from "../types/invite.type";
+import { useResponsive } from "../hooks/useResponsive";
 
 const HomePage: React.FC = () => {
+  const { isMobile } = useResponsive();
+
+  // Mobile version is handled by MobileLayout with panel navigation
+  if (isMobile) {
+    return null;
+  }
+
+  // Desktop version below
+  return <DesktopHomePage />;
+};
+
+const DesktopHomePage: React.FC = () => {
   const { data, isLoading, isError } = useProfileQuery(undefined);
   const { data: communities = [] } = useMyCommunitiesQuery();
   const [createInvite, { isLoading: creatingInvite }] = useCreateInviteMutation();

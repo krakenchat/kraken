@@ -31,9 +31,12 @@ import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
 import { ChannelType } from "../../types/channel.type";
+import { useResponsive } from "../../hooks/useResponsive";
+import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 
 export const VoiceBottomBar: React.FC = () => {
   const { state, actions } = useVoiceConnection();
+  const { isMobile } = useResponsive();
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(
     null
   );
@@ -142,35 +145,40 @@ export const VoiceBottomBar: React.FC = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            px: 3,
-            py: 1.5,
-            minHeight: 64,
+            px: isMobile ? 1 : 3,
+            py: isMobile ? 1 : 1.5,
+            minHeight: isMobile ? LAYOUT_CONSTANTS.VOICE_BAR_HEIGHT_MOBILE : 64,
+            gap: isMobile ? 0.5 : 1,
           }}
         >
           {/* Channel/DM Info */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <VolumeUp color="primary" />
-              <Box>
-                <Typography variant="body2" fontWeight="medium">
+          <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0.5 : 2, flex: 1, minWidth: 0 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+              <VolumeUp color="primary" sx={{ flexShrink: 0 }} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" fontWeight="medium" noWrap>
                   {displayName}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {displayType}
-                </Typography>
+                {!isMobile && (
+                  <Typography variant="caption" color="text.secondary">
+                    {displayType}
+                  </Typography>
+                )}
               </Box>
             </Box>
 
-            {/* Connection Status */}
-            <Chip
-              label={state.isConnected ? "Connected" : "Connecting..."}
-              color={state.isConnected ? "success" : "warning"}
-              size="small"
-              sx={{ height: 24 }}
-            />
+            {/* Connection Status - hide on mobile */}
+            {!isMobile && (
+              <Chip
+                label={state.isConnected ? "Connected" : "Connecting..."}
+                color={state.isConnected ? "success" : "warning"}
+                size="small"
+                sx={{ height: 24 }}
+              />
+            )}
 
-            {/* Participants Count - only for channels */}
-            {state.contextType === 'channel' && (
+            {/* Participants Count - only for channels, hide on mobile */}
+            {state.contextType === 'channel' && !isMobile && (
               <Tooltip title="Show participants">
                 <IconButton
                   size="small"
@@ -190,15 +198,18 @@ export const VoiceBottomBar: React.FC = () => {
           </Box>
 
           {/* Voice Controls */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0.5 : 1 }}>
             {/* Microphone */}
-            <Tooltip title={state.isMuted ? "Unmute" : "Mute"}>
+            <Tooltip title={state.isMuted ? "Unmute" : "Mute"} arrow={!isMobile}>
               <IconButton
                 onClick={actions.toggleMute}
                 color={state.isMuted ? "error" : "default"}
+                size={isMobile ? "medium" : "medium"}
                 sx={{
                   backgroundColor: state.isMuted ? "error.main" : "transparent",
                   color: state.isMuted ? "error.contrastText" : "text.primary",
+                  minWidth: isMobile ? 48 : "auto",
+                  minHeight: isMobile ? 48 : "auto",
                   "&:hover": {
                     backgroundColor: state.isMuted
                       ? "error.dark"
@@ -210,40 +221,44 @@ export const VoiceBottomBar: React.FC = () => {
               </IconButton>
             </Tooltip>
 
-            {/* Headphones/Deafen */}
-            <Tooltip title={state.isDeafened ? "Undeafen" : "Deafen"}>
-              <IconButton
-                onClick={actions.toggleDeafen}
-                color={state.isDeafened ? "error" : "default"}
-                sx={{
-                  backgroundColor: state.isDeafened
-                    ? "error.main"
-                    : "transparent",
-                  color: state.isDeafened
-                    ? "error.contrastText"
-                    : "text.primary",
-                  "&:hover": {
+            {/* Headphones/Deafen - hide on mobile */}
+            {!isMobile && (
+              <Tooltip title={state.isDeafened ? "Undeafen" : "Deafen"}>
+                <IconButton
+                  onClick={actions.toggleDeafen}
+                  color={state.isDeafened ? "error" : "default"}
+                  sx={{
                     backgroundColor: state.isDeafened
-                      ? "error.dark"
-                      : "action.hover",
-                  },
-                }}
-              >
-                {state.isDeafened ? <HeadsetOff /> : <Headset />}
-              </IconButton>
-            </Tooltip>
+                      ? "error.main"
+                      : "transparent",
+                    color: state.isDeafened
+                      ? "error.contrastText"
+                      : "text.primary",
+                    "&:hover": {
+                      backgroundColor: state.isDeafened
+                        ? "error.dark"
+                        : "action.hover",
+                    },
+                  }}
+                >
+                  {state.isDeafened ? <HeadsetOff /> : <Headset />}
+                </IconButton>
+              </Tooltip>
+            )}
 
-            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+            <Divider orientation="vertical" flexItem sx={{ mx: isMobile ? 0.5 : 1 }} />
 
             {/* Video */}
             <Tooltip
               title={
                 state.isVideoEnabled ? "Turn off camera" : "Turn on camera"
               }
+              arrow={!isMobile}
             >
               <IconButton
                 onClick={handleToggleVideo}
                 color={state.isVideoEnabled ? "primary" : "default"}
+                size={isMobile ? "medium" : "medium"}
                 sx={{
                   backgroundColor: state.isVideoEnabled
                     ? "primary.main"
@@ -251,6 +266,8 @@ export const VoiceBottomBar: React.FC = () => {
                   color: state.isVideoEnabled
                     ? "primary.contrastText"
                     : "text.primary",
+                  minWidth: isMobile ? 48 : "auto",
+                  minHeight: isMobile ? 48 : "auto",
                   "&:hover": {
                     backgroundColor: state.isVideoEnabled
                       ? "primary.dark"
@@ -267,10 +284,12 @@ export const VoiceBottomBar: React.FC = () => {
               title={
                 state.isScreenSharing ? "Stop screen share" : "Share screen"
               }
+              arrow={!isMobile}
             >
               <IconButton
                 onClick={actions.toggleScreenShare}
                 color={state.isScreenSharing ? "primary" : "default"}
+                size={isMobile ? "medium" : "medium"}
                 sx={{
                   backgroundColor: state.isScreenSharing
                     ? "primary.main"
@@ -278,6 +297,8 @@ export const VoiceBottomBar: React.FC = () => {
                   color: state.isScreenSharing
                     ? "primary.contrastText"
                     : "text.primary",
+                  minWidth: isMobile ? 48 : "auto",
+                  minHeight: isMobile ? 48 : "auto",
                   "&:hover": {
                     backgroundColor: state.isScreenSharing
                       ? "primary.dark"
@@ -289,21 +310,29 @@ export const VoiceBottomBar: React.FC = () => {
               </IconButton>
             </Tooltip>
 
-            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+            {/* Settings - hide on mobile, use menu instead */}
+            {!isMobile && (
+              <>
+                <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                <Tooltip title="Voice settings">
+                  <IconButton onClick={handleSettingsClick}>
+                    <Settings />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
 
-            {/* Settings */}
-            <Tooltip title="Voice settings">
-              <IconButton onClick={handleSettingsClick}>
-                <Settings />
-              </IconButton>
-            </Tooltip>
+            <Divider orientation="vertical" flexItem sx={{ mx: isMobile ? 0.5 : 1 }} />
 
             {/* Disconnect */}
-            <Tooltip title="Disconnect">
+            <Tooltip title="Disconnect" arrow={!isMobile}>
               <IconButton
                 onClick={actions.leaveVoiceChannel}
                 color="error"
+                size={isMobile ? "medium" : "medium"}
                 sx={{
+                  minWidth: isMobile ? 48 : "auto",
+                  minHeight: isMobile ? 48 : "auto",
                   "&:hover": {
                     backgroundColor: "error.main",
                     color: "error.contrastText",

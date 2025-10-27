@@ -13,6 +13,8 @@ import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import { useVoiceEvents } from "./hooks/useVoiceEvents";
+import { MobileLayout } from "./components/Mobile/MobileLayout";
+import { useResponsive } from "./hooks/useResponsive";
 import type { User } from "./types/auth.type";
 
 const APPBAR_HEIGHT = 64;
@@ -25,6 +27,7 @@ const Layout: React.FC = () => {
   const { data: userData, isLoading, isError } = useProfileQuery(undefined);
   const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
   const { state: voiceState } = useVoiceConnection();
+  const { isMobile } = useResponsive();
 
   // Send presence heartbeat to keep user marked as online
   usePresenceHeartbeat(!!userData && !isLoading && !isError);
@@ -69,6 +72,12 @@ const Layout: React.FC = () => {
       }
     : undefined;
 
+  // Use mobile layout on small screens
+  if (isMobile) {
+    return <MobileLayout />;
+  }
+
+  // Desktop layout (original)
   return (
     <>
       <AppBar position="fixed">
@@ -133,7 +142,7 @@ const Layout: React.FC = () => {
           <Outlet />
         </Box>
       </Box>
-      
+
       {/* Voice Components */}
       <VoiceBottomBar />
     </>

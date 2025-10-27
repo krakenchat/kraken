@@ -22,6 +22,7 @@ import {
   PushPinOutlined,
 } from '@mui/icons-material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
+import { useResponsive } from '../../hooks/useResponsive';
 
 // Constants
 const GRID_CONSTANTS = {
@@ -29,7 +30,9 @@ const GRID_CONSTANTS = {
   SIDEBAR_WIDTH: 200,
   SIDEBAR_TILE_HEIGHT: 150,
   HEADER_HEIGHT: 48,
-  MAX_SIDEBAR_TILES: 6
+  MAX_SIDEBAR_TILES: 6,
+  MOBILE_MIN_TILE_HEIGHT: 150,
+  MOBILE_HEADER_HEIGHT: 40,
 } as const;
 import { 
   TrackPublication, 
@@ -315,6 +318,7 @@ interface VideoTilesProps {
 
 export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const { state } = useVoiceConnection();
+  const { isMobile, isPortrait } = useResponsive();
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>('grid');
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
@@ -468,6 +472,14 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
 
   // Layout calculation functions
   const getGridLayout = (tileCount: number) => {
+    // Mobile: use 1-2 columns max for better visibility
+    if (isMobile) {
+      if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
+      if (tileCount <= 4) return { cols: isPortrait ? 1 : 2, maxHeight: isPortrait ? '50%' : '50%' };
+      return { cols: 2, maxHeight: '33.333%' };
+    }
+
+    // Desktop: original logic
     if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
     if (tileCount <= 4) return { cols: 2, maxHeight: '50%' };
     if (tileCount <= 9) return { cols: 3, maxHeight: '33.333%' };
@@ -635,7 +647,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   };
 
   return (
-    <Box sx={{ 
+    <Box sx={{
       width: '100%',
       height: '100%',
       backgroundColor: 'grey.900',
@@ -643,72 +655,74 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
       flexDirection: 'column',
       overflow: 'hidden'
     }}>
-      {/* Layout Controls Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          p: 1,
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          minHeight: GRID_CONSTANTS.HEADER_HEIGHT,
-          flexShrink: 0
-        }}
-      >
-        {/* Layout mode buttons */}
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Tooltip title="Grid Layout">
-            <IconButton
-              size="small"
-              onClick={() => setLayoutMode('grid')}
-              sx={{
-                backgroundColor: layoutMode === 'grid' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: layoutMode === 'grid' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
-                },
-              }}
-            >
-              <GridView fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          
-          <Tooltip title="Sidebar Layout">
-            <IconButton
-              size="small"
-              onClick={() => setLayoutMode('sidebar')}
-              sx={{
-                backgroundColor: layoutMode === 'sidebar' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: layoutMode === 'sidebar' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
-                },
-              }}
-            >
-              <ViewSidebar fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          
-          <Tooltip title="Spotlight Layout">
-            <IconButton
-              size="small"
-              onClick={() => setLayoutMode('spotlight')}
-              sx={{
-                backgroundColor: layoutMode === 'spotlight' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: layoutMode === 'spotlight' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
-                },
-              }}
-            >
-              <Fullscreen fontSize="small" />
-            </IconButton>
-          </Tooltip>
+      {/* Layout Controls Header - hide on mobile */}
+      {!isMobile && (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            p: 1,
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            minHeight: GRID_CONSTANTS.HEADER_HEIGHT,
+            flexShrink: 0
+          }}
+        >
+          {/* Layout mode buttons */}
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Tooltip title="Grid Layout">
+              <IconButton
+                size="small"
+                onClick={() => setLayoutMode('grid')}
+                sx={{
+                  backgroundColor: layoutMode === 'grid' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: layoutMode === 'grid' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
+                  },
+                }}
+              >
+                <GridView fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Sidebar Layout">
+              <IconButton
+                size="small"
+                onClick={() => setLayoutMode('sidebar')}
+                sx={{
+                  backgroundColor: layoutMode === 'sidebar' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: layoutMode === 'sidebar' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
+                  },
+                }}
+              >
+                <ViewSidebar fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Spotlight Layout">
+              <IconButton
+                size="small"
+                onClick={() => setLayoutMode('spotlight')}
+                sx={{
+                  backgroundColor: layoutMode === 'spotlight' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: layoutMode === 'spotlight' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
+                  },
+                }}
+              >
+                <Fullscreen fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
-      </Box>
+      )}
 
       {/* Main Video Area */}
-      <Box sx={{ flex: 1, overflow: 'hidden', p: 1, minHeight: 0 }}>
+      <Box sx={{ flex: 1, overflow: 'hidden', p: isMobile ? 0.5 : 1, minHeight: 0 }}>
         {layoutMode === 'grid' && renderGridLayout()}
         {layoutMode === 'sidebar' && renderSidebarLayout()}
         {layoutMode === 'spotlight' && renderSpotlightLayout()}
