@@ -1,0 +1,35 @@
+apiVersion: v2
+name: kraken
+description: A Discord-like voice and text chat application with video calling support
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - chat
+  - voice
+  - video
+  - discord
+  - websocket
+  - livekit
+home: https://github.com/user/kraken
+sources:
+  - https://github.com/user/kraken
+maintainers:
+  - name: Kraken Team
+    email: maintainers@example.com
+icon: https://raw.githubusercontent.com/user/kraken/main/logo.png
+
+# Optional dependencies (can be disabled via values.yaml)
+dependencies:
+  - name: mongodb
+    version: "15.6.22"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: mongodb.bundled
+    tags:
+      - database
+  - name: redis
+    version: "19.6.4"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.bundled
+    tags:
+      - cache

@@ -1,0 +1,50 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "kraken.fullname" . }}
+  labels:
+    {{- include "kraken.labels" . | nindent 4 }}
+  annotations:
+    {{- if and (eq .Values.ingress.tls.mode "cert-manager") .Values.ingress.tls.certManager.enabled }}
+    cert-manager.io/{{ .Values.ingress.tls.certManager.issuerKind | lower }}: {{ .Values.ingress.tls.certManager.issuer }}
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if ne .Values.ingress.tls.mode "none" }}
+  tls:
+    {{- range .Values.ingress.hosts }}
+    - hosts:
+        - {{ .host | quote }}
+      {{- if eq $.Values.ingress.tls.mode "cert-manager" }}
+      secretName: {{ include "kraken.fullname" $ }}-tls-{{ .host | replace "." "-" }}
+      {{- else if eq $.Values.ingress.tls.mode "manual" }}
+      secretName: {{ $.Values.ingress.tls.secretName }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "kraken.fullname" $ }}-{{ .service }}
+                port:
+                  {{- if eq .service "frontend" }}
+                  number: {{ $.Values.frontend.service.port }}
+                  {{- else if eq .service "backend" }}
+                  number: {{ $.Values.backend.service.port }}
+                  {{- end }}
+          {{- end }}
+    {{- end }}
+{{- end }}

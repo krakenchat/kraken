@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kraken.fullname" . }}-backend-config
+  labels:
+    {{- include "kraken.backend.labels" . | nindent 4 }}
+data:
+  # MongoDB connection
+  MONGODB_URL: {{ include "kraken.mongodb.uri" . | quote }}
+
+  # Redis connection
+  REDIS_HOST: {{ include "kraken.redis.host" . | quote }}
+  REDIS_PORT: {{ include "kraken.redis.port" . | quote }}
+
+  # LiveKit configuration
+  LIVEKIT_URL: {{ .Values.livekit.url | quote }}
+  LIVEKIT_API_KEY: {{ .Values.livekit.apiKey | quote }}
+
+  # Node environment
+  NODE_ENV: "production"

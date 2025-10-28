@@ -1,0 +1,352 @@
+# Default values for kraken
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# ============================================
+# Global Settings
+# ============================================
+global:
+  # Image registry override (leave empty to use default)
+  imageRegistry: ""
+  # Image pull secrets for private registries
+  imagePullSecrets: []
+
+# ============================================
+# Backend Configuration
+# ============================================
+backend:
+  # Number of backend replicas
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/user/kraken-backend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 3000
+    annotations: {}
+
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+  # Horizontal Pod Autoscaler
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # Liveness and readiness probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 40
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # Node selector for pod assignment
+  nodeSelector: {}
+
+  # Tolerations for pod assignment
+  tolerations: []
+
+  # Affinity for pod assignment
+  affinity: {}
+
+  # Pod annotations
+  podAnnotations: {}
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+
+  # Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+
+# ============================================
+# Frontend Configuration
+# ============================================
+frontend:
+  # Number of frontend replicas
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/user/kraken-frontend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 5173
+    annotations: {}
+
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # Horizontal Pod Autoscaler
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+  # Liveness and readiness probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 5173
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 5173
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+  # Environment variables for nginx
+  env:
+    # Backend URL (internal service URL)
+    backendUrl: "http://kraken-backend:3000"
+
+  # Node selector for pod assignment
+  nodeSelector: {}
+
+  # Tolerations for pod assignment
+  tolerations: []
+
+  # Affinity for pod assignment
+  affinity: {}
+
+  # Pod annotations
+  podAnnotations: {}
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101  # nginx user
+    fsGroup: 101
+
+  # Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+
+# ============================================
+# Ingress Configuration
+# ============================================
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    # File upload size
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    # Additional annotations for your use case
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+  hosts:
+    - host: kraken.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /socket.io
+          pathType: Prefix
+          service: backend
+
+  # TLS configuration
+  tls:
+    # Options: "none", "cert-manager", "manual"
+    mode: "none"
+
+    # For cert-manager mode
+    certManager:
+      enabled: false
+      issuer: "letsencrypt-prod"
+      issuerKind: "ClusterIssuer"
+
+    # For manual mode - reference to existing secret
+    secretName: ""
+
+# ============================================
+# MongoDB Configuration
+# ============================================
+mongodb:
+  # Set to true to deploy MongoDB as part of this chart
+  # Set to false to use external MongoDB
+  bundled: true
+
+  # Architecture: standalone or replicaset
+  architecture: replicaset
+
+  # Replica set configuration (required for Kraken's change streams)
+  replicaCount: 3
+  replicaSetName: rs0
+
+  # Authentication
+  auth:
+    enabled: true
+    rootUser: root
+    rootPassword: "changeme-root-password"
+    username: kraken
+    password: "changeme-kraken-password"
+    database: kraken
+
+  # Persistence
+  persistence:
+    enabled: true
+    size: 20Gi
+    # storageClass: ""
+
+  # Resources
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  # External MongoDB configuration (when bundled: false)
+  external:
+    # Full MongoDB connection string
+    uri: "mongodb://user:password@mongo.example.com:27017/kraken?replicaSet=rs0"
+
+# ============================================
+# Redis Configuration
+# ============================================
+redis:
+  # Set to true to deploy Redis as part of this chart
+  # Set to false to use external Redis
+  bundled: true
+
+  # Architecture: standalone or replication
+  architecture: standalone
+
+  # Authentication
+  auth:
+    enabled: true
+    password: "changeme-redis-password"
+
+  # Persistence
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+      # storageClass: ""
+
+  # Resources
+  master:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+  # External Redis configuration (when bundled: false)
+  external:
+    host: "redis.example.com"
+    port: 6379
+    password: ""
+
+# ============================================
+# LiveKit Configuration (External Only)
+# ============================================
+livekit:
+  # LiveKit server URL (WebSocket endpoint)
+  url: "wss://livekit.example.com"
+
+  # LiveKit API credentials
+  apiKey: "your-livekit-api-key"
+  apiSecret: "your-livekit-api-secret"
+
+# ============================================
+# Application Secrets
+# ============================================
+secrets:
+  # JWT secrets for authentication
+  jwtSecret: "CHANGE-ME-long-random-secret-for-jwt-signing"
+  jwtRefreshSecret: "CHANGE-ME-different-long-random-secret-for-refresh-tokens"
+
+  # Create secrets from existing Kubernetes secret
+  # If true, the above values are ignored and you must create a secret manually
+  existingSecret: ""
+
+# ============================================
+# Service Account
+# ============================================
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# ============================================
+# Pod Disruption Budget
+# ============================================
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# ============================================
+# Network Policies
+# ============================================
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress

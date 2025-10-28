@@ -1,0 +1,68 @@
+# Production Dockerfile for Kraken Frontend
+# Multi-stage build for optimized image size with nginx
+
+# ============================================
+# Stage 1: Build React Application
+# ============================================
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+# Copy dependency files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build arguments for environment variables (injected at build time)
+ARG VITE_API_URL=/api
+ARG VITE_WS_URL=
+
+# Build the application with Vite
+RUN npm run build
+
+# ============================================
+# Stage 2: Production with Nginx
+# ============================================
+FROM nginx:1.27-alpine AS production
+
+# Build argument for GitHub repository (for OCI labels)
+ARG GITHUB_REPOSITORY=user/kraken
+
+# Install gettext for envsubst (environment variable substitution)
+RUN apk add --no-cache gettext
+
+# Remove default nginx config
+RUN rm /etc/nginx/nginx.conf
+
+# Copy custom nginx configuration template
+COPY nginx.conf /etc/nginx/nginx.conf.template
+
+# Copy built static files from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Add OCI labels for GHCR integration
+LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
+LABEL org.opencontainers.image.description="Kraken Frontend - Discord-like voice chat application"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
+
+# Create a startup script to substitute environment variables
+RUN echo '#!/bin/sh' > /docker-entrypoint.sh && \
+    echo 'set -e' >> /docker-entrypoint.sh && \
+    echo 'export BACKEND_URL=${BACKEND_URL:-http://backend:3000}' >> /docker-entrypoint.sh && \
+    echo 'envsubst "\$BACKEND_URL" < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf' >> /docker-entrypoint.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /docker-entrypoint.sh && \
+    chmod +x /docker-entrypoint.sh
+
+# Expose port
+EXPOSE 5173
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:5173/health || exit 1
+
+# Start nginx with environment variable substitution
+ENTRYPOINT ["/docker-entrypoint.sh"]

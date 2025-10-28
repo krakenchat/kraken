@@ -35,7 +35,8 @@ export async function getSocketSingleton(): Promise<
       console.error("Error refreshing token", error);
       token = null;
     }
-    const url = "http://localhost:3000";
+    // Use environment variable for WebSocket URL, fallback to localhost for development
+    const url = import.meta.env.VITE_WS_URL || "http://localhost:3000";
     if (!token) {
       throw new Error("No token available for socket connection");
     }

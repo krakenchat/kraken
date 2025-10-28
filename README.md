@@ -90,6 +90,47 @@ docker-compose run backend npx prisma db push --schema=prisma/mongo.schema.prism
 
 ---
 
+## Production Deployment (Kubernetes)
+
+Kraken can be deployed to production Kubernetes clusters using our official Helm chart.
+
+### Quick Installation
+
+```bash
+helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+  --set ingress.hosts[0].host=kraken.yourdomain.com \
+  --set livekit.url=wss://your-livekit-server.com \
+  --set livekit.apiKey=YOUR_KEY \
+  --set livekit.apiSecret=YOUR_SECRET \
+  --set secrets.jwtSecret="$(openssl rand -base64 32)" \
+  --set secrets.jwtRefreshSecret="$(openssl rand -base64 32)"
+```
+
+### Features
+
+- 📦 **Bundled Dependencies**: Optional MongoDB and Redis included
+- 🔒 **TLS/SSL Support**: Automatic certificates via cert-manager or manual
+- 📈 **Auto-scaling**: Horizontal Pod Autoscaler support
+- 🎯 **Production Ready**: Resource limits, health checks, and security contexts
+- 🔧 **Highly Configurable**: External databases, custom resources, and more
+
+### Documentation
+
+- **[Helm Chart README](./helm/kraken/README.md)** - Complete chart documentation
+- **[Kubernetes Deployment Guide](./docs/deployment/kubernetes.md)** - Step-by-step installation guide
+- **[Docker Images](#)** - Available on GitHub Container Registry (GHCR)
+  - `ghcr.io/YOUR-USERNAME/kraken-backend`
+  - `ghcr.io/YOUR-USERNAME/kraken-frontend`
+
+### Prerequisites
+
+- Kubernetes 1.24+
+- Helm 3.8+
+- NGINX Ingress Controller
+- LiveKit server (external)
+
+---
+
 ## Troubleshooting
 
 - **Prisma errors about missing schema:**  

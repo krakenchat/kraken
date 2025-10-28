@@ -1,0 +1,129 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 DEPLOYMENT SUMMARY
+
+{{- if .Values.ingress.enabled }}
+
+✅ Ingress is ENABLED
+
+Application URL(s):
+{{- range .Values.ingress.hosts }}
+  {{- if eq $.Values.ingress.tls.mode "none" }}
+  🌐 http://{{ .host }}
+  {{- else }}
+  🔒 https://{{ .host }}
+  {{- end }}
+{{- end }}
+
+{{- else }}
+
+⚠️  Ingress is DISABLED
+
+To access your application, you can port-forward:
+
+  Frontend:
+  $ kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "kraken.fullname" . }}-frontend {{ .Values.frontend.service.port }}:{{ .Values.frontend.service.port }}
+  Then visit: http://localhost:{{ .Values.frontend.service.port }}
+
+  Backend API:
+  $ kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "kraken.fullname" . }}-backend {{ .Values.backend.service.port }}:{{ .Values.backend.service.port }}
+  Then visit: http://localhost:{{ .Values.backend.service.port }}/health
+
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 CONFIGURATION
+
+Database:
+{{- if .Values.mongodb.bundled }}
+  ✅ MongoDB deployed (bundled)
+     Replica Set: {{ .Values.mongodb.replicaSetName }}
+     Database: {{ .Values.mongodb.auth.database }}
+{{- else }}
+  🔗 External MongoDB
+     URI: {{ .Values.mongodb.external.uri | replace ":@" ":****@" }}
+{{- end }}
+
+Cache:
+{{- if .Values.redis.bundled }}
+  ✅ Redis deployed (bundled)
+     Host: {{ include "kraken.redis.host" . }}
+{{- else }}
+  🔗 External Redis
+     Host: {{ .Values.redis.external.host }}:{{ .Values.redis.external.port }}
+{{- end }}
+
+LiveKit:
+  🎥 External LiveKit Server
+     URL: {{ .Values.livekit.url }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  SECURITY REMINDERS
+
+{{- if eq .Values.secrets.jwtSecret "CHANGE-ME-long-random-secret-for-jwt-signing" }}
+
+🚨 CRITICAL: You are using default JWT secrets!
+   Please set custom values:
+
+   --set secrets.jwtSecret="your-random-secret" \
+   --set secrets.jwtRefreshSecret="your-different-random-secret"
+
+{{- end }}
+
+{{- if .Values.mongodb.bundled }}
+{{- if or (eq .Values.mongodb.auth.rootPassword "changeme-root-password") (eq .Values.mongodb.auth.password "changeme-kraken-password") }}
+
+🚨 CRITICAL: You are using default MongoDB passwords!
+   Please set custom values:
+
+   --set mongodb.auth.rootPassword="strong-random-password" \
+   --set mongodb.auth.password="different-strong-password"
+
+{{- end }}
+{{- end }}
+
+{{- if and .Values.redis.bundled .Values.redis.auth.enabled }}
+{{- if eq .Values.redis.auth.password "changeme-redis-password" }}
+
+🚨 CRITICAL: You are using default Redis password!
+   Please set a custom value:
+
+   --set redis.auth.password="strong-random-password"
+
+{{- end }}
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 NEXT STEPS
+
+1. Check deployment status:
+   $ kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+2. View logs:
+   Backend:  $ kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=backend -f
+   Frontend: $ kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=frontend -f
+
+3. For production deployments:
+   - Enable autoscaling (backend.autoscaling.enabled=true)
+   - Configure resource limits
+   - Set up monitoring and alerting
+   - Configure TLS/SSL (ingress.tls.mode=cert-manager or manual)
+
+4. Documentation:
+   📖 https://github.com/user/kraken/tree/main/helm/kraken
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Happy chatting! 🎉

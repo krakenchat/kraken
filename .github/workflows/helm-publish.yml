@@ -1,0 +1,87 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+    paths:
+      - 'helm/**'
+      - '.github/workflows/helm-publish.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  CHART_NAME: kraken
+
+jobs:
+  publish-helm-chart:
+    name: Publish Helm Chart to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} --username ${{ github.actor }} --password-stdin
+
+      - name: Update Chart.yaml with repository info
+        run: |
+          # Update the home and sources URLs in Chart.yaml
+          sed -i "s|home: .*|home: https://github.com/${{ github.repository }}|g" helm/${{ env.CHART_NAME }}/Chart.yaml
+          sed -i "s|sources:.*|sources:\n  - https://github.com/${{ github.repository }}|g" helm/${{ env.CHART_NAME }}/Chart.yaml
+
+      - name: Package Helm chart
+        run: |
+          # Update dependencies (MongoDB and Redis subcharts)
+          helm dependency update helm/${{ env.CHART_NAME }}
+
+          # Package the chart
+          helm package helm/${{ env.CHART_NAME }}
+
+      - name: Get chart version
+        id: chart_version
+        run: |
+          VERSION=$(helm show chart helm/${{ env.CHART_NAME }} | grep '^version:' | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Chart version: $VERSION"
+
+      - name: Push Helm chart to GHCR
+        run: |
+          CHART_VERSION=${{ steps.chart_version.outputs.version }}
+          CHART_PACKAGE="${{ env.CHART_NAME }}-${CHART_VERSION}.tgz"
+
+          # Push to GHCR as OCI artifact
+          helm push "${CHART_PACKAGE}" oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
+
+          echo "✅ Chart pushed to: oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/${{ env.CHART_NAME }}:${CHART_VERSION}"
+
+      - name: Generate summary
+        run: |
+          CHART_VERSION=${{ steps.chart_version.outputs.version }}
+
+          echo "## Helm Chart Published 📦" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Chart:** \`${{ env.CHART_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${CHART_VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Command" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "helm install my-kraken oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/${{ env.CHART_NAME }} --version ${CHART_VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "🏷️ **Release Tag:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
