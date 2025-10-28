@@ -69,16 +69,6 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             GITHUB_REPOSITORY=${{ github.repository }}
-          provenance: true
-          sbom: true
-
-      - name: Generate artifact attestation for Backend
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
-          subject-digest: ${{ steps.push-backend.outputs.digest }}
-          push-to-registry: true
 
   build-frontend:
     name: Build Frontend Image
@@ -134,16 +124,6 @@ jobs:
             GITHUB_REPOSITORY=${{ github.repository }}
             VITE_API_URL=/api
             VITE_WS_URL=
-          provenance: true
-          sbom: true
-
-      - name: Generate artifact attestation for Frontend
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
-          subject-digest: ${{ steps.push-frontend.outputs.digest }}
-          push-to-registry: true
 
   summary:
     name: Build Summary
