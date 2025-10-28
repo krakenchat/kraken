@@ -62,14 +62,17 @@ jobs:
           CHART_VERSION=${{ steps.chart_version.outputs.version }}
           CHART_PACKAGE="${{ env.CHART_NAME }}-${CHART_VERSION}.tgz"
 
-          # Push to GHCR as OCI artifact
-          helm push "${CHART_PACKAGE}" oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
+          # Push to GHCR as OCI artifact (using repository path)
+          # Convert repository to lowercase as GHCR requires lowercase
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          helm push "${CHART_PACKAGE}" oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts
 
-          echo "✅ Chart pushed to: oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/${{ env.CHART_NAME }}:${CHART_VERSION}"
+          echo "✅ Chart pushed to: oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts/${{ env.CHART_NAME }}:${CHART_VERSION}"
 
       - name: Generate summary
         run: |
           CHART_VERSION=${{ steps.chart_version.outputs.version }}
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
           echo "## Helm Chart Published 📦" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -78,7 +81,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Installation Command" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "helm install my-kraken oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/${{ env.CHART_NAME }} --version ${CHART_VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "helm install my-kraken oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts/${{ env.CHART_NAME }} --version ${CHART_VERSION}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
