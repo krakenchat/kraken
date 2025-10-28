@@ -49,14 +49,25 @@ LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
 LABEL org.opencontainers.image.description="Kraken Frontend - Discord-like voice chat application"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
 
-# Create a startup script to substitute environment variables
+# Create writable directories for nginx (for non-root operation)
+RUN mkdir -p /tmp/nginx/client_body /tmp/nginx/proxy /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi && \
+    chown -R nginx:nginx /tmp/nginx && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /etc/nginx/nginx.conf.template
+
+# Create a startup script that works without root
 RUN printf '#!/bin/sh\n\
 set -e\n\
+# Substitute environment variables\n\
 export BACKEND_URL=${BACKEND_URL:-http://backend:3000}\n\
 envsubst "\$BACKEND_URL" < /etc/nginx/nginx.conf.template > /tmp/nginx.conf\n\
-cp /tmp/nginx.conf /etc/nginx/nginx.conf\n\
-exec nginx -g "daemon off;"\n' > /docker-entrypoint.sh && \
-    chmod +x /docker-entrypoint.sh
+# Run nginx from /tmp config (non-root friendly)\n\
+exec nginx -c /tmp/nginx.conf -g "daemon off; pid /tmp/nginx.pid;"\n' > /docker-entrypoint.sh && \
+    chmod +x /docker-entrypoint.sh && \
+    chown nginx:nginx /docker-entrypoint.sh
+
+# Switch to nginx user for security
+USER nginx
 
 # Expose port
 EXPOSE 5173
