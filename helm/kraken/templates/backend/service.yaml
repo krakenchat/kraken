@@ -10,6 +10,10 @@ metadata:
   {{- end }}
 spec:
   type: {{ .Values.backend.service.type }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
   ports:
     - port: {{ .Values.backend.service.port }}
       targetPort: http
