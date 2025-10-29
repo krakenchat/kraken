@@ -25,7 +25,9 @@ async function bootstrap() {
   app.useWebSocketAdapter(redisIoAdapter);
 
   app.useGlobalInterceptors(new TimingInterceptor());
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: ['health'],
+  });
   app.use(cookieParser());
   app.enableCors({ origin: true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));

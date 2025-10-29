@@ -28,10 +28,12 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { DirectMessagesModule } from './direct-messages/direct-messages.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { FileModule } from './file/file.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     AuthModule,
+    HealthModule,
     DatabaseModule,
     InviteModule,
     ConfigModule.forRoot({ isGlobal: true }),
