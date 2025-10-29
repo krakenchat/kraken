@@ -8,8 +8,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany  # Multiple backend pods can mount simultaneously
-  {{- if .Values.fileStorage.storageClassName }}
-  storageClassName: {{ .Values.fileStorage.storageClassName }}
+  {{- if hasKey .Values.fileStorage "storageClassName" }}
+  storageClassName: {{ .Values.fileStorage.storageClassName | quote }}
   {{- end }}
   resources:
     requests:
