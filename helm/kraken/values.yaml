@@ -20,7 +20,7 @@ backend:
 
   image:
     repository: ghcr.io/user/kraken-backend
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     tag: "latest"
 
   # Service configuration
