@@ -247,7 +247,19 @@ export const toggleScreenShare = createAsyncThunk<
     ).unwrap();
 
     // Then handle the actual LiveKit screen share (this is the async part that prompts user)
-    await room.localParticipant.setScreenShareEnabled(newState);
+    if (newState) {
+      // Enable screen share with high quality: native resolution, 60fps, with audio
+      await room.localParticipant.setScreenShareEnabled(true, {
+        audio: true,  // Capture system/tab audio
+        resolution: {
+          frameRate: 60,  // 60fps for smooth motion (uses native width/height)
+        },
+        preferCurrentTab: false,  // Allow selection of screen/window/tab
+      });
+    } else {
+      // Disable screen share
+      await room.localParticipant.setScreenShareEnabled(false);
+    }
   } catch (error) {
     console.error("Failed to toggle screen share:", error);
     // Revert Redux state on failure
@@ -617,7 +629,19 @@ export const toggleDmScreenShare = createAsyncThunk<
       })
     ).unwrap();
 
-    await room.localParticipant.setScreenShareEnabled(newState);
+    if (newState) {
+      // Enable screen share with high quality: native resolution, 60fps, with audio
+      await room.localParticipant.setScreenShareEnabled(true, {
+        audio: true,  // Capture system/tab audio
+        resolution: {
+          frameRate: 60,  // 60fps for smooth motion (uses native width/height)
+        },
+        preferCurrentTab: false,  // Allow selection of screen/window/tab
+      });
+    } else {
+      // Disable screen share
+      await room.localParticipant.setScreenShareEnabled(false);
+    }
   } catch (error) {
     console.error("Failed to toggle DM screen share:", error);
     dispatch(setScreenSharing(isScreenSharing));

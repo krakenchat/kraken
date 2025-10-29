@@ -21,6 +21,7 @@ import {
   PushPin,
   PushPinOutlined,
 } from '@mui/icons-material';
+import { RoomAudioRenderer } from '@livekit/components-react';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useResponsive } from '../../hooks/useResponsive';
 
@@ -655,6 +656,9 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
       flexDirection: 'column',
       overflow: 'hidden'
     }}>
+      {/* Audio renderer for all participants */}
+      <RoomAudioRenderer />
+
       {/* Layout Controls Header - hide on mobile */}
       {!isMobile && (
         <Box
