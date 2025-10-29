@@ -29,8 +29,10 @@ RUN npm run build
 # ============================================
 FROM nginx:1.27-alpine AS production
 
-# Build argument for GitHub repository (for OCI labels)
+# Build arguments for OCI labels and timestamp
 ARG GITHUB_REPOSITORY=user/kraken
+ARG BUILD_DATE
+ARG SOURCE_DATE_EPOCH
 
 # Install gettext for envsubst (environment variable substitution)
 RUN apk add --no-cache gettext
@@ -44,10 +46,14 @@ COPY nginx.conf /etc/nginx/nginx.conf.template
 # Copy built static files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Add OCI labels for GHCR integration
+# Add OCI labels for GHCR integration (including creation timestamp)
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
 LABEL org.opencontainers.image.description="Kraken Frontend - Discord-like voice chat application"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+
+# Force layer rebuild with current timestamp (ensures ArgoCD Image Updater sees fresh image)
+RUN echo "Build timestamp: ${BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" > /tmp/build-time.txt
 
 # Create writable directories for nginx (for non-root operation)
 RUN mkdir -p /tmp/nginx/client_body /tmp/nginx/proxy /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi && \
