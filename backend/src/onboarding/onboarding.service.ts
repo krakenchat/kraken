@@ -1,5 +1,6 @@
 import { Injectable, ConflictException, Logger } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
+import { RedisService } from '@/redis/redis.service';
 import { InstanceRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -8,9 +9,13 @@ import { SetupInstanceDto } from './dto/setup-instance.dto';
 @Injectable()
 export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
-  private setupToken: string | null = null;
+  private readonly SETUP_TOKEN_KEY = 'onboarding:setup-token';
+  private readonly SETUP_TOKEN_TTL = 900; // 15 minutes
 
-  constructor(private readonly database: DatabaseService) {}
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly redis: RedisService,
+  ) {}
 
   /**
    * Check if the instance needs initial setup
@@ -42,20 +47,22 @@ export class OnboardingService {
       throw new ConflictException('Instance setup is not needed');
     }
 
-    this.setupToken = randomUUID();
-    this.logger.log('Generated setup token for onboarding');
-    return this.setupToken;
+    const setupToken = randomUUID();
+    await this.redis.set(this.SETUP_TOKEN_KEY, setupToken, this.SETUP_TOKEN_TTL);
+    this.logger.log('Generated setup token for onboarding (stored in Redis)');
+    return setupToken;
   }
 
   /**
    * Validate the setup token
    */
   async validateSetupToken(token: string): Promise<boolean> {
-    if (!this.setupToken) {
+    const storedToken = await this.redis.get(this.SETUP_TOKEN_KEY);
+    if (!storedToken) {
       return false;
     }
 
-    return this.setupToken === token;
+    return storedToken === token;
   }
 
   /**
@@ -78,7 +85,7 @@ export class OnboardingService {
       throw new ConflictException('Instance setup is no longer needed');
     }
 
-    return this.database.$transaction(async (tx) => {
+    const result = await this.database.$transaction(async (tx) => {
       // 1. Create admin user
       const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
       const adminUser = await tx.user.create({
@@ -180,15 +187,19 @@ export class OnboardingService {
         },
       });
 
-      // 4. Clear the setup token
-      this.setupToken = null;
-      this.logger.log('Instance setup completed successfully');
+      this.logger.log('Instance setup transaction completed');
 
       return {
         adminUser,
         defaultCommunity,
       };
     });
+
+    // Clear the setup token from Redis after successful transaction
+    await this.redis.del(this.SETUP_TOKEN_KEY);
+    this.logger.log('Instance setup completed successfully, token cleared');
+
+    return result;
   }
 
   /**
