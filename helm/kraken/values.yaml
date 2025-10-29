@@ -374,3 +374,9 @@ fileStorage:
     server: "nfs-server.example.com"
     # NFS export path (override with your NFS export path)
     path: "/exports/kraken-uploads"
+
+  # Mount options for NFS volumes (optional)
+  # If not specified, default NFSv4.1 resilient options are used
+  # Set to empty array [] to use NFSv3 defaults without any custom options
+  # Example custom options: ["nfsvers=4.1", "hard", "tcp"]
+  # mountOptions: []

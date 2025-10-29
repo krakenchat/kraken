@@ -11,7 +11,14 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  # CRITICAL: Resilient NFS mount options to prevent stale file handles
+  {{- if hasKey .Values.fileStorage "mountOptions" }}
+  {{- if gt (len .Values.fileStorage.mountOptions) 0 }}
+  # Custom NFS mount options from values.yaml
+  mountOptions:
+    {{- toYaml .Values.fileStorage.mountOptions | nindent 4 }}
+  {{- end }}
+  {{- else }}
+  # Default resilient NFS mount options to prevent stale file handles
   mountOptions:
     - nfsvers=4.1        # Use NFSv4.1 (better recovery than v3)
     - hard               # Retry indefinitely on server failure (never give up)
@@ -25,6 +32,7 @@ spec:
     - nodiratime         # Don't update directory access time
     - _netdev            # Wait for network before mounting
     - actimeo=30         # Attribute cache timeout: 30 seconds (reduces server calls)
+  {{- end }}
   nfs:
     server: {{ .Values.fileStorage.nfs.server }}
     path: {{ .Values.fileStorage.nfs.path }}

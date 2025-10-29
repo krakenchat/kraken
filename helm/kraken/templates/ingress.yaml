@@ -34,6 +34,12 @@ spec:
       http:
         paths:
           {{- range .paths }}
+          {{- if not .service }}
+          {{- fail "Error: ingress path service name cannot be empty. Please specify 'service: frontend' or 'service: backend' for each path." }}
+          {{- end }}
+          {{- if and (ne .service "frontend") (ne .service "backend") }}
+          {{- fail (printf "Error: invalid service name '%s'. Must be 'frontend' or 'backend'." .service) }}
+          {{- end }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:
