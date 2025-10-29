@@ -248,16 +248,14 @@ export const toggleScreenShare = createAsyncThunk<
 
     // Then handle the actual LiveKit screen share (this is the async part that prompts user)
     if (newState) {
-      // Enable screen share with high quality: native resolution, 60fps, with audio
       await room.localParticipant.setScreenShareEnabled(true, {
-        audio: true,  // Capture system/tab audio
+        audio: false,
         resolution: {
-          frameRate: 60,  // 60fps for smooth motion (uses native width/height)
+          frameRate: 60,
         },
-        preferCurrentTab: false,  // Allow selection of screen/window/tab
+        preferCurrentTab: false,
       });
     } else {
-      // Disable screen share
       await room.localParticipant.setScreenShareEnabled(false);
     }
   } catch (error) {
