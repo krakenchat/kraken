@@ -174,7 +174,7 @@ const JoinInvitePage: React.FC = () => {
         </Typography>
 
         {/* Invite Details Card */}
-        <Card sx={{ width: "100%", mb: 3, bgcolor: "grey.50" }}>
+        <Card sx={{ width: "100%", mb: 3, bgcolor: "background.default" }}>
           <CardContent sx={{ py: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
               <Typography variant="subtitle2" color="text.secondary">
