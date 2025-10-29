@@ -6,12 +6,21 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Logger,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
 import { RbacActions } from '@prisma/client';
@@ -19,22 +28,49 @@ import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 
-@WebSocketGateway()
+@WebSocketGateway({
+  cors: {
+    origin: process.env.CORS_ORIGIN?.split(',') || true,
+    credentials: true,
+  },
+  transports: ['websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+})
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
 @UseGuards(WsJwtAuthGuard, RbacGuard)
-export class MessagesGateway {
+export class MessagesGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
+  @WebSocketServer()
+  server: Server;
+
+  private readonly logger = new Logger(MessagesGateway.name);
+
   constructor(
     private readonly messagesService: MessagesService,
     private readonly websocketService: WebsocketService,
   ) {}
+
+  afterInit(server: Server) {
+    this.logger.log('MessagesGateway initialized');
+  }
+
+  handleConnection(client: Socket) {
+    this.logger.log(`Client connected to MessagesGateway: ${client.id}`);
+  }
+
+  handleDisconnect(client: Socket) {
+    this.logger.log(`Client disconnected from MessagesGateway: ${client.id}`);
+  }
 
   @SubscribeMessage(ClientEvents.SEND_MESSAGE)
   @RequiredActions(RbacActions.CREATE_MESSAGE)

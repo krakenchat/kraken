@@ -180,12 +180,19 @@ ingress:
   enabled: true
   className: "nginx"
   annotations:
-    # WebSocket support
+    # WebSocket support - Long timeouts for persistent connections
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
     # File upload size
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    # WebSocket upgrade headers for Socket.IO and LiveKit
+    nginx.ingress.kubernetes.io/websocket-services: "kraken-backend"
+    # Cookie-based sticky sessions (required for multi-replica Socket.IO)
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "kraken-affinity"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
     # Additional annotations for your use case
     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 

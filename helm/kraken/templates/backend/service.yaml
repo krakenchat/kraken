@@ -10,10 +10,9 @@ metadata:
   {{- end }}
 spec:
   type: {{ .Values.backend.service.type }}
-  sessionAffinity: ClientIP
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 3600
+  # sessionAffinity removed to allow Redis adapter to coordinate Socket.IO across replicas
+  # Sticky sessions are handled at ingress level via cookie affinity
+  sessionAffinity: None
   ports:
     - port: {{ .Values.backend.service.port }}
       targetPort: http

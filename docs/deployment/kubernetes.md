@@ -481,6 +481,17 @@ kubectl exec -n kraken kraken-mongodb-0 -- \
 
 ## Troubleshooting
 
+### WebSocket and LiveKit Issues
+
+**For Socket.IO WebSocket and LiveKit connectivity problems, see the dedicated guide:**
+📖 **[WebSocket & LiveKit Troubleshooting Guide](./websocket-troubleshooting.md)**
+
+Common symptoms:
+- Messages not being delivered
+- WebSocket connections failing
+- LiveKit DataChannel errors
+- Connection drops immediately
+
 ### Pods Stuck in Pending
 
 ```bash
