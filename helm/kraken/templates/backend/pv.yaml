@@ -1,0 +1,31 @@
+{{- if and .Values.fileStorage.enabled .Values.fileStorage.nfs.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "kraken.fullname" . }}-uploads-nfs
+  labels:
+    {{- include "kraken.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.fileStorage.size }}
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  # CRITICAL: Resilient NFS mount options to prevent stale file handles
+  mountOptions:
+    - nfsvers=4.1        # Use NFSv4.1 (better recovery than v3)
+    - hard               # Retry indefinitely on server failure (never give up)
+    - intr               # Allow signals to interrupt hung NFS operations
+    - timeo=600          # Initial timeout: 60 seconds (600 deciseconds)
+    - retrans=2          # Retry 2 times before reporting timeout
+    - rsize=1048576      # 1MB read buffer (better performance)
+    - wsize=1048576      # 1MB write buffer (better performance)
+    - tcp                # Use TCP transport (more reliable than UDP)
+    - noatime            # Don't update access time (reduces server load)
+    - nodiratime         # Don't update directory access time
+    - _netdev            # Wait for network before mounting
+    - actimeo=30         # Attribute cache timeout: 30 seconds (reduces server calls)
+  nfs:
+    server: {{ .Values.fileStorage.nfs.server }}
+    path: {{ .Values.fileStorage.nfs.path }}
+{{- end }}

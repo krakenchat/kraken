@@ -1,0 +1,21 @@
+{{- if .Values.fileStorage.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kraken.fullname" . }}-uploads
+  labels:
+    {{- include "kraken.backend.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple backend pods can mount simultaneously
+  {{- if .Values.fileStorage.storageClassName }}
+  storageClassName: {{ .Values.fileStorage.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.fileStorage.size }}
+  {{- if .Values.fileStorage.nfs.enabled }}
+  # Bind to the specific NFS PV we created
+  volumeName: {{ include "kraken.fullname" . }}-uploads-nfs
+  {{- end }}
+{{- end }}

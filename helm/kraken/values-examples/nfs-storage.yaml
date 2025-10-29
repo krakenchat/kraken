@@ -1,0 +1,25 @@
+# Example: NFS Storage Configuration Override
+#
+# To use NFS storage for file uploads, create a custom values file
+# with your NFS server details and apply it during Helm install/upgrade:
+#
+# helm upgrade kraken . --namespace kraken -f values-examples/nfs-storage.yaml
+#
+# Or use --set flags:
+# helm upgrade kraken . --namespace kraken \
+#   --set fileStorage.enabled=true \
+#   --set fileStorage.nfs.enabled=true \
+#   --set fileStorage.nfs.server=YOUR_NFS_SERVER \
+#   --set fileStorage.nfs.path=YOUR_NFS_PATH
+
+fileStorage:
+  enabled: true
+  size: 100Gi
+  storageClassName: ""
+
+  nfs:
+    enabled: true
+    # Replace with your NFS server IP or hostname
+    server: "192.168.1.3"
+    # Replace with your NFS export path
+    path: "/mnt/pool/kraken/uploads"

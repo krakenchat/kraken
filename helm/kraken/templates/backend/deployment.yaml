@@ -47,6 +47,11 @@ spec:
             {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
+          {{- if .Values.fileStorage.enabled }}
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          {{- end }}
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -58,4 +63,14 @@ spec:
       {{- with .Values.backend.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.fileStorage.enabled }}
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: {{ include "kraken.fullname" . }}-uploads
+      {{- else }}
+      volumes:
+        - name: uploads
+          emptyDir: {}  # Fallback to ephemeral storage if persistent storage disabled
       {{- end }}

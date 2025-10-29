@@ -350,3 +350,27 @@ networkPolicy:
   policyTypes:
     - Ingress
     - Egress
+
+# ============================================
+# File Storage Configuration
+# ============================================
+fileStorage:
+  # Enable persistent file storage for uploads
+  # Set to false to use ephemeral storage (files lost on pod restart)
+  enabled: false
+
+  # Storage size
+  size: 100Gi
+
+  # Storage class name (leave empty for no storage class)
+  # If using dynamic provisioning, specify your storage class here
+  storageClassName: ""
+
+  # NFS-specific configuration
+  # To use NFS, set nfs.enabled: true and provide your NFS server details
+  nfs:
+    enabled: false
+    # NFS server IP or hostname (override with your NFS server)
+    server: "nfs-server.example.com"
+    # NFS export path (override with your NFS export path)
+    path: "/exports/kraken-uploads"
