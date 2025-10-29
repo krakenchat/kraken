@@ -70,7 +70,6 @@ jobs:
           build-args: |
             GITHUB_REPOSITORY=${{ github.repository }}
             BUILD_DATE=${{ steps.meta.outputs.created }}
-            SOURCE_DATE_EPOCH=${{ github.event.head_commit.timestamp }}
 
   build-frontend:
     name: Build Frontend Image
@@ -125,7 +124,6 @@ jobs:
           build-args: |
             GITHUB_REPOSITORY=${{ github.repository }}
             BUILD_DATE=${{ steps.meta.outputs.created }}
-            SOURCE_DATE_EPOCH=${{ github.event.head_commit.timestamp }}
             VITE_API_URL=/api
             VITE_WS_URL=
 

@@ -32,7 +32,6 @@ FROM nginx:1.27-alpine AS production
 # Build arguments for OCI labels and timestamp
 ARG GITHUB_REPOSITORY=user/kraken
 ARG BUILD_DATE
-ARG SOURCE_DATE_EPOCH
 
 # Install gettext for envsubst (environment variable substitution)
 RUN apk add --no-cache gettext

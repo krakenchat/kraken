@@ -40,7 +40,6 @@ FROM node:22-alpine AS production
 # Build arguments for OCI labels and timestamp
 ARG GITHUB_REPOSITORY=user/kraken
 ARG BUILD_DATE
-ARG SOURCE_DATE_EPOCH
 
 # Install OpenSSL for Prisma
 RUN apk add --no-cache openssl
