@@ -1,6 +1,7 @@
 import { Injectable, ConflictException, Logger } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { RedisService } from '@/redis/redis.service';
+import { RolesService } from '@/roles/roles.service';
 import { InstanceRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -15,6 +16,7 @@ export class OnboardingService {
   constructor(
     private readonly database: DatabaseService,
     private readonly redis: RedisService,
+    private readonly rolesService: RolesService,
   ) {}
 
   /**
@@ -171,6 +173,25 @@ export class OnboardingService {
             { userId: adminUser.id, channelId: voiceChannel.id },
           ],
         });
+
+        // Create default roles for the community
+        const adminRoleId =
+          await this.rolesService.createDefaultCommunityRoles(
+            defaultCommunity.id,
+            tx,
+          );
+
+        // Assign the admin user to the Community Admin role
+        await this.rolesService.assignUserToCommunityRole(
+          adminUser.id,
+          defaultCommunity.id,
+          adminRoleId,
+          tx,
+        );
+
+        this.logger.log(
+          `Created default roles and assigned admin to Community Admin role`,
+        );
 
         // Create welcome message
         await tx.message.create({
