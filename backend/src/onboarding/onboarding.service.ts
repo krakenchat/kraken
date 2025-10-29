@@ -40,16 +40,32 @@ export class OnboardingService {
   }
 
   /**
+   * Get existing setup token from Redis if it exists
+   */
+  private async getExistingSetupToken(): Promise<string | null> {
+    return await this.redis.get(this.SETUP_TOKEN_KEY);
+  }
+
+  /**
    * Generate a temporary setup token for the onboarding process
+   * Returns existing token if one is already present in Redis
    */
   async generateSetupToken(): Promise<string> {
     if (!(await this.needsSetup())) {
       throw new ConflictException('Instance setup is not needed');
     }
 
+    // Check if token already exists
+    const existingToken = await this.getExistingSetupToken();
+    if (existingToken) {
+      this.logger.log('Returning existing setup token from Redis');
+      return existingToken;
+    }
+
+    // Generate new token only if none exists
     const setupToken = randomUUID();
     await this.redis.set(this.SETUP_TOKEN_KEY, setupToken, this.SETUP_TOKEN_TTL);
-    this.logger.log('Generated setup token for onboarding (stored in Redis)');
+    this.logger.log('Generated new setup token for onboarding (stored in Redis)');
     return setupToken;
   }
 
