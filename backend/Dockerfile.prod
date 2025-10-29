@@ -55,6 +55,12 @@ COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/package*.json ./
 COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
 
+# Rebuild bcrypt for Alpine's musl libc to prevent segfaults
+# Install build tools, rebuild bcrypt from source, then remove build tools
+RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
+    npm rebuild bcrypt --build-from-source && \
+    apk del .build-deps
+
 # Add OCI labels for GHCR integration
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
 LABEL org.opencontainers.image.description="Kraken Backend - Discord-like voice chat application"
