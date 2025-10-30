@@ -1,0 +1,123 @@
+# Electron Builder Configuration
+# https://www.electron.build/configuration/configuration
+
+appId: com.kraken.app
+productName: Kraken
+copyright: Copyright © 2025
+
+# Directories
+directories:
+  buildResources: build
+  output: release
+
+# Files to include in the build
+files:
+  - dist/**/*
+  - electron/dist/**/*
+  - package.json
+
+# Auto-update configuration
+publish:
+  provider: github
+  owner: ${env.GITHUB_OWNER}  # Set via environment variable
+  repo: ${env.GITHUB_REPO}     # Set via environment variable
+
+# Windows configuration
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-Setup-${version}.${ext}
+  # Self-signing for now (creates temporary certificate)
+  # To add proper signing, uncomment and configure:
+  # certificateFile: path/to/certificate.pfx
+  # certificatePassword: ${env.WINDOWS_CERT_PASSWORD}
+
+# NSIS installer configuration (Windows)
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ${productName}
+  # Installer/uninstaller icon
+  # installerIcon: build/installerIcon.ico
+  # uninstallerIcon: build/uninstallerIcon.ico
+  # License file
+  # license: LICENSE.txt
+
+# macOS configuration (for future)
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.social-networking
+  # Code signing (requires Apple Developer account)
+  # identity: "Developer ID Application: Your Name (TEAM_ID)"
+  # hardenedRuntime: true
+  # entitlements: build/entitlements.mac.plist
+  # entitlementsInherit: build/entitlements.mac.plist
+
+# DMG installer configuration (macOS)
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# Linux configuration
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+    - target: rpm
+      arch:
+        - x64
+  category: Network
+  desktop:
+    Name: Kraken
+    GenericName: Voice Chat Application
+    Comment: Discord-like voice chat application
+    Categories: Network;InstantMessaging;AudioVideo;
+    Keywords: chat;voice;video;messaging;
+
+# AppImage configuration
+appImage:
+  license: LICENSE.txt
+  category: Network
+
+# Debian package configuration
+deb:
+  depends:
+    - gconf2
+    - gconf-service
+    - libnotify4
+    - libappindicator1
+    - libxtst6
+    - libnss3
+
+# RPM package configuration
+rpm:
+  depends:
+    - libXScrnSaver
+    - libappindicator-gtk3
+    - libnotify
+
+# Compression
+compression: normal
+
+# Build resources (icons, etc.)
+# Place icons in frontend/build/ directory:
+# - icon.ico (Windows)
+# - icon.icns (macOS)
+# - icon.png (Linux, 512x512)

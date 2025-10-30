@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 import {
   DirectMessageGroup,
   CreateDmGroupDto,
@@ -10,12 +10,7 @@ import { setMessages } from "../messages/messagesSlice";
 
 export const directMessagesApi = createApi({
   reducerPath: "directMessagesApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/direct-messages",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("direct-messages"),
   tagTypes: ["DirectMessageGroup", "DirectMessages"],
   endpoints: (builder) => ({
     getUserDmGroups: builder.query<DirectMessageGroup[], void>({

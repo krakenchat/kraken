@@ -19,6 +19,7 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { AvatarCacheProvider } from "./contexts/AvatarCacheContext";
 import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApiSlice";
 import { CircularProgress, Box } from "@mui/material";
+import AutoUpdater from "./components/Electron/AutoUpdater";
 
 const darkTheme = createTheme({
   colorSchemes: {
@@ -85,6 +86,7 @@ function App() {
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
+      <AutoUpdater />
       <AvatarCacheProvider>
         <NotificationProvider>
           <RoomProvider>

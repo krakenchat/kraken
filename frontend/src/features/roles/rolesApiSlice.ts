@@ -1,6 +1,6 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi } from "@reduxjs/toolkit/query/react";
 import type { UserRoles } from "../../types/roles.type";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 export interface RoleDto {
   id: string;
@@ -37,12 +37,7 @@ export interface RoleUser {
 
 export const rolesApi = createApi({
   reducerPath: "rolesApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/roles",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("roles"),
   endpoints: (builder) => ({
     // Get my roles for a community
     getMyRolesForCommunity: builder.query<UserRoles, string>({

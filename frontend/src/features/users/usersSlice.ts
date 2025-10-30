@@ -1,15 +1,10 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi } from "@reduxjs/toolkit/query/react";
 import type { Register, User } from "../../types/auth.type";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 export const usersApi = createApi({
   reducerPath: "usersApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/users",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("users"),
   tagTypes: ["Profile", "User"],
   endpoints: (builder) => ({
     register: builder.query<User, Register>({

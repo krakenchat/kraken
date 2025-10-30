@@ -1,4 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { createSimpleBaseQuery } from '../createBaseQuery';
 
 export interface OnboardingStatus {
   needsSetup: boolean;
@@ -24,17 +25,9 @@ export interface SetupInstanceResponse {
   defaultCommunityId?: string;
 }
 
-const baseQuery = fetchBaseQuery({
-  baseUrl: '/api/onboarding',
-  prepareHeaders: (headers) => {
-    headers.set('Content-Type', 'application/json');
-    return headers;
-  },
-});
-
 export const onboardingApi = createApi({
   reducerPath: 'onboardingApi',
-  baseQuery,
+  baseQuery: createSimpleBaseQuery('onboarding'),
   tagTypes: ['OnboardingStatus'],
   endpoints: (builder) => ({
     getOnboardingStatus: builder.query<OnboardingStatus, void>({

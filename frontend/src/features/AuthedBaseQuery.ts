@@ -5,6 +5,7 @@ import type {
 } from "@reduxjs/toolkit/query";
 import axios from "axios";
 import { getCachedItem, setCachedItem } from "../utils/storage";
+import { getApiUrl } from "../config/env";
 
 // Track refresh attempts to prevent infinite loops
 let isRefreshing = false;
@@ -43,7 +44,7 @@ const getBaseAuthedQuery = (
       try {
         // Try to refresh
         const refreshResponse = await axios.post<{ accessToken: string }>(
-          "/api/auth/refresh"
+          getApiUrl("/auth/refresh")
         );
 
         console.log("Refresh response", refreshResponse);

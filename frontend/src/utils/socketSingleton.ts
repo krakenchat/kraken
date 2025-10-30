@@ -5,6 +5,7 @@ import type {
 } from "./SocketContext";
 import { getCachedItem, setCachedItem } from "../utils/storage";
 import axios from "axios";
+import { getWebSocketUrl, getApiUrl } from "../config/env";
 
 let socketInstance: Socket<ServerToClientEvents, ClientToServerEvents> | null =
   null;
@@ -25,7 +26,7 @@ export async function getSocketSingleton(): Promise<
     let token = getCachedItem<string>("accessToken");
     try {
       const refreshResponse = await axios.post<{ accessToken: string }>(
-        "/api/auth/refresh"
+        getApiUrl("/auth/refresh")
       );
       if (refreshResponse.data?.accessToken) {
         setCachedItem("accessToken", refreshResponse.data.accessToken);
@@ -35,12 +36,8 @@ export async function getSocketSingleton(): Promise<
       console.error("Error refreshing token", error);
       token = null;
     }
-    // Use environment variable for WebSocket URL, fallback to window origin (for K8s ingress) or localhost for development
-    const url =
-      import.meta.env.VITE_WS_URL ||
-      (typeof window !== "undefined" && window.location.origin !== "null"
-        ? window.location.origin
-        : "http://localhost:3000");
+    // Use configurable WebSocket URL from environment
+    const url = getWebSocketUrl();
     if (!token) {
       throw new Error("No token available for socket connection");
     }

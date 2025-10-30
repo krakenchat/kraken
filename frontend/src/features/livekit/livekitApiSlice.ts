@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 export interface CreateTokenRequest {
   roomId: string;
@@ -18,12 +18,7 @@ export interface ConnectionInfo {
 
 export const livekitApi = createApi({
   reducerPath: "livekitApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/livekit",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("livekit"),
   endpoints: (builder) => ({
     generateToken: builder.mutation<TokenResponse, CreateTokenRequest>({
       query: (body) => ({

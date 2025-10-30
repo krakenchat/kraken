@@ -33,7 +33,8 @@ interface VoiceState {
   isScreenSharing: boolean;
   isMuted: boolean;
   isDeafened: boolean;
-  
+  isSpeaking: boolean;
+
   // UI state
   showVideoTiles: boolean;
   
@@ -59,6 +60,7 @@ const voiceSlice = createSlice({
     setScreenSharing,
     setMuted,
     setDeafened,
+    setSpeaking,
     
     // Participant management
     setParticipants,
@@ -94,6 +96,7 @@ const initialState: VoiceState = {
   isScreenSharing: false,
   isMuted: false,
   isDeafened: false,
+  isSpeaking: false,
   showVideoTiles: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
@@ -226,7 +229,17 @@ setDeafened: (state, action: PayloadAction<boolean>) => {
 }
 ```
 
+#### setSpeaking
+```typescript
+setSpeaking: (state, action: PayloadAction<boolean>) => {
+  state.isSpeaking = action.payload;
+}
+```
+
 **Purpose:** Manage local user's voice and video states.
+
+**Note on isSpeaking:**
+The `isSpeaking` state is automatically updated by the `useSpeakingDetection` hook based on LiveKit audio level detection. You typically don't need to dispatch `setSpeaking` manually - it's handled by the hook when the local user starts/stops speaking.
 
 **Usage:**
 ```typescript
@@ -238,6 +251,10 @@ dispatch(setVideoEnabled(true));
 
 // Start screen sharing
 dispatch(setScreenSharing(true));
+
+// isSpeaking is automatically managed by useSpeakingDetection hook
+// But you can access it from state:
+const isSpeaking = useSelector((state) => state.voice.isSpeaking);
 ```
 
 ### Participant Management Actions

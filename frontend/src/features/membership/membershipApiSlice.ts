@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 export interface CreateMembershipDto {
   userId: string;
@@ -21,12 +21,7 @@ export interface MembershipResponseDto {
 
 export const membershipApi = createApi({
   reducerPath: "membershipApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/membership",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("membership"),
   tagTypes: ["Membership"],
   endpoints: (builder) => ({
     // Create membership (add member to community)

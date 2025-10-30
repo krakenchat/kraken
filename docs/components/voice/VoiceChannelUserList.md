@@ -299,16 +299,27 @@ const userState = {
 - **Null Safety**: Handles undefined/null values gracefully
 - **Consistent Logic**: Standardized state checking across component
 
-### Speaking Detection (Planned)
+### Speaking Detection (✅ Implemented)
 
 ```typescript
-const isSpeaking = false; // TODO: Add speaking detection from LiveKit
+// Real-time speaking detection from LiveKit
+const { isSpeaking } = useSpeakingDetection();
+const speaking = isSpeaking(user.id);
 ```
 
-**Planned Features:**
-- **LiveKit Integration**: Real-time speaking detection from audio levels
-- **Visual Feedback**: Green border around speaking user's avatar
-- **Animation**: Smooth transitions for speaking state changes
+**Implemented Features:**
+- **LiveKit Integration**: Real-time speaking detection using LiveKit's `isSpeakingChanged` event
+- **Visual Feedback**: Green border (#00ff00) around speaking user's avatar
+- **Animation**: Smooth transitions (0.2s ease) for speaking state changes
+- **Redux Integration**: Local user's speaking state synced to Redux store
+- **Multi-participant Support**: Tracks speaking state for all participants simultaneously
+
+**How It Works:**
+1. `useSpeakingDetection` hook listens to LiveKit participant events
+2. When a participant's audio level crosses the speaking threshold, LiveKit fires `isSpeakingChanged`
+3. Hook updates internal Map with participant speaking states
+4. Component receives updated speaking state via `isSpeaking(userId)` function
+5. Avatar border color changes instantly with smooth CSS transition
 
 ### Time-based Information
 
@@ -643,6 +654,7 @@ describe('VoiceChannelUserList', () => {
 ### Direct Dependencies
 
 - **`useGetChannelPresenceQuery`**: Voice presence data fetching
+- **`useSpeakingDetection`**: Real-time speaking detection via LiveKit
 - **Material-UI Components**: List, Avatar, Typography, Chip, Tooltip, etc.
 - **Material-UI Icons**: MicOff, VolumeOff, Videocam, ScreenShare
 - **date-fns**: Time formatting utilities
@@ -667,10 +679,10 @@ describe('VoiceChannelUserList', () => {
 
 ### Planned Features
 
-1. **Speaking Detection**
-   - LiveKit audio level integration
-   - Visual speaking indicators
+1. **Enhanced Speaking Detection** (basic detection ✅ complete)
+   - Audio level meters/waveforms
    - Speaking history/statistics
+   - Customizable speaking threshold
 
 2. **Enhanced Status Display**
    - Push-to-talk indicators

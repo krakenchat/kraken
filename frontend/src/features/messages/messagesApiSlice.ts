@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 import { Message } from "../../types/message.type";
 import {
   setMessages,
@@ -10,12 +10,7 @@ import {
 
 export const messagesApi = createApi({
   reducerPath: "messagesApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/messages",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("messages"),
   endpoints: (builder) => ({
     getMessagesByChannel: builder.query<
       { messages: Message[]; continuationToken?: string },

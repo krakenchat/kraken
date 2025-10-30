@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 export interface UserPresenceResponse {
   userId: string;
@@ -12,12 +12,7 @@ export interface BulkPresenceResponse {
 
 export const presenceApi = createApi({
   reducerPath: "presenceApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/presence",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("presence"),
   tagTypes: ["Presence"],
   endpoints: (builder) => ({
     getUserPresence: builder.query<UserPresenceResponse, string>({

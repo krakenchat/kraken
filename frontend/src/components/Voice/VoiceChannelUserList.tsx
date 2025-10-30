@@ -23,6 +23,7 @@ import { useGetChannelPresenceQuery } from "../../features/voice-presence/voiceP
 import { formatDistanceToNow } from "date-fns";
 import { Channel } from "../../types/channel.type";
 import { ChannelType } from "../../types/channel.type";
+import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -35,7 +36,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   showInline = false,
   showDiscordStyle = false,
 }) => {
-  
+
   const {
     data: presence,
     isLoading,
@@ -43,6 +44,9 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   } = useGetChannelPresenceQuery(channel.id, {
     skip: channel.type !== ChannelType.VOICE,
   });
+
+  // Hook for real-time speaking detection via LiveKit
+  const { isSpeaking } = useSpeakingDetection();
 
   if (channel.type !== ChannelType.VOICE) {
     return null;
@@ -75,7 +79,8 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   const DiscordStyleUserItem: React.FC<{
     user: (typeof presence.users)[0];
   }> = React.memo(({ user }) => {
-    const isSpeaking = false; // TODO: Add speaking detection from LiveKit
+    // Real-time speaking detection from LiveKit
+    const speaking = isSpeaking(user.id);
     
     // Ensure all boolean values are properly defined (handle undefined as false)
     const userState = {
@@ -105,7 +110,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
               sx={{
                 width: 32,
                 height: 32,
-                border: isSpeaking ? "2px solid #00ff00" : "2px solid transparent",
+                border: speaking ? "2px solid #00ff00" : "2px solid transparent",
                 transition: "border-color 0.2s ease",
               }}
             >

@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 import { RootState } from "../../app/store";
 
 export interface VoicePresenceUser {
@@ -52,12 +52,7 @@ export interface DmPresenceResponse {
 
 export const voicePresenceApi = createApi({
   reducerPath: "voicePresenceApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery(""),
   tagTypes: ["VoicePresence"],
   endpoints: (builder) => ({
     getChannelPresence: builder.query<ChannelPresenceResponse, string>({

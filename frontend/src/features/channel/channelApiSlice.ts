@@ -1,6 +1,6 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi } from "@reduxjs/toolkit/query/react";
 import type { Channel } from "../../types/channel.type";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 export interface CreateChannelDto {
   name: string;
@@ -18,12 +18,7 @@ export interface UpdateChannelDto {
 
 export const channelApi = createApi({
   reducerPath: "channelApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/channels",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("channels"),
   tagTypes: ["Channel"],
   endpoints: (builder) => ({
     getChannelsForCommunity: builder.query<Channel[], string>({

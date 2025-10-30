@@ -34,6 +34,7 @@ export interface VoiceState {
   isScreenSharing: boolean;
   isMuted: boolean;
   isDeafened: boolean;
+  isSpeaking: boolean;
 
   // UI state
   showVideoTiles: boolean;
@@ -62,6 +63,7 @@ const initialState: VoiceState = {
   isScreenSharing: false,
   isMuted: false,
   isDeafened: false,
+  isSpeaking: false,
   showVideoTiles: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
@@ -151,7 +153,11 @@ const voiceSlice = createSlice({
     setDeafened: (state, action: PayloadAction<boolean>) => {
       state.isDeafened = action.payload;
     },
-    
+
+    setSpeaking: (state, action: PayloadAction<boolean>) => {
+      state.isSpeaking = action.payload;
+    },
+
     // Participant management actions
     setParticipants: (state, action: PayloadAction<VoicePresenceUser[]>) => {
       state.participants = action.payload;
@@ -201,6 +207,7 @@ export const {
   setScreenSharing,
   setMuted,
   setDeafened,
+  setSpeaking,
   setParticipants,
   updateParticipant,
   removeParticipant,

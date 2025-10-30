@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 export interface CreateChannelMembershipDto {
   userId: string;
@@ -30,12 +30,7 @@ export interface ChannelMembershipResponseDto {
 
 export const channelMembershipApi = createApi({
   reducerPath: "channelMembershipApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/channel-membership",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("channel-membership"),
   tagTypes: ["ChannelMembership"],
   endpoints: (builder) => ({
     // Create channel membership (add member to private channel)

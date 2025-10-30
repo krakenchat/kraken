@@ -7,16 +7,17 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | Category | Implemented | Partial | Missing | Total | Parity % |
 |----------|-------------|---------|---------|-------|----------|
 | **Core Chat** | 11 | 1 | 3 | 15 | 87% |
-| **Voice & Video** | 7 | 2 | 6 | 15 | 67% |
+| **Voice & Video** | 8 | 1 | 6 | 15 | 73% |
 | **Community Management** | 9 | 0 | 4 | 13 | 85% |
 | **User Features** | 5 | 2 | 8 | 15 | 53% |
 | **Moderation** | 2 | 4 | 9 | 15 | 27% |
 | **Social Features** | 2 | 1 | 11 | 14 | 21% |
 | **Mobile/Desktop** | 0 | 1 | 4 | 5 | 10% |
 
-**Overall Parity: ~62%** ⬆️ (up from 56%)
+**Overall Parity: ~64%** ⬆️ (up from 62%)
 
 ### 🎉 Recent Improvements (Phase 1 & 2)
+- **Voice Activity Indicators**: Real-time speaking detection with green avatar borders
 - **Direct Messages**: Full 1:1 and group messaging with file support
 - **File Attachments**: Complete upload, caching, and DM integration
 - **Voice Settings**: Device switching for all audio/video inputs
@@ -83,12 +84,17 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 |---------|---------|---------|-------|
 | **Voice Settings** | ✅ | ✅ | Device switching for audio input/output/video |
 
+### ✅ Recently Completed
+
+| Feature | Discord | Kraken | Notes |
+|---------|---------|---------|-------|
+| **Voice Activity** | ✅ | ✅ | Real-time speaking indicators with LiveKit integration |
+
 ### 🔧 Partially Implemented
 
 | Feature | Discord | Kraken | Status | Missing |
 |---------|---------|---------|---------|---------|
 | **Voice Persistence** | ✅ | 🔧 | Basic | Stay connected across navigation |
-| **Voice Activity** | ✅ | 🔧 | Basic | Voice activity indicators |
 
 ### ❌ Missing
 

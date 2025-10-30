@@ -1,19 +1,14 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi } from "@reduxjs/toolkit/query/react";
 import type { Community } from "../../types/community.type";
 import type { CreateCommunity } from "../../types/create-community.type";
-import getBaseAuthedQuery, { prepareHeaders } from "../AuthedBaseQuery";
+import { createAuthedBaseQuery } from "../createBaseQuery";
 
 // Add UpdateCommunity type for the update mutation
 type UpdateCommunity = Partial<Omit<CreateCommunity, "id">>;
 
 export const communityApi = createApi({
   reducerPath: "communityApi",
-  baseQuery: getBaseAuthedQuery(
-    fetchBaseQuery({
-      baseUrl: "/api/community",
-      prepareHeaders,
-    })
-  ),
+  baseQuery: createAuthedBaseQuery("community"),
   endpoints: (builder) => ({
     myCommunities: builder.query<Community[], void>({
       query: () => ({

@@ -1,0 +1,111 @@
+/**
+ * Preload script for Electron
+ *
+ * This script runs in a sandboxed context with access to both Node.js APIs
+ * and the web page. It uses contextBridge to securely expose APIs to the renderer.
+ *
+ * Security: nodeIntegration is disabled, contextIsolation is enabled
+ */
+
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+
+/**
+ * Update information passed from main process
+ */
+export interface UpdateInfo {
+  version: string;
+  releaseDate?: string;
+  releaseNotes?: string;
+}
+
+/**
+ * Download progress information
+ */
+export interface DownloadProgress {
+  percent: number;
+  bytesPerSecond: number;
+  transferred: number;
+  total: number;
+}
+
+/**
+ * API exposed to renderer process via window.electronAPI
+ */
+const electronAPI = {
+  // Platform information
+  platform: process.platform,
+
+  // Auto-updater events
+  onUpdateAvailable: (callback: (info: UpdateInfo) => void) => {
+    const subscription = (_event: IpcRendererEvent, info: UpdateInfo) => callback(info);
+    ipcRenderer.on('update-available', subscription);
+
+    // Return unsubscribe function
+    return () => {
+      ipcRenderer.removeListener('update-available', subscription);
+    };
+  },
+
+  onUpdateNotAvailable: (callback: () => void) => {
+    const subscription = () => callback();
+    ipcRenderer.on('update-not-available', subscription);
+
+    return () => {
+      ipcRenderer.removeListener('update-not-available', subscription);
+    };
+  },
+
+  onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => {
+    const subscription = (_event: IpcRendererEvent, info: UpdateInfo) => callback(info);
+    ipcRenderer.on('update-downloaded', subscription);
+
+    return () => {
+      ipcRenderer.removeListener('update-downloaded', subscription);
+    };
+  },
+
+  onDownloadProgress: (callback: (progress: DownloadProgress) => void) => {
+    const subscription = (_event: IpcRendererEvent, progress: DownloadProgress) => callback(progress);
+    ipcRenderer.on('download-progress', subscription);
+
+    return () => {
+      ipcRenderer.removeListener('download-progress', subscription);
+    };
+  },
+
+  onUpdateError: (callback: (error: Error) => void) => {
+    const subscription = (_event: IpcRendererEvent, error: Error) => callback(error);
+    ipcRenderer.on('update-error', subscription);
+
+    return () => {
+      ipcRenderer.removeListener('update-error', subscription);
+    };
+  },
+
+  // Auto-updater actions
+  checkForUpdates: () => {
+    ipcRenderer.send('check-for-updates');
+  },
+
+  quitAndInstall: () => {
+    ipcRenderer.send('quit-and-install');
+  },
+
+  // App version
+  getAppVersion: () => {
+    return ipcRenderer.invoke('get-app-version');
+  },
+};
+
+// Expose protected methods to renderer process
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+// Type definitions for TypeScript
+export type ElectronAPI = typeof electronAPI;
+
+// Extend Window interface
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
