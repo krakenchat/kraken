@@ -11,12 +11,10 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  {{- if hasKey .Values.fileStorage "mountOptions" }}
-  {{- if gt (len .Values.fileStorage.mountOptions) 0 }}
+  {{- if and (hasKey .Values.fileStorage "mountOptions") (gt (len .Values.fileStorage.mountOptions) 0) }}
   # Custom NFS mount options from values.yaml
   mountOptions:
     {{- toYaml .Values.fileStorage.mountOptions | nindent 4 }}
-  {{- end }}
   {{- else }}
   # Default resilient NFS mount options to prevent stale file handles
   mountOptions:
