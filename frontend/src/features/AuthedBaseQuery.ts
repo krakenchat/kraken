@@ -44,7 +44,9 @@ const getBaseAuthedQuery = (
       try {
         // Try to refresh
         const refreshResponse = await axios.post<{ accessToken: string }>(
-          getApiUrl("/auth/refresh")
+          getApiUrl("/auth/refresh"),
+          {},
+          { withCredentials: true }
         );
 
         console.log("Refresh response", refreshResponse);

@@ -30,7 +30,11 @@ export async function getSocketSingleton(): Promise<
       const refreshUrl = getApiUrl("/auth/refresh");
       console.log("[Socket] Refreshing token at:", refreshUrl);
 
-      const refreshResponse = await axios.post<{ accessToken: string }>(refreshUrl);
+      const refreshResponse = await axios.post<{ accessToken: string }>(
+        refreshUrl,
+        {},
+        { withCredentials: true }
+      );
       if (refreshResponse.data?.accessToken) {
         setCachedItem("accessToken", refreshResponse.data.accessToken);
         token = refreshResponse.data.accessToken;
