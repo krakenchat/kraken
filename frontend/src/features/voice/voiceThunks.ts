@@ -37,6 +37,32 @@ interface JoinVoiceChannelParams {
   setRoom: (room: Room | null) => void;
 }
 
+/**
+ * Shared helper to connect to LiveKit room and enable microphone
+ * Used by both channel and DM voice joining
+ */
+async function connectToLiveKitRoom(
+  url: string,
+  token: string,
+  setRoom: (room: Room | null) => void,
+  dispatch: any
+): Promise<Room> {
+  const room = new Room();
+  await room.connect(url, token);
+  setRoom(room);
+
+  // Enable microphone by default when joining
+  try {
+    await room.localParticipant.setMicrophoneEnabled(true);
+    dispatch(setAudioEnabled(true));
+  } catch (error) {
+    console.error('Failed to enable microphone:', error);
+    // Don't fail the whole join if mic fails, just log it
+  }
+
+  return room;
+}
+
 export const joinVoiceChannel = createAsyncThunk<
   void,
   JoinVoiceChannelParams,
@@ -74,22 +100,8 @@ export const joinVoiceChannel = createAsyncThunk<
         voicePresenceApi.endpoints.joinVoiceChannel.initiate(channelId)
       ).unwrap();
 
-      // Create and connect to LiveKit room
-      const room = new Room();
-      await room.connect(connectionInfo.url, tokenResponse.token);
-
-      // Store room in external manager
-      setRoom(room);
-
-      // Enable microphone by default when joining
-      try {
-        await room.localParticipant.setMicrophoneEnabled(true);
-        dispatch(setAudioEnabled(true));
-        console.log('[VoiceThunks] Microphone enabled on join');
-      } catch (error) {
-        console.error('[VoiceThunks] Failed to enable microphone:', error);
-        // Don't fail the whole join if mic fails, just log it
-      }
+      // Connect to LiveKit room and enable microphone
+      await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom, dispatch);
 
       dispatch(
         setConnected({
@@ -478,22 +490,8 @@ export const joinDmVoice = createAsyncThunk<
         voicePresenceApi.endpoints.joinDmVoice.initiate(dmGroupId)
       ).unwrap();
 
-      // Create and connect to LiveKit room
-      const room = new Room();
-      await room.connect(connectionInfo.url, tokenResponse.token);
-
-      // Store room in external manager
-      setRoom(room);
-
-      // Enable microphone by default when joining DM call
-      try {
-        await room.localParticipant.setMicrophoneEnabled(true);
-        dispatch(setAudioEnabled(true));
-        console.log('[VoiceThunks] Microphone enabled on DM join');
-      } catch (error) {
-        console.error('[VoiceThunks] Failed to enable microphone in DM:', error);
-        // Don't fail the whole join if mic fails, just log it
-      }
+      // Connect to LiveKit room and enable microphone
+      await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom, dispatch);
 
       dispatch(
         setDmConnected({
