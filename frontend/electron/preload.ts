@@ -34,6 +34,7 @@ export interface DownloadProgress {
 const electronAPI = {
   // Platform information
   platform: process.platform,
+  isElectron: true,
 
   // Auto-updater events
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) => {

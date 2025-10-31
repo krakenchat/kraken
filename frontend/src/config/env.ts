@@ -3,6 +3,8 @@
  * Provides configurable URLs for API and WebSocket connections
  */
 
+import { getActiveServer } from '../utils/serverStorage';
+
 /**
  * Get the base API URL from environment variables or fallback to default
  * In production Electron builds, this should point to the backend server
@@ -15,15 +17,20 @@ export const getApiBaseUrl = (): string => {
     return envUrl;
   }
 
-  // Check for Electron saved backend URL
-  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: unknown }).electronAPI) {
-    const savedUrl = localStorage.getItem('electron:backendUrl');
-    if (savedUrl) {
-      return `${savedUrl}/api`;
+  // Check for Electron active server
+  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron) {
+    const activeServer = getActiveServer();
+    if (activeServer) {
+      return `${activeServer.url}/api`;
     }
   }
 
-  // In development or if not set, use relative path (works with Vite proxy)
+  // In browser development, use relative path (works with Vite proxy)
+  if (typeof window !== 'undefined' && window.location) {
+    return '/api';
+  }
+
+  // Final fallback
   return '/api';
 };
 
@@ -39,14 +46,12 @@ export const getWebSocketUrl = (): string => {
     return envUrl;
   }
 
-  // Check for Electron saved backend URL
-  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: unknown }).electronAPI) {
-    const savedUrl = localStorage.getItem('electron:backendUrl');
-    if (savedUrl) {
-      return savedUrl;
+  // Check for Electron active server
+  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron) {
+    const activeServer = getActiveServer();
+    if (activeServer) {
+      return activeServer.url;
     }
-    // Fallback to localhost if no saved URL
-    return 'http://localhost:3000';
   }
 
   // In browser development, try to use current host

@@ -11,7 +11,6 @@ import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProfileEditPage from "./pages/ProfileEditPage";
-import BackendConfigPage from "./pages/BackendConfigPage";
 import SettingsPage from "./pages/SettingsPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -22,6 +21,9 @@ import { AvatarCacheProvider } from "./contexts/AvatarCacheContext";
 import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApiSlice";
 import { CircularProgress, Box } from "@mui/material";
 import AutoUpdater from "./components/Electron/AutoUpdater";
+import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
+import { hasServers } from "./utils/serverStorage";
+import { useState } from "react";
 
 const darkTheme = createTheme({
   colorSchemes: {
@@ -34,9 +36,10 @@ function App() {
   const location = useLocation();
   const token = localStorage.getItem("accessToken");
 
-  // Check if running in Electron and needs backend URL configuration
-  const isElectron = window && (window as Window & { electronAPI?: unknown }).electronAPI;
-  const hasBackendUrl = localStorage.getItem('electron:backendUrl');
+  // Check if running in Electron and needs server configuration
+  const isElectron = window && (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron;
+  const needsServerSetup = isElectron && !hasServers();
+  const [showWizard, setShowWizard] = useState(needsServerSetup);
 
   // Check if onboarding is needed - but only make the request if we're not already on the onboarding page
   const shouldCheckOnboarding = location.pathname !== "/onboarding";
@@ -45,12 +48,19 @@ function App() {
     { skip: !shouldCheckOnboarding }
   );
 
-  // Show backend config page for Electron if needed (after hooks are called)
-  if (isElectron && !hasBackendUrl) {
+  // Show connection wizard for Electron if no servers configured
+  if (showWizard) {
     return (
       <ThemeProvider theme={darkTheme}>
         <CssBaseline />
-        <BackendConfigPage />
+        <ConnectionWizard
+          open={true}
+          onComplete={() => {
+            setShowWizard(false);
+            // Reload the page to pick up the new server configuration
+            window.location.reload();
+          }}
+        />
       </ThemeProvider>
     );
   }
