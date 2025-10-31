@@ -5,7 +5,7 @@
  * It handles window creation, auto-updates, and IPC communication.
  */
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
 
@@ -157,6 +157,19 @@ function createWindow() {
 
 // When Electron has finished initialization
 app.whenReady().then(() => {
+  // Setup media permissions for camera, microphone, and screen sharing
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'display-capture'];
+
+    if (allowedPermissions.includes(permission)) {
+      console.log(`Granting permission: ${permission}`);
+      callback(true);
+    } else {
+      console.log(`Denying permission: ${permission}`);
+      callback(false);
+    }
+  });
+
   createWindow();
   setupAutoUpdater();
   setupIpcHandlers();

@@ -249,7 +249,7 @@ export const toggleScreenShare = createAsyncThunk<
     // Then handle the actual LiveKit screen share (this is the async part that prompts user)
     if (newState) {
       await room.localParticipant.setScreenShareEnabled(true, {
-        audio: false,
+        audio: true, // Enable system audio capture (works in Electron)
         resolution: {
           frameRate: 60,
         },
