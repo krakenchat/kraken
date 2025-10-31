@@ -7,7 +7,7 @@ export interface DirectMessageGroup {
   lastMessage?: {
     id: string;
     authorId: string;
-    spans: any[];
+    spans: Array<{ type: string; text?: string; [key: string]: unknown }>;
     sentAt: Date;
   } | null;
 }

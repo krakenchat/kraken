@@ -6,7 +6,7 @@
  */
 
 import { app, BrowserWindow, ipcMain } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
@@ -29,14 +29,14 @@ function setupAutoUpdater() {
     console.log('Checking for updates...');
   });
 
-  autoUpdater.on('update-available', (info: any) => {
+  autoUpdater.on('update-available', (info: UpdateInfo) => {
     console.log('Update available:', info);
     if (mainWindow) {
       mainWindow.webContents.send('update-available', info);
     }
   });
 
-  autoUpdater.on('update-not-available', (info: any) => {
+  autoUpdater.on('update-not-available', (info: UpdateInfo) => {
     console.log('Update not available:', info);
     if (mainWindow) {
       mainWindow.webContents.send('update-not-available');
@@ -50,14 +50,14 @@ function setupAutoUpdater() {
     }
   });
 
-  autoUpdater.on('download-progress', (progressObj: any) => {
+  autoUpdater.on('download-progress', (progressObj: ProgressInfo) => {
     console.log(`Download progress: ${progressObj.percent}%`);
     if (mainWindow) {
       mainWindow.webContents.send('download-progress', progressObj);
     }
   });
 
-  autoUpdater.on('update-downloaded', (info: any) => {
+  autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     console.log('Update downloaded:', info);
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded', info);
@@ -139,7 +139,10 @@ function createWindow() {
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // In production, load from the dist directory
+    // Use app.getAppPath() for proper path resolution in packaged app
+    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
+    mainWindow.loadFile(indexPath);
   }
 
   // Handle window closed

@@ -236,6 +236,10 @@ export class OnboardingService {
     await this.redis.del(this.SETUP_TOKEN_KEY);
     this.logger.log('Instance setup completed successfully, token cleared');
 
+    // Store instance name in Redis (permanent, no TTL)
+    await this.redis.set('instance:name', dto.instanceName);
+    this.logger.log(`Stored instance name in Redis: ${dto.instanceName}`);
+
     return result;
   }
 

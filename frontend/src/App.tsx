@@ -11,6 +11,8 @@ import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProfileEditPage from "./pages/ProfileEditPage";
+import BackendConfigPage from "./pages/BackendConfigPage";
+import SettingsPage from "./pages/SettingsPage";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import CommunityPage from "./pages/CommunityPage";
@@ -31,13 +33,27 @@ const darkTheme = createTheme({
 function App() {
   const location = useLocation();
   const token = localStorage.getItem("accessToken");
-  
+
+  // Check if running in Electron and needs backend URL configuration
+  const isElectron = window && (window as Window & { electronAPI?: unknown }).electronAPI;
+  const hasBackendUrl = localStorage.getItem('electron:backendUrl');
+
   // Check if onboarding is needed - but only make the request if we're not already on the onboarding page
   const shouldCheckOnboarding = location.pathname !== "/onboarding";
   const { data: onboardingStatus, isLoading: isCheckingOnboarding } = useGetOnboardingStatusQuery(
     undefined,
     { skip: !shouldCheckOnboarding }
   );
+
+  // Show backend config page for Electron if needed (after hooks are called)
+  if (isElectron && !hasBackendUrl) {
+    return (
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <BackendConfigPage />
+      </ThemeProvider>
+    );
+  }
   
   // Allow access to certain routes without authentication
   const publicRoutes = ["/login", "/register", "/join", "/onboarding"];
@@ -102,6 +118,7 @@ function App() {
                 <Route index element={<HomePage />} />
                 <Route path="direct-messages" element={<DirectMessagesPage />} />
                 <Route path="admin/invites" element={<AdminInvitePage />} />
+                <Route path="settings" element={<SettingsPage />} />
                 <Route path="profile/edit" element={<ProfileEditPage />} />
                 <Route path="profile/:userId" element={<ProfilePage />} />
                 <Route path="community/create" element={<CreateCommunityPage />} />

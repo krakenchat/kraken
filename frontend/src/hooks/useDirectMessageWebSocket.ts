@@ -1,6 +1,6 @@
 import { useSocket } from "./useSocket";
 import { useEffect } from "react";
-import { Message } from "../types/message.type";
+import { Message, Reaction } from "../types/message.type";
 import { ServerEvents } from "../types/server-events.enum";
 import { ClientEvents } from "../types/client-events.enum";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
@@ -54,7 +54,7 @@ export function useDirectMessageWebSocket() {
       reaction,
     }: {
       messageId: string;
-      reaction: any;
+      reaction: Reaction;
     }) => {
       // Find the message in all DM groups and update it
       Object.keys(messagesByChannelId).forEach((dmGroupId) => {
@@ -80,7 +80,6 @@ export function useDirectMessageWebSocket() {
 
     const handleReactionRemoved = ({
       messageId,
-      emoji,
       reactions,
     }: {
       messageId: string;

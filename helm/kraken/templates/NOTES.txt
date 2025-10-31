@@ -36,7 +36,7 @@ To access your application, you can port-forward:
 
   Backend API:
   $ kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "kraken.fullname" . }}-backend {{ .Values.backend.service.port }}:{{ .Values.backend.service.port }}
-  Then visit: http://localhost:{{ .Values.backend.service.port }}/health
+  Then visit: http://localhost:{{ .Values.backend.service.port }}/api/health
 
 {{- end }}
 

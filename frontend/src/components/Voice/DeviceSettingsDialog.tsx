@@ -24,7 +24,6 @@ import {
   MicOff,
   Videocam,
   VideocamOff,
-  VolumeUp,
   Refresh,
   CheckCircle,
   Error as ErrorIcon,
@@ -174,7 +173,7 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
     await enumerateDevices();
   };
 
-  const getDeviceLabel = (device: any) => {
+  const getDeviceLabel = (device: MediaDeviceInfo) => {
     if (!device.label || device.label === '') {
       return `${device.kind} (${device.deviceId.slice(0, 8)}...)`;
     }

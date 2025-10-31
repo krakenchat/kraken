@@ -16,7 +16,6 @@ import {
 import {
   PersonAdd as PersonAddIcon,
   ContentCopy as CopyIcon,
-  Link as LinkIcon,
   Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { Link } from "react-router-dom";

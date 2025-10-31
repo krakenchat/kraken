@@ -77,7 +77,6 @@ export function useChannelWebSocket(communityId: string | undefined) {
 
     const handleReactionRemoved = ({
       messageId,
-      emoji,
       reactions,
     }: {
       messageId: string;

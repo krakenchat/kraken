@@ -42,7 +42,6 @@ export function useMentionAutocomplete({
   const {
     data: allMembers = [],
     isLoading: isLoadingMembers,
-    isFetching: isFetchingMembers,
   } = useGetAllCommunityMembersQuery(communityId, {
     skip: !communityId || communityId.trim() === '',
   });

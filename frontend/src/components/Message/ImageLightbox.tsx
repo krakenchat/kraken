@@ -55,7 +55,7 @@ const CloseButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
-const NavigationButton = styled(IconButton)(({ theme }) => ({
+const NavigationButton = styled(IconButton)(() => ({
   position: "fixed",
   top: "50%",
   transform: "translateY(-50%)",

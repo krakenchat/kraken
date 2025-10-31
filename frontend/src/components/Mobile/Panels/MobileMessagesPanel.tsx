@@ -10,7 +10,6 @@ import {
   Avatar,
   AppBar,
   Toolbar,
-  IconButton,
   Fab,
   CircularProgress,
   Dialog,
@@ -32,7 +31,6 @@ import { useGetAllUsersQuery, useProfileQuery } from '../../../features/users/us
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
 import { DirectMessageGroup } from '../../../types/direct-message.type';
-import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: string;
@@ -46,7 +44,6 @@ interface User {
  * First panel in the Messages tab
  */
 export const MobileMessagesPanel: React.FC = () => {
-  const navigate = useNavigate();
   const { pushPanel } = useMobileNavigation();
   const { data: dmGroups = [], isLoading } = useGetUserDmGroupsQuery();
   const { data: usersData } = useGetAllUsersQuery({ limit: 100 });
@@ -301,7 +298,8 @@ export const MobileMessagesPanel: React.FC = () => {
               )}
               renderTags={(tagValue, getTagProps) =>
                 tagValue.map((user, index) => {
-                  const { key, ...chipProps } = getTagProps({ index });
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  const { key: _key, ...chipProps } = getTagProps({ index });
                   return (
                     <Chip
                       key={user.id}

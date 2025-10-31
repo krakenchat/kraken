@@ -331,7 +331,7 @@ sudo chown -R $USER:$USER .
 ## 📊 Verification
 
 ### Health Checks
-1. **Backend**: http://localhost:3000/health (if implemented)
+1. **Backend**: http://localhost:3000/api/health (if implemented)
 2. **Frontend**: http://localhost:5173 should load
 3. **Database**: Connection logs in backend console
 4. **Redis**: Backend should connect without errors

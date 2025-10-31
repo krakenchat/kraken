@@ -14,7 +14,6 @@ import {
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon,
   Person as PersonIcon,
   Business as BusinessIcon,
   Groups as GroupsIcon,

@@ -51,14 +51,6 @@ export const useResponsive = () => {
 
     // Capabilities
     isTouchDevice,
-
-    // Utility functions
-    up: (breakpoint: 'xs' | 'sm' | 'md' | 'lg' | 'xl') =>
-      useMediaQuery(theme.breakpoints.up(breakpoint)),
-    down: (breakpoint: 'xs' | 'sm' | 'md' | 'lg' | 'xl') =>
-      useMediaQuery(theme.breakpoints.down(breakpoint)),
-    between: (start: 'xs' | 'sm' | 'md' | 'lg', end: 'sm' | 'md' | 'lg' | 'xl') =>
-      useMediaQuery(theme.breakpoints.between(start, end)),
   };
 };
 

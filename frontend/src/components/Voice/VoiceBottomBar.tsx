@@ -70,7 +70,8 @@ export const VoiceBottomBar: React.FC = () => {
     }
   };
 
-  const handleDeviceSettingsOpen = (type?: 'audio' | 'video') => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleDeviceSettingsOpen = (_type?: 'audio' | 'video') => {
     setShowDeviceSettings(true);
     handleSettingsClose();
   };

@@ -50,7 +50,7 @@ kraken/
 - **Base image**: `node:22-alpine` for minimal size
 - **Security**: Non-root user (nestjs:1001)
 - **Optimizations**: Production dependencies only, Prisma generated
-- **Health checks**: Built-in `/health` endpoint
+- **Health checks**: Built-in `/api/health` endpoint
 - **OCI labels**: Proper GHCR integration
 
 #### Frontend (`frontend/Dockerfile.prod`)
@@ -63,7 +63,7 @@ kraken/
   - Environment variable substitution
   - Security headers
   - Gzip compression
-- **Health check**: `/health` endpoint
+- **Health check**: `/api/health` endpoint
 
 ### Building Locally
 

@@ -20,7 +20,14 @@ import type { User } from "./types/auth.type";
 const APPBAR_HEIGHT = 64;
 const SIDEBAR_WIDTH = 80;
 const VOICE_BAR_HEIGHT = 64;
-const settings = ["Edit Profile", "Logout"];
+
+// Check if running in Electron
+const isElectron = typeof window !== 'undefined' &&
+  (window as Window & { electronAPI?: unknown }).electronAPI;
+
+const settings = isElectron
+  ? ["Edit Profile", "Settings", "Logout"]
+  : ["Edit Profile", "Logout"];
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();
@@ -53,6 +60,8 @@ const Layout: React.FC = () => {
   const handleSettingClick = (setting: string) => {
     if (setting === "Edit Profile") {
       navigate("/profile/edit");
+    } else if (setting === "Settings") {
+      navigate("/settings");
     } else if (setting === "Logout") {
       handleLogout();
     }

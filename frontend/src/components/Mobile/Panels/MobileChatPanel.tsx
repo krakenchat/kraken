@@ -25,7 +25,6 @@ import ChannelMessageContainer from '../../Channel/ChannelMessageContainer';
 import { VideoTiles } from '../../Voice/VideoTiles';
 import { VoiceChannelJoinButton } from '../../Voice/VoiceChannelJoinButton';
 import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
-import { useNavigate } from 'react-router-dom';
 
 interface MobileChatPanelProps {
   communityId?: string;
@@ -38,11 +37,9 @@ interface MobileChatPanelProps {
  * Third panel in the Communities tab, or second panel in Messages tab
  */
 export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
-  communityId,
   channelId,
   dmGroupId,
 }) => {
-  const navigate = useNavigate();
   const { popPanel } = useMobileNavigation();
   const { state: voiceState } = useVoiceConnection();
 

@@ -35,7 +35,7 @@ export const useVoiceEvents = () => {
             }
           })
         );
-      } catch (error) {
+      } catch {
         console.log('No cache found for channel, invalidating tag:', data.channelId);
         // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
         dispatch(
@@ -61,7 +61,7 @@ export const useVoiceEvents = () => {
             }
           })
         );
-      } catch (error) {
+      } catch {
         console.log('No cache found for channel, invalidating tag:', data.channelId);
         // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
         dispatch(
@@ -87,7 +87,7 @@ export const useVoiceEvents = () => {
             }
           })
         );
-      } catch (error) {
+      } catch {
         console.log('No cache found for channel, invalidating tag:', data.channelId);
         // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
         dispatch(

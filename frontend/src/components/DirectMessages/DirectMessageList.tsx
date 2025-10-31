@@ -225,6 +225,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
               )}
               renderTags={(tagValue, getTagProps) =>
                 tagValue.map((user, index) => {
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
                   const { key, ...chipProps } = getTagProps({ index });
                   return (
                     <Chip

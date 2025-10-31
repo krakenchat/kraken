@@ -15,6 +15,14 @@ export const getApiBaseUrl = (): string => {
     return envUrl;
   }
 
+  // Check for Electron saved backend URL
+  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: unknown }).electronAPI) {
+    const savedUrl = localStorage.getItem('electron:backendUrl');
+    if (savedUrl) {
+      return `${savedUrl}/api`;
+    }
+  }
+
   // In development or if not set, use relative path (works with Vite proxy)
   return '/api';
 };
@@ -31,10 +39,13 @@ export const getWebSocketUrl = (): string => {
     return envUrl;
   }
 
-  // Check if running in Electron
-  if (window && (window as any).electronAPI) {
-    // In Electron production, default to localhost:3000
-    // User can override this with environment variable
+  // Check for Electron saved backend URL
+  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: unknown }).electronAPI) {
+    const savedUrl = localStorage.getItem('electron:backendUrl');
+    if (savedUrl) {
+      return savedUrl;
+    }
+    // Fallback to localhost if no saved URL
     return 'http://localhost:3000';
   }
 

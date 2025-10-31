@@ -22,8 +22,7 @@ interface MobilePanelContainerProps {
 export const MobilePanelContainer: React.FC<MobilePanelContainerProps> = ({
   bottomOffset = 0,
 }) => {
-  const { panelStack, popPanel, getCurrentPanel } = useMobileNavigation();
-  const currentPanel = getCurrentPanel();
+  const { panelStack, popPanel } = useMobileNavigation();
 
   // Handle swipe right to go back
   const swipeHandlers = useSwipeGesture({

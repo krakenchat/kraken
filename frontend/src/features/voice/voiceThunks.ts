@@ -346,7 +346,7 @@ export const switchAudioInputDevice = createAsyncThunk<
   "voice/switchAudioInputDevice",
   async ({ deviceId, getRoom }, { dispatch, getState }) => {
     const state = getState();
-    const { currentChannelId, isAudioEnabled } = state.voice;
+    const { currentChannelId } = state.voice;
     const room = getRoom();
 
     if (!room || !currentChannelId) return;
@@ -402,6 +402,7 @@ export const switchVideoInputDevice = createAsyncThunk<
   "voice/switchVideoInputDevice",
   async ({ deviceId, getRoom }, { dispatch, getState }) => {
     const state = getState();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { currentChannelId, isVideoEnabled } = state.voice;
     const room = getRoom();
 
@@ -446,8 +447,6 @@ export const joinDmVoice = createAsyncThunk<
       dmGroupId,
       dmGroupName,
       user,
-      connectionInfo,
-      socket,
       setRoom,
     },
     { dispatch }
@@ -507,7 +506,7 @@ export const leaveDmVoice = createAsyncThunk<
   { state: RootState }
 >(
   "voice/leaveDmVoice",
-  async ({ socket, getRoom, setRoom }, { dispatch, getState }) => {
+  async ({ getRoom, setRoom }, { dispatch, getState }) => {
     const state = getState();
     const { currentDmGroupId } = state.voice;
     const room = getRoom();

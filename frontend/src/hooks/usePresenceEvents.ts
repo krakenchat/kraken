@@ -43,7 +43,7 @@ export const usePresenceEvents = () => {
       Object.keys(presenceQueries).forEach((queryKey) => {
         if (queryKey.startsWith('getMultipleUserPresence')) {
           const queryData = presenceQueries[queryKey];
-          if (queryData?.data?.presence && queryData.data.presence.hasOwnProperty(data.userId)) {
+          if (queryData?.data?.presence && Object.prototype.hasOwnProperty.call(queryData.data.presence, data.userId)) {
             dispatch(
               presenceApi.util.updateQueryData('getMultipleUserPresence', queryData.originalArgs, (draft) => {
                 draft.presence[data.userId] = true;
@@ -75,7 +75,7 @@ export const usePresenceEvents = () => {
       Object.keys(presenceQueries).forEach((queryKey) => {
         if (queryKey.startsWith('getMultipleUserPresence')) {
           const queryData = presenceQueries[queryKey];
-          if (queryData?.data?.presence && queryData.data.presence.hasOwnProperty(data.userId)) {
+          if (queryData?.data?.presence && Object.prototype.hasOwnProperty.call(queryData.data.presence, data.userId)) {
             dispatch(
               presenceApi.util.updateQueryData('getMultipleUserPresence', queryData.originalArgs, (draft) => {
                 draft.presence[data.userId] = false;

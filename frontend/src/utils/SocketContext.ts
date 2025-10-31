@@ -10,12 +10,13 @@ import {
   DeleteMessagePayload,
 } from "../types/websocket-payloads";
 import { VoicePresenceUser } from "../features/voice-presence/voicePresenceApiSlice";
+import { Span, FileMetadata, Message } from "../types/message.type";
 
 export type ServerToClientEvents = {
   [ServerEvents.NEW_MESSAGE]: (data: NewMessagePayload) => void;
   [ServerEvents.UPDATE_MESSAGE]: (data: UpdateMessagePayload) => void;
   [ServerEvents.DELETE_MESSAGE]: (data: DeleteMessagePayload) => void;
-  [ServerEvents.NEW_DM]: (data: { message: any }) => void;
+  [ServerEvents.NEW_DM]: (data: { message: Message }) => void;
   [ServerEvents.VOICE_CHANNEL_USER_JOINED]: (data: { channelId: string; user: VoicePresenceUser }) => void;
   [ServerEvents.VOICE_CHANNEL_USER_LEFT]: (data: { channelId: string; userId: string; user: VoicePresenceUser }) => void;
   [ServerEvents.VOICE_CHANNEL_USER_UPDATED]: (data: { channelId: string; userId: string; user: VoicePresenceUser; updates: Record<string, unknown> }) => void;
@@ -33,8 +34,8 @@ export type ClientToServerEvents = {
   ) => void;
   [ClientEvents.SEND_DM]: (data: {
     directMessageGroupId: string;
-    spans: any[];
-    attachments: any[];
+    spans: Span[];
+    attachments: FileMetadata[];
   }, callback?: (messageId: string) => void) => void;
   [ClientEvents.VOICE_CHANNEL_JOIN]: (data: { channelId: string }) => void;
   [ClientEvents.VOICE_CHANNEL_LEAVE]: (data: { channelId: string }) => void;

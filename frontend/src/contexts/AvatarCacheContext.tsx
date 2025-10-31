@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useRef, useCallback, useEffect } from "react";
 
 interface FileCacheContextType {
@@ -112,12 +113,16 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }
 
   // Cleanup: Revoke all blob URLs when provider unmounts
   useEffect(() => {
+    // Capture ref values for cleanup
+    const cache = cacheRef.current;
+    const pending = pendingRef.current;
+
     return () => {
-      cacheRef.current.forEach((blobUrl) => {
+      cache.forEach((blobUrl) => {
         URL.revokeObjectURL(blobUrl);
       });
-      cacheRef.current.clear();
-      pendingRef.current.clear();
+      cache.clear();
+      pending.clear();
     };
   }, []);
 

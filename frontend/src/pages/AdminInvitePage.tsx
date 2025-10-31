@@ -36,7 +36,6 @@ import {
   ContentCopy as CopyIcon,
   Delete as DeleteIcon,
   Link as LinkIcon,
-  Analytics as AnalyticsIcon,
   FilterList as FilterIcon,
 } from "@mui/icons-material";
 import {

@@ -76,7 +76,7 @@ export const messagesApi = createApi({
             enrichedMessage = {
               ...updatedMessage,
               attachments: updatedMessage.attachments
-                .map((idOrObj: any) => {
+                .map((idOrObj: string | FileMetadata) => {
                   // If it's already an object with metadata, use it
                   if (typeof idOrObj === 'object' && idOrObj.id) return idOrObj;
                   // If it's just an ID string, look up the metadata
@@ -146,7 +146,8 @@ export const messagesApi = createApi({
         method: "POST",
         body: { fileId },
       }),
-      async onQueryStarted({ messageId }, { dispatch, queryFulfilled }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      async onQueryStarted({ messageId: _messageId }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedMessage } = await queryFulfilled;
           // Update message in Redux store if channelId is available

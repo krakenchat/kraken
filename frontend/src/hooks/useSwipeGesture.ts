@@ -136,7 +136,7 @@ export const useLongPress = (
     }, delay);
   };
 
-  const cancel = (e: TouchEvent | React.MouseEvent) => {
+  const cancel = () => {
     if (timeout.current) {
       clearTimeout(timeout.current);
     }

@@ -15,13 +15,6 @@ interface UpdateInfo {
   releaseNotes?: string;
 }
 
-interface DownloadProgress {
-  percent: number;
-  bytesPerSecond: number;
-  transferred: number;
-  total: number;
-}
-
 export const AutoUpdater = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);

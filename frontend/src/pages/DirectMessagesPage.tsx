@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box, Typography, useTheme, useMediaQuery, Paper, Avatar, IconButton } from "@mui/material";
+import { Box, Typography, useTheme, useMediaQuery, Paper, IconButton } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import DirectMessageList from "../components/DirectMessages/DirectMessageList";
 import DirectMessageContainer from "../components/DirectMessages/DirectMessageContainer";
@@ -7,6 +7,7 @@ import { DMChatHeader } from "../components/DirectMessages/DMChatHeader";
 import { useGetDmGroupQuery } from "../features/directMessages/directMessagesApiSlice";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { styled } from "@mui/material/styles";
+import { DirectMessageGroup, DirectMessageGroupMember } from "../types/direct-message.type";
 
 const Root = styled(Box)({
   display: "flex",
@@ -69,17 +70,17 @@ const DirectMessagesPage: React.FC = () => {
     skip: !selectedDmGroupId,
   });
 
-  const getDmDisplayName = (dmGroup: any): string => {
+  const getDmDisplayName = (dmGroup: DirectMessageGroup): string => {
     if (dmGroup?.name) return dmGroup.name;
-    
+
     if (!dmGroup?.isGroup && dmGroup?.members?.length === 2) {
-      const otherMember = dmGroup.members.find((m: any) => m.user.id !== currentUser?.id);
+      const otherMember = dmGroup.members.find((m: DirectMessageGroupMember) => m.user.id !== currentUser?.id);
       return otherMember?.user.displayName || otherMember?.user.username || "Unknown User";
     }
-    
+
     return dmGroup?.members
-      ?.filter((m: any) => m.user.id !== currentUser?.id)
-      ?.map((m: any) => m.user.displayName || m.user.username)
+      ?.filter((m: DirectMessageGroupMember) => m.user.id !== currentUser?.id)
+      ?.map((m: DirectMessageGroupMember) => m.user.displayName || m.user.username)
       ?.join(", ") || "Group Chat";
   };
 
