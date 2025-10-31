@@ -13,10 +13,10 @@ import {
   alpha,
 } from '@mui/material';
 import {
-  Person as PersonIcon,
   Notifications as NotificationIcon,
 } from '@mui/icons-material';
 import { MentionSuggestion } from '../../hooks/useMentionAutocomplete';
+import UserAvatar from '../Common/UserAvatar';
 
 interface MentionDropdownProps {
   suggestions: MentionSuggestion[];
@@ -190,36 +190,24 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
               }}
             >
               {suggestion.type === 'user' ? (
-                suggestion.avatar ? (
-                  <Avatar
-                    src={suggestion.avatar}
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      border: index === selectedIndex
-                        ? `2px solid ${alpha(theme.palette.primary.main, 0.5)}`
-                        : `2px solid ${alpha(theme.palette.divider, 0.1)}`,
-                      transition: 'border 0.15s ease-in-out',
+                <Box
+                  sx={{
+                    border: index === selectedIndex
+                      ? `2px solid ${alpha(theme.palette.primary.main, 0.5)}`
+                      : `2px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    transition: 'border 0.15s ease-in-out',
+                    borderRadius: '50%',
+                  }}
+                >
+                  <UserAvatar
+                    user={{
+                      avatarUrl: suggestion.avatar,
+                      displayName: suggestion.displayName,
+                      username: suggestion.displayName,
                     }}
-                  >
-                    <PersonIcon fontSize="small" />
-                  </Avatar>
-                ) : (
-                  <Avatar
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      bgcolor: alpha(theme.palette.primary.main, 0.1),
-                      color: 'primary.main',
-                      border: index === selectedIndex
-                        ? `2px solid ${alpha(theme.palette.primary.main, 0.5)}`
-                        : `2px solid ${alpha(theme.palette.divider, 0.1)}`,
-                      transition: 'all 0.15s ease-in-out',
-                    }}
-                  >
-                    <PersonIcon fontSize="small" />
-                  </Avatar>
-                )
+                    size="small"
+                  />
+                </Box>
               ) : (
                 <Avatar
                   sx={{

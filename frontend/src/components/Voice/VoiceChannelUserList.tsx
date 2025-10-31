@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Box,
-  Avatar,
   Typography,
   Chip,
   Tooltip,
@@ -24,6 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Channel } from "../../types/channel.type";
 import { ChannelType } from "../../types/channel.type";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import UserAvatar from "../Common/UserAvatar";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -104,18 +104,15 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       >
         <ListItemAvatar sx={{ minWidth: 40 }}>
           <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <Avatar
-              src={user.avatarUrl}
-              alt={user.displayName || user.username}
+            <Box
               sx={{
-                width: 32,
-                height: 32,
                 border: speaking ? "2px solid #00ff00" : "2px solid transparent",
                 transition: "border-color 0.2s ease",
+                borderRadius: "50%",
               }}
             >
-              {(user.displayName || user.username).charAt(0).toUpperCase()}
-            </Avatar>
+              <UserAvatar user={user} size="small" />
+            </Box>
             
             {/* Audio status badge - Discord-style (deafen takes priority over mute) */}
             {userState.isDeafened ? (
@@ -241,13 +238,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           }}
         >
           <ListItemAvatar>
-            <Avatar
-              src={user.avatarUrl}
-              alt={user.displayName || user.username}
-              sx={{ width: 32, height: 32 }}
-            >
-              {(user.displayName || user.username).charAt(0).toUpperCase()}
-            </Avatar>
+            <UserAvatar user={user} size="small" />
           </ListItemAvatar>
 
           <ListItemText
@@ -293,18 +284,21 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       >
         {presence.users.slice(0, 3).map((user) => (
           <Tooltip key={user.id} title={user.displayName || user.username}>
-            <Avatar
-              src={user.avatarUrl}
-              alt={user.displayName || user.username}
+            <Box
               sx={{
                 width: 24,
                 height: 24,
                 border: user.isVideoEnabled ? "2px solid" : "none",
                 borderColor: "primary.main",
+                borderRadius: "50%",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              {(user.displayName || user.username).charAt(0).toUpperCase()}
-            </Avatar>
+              <UserAvatar user={user} size="small" />
+            </Box>
           </Tooltip>
         ))}
         {presence.users.length > 3 && (
