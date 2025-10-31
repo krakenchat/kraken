@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { Room } from "livekit-client";
 import { Socket } from "socket.io-client";
-import { RootState } from "../../app/store";
+import { RootState, AppDispatch } from "../../app/store";
 import {
   setConnecting,
   setConnected,
@@ -45,7 +45,7 @@ async function connectToLiveKitRoom(
   url: string,
   token: string,
   setRoom: (room: Room | null) => void,
-  dispatch: any
+  dispatch: AppDispatch
 ): Promise<Room> {
   const room = new Room();
   await room.connect(url, token);

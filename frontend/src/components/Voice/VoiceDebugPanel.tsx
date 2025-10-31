@@ -3,7 +3,6 @@ import { Box, Paper, Typography, Chip, Divider } from '@mui/material';
 import { useRoom } from '../../hooks/useRoom';
 import { useSpeakingDetection } from '../../hooks/useSpeakingDetection';
 import { useProfileQuery } from '../../features/users/usersSlice';
-import { Participant } from 'livekit-client';
 
 /**
  * Debug panel to help diagnose voice and speaking detection issues
@@ -96,7 +95,7 @@ export const VoiceDebugPanel: React.FC = () => {
   );
 
   const allSpeakingUsers = Array.from(speakingMap.entries())
-    .filter(([_, speaking]) => speaking)
+    .filter(([, speaking]) => speaking)
     .map(([identity]) => identity);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -87,15 +87,7 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
     getVideoConstraints,
   } = useDeviceSettings();
 
-  // Clean up test stream when dialog closes
-  useEffect(() => {
-    if (!open) {
-      stopAudioTest();
-      stopTestStream();
-    }
-  }, [open]);
-
-  const stopAudioTest = () => {
+  const stopAudioTest = useCallback(() => {
     // Stop animation frame
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -120,9 +112,9 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
     // Reset audio level
     setAudioLevel(0);
     setTestingAudio(false);
-  };
+  }, [testingAudio]);
 
-  const stopTestStream = () => {
+  const stopTestStream = useCallback(() => {
     if (testStreamRef.current) {
       testStreamRef.current.getTracks().forEach(track => track.stop());
       testStreamRef.current = null;
@@ -131,7 +123,15 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
       videoRef.current.srcObject = null;
     }
     setTestingVideo(false);
-  };
+  }, []);
+
+  // Clean up test stream when dialog closes
+  useEffect(() => {
+    if (!open) {
+      stopAudioTest();
+      stopTestStream();
+    }
+  }, [open, stopAudioTest, stopTestStream]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
