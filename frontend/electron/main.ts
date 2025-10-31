@@ -5,7 +5,7 @@
  * It handles window creation, auto-updates, and IPC communication.
  */
 
-import { app, BrowserWindow, ipcMain, session, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, session, protocol } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -99,10 +99,35 @@ function registerProtocol() {
 }
 
 /**
+ * Get MIME type from file extension
+ */
+function getMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeTypes: { [key: string]: string } = {
+    '.html': 'text/html',
+    '.js': 'application/javascript',
+    '.mjs': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
+/**
  * Setup custom protocol handler
  */
 function setupProtocolHandler() {
-  protocol.handle('app', (request) => {
+  protocol.handle('app', async (request) => {
     // Remove the app:// prefix and handle the request
     let url = request.url.substr(6); // Remove 'app://'
 
@@ -126,11 +151,25 @@ function setupProtocolHandler() {
     if (!fs.existsSync(filePath)) {
       // If file doesn't exist, serve index.html (for SPA routing)
       const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
-      return net.fetch('file://' + indexPath);
+      const indexContent = fs.readFileSync(indexPath);
+      return new Response(indexContent, {
+        headers: { 'Content-Type': 'text/html' }
+      });
     }
 
-    // Serve the requested file
-    return net.fetch('file://' + filePath);
+    try {
+      // Read the file
+      const fileContent = fs.readFileSync(filePath);
+      const mimeType = getMimeType(filePath);
+
+      // Return with proper MIME type
+      return new Response(fileContent, {
+        headers: { 'Content-Type': mimeType }
+      });
+    } catch (error) {
+      console.error('Error reading file:', filePath, error);
+      return new Response('File not found', { status: 404 });
+    }
   });
 }
 
