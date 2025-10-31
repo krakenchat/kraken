@@ -46,6 +46,8 @@ export const useSpeakingDetection = () => {
 
     participants.forEach((participant) => {
       const handleSpeakingChange = (speaking: boolean) => {
+        console.log(`[SpeakingDetection] Participant ${participant.identity} speaking:`, speaking);
+
         setSpeakingMap((prev) => {
           const newMap = new Map(prev);
           newMap.set(participant.identity, speaking);
@@ -54,6 +56,7 @@ export const useSpeakingDetection = () => {
 
         // Update Redux state for local user
         if (currentUser && participant.identity === currentUser.id) {
+          console.log(`[SpeakingDetection] Local user speaking state changed:`, speaking);
           dispatch(setSpeaking(speaking));
         }
       };
@@ -74,7 +77,11 @@ export const useSpeakingDetection = () => {
 
     // Handle new participants joining
     const handleParticipantConnected = (participant: Participant) => {
+      console.log(`[SpeakingDetection] New participant connected:`, participant.identity);
+
       const handleSpeakingChange = (speaking: boolean) => {
+        console.log(`[SpeakingDetection] Participant ${participant.identity} speaking:`, speaking);
+
         setSpeakingMap((prev) => {
           const newMap = new Map(prev);
           newMap.set(participant.identity, speaking);
@@ -83,6 +90,7 @@ export const useSpeakingDetection = () => {
 
         // Update Redux state for local user
         if (currentUser && participant.identity === currentUser.id) {
+          console.log(`[SpeakingDetection] Local user speaking state changed:`, speaking);
           dispatch(setSpeaking(speaking));
         }
       };

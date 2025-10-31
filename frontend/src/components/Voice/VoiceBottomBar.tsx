@@ -30,18 +30,39 @@ import {
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
+import { VoiceDebugPanel } from "./VoiceDebugPanel";
 import { ChannelType } from "../../types/channel.type";
 import { useResponsive } from "../../hooks/useResponsive";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
+import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import { useProfileQuery } from "../../features/users/usersSlice";
 
 export const VoiceBottomBar: React.FC = () => {
   const { state, actions } = useVoiceConnection();
   const { isMobile } = useResponsive();
+  const { data: currentUser } = useProfileQuery();
+  const { isSpeaking } = useSpeakingDetection();
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(
     null
   );
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(true); // Default to true for testing
+
+  // Check if the current user is speaking
+  const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;
+
+  // Keyboard shortcut to toggle debug panel (Ctrl+Shift+D)
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.key === 'D') {
+        setShowDebugPanel((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Show bar if connected to either a channel or DM
   if (!state.isConnected || (!state.currentChannelId && !state.currentDmGroupId)) {
@@ -211,6 +232,9 @@ export const VoiceBottomBar: React.FC = () => {
                   color: state.isMuted ? "error.contrastText" : "text.primary",
                   minWidth: isMobile ? 48 : "auto",
                   minHeight: isMobile ? 48 : "auto",
+                  border: !state.isMuted && isCurrentUserSpeaking ? "2px solid #43b581" : "2px solid transparent",
+                  boxShadow: !state.isMuted && isCurrentUserSpeaking ? "0 0 8px #43b581" : "none",
+                  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                   "&:hover": {
                     backgroundColor: state.isMuted
                       ? "error.dark"
@@ -383,6 +407,9 @@ export const VoiceBottomBar: React.FC = () => {
           onDeviceChange={handleDeviceChange}
         />
       </Paper>
+
+      {/* Debug Panel - Toggle with Ctrl+Shift+D */}
+      {showDebugPanel && <VoiceDebugPanel />}
     </>
   );
 };

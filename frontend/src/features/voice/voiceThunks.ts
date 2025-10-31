@@ -81,6 +81,16 @@ export const joinVoiceChannel = createAsyncThunk<
       // Store room in external manager
       setRoom(room);
 
+      // Enable microphone by default when joining
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true);
+        dispatch(setAudioEnabled(true));
+        console.log('[VoiceThunks] Microphone enabled on join');
+      } catch (error) {
+        console.error('[VoiceThunks] Failed to enable microphone:', error);
+        // Don't fail the whole join if mic fails, just log it
+      }
+
       dispatch(
         setConnected({
           channelId,
@@ -474,6 +484,16 @@ export const joinDmVoice = createAsyncThunk<
 
       // Store room in external manager
       setRoom(room);
+
+      // Enable microphone by default when joining DM call
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true);
+        dispatch(setAudioEnabled(true));
+        console.log('[VoiceThunks] Microphone enabled on DM join');
+      } catch (error) {
+        console.error('[VoiceThunks] Failed to enable microphone in DM:', error);
+        // Don't fail the whole join if mic fails, just log it
+      }
 
       dispatch(
         setDmConnected({

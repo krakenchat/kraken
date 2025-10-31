@@ -62,8 +62,12 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
   const [tabValue, setTabValue] = useState(0);
   const [testingAudio, setTestingAudio] = useState(false);
   const [testingVideo, setTestingVideo] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const testStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   
   const {
     audioInputDevices,
@@ -86,9 +90,37 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
   // Clean up test stream when dialog closes
   useEffect(() => {
     if (!open) {
+      stopAudioTest();
       stopTestStream();
     }
   }, [open]);
+
+  const stopAudioTest = () => {
+    // Stop animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    // Close audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    // Stop audio stream
+    if (testStreamRef.current && testingAudio) {
+      testStreamRef.current.getTracks().forEach(track => track.stop());
+      testStreamRef.current = null;
+    }
+
+    // Clear analyser reference
+    analyserRef.current = null;
+
+    // Reset audio level
+    setAudioLevel(0);
+    setTestingAudio(false);
+  };
 
   const stopTestStream = () => {
     if (testStreamRef.current) {
@@ -103,6 +135,7 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+    stopAudioTest();
     stopTestStream();
   };
 
@@ -122,22 +155,59 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
   };
 
   const testAudioInput = async () => {
-    if (testingAudio) return;
-    
+    if (testingAudio) {
+      // Stop the current test
+      stopAudioTest();
+      return;
+    }
+
     setTestingAudio(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: getAudioConstraints(),
         video: false,
       });
-      
-      // Create a simple audio level indicator
-      // For now, just show that we successfully got audio
-      setTimeout(() => {
-        stream.getTracks().forEach(track => track.stop());
-        setTestingAudio(false);
-      }, 2000);
-      
+
+      // Create audio context and analyser
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      microphone.connect(analyser);
+
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+
+      // Store the stream so we can stop it later
+      testStreamRef.current = stream;
+
+      // Start analyzing audio levels
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const updateLevel = () => {
+        if (!analyserRef.current) return;
+
+        analyser.getByteFrequencyData(dataArray);
+
+        // Calculate average volume
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+
+        // Convert to 0-100 scale
+        const level = Math.min(100, (average / 255) * 100 * 2); // Multiply by 2 for more sensitivity
+        setAudioLevel(level);
+
+        // Continue animation loop
+        animationFrameRef.current = requestAnimationFrame(updateLevel);
+      };
+
+      updateLevel();
+
     } catch (error) {
       console.error('Failed to test audio:', error);
       setTestingAudio(false);
@@ -281,18 +351,46 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
                   variant="outlined"
                   startIcon={testingAudio ? <MicOff /> : <Mic />}
                   onClick={testAudioInput}
-                  disabled={!permissions.microphone || testingAudio}
+                  disabled={!permissions.microphone}
                 >
-                  {testingAudio ? 'Testing...' : 'Test Mic'}
+                  {testingAudio ? 'Stop Test' : 'Test Mic'}
                 </Button>
               </Box>
               {testingAudio && (
                 <Box sx={{ mt: 2 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Testing microphone input...
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Microphone Level
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {Math.round(audioLevel)}%
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={audioLevel}
+                    sx={{
+                      height: 8,
+                      borderRadius: 1,
+                      backgroundColor: 'grey.200',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: audioLevel > 80 ? 'error.main' : audioLevel > 50 ? 'warning.main' : 'success.main',
+                      }
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    {audioLevel < 5
+                      ? 'Speak into your microphone to see the level'
+                      : audioLevel > 80
+                      ? 'Volume is high - your mic is working great!'
+                      : 'Your microphone is working!'}
                   </Typography>
-                  <LinearProgress sx={{ mt: 1 }} />
                 </Box>
+              )}
+              {!testingAudio && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                  Click "Test Mic" and speak to verify your microphone is working
+                </Typography>
               )}
             </Paper>
           </Box>
