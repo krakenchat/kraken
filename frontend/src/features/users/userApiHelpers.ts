@@ -2,6 +2,7 @@ import { getCachedItem, setCachedItem } from "../../utils/storage";
 import type { User } from "../../types/auth.type";
 import { store } from "../../app/store";
 import { usersApi } from "./usersSlice";
+import { getApiUrl } from "../../config/env";
 
 const USER_CACHE_PREFIX = "user_";
 const USER_CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
@@ -37,7 +38,7 @@ export async function getUserInfo(userId: string): Promise<User | null> {
     // return result;
 
     // Fallback: direct fetch
-    const response = await fetch(`/api/users/${userId}`, {
+    const response = await fetch(getApiUrl(`/users/${userId}`), {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },

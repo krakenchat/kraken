@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getCachedItem } from "../utils/storage";
+import { getApiUrl } from "../config/env";
 
 export type ResourceType =
   | "USER_AVATAR"
@@ -62,7 +63,7 @@ export const useFileUpload = (): UseFileUploadReturn => {
         throw new Error("No authentication token found");
       }
 
-      const response = await fetch("/api/file-upload", {
+      const response = await fetch(getApiUrl("/file-upload"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

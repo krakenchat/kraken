@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getCachedItem } from "../utils/storage";
 import { useFileCache } from "../contexts/AvatarCacheContext";
+import { getApiUrl } from "../config/env";
 import type { FileMetadata } from "../types/message.type";
 
 /**
@@ -62,7 +63,7 @@ export const useAuthenticatedFile = (
             throw new Error("No authentication token found");
           }
 
-          const metadataResponse = await fetch(`/api/file/${fileId}/metadata`, {
+          const metadataResponse = await fetch(getApiUrl(`/file/${fileId}/metadata`), {
             headers: {
               Authorization: `Bearer ${token}`,
             },

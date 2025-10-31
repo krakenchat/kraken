@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useRef, useCallback, useEffect } from "react";
+import { getApiUrl } from "../config/env";
 
 interface FileCacheContextType {
   getBlob: (fileId: string) => string | null;
@@ -78,7 +79,7 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }
           throw new Error("No authentication token found");
         }
 
-        const response = await fetch(`/api/file/${fileId}`, {
+        const response = await fetch(getApiUrl(`/file/${fileId}`), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
