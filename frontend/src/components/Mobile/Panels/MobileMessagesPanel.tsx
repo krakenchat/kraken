@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { useGetUserDmGroupsQuery, useCreateDmGroupMutation } from '../../../features/directMessages/directMessagesApiSlice';
 import { useGetAllUsersQuery, useProfileQuery } from '../../../features/users/usersSlice';
+import UserAvatar from '../../Common/UserAvatar';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
 import { DirectMessageGroup } from '../../../types/direct-message.type';
@@ -305,7 +306,7 @@ export const MobileMessagesPanel: React.FC = () => {
                       key={user.id}
                       label={user.displayName || user.username}
                       {...chipProps}
-                      avatar={<Avatar src={user.avatarUrl || undefined} />}
+                      avatar={<UserAvatar user={user} size="small" />}
                     />
                   );
                 })

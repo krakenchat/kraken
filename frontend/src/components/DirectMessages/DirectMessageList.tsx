@@ -20,11 +20,11 @@ import {
 } from "@mui/material";
 import {
   Group as GroupIcon,
-  Person as PersonIcon,
 } from "@mui/icons-material";
 import { useGetUserDmGroupsQuery, useCreateDmGroupMutation } from "../../features/directMessages/directMessagesApiSlice";
 import { useGetAllUsersQuery, useProfileQuery } from "../../features/users/usersSlice";
 import { DirectMessageGroup } from "../../types/direct-message.type";
+import UserAvatar from "../Common/UserAvatar";
 
 interface DirectMessageListProps {
   selectedDmGroupId?: string;
@@ -92,10 +92,10 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
       .join(", ");
   };
 
-  const getDmAvatar = (dmGroup: DirectMessageGroup) => {
+  const getDmUser = (dmGroup: DirectMessageGroup) => {
     if (!dmGroup.isGroup && dmGroup.members.length === 2) {
       const otherMember = dmGroup.members.find(m => m.user.id !== currentUser?.id);
-      return otherMember?.user.avatarUrl;
+      return otherMember?.user;
     }
     return null;
   };
@@ -145,16 +145,13 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
                 }}
               >
               <ListItemAvatar>
-                <Avatar
-                  src={getDmAvatar(dmGroup) || undefined}
-                  sx={{ bgcolor: dmGroup.isGroup ? "secondary.main" : "primary.main" }}
-                >
-                  {getDmAvatar(dmGroup) ? null : dmGroup.isGroup ? (
+                {dmGroup.isGroup ? (
+                  <Avatar sx={{ bgcolor: "secondary.main" }}>
                     <GroupIcon />
-                  ) : (
-                    <PersonIcon />
-                  )}
-                </Avatar>
+                  </Avatar>
+                ) : (
+                  <UserAvatar user={getDmUser(dmGroup)} size="medium" />
+                )}
               </ListItemAvatar>
               <ListItemText
                 primary={getDmDisplayName(dmGroup)}
@@ -232,7 +229,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
                       key={user.id}
                       label={user.displayName || user.username}
                       {...chipProps}
-                      avatar={<Avatar src={user.avatarUrl || undefined} />}
+                      avatar={<UserAvatar user={user} size="small" />}
                     />
                   );
                 })
