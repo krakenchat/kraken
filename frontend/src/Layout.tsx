@@ -70,7 +70,7 @@ const Layout: React.FC = () => {
   const handleLogout = async () => {
     await logout(null, false).unwrap();
     localStorage.removeItem("accessToken");
-    window.location.href = "/login";
+    navigate("/login");
   };
 
   // Fix userData type for ProfileIcon

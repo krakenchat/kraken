@@ -45,7 +45,7 @@ function App() {
   const shouldCheckOnboarding = location.pathname !== "/onboarding";
   const { data: onboardingStatus, isLoading: isCheckingOnboarding } = useGetOnboardingStatusQuery(
     undefined,
-    { skip: !shouldCheckOnboarding }
+    { skip: !shouldCheckOnboarding || showWizard }
   );
 
   // Show connection wizard for Electron if no servers configured

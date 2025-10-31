@@ -14,9 +14,9 @@ const MAX_REFRESH_ATTEMPTS = 1;
 
 const redirectToLogin = () => {
   localStorage.removeItem("accessToken");
-  // Use replace to avoid adding to browser history
-  if (window.location.pathname !== "/login") {
-    window.location.replace("/login");
+  // Use hash for HashRouter compatibility (especially in Electron)
+  if (window.location.hash !== "#/login") {
+    window.location.hash = "#/login";
   }
 };
 
