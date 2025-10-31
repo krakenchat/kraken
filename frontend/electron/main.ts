@@ -5,9 +5,10 @@
  * It handles window creation, auto-updates, and IPC communication.
  */
 
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, ipcMain, session, protocol, net } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
+import * as fs from 'fs';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -80,6 +81,60 @@ function setupAutoUpdater() {
 }
 
 /**
+ * Register custom protocol for better cookie handling
+ */
+function registerProtocol() {
+  // Register custom protocol to handle app:// URLs
+  protocol.registerSchemesAsPrivileged([
+    {
+      scheme: 'app',
+      privileges: {
+        secure: true,
+        standard: true,
+        supportFetchAPI: true,
+        corsEnabled: true,
+      },
+    },
+  ]);
+}
+
+/**
+ * Setup custom protocol handler
+ */
+function setupProtocolHandler() {
+  protocol.handle('app', (request) => {
+    // Remove the app:// prefix and handle the request
+    let url = request.url.substr(6); // Remove 'app://'
+
+    // Handle root path
+    if (url === '' || url === '/' || url === 'kraken' || url === 'kraken/') {
+      url = 'index.html';
+    }
+
+    // Remove any query parameters or hash
+    url = url.split('?')[0].split('#')[0];
+
+    // Ensure we're not trying to access files outside of dist
+    if (url.includes('..')) {
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    // Construct the file path
+    const filePath = path.join(app.getAppPath(), 'dist', url);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      // If file doesn't exist, serve index.html (for SPA routing)
+      const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
+      return net.fetch('file://' + indexPath);
+    }
+
+    // Serve the requested file
+    return net.fetch('file://' + filePath);
+  });
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIpcHandlers() {
@@ -139,10 +194,8 @@ function createWindow() {
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load from the dist directory
-    // Use app.getAppPath() for proper path resolution in packaged app
-    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
-    mainWindow.loadFile(indexPath);
+    // In production, use custom protocol for better cookie handling
+    mainWindow.loadURL('app://kraken');
   }
 
   // Handle window closed
@@ -155,8 +208,14 @@ function createWindow() {
  * App lifecycle
  */
 
+// Register custom protocol before app is ready
+registerProtocol();
+
 // When Electron has finished initialization
 app.whenReady().then(() => {
+  // Setup custom protocol handler
+  setupProtocolHandler();
+
   // Setup media permissions for camera, microphone, and screen sharing
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowedPermissions = ['media', 'display-capture'];

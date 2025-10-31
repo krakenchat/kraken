@@ -15,6 +15,7 @@ export const createAuthedBaseQuery = (endpoint: string) => {
     fetchBaseQuery({
       baseUrl: `${baseUrl}/${cleanEndpoint}`,
       prepareHeaders,
+      credentials: 'include', // Include cookies with requests
     })
   );
 };
@@ -30,5 +31,6 @@ export const createSimpleBaseQuery = (endpoint: string) => {
 
   return fetchBaseQuery({
     baseUrl: `${baseUrl}/${cleanEndpoint}`,
+    credentials: 'include', // Include cookies with requests
   });
 };
