@@ -128,27 +128,35 @@ function getMimeType(filePath: string): string {
  */
 function setupProtocolHandler() {
   protocol.handle('app', async (request) => {
-    // Remove the app:// prefix and handle the request
-    let url = request.url.substr(6); // Remove 'app://'
+    // Parse the URL properly
+    const parsedUrl = new URL(request.url);
+    let pathname = parsedUrl.pathname;
 
-    // Handle root path
-    if (url === '' || url === '/' || url === 'kraken' || url === 'kraken/') {
-      url = 'index.html';
+    console.log('[Protocol] Request URL:', request.url);
+    console.log('[Protocol] Parsed pathname:', pathname);
+
+    // Remove leading slash
+    if (pathname.startsWith('/')) {
+      pathname = pathname.substring(1);
     }
 
-    // Remove any query parameters or hash
-    url = url.split('?')[0].split('#')[0];
+    // Handle root path
+    if (pathname === '' || pathname === '/') {
+      pathname = 'index.html';
+    }
 
     // Ensure we're not trying to access files outside of dist
-    if (url.includes('..')) {
+    if (pathname.includes('..')) {
       return new Response('Forbidden', { status: 403 });
     }
 
     // Construct the file path
-    const filePath = path.join(app.getAppPath(), 'dist', url);
+    const filePath = path.join(app.getAppPath(), 'dist', pathname);
+    console.log('[Protocol] Looking for file:', filePath);
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
+      console.log('[Protocol] File not found, serving index.html instead');
       // If file doesn't exist, serve index.html (for SPA routing)
       const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
       const indexContent = fs.readFileSync(indexPath);
@@ -161,6 +169,7 @@ function setupProtocolHandler() {
       // Read the file
       const fileContent = fs.readFileSync(filePath);
       const mimeType = getMimeType(filePath);
+      console.log('[Protocol] Serving file with MIME type:', mimeType);
 
       // Return with proper MIME type
       return new Response(fileContent, {
