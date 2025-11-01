@@ -57,13 +57,16 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
         
         // Automatically login with the admin credentials
         try {
-          const accessToken = await login({ 
-            username: data.adminUsername, 
-            password: data.adminPassword 
+          const response = await login({
+            username: data.adminUsername,
+            password: data.adminPassword
           }).unwrap();
-          
-          // Store the token
-          localStorage.setItem('accessToken', JSON.stringify(accessToken));
+
+          // Store the tokens
+          localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
+          if (response.refreshToken) {
+            localStorage.setItem('refreshToken', response.refreshToken);
+          }
           
           // Give user a moment to see the success message, then redirect
           setTimeout(() => {

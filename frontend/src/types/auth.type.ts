@@ -22,4 +22,5 @@ export interface Register {
 
 export interface AuthResponse {
   accessToken: string;
+  refreshToken?: string; // Optional, only returned for Electron clients
 }

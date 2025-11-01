@@ -8,7 +8,6 @@
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
-import express, { Request, Response } from 'express';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -81,43 +80,6 @@ function setupAutoUpdater() {
 }
 
 /**
- * Start local Express server to serve the app
- * This is the industry standard approach used by Discord, Slack, etc.
- */
-function startLocalServer(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const expressApp = express();
-
-    // Serve static files from dist directory
-    const distPath = path.join(app.getAppPath(), 'dist');
-    expressApp.use(express.static(distPath));
-
-    // SPA fallback - serve index.html for all unmatched routes
-    expressApp.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-
-    // Listen on a random available port
-    const server = expressApp.listen(0, 'localhost', () => {
-      const address = server.address();
-      if (address && typeof address !== 'string') {
-        const port = address.port;
-        console.log(`[Local Server] Running on http://localhost:${port}`);
-        resolve(port);
-      } else {
-        reject(new Error('Failed to get server port'));
-      }
-    });
-
-    // Handle server errors
-    server.on('error', (err: Error) => {
-      console.error('[Local Server] Error:', err);
-      reject(err);
-    });
-  });
-}
-
-/**
  * Setup IPC handlers
  */
 function setupIpcHandlers() {
@@ -146,7 +108,7 @@ function setupIpcHandlers() {
 /**
  * Create the main application window
  */
-async function createWindow() {
+function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -176,17 +138,9 @@ async function createWindow() {
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, start local server and load from localhost
-    // This is the industry standard approach used by Discord, Slack, etc.
-    try {
-      const port = await startLocalServer();
-      mainWindow.loadURL(`http://localhost:${port}`);
-    } catch (error) {
-      console.error('[Main] Failed to start local server:', error);
-      // Fallback to file:// if server fails
-      const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
-      mainWindow.loadFile(indexPath);
-    }
+    // In production, load the built files directly
+    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
+    mainWindow.loadFile(indexPath);
   }
 
   // Handle window closed
@@ -200,7 +154,7 @@ async function createWindow() {
  */
 
 // When Electron has finished initialization
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
   // Setup media permissions for camera, microphone, and screen sharing
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowedPermissions = ['media', 'display-capture'];
@@ -214,7 +168,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  await createWindow();
+  createWindow();
   setupAutoUpdater();
   setupIpcHandlers();
 });
@@ -227,9 +181,9 @@ app.on('window-all-closed', () => {
 });
 
 // On macOS, re-create window when dock icon is clicked
-app.on('activate', async () => {
+app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    await createWindow();
+    createWindow();
   }
 });
 

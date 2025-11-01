@@ -6,13 +6,12 @@ export const authApi = createApi({
   reducerPath: "authApi",
   baseQuery: createSimpleBaseQuery("auth"),
   endpoints: (builder) => ({
-    login: builder.query<string, Login>({
+    login: builder.query<AuthResponse, Login>({
       query: (body) => ({
         url: "/login",
         method: "POST",
         body,
       }),
-      transformResponse: (response: AuthResponse) => response.accessToken,
     }),
     logout: builder.query({
       query: () => ({

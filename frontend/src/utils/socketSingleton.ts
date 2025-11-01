@@ -30,14 +30,40 @@ export async function getSocketSingleton(): Promise<
       const refreshUrl = getApiUrl("/auth/refresh");
       console.log("[Socket] Refreshing token at:", refreshUrl);
 
-      const refreshResponse = await axios.post<{ accessToken: string }>(
-        refreshUrl,
-        {},
-        { withCredentials: true }
-      );
-      if (refreshResponse.data?.accessToken) {
+      // Check if we're in Electron and have a stored refresh token
+      const isElectron = typeof window !== 'undefined' &&
+        (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron;
+
+      let refreshResponse;
+      if (isElectron) {
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (refreshToken) {
+          // For Electron, send refresh token in body
+          refreshResponse = await axios.post<{ accessToken: string; refreshToken?: string }>(
+            refreshUrl,
+            { refreshToken }
+          );
+        } else {
+          throw new Error("No refresh token available for Electron client");
+        }
+      } else {
+        // For web clients, use cookie-based refresh
+        refreshResponse = await axios.post<{ accessToken: string }>(
+          refreshUrl,
+          {},
+          { withCredentials: true }
+        );
+      }
+
+      if (refreshResponse?.data?.accessToken) {
         setCachedItem("accessToken", refreshResponse.data.accessToken);
         token = refreshResponse.data.accessToken;
+
+        // Update stored refresh token for Electron
+        if (isElectron && refreshResponse.data.refreshToken) {
+          localStorage.setItem("refreshToken", refreshResponse.data.refreshToken);
+        }
+
         console.log("[Socket] Token refreshed successfully");
       }
     } catch (error) {

@@ -44,7 +44,11 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     try {
       await register({ username, email, password, code }).unwrap();
-      await login({ username, password }).unwrap();
+      const response = await login({ username, password }).unwrap();
+      localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
       navigate("/");
     } catch (err) {
       console.error("Registration failed:", err);

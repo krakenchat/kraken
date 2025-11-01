@@ -20,9 +20,15 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const accessToken = await login({ username, password }).unwrap();
-      // Store the token in localStorage
-      localStorage.setItem('accessToken', JSON.stringify(accessToken));
+      const response = await login({ username, password }).unwrap();
+      // Store the access token in localStorage
+      localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
+
+      // Store refresh token for Electron clients
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
+
       navigate("/");
     } catch (err) {
       console.error("Login failed:", err);

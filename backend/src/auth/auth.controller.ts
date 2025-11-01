@@ -30,7 +30,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
-    @Req() req: { user: UserEntity },
+    @Req() req: Request & { user: UserEntity },
     @Res({ passthrough: true }) res: Response,
   ) {
     const accessToken = this.authService.login(req.user);
@@ -38,7 +38,17 @@ export class AuthController {
       req.user.id,
     );
 
+    // Always set the cookie for web clients
     this.setRefreshCookie(res, refreshToken);
+
+    // Check if this is an Electron client
+    const userAgent = req.headers['user-agent'] || '';
+    const isElectron = userAgent.includes('Electron');
+
+    // Return refresh token in body for Electron clients
+    if (isElectron) {
+      return { accessToken, refreshToken };
+    }
 
     return { accessToken };
   }
@@ -50,9 +60,19 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies[this.REFRESH_TOKEN_COOKIE_NAME] as
+    // Check if this is an Electron client
+    const userAgent = req.headers['user-agent'] || '';
+    const isElectron = userAgent.includes('Electron');
+
+    // Get refresh token from cookie or body (for Electron)
+    let refreshToken = req.cookies[this.REFRESH_TOKEN_COOKIE_NAME] as
       | string
       | undefined;
+
+    // For Electron, also check the request body
+    if (!refreshToken && isElectron && req.body?.refreshToken) {
+      refreshToken = req.body.refreshToken;
+    }
 
     if (!refreshToken) {
       throw new UnauthorizedException('No refresh token provided');
@@ -79,7 +99,13 @@ export class AuthController {
       return this.authService.generateRefreshToken(user.id, tx);
     });
 
+    // Always set cookie for web clients
     this.setRefreshCookie(res, token);
+
+    // Return new refresh token in body for Electron clients
+    if (isElectron) {
+      return { accessToken: this.authService.login(user), refreshToken: token };
+    }
 
     return { accessToken: this.authService.login(user) };
   }

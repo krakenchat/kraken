@@ -42,20 +42,44 @@ const getBaseAuthedQuery = (
       refreshAttempts++;
 
       try {
-        // Try to refresh
-        const refreshResponse = await axios.post<{ accessToken: string }>(
-          getApiUrl("/auth/refresh"),
-          {},
-          { withCredentials: true }
-        );
+        // Try to refresh - check if we're in Electron
+        const isElectron = typeof window !== 'undefined' &&
+          (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron;
+
+        let refreshResponse;
+        if (isElectron) {
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (refreshToken) {
+            // For Electron, send refresh token in body
+            refreshResponse = await axios.post<{ accessToken: string; refreshToken?: string }>(
+              getApiUrl("/auth/refresh"),
+              { refreshToken }
+            );
+          } else {
+            throw new Error("No refresh token available for Electron client");
+          }
+        } else {
+          // For web clients, use cookie-based refresh
+          refreshResponse = await axios.post<{ accessToken: string }>(
+            getApiUrl("/auth/refresh"),
+            {},
+            { withCredentials: true }
+          );
+        }
 
         console.log("Refresh response", refreshResponse);
-        if (refreshResponse.data?.accessToken) {
+        if (refreshResponse?.data?.accessToken) {
           setCachedItem("accessToken", refreshResponse.data.accessToken);
+
+          // Update stored refresh token for Electron
+          if (isElectron && refreshResponse.data.refreshToken) {
+            localStorage.setItem("refreshToken", refreshResponse.data.refreshToken);
+          }
+
           // Reset attempts on successful refresh
           refreshAttempts = 0;
           isRefreshing = false;
-          
+
           // Retry the original request with new token
           return baseQuery(args, api, extraOptions);
         } else {

@@ -74,7 +74,11 @@ const JoinInvitePage: React.FC = () => {
         code: inviteCode 
       }).unwrap();
       
-      await login({ username, password }).unwrap();
+      const response = await login({ username, password }).unwrap();
+      localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
       navigate("/");
     } catch (err) {
       console.error("Registration failed:", err);
