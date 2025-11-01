@@ -7,7 +7,7 @@
  * Security: nodeIntegration is disabled, contextIsolation is enabled
  */
 
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent, desktopCapturer } from 'electron';
 
 /**
  * Update information passed from main process
@@ -26,6 +26,17 @@ export interface DownloadProgress {
   bytesPerSecond: number;
   transferred: number;
   total: number;
+}
+
+/**
+ * Desktop source information for screen capture
+ */
+export interface DesktopSource {
+  id: string;
+  name: string;
+  thumbnail: string;
+  display_id?: string;
+  appIcon?: string;
 }
 
 /**
@@ -95,6 +106,52 @@ const electronAPI = {
   // App version
   getAppVersion: () => {
     return ipcRenderer.invoke('get-app-version');
+  },
+
+  // Desktop capture for screen sharing
+  getDesktopSources: async (types: string[] = ['window', 'screen']): Promise<DesktopSource[]> => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: types as ('window' | 'screen')[],
+        thumbnailSize: { width: 320, height: 240 },
+        fetchWindowIcons: true
+      });
+
+      return sources.map(source => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL(),
+        display_id: source.display_id,
+        appIcon: source.appIcon ? source.appIcon.toDataURL() : undefined
+      }));
+    } catch (error) {
+      console.error('Failed to get desktop sources:', error);
+      return [];
+    }
+  },
+
+  // Get screen media stream for screen sharing
+  getScreenStream: async (sourceId: string): Promise<MediaStream | null> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          // @ts-ignore - Electron-specific constraint
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId,
+            minWidth: 1280,
+            maxWidth: 3840,
+            minHeight: 720,
+            maxHeight: 2160
+          }
+        }
+      });
+      return stream;
+    } catch (error) {
+      console.error('Failed to get screen stream:', error);
+      return null;
+    }
   },
 };
 
