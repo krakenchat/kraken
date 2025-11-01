@@ -136,7 +136,7 @@ const electronAPI = {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          // @ts-ignore - Electron-specific constraint
+          // @ts-expect-error - Electron-specific constraint
           mandatory: {
             chromeMediaSource: 'desktop',
             chromeMediaSourceId: sourceId,

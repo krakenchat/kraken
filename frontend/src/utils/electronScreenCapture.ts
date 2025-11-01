@@ -19,18 +19,25 @@ interface ElectronAPI {
   getScreenStream?: (sourceId: string) => Promise<MediaStream | null>;
 }
 
+// Extend the Window interface to include electronAPI
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
+
 /**
  * Check if we're running in Electron
  */
 export function isElectron(): boolean {
-  return !!(window as any).electronAPI?.isElectron;
+  return !!window.electronAPI?.isElectron;
 }
 
 /**
  * Get available desktop sources for screen capture
  */
 export async function getDesktopSources(types: string[] = ['window', 'screen']): Promise<DesktopSource[]> {
-  const electronAPI = (window as any).electronAPI as ElectronAPI | undefined;
+  const electronAPI = window.electronAPI;
 
   if (!electronAPI?.getDesktopSources) {
     console.error('Electron desktop capture API not available');
@@ -49,7 +56,7 @@ export async function getDesktopSources(types: string[] = ['window', 'screen']):
  * Get a media stream for the selected source
  */
 export async function getElectronScreenStream(sourceId: string): Promise<MediaStream | null> {
-  const electronAPI = (window as any).electronAPI as ElectronAPI | undefined;
+  const electronAPI = window.electronAPI;
 
   if (!electronAPI?.getScreenStream) {
     console.error('Electron screen stream API not available');
@@ -134,7 +141,7 @@ export function overrideGetDisplayMediaForElectron(): void {
           // Try to get system audio (this may not work on all platforms)
           const audioStream = await navigator.mediaDevices.getUserMedia({
             audio: {
-              // @ts-ignore - Electron-specific
+              // @ts-expect-error - Electron-specific
               mandatory: {
                 chromeMediaSource: 'desktop'
               }
