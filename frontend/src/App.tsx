@@ -23,7 +23,7 @@ import { CircularProgress, Box } from "@mui/material";
 import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
 import { hasServers } from "./utils/serverStorage";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const darkTheme = createTheme({
   colorSchemes: {
