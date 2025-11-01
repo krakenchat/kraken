@@ -7,7 +7,7 @@
  * Security: nodeIntegration is disabled, contextIsolation is enabled
  */
 
-import { contextBridge, ipcRenderer, IpcRendererEvent, desktopCapturer } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 /**
  * Update information passed from main process
@@ -111,19 +111,8 @@ const electronAPI = {
   // Desktop capture for screen sharing
   getDesktopSources: async (types: string[] = ['window', 'screen']): Promise<DesktopSource[]> => {
     try {
-      const sources = await desktopCapturer.getSources({
-        types: types as ('window' | 'screen')[],
-        thumbnailSize: { width: 320, height: 240 },
-        fetchWindowIcons: true
-      });
-
-      return sources.map(source => ({
-        id: source.id,
-        name: source.name,
-        thumbnail: source.thumbnail.toDataURL(),
-        display_id: source.display_id,
-        appIcon: source.appIcon ? source.appIcon.toDataURL() : undefined
-      }));
+      const sources = await ipcRenderer.invoke('desktop-capturer:get-sources', types);
+      return sources;
     } catch (error) {
       console.error('Failed to get desktop sources:', error);
       return [];

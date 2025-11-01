@@ -5,7 +5,7 @@
  * It handles window creation, auto-updates, and IPC communication.
  */
 
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
 
@@ -102,6 +102,28 @@ function setupIpcHandlers() {
   // Get app version
   ipcMain.handle('get-app-version', () => {
     return app.getVersion();
+  });
+
+  // Desktop capture handlers for screen sharing
+  ipcMain.handle('desktop-capturer:get-sources', async (_event, types: string[]) => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: types as ('window' | 'screen')[],
+        thumbnailSize: { width: 320, height: 240 },
+        fetchWindowIcons: true
+      });
+
+      return sources.map(source => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL(),
+        display_id: source.display_id,
+        appIcon: source.appIcon ? source.appIcon.toDataURL() : undefined
+      }));
+    } catch (error) {
+      console.error('Failed to get desktop sources:', error);
+      throw error;
+    }
   });
 }
 
