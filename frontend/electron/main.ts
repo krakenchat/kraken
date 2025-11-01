@@ -5,10 +5,10 @@
  * It handles window creation, auto-updates, and IPC communication.
  */
 
-import { app, BrowserWindow, ipcMain, session, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as express from 'express';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -81,104 +81,39 @@ function setupAutoUpdater() {
 }
 
 /**
- * Register custom protocol for better cookie handling
+ * Start local Express server to serve the app
+ * This is the industry standard approach used by Discord, Slack, etc.
  */
-function registerProtocol() {
-  // Register custom protocol to handle app:// URLs
-  protocol.registerSchemesAsPrivileged([
-    {
-      scheme: 'app',
-      privileges: {
-        secure: true,
-        standard: true,
-        supportFetchAPI: true,
-        corsEnabled: true,
-      },
-    },
-  ]);
-}
+function startLocalServer(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const expressApp = express();
 
-/**
- * Get MIME type from file extension
- */
-function getMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase();
-  const mimeTypes: { [key: string]: string } = {
-    '.html': 'text/html',
-    '.js': 'application/javascript',
-    '.mjs': 'application/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-    '.otf': 'font/otf',
-  };
-  return mimeTypes[ext] || 'application/octet-stream';
-}
+    // Serve static files from dist directory
+    const distPath = path.join(app.getAppPath(), 'dist');
+    expressApp.use(express.static(distPath));
 
-/**
- * Setup custom protocol handler
- */
-function setupProtocolHandler() {
-  protocol.handle('app', async (request) => {
-    // Parse the URL properly
-    const parsedUrl = new URL(request.url);
-    let pathname = parsedUrl.pathname;
+    // SPA fallback - serve index.html for all unmatched routes
+    expressApp.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
 
-    console.log('[Protocol] Request URL:', request.url);
-    console.log('[Protocol] Parsed pathname:', pathname);
+    // Listen on a random available port
+    const server = expressApp.listen(0, 'localhost', () => {
+      const address = server.address();
+      if (address && typeof address !== 'string') {
+        const port = address.port;
+        console.log(`[Local Server] Running on http://localhost:${port}`);
+        resolve(port);
+      } else {
+        reject(new Error('Failed to get server port'));
+      }
+    });
 
-    // Remove leading slash
-    if (pathname.startsWith('/')) {
-      pathname = pathname.substring(1);
-    }
-
-    // Handle root path
-    if (pathname === '' || pathname === '/') {
-      pathname = 'index.html';
-    }
-
-    // Ensure we're not trying to access files outside of dist
-    if (pathname.includes('..')) {
-      return new Response('Forbidden', { status: 403 });
-    }
-
-    // Construct the file path
-    const filePath = path.join(app.getAppPath(), 'dist', pathname);
-    console.log('[Protocol] Looking for file:', filePath);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      console.log('[Protocol] File not found, serving index.html instead');
-      // If file doesn't exist, serve index.html (for SPA routing)
-      const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
-      const indexContent = fs.readFileSync(indexPath);
-      return new Response(indexContent, {
-        headers: { 'Content-Type': 'text/html' }
-      });
-    }
-
-    try {
-      // Read the file
-      const fileContent = fs.readFileSync(filePath);
-      const mimeType = getMimeType(filePath);
-      console.log('[Protocol] Serving file with MIME type:', mimeType);
-
-      // Return with proper MIME type
-      return new Response(fileContent, {
-        headers: { 'Content-Type': mimeType }
-      });
-    } catch (error) {
-      console.error('Error reading file:', filePath, error);
-      return new Response('File not found', { status: 404 });
-    }
+    // Handle server errors
+    server.on('error', (err) => {
+      console.error('[Local Server] Error:', err);
+      reject(err);
+    });
   });
 }
 
@@ -211,7 +146,7 @@ function setupIpcHandlers() {
 /**
  * Create the main application window
  */
-function createWindow() {
+async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -236,14 +171,22 @@ function createWindow() {
   });
 
   // Load the app
-  const devUrl = 'http://localhost:5173/';
-
   if (process.env.NODE_ENV === 'development') {
+    const devUrl = 'http://localhost:5173/';
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, use custom protocol for better cookie handling
-    mainWindow.loadURL('app://kraken');
+    // In production, start local server and load from localhost
+    // This is the industry standard approach used by Discord, Slack, etc.
+    try {
+      const port = await startLocalServer();
+      mainWindow.loadURL(`http://localhost:${port}`);
+    } catch (error) {
+      console.error('[Main] Failed to start local server:', error);
+      // Fallback to file:// if server fails
+      const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
+      mainWindow.loadFile(indexPath);
+    }
   }
 
   // Handle window closed
@@ -256,14 +199,8 @@ function createWindow() {
  * App lifecycle
  */
 
-// Register custom protocol before app is ready
-registerProtocol();
-
 // When Electron has finished initialization
-app.whenReady().then(() => {
-  // Setup custom protocol handler
-  setupProtocolHandler();
-
+app.whenReady().then(async () => {
   // Setup media permissions for camera, microphone, and screen sharing
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowedPermissions = ['media', 'display-capture'];
@@ -277,7 +214,7 @@ app.whenReady().then(() => {
     }
   });
 
-  createWindow();
+  await createWindow();
   setupAutoUpdater();
   setupIpcHandlers();
 });
@@ -290,9 +227,9 @@ app.on('window-all-closed', () => {
 });
 
 // On macOS, re-create window when dock icon is clicked
-app.on('activate', () => {
+app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    await createWindow();
   }
 });
 

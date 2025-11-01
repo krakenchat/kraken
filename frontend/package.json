@@ -48,6 +48,7 @@
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
     "electron-updater": "^6.3.9",
+    "express": "^4.21.2",
     "livekit-client": "^2.13.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -58,6 +59,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
+    "@types/express": "^5.0.1",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/semver": "^7.7.1",
