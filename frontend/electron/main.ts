@@ -8,7 +8,7 @@
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import * as path from 'path';
-import * as express from 'express';
+import express, { Request, Response } from 'express';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -93,7 +93,7 @@ function startLocalServer(): Promise<number> {
     expressApp.use(express.static(distPath));
 
     // SPA fallback - serve index.html for all unmatched routes
-    expressApp.get('*', (req, res) => {
+    expressApp.get('*', (req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
 
@@ -110,7 +110,7 @@ function startLocalServer(): Promise<number> {
     });
 
     // Handle server errors
-    server.on('error', (err) => {
+    server.on('error', (err: Error) => {
       console.error('[Local Server] Error:', err);
       reject(err);
     });
