@@ -217,13 +217,25 @@ export const toggleVideo = createAsyncThunk<
   const { isVideoEnabled, currentChannelId } = state.voice;
   const room = getRoom();
 
-  if (!room || !currentChannelId) return;
+  if (!room || !currentChannelId) {
+    console.warn('Cannot toggle video: no active room or channel');
+    return;
+  }
+
+  // Verify room is still connected
+  if (room.state !== 'connected') {
+    console.error('Cannot toggle video: room is not connected, state:', room.state);
+    throw new Error('Room is not connected');
+  }
 
   const newState = !isVideoEnabled;
 
   try {
-    await room.localParticipant.setCameraEnabled(newState);
+    // First update local state for responsive UI
     dispatch(setVideoEnabled(newState));
+
+    // Then handle LiveKit camera
+    await room.localParticipant.setCameraEnabled(newState);
 
     // Update server state
     await dispatch(
@@ -234,6 +246,8 @@ export const toggleVideo = createAsyncThunk<
     ).unwrap();
   } catch (error) {
     console.error("Failed to toggle video:", error);
+    // Revert state on failure
+    dispatch(setVideoEnabled(isVideoEnabled));
     throw error;
   }
 });
@@ -247,28 +261,36 @@ export const toggleScreenShare = createAsyncThunk<
   const { isScreenSharing, currentChannelId, isMuted, isDeafened, isVideoEnabled } = state.voice;
   const room = getRoom();
 
-  if (!room || !currentChannelId) return;
+  if (!room || !currentChannelId) {
+    console.warn('Cannot toggle screen share: no active room or channel');
+    return;
+  }
+
+  // Verify room is still connected
+  if (room.state !== 'connected') {
+    console.error('Cannot toggle screen share: room is not connected, state:', room.state);
+    throw new Error('Room is not connected');
+  }
 
   const newState = !isScreenSharing;
 
   try {
-    // Update Redux state first to ensure UI is responsive
-    dispatch(setScreenSharing(newState));
-
-    // Update server state with all current voice states to prevent clearing other states
+    // First update server state with all current voice states to prevent clearing other states
     await dispatch(
       voicePresenceApi.endpoints.updateVoiceState.initiate({
         channelId: currentChannelId,
-        updates: { 
+        updates: {
           isScreenSharing: newState,
           isMuted,
-          isDeafened, 
+          isDeafened,
           isVideoEnabled
         },
       })
     ).unwrap();
 
-    // Then handle the actual LiveKit screen share (this is the async part that prompts user)
+    // Then handle the actual LiveKit screen share
+    // In Electron, this will use setDisplayMediaRequestHandler from main.ts
+    // In browser, it will use the native browser picker
     if (newState) {
       await room.localParticipant.setScreenShareEnabled(true, {
         audio: true, // Enable system audio capture (works in Electron)
@@ -280,9 +302,12 @@ export const toggleScreenShare = createAsyncThunk<
     } else {
       await room.localParticipant.setScreenShareEnabled(false);
     }
+
+    // Update Redux state after successful LiveKit operation
+    dispatch(setScreenSharing(newState));
   } catch (error) {
     console.error("Failed to toggle screen share:", error);
-    // Revert Redux state on failure
+    // Don't revert server state, only local
     dispatch(setScreenSharing(isScreenSharing));
     throw error;
   }

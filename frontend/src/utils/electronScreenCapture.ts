@@ -101,8 +101,12 @@ export async function getElectronScreenShareStream(): Promise<MediaStream | null
 }
 
 /**
+ * @deprecated Do not use with LiveKit. This function conflicts with LiveKit's internal media handling.
+ * Use Electron's session.setDisplayMediaRequestHandler() in the main process instead.
+ *
  * Override the browser's getDisplayMedia to work with Electron
- * This allows LiveKit and other libraries to work seamlessly
+ * This function is kept for reference but should not be called when using LiveKit.
+ * It will cause black screens and room disconnections.
  */
 export function overrideGetDisplayMediaForElectron(): void {
   if (!isElectron()) {

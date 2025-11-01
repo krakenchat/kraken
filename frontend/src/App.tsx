@@ -24,7 +24,6 @@ import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
 import { hasServers } from "./utils/serverStorage";
 import { useState, useEffect } from "react";
-import { overrideGetDisplayMediaForElectron } from "./utils/electronScreenCapture";
 
 const darkTheme = createTheme({
   colorSchemes: {
@@ -41,13 +40,6 @@ function App() {
   const isElectron = window && (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron;
   const needsServerSetup = isElectron && !hasServers();
   const [showWizard, setShowWizard] = useState(needsServerSetup);
-
-  // Override getDisplayMedia for Electron on app initialization
-  useEffect(() => {
-    if (isElectron) {
-      overrideGetDisplayMediaForElectron();
-    }
-  }, [isElectron]);
 
   // Check if onboarding is needed - but only make the request if we're not already on the onboarding page
   const shouldCheckOnboarding = location.pathname !== "/onboarding";

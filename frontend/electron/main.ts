@@ -190,6 +190,34 @@ app.whenReady().then(() => {
     }
   });
 
+  // Handle screen sharing requests from LiveKit
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    console.log('Screen share requested via setDisplayMediaRequestHandler');
+
+    desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 320, height: 240 },
+      fetchWindowIcons: true
+    }).then((sources) => {
+      // Find the primary screen (usually first screen source)
+      const primaryScreen = sources.find(s => s.name.toLowerCase().includes('screen')) || sources[0];
+
+      if (primaryScreen) {
+        console.log(`Providing screen source: ${primaryScreen.name}`);
+        callback({
+          video: primaryScreen,
+          audio: 'loopback' // Enable system audio capture
+        });
+      } else {
+        console.error('No desktop sources available for screen sharing');
+        callback({});
+      }
+    }).catch((error) => {
+      console.error('Failed to get desktop sources:', error);
+      callback({});
+    });
+  });
+
   createWindow();
   setupAutoUpdater();
   setupIpcHandlers();
