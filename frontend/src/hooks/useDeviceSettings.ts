@@ -53,53 +53,44 @@ export const useDeviceSettings = () => {
 
   // Request permissions for media devices
   const requestPermissions = useCallback(async () => {
+    let micPermission = false;
+    let cameraPermission = false;
+
+    // Request audio permission
     try {
-      // Request both audio and video permissions to get device labels
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
-
-      // Check individual permissions
-      const micPermission = stream.getAudioTracks().length > 0;
-      const cameraPermission = stream.getVideoTracks().length > 0;
-
-      setPermissions({
-        microphone: micPermission,
-        camera: cameraPermission,
-      });
-
-      // Stop the stream immediately - we just needed it for permissions
-      stream.getTracks().forEach(track => track.stop());
-      
-      return { microphone: micPermission, camera: cameraPermission };
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micPermission = audioStream.getAudioTracks().length > 0;
+      audioStream.getTracks().forEach(track => track.stop());
+      console.log('Microphone permission granted');
     } catch (error) {
-      console.warn('Failed to get media permissions:', error);
-      
-      // Try audio only
-      try {
-        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const micPermission = audioStream.getAudioTracks().length > 0;
-        audioStream.getTracks().forEach(track => track.stop());
-        
-        setPermissions({
-          microphone: micPermission,
-          camera: false,
-        });
-        
-        return { microphone: micPermission, camera: false };
-      } catch {
-        setPermissions({ microphone: false, camera: false });
-        return { microphone: false, camera: false };
-      }
+      console.warn('Failed to get microphone permission:', error);
+      micPermission = false;
     }
+
+    // Request video permission independently
+    try {
+      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      cameraPermission = videoStream.getVideoTracks().length > 0;
+      videoStream.getTracks().forEach(track => track.stop());
+      console.log('Camera permission granted');
+    } catch (error) {
+      console.warn('Failed to get camera permission:', error);
+      cameraPermission = false;
+    }
+
+    setPermissions({
+      microphone: micPermission,
+      camera: cameraPermission,
+    });
+
+    return { microphone: micPermission, camera: cameraPermission };
   }, []);
 
   // Enumerate available media devices
   const enumerateDevices = useCallback(async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      
+
       const audioInputs: MediaDeviceInfo[] = [];
       const audioOutputs: MediaDeviceInfo[] = [];
       const videoInputs: MediaDeviceInfo[] = [];
@@ -113,6 +104,23 @@ export const useDeviceSettings = () => {
           videoInputs.push(device as MediaDeviceInfo);
         }
       });
+
+      // Log device enumeration results for debugging
+      console.log('Device enumeration complete:', {
+        totalDevices: devices.length,
+        audioInputs: audioInputs.length,
+        audioOutputs: audioOutputs.length,
+        videoInputs: videoInputs.length,
+      });
+
+      if (videoInputs.length > 0) {
+        console.log('Video devices found:', videoInputs.map(d => ({
+          id: d.deviceId,
+          label: d.label || '(no label)',
+        })));
+      } else {
+        console.warn('No video input devices found');
+      }
 
       setAudioInputDevices(audioInputs);
       setAudioOutputDevices(audioOutputs);
@@ -175,7 +183,7 @@ export const useDeviceSettings = () => {
     if (devicePreferences.audioInputDeviceId === DEFAULT_DEVICE_ID) {
       return true;
     }
-    return { deviceId: { exact: devicePreferences.audioInputDeviceId } };
+    return { deviceId: { ideal: devicePreferences.audioInputDeviceId } };
   }, [devicePreferences.audioInputDeviceId]);
 
   const getVideoConstraints = useCallback(() => {
@@ -187,7 +195,7 @@ export const useDeviceSettings = () => {
       };
     }
     return {
-      deviceId: { exact: devicePreferences.videoInputDeviceId },
+      deviceId: { ideal: devicePreferences.videoInputDeviceId },
       width: { ideal: 1280 },
       height: { ideal: 720 },
       frameRate: { ideal: 30 },

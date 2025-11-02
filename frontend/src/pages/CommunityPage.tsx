@@ -7,6 +7,7 @@ import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
 import { VoiceChannelUserList, VideoTiles } from "../components/Voice";
 import EditCommunityButton from "../components/Community/EditCommunityButton";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
 import { ChannelType } from "../types/channel.type";
@@ -85,7 +86,9 @@ const DesktopCommunityPage: React.FC = () => {
               flexDirection: 'column',
             }}
           >
-            <VideoTiles />
+            <ErrorBoundary>
+              <VideoTiles />
+            </ErrorBoundary>
           </Box>
         );
       }

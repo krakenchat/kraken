@@ -7,7 +7,11 @@
 
 import { app, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
+import { initMain } from 'electron-audio-loopback';
 import * as path from 'path';
+
+// Initialize audio loopback for cross-platform system audio capture
+initMain();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -204,9 +208,11 @@ app.whenReady().then(() => {
 
       if (primaryScreen) {
         console.log(`Providing screen source: ${primaryScreen.name}`);
+        // electron-audio-loopback makes 'loopback' work cross-platform
         callback({
           video: primaryScreen,
-          audio: 'loopback' // Enable system audio capture
+          audio: 'loopback', // System audio capture (cross-platform via electron-audio-loopback)
+          enableLocalEcho: true // Keep audio playing locally (like Discord)
         });
       } else {
         console.error('No desktop sources available for screen sharing');

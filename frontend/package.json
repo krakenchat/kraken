@@ -47,6 +47,7 @@
     "@reduxjs/toolkit": "^2.7.0",
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
+    "electron-audio-loopback": "^1.0.6",
     "electron-updater": "^6.3.9",
     "livekit-client": "^2.13.3",
     "react": "^19.0.0",

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feat/system-audio-capture  # TODO: Remove before merging PR
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -77,14 +78,14 @@ jobs:
         with:
           name: windows-installer
           path: frontend/dist/Kraken Setup *.exe
-          retention-days: 90
+          retention-days: 7
 
       - name: Upload Windows blockmap
         uses: actions/upload-artifact@v4
         with:
           name: windows-blockmap
           path: frontend/dist/Kraken Setup *.exe.blockmap
-          retention-days: 90
+          retention-days: 7
 
   build-linux:
     name: Build Linux Packages
@@ -118,28 +119,28 @@ jobs:
         with:
           name: linux-appimage
           path: frontend/dist/Kraken-*.AppImage
-          retention-days: 90
+          retention-days: 7
 
       - name: Upload Linux Debian package
         uses: actions/upload-artifact@v4
         with:
           name: linux-deb
           path: frontend/dist/kraken_*_amd64.deb
-          retention-days: 90
+          retention-days: 7
 
       - name: Upload Linux RPM package
         uses: actions/upload-artifact@v4
         with:
           name: linux-rpm
           path: frontend/dist/kraken-*.x86_64.rpm
-          retention-days: 90
+          retention-days: 7
 
       - name: Upload Linux update manifest
         uses: actions/upload-artifact@v4
         with:
           name: linux-yml
           path: frontend/dist/latest-linux.yml
-          retention-days: 90
+          retention-days: 7
 
   create-release:
     name: Create GitHub Release

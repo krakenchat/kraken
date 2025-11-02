@@ -3,7 +3,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../app/store";
 import { useSocket } from "./useSocket";
 import { useRoom } from "./useRoom";
-import { useVoiceEvents } from "./useVoiceEvents";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { useGetConnectionInfoQuery } from "../features/livekit/livekitApiSlice";
 import { setShowVideoTiles } from "../features/voice/voiceSlice";
@@ -34,9 +33,6 @@ export const useVoiceConnection = () => {
   const { room, setRoom, getRoom } = useRoom();
   const { data: user } = useProfileQuery();
   const { data: connectionInfo } = useGetConnectionInfoQuery();
-
-  // Set up voice event listeners
-  useVoiceEvents();
 
   const handleJoinVoiceChannel = useCallback(
     async (

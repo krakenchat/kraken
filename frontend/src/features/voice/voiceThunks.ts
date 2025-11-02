@@ -1,5 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { Room } from "livekit-client";
+import { Room, VideoCaptureOptions } from "livekit-client";
 import { Socket } from "socket.io-client";
 import { RootState, AppDispatch } from "../../app/store";
 import {
@@ -57,6 +57,8 @@ async function connectToLiveKitRoom(
     dispatch(setAudioEnabled(true));
   } catch (error) {
     console.error('Failed to enable microphone:', error);
+    // Keep state in sync - mic is disabled if it failed to enable
+    dispatch(setAudioEnabled(false));
     // Don't fail the whole join if mic fails, just log it
   }
 
@@ -214,7 +216,7 @@ export const toggleVideo = createAsyncThunk<
   { state: RootState }
 >("voice/toggleVideo", async ({ getRoom }, { dispatch, getState }) => {
   const state = getState();
-  const { isVideoEnabled, currentChannelId } = state.voice;
+  const { isVideoEnabled, currentChannelId, selectedVideoInputId } = state.voice;
   const room = getRoom();
 
   if (!room || !currentChannelId) {
@@ -234,8 +236,19 @@ export const toggleVideo = createAsyncThunk<
     // First update local state for responsive UI
     dispatch(setVideoEnabled(newState));
 
-    // Then handle LiveKit camera
-    await room.localParticipant.setCameraEnabled(newState);
+    // Prepare video capture options with flexible device constraints
+    const videoCaptureOptions: VideoCaptureOptions | undefined = newState
+      ? {
+          deviceId: selectedVideoInputId ? { ideal: selectedVideoInputId } : undefined,
+          resolution: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        }
+      : undefined;
+
+    // Then handle LiveKit camera with options
+    await room.localParticipant.setCameraEnabled(newState, videoCaptureOptions);
 
     // Update server state
     await dispatch(
@@ -289,18 +302,28 @@ export const toggleScreenShare = createAsyncThunk<
     ).unwrap();
 
     // Then handle the actual LiveKit screen share
-    // In Electron, this will use setDisplayMediaRequestHandler from main.ts
+    // In Electron, this will use setDisplayMediaRequestHandler from main.ts with electron-audio-loopback
     // In browser, it will use the native browser picker
     if (newState) {
+      console.log('Starting screen share with system audio...');
       await room.localParticipant.setScreenShareEnabled(true, {
-        audio: true, // Enable system audio capture (works in Electron)
+        audio: {
+          autoGainControl: false,
+          echoCancellation: false,
+          noiseSuppression: false,
+          sampleRate: 48000,
+          channelCount: 2
+        }, // Enable system audio capture with optimal settings
         resolution: {
           frameRate: 60,
         },
         preferCurrentTab: false,
       });
+      console.log('Screen share started successfully with audio');
     } else {
+      console.log('Stopping screen share...');
       await room.localParticipant.setScreenShareEnabled(false);
+      console.log('Screen share stopped');
     }
 
     // Update Redux state after successful LiveKit operation
@@ -618,7 +641,7 @@ export const toggleDmVideo = createAsyncThunk<
   { state: RootState }
 >("voice/toggleDmVideo", async ({ getRoom }, { dispatch, getState }) => {
   const state = getState();
-  const { isVideoEnabled, currentDmGroupId } = state.voice;
+  const { isVideoEnabled, currentDmGroupId, selectedVideoInputId } = state.voice;
   const room = getRoom();
 
   if (!room || !currentDmGroupId) return;
@@ -626,7 +649,18 @@ export const toggleDmVideo = createAsyncThunk<
   const newState = !isVideoEnabled;
 
   try {
-    await room.localParticipant.setCameraEnabled(newState);
+    // Prepare video capture options with flexible device constraints
+    const videoCaptureOptions: VideoCaptureOptions | undefined = newState
+      ? {
+          deviceId: selectedVideoInputId ? { ideal: selectedVideoInputId } : undefined,
+          resolution: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        }
+      : undefined;
+
+    await room.localParticipant.setCameraEnabled(newState, videoCaptureOptions);
     dispatch(setVideoEnabled(newState));
 
     await dispatch(

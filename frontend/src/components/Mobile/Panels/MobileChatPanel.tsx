@@ -25,6 +25,7 @@ import ChannelMessageContainer from '../../Channel/ChannelMessageContainer';
 import { VideoTiles } from '../../Voice/VideoTiles';
 import { VoiceChannelJoinButton } from '../../Voice/VoiceChannelJoinButton';
 import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
+import { ErrorBoundary } from '../../ErrorBoundary';
 
 interface MobileChatPanelProps {
   communityId?: string;
@@ -95,7 +96,9 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
       if (isConnectedToThisChannel) {
         return (
           <Box sx={{ height: '100%', width: '100%' }}>
-            <VideoTiles />
+            <ErrorBoundary>
+              <VideoTiles />
+            </ErrorBoundary>
           </Box>
         );
       }
