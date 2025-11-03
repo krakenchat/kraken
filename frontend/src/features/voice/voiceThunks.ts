@@ -305,21 +305,52 @@ export const toggleScreenShare = createAsyncThunk<
     // In Electron, this will use setDisplayMediaRequestHandler from main.ts with electron-audio-loopback
     // In browser, it will use the native browser picker
     if (newState) {
-      console.log('Starting screen share with system audio...');
+      // Get screen share settings from window (set by ScreenSourcePicker)
+      const settings = (window as Window & { __screenShareSettings?: {
+        resolution: string;
+        fps: number;
+        enableAudio: boolean;
+      } }).__screenShareSettings;
+
+      console.log('Starting screen share with settings:', settings);
+
+      // Build resolution config based on settings
+      const resolutionConfig: { width?: number; height?: number; frameRate: number } = {
+        frameRate: settings?.fps || 60,
+      };
+
+      // Map resolution preset to width/height (skip for 'native')
+      if (settings?.resolution && settings.resolution !== 'native') {
+        const resolutionMap: Record<string, { width: number; height: number }> = {
+          '4k': { width: 3840, height: 2160 },
+          '1440p': { width: 2560, height: 1440 },
+          '1080p': { width: 1920, height: 1080 },
+          '720p': { width: 1280, height: 720 },
+          '480p': { width: 854, height: 480 },
+        };
+
+        const res = resolutionMap[settings.resolution];
+        if (res) {
+          resolutionConfig.width = res.width;
+          resolutionConfig.height = res.height;
+        }
+      }
+
+      // Build audio config based on settings
+      const enableAudio = settings?.enableAudio !== false; // Default to true
+
       await room.localParticipant.setScreenShareEnabled(true, {
-        audio: {
+        audio: enableAudio ? {
           autoGainControl: false,
           echoCancellation: false,
           noiseSuppression: false,
           sampleRate: 48000,
           channelCount: 2
-        }, // Enable system audio capture with optimal settings
-        resolution: {
-          frameRate: 60,
-        },
+        } : false, // Enable system audio capture with optimal settings or disable
+        resolution: resolutionConfig,
         preferCurrentTab: false,
       });
-      console.log('Screen share started successfully with audio');
+      console.log('Screen share started successfully');
     } else {
       console.log('Stopping screen share...');
       await room.localParticipant.setScreenShareEnabled(false);
@@ -704,14 +735,53 @@ export const toggleDmScreenShare = createAsyncThunk<
     ).unwrap();
 
     if (newState) {
-      // Enable screen share with high quality: native resolution, 60fps, with audio
+      // Get screen share settings from window (set by ScreenSourcePicker)
+      const settings = (window as Window & { __screenShareSettings?: {
+        resolution: string;
+        fps: number;
+        enableAudio: boolean;
+      } }).__screenShareSettings;
+
+      console.log('Starting DM screen share with settings:', settings);
+
+      // Build resolution config based on settings
+      const resolutionConfig: { width?: number; height?: number; frameRate: number } = {
+        frameRate: settings?.fps || 60,
+      };
+
+      // Map resolution preset to width/height (skip for 'native')
+      if (settings?.resolution && settings.resolution !== 'native') {
+        const resolutionMap: Record<string, { width: number; height: number }> = {
+          '4k': { width: 3840, height: 2160 },
+          '1440p': { width: 2560, height: 1440 },
+          '1080p': { width: 1920, height: 1080 },
+          '720p': { width: 1280, height: 720 },
+          '480p': { width: 854, height: 480 },
+        };
+
+        const res = resolutionMap[settings.resolution];
+        if (res) {
+          resolutionConfig.width = res.width;
+          resolutionConfig.height = res.height;
+        }
+      }
+
+      // Build audio config based on settings
+      const enableAudio = settings?.enableAudio !== false; // Default to true
+
+      // Enable screen share with configured quality settings
       await room.localParticipant.setScreenShareEnabled(true, {
-        audio: true,  // Capture system/tab audio
-        resolution: {
-          frameRate: 60,  // 60fps for smooth motion (uses native width/height)
-        },
+        audio: enableAudio ? {
+          autoGainControl: false,
+          echoCancellation: false,
+          noiseSuppression: false,
+          sampleRate: 48000,
+          channelCount: 2
+        } : false,  // Capture system/tab audio or disable
+        resolution: resolutionConfig,
         preferCurrentTab: false,  // Allow selection of screen/window/tab
       });
+      console.log('DM screen share started successfully');
     } else {
       // Disable screen share
       await room.localParticipant.setScreenShareEnabled(false);

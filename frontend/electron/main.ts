@@ -195,33 +195,61 @@ app.whenReady().then(() => {
   });
 
   // Handle screen sharing requests from LiveKit
-  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
     console.log('Screen share requested via setDisplayMediaRequestHandler');
 
-    desktopCapturer.getSources({
-      types: ['screen', 'window'],
-      thumbnailSize: { width: 320, height: 240 },
-      fetchWindowIcons: true
-    }).then((sources) => {
-      // Find the primary screen (usually first screen source)
-      const primaryScreen = sources.find(s => s.name.toLowerCase().includes('screen')) || sources[0];
+    try {
+      // Check if the renderer has pre-selected a sourceId and settings (from React UI)
+      const selectedSourceId = await mainWindow?.webContents.executeJavaScript(
+        'window.__selectedScreenSourceId'
+      );
 
-      if (primaryScreen) {
-        console.log(`Providing screen source: ${primaryScreen.name}`);
-        // electron-audio-loopback makes 'loopback' work cross-platform
-        callback({
-          video: primaryScreen,
-          audio: 'loopback', // System audio capture (cross-platform via electron-audio-loopback)
-          enableLocalEcho: true // Keep audio playing locally (like Discord)
+      const settings = await mainWindow?.webContents.executeJavaScript(
+        'window.__screenShareSettings'
+      );
+
+      if (selectedSourceId) {
+        console.log(`Using pre-selected source ID: ${selectedSourceId}`);
+        console.log(`Screen share settings:`, settings);
+
+        // Clear the selected sourceId and settings
+        mainWindow?.webContents.executeJavaScript('delete window.__selectedScreenSourceId');
+        mainWindow?.webContents.executeJavaScript('delete window.__screenShareSettings');
+
+        // Get all sources to find the selected one
+        const sources = await desktopCapturer.getSources({
+          types: ['screen', 'window'],
+          thumbnailSize: { width: 320, height: 240 },
+          fetchWindowIcons: true
         });
+
+        const selectedSource = sources.find(s => s.id === selectedSourceId);
+
+        if (selectedSource) {
+          console.log(`Found source: ${selectedSource.name}`);
+
+          // Use settings to determine audio configuration
+          const enableAudio = settings?.enableAudio !== false; // Default to true if not specified
+
+          // electron-audio-loopback makes 'loopback' work cross-platform
+          callback({
+            video: selectedSource,
+            audio: enableAudio ? 'loopback' : undefined, // Conditionally include system audio
+            enableLocalEcho: enableAudio // Keep audio playing locally when enabled
+          });
+        } else {
+          console.error('Selected source not found:', selectedSourceId);
+          callback({});
+        }
       } else {
-        console.error('No desktop sources available for screen sharing');
+        console.error('No source selected by user');
+        // No source was pre-selected, this shouldn't happen in normal flow
         callback({});
       }
-    }).catch((error) => {
-      console.error('Failed to get desktop sources:', error);
+    } catch (error) {
+      console.error('Failed to get screen source:', error);
       callback({});
-    });
+    }
   });
 
   createWindow();

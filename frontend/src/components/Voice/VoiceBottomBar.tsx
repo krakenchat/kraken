@@ -30,6 +30,7 @@ import {
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
+import { ScreenSourcePicker, ScreenShareSettings } from "./ScreenSourcePicker";
 import { VoiceDebugPanel } from "./VoiceDebugPanel";
 import { ChannelType } from "../../types/channel.type";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -47,6 +48,7 @@ export const VoiceBottomBar: React.FC = () => {
   );
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [showScreenPicker, setShowScreenPicker] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(true); // Default to true for testing
 
   // Check if the current user is speaking
@@ -99,6 +101,37 @@ export const VoiceBottomBar: React.FC = () => {
 
   const handleDeviceSettingsClose = () => {
     setShowDeviceSettings(false);
+  };
+
+  const handleScreenShareClick = async () => {
+    // In Electron, show source picker first
+    // In browser, let native picker handle it
+    if (window.electronAPI?.getDesktopSources) {
+      // If already screen sharing, just stop it
+      if (state.isScreenSharing) {
+        actions.toggleScreenShare();
+      } else {
+        // Show picker for starting screen share
+        setShowScreenPicker(true);
+      }
+    } else {
+      // Browser mode - use direct toggle (native browser picker)
+      actions.toggleScreenShare();
+    }
+  };
+
+  const handleScreenSourceSelect = async (sourceId: string, settings: ScreenShareSettings) => {
+    setShowScreenPicker(false);
+    // Store the selected sourceId and settings globally so main.ts and voiceThunks can access them
+    // This is used by setDisplayMediaRequestHandler in main.ts and toggleScreenShare in voiceThunks
+    (window as Window & { __selectedScreenSourceId?: string; __screenShareSettings?: ScreenShareSettings }).__selectedScreenSourceId = sourceId;
+    (window as Window & { __screenShareSettings?: ScreenShareSettings }).__screenShareSettings = settings;
+    console.log('Selected screen source:', sourceId, 'with settings:', settings);
+    actions.toggleScreenShare();
+  };
+
+  const handleScreenPickerClose = () => {
+    setShowScreenPicker(false);
   };
 
   const handleDeviceChange = async (type: 'audio' | 'video', deviceId: string) => {
@@ -312,7 +345,7 @@ export const VoiceBottomBar: React.FC = () => {
               arrow={!isMobile}
             >
               <IconButton
-                onClick={actions.toggleScreenShare}
+                onClick={handleScreenShareClick}
                 color={state.isScreenSharing ? "primary" : "default"}
                 size={isMobile ? "medium" : "medium"}
                 sx={{
@@ -405,6 +438,13 @@ export const VoiceBottomBar: React.FC = () => {
           open={showDeviceSettings}
           onClose={handleDeviceSettingsClose}
           onDeviceChange={handleDeviceChange}
+        />
+
+        {/* Screen Source Picker Dialog */}
+        <ScreenSourcePicker
+          open={showScreenPicker}
+          onClose={handleScreenPickerClose}
+          onSelect={handleScreenSourceSelect}
         />
       </Paper>
 

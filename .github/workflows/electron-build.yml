@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feat/system-audio-capture  # TODO: Remove before merging PR
     tags:
       - 'v*.*.*'
   workflow_dispatch:
