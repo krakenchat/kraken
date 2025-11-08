@@ -28,9 +28,10 @@ import {
   VolumeUp,
 } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
+import { useScreenShare } from "../../hooks/useScreenShare";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
-import { ScreenSourcePicker, ScreenShareSettings } from "./ScreenSourcePicker";
+import { ScreenSourcePicker } from "./ScreenSourcePicker";
 import { VoiceDebugPanel } from "./VoiceDebugPanel";
 import { ChannelType } from "../../types/channel.type";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -40,6 +41,7 @@ import { useProfileQuery } from "../../features/users/usersSlice";
 
 export const VoiceBottomBar: React.FC = () => {
   const { state, actions } = useVoiceConnection();
+  const screenShare = useScreenShare();
   const { isMobile } = useResponsive();
   const { data: currentUser } = useProfileQuery();
   const { isSpeaking } = useSpeakingDetection();
@@ -48,8 +50,7 @@ export const VoiceBottomBar: React.FC = () => {
   );
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
-  const [showScreenPicker, setShowScreenPicker] = useState(false);
-  const [showDebugPanel, setShowDebugPanel] = useState(true); // Default to true for testing
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   // Check if the current user is speaking
   const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;
@@ -103,37 +104,6 @@ export const VoiceBottomBar: React.FC = () => {
     setShowDeviceSettings(false);
   };
 
-  const handleScreenShareClick = async () => {
-    // In Electron, show source picker first
-    // In browser, let native picker handle it
-    if (window.electronAPI?.getDesktopSources) {
-      // If already screen sharing, just stop it
-      if (state.isScreenSharing) {
-        actions.toggleScreenShare();
-      } else {
-        // Show picker for starting screen share
-        setShowScreenPicker(true);
-      }
-    } else {
-      // Browser mode - use direct toggle (native browser picker)
-      actions.toggleScreenShare();
-    }
-  };
-
-  const handleScreenSourceSelect = async (sourceId: string, settings: ScreenShareSettings) => {
-    setShowScreenPicker(false);
-    // Store the selected sourceId and settings globally so main.ts and voiceThunks can access them
-    // This is used by setDisplayMediaRequestHandler in main.ts and toggleScreenShare in voiceThunks
-    (window as Window & { __selectedScreenSourceId?: string; __screenShareSettings?: ScreenShareSettings }).__selectedScreenSourceId = sourceId;
-    (window as Window & { __screenShareSettings?: ScreenShareSettings }).__screenShareSettings = settings;
-    console.log('Selected screen source:', sourceId, 'with settings:', settings);
-    actions.toggleScreenShare();
-  };
-
-  const handleScreenPickerClose = () => {
-    setShowScreenPicker(false);
-  };
-
   const handleDeviceChange = async (type: 'audio' | 'video', deviceId: string) => {
     try {
       if (type === 'audio') {
@@ -141,7 +111,6 @@ export const VoiceBottomBar: React.FC = () => {
       } else if (type === 'video') {
         await actions.switchVideoInputDevice(deviceId);
       }
-      console.log(`Successfully switched ${type} device to: ${deviceId}`);
     } catch (error) {
       console.error(`Failed to switch ${type} device:`, error);
     }
@@ -340,31 +309,31 @@ export const VoiceBottomBar: React.FC = () => {
             {/* Screen Share */}
             <Tooltip
               title={
-                state.isScreenSharing ? "Stop screen share" : "Share screen"
+                screenShare.isScreenSharing ? "Stop screen share" : "Share screen"
               }
               arrow={!isMobile}
             >
               <IconButton
-                onClick={handleScreenShareClick}
-                color={state.isScreenSharing ? "primary" : "default"}
+                onClick={screenShare.toggleScreenShare}
+                color={screenShare.isScreenSharing ? "primary" : "default"}
                 size={isMobile ? "medium" : "medium"}
                 sx={{
-                  backgroundColor: state.isScreenSharing
+                  backgroundColor: screenShare.isScreenSharing
                     ? "primary.main"
                     : "transparent",
-                  color: state.isScreenSharing
+                  color: screenShare.isScreenSharing
                     ? "primary.contrastText"
                     : "text.primary",
                   minWidth: isMobile ? 48 : "auto",
                   minHeight: isMobile ? 48 : "auto",
                   "&:hover": {
-                    backgroundColor: state.isScreenSharing
+                    backgroundColor: screenShare.isScreenSharing
                       ? "primary.dark"
                       : "action.hover",
                   },
                 }}
               >
-                {state.isScreenSharing ? <StopScreenShare /> : <ScreenShare />}
+                {screenShare.isScreenSharing ? <StopScreenShare /> : <ScreenShare />}
               </IconButton>
             </Tooltip>
 
@@ -442,9 +411,9 @@ export const VoiceBottomBar: React.FC = () => {
 
         {/* Screen Source Picker Dialog */}
         <ScreenSourcePicker
-          open={showScreenPicker}
-          onClose={handleScreenPickerClose}
-          onSelect={handleScreenSourceSelect}
+          open={screenShare.showSourcePicker}
+          onClose={screenShare.handleSourcePickerClose}
+          onSelect={screenShare.handleSourceSelect}
         />
       </Paper>
 

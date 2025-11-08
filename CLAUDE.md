@@ -182,6 +182,124 @@ docs/
 - **Channel Types**: `VOICE` channels support both audio-only and video modes with screen sharing
 - **UI Pattern**: Bottom persistent bar when connected + video tiles overlay when video enabled
 
+### 🔌 Platform Separation Pattern (Web vs Electron)
+
+**Kraken supports both web browsers and Electron desktop app. Use these patterns for clean platform separation:**
+
+#### **1. Platform Detection Utility**
+
+Always use the centralized platform utility instead of inline checks:
+
+```typescript
+// ✅ CORRECT: Use platform utility
+import { isElectron, isWeb, hasElectronFeature } from './utils/platform';
+
+if (isElectron()) {
+  // Electron-specific code
+}
+
+if (hasElectronFeature('getDesktopSources')) {
+  // Feature-specific check
+}
+```
+
+```typescript
+// ❌ WRONG: Inline platform checks
+if (window.electronAPI) {  // Don't do this
+  // ...
+}
+```
+
+#### **2. Platform-Specific Hooks**
+
+Use hooks to encapsulate platform differences (see `src/hooks/`):
+
+- `useScreenShare()` - Platform-aware screen sharing (Electron picker vs browser native)
+- `useMediaDevices()` - Cross-platform media device management
+- More hooks in `docs/hooks/`
+
+**Example:**
+```typescript
+// ✅ CORRECT: Use platform hook
+import { useScreenShare } from '../../hooks/useScreenShare';
+
+const MyComponent = () => {
+  const { toggleScreenShare, isScreenSharing, showSourcePicker } = useScreenShare();
+
+  return (
+    <button onClick={toggleScreenShare}>
+      {isScreenSharing ? 'Stop' : 'Share'} Screen
+    </button>
+  );
+};
+```
+
+```typescript
+// ❌ WRONG: Platform checks in component
+const MyComponent = () => {
+  const handleClick = () => {
+    if (window.electronAPI?.getDesktopSources) {
+      // Electron code
+    } else {
+      // Browser code
+    }
+  };
+  // Messy and hard to test
+};
+```
+
+#### **3. Platform Separation Guidelines**
+
+**When to create platform-specific code:**
+- Screen capture/sharing (different APIs)
+- Native file system access
+- Desktop notifications
+- Auto-updates (Electron only)
+- System tray integration (Electron only)
+
+**What should be platform-agnostic:**
+- Voice/video connection logic (LiveKit works on both)
+- UI components (Material-UI works on both)
+- State management (Redux works on both)
+- WebSocket communication (works on both)
+- REST API calls (works on both)
+
+#### **4. Testing Platform Code**
+
+```typescript
+// Mock platform detection in tests
+jest.mock('./utils/platform', () => ({
+  isElectron: jest.fn(() => false),  // Test web behavior
+  isWeb: jest.fn(() => true),
+}));
+```
+
+#### **5. Common Pitfalls**
+
+❌ **Don't**: Override browser APIs globally (breaks LiveKit)
+```typescript
+// NEVER DO THIS - Deprecated pattern
+navigator.mediaDevices.getDisplayMedia = myCustomFunction;
+```
+
+✅ **Do**: Let Electron intercept via `setDisplayMediaRequestHandler` in main process
+```typescript
+// main.ts (Electron only)
+session.defaultSession.setDisplayMediaRequestHandler(...)
+```
+
+❌ **Don't**: Scatter platform checks throughout components
+```typescript
+// Hard to maintain
+if (window.electronAPI) { /* ... */ }
+if (window.electronAPI?.feature) { /* ... */ }
+```
+
+✅ **Do**: Centralize in utility or hooks
+```typescript
+import { isElectron, hasElectronFeature } from './utils/platform';
+```
+
 ## Development Commands
 
 **🐳 ALL DEVELOPMENT SHOULD BE DONE WITH DOCKER**

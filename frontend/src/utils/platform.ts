@@ -1,0 +1,134 @@
+/**
+ * Platform Detection Utility
+ *
+ * Provides centralized platform detection and feature checking for web vs Electron environments.
+ * This utility helps maintain clean separation between platform-specific code.
+ */
+
+/**
+ * Extended Window interface with Electron API
+ */
+interface ElectronAPI {
+  isElectron?: boolean;
+  getDesktopSources?: (types: string[]) => Promise<unknown[]>;
+  getScreenStream?: (sourceId: string) => Promise<MediaStream | null>;
+  [key: string]: unknown;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+    __selectedScreenSourceId?: string;
+    __screenShareSettings?: {
+      resolution: string;
+      fps: number;
+      enableAudio: boolean;
+    };
+  }
+}
+
+/**
+ * Platform types
+ */
+export enum Platform {
+  ELECTRON = 'electron',
+  WEB = 'web',
+  MOBILE = 'mobile',
+}
+
+/**
+ * Check if running in Electron environment
+ */
+export const isElectron = (): boolean => {
+  return typeof window !== 'undefined' && !!window.electronAPI?.isElectron;
+};
+
+/**
+ * Check if running in web browser (not Electron)
+ */
+export const isWeb = (): boolean => {
+  return typeof window !== 'undefined' && !window.electronAPI;
+};
+
+/**
+ * Check if running on mobile device
+ */
+export const isMobile = (): boolean => {
+  return typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+};
+
+/**
+ * Get current platform
+ */
+export const getPlatform = (): Platform => {
+  if (isElectron()) {
+    return Platform.ELECTRON;
+  }
+  if (isMobile()) {
+    return Platform.MOBILE;
+  }
+  return Platform.WEB;
+};
+
+/**
+ * Check if a specific Electron API feature is available
+ */
+export const hasElectronFeature = (feature: string): boolean => {
+  return isElectron() && typeof window.electronAPI?.[feature] === 'function';
+};
+
+/**
+ * Get Electron API if available
+ */
+export const getElectronAPI = (): ElectronAPI | null => {
+  return isElectron() ? window.electronAPI! : null;
+};
+
+/**
+ * Feature detection for screen capture
+ */
+export const supportsScreenCapture = (): boolean => {
+  if (isElectron()) {
+    return hasElectronFeature('getDesktopSources');
+  }
+  return typeof navigator?.mediaDevices?.getDisplayMedia === 'function';
+};
+
+/**
+ * Feature detection for getUserMedia (camera/microphone)
+ */
+export const supportsMediaDevices = (): boolean => {
+  return typeof navigator?.mediaDevices?.getUserMedia === 'function';
+};
+
+/**
+ * Check if running on HTTPS or localhost (required for some browser APIs)
+ */
+export const isSecureContext = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return (
+    window.isSecureContext ||
+    window.location.protocol === 'https:' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  );
+};
+
+/**
+ * Platform-specific utilities
+ */
+export const platformUtils = {
+  isElectron,
+  isWeb,
+  isMobile,
+  getPlatform,
+  hasElectronFeature,
+  getElectronAPI,
+  supportsScreenCapture,
+  supportsMediaDevices,
+  isSecureContext,
+} as const;
+
+export default platformUtils;

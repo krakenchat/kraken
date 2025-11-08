@@ -15,17 +15,14 @@ import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import { useVoiceEvents } from "./hooks/useVoiceEvents";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { useResponsive } from "./hooks/useResponsive";
+import { isElectron } from "./utils/platform";
 import type { User } from "./types/auth.type";
 
 const APPBAR_HEIGHT = 64;
 const SIDEBAR_WIDTH = 80;
 const VOICE_BAR_HEIGHT = 64;
 
-// Check if running in Electron
-const isElectron = typeof window !== 'undefined' &&
-  (window as Window & { electronAPI?: unknown }).electronAPI;
-
-const settings = isElectron
+const settings = isElectron()
   ? ["Edit Profile", "Settings", "Logout"]
   : ["Edit Profile", "Logout"];
 

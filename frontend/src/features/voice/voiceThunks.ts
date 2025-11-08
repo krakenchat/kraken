@@ -48,15 +48,21 @@ async function connectToLiveKitRoom(
   dispatch: AppDispatch
 ): Promise<Room> {
   const room = new Room();
-  await room.connect(url, token);
-  setRoom(room);
+
+  try {
+    await room.connect(url, token);
+    setRoom(room);
+  } catch (error) {
+    console.error('[Voice] ✗ Failed to connect to LiveKit room:', error);
+    throw error;
+  }
 
   // Enable microphone by default when joining
   try {
     await room.localParticipant.setMicrophoneEnabled(true);
     dispatch(setAudioEnabled(true));
   } catch (error) {
-    console.error('Failed to enable microphone:', error);
+    console.error('[Voice] ✗ Failed to enable microphone:', error);
     // Keep state in sync - mic is disabled if it failed to enable
     dispatch(setAudioEnabled(false));
     // Don't fail the whole join if mic fails, just log it
@@ -120,11 +126,11 @@ export const joinVoiceChannel = createAsyncThunk<
         socket.emit(ClientEvents.VOICE_CHANNEL_JOIN, { channelId });
       }
     } catch (error) {
-      console.error("Failed to join voice channel:", error);
+      console.error("[Voice] ✗ Failed to join voice channel:", error);
       const message =
         error instanceof Error ? error.message : "Failed to join voice channel";
       dispatch(setConnectionError(message));
-      
+
       // Clean up any partial state
       setRoom(null);
       throw error;
@@ -312,8 +318,6 @@ export const toggleScreenShare = createAsyncThunk<
         enableAudio: boolean;
       } }).__screenShareSettings;
 
-      console.log('Starting screen share with settings:', settings);
-
       // Build resolution config based on settings
       const resolutionConfig: { width?: number; height?: number; frameRate: number } = {
         frameRate: settings?.fps || 60,
@@ -350,11 +354,8 @@ export const toggleScreenShare = createAsyncThunk<
         resolution: resolutionConfig,
         preferCurrentTab: false,
       });
-      console.log('Screen share started successfully');
     } else {
-      console.log('Stopping screen share...');
       await room.localParticipant.setScreenShareEnabled(false);
-      console.log('Screen share stopped');
     }
 
     // Update Redux state after successful LiveKit operation
@@ -455,11 +456,9 @@ export const switchAudioInputDevice = createAsyncThunk<
     try {
       // Switch the microphone device
       await room.switchActiveDevice('audioinput', deviceId);
-      
+
       // Update Redux state
       dispatch(setSelectedAudioInputId(deviceId));
-      
-      console.log(`Switched audio input device to: ${deviceId}`);
     } catch (error) {
       console.error("Failed to switch audio input device:", error);
       throw error;
@@ -483,11 +482,9 @@ export const switchAudioOutputDevice = createAsyncThunk<
     try {
       // Switch the audio output device
       await room.switchActiveDevice('audiooutput', deviceId);
-      
+
       // Update Redux state
       dispatch(setSelectedAudioOutputId(deviceId));
-      
-      console.log(`Switched audio output device to: ${deviceId}`);
     } catch (error) {
       console.error("Failed to switch audio output device:", error);
       throw error;
@@ -515,8 +512,6 @@ export const switchVideoInputDevice = createAsyncThunk<
 
       // Update Redux state
       dispatch(setSelectedVideoInputId(deviceId));
-
-      console.log(`Switched video input device to: ${deviceId}`);
     } catch (error) {
       console.error("Failed to switch video input device:", error);
       throw error;
@@ -742,8 +737,6 @@ export const toggleDmScreenShare = createAsyncThunk<
         enableAudio: boolean;
       } }).__screenShareSettings;
 
-      console.log('Starting DM screen share with settings:', settings);
-
       // Build resolution config based on settings
       const resolutionConfig: { width?: number; height?: number; frameRate: number } = {
         frameRate: settings?.fps || 60,
@@ -781,7 +774,6 @@ export const toggleDmScreenShare = createAsyncThunk<
         resolution: resolutionConfig,
         preferCurrentTab: false,  // Allow selection of screen/window/tab
       });
-      console.log('DM screen share started successfully');
     } else {
       // Disable screen share
       await room.localParticipant.setScreenShareEnabled(false);

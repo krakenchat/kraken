@@ -23,6 +23,7 @@ import { CircularProgress, Box } from "@mui/material";
 import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
 import { hasServers } from "./utils/serverStorage";
+import { isElectron } from "./utils/platform";
 import { useState } from "react";
 
 const darkTheme = createTheme({
@@ -37,8 +38,7 @@ function App() {
   const token = localStorage.getItem("accessToken");
 
   // Check if running in Electron and needs server configuration
-  const isElectron = window && (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron;
-  const needsServerSetup = isElectron && !hasServers();
+  const needsServerSetup = isElectron() && !hasServers();
   const [showWizard, setShowWizard] = useState(needsServerSetup);
 
   // Check if onboarding is needed - but only make the request if we're not already on the onboarding page
