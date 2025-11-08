@@ -4,8 +4,11 @@ import type {
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
 import axios from "axios";
-import { getCachedItem, setCachedItem } from "../utils/storage";
+import { setCachedItem } from "../utils/storage";
 import { getApiUrl } from "../config/env";
+import { getAuthToken } from "../utils/auth";
+import { logger } from "../utils/logger";
+import { isElectron } from "../utils/platform";
 
 // Track refresh attempts to prevent infinite loops
 let isRefreshing = false;
@@ -32,22 +35,21 @@ const getBaseAuthedQuery = (
     ) {
       // If we're already refreshing or have exceeded max attempts, redirect to login
       if (isRefreshing || refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-        console.log("Authentication failed - redirecting to login");
+        logger.dev("Authentication failed - redirecting to login");
         redirectToLogin();
         return result; // Return the original error
       }
 
-      console.log("Unauthorized, trying to refresh token");
+      logger.dev("Unauthorized, trying to refresh token");
       isRefreshing = true;
       refreshAttempts++;
 
       try {
         // Try to refresh - check if we're in Electron
-        const isElectron = typeof window !== 'undefined' &&
-          (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron;
+        const isElectronApp = isElectron();
 
         let refreshResponse;
-        if (isElectron) {
+        if (isElectronApp) {
           const refreshToken = localStorage.getItem("refreshToken");
           if (refreshToken) {
             // For Electron, send refresh token in body
@@ -67,12 +69,12 @@ const getBaseAuthedQuery = (
           );
         }
 
-        console.log("Refresh response", refreshResponse);
+        logger.dev("Refresh response", refreshResponse);
         if (refreshResponse?.data?.accessToken) {
           setCachedItem("accessToken", refreshResponse.data.accessToken);
 
           // Update stored refresh token for Electron
-          if (isElectron && refreshResponse.data.refreshToken) {
+          if (isElectronApp && refreshResponse.data.refreshToken) {
             localStorage.setItem("refreshToken", refreshResponse.data.refreshToken);
           }
 
@@ -86,7 +88,7 @@ const getBaseAuthedQuery = (
           throw new Error("No access token in refresh response");
         }
       } catch (refreshError) {
-        console.log("Token refresh failed:", refreshError);
+        logger.error("Token refresh failed:", refreshError);
         isRefreshing = false;
         redirectToLogin();
         return result; // Return the original 401 error
@@ -98,7 +100,7 @@ const getBaseAuthedQuery = (
 };
 
 export const prepareHeaders = (headers: Headers) => {
-  const token = getCachedItem<string>("accessToken");
+  const token = getAuthToken();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }

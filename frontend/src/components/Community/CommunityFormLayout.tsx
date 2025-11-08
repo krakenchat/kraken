@@ -78,7 +78,7 @@ const CommunityFormLayout: React.FC<CommunityFormLayoutProps> = ({
           </Typography>
         </HeaderSection>
 
-        {!!error && (
+        {Boolean(error) && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {errorMessage}
           </Alert>

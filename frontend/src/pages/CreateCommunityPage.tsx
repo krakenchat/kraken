@@ -57,7 +57,7 @@ const CreateCommunityPage: React.FC = () => {
       error={error}
       errorMessage="Failed to create community. Please try again."
       isLoading={isLoading}
-      isFormValid={!!formData.name.trim()}
+      isFormValid={formData.name.trim().length > 0}
       submitButtonText="Create Community"
       loadingText="Creating..."
     >

@@ -9,6 +9,7 @@ import {
   updateMessage,
   deleteMessage,
 } from "../features/messages/messagesSlice";
+import { logger } from "../utils/logger";
 
 export function useDirectMessageWebSocket() {
   const dispatch = useAppDispatch();
@@ -19,13 +20,13 @@ export function useDirectMessageWebSocket() {
     if (!socket) return;
 
     const handleNewDM = ({ message }: { message: Message }) => {
-      console.log("[useDirectMessageWebSocket] Received NEW_DM event:", message);
+      logger.dev("[useDirectMessageWebSocket] Received NEW_DM event:", message);
       const targetDmGroupId = message.directMessageGroupId;
       if (targetDmGroupId) {
-        console.log("[useDirectMessageWebSocket] Adding message to DM group:", targetDmGroupId);
+        logger.dev("[useDirectMessageWebSocket] Adding message to DM group:", targetDmGroupId);
         dispatch(prependMessage({ channelId: targetDmGroupId, message }));
       } else {
-        console.warn("[useDirectMessageWebSocket] No directMessageGroupId in message:", message);
+        logger.warn("[useDirectMessageWebSocket] No directMessageGroupId in message:", message);
       }
     };
 

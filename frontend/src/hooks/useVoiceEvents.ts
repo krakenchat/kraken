@@ -4,6 +4,7 @@ import { AppDispatch } from '../app/store';
 import { useSocket } from './useSocket';
 import { ServerEvents } from '../types/server-events.enum';
 import { VoicePresenceUser, voicePresenceApi } from '../features/voice-presence/voicePresenceApiSlice';
+import { logger } from '../utils/logger';
 
 export const useVoiceEvents = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -11,17 +12,17 @@ export const useVoiceEvents = () => {
 
   useEffect(() => {
     if (!socket) {
-      console.log('useVoiceEvents: No socket available');
+      logger.dev('useVoiceEvents: No socket available');
       return;
     }
 
-    console.log('useVoiceEvents: Setting up global voice presence listeners');
+    logger.dev('useVoiceEvents: Setting up global voice presence listeners');
 
     const handleUserJoined = (data: { channelId: string; user: VoicePresenceUser }) => {
-      console.log('🎤 Voice user joined:', { 
-        channelId: data.channelId, 
-        userId: data.user.id, 
-        username: data.user.username 
+      logger.dev('🎤 Voice user joined:', {
+        channelId: data.channelId,
+        userId: data.user.id,
+        username: data.user.username
       });
       
       // Try to update RTK Query cache - if it doesn't exist, invalidate the tag to refetch
@@ -36,7 +37,7 @@ export const useVoiceEvents = () => {
           })
         );
       } catch {
-        console.log('No cache found for channel, invalidating tag:', data.channelId);
+        logger.dev('No cache found for channel, invalidating tag:', data.channelId);
         // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
         dispatch(
           voicePresenceApi.util.invalidateTags([{ type: 'VoicePresence', id: data.channelId }])
@@ -48,7 +49,7 @@ export const useVoiceEvents = () => {
     };
 
     const handleUserLeft = (data: { channelId: string; userId: string }) => {
-      console.log('Voice user left:', data);
+      logger.dev('Voice user left:', data);
       
       // Try to update RTK Query cache - if it doesn't exist, invalidate the tag to refetch
       try {
@@ -62,7 +63,7 @@ export const useVoiceEvents = () => {
           })
         );
       } catch {
-        console.log('No cache found for channel, invalidating tag:', data.channelId);
+        logger.dev('No cache found for channel, invalidating tag:', data.channelId);
         // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
         dispatch(
           voicePresenceApi.util.invalidateTags([{ type: 'VoicePresence', id: data.channelId }])
@@ -74,7 +75,7 @@ export const useVoiceEvents = () => {
     };
 
     const handleUserUpdated = (data: { channelId: string; user: VoicePresenceUser }) => {
-      console.log('Voice user updated:', data);
+      logger.dev('Voice user updated:', data);
       
       // Try to update RTK Query cache - if it doesn't exist, invalidate the tag to refetch
       try {
@@ -88,7 +89,7 @@ export const useVoiceEvents = () => {
           })
         );
       } catch {
-        console.log('No cache found for channel, invalidating tag:', data.channelId);
+        logger.dev('No cache found for channel, invalidating tag:', data.channelId);
         // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
         dispatch(
           voicePresenceApi.util.invalidateTags([{ type: 'VoicePresence', id: data.channelId }])

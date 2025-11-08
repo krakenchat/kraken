@@ -8,10 +8,11 @@
  * - In Web: Uses native browser getDisplayMedia picker
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useVoiceConnection } from './useVoiceConnection';
 import { hasElectronFeature } from '../utils/platform';
 import { ScreenShareSettings } from '../components/Voice/ScreenSourcePicker';
+import { setScreenShareConfig, clearScreenShareConfig } from '../utils/screenShareState';
 
 interface UseScreenShareReturn {
   isScreenSharing: boolean;
@@ -67,15 +68,14 @@ export const useScreenShare = (): UseScreenShareReturn => {
 
   /**
    * Handle source selection from Electron picker
-   * Stores selection globally for main.ts to access, then starts sharing
+   * Stores selection for Electron main process to access via setDisplayMediaRequestHandler
    */
   const handleSourceSelect = useCallback(
     async (sourceId: string, settings: ScreenShareSettings) => {
       setShowSourcePicker(false);
 
-      // Store selected source and settings for Electron main process
-      window.__selectedScreenSourceId = sourceId;
-      window.__screenShareSettings = settings;
+      // Store selected source and settings for Electron main process using type-safe interface
+      setScreenShareConfig(sourceId, settings);
 
       // Start screen share (LiveKit will use selected source via main.ts handler)
       await actions.toggleScreenShare();
@@ -89,6 +89,15 @@ export const useScreenShare = (): UseScreenShareReturn => {
   const handleSourcePickerClose = useCallback(() => {
     setShowSourcePicker(false);
   }, []);
+
+  /**
+   * Clean up screen share config when screen sharing stops
+   */
+  useEffect(() => {
+    if (!state.isScreenSharing) {
+      clearScreenShareConfig();
+    }
+  }, [state.isScreenSharing]);
 
   return {
     isScreenSharing: state.isScreenSharing,

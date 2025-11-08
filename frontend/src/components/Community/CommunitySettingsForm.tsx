@@ -48,7 +48,7 @@ const CommunitySettingsForm: React.FC<CommunitySettingsFormProps> = ({
 }) => {
   return (
     <FormContainer>
-      {!!error && (
+      {Boolean(error) && (
         <Alert severity="error">
           {errorMessage}
         </Alert>

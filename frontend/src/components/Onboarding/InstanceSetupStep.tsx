@@ -72,7 +72,7 @@ const InstanceSetupStep: React.FC<InstanceSetupStepProps> = ({
               label="Instance Name"
               value={data.instanceName}
               onChange={handleChange('instanceName')}
-              error={!!errors.instanceName}
+              error={Boolean(errors.instanceName)}
               helperText={errors.instanceName || 'This will be the name of your chat platform (e.g., "Acme Corp Chat", "My Team Hub")'}
               required
               fullWidth

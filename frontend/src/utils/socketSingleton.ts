@@ -3,9 +3,12 @@ import type {
   ServerToClientEvents,
   ClientToServerEvents,
 } from "./SocketContext";
-import { getCachedItem, setCachedItem } from "../utils/storage";
+import { setCachedItem } from "../utils/storage";
 import axios from "axios";
 import { getWebSocketUrl, getApiUrl } from "../config/env";
+import { getAuthToken } from "./auth";
+import { logger } from "./logger";
+import { isElectron } from "./platform";
 
 let socketInstance: Socket<ServerToClientEvents, ClientToServerEvents> | null =
   null;
@@ -23,19 +26,18 @@ export async function getSocketSingleton(): Promise<
     return connectPromise;
   }
   connectPromise = (async () => {
-    let token = getCachedItem<string>("accessToken");
+    let token = getAuthToken();
 
     // Try to refresh token
     try {
       const refreshUrl = getApiUrl("/auth/refresh");
-      console.log("[Socket] Refreshing token at:", refreshUrl);
+      logger.dev("[Socket] Refreshing token at:", refreshUrl);
 
       // Check if we're in Electron and have a stored refresh token
-      const isElectron = typeof window !== 'undefined' &&
-        (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron;
+      const isElectronApp = isElectron();
 
       let refreshResponse;
-      if (isElectron) {
+      if (isElectronApp) {
         const refreshToken = localStorage.getItem("refreshToken");
         if (refreshToken) {
           // For Electron, send refresh token in body
@@ -60,24 +62,24 @@ export async function getSocketSingleton(): Promise<
         token = refreshResponse.data.accessToken;
 
         // Update stored refresh token for Electron
-        if (isElectron && refreshResponse.data.refreshToken) {
+        if (isElectronApp && refreshResponse.data.refreshToken) {
           localStorage.setItem("refreshToken", refreshResponse.data.refreshToken);
         }
 
-        console.log("[Socket] Token refreshed successfully");
+        logger.dev("[Socket] Token refreshed successfully");
       }
     } catch (error) {
-      console.error("[Socket] Error refreshing token:", error);
+      logger.error("[Socket] Error refreshing token:", error);
       token = null;
     }
 
     // Use configurable WebSocket URL from environment
     const url = getWebSocketUrl();
-    console.log("[Socket] Connecting to WebSocket URL:", url);
+    logger.dev("[Socket] Connecting to WebSocket URL:", url);
 
     if (!token) {
       const error = new Error("No token available for socket connection. Please log in and configure server connection.");
-      console.error("[Socket]", error.message);
+      logger.error("[Socket]", error.message);
       throw error;
     }
 
@@ -88,7 +90,7 @@ export async function getSocketSingleton(): Promise<
     return new Promise<Socket<ServerToClientEvents, ClientToServerEvents>>(
       (resolve, reject) => {
         socketInstance!.on("connect", () => {
-          console.log("Socket connected " + socketInstance!.id);
+          logger.dev("Socket connected " + socketInstance!.id);
           resolve(socketInstance!);
         });
         socketInstance!.on("connect_error", (err) => {

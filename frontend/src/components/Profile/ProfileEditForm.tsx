@@ -39,7 +39,7 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         label="Display Name"
         value={formData.displayName}
         onChange={onDisplayNameChange}
-        error={!!formErrors.displayName}
+        error={Boolean(formErrors.displayName)}
         helperText={formErrors.displayName || "Your display name (1-32 characters)"}
         margin="normal"
         required

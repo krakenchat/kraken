@@ -95,7 +95,7 @@ const AdminSetupStep: React.FC<AdminSetupStepProps> = ({
               label="Admin Username"
               value={data.adminUsername}
               onChange={handleChange('adminUsername')}
-              error={!!errors.adminUsername}
+              error={Boolean(errors.adminUsername)}
               helperText={errors.adminUsername || 'This will be your login username'}
               required
               fullWidth
@@ -107,7 +107,7 @@ const AdminSetupStep: React.FC<AdminSetupStepProps> = ({
               type={showPassword ? 'text' : 'password'}
               value={data.adminPassword}
               onChange={handleChange('adminPassword')}
-              error={!!errors.adminPassword}
+              error={Boolean(errors.adminPassword)}
               helperText={errors.adminPassword || 'Use a strong password to secure your account'}
               required
               fullWidth
@@ -131,7 +131,7 @@ const AdminSetupStep: React.FC<AdminSetupStepProps> = ({
               type="email"
               value={data.adminEmail}
               onChange={handleChange('adminEmail')}
-              error={!!errors.adminEmail}
+              error={Boolean(errors.adminEmail)}
               helperText={errors.adminEmail || 'For password recovery and notifications'}
               fullWidth
               autoComplete="email"

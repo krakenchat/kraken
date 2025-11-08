@@ -46,7 +46,7 @@ const RoleEditor: React.FC<RoleEditorProps> = ({
   );
   const [nameError, setNameError] = useState("");
 
-  const isEditing = !!role;
+  const isEditing = Boolean(role);
   
   const isDefaultRole = (roleName: string) => {
     return ['Community Admin', 'Moderator', 'Member'].includes(roleName);
@@ -166,7 +166,7 @@ const RoleEditor: React.FC<RoleEditorProps> = ({
             value={name}
             onChange={handleNameChange}
             fullWidth
-            error={!!nameError}
+            error={Boolean(nameError)}
             helperText={
               isEditing && isDefaultRole(role?.name || "") 
                 ? "Default role name cannot be changed" 

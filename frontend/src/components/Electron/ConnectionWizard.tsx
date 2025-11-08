@@ -145,7 +145,7 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
               placeholder="https://chat.example.com"
               value={serverUrl}
               onChange={(e) => setServerUrl(e.target.value)}
-              error={!!error && !testing}
+              error={Boolean(error) && !testing}
               helperText={error && !testing ? error : 'Enter the full URL including https://'}
               sx={{ mb: 2 }}
               autoFocus

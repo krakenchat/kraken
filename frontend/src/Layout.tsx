@@ -17,10 +17,7 @@ import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { useResponsive } from "./hooks/useResponsive";
 import { isElectron } from "./utils/platform";
 import type { User } from "./types/auth.type";
-
-const APPBAR_HEIGHT = 64;
-const SIDEBAR_WIDTH = 80;
-const VOICE_BAR_HEIGHT = 64;
+import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from "./constants/layout";
 
 const settings = isElectron()
   ? ["Edit Profile", "Settings", "Logout"]
@@ -34,7 +31,7 @@ const Layout: React.FC = () => {
   const { isMobile } = useResponsive();
 
   // Send presence heartbeat to keep user marked as online
-  usePresenceHeartbeat(!!userData && !isLoading && !isError);
+  usePresenceHeartbeat(userData !== undefined && !isLoading && !isError);
 
   // Listen for real-time presence events
   usePresenceEvents();

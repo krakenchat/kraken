@@ -94,7 +94,7 @@ const CommunitySetupStep: React.FC<CommunitySetupStepProps> = ({
                 label="Community Name"
                 value={data.defaultCommunityName}
                 onChange={handleChange('defaultCommunityName')}
-                error={!!errors.defaultCommunityName}
+                error={Boolean(errors.defaultCommunityName)}
                 helperText={errors.defaultCommunityName || 'This will be your main community where team members gather'}
                 fullWidth
                 sx={{ mb: 2 }}

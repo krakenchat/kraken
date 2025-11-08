@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCachedItem, setCachedItem } from '../utils/storage';
+import { logger } from '../utils/logger';
 
 export interface MediaDeviceInfo extends MediaDeviceInfoLike {
   deviceId: string;
@@ -61,9 +62,9 @@ export const useDeviceSettings = () => {
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micPermission = audioStream.getAudioTracks().length > 0;
       audioStream.getTracks().forEach(track => track.stop());
-      console.log('Microphone permission granted');
+      logger.dev('Microphone permission granted');
     } catch (error) {
-      console.warn('Failed to get microphone permission:', error);
+      logger.warn('Failed to get microphone permission:', error);
       micPermission = false;
     }
 
@@ -72,9 +73,9 @@ export const useDeviceSettings = () => {
       const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
       cameraPermission = videoStream.getVideoTracks().length > 0;
       videoStream.getTracks().forEach(track => track.stop());
-      console.log('Camera permission granted');
+      logger.dev('Camera permission granted');
     } catch (error) {
-      console.warn('Failed to get camera permission:', error);
+      logger.warn('Failed to get camera permission:', error);
       cameraPermission = false;
     }
 
@@ -106,7 +107,7 @@ export const useDeviceSettings = () => {
       });
 
       // Log device enumeration results for debugging
-      console.log('Device enumeration complete:', {
+      logger.dev('Device enumeration complete:', {
         totalDevices: devices.length,
         audioInputs: audioInputs.length,
         audioOutputs: audioOutputs.length,
@@ -114,19 +115,19 @@ export const useDeviceSettings = () => {
       });
 
       if (videoInputs.length > 0) {
-        console.log('Video devices found:', videoInputs.map(d => ({
+        logger.dev('Video devices found:', videoInputs.map(d => ({
           id: d.deviceId,
           label: d.label || '(no label)',
         })));
       } else {
-        console.warn('No video input devices found');
+        logger.warn('No video input devices found');
       }
 
       setAudioInputDevices(audioInputs);
       setAudioOutputDevices(audioOutputs);
       setVideoInputDevices(videoInputs);
     } catch (error) {
-      console.error('Failed to enumerate devices:', error);
+      logger.error('Failed to enumerate devices:', error);
     }
   }, []);
 

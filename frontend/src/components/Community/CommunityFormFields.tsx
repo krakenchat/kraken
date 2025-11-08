@@ -34,7 +34,7 @@ const CommunityFormFields: React.FC<CommunityFormFieldsProps> = ({
         variant="outlined"
         value={name}
         onChange={onNameChange}
-        error={!!errors.name}
+        error={Boolean(errors.name)}
         helperText={errors.name}
         required
         fullWidth

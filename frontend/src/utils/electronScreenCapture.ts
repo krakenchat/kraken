@@ -5,6 +5,8 @@
  * instead of the standard browser getDisplayMedia API.
  */
 
+import { logger } from './logger';
+
 interface DesktopSource {
   id: string;
   name: string;
@@ -30,7 +32,7 @@ declare global {
  * Check if we're running in Electron
  */
 export function isElectron(): boolean {
-  return !!window.electronAPI?.isElectron;
+  return window.electronAPI?.isElectron === true;
 }
 
 /**
@@ -40,14 +42,14 @@ export async function getDesktopSources(types: string[] = ['window', 'screen']):
   const electronAPI = window.electronAPI;
 
   if (!electronAPI?.getDesktopSources) {
-    console.error('Electron desktop capture API not available');
+    logger.error('Electron desktop capture API not available');
     return [];
   }
 
   try {
     return await electronAPI.getDesktopSources(types);
   } catch (error) {
-    console.error('Failed to get desktop sources:', error);
+    logger.error('Failed to get desktop sources:', error);
     return [];
   }
 }
@@ -59,14 +61,14 @@ export async function getElectronScreenStream(sourceId: string): Promise<MediaSt
   const electronAPI = window.electronAPI;
 
   if (!electronAPI?.getScreenStream) {
-    console.error('Electron screen stream API not available');
+    logger.error('Electron screen stream API not available');
     return null;
   }
 
   try {
     return await electronAPI.getScreenStream(sourceId);
   } catch (error) {
-    console.error('Failed to get screen stream:', error);
+    logger.error('Failed to get screen stream:', error);
     return null;
   }
 }
@@ -85,14 +87,14 @@ export async function getPrimaryScreenSource(): Promise<DesktopSource | null> {
  */
 export async function getElectronScreenShareStream(): Promise<MediaStream | null> {
   if (!isElectron()) {
-    console.warn('Not running in Electron, screen share may not work correctly');
+    logger.warn('Not running in Electron, screen share may not work correctly');
     return null;
   }
 
   // Get the primary screen source
   const primarySource = await getPrimaryScreenSource();
   if (!primarySource) {
-    console.error('No screen sources available');
+    logger.error('No screen sources available');
     return null;
   }
 
@@ -118,7 +120,7 @@ export function overrideGetDisplayMediaForElectron(): void {
 
   // Override with our Electron implementation
   navigator.mediaDevices.getDisplayMedia = async function(constraints?: DisplayMediaStreamOptions): Promise<MediaStream> {
-    console.log('getDisplayMedia called in Electron, using desktopCapturer');
+    logger.dev('getDisplayMedia called in Electron, using desktopCapturer');
 
     try {
       // Get available sources
@@ -157,14 +159,14 @@ export function overrideGetDisplayMediaForElectron(): void {
             stream.addTrack(track);
           });
         } catch (audioError) {
-          console.warn('Failed to capture system audio:', audioError);
+          logger.warn('Failed to capture system audio:', audioError);
           // Continue without audio
         }
       }
 
       return stream;
     } catch (error) {
-      console.error('Electron getDisplayMedia override failed:', error);
+      logger.error('Electron getDisplayMedia override failed:', error);
 
       // Fall back to original implementation if available
       if (originalGetDisplayMedia) {
@@ -175,5 +177,5 @@ export function overrideGetDisplayMediaForElectron(): void {
     }
   };
 
-  console.log('getDisplayMedia overridden for Electron');
+  logger.dev('getDisplayMedia overridden for Electron');
 }

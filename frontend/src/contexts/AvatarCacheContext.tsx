@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useRef, useCallback, useEffect } from "react";
 import { getApiUrl } from "../config/env";
+import { getAuthToken } from "../utils/auth";
 
 interface FileCacheContextType {
   getBlob: (fileId: string) => string | null;
@@ -60,20 +61,8 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }
     // 3. Start new fetch and track it
     const fetchPromise = (async () => {
       try {
-        // Get auth token from localStorage
-        const tokenRaw = localStorage.getItem("accessToken");
-        let token: string | null = null;
-
-        if (tokenRaw) {
-          try {
-            const parsed = JSON.parse(tokenRaw);
-            token = parsed && typeof parsed === "object" && parsed.value
-              ? parsed.value
-              : parsed;
-          } catch {
-            token = tokenRaw;
-          }
-        }
+        // Get auth token using centralized utility
+        const token = getAuthToken();
 
         if (!token) {
           throw new Error("No authentication token found");

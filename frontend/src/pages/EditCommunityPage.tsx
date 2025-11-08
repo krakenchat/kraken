@@ -258,7 +258,7 @@ const EditCommunityPage: React.FC = () => {
                     : "Failed to update community. Please try again."
                 }
                 isLoading={isLoading || isUploading}
-                isFormValid={!!formData.name.trim()}
+                isFormValid={formData.name.trim().length > 0}
                 submitButtonText="Update Community"
                 loadingText={isUploading ? "Uploading files..." : "Updating..."}
               >

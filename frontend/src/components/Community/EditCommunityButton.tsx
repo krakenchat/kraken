@@ -3,6 +3,7 @@ import { IconButton, Tooltip } from "@mui/material";
 import { Settings } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
+import { logger } from "../../utils/logger";
 
 interface EditCommunityButtonProps {
   communityId: string;
@@ -26,7 +27,7 @@ export const EditCommunityButton: React.FC<EditCommunityButtonProps> = ({
   };
 
   if (!canEdit) {
-    console.log("User does not have permissions to edit community");
+    logger.dev("User does not have permissions to edit community");
     return null; // Don't render if user doesn't have permissions
   }
 

@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, LinearProgress, Snackbar, Box, Typography } from '@mui/material';
 import { Download, Refresh } from '@mui/icons-material';
+import { logger } from '../../utils/logger';
 
 interface UpdateInfo {
   version: string;
@@ -31,25 +32,25 @@ export const AutoUpdater = () => {
 
       // Set up event listeners
       const unsubUpdateAvailable = window.electronAPI.onUpdateAvailable((info) => {
-        console.log('Update available:', info);
+        logger.dev('Update available:', info);
         setUpdateInfo(info);
         setUpdateAvailable(true);
         setDownloading(true);
       });
 
       const unsubDownloadProgress = window.electronAPI.onDownloadProgress((progress) => {
-        console.log('Download progress:', progress.percent);
+        logger.dev('Download progress:', progress.percent);
         setDownloadProgress(progress.percent);
       });
 
       const unsubUpdateDownloaded = window.electronAPI.onUpdateDownloaded((info) => {
-        console.log('Update downloaded:', info);
+        logger.dev('Update downloaded:', info);
         setDownloading(false);
         setUpdateDownloaded(true);
       });
 
       const unsubUpdateError = window.electronAPI.onUpdateError((err) => {
-        console.error('Update error:', err);
+        logger.error('Update error:', err);
         setError(err.message || 'Failed to download update');
         setDownloading(false);
         setUpdateAvailable(false);
@@ -90,7 +91,7 @@ export const AutoUpdater = () => {
     <>
       {/* Error notification */}
       <Snackbar
-        open={!!error}
+        open={Boolean(error)}
         autoHideDuration={6000}
         onClose={handleDismissError}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}

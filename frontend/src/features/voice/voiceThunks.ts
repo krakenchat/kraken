@@ -24,6 +24,8 @@ import {
   ServerToClientEvents,
   ClientToServerEvents,
 } from "../../utils/SocketContext";
+import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
+import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
 
 interface JoinVoiceChannelParams {
   channelId: string;
@@ -311,46 +313,15 @@ export const toggleScreenShare = createAsyncThunk<
     // In Electron, this will use setDisplayMediaRequestHandler from main.ts with electron-audio-loopback
     // In browser, it will use the native browser picker
     if (newState) {
-      // Get screen share settings from window (set by ScreenSourcePicker)
-      const settings = (window as Window & { __screenShareSettings?: {
-        resolution: string;
-        fps: number;
-        enableAudio: boolean;
-      } }).__screenShareSettings;
+      // Get screen share settings (set by ScreenSourcePicker for Electron)
+      const settings = getScreenShareSettings() || DEFAULT_SCREEN_SHARE_SETTINGS;
 
-      // Build resolution config based on settings
-      const resolutionConfig: { width?: number; height?: number; frameRate: number } = {
-        frameRate: settings?.fps || 60,
-      };
-
-      // Map resolution preset to width/height (skip for 'native')
-      if (settings?.resolution && settings.resolution !== 'native') {
-        const resolutionMap: Record<string, { width: number; height: number }> = {
-          '4k': { width: 3840, height: 2160 },
-          '1440p': { width: 2560, height: 1440 },
-          '1080p': { width: 1920, height: 1080 },
-          '720p': { width: 1280, height: 720 },
-          '480p': { width: 854, height: 480 },
-        };
-
-        const res = resolutionMap[settings.resolution];
-        if (res) {
-          resolutionConfig.width = res.width;
-          resolutionConfig.height = res.height;
-        }
-      }
-
-      // Build audio config based on settings
-      const enableAudio = settings?.enableAudio !== false; // Default to true
+      // Get resolution and audio configs using shared utilities
+      const resolutionConfig = getResolutionConfig(settings.resolution, settings.fps);
+      const audioConfig = getScreenShareAudioConfig(settings.enableAudio !== false);
 
       await room.localParticipant.setScreenShareEnabled(true, {
-        audio: enableAudio ? {
-          autoGainControl: false,
-          echoCancellation: false,
-          noiseSuppression: false,
-          sampleRate: 48000,
-          channelCount: 2
-        } : false, // Enable system audio capture with optimal settings or disable
+        audio: audioConfig,
         resolution: resolutionConfig,
         preferCurrentTab: false,
       });
@@ -500,8 +471,7 @@ export const switchVideoInputDevice = createAsyncThunk<
   "voice/switchVideoInputDevice",
   async ({ deviceId, getRoom }, { dispatch, getState }) => {
     const state = getState();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { currentChannelId, isVideoEnabled } = state.voice;
+    const { currentChannelId } = state.voice;
     const room = getRoom();
 
     if (!room || !currentChannelId) return;
@@ -730,47 +700,16 @@ export const toggleDmScreenShare = createAsyncThunk<
     ).unwrap();
 
     if (newState) {
-      // Get screen share settings from window (set by ScreenSourcePicker)
-      const settings = (window as Window & { __screenShareSettings?: {
-        resolution: string;
-        fps: number;
-        enableAudio: boolean;
-      } }).__screenShareSettings;
+      // Get screen share settings (set by ScreenSourcePicker for Electron)
+      const settings = getScreenShareSettings() || DEFAULT_SCREEN_SHARE_SETTINGS;
 
-      // Build resolution config based on settings
-      const resolutionConfig: { width?: number; height?: number; frameRate: number } = {
-        frameRate: settings?.fps || 60,
-      };
-
-      // Map resolution preset to width/height (skip for 'native')
-      if (settings?.resolution && settings.resolution !== 'native') {
-        const resolutionMap: Record<string, { width: number; height: number }> = {
-          '4k': { width: 3840, height: 2160 },
-          '1440p': { width: 2560, height: 1440 },
-          '1080p': { width: 1920, height: 1080 },
-          '720p': { width: 1280, height: 720 },
-          '480p': { width: 854, height: 480 },
-        };
-
-        const res = resolutionMap[settings.resolution];
-        if (res) {
-          resolutionConfig.width = res.width;
-          resolutionConfig.height = res.height;
-        }
-      }
-
-      // Build audio config based on settings
-      const enableAudio = settings?.enableAudio !== false; // Default to true
+      // Get resolution and audio configs using shared utilities
+      const resolutionConfig = getResolutionConfig(settings.resolution, settings.fps);
+      const audioConfig = getScreenShareAudioConfig(settings.enableAudio !== false);
 
       // Enable screen share with configured quality settings
       await room.localParticipant.setScreenShareEnabled(true, {
-        audio: enableAudio ? {
-          autoGainControl: false,
-          echoCancellation: false,
-          noiseSuppression: false,
-          sampleRate: 48000,
-          channelCount: 2
-        } : false,  // Capture system/tab audio or disable
+        audio: audioConfig,
         resolution: resolutionConfig,
         preferCurrentTab: false,  // Allow selection of screen/window/tab
       });

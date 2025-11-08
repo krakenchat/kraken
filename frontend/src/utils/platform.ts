@@ -40,7 +40,7 @@ export enum Platform {
  * Check if running in Electron environment
  */
 export const isElectron = (): boolean => {
-  return typeof window !== 'undefined' && !!window.electronAPI?.isElectron;
+  return typeof window !== 'undefined' && window.electronAPI?.isElectron === true;
 };
 
 /**

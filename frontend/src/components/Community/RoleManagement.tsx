@@ -377,7 +377,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
       {/* Role Users Dialog */}
       <Dialog
-        open={!!viewingRoleUsers}
+        open={Boolean(viewingRoleUsers)}
         onClose={() => setViewingRoleUsers(null)}
         maxWidth="md"
         fullWidth
