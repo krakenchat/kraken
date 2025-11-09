@@ -10,11 +10,10 @@ import { setShowVideoTiles } from "../features/voice/voiceSlice";
 import {
   joinDmVoice,
   leaveDmVoice,
-  toggleDmAudio,
-  toggleDmVideo,
-  toggleDmScreenShare,
-  toggleDmMute,
-  toggleDmDeafen,
+  toggleMicrophone,
+  toggleCameraUnified,
+  toggleScreenShareUnified,
+  toggleDeafenUnified,
   switchAudioInputDevice,
   switchAudioOutputDevice,
   switchVideoInputDevice,
@@ -62,23 +61,24 @@ export const useDmVoiceConnection = () => {
   }, [dispatch, socket, getRoom, setRoom]);
 
   const handleToggleAudio = useCallback(async () => {
-    await dispatch(toggleDmAudio({ getRoom })).unwrap();
+    await dispatch(toggleMicrophone({ getRoom })).unwrap();
   }, [dispatch, getRoom]);
 
   const handleToggleVideo = useCallback(async () => {
-    await dispatch(toggleDmVideo({ getRoom })).unwrap();
+    await dispatch(toggleCameraUnified({ getRoom })).unwrap();
   }, [dispatch, getRoom]);
 
   const handleToggleScreenShare = useCallback(async () => {
-    await dispatch(toggleDmScreenShare({ getRoom })).unwrap();
+    await dispatch(toggleScreenShareUnified({ getRoom })).unwrap();
   }, [dispatch, getRoom]);
 
   const handleToggleMute = useCallback(async () => {
-    await dispatch(toggleDmMute()).unwrap();
-  }, [dispatch]);
+    // toggleMicrophone replaces both toggleAudio and toggleMute
+    await dispatch(toggleMicrophone({ getRoom })).unwrap();
+  }, [dispatch, getRoom]);
 
   const handleToggleDeafen = useCallback(async () => {
-    await dispatch(toggleDmDeafen()).unwrap();
+    await dispatch(toggleDeafenUnified()).unwrap();
   }, [dispatch]);
 
   const handleSetShowVideoTiles = useCallback(

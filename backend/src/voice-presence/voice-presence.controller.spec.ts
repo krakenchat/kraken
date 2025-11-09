@@ -70,18 +70,12 @@ describe('VoicePresenceController', () => {
           id: 'user-1',
           username: 'user1',
           joinedAt: new Date(),
-          isVideoEnabled: false,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         },
         {
           id: 'user-2',
           username: 'user2',
           joinedAt: new Date(),
-          isVideoEnabled: true,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         },
       ];
@@ -180,10 +174,7 @@ describe('VoicePresenceController', () => {
     it('should update voice state and return success with updates', async () => {
       const channelId = 'channel-123';
       const stateUpdate: VoiceStateUpdateDto = {
-        isVideoEnabled: true,
-        isScreenSharing: false,
-        isMuted: false,
-        isDeafened: false,
+        isDeafened: true,
       };
 
       jest.spyOn(service, 'updateVoiceState').mockResolvedValue();
@@ -207,10 +198,10 @@ describe('VoicePresenceController', () => {
       });
     });
 
-    it('should handle mute state update', async () => {
+    it('should handle deafen state update', async () => {
       const channelId = 'channel-456';
       const stateUpdate: VoiceStateUpdateDto = {
-        isMuted: true,
+        isDeafened: false,
       };
 
       jest.spyOn(service, 'updateVoiceState').mockResolvedValue();
@@ -300,9 +291,6 @@ describe('DmVoicePresenceController', () => {
           id: 'user-1',
           username: 'user1',
           joinedAt: new Date(),
-          isVideoEnabled: true,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         },
       ];
@@ -358,8 +346,7 @@ describe('DmVoicePresenceController', () => {
     it('should update DM voice state and return success', async () => {
       const dmGroupId = 'dm-group-123';
       const stateUpdate: VoiceStateUpdateDto = {
-        isScreenSharing: true,
-        isVideoEnabled: true,
+        isDeafened: true,
       };
 
       jest.spyOn(service, 'updateDmVoiceState').mockResolvedValue();

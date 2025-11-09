@@ -1,7 +1,7 @@
-import { createAsyncThunk } from "@reduxjs/toolkit";
+import { createAsyncThunk, Dispatch, UnknownAction } from "@reduxjs/toolkit";
 import { Room, VideoCaptureOptions } from "livekit-client";
 import { Socket } from "socket.io-client";
-import { RootState, AppDispatch } from "../../app/store";
+import { RootState } from "../../app/store";
 import {
   setConnecting,
   setConnected,
@@ -47,7 +47,7 @@ async function connectToLiveKitRoom(
   url: string,
   token: string,
   setRoom: (room: Room | null) => void,
-  dispatch: AppDispatch
+  dispatch: Dispatch<UnknownAction>
 ): Promise<Room> {
   const room = new Room();
 
@@ -188,228 +188,6 @@ export const leaveVoiceChannel = createAsyncThunk<
   }
 );
 
-export const toggleAudio = createAsyncThunk<
-  void,
-  { getRoom: () => Room | null },
-  { state: RootState }
->("voice/toggleAudio", async ({ getRoom }, { dispatch, getState }) => {
-  const state = getState();
-  const { isAudioEnabled, currentChannelId } = state.voice;
-  const room = getRoom();
-
-  if (!room || !currentChannelId) return;
-
-  const newState = !isAudioEnabled;
-
-  try {
-    await room.localParticipant.setMicrophoneEnabled(newState);
-    dispatch(setAudioEnabled(newState));
-
-    // Update server state - muted is opposite of audio enabled
-    await dispatch(
-      voicePresenceApi.endpoints.updateVoiceState.initiate({
-        channelId: currentChannelId,
-        updates: { isMuted: !newState },
-      })
-    ).unwrap();
-  } catch (error) {
-    console.error("Failed to toggle audio:", error);
-    throw error;
-  }
-});
-
-export const toggleVideo = createAsyncThunk<
-  void,
-  { getRoom: () => Room | null },
-  { state: RootState }
->("voice/toggleVideo", async ({ getRoom }, { dispatch, getState }) => {
-  const state = getState();
-  const { isVideoEnabled, currentChannelId, selectedVideoInputId } = state.voice;
-  const room = getRoom();
-
-  if (!room || !currentChannelId) {
-    console.warn('Cannot toggle video: no active room or channel');
-    return;
-  }
-
-  // Verify room is still connected
-  if (room.state !== 'connected') {
-    console.error('Cannot toggle video: room is not connected, state:', room.state);
-    throw new Error('Room is not connected');
-  }
-
-  const newState = !isVideoEnabled;
-
-  try {
-    // First update local state for responsive UI
-    dispatch(setVideoEnabled(newState));
-
-    // Prepare video capture options with flexible device constraints
-    const videoCaptureOptions: VideoCaptureOptions | undefined = newState
-      ? {
-          deviceId: selectedVideoInputId ? { ideal: selectedVideoInputId } : undefined,
-          resolution: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        }
-      : undefined;
-
-    // Then handle LiveKit camera with options
-    await room.localParticipant.setCameraEnabled(newState, videoCaptureOptions);
-
-    // Update server state
-    await dispatch(
-      voicePresenceApi.endpoints.updateVoiceState.initiate({
-        channelId: currentChannelId,
-        updates: { isVideoEnabled: newState },
-      })
-    ).unwrap();
-  } catch (error) {
-    console.error("Failed to toggle video:", error);
-    // Revert state on failure
-    dispatch(setVideoEnabled(isVideoEnabled));
-    throw error;
-  }
-});
-
-export const toggleScreenShare = createAsyncThunk<
-  void,
-  { getRoom: () => Room | null },
-  { state: RootState }
->("voice/toggleScreenShare", async ({ getRoom }, { dispatch, getState }) => {
-  const state = getState();
-  const { isScreenSharing, currentChannelId, isMuted, isDeafened, isVideoEnabled } = state.voice;
-  const room = getRoom();
-
-  if (!room || !currentChannelId) {
-    console.warn('Cannot toggle screen share: no active room or channel');
-    return;
-  }
-
-  // Verify room is still connected
-  if (room.state !== 'connected') {
-    console.error('Cannot toggle screen share: room is not connected, state:', room.state);
-    throw new Error('Room is not connected');
-  }
-
-  const newState = !isScreenSharing;
-
-  try {
-    // First update server state with all current voice states to prevent clearing other states
-    await dispatch(
-      voicePresenceApi.endpoints.updateVoiceState.initiate({
-        channelId: currentChannelId,
-        updates: {
-          isScreenSharing: newState,
-          isMuted,
-          isDeafened,
-          isVideoEnabled
-        },
-      })
-    ).unwrap();
-
-    // Then handle the actual LiveKit screen share
-    // In Electron, this will use setDisplayMediaRequestHandler from main.ts with electron-audio-loopback
-    // In browser, it will use the native browser picker
-    if (newState) {
-      // Get screen share settings (set by ScreenSourcePicker for Electron)
-      const settings = getScreenShareSettings() || DEFAULT_SCREEN_SHARE_SETTINGS;
-
-      // Get resolution and audio configs using shared utilities
-      const resolutionConfig = getResolutionConfig(settings.resolution, settings.fps);
-      const audioConfig = getScreenShareAudioConfig(settings.enableAudio !== false);
-
-      await room.localParticipant.setScreenShareEnabled(true, {
-        audio: audioConfig,
-        resolution: resolutionConfig,
-        preferCurrentTab: false,
-      });
-    } else {
-      await room.localParticipant.setScreenShareEnabled(false);
-    }
-
-    // Update Redux state after successful LiveKit operation
-    dispatch(setScreenSharing(newState));
-  } catch (error) {
-    console.error("Failed to toggle screen share:", error);
-    // Don't revert server state, only local
-    dispatch(setScreenSharing(isScreenSharing));
-    throw error;
-  }
-});
-
-export const toggleMute = createAsyncThunk<void, void, { state: RootState }>(
-  "voice/toggleMute",
-  async (_, { dispatch, getState }) => {
-    const state = getState();
-    const { isMuted, currentChannelId } = state.voice;
-
-    if (!currentChannelId) return;
-
-    const newMutedState = !isMuted;
-
-    try {
-      dispatch(setMuted(newMutedState));
-
-      // Update server state
-      await dispatch(
-        voicePresenceApi.endpoints.updateVoiceState.initiate({
-          channelId: currentChannelId,
-          updates: { isMuted: newMutedState },
-        })
-      ).unwrap();
-    } catch (error) {
-      console.error("Failed to toggle mute:", error);
-      // Revert local state on failure
-      dispatch(setMuted(isMuted));
-      throw error;
-    }
-  }
-);
-
-export const toggleDeafen = createAsyncThunk<void, void, { state: RootState }>(
-  "voice/toggleDeafen",
-  async (_, { dispatch, getState }) => {
-    const state = getState();
-    const { isDeafened, isMuted, currentChannelId } = state.voice;
-
-    if (!currentChannelId) return;
-
-    const newDeafenedState = !isDeafened;
-
-    try {
-      dispatch(setDeafened(newDeafenedState));
-
-      // When deafening, automatically mute as well (Discord-style)
-      if (newDeafenedState && !isMuted) {
-        dispatch(setMuted(true));
-      }
-      // Note: When undeafening, we keep the current mute state
-
-      // Update server state
-      await dispatch(
-        voicePresenceApi.endpoints.updateVoiceState.initiate({
-          channelId: currentChannelId,
-          updates: {
-            isDeafened: newDeafenedState,
-            // If deafening, also send muted as true
-            ...(newDeafenedState && !isMuted && { isMuted: true }),
-          },
-        })
-      ).unwrap();
-    } catch (error) {
-      console.error("Failed to toggle deafen:", error);
-      // Revert local state on failure
-      dispatch(setDeafened(isDeafened));
-      if (newDeafenedState && !isMuted) {
-        dispatch(setMuted(isMuted));
-      }
-      throw error;
-    }
-  }
-);
-
 // Device switching thunks
 export const switchAudioInputDevice = createAsyncThunk<
   void,
@@ -490,7 +268,7 @@ export const switchVideoInputDevice = createAsyncThunk<
 );
 
 // =============================================================================
-// DM VOICE THUNKS
+// DM VOICE THUNKS (Join/Leave only - media controls use unified thunks below)
 // =============================================================================
 
 interface JoinDmVoiceParams {
@@ -513,6 +291,7 @@ export const joinDmVoice = createAsyncThunk<
       dmGroupId,
       dmGroupName,
       user,
+      connectionInfo,
       setRoom,
     },
     { dispatch }
@@ -601,51 +380,72 @@ export const leaveDmVoice = createAsyncThunk<
   }
 );
 
-// DM-specific toggle thunks (use DM API endpoints)
-export const toggleDmAudio = createAsyncThunk<
+// =============================================================================
+// UNIFIED THUNKS (NEW - REPLACES DUPLICATE CHANNEL/DM VERSIONS)
+// =============================================================================
+
+/**
+ * Unified microphone toggle for both channels and DMs
+ * Replaces: toggleAudio, toggleDmAudio, toggleMute, toggleDmMute
+ *
+ * This actually controls the LiveKit microphone track (fixes bug where toggleMute didn't affect LiveKit)
+ */
+export const toggleMicrophone = createAsyncThunk<
   void,
   { getRoom: () => Room | null },
   { state: RootState }
->("voice/toggleDmAudio", async ({ getRoom }, { dispatch, getState }) => {
+>("voice/toggleMicrophone", async ({ getRoom }, { dispatch, getState }) => {
   const state = getState();
-  const { isAudioEnabled, currentDmGroupId } = state.voice;
+  const { isAudioEnabled, currentChannelId, currentDmGroupId } = state.voice;
   const room = getRoom();
 
-  if (!room || !currentDmGroupId) return;
+  if (!room || (!currentChannelId && !currentDmGroupId)) return;
 
   const newState = !isAudioEnabled;
 
   try {
+    // First toggle LiveKit microphone
     await room.localParticipant.setMicrophoneEnabled(newState);
     dispatch(setAudioEnabled(newState));
 
-    await dispatch(
-      voicePresenceApi.endpoints.updateDmVoiceState.initiate({
-        dmGroupId: currentDmGroupId,
-        updates: { isMuted: !newState },
-      })
-    ).unwrap();
+    // Note: No longer sending mic state to server - LiveKit manages it
+    // Server only stores custom UI state (isDeafened)
   } catch (error) {
-    console.error("Failed to toggle DM audio:", error);
+    console.error("Failed to toggle microphone:", error);
     throw error;
   }
 });
 
-export const toggleDmVideo = createAsyncThunk<
+/**
+ * Unified camera toggle for both channels and DMs
+ * Replaces: toggleVideo, toggleDmVideo
+ */
+export const toggleCameraUnified = createAsyncThunk<
   void,
   { getRoom: () => Room | null },
   { state: RootState }
->("voice/toggleDmVideo", async ({ getRoom }, { dispatch, getState }) => {
+>("voice/toggleCameraUnified", async ({ getRoom }, { dispatch, getState }) => {
   const state = getState();
-  const { isVideoEnabled, currentDmGroupId, selectedVideoInputId } = state.voice;
+  const { isVideoEnabled, currentChannelId, currentDmGroupId, selectedVideoInputId } = state.voice;
   const room = getRoom();
 
-  if (!room || !currentDmGroupId) return;
+  if (!room || (!currentChannelId && !currentDmGroupId)) {
+    console.warn('Cannot toggle camera: no active room or channel/DM');
+    return;
+  }
+
+  if (room.state !== 'connected') {
+    console.error('Cannot toggle camera: room is not connected, state:', room.state);
+    throw new Error('Room is not connected');
+  }
 
   const newState = !isVideoEnabled;
 
   try {
-    // Prepare video capture options with flexible device constraints
+    // Update local state first for responsive UI
+    dispatch(setVideoEnabled(newState));
+
+    // Prepare video capture options
     const videoCaptureOptions: VideoCaptureOptions | undefined = newState
       ? {
           deviceId: selectedVideoInputId ? { ideal: selectedVideoInputId } : undefined,
@@ -656,49 +456,47 @@ export const toggleDmVideo = createAsyncThunk<
         }
       : undefined;
 
+    // Toggle LiveKit camera
     await room.localParticipant.setCameraEnabled(newState, videoCaptureOptions);
-    dispatch(setVideoEnabled(newState));
 
-    await dispatch(
-      voicePresenceApi.endpoints.updateDmVoiceState.initiate({
-        dmGroupId: currentDmGroupId,
-        updates: { isVideoEnabled: newState },
-      })
-    ).unwrap();
+    // Note: No longer sending video state to server - LiveKit manages it
   } catch (error) {
-    console.error("Failed to toggle DM video:", error);
+    console.error("Failed to toggle camera:", error);
+    // Revert state on failure
+    dispatch(setVideoEnabled(isVideoEnabled));
     throw error;
   }
 });
 
-export const toggleDmScreenShare = createAsyncThunk<
+/**
+ * Unified screen share toggle for both channels and DMs
+ * Replaces: toggleScreenShare, toggleDmScreenShare
+ */
+export const toggleScreenShareUnified = createAsyncThunk<
   void,
   { getRoom: () => Room | null },
   { state: RootState }
->("voice/toggleDmScreenShare", async ({ getRoom }, { dispatch, getState }) => {
+>("voice/toggleScreenShareUnified", async ({ getRoom }, { dispatch, getState }) => {
   const state = getState();
-  const { isScreenSharing, currentDmGroupId, isMuted, isDeafened, isVideoEnabled } = state.voice;
+  const { isScreenSharing, currentChannelId, currentDmGroupId } = state.voice;
   const room = getRoom();
 
-  if (!room || !currentDmGroupId) return;
+  if (!room || (!currentChannelId && !currentDmGroupId)) {
+    console.warn('Cannot toggle screen share: no active room or channel/DM');
+    return;
+  }
+
+  if (room.state !== 'connected') {
+    console.error('Cannot toggle screen share: room is not connected, state:', room.state);
+    throw new Error('Room is not connected');
+  }
 
   const newState = !isScreenSharing;
 
   try {
-    dispatch(setScreenSharing(newState));
+    // Note: No longer sending screen share state to server - LiveKit manages it
 
-    await dispatch(
-      voicePresenceApi.endpoints.updateDmVoiceState.initiate({
-        dmGroupId: currentDmGroupId,
-        updates: {
-          isScreenSharing: newState,
-          isMuted,
-          isDeafened,
-          isVideoEnabled
-        },
-      })
-    ).unwrap();
-
+    // Handle the actual LiveKit screen share
     if (newState) {
       // Get screen share settings (set by ScreenSourcePicker for Electron)
       const settings = getScreenShareSettings() || DEFAULT_SCREEN_SHARE_SETTINGS;
@@ -707,57 +505,36 @@ export const toggleDmScreenShare = createAsyncThunk<
       const resolutionConfig = getResolutionConfig(settings.resolution, settings.fps);
       const audioConfig = getScreenShareAudioConfig(settings.enableAudio !== false);
 
-      // Enable screen share with configured quality settings
       await room.localParticipant.setScreenShareEnabled(true, {
         audio: audioConfig,
-        resolution: resolutionConfig,
-        preferCurrentTab: false,  // Allow selection of screen/window/tab
+        resolution: resolutionConfig as { width: number; height: number; frameRate: number },
+        preferCurrentTab: false,
       });
     } else {
-      // Disable screen share
       await room.localParticipant.setScreenShareEnabled(false);
     }
+
+    // Update Redux state after successful LiveKit operation
+    dispatch(setScreenSharing(newState));
   } catch (error) {
-    console.error("Failed to toggle DM screen share:", error);
+    console.error("Failed to toggle screen share:", error);
+    // Don't revert server state, only local
     dispatch(setScreenSharing(isScreenSharing));
     throw error;
   }
 });
 
-export const toggleDmMute = createAsyncThunk<void, void, { state: RootState }>(
-  "voice/toggleDmMute",
+/**
+ * Unified deafen toggle for both channels and DMs
+ * Replaces: toggleDeafen, toggleDmDeafen
+ */
+export const toggleDeafenUnified = createAsyncThunk<void, void, { state: RootState }>(
+  "voice/toggleDeafenUnified",
   async (_, { dispatch, getState }) => {
     const state = getState();
-    const { isMuted, currentDmGroupId } = state.voice;
+    const { isDeafened, isMuted, contextType, currentChannelId, currentDmGroupId } = state.voice;
 
-    if (!currentDmGroupId) return;
-
-    const newMutedState = !isMuted;
-
-    try {
-      dispatch(setMuted(newMutedState));
-
-      await dispatch(
-        voicePresenceApi.endpoints.updateDmVoiceState.initiate({
-          dmGroupId: currentDmGroupId,
-          updates: { isMuted: newMutedState },
-        })
-      ).unwrap();
-    } catch (error) {
-      console.error("Failed to toggle DM mute:", error);
-      dispatch(setMuted(isMuted));
-      throw error;
-    }
-  }
-);
-
-export const toggleDmDeafen = createAsyncThunk<void, void, { state: RootState }>(
-  "voice/toggleDmDeafen",
-  async (_, { dispatch, getState }) => {
-    const state = getState();
-    const { isDeafened, isMuted, currentDmGroupId } = state.voice;
-
-    if (!currentDmGroupId) return;
+    if (!currentChannelId && !currentDmGroupId) return;
 
     const newDeafenedState = !isDeafened;
 
@@ -769,17 +546,31 @@ export const toggleDmDeafen = createAsyncThunk<void, void, { state: RootState }>
         dispatch(setMuted(true));
       }
 
-      await dispatch(
-        voicePresenceApi.endpoints.updateDmVoiceState.initiate({
-          dmGroupId: currentDmGroupId,
-          updates: {
-            isDeafened: newDeafenedState,
-            ...(newDeafenedState && !isMuted && { isMuted: true }),
-          },
-        })
-      ).unwrap();
+      // Update server state
+      if (contextType === 'dm' && currentDmGroupId) {
+        await dispatch(
+          voicePresenceApi.endpoints.updateDmVoiceState.initiate({
+            dmGroupId: currentDmGroupId,
+            updates: {
+              isDeafened: newDeafenedState,
+              ...(newDeafenedState && !isMuted && { isMuted: true }),
+            },
+          })
+        ).unwrap();
+      } else if (contextType === 'channel' && currentChannelId) {
+        await dispatch(
+          voicePresenceApi.endpoints.updateVoiceState.initiate({
+            channelId: currentChannelId,
+            updates: {
+              isDeafened: newDeafenedState,
+              ...(newDeafenedState && !isMuted && { isMuted: true }),
+            },
+          })
+        ).unwrap();
+      }
     } catch (error) {
-      console.error("Failed to toggle DM deafen:", error);
+      console.error("Failed to toggle deafen:", error);
+      // Revert local state on failure
       dispatch(setDeafened(isDeafened));
       if (newDeafenedState && !isMuted) {
         dispatch(setMuted(isMuted));

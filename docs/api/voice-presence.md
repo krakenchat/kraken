@@ -62,43 +62,31 @@ curl -H "Authorization: Bearer <token>" \
       "username": "john_doe",
       "displayName": "John Doe",
       "avatarUrl": "https://example.com/avatar.jpg",
-      "voiceState": {
-        "isVideoEnabled": true,
-        "isScreenSharing": false,
-        "isMuted": false,
-        "isDeafened": false,
-        "joinedAt": "2024-01-01T12:00:00.000Z"
-      }
+      "joinedAt": "2024-01-01T12:00:00.000Z",
+      "isDeafened": false
     },
     {
       "id": "64f7b1234567890abcdef789",
       "username": "jane_smith",
       "displayName": "Jane Smith",
       "avatarUrl": null,
-      "voiceState": {
-        "isVideoEnabled": false,
-        "isScreenSharing": false,
-        "isMuted": true,
-        "isDeafened": false,
-        "joinedAt": "2024-01-01T12:05:00.000Z"
-      }
+      "joinedAt": "2024-01-01T12:05:00.000Z",
+      "isDeafened": false
     },
     {
       "id": "64f7b1234567890abcdef012",
       "username": "presenter",
       "displayName": "Presentation User",
       "avatarUrl": "https://example.com/presenter.jpg",
-      "voiceState": {
-        "isVideoEnabled": false,
-        "isScreenSharing": true,
-        "isMuted": false,
-        "isDeafened": false,
-        "joinedAt": "2024-01-01T12:10:00.000Z"
-      }
+      "joinedAt": "2024-01-01T12:10:00.000Z",
+      "isDeafened": true
     }
   ]
 }
 ```
+
+> **Note:** Media states (camera, microphone, screen share) are NOT returned by this endpoint.
+> Frontend should read these directly from LiveKit using `useParticipantTracks(userId)` hook.
 
 **Error Responses:**
 - `401 Unauthorized` - Invalid or missing token
@@ -182,7 +170,9 @@ curl -X DELETE \
 
 ## PUT `/api/channels/:channelId/voice-presence/state`
 
-**Description:** Updates the voice state of the current user in a voice channel (mute status, video, screen sharing). Used to sync UI state with the presence system.
+**Description:** Updates the custom voice state of the current user in a voice channel. Currently only supports updating `isDeafened` state.
+
+> **⚠️ Changed in 2025:** This endpoint now only manages `isDeafened`. Media states (camera, microphone, screen share) are managed by LiveKit and updated through LiveKit SDK directly.
 
 ### Request
 
@@ -192,27 +182,20 @@ curl -X DELETE \
 **Body (JSON):**
 ```json
 {
-  "isVideoEnabled": true,       // Optional: Video camera status
-  "isScreenSharing": false,     // Optional: Screen sharing status
-  "isMuted": false,            // Optional: Microphone mute status
-  "isDeafened": false          // Optional: Audio output mute status
+  "isDeafened": true    // Required: Whether user has deafened themselves
 }
 ```
 
 **Validation Rules:**
-- All fields are optional boolean values
-- At least one field should be provided for a meaningful update
+- `isDeafened` is a required boolean value
+- When `isDeafened` is true, the frontend should also mute the microphone via LiveKit
 
 **Example:**
 ```bash
 curl -X PUT \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{
-    "isVideoEnabled": true,
-    "isMuted": false,
-    "isScreenSharing": false
-  }' \
+  -d '{"isDeafened": true}' \
   "http://localhost:3001/api/channels/64f7b1234567890abcdef123/voice-presence/state"
 ```
 
@@ -225,9 +208,7 @@ curl -X PUT \
   "message": "Voice state updated successfully",
   "channelId": "64f7b1234567890abcdef123",
   "updates": {
-    "isVideoEnabled": true,
-    "isMuted": false,
-    "isScreenSharing": false
+    "isDeafened": true
   }
 }
 ```
@@ -300,30 +281,22 @@ curl -H "Authorization: Bearer <token>" \
       "channelName": "General Voice",
       "communityId": "64f7b1234567890abcdef789",
       "communityName": "Gaming Community",
-      "voiceState": {
-        "isVideoEnabled": false,
-        "isScreenSharing": false,
-        "isMuted": true,
-        "isDeafened": false,
-        "joinedAt": "2024-01-01T12:00:00.000Z"
-      }
+      "joinedAt": "2024-01-01T12:00:00.000Z",
+      "isDeafened": false
     },
     {
       "channelId": "64f7b1234567890abcdef456",
       "channelName": "Meeting Room",
       "communityId": "64f7b1234567890abcdef012",
       "communityName": "Work Community",
-      "voiceState": {
-        "isVideoEnabled": true,
-        "isScreenSharing": true,
-        "isMuted": false,
-        "isDeafened": false,
-        "joinedAt": "2024-01-01T11:30:00.000Z"
-      }
+      "joinedAt": "2024-01-01T11:30:00.000Z",
+      "isDeafened": true
     }
   ]
 }
 ```
+
+> **Note:** Media states (camera, microphone, screen share) should be read from LiveKit after reconnecting to the room.
 
 **Error Responses:**
 - `401 Unauthorized` - Invalid or missing token
@@ -333,24 +306,48 @@ curl -H "Authorization: Bearer <token>" \
 
 ## Voice State Management
 
-### Voice State Properties
+> **⚠️ IMPORTANT CHANGE (2025): LiveKit is Now the Single Source of Truth**
+>
+> The voice presence system was refactored to eliminate state duplication:
+> - **Backend** stores only user identity + `isDeafened` state
+> - **LiveKit** manages all media states (camera, microphone, screen share)
+> - **Frontend** reads media states directly from LiveKit using hooks
+
+### Backend Voice State (Redis Storage)
 ```typescript
-interface VoiceState {
-  isVideoEnabled: boolean;      // Camera/video feed status
-  isScreenSharing: boolean;     // Screen share status
-  isMuted: boolean;            // Microphone mute status
-  isDeafened: boolean;         // Speaker/headphone mute status
+interface VoicePresenceUser {
+  id: string;                   // User ID
+  username: string;             // Username
+  displayName?: string;         // Display name (optional)
+  avatarUrl?: string;          // Avatar URL (optional)
   joinedAt: Date;              // When user joined the channel
+  isDeafened: boolean;         // ⚠️ ONLY custom state stored in backend
 }
 ```
 
-### State Combinations
-- **Audio Only:** `isVideoEnabled: false, isScreenSharing: false`
-- **Video Call:** `isVideoEnabled: true, isScreenSharing: false`
-- **Screen Share:** `isVideoEnabled: false, isScreenSharing: true`
-- **Video + Screen:** `isVideoEnabled: true, isScreenSharing: true`
-- **Muted:** `isMuted: true` (can still have video/screen sharing)
-- **Deafened:** `isDeafened: true` (usually implies `isMuted: true`)
+### Frontend Media State (Read from LiveKit)
+```typescript
+// Read via useLocalMediaState() or useParticipantTracks() hooks
+interface LiveKitMediaState {
+  isCameraEnabled: boolean;       // Camera/video feed status (from LiveKit)
+  isMicrophoneEnabled: boolean;   // Microphone mute status (from LiveKit)
+  isScreenShareEnabled: boolean;  // Screen share status (from LiveKit)
+  isSpeaking: boolean;            // Speaking indicator (from LiveKit audio levels)
+}
+```
+
+### Why This Architecture?
+
+**Previous Problem:**
+- State was duplicated between backend Redis and LiveKit
+- Sync issues caused UI bugs (e.g., screen share showing as inactive when active)
+- Backend state updates required separate API calls
+
+**Current Solution:**
+- LiveKit is the **single source of truth** for media states
+- Backend only stores what LiveKit doesn't manage (`isDeafened`)
+- Frontend hooks (`useLocalMediaState`, `useParticipantTracks`) read directly from LiveKit
+- No sync issues, simpler codebase, better performance
 
 ### Persistence Features
 - **Cross-Navigation:** Voice presence persists across page reloads and navigation
@@ -406,18 +403,15 @@ Voice presence operations trigger real-time WebSocket events:
       "id": "64f7b1234567890abcdef456",
       "username": "john_doe",
       "displayName": "John Doe",
-      "avatarUrl": "https://example.com/avatar.jpg"
-    },
-    "voiceState": {
-      "isVideoEnabled": false,
-      "isScreenSharing": false,
-      "isMuted": false,
-      "isDeafened": false,
-      "joinedAt": "2024-01-01T12:00:00.000Z"
+      "avatarUrl": "https://example.com/avatar.jpg",
+      "joinedAt": "2024-01-01T12:00:00.000Z",
+      "isDeafened": false
     }
   }
 }
 ```
+
+> **Note:** Media states (camera, microphone, screen share) are read from LiveKit, not from this event.
 
 **Voice State Updated:**
 ```json
@@ -426,15 +420,12 @@ Voice presence operations trigger real-time WebSocket events:
   "data": {
     "userId": "64f7b1234567890abcdef456",
     "channelId": "64f7b1234567890abcdef123",
-    "voiceState": {
-      "isVideoEnabled": true,
-      "isScreenSharing": false,
-      "isMuted": false,
-      "isDeafened": false
-    }
+    "isDeafened": true
   }
 }
 ```
+
+> **Note:** This event only fires when `isDeafened` changes. Media state changes (camera, mic, screen share) are tracked via LiveKit events, not WebSocket.
 
 ## Integration with LiveKit
 
@@ -494,41 +485,40 @@ Voice presence operations trigger real-time WebSocket events:
 
 ## Usage Examples
 
-### Frontend Integration (RTK Query)
+### Frontend Integration (RTK Query + LiveKit Hooks)
 
 ```typescript
-// Redux voice presence slice usage
+// Modern voice presence integration (2025)
 import { useVoicePresenceApi } from '@/features/voice-presence/api/voicePresenceApi';
+import { useVoiceConnection } from '@/hooks/useVoiceConnection';
+import { useParticipantTracks } from '@/hooks/useParticipantTracks';
 
 function VoiceChannelComponent({ channelId }: { channelId: string }) {
   const { data: presence } = useVoicePresenceApi.useGetChannelPresenceQuery(channelId);
-  const [joinChannel] = useVoicePresenceApi.useJoinVoiceChannelMutation();
-  const [leaveChannel] = useVoicePresenceApi.useLeaveVoiceChannelMutation();
+  const { joinVoiceChannel, leaveVoiceChannel } = useVoiceConnection();
   const [updateVoiceState] = useVoicePresenceApi.useUpdateVoiceStateMutation();
-  
+
   const handleJoinVoice = async () => {
     try {
-      // Join presence first
-      await joinChannel(channelId).unwrap();
-      
-      // Then connect to LiveKit
-      await connectToLiveKitRoom(channelId);
+      // joinVoiceChannel handles both presence join AND LiveKit connection
+      await joinVoiceChannel(channelId);
     } catch (error) {
       console.error('Failed to join voice channel:', error);
     }
   };
-  
-  const handleToggleMute = async (isMuted: boolean) => {
+
+  const handleToggleDeafen = async (isDeafened: boolean) => {
+    // Only update isDeafened via API - media states are managed by LiveKit
     await updateVoiceState({
       channelId,
-      isMuted
+      isDeafened
     }).unwrap();
   };
 }
 
 function VoiceChannelIndicator({ channelId }: { channelId: string }) {
   const { data: presence } = useVoicePresenceApi.useGetChannelPresenceQuery(channelId);
-  
+
   return (
     <div>
       <span>{presence?.count || 0} users in voice</span>
@@ -540,24 +530,70 @@ function VoiceChannelIndicator({ channelId }: { channelId: string }) {
 }
 
 function UserVoiceIndicator({ user }: { user: VoiceUser }) {
+  // Read media state from LiveKit, not from backend
+  const { isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } =
+    useParticipantTracks(user.id);
+
   return (
     <div>
       <img src={user.avatarUrl} alt={user.displayName} />
-      {user.voiceState.isMuted && <MuteIcon />}
-      {user.voiceState.isVideoEnabled && <VideoIcon />}
-      {user.voiceState.isScreenSharing && <ScreenShareIcon />}
+      {!isMicrophoneEnabled && <MuteIcon />}
+      {isCameraEnabled && <VideoIcon />}
+      {isScreenShareEnabled && <ScreenShareIcon />}
+      {user.isDeafened && <DeafenIcon />}
     </div>
   );
 }
 ```
 
-### Voice Connection Management
+### Voice Connection Management (2025 Architecture)
 
 ```typescript
-// Complete voice channel connection flow
-class VoiceChannelManager {
+// Modern voice channel connection flow using hooks
+// Recommended: Use useVoiceConnection hook instead of manual management
+import { useVoiceConnection } from '@/hooks/useVoiceConnection';
+import { useLocalMediaState } from '@/hooks/useLocalMediaState';
+import { Room } from 'livekit-client';
+
+function VoiceManager() {
+  const { joinVoiceChannel, leaveVoiceChannel, toggleMicrophone, toggleCamera } = useVoiceConnection();
+  const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
+
+  // Join voice channel (handles both presence + LiveKit connection)
+  const handleJoin = async (channelId: string) => {
+    await joinVoiceChannel(channelId);
+  };
+
+  // Leave voice channel (handles both LiveKit disconnect + presence leave)
+  const handleLeave = async () => {
+    await leaveVoiceChannel();
+  };
+
+  // Toggle microphone (managed by LiveKit)
+  const handleToggleMic = async () => {
+    await toggleMicrophone();
+    // State automatically updates via useLocalMediaState hook
+  };
+
+  // Toggle camera (managed by LiveKit)
+  const handleToggleCamera = async () => {
+    await toggleCamera();
+    // State automatically updates via useLocalMediaState hook
+  };
+
+  // Deafen (managed by backend + local audio volume)
+  const handleToggleDeafen = async (isDeafened: boolean) => {
+    // Update backend state
+    await updateVoiceStateApi({ isDeafened });
+    // useDeafenEffect hook automatically handles audio volume
+  };
+}
+
+// For manual implementation (if not using hooks):
+class ManualVoiceChannelManager {
   private currentChannelId: string | null = null;
-  
+  private livekitRoom: Room | null = null;
+
   async joinVoiceChannel(channelId: string) {
     try {
       // 1. Register presence
@@ -565,7 +601,7 @@ class VoiceChannelManager {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       // 2. Get LiveKit token
       const tokenResponse = await fetch(`/api/livekit/token`, {
         method: 'POST',
@@ -573,64 +609,50 @@ class VoiceChannelManager {
         body: JSON.stringify({ roomId: channelId })
       });
       const { token: livekitToken } = await tokenResponse.json();
-      
+
       // 3. Connect to LiveKit room
-      await this.connectToLiveKit(channelId, livekitToken);
-      
+      this.livekitRoom = await this.connectToLiveKit(channelId, livekitToken);
       this.currentChannelId = channelId;
-      
+
       // 4. Start presence heartbeat
       this.startPresenceHeartbeat(channelId);
-      
+
+      // 5. Media state is now managed by LiveKit - read via room.localParticipant
+      console.log('Mic enabled:', this.livekitRoom.localParticipant.isMicrophoneEnabled);
+
     } catch (error) {
       console.error('Failed to join voice channel:', error);
       throw error;
     }
   }
-  
-  async leaveVoiceChannel() {
+
+  async updateDeafenState(isDeafened: boolean) {
     if (!this.currentChannelId) return;
-    
-    try {
-      // 1. Disconnect from LiveKit
-      await this.disconnectFromLiveKit();
-      
-      // 2. Leave presence
-      await fetch(`/api/channels/${this.currentChannelId}/voice-presence/leave`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      // 3. Stop heartbeat
-      this.stopPresenceHeartbeat();
-      
-      this.currentChannelId = null;
-      
-    } catch (error) {
-      console.error('Failed to leave voice channel:', error);
-    }
-  }
-  
-  async updateVoiceState(updates: Partial<VoiceState>) {
-    if (!this.currentChannelId) return;
-    
+
+    // Only update isDeafened - media states are managed by LiveKit
     await fetch(`/api/channels/${this.currentChannelId}/voice-presence/state`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(updates)
+      body: JSON.stringify({ isDeafened })
     });
-  }
-  
-  private startPresenceHeartbeat(channelId: string) {
-    this.presenceInterval = setInterval(async () => {
-      await fetch(`/api/channels/${channelId}/voice-presence/refresh`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+
+    // Manually mute remote audio when deafened
+    if (isDeafened && this.livekitRoom) {
+      this.livekitRoom.remoteParticipants.forEach(participant => {
+        participant.audioTrackPublications.forEach(pub => {
+          pub.track?.setVolume(0);
+        });
       });
-    }, 30000); // Refresh every 30 seconds
+    } else if (!isDeafened && this.livekitRoom) {
+      this.livekitRoom.remoteParticipants.forEach(participant => {
+        participant.audioTrackPublications.forEach(pub => {
+          pub.track?.setVolume(1.0);
+        });
+      });
+    }
   }
 }
 ```

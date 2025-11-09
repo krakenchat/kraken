@@ -106,9 +106,6 @@ describe('VoicePresenceService', () => {
           user: expect.objectContaining({
             id: user.id,
             username: user.username,
-            isVideoEnabled: false,
-            isScreenSharing: false,
-            isMuted: false,
             isDeafened: false,
           }),
         }),
@@ -163,9 +160,6 @@ describe('VoicePresenceService', () => {
         id: userId,
         username: 'testuser',
         joinedAt: new Date().toISOString(),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
 
@@ -206,9 +200,6 @@ describe('VoicePresenceService', () => {
         id: userId,
         username: 'testuser',
         joinedAt: new Date(),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
 
@@ -236,18 +227,12 @@ describe('VoicePresenceService', () => {
         id: 'user-1',
         username: 'user1',
         joinedAt: new Date('2024-01-01T10:00:00Z'),
-        isVideoEnabled: true,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
       const user2Data = {
         id: 'user-2',
         username: 'user2',
         joinedAt: new Date('2024-01-01T10:05:00Z'),
-        isVideoEnabled: false,
-        isScreenSharing: true,
-        isMuted: false,
         isDeafened: false,
       };
 
@@ -289,9 +274,6 @@ describe('VoicePresenceService', () => {
           id: 'user-1',
           username: 'user1',
           joinedAt: new Date(),
-          isVideoEnabled: false,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         }),
         null, // User 2 data expired
@@ -320,27 +302,18 @@ describe('VoicePresenceService', () => {
           id: 'user-1',
           username: 'user1',
           joinedAt: laterTime,
-          isVideoEnabled: false,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         }),
         JSON.stringify({
           id: 'user-2',
           username: 'user2',
           joinedAt: earlierTime,
-          isVideoEnabled: false,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         }),
         JSON.stringify({
           id: 'user-3',
           username: 'user3',
           joinedAt: middleTime,
-          isVideoEnabled: false,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         }),
       ]);
@@ -361,14 +334,10 @@ describe('VoicePresenceService', () => {
         id: userId,
         username: 'testuser',
         joinedAt: new Date().toISOString(),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
       const updates = {
-        isVideoEnabled: true,
-        isScreenSharing: true,
+        isDeafened: true,
       };
 
       jest
@@ -380,7 +349,7 @@ describe('VoicePresenceService', () => {
 
       expect(redisService.set).toHaveBeenCalledWith(
         expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
-        expect.stringContaining('"isVideoEnabled":true'),
+        expect.stringContaining('"isDeafened":true'),
         300,
       );
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
@@ -401,7 +370,7 @@ describe('VoicePresenceService', () => {
     it('should handle user not found gracefully', async () => {
       const channelId = 'channel-123';
       const userId = 'nonexistent-user';
-      const updates = { isMuted: true };
+      const updates = { isDeafened: true };
 
       jest.spyOn(redisService, 'get').mockResolvedValue(null);
 
@@ -418,12 +387,9 @@ describe('VoicePresenceService', () => {
         id: userId,
         username: 'testuser',
         joinedAt: new Date(),
-        isVideoEnabled: true,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
-      const updates = { isMuted: true };
+      const updates = { isDeafened: true };
 
       jest
         .spyOn(redisService, 'get')
@@ -435,9 +401,8 @@ describe('VoicePresenceService', () => {
       const setCall = (redisService.set as jest.Mock).mock.calls[0];
       const savedData = JSON.parse(setCall[1]);
 
-      expect(savedData.isMuted).toBe(true);
-      expect(savedData.isVideoEnabled).toBe(true); // Unchanged
-      expect(savedData.isScreenSharing).toBe(false); // Unchanged
+      expect(savedData.isDeafened).toBe(true);
+      expect(savedData.username).toBe('testuser'); // Unchanged
     });
   });
 
@@ -625,9 +590,6 @@ describe('VoicePresenceService', () => {
         id: userId,
         username: 'testuser',
         joinedAt: new Date().toISOString(),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
 
@@ -670,18 +632,12 @@ describe('VoicePresenceService', () => {
         id: 'user-1',
         username: 'user1',
         joinedAt: new Date('2024-01-01T10:00:00Z'),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
       const user2Data = {
         id: 'user-2',
         username: 'user2',
         joinedAt: new Date('2024-01-01T10:05:00Z'),
-        isVideoEnabled: true,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
 
@@ -722,9 +678,6 @@ describe('VoicePresenceService', () => {
           id: 'user-1',
           username: 'user1',
           joinedAt: new Date(),
-          isVideoEnabled: false,
-          isScreenSharing: false,
-          isMuted: false,
           isDeafened: false,
         }),
         null, // User 2 data expired
@@ -749,14 +702,10 @@ describe('VoicePresenceService', () => {
         id: userId,
         username: 'testuser',
         joinedAt: new Date().toISOString(),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
         isDeafened: false,
       };
       const updates = {
-        isVideoEnabled: true,
-        isMuted: true,
+        isDeafened: true,
       };
 
       jest
@@ -770,7 +719,7 @@ describe('VoicePresenceService', () => {
         expect.stringContaining(
           `dm_voice_presence:user:${dmGroupId}:${userId}`,
         ),
-        expect.stringContaining('"isVideoEnabled":true'),
+        expect.stringContaining('"isDeafened":true'),
         300,
       );
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(

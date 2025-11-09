@@ -23,6 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Channel } from "../../types/channel.type";
 import { ChannelType } from "../../types/channel.type";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import { useParticipantTracks } from "../../hooks/useParticipantTracks";
 import UserAvatar from "../Common/UserAvatar";
 
 interface VoiceChannelUserListProps {
@@ -81,13 +82,22 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   }> = React.memo(({ user }) => {
     // Real-time speaking detection from LiveKit
     const speaking = isSpeaking(user.id);
-    
-    // Ensure all boolean values are properly defined (handle undefined as false)
+
+    // Get LiveKit state for this user (if they're in the room)
+    const livekitState = useParticipantTracks(user.id);
+
+    // Prefer LiveKit state if participant is in room, otherwise use server state
     const userState = {
-      isMuted: Boolean(user.isMuted),
-      isDeafened: Boolean(user.isDeafened),
-      isVideoEnabled: Boolean(user.isVideoEnabled),
-      isScreenSharing: Boolean(user.isScreenSharing),
+      isMuted: livekitState.participant
+        ? !livekitState.isMicrophoneEnabled
+        : Boolean(user.isMuted),
+      isDeafened: Boolean(user.isDeafened), // Custom state - only in server
+      isVideoEnabled: livekitState.participant
+        ? livekitState.isCameraEnabled
+        : Boolean(user.isVideoEnabled),
+      isScreenSharing: livekitState.participant
+        ? livekitState.isScreenShareEnabled
+        : Boolean(user.isScreenSharing),
     };
     
     return (
@@ -210,16 +220,31 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     user: (typeof presence.users)[0];
     index: number;
   }> = React.memo(({ user, index }) => {
+    // Get LiveKit state for this user (if they're in the room)
+    const livekitState = useParticipantTracks(user.id);
+
+    // Prefer LiveKit state if participant is in room, otherwise use server state
+    const isMuted = livekitState.participant
+      ? !livekitState.isMicrophoneEnabled
+      : Boolean(user.isMuted);
+    const isDeafened = Boolean(user.isDeafened); // Custom state - only in server
+    const isVideoEnabled = livekitState.participant
+      ? livekitState.isCameraEnabled
+      : Boolean(user.isVideoEnabled);
+    const isScreenSharing = livekitState.participant
+      ? livekitState.isScreenShareEnabled
+      : Boolean(user.isScreenSharing);
+
     const statusIcons = [];
 
-    if (user.isMuted) statusIcons.push(<MicOff key="muted" fontSize="small" />);
+    if (isMuted) statusIcons.push(<MicOff key="muted" fontSize="small" />);
     else statusIcons.push(<Mic key="mic" fontSize="small" />);
 
-    if (user.isDeafened)
+    if (isDeafened)
       statusIcons.push(<VolumeOff key="deafened" fontSize="small" />);
-    if (user.isVideoEnabled)
+    if (isVideoEnabled)
       statusIcons.push(<Videocam key="video" fontSize="small" />);
-    if (user.isScreenSharing)
+    if (isScreenSharing)
       statusIcons.push(<ScreenShare key="screen" fontSize="small" />);
 
     const joinedAgo = formatDistanceToNow(new Date(user.joinedAt), {
@@ -272,6 +297,34 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     );
   });
 
+  // Inline avatar display with video indicator
+  const InlineUserAvatar: React.FC<{ user: (typeof presence.users)[0] }> = ({ user }) => {
+    const livekitState = useParticipantTracks(user.id);
+    const isVideoEnabled = livekitState.participant
+      ? livekitState.isCameraEnabled
+      : Boolean(user.isVideoEnabled);
+
+    return (
+      <Tooltip key={user.id} title={user.displayName || user.username}>
+        <Box
+          sx={{
+            width: 24,
+            height: 24,
+            border: isVideoEnabled ? "2px solid" : "none",
+            borderColor: "primary.main",
+            borderRadius: "50%",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <UserAvatar user={user} size="small" />
+        </Box>
+      </Tooltip>
+    );
+  };
+
   if (showInline) {
     return (
       <Box
@@ -283,23 +336,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         }}
       >
         {presence.users.slice(0, 3).map((user) => (
-          <Tooltip key={user.id} title={user.displayName || user.username}>
-            <Box
-              sx={{
-                width: 24,
-                height: 24,
-                border: user.isVideoEnabled ? "2px solid" : "none",
-                borderColor: "primary.main",
-                borderRadius: "50%",
-                overflow: "hidden",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <UserAvatar user={user} size="small" />
-            </Box>
-          </Tooltip>
+          <InlineUserAvatar key={user.id} user={user} />
         ))}
         {presence.users.length > 3 && (
           <Chip

@@ -10,6 +10,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useVoiceConnection } from './useVoiceConnection';
+import { useLocalMediaState } from './useLocalMediaState';
 import { hasElectronFeature } from '../utils/platform';
 import { ScreenShareSettings } from '../components/Voice/ScreenSourcePicker';
 import { setScreenShareConfig, clearScreenShareConfig } from '../utils/screenShareState';
@@ -28,7 +29,8 @@ interface UseScreenShareReturn {
  * Hook for platform-aware screen sharing
  */
 export const useScreenShare = (): UseScreenShareReturn => {
-  const { state, actions } = useVoiceConnection();
+  const { actions } = useVoiceConnection();
+  const { isScreenShareEnabled } = useLocalMediaState();
   const [showSourcePicker, setShowSourcePicker] = useState(false);
 
   /**
@@ -59,12 +61,12 @@ export const useScreenShare = (): UseScreenShareReturn => {
    * - If not sharing: start (shows picker on Electron, native on web)
    */
   const toggleScreenShare = useCallback(async () => {
-    if (state.isScreenSharing) {
+    if (isScreenShareEnabled) {
       await stopScreenShare();
     } else {
       await startScreenShare();
     }
-  }, [state.isScreenSharing, startScreenShare, stopScreenShare]);
+  }, [isScreenShareEnabled, startScreenShare, stopScreenShare]);
 
   /**
    * Handle source selection from Electron picker
@@ -94,13 +96,13 @@ export const useScreenShare = (): UseScreenShareReturn => {
    * Clean up screen share config when screen sharing stops
    */
   useEffect(() => {
-    if (!state.isScreenSharing) {
+    if (!isScreenShareEnabled) {
       clearScreenShareConfig();
     }
-  }, [state.isScreenSharing]);
+  }, [isScreenShareEnabled]);
 
   return {
-    isScreenSharing: state.isScreenSharing,
+    isScreenSharing: isScreenShareEnabled,
     showSourcePicker,
     startScreenShare,
     stopScreenShare,

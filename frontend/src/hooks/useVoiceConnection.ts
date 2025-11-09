@@ -9,21 +9,16 @@ import { setShowVideoTiles } from "../features/voice/voiceSlice";
 import {
   joinVoiceChannel,
   leaveVoiceChannel,
-  toggleAudio,
-  toggleVideo,
-  toggleScreenShare,
-  toggleMute,
-  toggleDeafen,
   joinDmVoice,
   leaveDmVoice,
-  toggleDmAudio,
-  toggleDmVideo,
-  toggleDmScreenShare,
-  toggleDmMute,
-  toggleDmDeafen,
   switchAudioInputDevice,
   switchAudioOutputDevice,
   switchVideoInputDevice,
+  // Unified thunks (replace duplicate channel/DM versions)
+  toggleMicrophone,
+  toggleCameraUnified,
+  toggleScreenShareUnified,
+  toggleDeafenUnified,
 } from "../features/voice/voiceThunks";
 
 export const useVoiceConnection = () => {
@@ -104,45 +99,27 @@ export const useVoiceConnection = () => {
     }
   }, [dispatch, socket, getRoom, setRoom, voiceState.contextType]);
 
+  // Unified handlers (no longer need to check contextType - thunks handle it)
   const handleToggleAudio = useCallback(async () => {
-    if (voiceState.contextType === 'dm') {
-      await dispatch(toggleDmAudio({ getRoom })).unwrap();
-    } else {
-      await dispatch(toggleAudio({ getRoom })).unwrap();
-    }
-  }, [dispatch, getRoom, voiceState.contextType]);
+    await dispatch(toggleMicrophone({ getRoom })).unwrap();
+  }, [dispatch, getRoom]);
 
   const handleToggleVideo = useCallback(async () => {
-    if (voiceState.contextType === 'dm') {
-      await dispatch(toggleDmVideo({ getRoom })).unwrap();
-    } else {
-      await dispatch(toggleVideo({ getRoom })).unwrap();
-    }
-  }, [dispatch, getRoom, voiceState.contextType]);
+    await dispatch(toggleCameraUnified({ getRoom })).unwrap();
+  }, [dispatch, getRoom]);
 
   const handleToggleScreenShare = useCallback(async () => {
-    if (voiceState.contextType === 'dm') {
-      await dispatch(toggleDmScreenShare({ getRoom })).unwrap();
-    } else {
-      await dispatch(toggleScreenShare({ getRoom })).unwrap();
-    }
-  }, [dispatch, getRoom, voiceState.contextType]);
+    await dispatch(toggleScreenShareUnified({ getRoom })).unwrap();
+  }, [dispatch, getRoom]);
 
   const handleToggleMute = useCallback(async () => {
-    if (voiceState.contextType === 'dm') {
-      await dispatch(toggleDmMute()).unwrap();
-    } else {
-      await dispatch(toggleMute()).unwrap();
-    }
-  }, [dispatch, voiceState.contextType]);
+    // toggleMicrophone replaces both toggleAudio and toggleMute
+    await dispatch(toggleMicrophone({ getRoom })).unwrap();
+  }, [dispatch, getRoom]);
 
   const handleToggleDeafen = useCallback(async () => {
-    if (voiceState.contextType === 'dm') {
-      await dispatch(toggleDmDeafen()).unwrap();
-    } else {
-      await dispatch(toggleDeafen()).unwrap();
-    }
-  }, [dispatch, voiceState.contextType]);
+    await dispatch(toggleDeafenUnified()).unwrap();
+  }, [dispatch]);
 
   const handleSetShowVideoTiles = useCallback(
     (show: boolean) => {

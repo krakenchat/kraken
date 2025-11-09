@@ -238,12 +238,11 @@ describe('VoicePresenceGateway', () => {
   });
 
   describe('handleVoiceStateUpdate', () => {
-    it('should update voice state with video enabled', async () => {
+    it('should update voice state with deafen enabled', async () => {
       const client = createMockSocket();
       const data: VoiceStateUpdateDto & { channelId: string } = {
         channelId: 'channel-123',
-        isVideoEnabled: true,
-        isScreenSharing: false,
+        isDeafened: true,
       };
 
       jest.spyOn(service, 'updateVoiceState').mockResolvedValue();
@@ -254,25 +253,22 @@ describe('VoicePresenceGateway', () => {
         'channel-123',
         mockUser.id,
         {
-          isVideoEnabled: true,
-          isScreenSharing: false,
+          isDeafened: true,
         },
       );
       expect(result).toEqual({
         success: true,
         channelId: 'channel-123',
         updates: {
-          isVideoEnabled: true,
-          isScreenSharing: false,
+          isDeafened: true,
         },
       });
     });
 
-    it('should update voice state with mute and deafen', async () => {
+    it('should update voice state with deafen', async () => {
       const client = createMockSocket();
       const data: VoiceStateUpdateDto & { channelId: string } = {
         channelId: 'channel-456',
-        isMuted: true,
         isDeafened: true,
       };
 
@@ -284,21 +280,19 @@ describe('VoicePresenceGateway', () => {
         'channel-456',
         mockUser.id,
         {
-          isMuted: true,
           isDeafened: true,
         },
       );
       expect(result.updates).toEqual({
-        isMuted: true,
         isDeafened: true,
       });
     });
 
-    it('should update voice state with screen sharing', async () => {
+    it('should update voice state when undeafening', async () => {
       const client = createMockSocket();
       const data: VoiceStateUpdateDto & { channelId: string } = {
         channelId: 'channel-789',
-        isScreenSharing: true,
+        isDeafened: false,
       };
 
       jest.spyOn(service, 'updateVoiceState').mockResolvedValue();
@@ -309,18 +303,15 @@ describe('VoicePresenceGateway', () => {
         'channel-789',
         mockUser.id,
         {
-          isScreenSharing: true,
+          isDeafened: false,
         },
       );
     });
 
-    it('should update multiple state fields simultaneously', async () => {
+    it('should handle deafen state updates', async () => {
       const client = createMockSocket();
       const data: VoiceStateUpdateDto & { channelId: string } = {
         channelId: 'channel-999',
-        isVideoEnabled: true,
-        isScreenSharing: true,
-        isMuted: false,
         isDeafened: false,
       };
 
@@ -332,16 +323,10 @@ describe('VoicePresenceGateway', () => {
         'channel-999',
         mockUser.id,
         {
-          isVideoEnabled: true,
-          isScreenSharing: true,
-          isMuted: false,
           isDeafened: false,
         },
       );
       expect(result.updates).toEqual({
-        isVideoEnabled: true,
-        isScreenSharing: true,
-        isMuted: false,
         isDeafened: false,
       });
     });
@@ -351,7 +336,7 @@ describe('VoicePresenceGateway', () => {
       const client = createMockSocket(customUser);
       const data: VoiceStateUpdateDto & { channelId: string } = {
         channelId: 'channel-special',
-        isMuted: true,
+        isDeafened: true,
       };
 
       jest.spyOn(service, 'updateVoiceState').mockResolvedValue();
@@ -361,7 +346,7 @@ describe('VoicePresenceGateway', () => {
       expect(service.updateVoiceState).toHaveBeenCalledWith(
         'channel-special',
         'special-user',
-        { isMuted: true },
+        { isDeafened: true },
       );
     });
 
@@ -369,7 +354,7 @@ describe('VoicePresenceGateway', () => {
       const client = createMockSocket();
       const data: VoiceStateUpdateDto & { channelId: string } = {
         channelId: 'channel-error',
-        isVideoEnabled: true,
+        isDeafened: true,
       };
 
       jest

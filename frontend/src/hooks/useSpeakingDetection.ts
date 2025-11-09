@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { useRoom } from "./useRoom";
 import { Participant } from "livekit-client";
-import { useDispatch } from "react-redux";
-import { setSpeaking } from "../features/voice/voiceSlice";
-import { useProfileQuery } from "../features/users/usersSlice";
 
 /**
  * Hook to detect speaking state for all participants in a LiveKit room
  *
  * Returns a map of participant identities (user IDs) to their speaking state
  * and a helper function to check if a specific user is speaking.
+ *
+ * This hook reads speaking state directly from LiveKit without storing
+ * it in Redux, making LiveKit the single source of truth.
  *
  * @example
  * const { speakingMap, isSpeaking } = useSpeakingDetection();
@@ -24,8 +24,6 @@ import { useProfileQuery } from "../features/users/usersSlice";
  */
 export const useSpeakingDetection = () => {
   const { room } = useRoom();
-  const dispatch = useDispatch();
-  const { data: currentUser } = useProfileQuery();
   const [speakingMap, setSpeakingMap] = useState<Map<string, boolean>>(new Map());
 
   useEffect(() => {
@@ -51,11 +49,6 @@ export const useSpeakingDetection = () => {
           newMap.set(participant.identity, speaking);
           return newMap;
         });
-
-        // Update Redux state for local user
-        if (currentUser && participant.identity === currentUser.id) {
-          dispatch(setSpeaking(speaking));
-        }
       };
 
       // Store handler for cleanup
@@ -80,11 +73,6 @@ export const useSpeakingDetection = () => {
           newMap.set(participant.identity, speaking);
           return newMap;
         });
-
-        // Update Redux state for local user
-        if (currentUser && participant.identity === currentUser.id) {
-          dispatch(setSpeaking(speaking));
-        }
       };
 
       handlers.set(participant.identity, handleSpeakingChange);
@@ -135,13 +123,8 @@ export const useSpeakingDetection = () => {
       // Remove room event listeners
       room.off("participantConnected", handleParticipantConnected);
       room.off("participantDisconnected", handleParticipantDisconnected);
-
-      // Clear local user speaking state when cleanup
-      if (currentUser) {
-        dispatch(setSpeaking(false));
-      }
     };
-  }, [room, dispatch, currentUser]);
+  }, [room]);
 
   /**
    * Check if a specific user (by identity/userId) is currently speaking

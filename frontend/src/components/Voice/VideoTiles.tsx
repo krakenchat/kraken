@@ -22,6 +22,7 @@ import {
   PushPinOutlined,
 } from '@mui/icons-material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
+import { useLocalMediaState } from '../../hooks/useLocalMediaState';
 import { useResponsive } from '../../hooks/useResponsive';
 
 // Constants
@@ -318,6 +319,7 @@ interface VideoTilesProps {
 
 export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const { state } = useVoiceConnection();
+  const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>('grid');
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
@@ -364,7 +366,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     const tiles: VideoTile[] = [];
 
     // Add local participant tiles
-    if (state.isVideoEnabled || state.isScreenSharing) {
+    if (isCameraEnabled || isScreenShareEnabled) {
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
       const audioTrack = Array.from(localParticipant.audioTrackPublications.values())[0];
       

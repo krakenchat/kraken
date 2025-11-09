@@ -6,15 +6,24 @@ import { ChannelsService } from '@/channels/channels.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { DatabaseService } from '@/database/database.service';
 
+/**
+ * Voice presence user data
+ *
+ * NOTE: We only store minimal state here now.
+ * Media states (video, screen share, mic mute) are managed by LiveKit
+ * and read directly from LiveKit participants on the frontend.
+ *
+ * We only store:
+ * - User identity info (id, username, displayName, avatarUrl)
+ * - joinedAt timestamp
+ * - isDeafened (custom UI state not in LiveKit)
+ */
 export interface VoicePresenceUser {
   id: string;
   username: string;
   displayName?: string;
   avatarUrl?: string;
   joinedAt: Date;
-  isVideoEnabled: boolean;
-  isScreenSharing: boolean;
-  isMuted: boolean;
   isDeafened: boolean;
 }
 
@@ -56,10 +65,7 @@ export class VoicePresenceService {
         displayName: user.displayName ?? undefined,
         avatarUrl: user.avatarUrl ?? undefined,
         joinedAt: new Date(),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
-        isDeafened: false,
+        isDeafened: false, // Only custom state we store
       };
 
       // Keys for Redis SET architecture
@@ -228,15 +234,16 @@ export class VoicePresenceService {
   /**
    * Update user's voice state (video, screen share, etc.)
    */
+  /**
+   * Update voice state for a user in a channel
+   *
+   * NOTE: We only update isDeafened now.
+   * Media states are managed by LiveKit and read directly on the frontend.
+   */
   async updateVoiceState(
     channelId: string,
     userId: string,
-    updates: Partial<
-      Pick<
-        VoicePresenceUser,
-        'isVideoEnabled' | 'isScreenSharing' | 'isMuted' | 'isDeafened'
-      >
-    >,
+    updates: Partial<Pick<VoicePresenceUser, 'isDeafened'>>,
   ): Promise<void> {
     try {
       const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
@@ -367,10 +374,7 @@ export class VoicePresenceService {
         displayName: user.displayName ?? undefined,
         avatarUrl: user.avatarUrl ?? undefined,
         joinedAt: new Date(),
-        isVideoEnabled: false,
-        isScreenSharing: false,
-        isMuted: false,
-        isDeafened: false,
+        isDeafened: false, // Only custom state we store
       };
 
       // Keys for Redis SET architecture (DM-specific)
@@ -563,15 +567,16 @@ export class VoicePresenceService {
   /**
    * Update user's voice state in DM call (video, screen share, etc.)
    */
+  /**
+   * Update voice state for a user in a DM call
+   *
+   * NOTE: We only update isDeafened now.
+   * Media states are managed by LiveKit and read directly on the frontend.
+   */
   async updateDmVoiceState(
     dmGroupId: string,
     userId: string,
-    updates: Partial<
-      Pick<
-        VoicePresenceUser,
-        'isVideoEnabled' | 'isScreenSharing' | 'isMuted' | 'isDeafened'
-      >
-    >,
+    updates: Partial<Pick<VoicePresenceUser, 'isDeafened'>>,
   ): Promise<void> {
     try {
       const userDataKey = `${this.DM_VOICE_PRESENCE_USER_DATA_PREFIX}:${dmGroupId}:${userId}`;

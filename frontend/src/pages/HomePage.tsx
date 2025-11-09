@@ -25,6 +25,7 @@ import { useCreateInviteMutation } from "../features/invite/inviteApiSlice";
 import { useMyCommunitiesQuery } from "../features/community/communityApiSlice";
 import { CreateInviteDto } from "../types/invite.type";
 import { useResponsive } from "../hooks/useResponsive";
+import { useAuthenticatedImage } from "../hooks/useAuthenticatedFile";
 
 const HomePage: React.FC = () => {
   const { isMobile } = useResponsive();
@@ -41,8 +42,11 @@ const HomePage: React.FC = () => {
 const DesktopHomePage: React.FC = () => {
   const { data, isLoading, isError } = useProfileQuery(undefined);
   const { data: communities = [] } = useMyCommunitiesQuery();
-  const [createInvite, { isLoading: creatingInvite }] = useCreateInviteMutation();
-  const [lastCreatedInvite, setLastCreatedInvite] = useState<string | null>(null);
+  const [createInvite, { isLoading: creatingInvite }] =
+    useCreateInviteMutation();
+  const [lastCreatedInvite, setLastCreatedInvite] = useState<string | null>(
+    null
+  );
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   const { hasPermissions: canCreateInvites } = useUserPermissions({
@@ -51,25 +55,31 @@ const DesktopHomePage: React.FC = () => {
   });
 
   const { hasPermissions: canViewInvites } = useUserPermissions({
-    resourceType: "INSTANCE", 
+    resourceType: "INSTANCE",
     actions: ["READ_INSTANCE_INVITE"],
   });
+
+  const { blobUrl: avatarUrl } = useAuthenticatedImage(data?.avatarUrl || null);
 
   const handleQuickInvite = async () => {
     try {
       // Auto-select communities (prefer "default" community if it exists, otherwise all communities)
-      const defaultCommunity = communities.find(c => c.name.toLowerCase() === 'default');
-      const selectedCommunities = defaultCommunity ? [defaultCommunity.id] : communities.map(c => c.id);
-      
+      const defaultCommunity = communities.find(
+        (c) => c.name.toLowerCase() === "default"
+      );
+      const selectedCommunities = defaultCommunity
+        ? [defaultCommunity.id]
+        : communities.map((c) => c.id);
+
       const createInviteDto: CreateInviteDto = {
         communityIds: selectedCommunities,
         maxUses: 10,
         validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       };
-      
+
       const newInvite = await createInvite(createInviteDto).unwrap();
       setLastCreatedInvite(newInvite.code);
-      
+
       // Auto-copy the invite link
       const inviteUrl = `${window.location.origin}/join/${newInvite.code}`;
       await navigator.clipboard.writeText(inviteUrl);
@@ -105,13 +115,13 @@ const DesktopHomePage: React.FC = () => {
           Error loading profile!
         </Alert>
       )}
-      
+
       {/* Quick Invite Section */}
       {data && canCreateInvites && (
-        <Paper 
-          sx={{ 
-            p: 3, 
-            width: "100%", 
+        <Paper
+          sx={{
+            p: 3,
+            width: "100%",
             maxWidth: 500,
             borderRadius: 2,
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -129,7 +139,7 @@ const DesktopHomePage: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-          
+
           <Box display="flex" gap={2} flexWrap="wrap">
             <Button
               variant="contained"
@@ -142,9 +152,13 @@ const DesktopHomePage: React.FC = () => {
                 backdropFilter: "blur(10px)",
               }}
             >
-              {creatingInvite ? <CircularProgress size={20} color="inherit" /> : "Quick Invite"}
+              {creatingInvite ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                "Quick Invite"
+              )}
             </Button>
-            
+
             {lastCreatedInvite && (
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
@@ -161,7 +175,7 @@ const DesktopHomePage: React.FC = () => {
                 </Tooltip>
               </Box>
             )}
-            
+
             {canViewInvites && (
               <Button
                 component={Link}
@@ -170,9 +184,9 @@ const DesktopHomePage: React.FC = () => {
                 sx={{
                   borderColor: "rgba(255, 255, 255, 0.5)",
                   color: "white",
-                  "&:hover": { 
+                  "&:hover": {
                     borderColor: "white",
-                    bgcolor: "rgba(255, 255, 255, 0.1)"
+                    bgcolor: "rgba(255, 255, 255, 0.1)",
                   },
                 }}
                 startIcon={<SettingsIcon />}
@@ -202,6 +216,8 @@ const DesktopHomePage: React.FC = () => {
             }}
           >
             <Avatar
+              src={avatarUrl}
+              alt={`${data.displayName}'s avatar`}
               sx={{
                 width: 80,
                 height: 80,
@@ -210,15 +226,7 @@ const DesktopHomePage: React.FC = () => {
                 fontSize: 32,
               }}
             >
-              {data.avatarUrl ? (
-                <img
-                  src={data.avatarUrl}
-                  alt={`${data.displayName}'s avatar`}
-                  style={{ width: "100%", height: "100%", borderRadius: "50%" }}
-                />
-              ) : (
-                data.displayName?.charAt(0).toUpperCase()
-              )}
+              {!avatarUrl && data.displayName?.charAt(0).toUpperCase()}
             </Avatar>
             <Typography variant="h5" component="h1" sx={{ marginBottom: 1 }}>
               {data.displayName}
@@ -236,10 +244,6 @@ const DesktopHomePage: React.FC = () => {
               sx={{ marginBottom: 1 }}
             >
               Role: {data.role}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Last Seen:{" "}
-              {data.lastSeen ? new Date(data.lastSeen).toLocaleString() : "N/A"}
             </Typography>
           </CardContent>
         </Card>

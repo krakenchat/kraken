@@ -2,16 +2,28 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import { createAuthedBaseQuery } from "../createBaseQuery";
 import { RootState } from "../../app/store";
 
+/**
+ * Voice presence user from server
+ *
+ * NOTE: Media states (video, screen share, muted) are now managed by LiveKit.
+ * The server only stores isDeafened (custom UI state).
+ *
+ * Frontend components should:
+ * 1. Use useParticipantTracks() to get LiveKit state for users in the room
+ * 2. Only fall back to server state for users not yet in LiveKit
+ */
 export interface VoicePresenceUser {
   id: string;
   username: string;
   displayName?: string;
   avatarUrl?: string;
   joinedAt: string;
-  isVideoEnabled: boolean;
-  isScreenSharing: boolean;
-  isMuted: boolean;
+  // Only custom state stored on server now:
   isDeafened: boolean;
+  // Legacy fields (no longer sent by server, kept for backward compatibility):
+  isVideoEnabled?: boolean;
+  isScreenSharing?: boolean;
+  isMuted?: boolean;
 }
 
 export interface ChannelPresenceResponse {
@@ -20,10 +32,13 @@ export interface ChannelPresenceResponse {
   count: number;
 }
 
+/**
+ * Voice state update DTO
+ *
+ * NOTE: Only isDeafened is sent to server now.
+ * Media states are managed by LiveKit.
+ */
 export interface VoiceStateUpdate {
-  isVideoEnabled?: boolean;
-  isScreenSharing?: boolean;
-  isMuted?: boolean;
   isDeafened?: boolean;
 }
 
@@ -95,37 +110,25 @@ export const voicePresenceApi = createApi({
       // invalidatesTags: (result, error, { channelId }) => [
       //   { type: "VoicePresence", id: channelId },
       // ],
-      // Optimistic update to preserve existing state and reduce flicker
+      // Optimistic update for isDeafened (media state now managed by LiveKit)
       onQueryStarted: async ({ channelId, updates }, { dispatch, queryFulfilled, getState }) => {
-        
         // Get current user ID from profile query cache
         const state = getState() as RootState;
         const profileQueryState = state.usersApi?.queries?.[`profile(undefined)`];
         const currentUserId = profileQueryState?.data?.id;
-        
+
         const patchResult = dispatch(
           voicePresenceApi.util.updateQueryData('getChannelPresence', channelId, (draft) => {
-            if (currentUserId) {
+            if (currentUserId && updates.isDeafened !== undefined) {
               const userIndex = draft.users.findIndex(user => user.id === currentUserId);
               if (userIndex !== -1) {
-                // Preserve existing state and only update the provided fields
-                const existingUser = draft.users[userIndex];
-                
-                const updatedUser = {
-                  ...existingUser,
-                  ...updates,
-                  // Ensure undefined values don't overwrite existing values
-                  isMuted: updates.isMuted !== undefined ? updates.isMuted : existingUser.isMuted,
-                  isDeafened: updates.isDeafened !== undefined ? updates.isDeafened : existingUser.isDeafened,
-                  isVideoEnabled: updates.isVideoEnabled !== undefined ? updates.isVideoEnabled : existingUser.isVideoEnabled,
-                  isScreenSharing: updates.isScreenSharing !== undefined ? updates.isScreenSharing : existingUser.isScreenSharing,
-                };
-                draft.users[userIndex] = updatedUser;
+                // Only update isDeafened (media state comes from LiveKit)
+                draft.users[userIndex].isDeafened = updates.isDeafened;
               }
             }
           })
         );
-        
+
         try {
           await queryFulfilled;
         } catch (error) {
@@ -185,6 +188,7 @@ export const voicePresenceApi = createApi({
         body: updates,
       }),
       // Optimistic update for DM voice state
+      // Optimistic update for isDeafened (media state now managed by LiveKit)
       onQueryStarted: async ({ dmGroupId, updates }, { dispatch, queryFulfilled, getState }) => {
         const state = getState() as RootState;
         const profileQueryState = state.usersApi?.queries?.[`profile(undefined)`];
@@ -192,19 +196,11 @@ export const voicePresenceApi = createApi({
 
         const patchResult = dispatch(
           voicePresenceApi.util.updateQueryData('getDmPresence', dmGroupId, (draft) => {
-            if (currentUserId) {
+            if (currentUserId && updates.isDeafened !== undefined) {
               const userIndex = draft.users.findIndex(user => user.id === currentUserId);
               if (userIndex !== -1) {
-                const existingUser = draft.users[userIndex];
-                const updatedUser = {
-                  ...existingUser,
-                  ...updates,
-                  isMuted: updates.isMuted !== undefined ? updates.isMuted : existingUser.isMuted,
-                  isDeafened: updates.isDeafened !== undefined ? updates.isDeafened : existingUser.isDeafened,
-                  isVideoEnabled: updates.isVideoEnabled !== undefined ? updates.isVideoEnabled : existingUser.isVideoEnabled,
-                  isScreenSharing: updates.isScreenSharing !== undefined ? updates.isScreenSharing : existingUser.isScreenSharing,
-                };
-                draft.users[userIndex] = updatedUser;
+                // Only update isDeafened (media state comes from LiveKit)
+                draft.users[userIndex].isDeafened = updates.isDeafened;
               }
             }
           })

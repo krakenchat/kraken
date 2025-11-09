@@ -29,6 +29,8 @@ import {
 } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useScreenShare } from "../../hooks/useScreenShare";
+import { useLocalMediaState } from "../../hooks/useLocalMediaState";
+import { useDeafenEffect } from "../../hooks/useDeafenEffect";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
 import { ScreenSourcePicker } from "./ScreenSourcePicker";
@@ -42,6 +44,7 @@ import { useProfileQuery } from "../../features/users/usersSlice";
 export const VoiceBottomBar: React.FC = () => {
   const { state, actions } = useVoiceConnection();
   const screenShare = useScreenShare();
+  const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
   const { isMobile } = useResponsive();
   const { data: currentUser } = useProfileQuery();
   const { isSpeaking } = useSpeakingDetection();
@@ -51,6 +54,9 @@ export const VoiceBottomBar: React.FC = () => {
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  // Implement proper deafen functionality (mute received audio)
+  useDeafenEffect();
 
   // Check if the current user is speaking
   const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;
@@ -89,7 +95,7 @@ export const VoiceBottomBar: React.FC = () => {
 
   const handleToggleVideo = () => {
     actions.toggleVideo();
-    if (!state.isVideoEnabled) {
+    if (!isCameraEnabled) {
       actions.setShowVideoTiles(true);
     }
   };
@@ -224,27 +230,27 @@ export const VoiceBottomBar: React.FC = () => {
           {/* Voice Controls */}
           <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0.5 : 1 }}>
             {/* Microphone */}
-            <Tooltip title={state.isMuted ? "Unmute" : "Mute"} arrow={!isMobile}>
+            <Tooltip title={!isMicrophoneEnabled ? "Unmute" : "Mute"} arrow={!isMobile}>
               <IconButton
                 onClick={actions.toggleMute}
-                color={state.isMuted ? "error" : "default"}
+                color={!isMicrophoneEnabled ? "error" : "default"}
                 size={isMobile ? "medium" : "medium"}
                 sx={{
-                  backgroundColor: state.isMuted ? "error.main" : "transparent",
-                  color: state.isMuted ? "error.contrastText" : "text.primary",
+                  backgroundColor: !isMicrophoneEnabled ? "error.main" : "transparent",
+                  color: !isMicrophoneEnabled ? "error.contrastText" : "text.primary",
                   minWidth: isMobile ? 48 : "auto",
                   minHeight: isMobile ? 48 : "auto",
-                  border: !state.isMuted && isCurrentUserSpeaking ? "2px solid #43b581" : "2px solid transparent",
-                  boxShadow: !state.isMuted && isCurrentUserSpeaking ? "0 0 8px #43b581" : "none",
+                  border: isMicrophoneEnabled && isCurrentUserSpeaking ? "2px solid #43b581" : "2px solid transparent",
+                  boxShadow: isMicrophoneEnabled && isCurrentUserSpeaking ? "0 0 8px #43b581" : "none",
                   transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                   "&:hover": {
-                    backgroundColor: state.isMuted
+                    backgroundColor: !isMicrophoneEnabled
                       ? "error.dark"
                       : "action.hover",
                   },
                 }}
               >
-                {state.isMuted ? <MicOff /> : <Mic />}
+                {!isMicrophoneEnabled ? <MicOff /> : <Mic />}
               </IconButton>
             </Tooltip>
 
@@ -278,31 +284,31 @@ export const VoiceBottomBar: React.FC = () => {
             {/* Video */}
             <Tooltip
               title={
-                state.isVideoEnabled ? "Turn off camera" : "Turn on camera"
+                isCameraEnabled ? "Turn off camera" : "Turn on camera"
               }
               arrow={!isMobile}
             >
               <IconButton
                 onClick={handleToggleVideo}
-                color={state.isVideoEnabled ? "primary" : "default"}
+                color={isCameraEnabled ? "primary" : "default"}
                 size={isMobile ? "medium" : "medium"}
                 sx={{
-                  backgroundColor: state.isVideoEnabled
+                  backgroundColor: isCameraEnabled
                     ? "primary.main"
                     : "transparent",
-                  color: state.isVideoEnabled
+                  color: isCameraEnabled
                     ? "primary.contrastText"
                     : "text.primary",
                   minWidth: isMobile ? 48 : "auto",
                   minHeight: isMobile ? 48 : "auto",
                   "&:hover": {
-                    backgroundColor: state.isVideoEnabled
+                    backgroundColor: isCameraEnabled
                       ? "primary.dark"
                       : "action.hover",
                   },
                 }}
               >
-                {state.isVideoEnabled ? <Videocam /> : <VideocamOff />}
+                {isCameraEnabled ? <Videocam /> : <VideocamOff />}
               </IconButton>
             </Tooltip>
 
