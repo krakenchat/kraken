@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { supportsMediaDevices, isSecureContext, isElectron } from '../utils/platform';
+import { supportsMediaDevices, isSecureContext } from '../utils/platform';
 
 interface MediaDeviceInfo {
   deviceId: string;

@@ -51,6 +51,7 @@ export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index }) => {
 /**
  * Render an array of message spans
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const renderMessageSpans = (spans: Span[]): React.ReactNode => {
   return spans.map((span, idx) => <MessageSpan key={idx} span={span} index={idx} />);
 };

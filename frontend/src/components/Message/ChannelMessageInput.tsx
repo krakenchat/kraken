@@ -56,7 +56,6 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
   const {
     cursorPosition,
     updateCursorPosition,
-    handleInsertMention,
     setupCursorTracking,
   } = useMentionHandling();
 

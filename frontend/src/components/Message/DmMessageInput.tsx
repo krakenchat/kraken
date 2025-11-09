@@ -67,7 +67,6 @@ export const DmMessageInput: React.FC<DmMessageInputProps> = ({
 
   const {
     cursorPosition,
-    updateCursorPosition,
     handleInsertMention: insertMentionUtil,
     setupCursorTracking,
   } = useMentionHandling();
