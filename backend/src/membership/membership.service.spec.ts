@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembershipService } from './membership.service';
 import { DatabaseService } from '@/database/database.service';

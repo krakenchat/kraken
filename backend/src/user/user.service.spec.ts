@@ -200,7 +200,6 @@ describe('UserService', () => {
       expect(result).toEqual(newUser);
 
       expect(mockDatabase.user.create).toHaveBeenCalledWith({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: expect.objectContaining({
           username: 'firstowner',
           displayName: 'firstowner',

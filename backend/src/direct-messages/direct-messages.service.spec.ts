@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { DirectMessagesService } from './direct-messages.service';
 import { DatabaseService } from '@/database/database.service';

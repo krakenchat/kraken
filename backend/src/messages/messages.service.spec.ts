@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { MessagesService } from './messages.service';
 import { DatabaseService } from '@/database/database.service';

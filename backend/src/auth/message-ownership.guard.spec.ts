@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { MessageOwnershipGuard } from './message-ownership.guard';
 import { MessagesService } from '@/messages/messages.service';
@@ -150,7 +148,7 @@ describe('MessageOwnershipGuard', () => {
   describe('No user scenarios', () => {
     it('should deny access when no user is authenticated', async () => {
       // Create custom context with explicit undefined user (not using factory default)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const mockContext = {
         switchToHttp: jest.fn().mockReturnValue({
           getRequest: jest.fn().mockReturnValue({

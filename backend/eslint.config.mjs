@@ -38,6 +38,12 @@ export default tseslint.config(
     rules: {
       // Jest expect() with spies is safe despite unbound-method warnings
       '@typescript-eslint/unbound-method': 'off',
+      // Test mocks often use 'any' types for simplicity
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
     },
   },
 );

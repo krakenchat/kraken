@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { RbacGuard } from './rbac.guard';
 import { RolesService } from '@/roles/roles.service';
@@ -101,7 +99,7 @@ describe('RbacGuard', () => {
   describe('No user authenticated', () => {
     it('should deny access when no user is authenticated', async () => {
       // Create context with explicit null user in request
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const mockContext = {
         switchToHttp: jest.fn().mockReturnValue({
           getRequest: jest.fn().mockReturnValue({ user: undefined }),

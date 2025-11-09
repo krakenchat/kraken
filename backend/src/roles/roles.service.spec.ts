@@ -378,7 +378,7 @@ describe('RolesService', () => {
         const result = await service.verifyActionsForUserAndResource(
           'user-id',
           'resource-id',
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
           'UNKNOWN' as any,
           [RbacActions.READ_MESSAGE],
         );
@@ -567,7 +567,6 @@ describe('RolesService', () => {
 
       mockTx.role.create.mockResolvedValue(RoleFactory.build());
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await service.createDefaultCommunityRoles(communityId, mockTx as any);
 
       expect(mockTx.role.create).toHaveBeenCalled();
@@ -837,6 +836,142 @@ describe('RolesService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].username).toBe('user1');
       expect(result[1].username).toBe('user2');
+    });
+  });
+
+  describe('getCommunityModeratorRole', () => {
+    it('should return moderator role for community', async () => {
+      const communityId = 'community-123';
+      const modRole = RoleFactory.build({
+        name: `Moderator - ${communityId}`,
+        actions: [RbacActions.CREATE_MESSAGE, RbacActions.UPDATE_MESSAGE],
+      });
+
+      mockDatabase.role.findFirst.mockResolvedValue(modRole);
+
+      const result = await service.getCommunityModeratorRole(communityId);
+
+      expect(result).toBeDefined();
+      expect(result?.name).toBe(`Moderator - ${communityId}`);
+      expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+        where: { name: `Moderator - ${communityId}` },
+      });
+    });
+
+    it('should return null when moderator role not found', async () => {
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+
+      const result = await service.getCommunityModeratorRole('community-456');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getCommunityMemberRole', () => {
+    it('should return member role for community', async () => {
+      const communityId = 'community-789';
+      const memberRole = RoleFactory.build({
+        name: `Member - ${communityId}`,
+        actions: [RbacActions.READ_MESSAGE],
+      });
+
+      mockDatabase.role.findFirst.mockResolvedValue(memberRole);
+
+      const result = await service.getCommunityMemberRole(communityId);
+
+      expect(result).toBeDefined();
+      expect(result?.name).toBe(`Member - ${communityId}`);
+    });
+
+    it('should return null when member role not found', async () => {
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+
+      const result = await service.getCommunityMemberRole('community-999');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('createMemberRoleForCommunity', () => {
+    it('should create member role for community', async () => {
+      const communityId = 'community-abc';
+      const createdRole = RoleFactory.build({
+        id: 'role-member-123',
+        name: `Member - ${communityId}`,
+      });
+
+      mockDatabase.role.create.mockResolvedValue(createdRole);
+
+      const result = await service.createMemberRoleForCommunity(communityId);
+
+      expect(result).toBe('role-member-123');
+      expect(mockDatabase.role.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: `Member - ${communityId}`,
+        }),
+      });
+    });
+
+    it('should use transaction when provided', async () => {
+      const communityId = 'community-tx';
+      const mockTx = {
+        role: {
+          create: jest
+            .fn()
+            .mockResolvedValue(RoleFactory.build({ id: 'tx-role' })),
+        },
+      } as any;
+
+      const result = await service.createMemberRoleForCommunity(
+        communityId,
+        mockTx,
+      );
+
+      expect(result).toBe('tx-role');
+      expect(mockTx.role.create).toHaveBeenCalled();
+      expect(mockDatabase.role.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getCommunityRoles', () => {
+    it('should return all roles for community', async () => {
+      const communityId = 'community-123';
+      const roles = [
+        RoleFactory.build({ name: `Admin - ${communityId}` }),
+        RoleFactory.build({ name: `Moderator - ${communityId}` }),
+        RoleFactory.build({ name: `Member - ${communityId}` }),
+      ];
+
+      mockDatabase.role.findMany.mockResolvedValue(roles);
+
+      const result = await service.getCommunityRoles(communityId);
+
+      expect(result.communityId).toBe(communityId);
+      expect(result.roles).toHaveLength(3);
+      expect(result.roles[0].name).toBe('Admin');
+      expect(result.roles[1].name).toBe('Moderator');
+      expect(result.roles[2].name).toBe('Member');
+      expect(mockDatabase.role.findMany).toHaveBeenCalledWith({
+        where: {
+          name: {
+            endsWith: ` - ${communityId}`,
+          },
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      });
+    });
+
+    it('should return empty roles list when no roles found', async () => {
+      const communityId = 'empty-community';
+
+      mockDatabase.role.findMany.mockResolvedValue([]);
+
+      const result = await service.getCommunityRoles(communityId);
+
+      expect(result.communityId).toBe(communityId);
+      expect(result.roles).toHaveLength(0);
     });
   });
 });

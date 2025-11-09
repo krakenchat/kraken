@@ -7,7 +7,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
@@ -29,7 +28,9 @@ export function createMockJwtService() {
     sign: jest.fn((payload: any) => 'mock-jwt-token'),
     signAsync: jest.fn((payload: any) => Promise.resolve('mock-jwt-token')),
     verify: jest.fn((token: string) => ({ userId: 'test-user-id' })),
-    verifyAsync: jest.fn((token: string) => Promise.resolve({ userId: 'test-user-id' })),
+    verifyAsync: jest.fn((token: string) =>
+      Promise.resolve({ userId: 'test-user-id' }),
+    ),
     decode: jest.fn((token: string) => ({ userId: 'test-user-id' })),
   };
 }
