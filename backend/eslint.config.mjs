@@ -32,4 +32,12 @@ export default tseslint.config(
       '@typescript-eslint/return-await': 'warn',
     },
   },
+  {
+    // Test-specific overrides
+    files: ['**/*.spec.ts', '**/*.test.ts'],
+    rules: {
+      // Jest expect() with spies is safe despite unbound-method warnings
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

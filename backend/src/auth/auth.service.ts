@@ -1,7 +1,7 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
-import { UserEntity } from 'src/user/dto/user-response.dto';
+import { UserEntity } from '@/user/dto/user-response.dto';
 import { JwtService } from '@nestjs/jwt';
 import { DatabaseService } from '@/database/database.service';
 import { ConfigService } from '@nestjs/config';
@@ -65,7 +65,7 @@ export class AuthService {
       throw new UnauthorizedException('Could not find user');
     }
 
-    return [user, payload.jti];
+    return [new UserEntity(user), payload.jti];
   }
 
   async generateRefreshToken(userId: string, tx?: Prisma.TransactionClient) {

@@ -24,7 +24,11 @@ import { DatabaseModule } from '@/database/database.module';
     RolesModule,
     DatabaseModule,
   ],
-  controllers: [VoicePresenceController, UserVoicePresenceController, DmVoicePresenceController],
+  controllers: [
+    VoicePresenceController,
+    UserVoicePresenceController,
+    DmVoicePresenceController,
+  ],
   providers: [VoicePresenceService, VoicePresenceGateway],
   exports: [VoicePresenceService],
 })

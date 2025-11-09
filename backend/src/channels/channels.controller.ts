@@ -23,7 +23,7 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { UserEntity } from '@/user/dto/user-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('channels')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -40,7 +40,7 @@ export class ChannelsController {
   })
   create(
     @Body() createChannelDto: CreateChannelDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.channelsService.create(createChannelDto, req.user);
   }
@@ -67,7 +67,7 @@ export class ChannelsController {
   })
   getMentionableChannels(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.channelsService.findMentionableChannels(
       communityId,

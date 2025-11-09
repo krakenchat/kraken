@@ -24,7 +24,7 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { UserEntity } from '@/user/dto/user-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('membership')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -82,7 +82,7 @@ export class MembershipController {
   @RequiredActions(RbacActions.READ_MEMBER)
   findAllForUser(
     @Param('userId', ParseObjectIdPipe) userId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<MembershipResponseDto[]> {
     // Users can only view their own memberships unless they have additional permissions
     if (userId !== req.user.id) {
@@ -96,7 +96,7 @@ export class MembershipController {
   @Get('/my')
   @RequiredActions(RbacActions.READ_MEMBER)
   findMyMemberships(
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<MembershipResponseDto[]> {
     return this.membershipService.findAllForUser(req.user.id);
   }
@@ -134,7 +134,7 @@ export class MembershipController {
   @HttpCode(204)
   leaveCommunity(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     return this.membershipService.remove(req.user.id, communityId);
   }

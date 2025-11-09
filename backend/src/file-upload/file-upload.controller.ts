@@ -18,7 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { MimeTypeAwareSizeValidator } from './validators/mime-type-aware-size.validator';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { UserEntity } from '@/user/dto/user-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('file-upload')
@@ -42,7 +42,7 @@ export class FileUploadController {
     )
     file: Express.Multer.File,
     @Body() body: CreateFileUploadDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.fileUploadService.uploadFile(file, body, req.user);
   }

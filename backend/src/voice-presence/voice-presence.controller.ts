@@ -20,7 +20,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '../auth/rbac-resource.decorator';
-import { UserEntity } from '../user/dto/user-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('channels/:channelId/voice-presence')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -52,7 +52,7 @@ export class VoicePresenceController {
   })
   async joinVoiceChannel(
     @Param('channelId') channelId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     await this.voicePresenceService.joinVoiceChannel(channelId, req.user);
     return {
@@ -71,7 +71,7 @@ export class VoicePresenceController {
   })
   async leaveVoiceChannel(
     @Param('channelId') channelId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     await this.voicePresenceService.leaveVoiceChannel(channelId, req.user.id);
     return {
@@ -91,7 +91,7 @@ export class VoicePresenceController {
   async updateVoiceState(
     @Param('channelId') channelId: string,
     @Body() voiceStateUpdateDto: VoiceStateUpdateDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     await this.voicePresenceService.updateVoiceState(
       channelId,
@@ -115,7 +115,7 @@ export class VoicePresenceController {
   })
   async refreshPresence(
     @Param('channelId') channelId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     await this.voicePresenceService.refreshPresence(channelId, req.user.id);
     return {
@@ -144,7 +144,7 @@ export class DmVoicePresenceController {
   @Post('join')
   async joinDmVoice(
     @Param('dmGroupId') dmGroupId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     // Membership verification is done in the service layer
     await this.voicePresenceService.joinDmVoice(dmGroupId, req.user);
@@ -158,7 +158,7 @@ export class DmVoicePresenceController {
   @Delete('leave')
   async leaveDmVoice(
     @Param('dmGroupId') dmGroupId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     await this.voicePresenceService.leaveDmVoice(dmGroupId, req.user.id);
     return {
@@ -172,7 +172,7 @@ export class DmVoicePresenceController {
   async updateDmVoiceState(
     @Param('dmGroupId') dmGroupId: string,
     @Body() voiceStateUpdateDto: VoiceStateUpdateDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     await this.voicePresenceService.updateDmVoiceState(
       dmGroupId,
@@ -194,7 +194,7 @@ export class UserVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get('me')
-  async getMyVoiceChannels(@Req() req: { user: UserEntity }) {
+  async getMyVoiceChannels(@Req() req: AuthenticatedRequest) {
     const channels = await this.voicePresenceService.getUserVoiceChannels(
       req.user.id,
     );

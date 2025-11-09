@@ -28,9 +28,9 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { UserEntity } from '@/user/dto/user-response.dto';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -49,7 +49,7 @@ export class MessagesController {
     source: ResourceIdSource.BODY,
   })
   create(
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
     @Body() createMessageDto: CreateMessageDto,
   ) {
     return this.messagesService.create({
@@ -110,7 +110,7 @@ export class MessagesController {
   })
   async addReaction(
     @Body() addReactionDto: AddReactionDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     const result = await this.messagesService.addReaction(
       addReactionDto.messageId,
@@ -142,7 +142,7 @@ export class MessagesController {
   })
   async removeReaction(
     @Body() removeReactionDto: RemoveReactionDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     const result = await this.messagesService.removeReaction(
       removeReactionDto.messageId,

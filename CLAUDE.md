@@ -571,3 +571,4 @@ When creating new components, hooks, or modules, use these templates for documen
 - **WebSocket Events**: `docs/templates/websocket.template.md`
 
 **After creating new code, ALWAYS create corresponding documentation using these templates.**
+- Remove orphan containers when using docker to run commands

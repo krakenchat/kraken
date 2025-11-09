@@ -1,0 +1,652 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { DirectMessagesService } from './direct-messages.service';
+import { DatabaseService } from '@/database/database.service';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  createMockDatabase,
+  UserFactory,
+  DirectMessageGroupFactory,
+  MessageFactory,
+} from '@/test-utils';
+
+describe('DirectMessagesService', () => {
+  let service: DirectMessagesService;
+  let mockDatabase: any;
+
+  beforeEach(async () => {
+    mockDatabase = createMockDatabase();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DirectMessagesService,
+        {
+          provide: DatabaseService,
+          useValue: mockDatabase,
+        },
+      ],
+    }).compile();
+
+    service = module.get<DirectMessagesService>(DirectMessagesService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('findUserDmGroups', () => {
+    it('should return all DM groups for a user', async () => {
+      const user = UserFactory.build();
+      const dmGroups = [
+        {
+          userId: user.id,
+          group: {
+            id: 'dm-1',
+            name: null,
+            isGroup: false,
+            createdAt: new Date(),
+            members: [
+              {
+                userId: user.id,
+                user: {
+                  id: user.id,
+                  username: user.username,
+                  displayName: user.displayName,
+                  avatarUrl: user.avatarUrl,
+                },
+              },
+            ],
+            messages: [MessageFactory.buildDirectMessage()],
+          },
+        },
+      ];
+
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue(
+        dmGroups,
+      );
+
+      const result = await service.findUserDmGroups(user.id);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('dm-1');
+      expect(result[0].isGroup).toBe(false);
+      expect(
+        mockDatabase.directMessageGroupMember.findMany,
+      ).toHaveBeenCalledWith({
+        where: { userId: user.id },
+        include: expect.objectContaining({
+          group: expect.any(Object),
+        }),
+        orderBy: {
+          group: {
+            createdAt: 'desc',
+          },
+        },
+      });
+    });
+
+    it('should return empty array when user has no DM groups', async () => {
+      const user = UserFactory.build();
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+
+      const result = await service.findUserDmGroups(user.id);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle last message being null', async () => {
+      const user = UserFactory.build();
+      const dmGroups = [
+        {
+          userId: user.id,
+          group: {
+            id: 'dm-1',
+            name: null,
+            isGroup: false,
+            createdAt: new Date(),
+            members: [],
+            messages: [], // No messages
+          },
+        },
+      ];
+
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue(
+        dmGroups,
+      );
+
+      const result = await service.findUserDmGroups(user.id);
+
+      expect(result[0].lastMessage).toBeNull();
+    });
+
+    it('should rethrow errors', async () => {
+      const user = UserFactory.build();
+      mockDatabase.directMessageGroupMember.findMany.mockRejectedValue(
+        new Error('DB error'),
+      );
+
+      await expect(service.findUserDmGroups(user.id)).rejects.toThrow(
+        'DB error',
+      );
+    });
+  });
+
+  describe('createDmGroup', () => {
+    it('should create a 1:1 DM group', async () => {
+      const creator = UserFactory.build();
+      const otherUser = UserFactory.build();
+      const createDto = { userIds: [otherUser.id] };
+
+      const createdGroup = {
+        id: 'dm-new',
+        name: null,
+        isGroup: false,
+        createdAt: new Date(),
+        members: [
+          {
+            userId: creator.id,
+            user: {
+              id: creator.id,
+              username: creator.username,
+              displayName: creator.displayName,
+              avatarUrl: creator.avatarUrl,
+            },
+          },
+          {
+            userId: otherUser.id,
+            user: {
+              id: otherUser.id,
+              username: otherUser.username,
+              displayName: otherUser.displayName,
+              avatarUrl: otherUser.avatarUrl,
+            },
+          },
+        ],
+        messages: [],
+      };
+
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(null); // No existing DM
+      mockDatabase.directMessageGroup.create.mockResolvedValue(createdGroup);
+
+      const result = await service.createDmGroup(createDto, creator.id);
+
+      expect(result.id).toBe('dm-new');
+      expect(result.isGroup).toBe(false);
+      expect(mockDatabase.directMessageGroup.create).toHaveBeenCalledWith({
+        data: {
+          name: undefined,
+          isGroup: false,
+          members: {
+            create: expect.arrayContaining([
+              { userId: creator.id },
+              { userId: otherUser.id },
+            ]),
+          },
+        },
+        include: expect.any(Object),
+      });
+    });
+
+    it('should return existing 1:1 DM if it already exists', async () => {
+      const creator = UserFactory.build();
+      const otherUser = UserFactory.build();
+      const createDto = { userIds: [otherUser.id] };
+
+      const existingGroup = {
+        id: 'dm-existing',
+        name: null,
+        isGroup: false,
+        createdAt: new Date(),
+        members: [
+          {
+            userId: creator.id,
+            user: {
+              id: creator.id,
+              username: creator.username,
+              displayName: creator.displayName,
+              avatarUrl: creator.avatarUrl,
+            },
+          },
+          {
+            userId: otherUser.id,
+            user: {
+              id: otherUser.id,
+              username: otherUser.username,
+              displayName: otherUser.displayName,
+              avatarUrl: otherUser.avatarUrl,
+            },
+          },
+        ],
+        messages: [],
+      };
+
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(
+        existingGroup,
+      );
+
+      const result = await service.createDmGroup(createDto, creator.id);
+
+      expect(result.id).toBe('dm-existing');
+      expect(mockDatabase.directMessageGroup.create).not.toHaveBeenCalled();
+    });
+
+    it('should create a group DM with multiple users', async () => {
+      const creator = UserFactory.build();
+      const user2 = UserFactory.build();
+      const user3 = UserFactory.build();
+      const createDto = { userIds: [user2.id, user3.id], name: 'Test Group' };
+
+      const createdGroup = {
+        id: 'group-new',
+        name: 'Test Group',
+        isGroup: true,
+        createdAt: new Date(),
+        members: [
+          {
+            userId: creator.id,
+            user: {
+              id: creator.id,
+              username: creator.username,
+              displayName: creator.displayName,
+              avatarUrl: creator.avatarUrl,
+            },
+          },
+          {
+            userId: user2.id,
+            user: {
+              id: user2.id,
+              username: user2.username,
+              displayName: user2.displayName,
+              avatarUrl: user2.avatarUrl,
+            },
+          },
+          {
+            userId: user3.id,
+            user: {
+              id: user3.id,
+              username: user3.username,
+              displayName: user3.displayName,
+              avatarUrl: user3.avatarUrl,
+            },
+          },
+        ],
+        messages: [],
+      };
+
+      mockDatabase.directMessageGroup.create.mockResolvedValue(createdGroup);
+
+      const result = await service.createDmGroup(createDto, creator.id);
+
+      expect(result.id).toBe('group-new');
+      expect(result.isGroup).toBe(true);
+      expect(result.name).toBe('Test Group');
+    });
+
+    it('should include creator in members list automatically', async () => {
+      const creator = UserFactory.build();
+      const otherUser = UserFactory.build();
+      const createDto = { userIds: [otherUser.id] };
+
+      const createdGroup = {
+        ...DirectMessageGroupFactory.build(),
+        messages: [],
+      };
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(null);
+      mockDatabase.directMessageGroup.create.mockResolvedValue(createdGroup);
+
+      await service.createDmGroup(createDto, creator.id);
+
+      expect(mockDatabase.directMessageGroup.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            members: {
+              create: expect.arrayContaining([
+                { userId: creator.id },
+                { userId: otherUser.id },
+              ]),
+            },
+          }),
+        }),
+      );
+    });
+
+    it('should handle explicit isGroup flag', async () => {
+      const creator = UserFactory.build();
+      const otherUser = UserFactory.build();
+      const createDto = {
+        userIds: [otherUser.id],
+        isGroup: true,
+        name: 'Forced Group',
+      };
+
+      const createdGroup = {
+        id: 'forced-group',
+        name: 'Forced Group',
+        isGroup: true,
+        createdAt: new Date(),
+        members: [],
+        messages: [],
+      };
+
+      mockDatabase.directMessageGroup.create.mockResolvedValue(createdGroup);
+
+      const result = await service.createDmGroup(createDto, creator.id);
+
+      expect(result.isGroup).toBe(true);
+    });
+
+    it('should rethrow errors', async () => {
+      const creator = UserFactory.build();
+      const createDto = { userIds: ['other-id'] };
+
+      mockDatabase.directMessageGroup.findFirst.mockRejectedValue(
+        new Error('DB error'),
+      );
+
+      await expect(
+        service.createDmGroup(createDto, creator.id),
+      ).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('findDmGroup', () => {
+    it('should return DM group for authorized member', async () => {
+      const user = UserFactory.build();
+      const groupId = 'dm-123';
+      const membership = { groupId, userId: user.id };
+      const dmGroup = {
+        id: groupId,
+        name: null,
+        isGroup: false,
+        createdAt: new Date(),
+        members: [
+          {
+            userId: user.id,
+            user: {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+            },
+          },
+        ],
+        messages: [],
+      };
+
+      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue(
+        membership,
+      );
+      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue(
+        dmGroup,
+      );
+
+      const result = await service.findDmGroup(groupId, user.id);
+
+      expect(result.id).toBe(groupId);
+      expect(
+        mockDatabase.directMessageGroupMember.findFirst,
+      ).toHaveBeenCalledWith({
+        where: { groupId, userId: user.id },
+      });
+    });
+
+    it('should throw ForbiddenException when user is not a member', async () => {
+      const user = UserFactory.build();
+      const groupId = 'dm-123';
+
+      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue(null);
+
+      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
+        'You are not a member of this DM group',
+      );
+    });
+
+    it('should throw NotFoundException when group not found', async () => {
+      const user = UserFactory.build();
+      const groupId = 'nonexistent';
+
+      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue({
+        groupId,
+        userId: user.id,
+      });
+      mockDatabase.directMessageGroup.findUniqueOrThrow.mockRejectedValue(
+        new Error('Not found'),
+      );
+
+      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
+        'DM group not found',
+      );
+    });
+
+    it('should rethrow ForbiddenException', async () => {
+      const user = UserFactory.build();
+      const groupId = 'dm-123';
+
+      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue({
+        groupId,
+        userId: user.id,
+      });
+      mockDatabase.directMessageGroup.findUniqueOrThrow.mockRejectedValue(
+        new ForbiddenException('Custom forbidden'),
+      );
+
+      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
+        'Custom forbidden',
+      );
+    });
+  });
+
+  describe('addMembers', () => {
+    it('should add new members to a group DM', async () => {
+      const user = UserFactory.build();
+      const newUser = UserFactory.build();
+      const groupId = 'group-123';
+      const addDto = { userIds: [newUser.id] };
+
+      const dmGroup = {
+        id: groupId,
+        isGroup: true,
+        members: [{ userId: user.id }],
+      };
+
+      const updatedGroup = {
+        id: groupId,
+        name: 'Test Group',
+        isGroup: true,
+        createdAt: new Date(),
+        members: [
+          {
+            userId: user.id,
+            user: {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+            },
+          },
+          {
+            userId: newUser.id,
+            user: {
+              id: newUser.id,
+              username: newUser.username,
+              displayName: newUser.displayName,
+              avatarUrl: newUser.avatarUrl,
+            },
+          },
+        ],
+        messages: [],
+      };
+
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(dmGroup);
+      mockDatabase.directMessageGroupMember.create.mockResolvedValue({});
+      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue({
+        groupId,
+        userId: user.id,
+      });
+      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue(
+        updatedGroup,
+      );
+
+      const result = await service.addMembers(groupId, addDto, user.id);
+
+      expect(mockDatabase.directMessageGroupMember.create).toHaveBeenCalledWith(
+        {
+          data: { groupId, userId: newUser.id },
+        },
+      );
+      expect(result.members).toHaveLength(2);
+    });
+
+    it('should throw ForbiddenException when user is not a member', async () => {
+      const user = UserFactory.build();
+      const groupId = 'group-123';
+      const addDto = { userIds: ['new-user-id'] };
+
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.addMembers(groupId, addDto, user.id),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.addMembers(groupId, addDto, user.id),
+      ).rejects.toThrow('You are not a member of this DM group');
+    });
+
+    it('should throw ForbiddenException when trying to add to 1:1 DM', async () => {
+      const user = UserFactory.build();
+      const groupId = 'dm-1on1';
+      const addDto = { userIds: ['new-user-id'] };
+
+      const dmGroup = {
+        id: groupId,
+        isGroup: false,
+        members: [{ userId: user.id }],
+      };
+
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(dmGroup);
+
+      await expect(
+        service.addMembers(groupId, addDto, user.id),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.addMembers(groupId, addDto, user.id),
+      ).rejects.toThrow('Cannot add members to a 1:1 DM');
+    });
+
+    it('should ignore duplicate member errors', async () => {
+      const user = UserFactory.build();
+      const newUser = UserFactory.build();
+      const groupId = 'group-123';
+      const addDto = { userIds: [newUser.id] };
+
+      const dmGroup = {
+        id: groupId,
+        isGroup: true,
+        members: [{ userId: user.id }],
+      };
+
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(dmGroup);
+      mockDatabase.directMessageGroupMember.create.mockRejectedValue(
+        new Error('Duplicate key'),
+      );
+      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue({
+        groupId,
+        userId: user.id,
+      });
+      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue({
+        id: groupId,
+        name: null,
+        isGroup: true,
+        createdAt: new Date(),
+        members: [],
+        messages: [],
+      });
+
+      await expect(
+        service.addMembers(groupId, addDto, user.id),
+      ).resolves.not.toThrow();
+    });
+
+    it('should add multiple members at once', async () => {
+      const user = UserFactory.build();
+      const newUser1 = UserFactory.build();
+      const newUser2 = UserFactory.build();
+      const groupId = 'group-123';
+      const addDto = { userIds: [newUser1.id, newUser2.id] };
+
+      const dmGroup = {
+        id: groupId,
+        isGroup: true,
+        members: [{ userId: user.id }],
+      };
+
+      mockDatabase.directMessageGroup.findFirst.mockResolvedValue(dmGroup);
+      mockDatabase.directMessageGroupMember.create.mockResolvedValue({});
+      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue({
+        groupId,
+        userId: user.id,
+      });
+      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue({
+        id: groupId,
+        name: 'Test Group',
+        isGroup: true,
+        createdAt: new Date(),
+        members: [],
+        messages: [],
+      });
+
+      await service.addMembers(groupId, addDto, user.id);
+
+      expect(
+        mockDatabase.directMessageGroupMember.create,
+      ).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('leaveDmGroup', () => {
+    it('should remove user from DM group', async () => {
+      const user = UserFactory.build();
+      const groupId = 'dm-123';
+
+      mockDatabase.directMessageGroupMember.delete.mockResolvedValue({});
+
+      await service.leaveDmGroup(groupId, user.id);
+
+      expect(mockDatabase.directMessageGroupMember.delete).toHaveBeenCalledWith(
+        {
+          where: {
+            groupId_userId: {
+              groupId,
+              userId: user.id,
+            },
+          },
+        },
+      );
+    });
+
+    it('should rethrow errors', async () => {
+      const user = UserFactory.build();
+      const groupId = 'dm-123';
+
+      mockDatabase.directMessageGroupMember.delete.mockRejectedValue(
+        new Error('Delete failed'),
+      );
+
+      await expect(service.leaveDmGroup(groupId, user.id)).rejects.toThrow(
+        'Delete failed',
+      );
+    });
+  });
+});

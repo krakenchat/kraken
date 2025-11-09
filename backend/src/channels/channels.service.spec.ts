@@ -1,18 +1,519 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ChannelsService } from './channels.service';
+import { DatabaseService } from '@/database/database.service';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ChannelType } from '@prisma/client';
+import { createMockDatabase, UserFactory, ChannelFactory } from '@/test-utils';
 
 describe('ChannelsService', () => {
   let service: ChannelsService;
+  let mockDatabase: any;
 
   beforeEach(async () => {
+    mockDatabase = createMockDatabase();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ChannelsService],
+      providers: [
+        ChannelsService,
+        {
+          provide: DatabaseService,
+          useValue: mockDatabase,
+        },
+      ],
     }).compile();
 
     service = module.get<ChannelsService>(ChannelsService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    it('should create a channel and add creator as member', async () => {
+      const user = UserFactory.build();
+      const createDto = {
+        name: 'announcements',
+        communityId: 'community-123',
+        type: ChannelType.TEXT,
+        isPrivate: false,
+      } as any;
+      const channel = ChannelFactory.build();
+
+      mockDatabase.channel.create.mockResolvedValue(channel);
+      mockDatabase.channelMembership.create.mockResolvedValue({
+        userId: user.id,
+        channelId: channel.id,
+      });
+
+      const result = await service.create(createDto, user);
+
+      expect(result).toEqual(channel);
+      expect(mockDatabase.channel.create).toHaveBeenCalledWith({
+        data: createDto,
+      });
+      expect(mockDatabase.channelMembership.create).toHaveBeenCalledWith({
+        data: {
+          userId: user.id,
+          channelId: channel.id,
+        },
+      });
+    });
+
+    it('should throw ConflictException for duplicate channel name', async () => {
+      const user = UserFactory.build();
+      const createDto = {
+        name: 'general',
+        communityId: 'community-123',
+        type: ChannelType.TEXT,
+        isPrivate: false,
+      } as any;
+
+      const duplicateError = { code: 'P2002' };
+      mockDatabase.channel.create.mockRejectedValue(duplicateError);
+
+      await expect(service.create(createDto, user)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(service.create(createDto, user)).rejects.toThrow(
+        'Channel with this name already exists in the community',
+      );
+    });
+
+    it('should rethrow non-P2002 errors', async () => {
+      const user = UserFactory.build();
+      const createDto = {
+        name: 'test-channel',
+        communityId: 'community-123',
+        type: ChannelType.TEXT,
+        isPrivate: false,
+      } as any;
+
+      mockDatabase.channel.create.mockRejectedValue(
+        new Error('DB connection error'),
+      );
+
+      await expect(service.create(createDto, user)).rejects.toThrow(
+        'DB connection error',
+      );
+    });
+
+    it('should create private channels', async () => {
+      const user = UserFactory.build();
+      const createDto = {
+        name: 'private-discussion',
+        communityId: 'community-123',
+        type: ChannelType.TEXT,
+        isPrivate: true,
+      } as any;
+      const channel = ChannelFactory.build({ isPrivate: true });
+
+      mockDatabase.channel.create.mockResolvedValue(channel);
+      mockDatabase.channelMembership.create.mockResolvedValue({
+        userId: user.id,
+        channelId: channel.id,
+      });
+
+      const result = await service.create(createDto, user);
+
+      expect(result.isPrivate).toBe(true);
+    });
+
+    it('should create voice channels', async () => {
+      const user = UserFactory.build();
+      const createDto = {
+        name: 'voice-chat',
+        communityId: 'community-123',
+        type: ChannelType.VOICE,
+        isPrivate: false,
+      } as any;
+      const channel = ChannelFactory.build({ type: ChannelType.VOICE });
+
+      mockDatabase.channel.create.mockResolvedValue(channel);
+      mockDatabase.channelMembership.create.mockResolvedValue({
+        userId: user.id,
+        channelId: channel.id,
+      });
+
+      const result = await service.create(createDto, user);
+
+      expect(result.type).toBe(ChannelType.VOICE);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return all channels in a community', async () => {
+      const communityId = 'community-123';
+      const channels = [
+        ChannelFactory.build({ communityId }),
+        ChannelFactory.build({ communityId }),
+      ];
+
+      mockDatabase.channel.findMany.mockResolvedValue(channels);
+
+      const result = await service.findAll(communityId);
+
+      expect(result).toEqual(channels);
+      expect(mockDatabase.channel.findMany).toHaveBeenCalledWith({
+        where: { communityId },
+      });
+    });
+
+    it('should return empty array when no channels exist', async () => {
+      const communityId = 'community-123';
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+
+      const result = await service.findAll(communityId);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return a channel by ID', async () => {
+      const channel = ChannelFactory.build();
+      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
+
+      const result = await service.findOne(channel.id);
+
+      expect(result).toEqual(channel);
+      expect(mockDatabase.channel.findUniqueOrThrow).toHaveBeenCalledWith({
+        where: { id: channel.id },
+      });
+    });
+
+    it('should throw NotFoundException when channel not found', async () => {
+      mockDatabase.channel.findUniqueOrThrow.mockRejectedValue(
+        new Error('Not found'),
+      );
+
+      await expect(service.findOne('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.findOne('nonexistent')).rejects.toThrow(
+        'Channel not found',
+      );
+    });
+  });
+
+  describe('update', () => {
+    it('should update channel successfully', async () => {
+      const channelId = 'channel-123';
+      const updateDto = { name: 'updated-channel', isPrivate: true };
+      const updatedChannel = ChannelFactory.build({
+        ...updateDto,
+        id: channelId,
+      });
+
+      mockDatabase.channel.update.mockResolvedValue(updatedChannel);
+
+      const result = await service.update(channelId, updateDto);
+
+      expect(result).toEqual(updatedChannel);
+      expect(mockDatabase.channel.update).toHaveBeenCalledWith({
+        where: { id: channelId },
+        data: updateDto,
+      });
+    });
+
+    it('should throw ConflictException for duplicate channel name', async () => {
+      const channelId = 'channel-123';
+      const updateDto = { name: 'general' };
+
+      const duplicateError = { code: 'P2002' };
+      mockDatabase.channel.update.mockRejectedValue(duplicateError);
+
+      await expect(service.update(channelId, updateDto)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(service.update(channelId, updateDto)).rejects.toThrow(
+        'Channel with this name already exists in the community',
+      );
+    });
+
+    it('should rethrow non-P2002 errors', async () => {
+      const channelId = 'channel-123';
+      const updateDto = { name: 'updated-channel' };
+
+      mockDatabase.channel.update.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.update(channelId, updateDto)).rejects.toThrow(
+        'DB error',
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('should delete a channel', async () => {
+      const channelId = 'channel-123';
+      const deletedChannel = ChannelFactory.build({ id: channelId });
+
+      mockDatabase.channel.delete.mockResolvedValue(deletedChannel);
+
+      const result = await service.remove(channelId);
+
+      expect(result).toEqual(deletedChannel);
+      expect(mockDatabase.channel.delete).toHaveBeenCalledWith({
+        where: { id: channelId },
+      });
+    });
+  });
+
+  describe('createDefaultGeneralChannel', () => {
+    it('should create general channel without transaction', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+      const generalChannel = ChannelFactory.build({
+        name: 'general',
+        communityId,
+        type: ChannelType.TEXT,
+        isPrivate: false,
+      });
+
+      mockDatabase.channel.create.mockResolvedValue(generalChannel);
+      mockDatabase.channelMembership.create.mockResolvedValue({
+        userId,
+        channelId: generalChannel.id,
+      });
+
+      const result = await service.createDefaultGeneralChannel(
+        communityId,
+        userId,
+      );
+
+      expect(result).toEqual(generalChannel);
+      expect(mockDatabase.channel.create).toHaveBeenCalledWith({
+        data: {
+          name: 'general',
+          communityId,
+          type: ChannelType.TEXT,
+          isPrivate: false,
+        },
+      });
+      expect(mockDatabase.channelMembership.create).toHaveBeenCalledWith({
+        data: {
+          userId,
+          channelId: generalChannel.id,
+        },
+      });
+    });
+
+    it('should create general channel with transaction', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+      const generalChannel = ChannelFactory.build({
+        name: 'general',
+        communityId,
+        type: ChannelType.TEXT,
+        isPrivate: false,
+      });
+
+      const mockTx = {
+        channel: {
+          create: jest.fn().mockResolvedValue(generalChannel),
+        },
+        channelMembership: {
+          create: jest
+            .fn()
+            .mockResolvedValue({ userId, channelId: generalChannel.id }),
+        },
+      };
+
+      const result = await service.createDefaultGeneralChannel(
+        communityId,
+        userId,
+        mockTx as any,
+      );
+
+      expect(result).toEqual(generalChannel);
+      expect(mockTx.channel.create).toHaveBeenCalledWith({
+        data: {
+          name: 'general',
+          communityId,
+          type: ChannelType.TEXT,
+          isPrivate: false,
+        },
+      });
+      expect(mockDatabase.channel.create).not.toHaveBeenCalled();
+    });
+
+    it('should rethrow errors', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+
+      mockDatabase.channel.create.mockRejectedValue(
+        new Error('Channel creation failed'),
+      );
+
+      await expect(
+        service.createDefaultGeneralChannel(communityId, userId),
+      ).rejects.toThrow('Channel creation failed');
+    });
+  });
+
+  describe('addUserToGeneralChannel', () => {
+    it('should add user to general channel', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+      const generalChannel = ChannelFactory.build({
+        name: 'general',
+        communityId,
+      });
+
+      mockDatabase.channel.findFirst.mockResolvedValue(generalChannel);
+      mockDatabase.channelMembership.findFirst.mockResolvedValue(null);
+      mockDatabase.channelMembership.create.mockResolvedValue({
+        userId,
+        channelId: generalChannel.id,
+      });
+
+      await service.addUserToGeneralChannel(communityId, userId);
+
+      expect(mockDatabase.channel.findFirst).toHaveBeenCalledWith({
+        where: {
+          communityId,
+          name: 'general',
+        },
+      });
+      expect(mockDatabase.channelMembership.create).toHaveBeenCalledWith({
+        data: {
+          userId,
+          channelId: generalChannel.id,
+        },
+      });
+    });
+
+    it('should do nothing if general channel does not exist', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+
+      mockDatabase.channel.findFirst.mockResolvedValue(null);
+
+      await service.addUserToGeneralChannel(communityId, userId);
+
+      expect(mockDatabase.channelMembership.create).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing if user is already a member', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+      const generalChannel = ChannelFactory.build({
+        name: 'general',
+        communityId,
+      });
+
+      mockDatabase.channel.findFirst.mockResolvedValue(generalChannel);
+      mockDatabase.channelMembership.findFirst.mockResolvedValue({
+        userId,
+        channelId: generalChannel.id,
+      });
+
+      await service.addUserToGeneralChannel(communityId, userId);
+
+      expect(mockDatabase.channelMembership.create).not.toHaveBeenCalled();
+    });
+
+    it('should rethrow errors', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+
+      mockDatabase.channel.findFirst.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.addUserToGeneralChannel(communityId, userId),
+      ).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('findMentionableChannels', () => {
+    it('should return public channels and private channels user is member of', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+      const publicChannel = ChannelFactory.build({
+        communityId,
+        isPrivate: false,
+        name: 'general',
+      });
+      const privateChannel = ChannelFactory.build({
+        communityId,
+        isPrivate: true,
+        name: 'private',
+      });
+
+      const channels = [publicChannel, privateChannel];
+      mockDatabase.channel.findMany.mockResolvedValue(channels);
+
+      const result = await service.findMentionableChannels(communityId, userId);
+
+      expect(result).toEqual(channels);
+      expect(mockDatabase.channel.findMany).toHaveBeenCalledWith({
+        where: {
+          communityId,
+          OR: [
+            { isPrivate: false },
+            {
+              isPrivate: true,
+              ChannelMembership: {
+                some: {
+                  userId,
+                },
+              },
+            },
+          ],
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
+    });
+
+    it('should return empty array when no mentionable channels exist', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+
+      const result = await service.findMentionableChannels(communityId, userId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should sort channels by name', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+      const channels = [
+        ChannelFactory.build({ name: 'announcements' }),
+        ChannelFactory.build({ name: 'general' }),
+        ChannelFactory.build({ name: 'chat' }),
+      ];
+
+      mockDatabase.channel.findMany.mockResolvedValue(channels);
+
+      await service.findMentionableChannels(communityId, userId);
+
+      expect(mockDatabase.channel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: {
+            name: 'asc',
+          },
+        }),
+      );
+    });
+
+    it('should rethrow errors', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-456';
+
+      mockDatabase.channel.findMany.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.findMentionableChannels(communityId, userId),
+      ).rejects.toThrow('DB error');
+    });
   });
 });

@@ -32,7 +32,9 @@ export class WebsocketService {
 
   sendToAll(event: string, payload: any): boolean {
     if (!this.server) {
-      this.logger.error('Attempted to send to all before server was initialized');
+      this.logger.error(
+        'Attempted to send to all before server was initialized',
+      );
       return false;
     }
 
@@ -40,7 +42,10 @@ export class WebsocketService {
       this.server.emit(event, payload);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send event "${event}" to all clients`, error);
+      this.logger.error(
+        `Failed to send event "${event}" to all clients`,
+        error,
+      );
       return false;
     }
   }

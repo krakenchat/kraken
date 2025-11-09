@@ -32,7 +32,9 @@ export class DirectMessagesController {
   ) {}
 
   @Get()
-  async findUserDmGroups(@Req() req: any): Promise<DmGroupResponseDto[]> {
+  async findUserDmGroups(
+    @Req() req: { user: { id: string } },
+  ): Promise<DmGroupResponseDto[]> {
     return this.directMessagesService.findUserDmGroups(req.user.id);
   }
 
@@ -43,7 +45,7 @@ export class DirectMessagesController {
   })
   async createDmGroup(
     @Body() createDmGroupDto: CreateDmGroupDto,
-    @Req() req: any,
+    @Req() req: { user: { id: string } },
   ): Promise<DmGroupResponseDto> {
     return this.directMessagesService.createDmGroup(
       createDmGroupDto,
@@ -60,7 +62,7 @@ export class DirectMessagesController {
   })
   async findDmGroup(
     @Param('id') id: string,
-    @Req() req: any,
+    @Req() req: { user: { id: string } },
   ): Promise<DmGroupResponseDto> {
     return this.directMessagesService.findDmGroup(id, req.user.id);
   }
@@ -72,7 +74,10 @@ export class DirectMessagesController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  async getDmMessages(@Param('id') id: string, @Req() req: any) {
+  async getDmMessages(
+    @Param('id') id: string,
+    @Req() req: { user: { id: string } },
+  ) {
     // First verify user is a member of this DM group
     await this.directMessagesService.findDmGroup(id, req.user.id);
 
@@ -90,7 +95,7 @@ export class DirectMessagesController {
   async addMembers(
     @Param('id') id: string,
     @Body() addMembersDto: AddMembersDto,
-    @Req() req: any,
+    @Req() req: { user: { id: string } },
   ): Promise<DmGroupResponseDto> {
     return this.directMessagesService.addMembers(
       id,
@@ -106,7 +111,10 @@ export class DirectMessagesController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  async leaveDmGroup(@Param('id') id: string, @Req() req: any): Promise<void> {
+  async leaveDmGroup(
+    @Param('id') id: string,
+    @Req() req: { user: { id: string } },
+  ): Promise<void> {
     return this.directMessagesService.leaveDmGroup(id, req.user.id);
   }
 }

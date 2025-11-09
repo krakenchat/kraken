@@ -6,12 +6,7 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import {
-  Logger,
-  UseGuards,
-  UsePipes,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -60,7 +55,8 @@ export class MessagesGateway
     private readonly websocketService: WebsocketService,
   ) {}
 
-  afterInit(server: Server) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  afterInit(_server: Server) {
     this.logger.log('MessagesGateway initialized');
   }
 

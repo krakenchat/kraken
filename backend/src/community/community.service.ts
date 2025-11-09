@@ -61,6 +61,7 @@ export class CommunityService {
         error &&
         typeof error === 'object' &&
         'code' in error &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         error.code === 'P2002'
       ) {
         throw new ConflictException('Duplicate community name');
@@ -129,7 +130,7 @@ export class CommunityService {
         }
 
         // Update the community
-        return await tx.community.update({
+        return tx.community.update({
           where: { id },
           data: updateCommunityDto,
         });

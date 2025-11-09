@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Req,
+  Query,
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
@@ -21,12 +22,12 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { UserEntity } from '@/user/dto/user-response.dto';
 import { UserRolesResponseDto } from './dto/user-roles-response.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { CommunityRolesResponseDto } from './dto/community-roles-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('roles')
 @UseGuards(JwtAuthGuard)
@@ -36,7 +37,7 @@ export class RolesController {
   @Get('my/community/:communityId')
   async getMyRolesForCommunity(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserRolesForCommunity(req.user.id, communityId);
   }
@@ -44,14 +45,14 @@ export class RolesController {
   @Get('my/channel/:channelId')
   async getMyRolesForChannel(
     @Param('channelId', ParseObjectIdPipe) channelId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserRolesForChannel(req.user.id, channelId);
   }
 
   @Get('my/instance')
   async getMyInstanceRoles(
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserInstanceRoles(req.user.id);
   }
@@ -193,9 +194,8 @@ export class RolesController {
   @RequiredActions(RbacActions.READ_ROLE)
   async getUsersForRole(
     @Param('roleId', ParseObjectIdPipe) roleId: string,
-    @Req() req: { query: { communityId?: string } },
+    @Query('communityId') communityId?: string,
   ) {
-    const communityId = req.query.communityId;
     return this.rolesService.getUsersForRole(roleId, communityId);
   }
 }

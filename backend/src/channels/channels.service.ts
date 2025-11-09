@@ -38,7 +38,7 @@ export class ChannelsService {
         error &&
         typeof error === 'object' &&
         'code' in error &&
-        error.code === 'P2002'
+        (error as { code: string }).code === 'P2002'
       ) {
         this.logger.warn(
           'Channel already exists with the same name in this community',
@@ -81,7 +81,7 @@ export class ChannelsService {
         error &&
         typeof error === 'object' &&
         'code' in error &&
-        error.code === 'P2002'
+        (error as { code: string }).code === 'P2002'
       ) {
         this.logger.warn(
           'Channel already exists with the same name in this community',

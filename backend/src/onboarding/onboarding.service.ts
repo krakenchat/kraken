@@ -45,7 +45,7 @@ export class OnboardingService {
    * Get existing setup token from Redis if it exists
    */
   private async getExistingSetupToken(): Promise<string | null> {
-    return await this.redis.get(this.SETUP_TOKEN_KEY);
+    return this.redis.get(this.SETUP_TOKEN_KEY);
   }
 
   /**
@@ -66,8 +66,14 @@ export class OnboardingService {
 
     // Generate new token only if none exists
     const setupToken = randomUUID();
-    await this.redis.set(this.SETUP_TOKEN_KEY, setupToken, this.SETUP_TOKEN_TTL);
-    this.logger.log('Generated new setup token for onboarding (stored in Redis)');
+    await this.redis.set(
+      this.SETUP_TOKEN_KEY,
+      setupToken,
+      this.SETUP_TOKEN_TTL,
+    );
+    this.logger.log(
+      'Generated new setup token for onboarding (stored in Redis)',
+    );
     return setupToken;
   }
 
@@ -175,11 +181,10 @@ export class OnboardingService {
         });
 
         // Create default roles for the community
-        const adminRoleId =
-          await this.rolesService.createDefaultCommunityRoles(
-            defaultCommunity.id,
-            tx,
-          );
+        const adminRoleId = await this.rolesService.createDefaultCommunityRoles(
+          defaultCommunity.id,
+          tx,
+        );
 
         // Assign the admin user to the Community Admin role
         await this.rolesService.assignUserToCommunityRole(

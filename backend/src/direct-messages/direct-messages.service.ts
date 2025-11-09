@@ -227,7 +227,7 @@ export class DirectMessagesService {
               userId: newUserId,
             },
           });
-        } catch (error) {
+        } catch {
           // Ignore duplicate member errors
           this.logger.warn(
             `User ${newUserId} is already a member of group ${groupId}`,
@@ -235,7 +235,7 @@ export class DirectMessagesService {
         }
       }
 
-      return this.findDmGroup(groupId, userId);
+      return await this.findDmGroup(groupId, userId);
     } catch (error) {
       this.logger.error('Error adding members to DM group', error);
       throw error;
@@ -303,7 +303,29 @@ export class DirectMessagesService {
     });
   }
 
-  private formatDmGroupResponse(dmGroup: any): DmGroupResponseDto {
+  private formatDmGroupResponse(dmGroup: {
+    id: string;
+    name: string | null;
+    isGroup: boolean;
+    createdAt: Date;
+    members: {
+      id: string;
+      userId: string;
+      joinedAt: Date;
+      user: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+    }[];
+    messages: {
+      id: string;
+      authorId: string;
+      spans: any[];
+      sentAt: Date;
+    }[];
+  }): DmGroupResponseDto {
     return {
       id: dmGroup.id,
       name: dmGroup.name,

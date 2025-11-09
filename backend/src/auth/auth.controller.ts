@@ -10,11 +10,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { LocalAuthGuard } from './local-auth.guard';
-import { UserEntity } from '@/user/dto/user-response.dto';
 import { AuthService } from './auth.service';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('auth')
 export class AuthController {
@@ -30,7 +30,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
-    @Req() req: Request & { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
     const accessToken = this.authService.login(req.user);
@@ -70,8 +70,9 @@ export class AuthController {
       | undefined;
 
     // For Electron, also check the request body
-    if (!refreshToken && isElectron && req.body?.refreshToken) {
-      refreshToken = req.body.refreshToken;
+    const body = req.body as { refreshToken?: string } | undefined;
+    if (!refreshToken && isElectron && body?.refreshToken) {
+      refreshToken = body.refreshToken;
     }
 
     if (!refreshToken) {

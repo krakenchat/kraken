@@ -1,18 +1,333 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { LivekitService } from './livekit.service';
+import { ConfigService } from '@nestjs/config';
+import { createMockConfigService } from '@/test-utils';
+import { LivekitException } from './exceptions/livekit.exception';
+import { AccessToken } from 'livekit-server-sdk';
+
+// Mock the livekit-server-sdk
+jest.mock('livekit-server-sdk', () => {
+  return {
+    AccessToken: jest.fn().mockImplementation(() => {
+      return {
+        addGrant: jest.fn(),
+        toJwt: jest.fn().mockResolvedValue('mock-jwt-token'),
+      };
+    }),
+  };
+});
 
 describe('LivekitService', () => {
   let service: LivekitService;
+  let configService: ConfigService;
+
+  const mockConfig = {
+    LIVEKIT_API_KEY: 'test-api-key',
+    LIVEKIT_API_SECRET: 'test-api-secret',
+    LIVEKIT_URL: 'wss://test.livekit.cloud',
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LivekitService],
+      providers: [
+        LivekitService,
+        {
+          provide: ConfigService,
+          useValue: createMockConfigService(mockConfig),
+        },
+      ],
     }).compile();
 
     service = module.get<LivekitService>(LivekitService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('generateToken', () => {
+    it('should generate token with default TTL', async () => {
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+        name: 'Test User',
+      };
+
+      const result = await service.generateToken(createTokenDto);
+
+      expect(result.token).toBe('mock-jwt-token');
+      expect(result.identity).toBe(createTokenDto.identity);
+      expect(result.roomId).toBe(createTokenDto.roomId);
+      expect(result.url).toBe(mockConfig.LIVEKIT_URL);
+      expect(result.expiresAt).toBeInstanceOf(Date);
+
+      expect(AccessToken).toHaveBeenCalledWith(
+        mockConfig.LIVEKIT_API_KEY,
+        mockConfig.LIVEKIT_API_SECRET,
+        {
+          identity: createTokenDto.identity,
+          name: createTokenDto.name,
+          ttl: 3600, // Default 1 hour
+        },
+      );
+    });
+
+    it('should generate token with custom TTL', async () => {
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+        name: 'Test User',
+        ttl: 7200, // 2 hours
+      };
+
+      const result = await service.generateToken(createTokenDto);
+
+      expect(result.token).toBe('mock-jwt-token');
+      expect(AccessToken).toHaveBeenCalledWith(
+        mockConfig.LIVEKIT_API_KEY,
+        mockConfig.LIVEKIT_API_SECRET,
+        expect.objectContaining({
+          ttl: 7200,
+        }),
+      );
+    });
+
+    it('should use identity as name when name not provided', async () => {
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+      };
+
+      await service.generateToken(createTokenDto);
+
+      expect(AccessToken).toHaveBeenCalledWith(
+        mockConfig.LIVEKIT_API_KEY,
+        mockConfig.LIVEKIT_API_SECRET,
+        expect.objectContaining({
+          identity: 'user-123',
+          name: 'user-123', // Should use identity as fallback
+        }),
+      );
+    });
+
+    it('should grant room permissions', async () => {
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+        name: 'Test User',
+      };
+
+      await service.generateToken(createTokenDto);
+
+      // Get the mock instance that was created
+      const mockAccessTokenInstance = (AccessToken as jest.Mock).mock.results[
+        (AccessToken as jest.Mock).mock.results.length - 1
+      ].value;
+
+      expect(mockAccessTokenInstance.addGrant).toHaveBeenCalledWith({
+        room: 'room-456',
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+        canPublishData: true,
+      });
+    });
+
+    it('should throw LivekitException when API key is missing', async () => {
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'LIVEKIT_API_KEY') return undefined;
+        return mockConfig[key as keyof typeof mockConfig];
+      });
+
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+      };
+
+      await expect(service.generateToken(createTokenDto)).rejects.toThrow(
+        LivekitException,
+      );
+      await expect(service.generateToken(createTokenDto)).rejects.toThrow(
+        'LiveKit credentials not configured',
+      );
+    });
+
+    it('should throw LivekitException when API secret is missing', async () => {
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'LIVEKIT_API_SECRET') return undefined;
+        return mockConfig[key as keyof typeof mockConfig];
+      });
+
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+      };
+
+      await expect(service.generateToken(createTokenDto)).rejects.toThrow(
+        LivekitException,
+      );
+    });
+
+    it('should throw LivekitException when token generation fails', async () => {
+      // Mock AccessToken to throw an error
+      (AccessToken as jest.Mock).mockImplementationOnce(() => {
+        throw new Error('Token generation error');
+      });
+
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+      };
+
+      await expect(service.generateToken(createTokenDto)).rejects.toThrow(
+        'Failed to generate token',
+      );
+    });
+
+    it('should calculate correct expiration time', async () => {
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+        ttl: 3600,
+      };
+
+      const beforeTime = Date.now();
+      const result = await service.generateToken(createTokenDto);
+      const afterTime = Date.now();
+
+      const expectedExpiry = beforeTime + 3600 * 1000;
+      const actualExpiry = result.expiresAt!.getTime();
+
+      // Allow 1 second tolerance
+      expect(actualExpiry).toBeGreaterThanOrEqual(expectedExpiry);
+      expect(actualExpiry).toBeLessThanOrEqual(afterTime + 3600 * 1000);
+    });
+
+    it('should log token generation success', async () => {
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+      };
+
+      const loggerSpy = jest.spyOn(service['logger'], 'log');
+
+      await service.generateToken(createTokenDto);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Generated token for user user-123 in room room-456',
+        ),
+      );
+    });
+
+    it('should log error when token generation fails', async () => {
+      (AccessToken as jest.Mock).mockImplementationOnce(() => {
+        throw new Error('Token error');
+      });
+
+      const loggerSpy = jest.spyOn(service['logger'], 'error');
+
+      const createTokenDto = {
+        identity: 'user-123',
+        roomId: 'room-456',
+      };
+
+      await expect(service.generateToken(createTokenDto)).rejects.toThrow();
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Failed to generate LiveKit token',
+        expect.any(Error),
+      );
+    });
+  });
+
+  describe('getConnectionInfo', () => {
+    it('should return LiveKit URL', () => {
+      const result = service.getConnectionInfo();
+
+      expect(result).toEqual({
+        url: mockConfig.LIVEKIT_URL,
+      });
+    });
+
+    it('should return url as undefined when not configured', () => {
+      jest.spyOn(configService, 'get').mockReturnValue(undefined);
+
+      const result = service.getConnectionInfo();
+
+      expect(result).toEqual({
+        url: undefined,
+      });
+    });
+  });
+
+  describe('validateConfiguration', () => {
+    it('should return true when all configuration is present', () => {
+      const result = service.validateConfiguration();
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false when API key is missing', () => {
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'LIVEKIT_API_KEY') return undefined;
+        return mockConfig[key as keyof typeof mockConfig];
+      });
+
+      const result = service.validateConfiguration();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when API secret is missing', () => {
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'LIVEKIT_API_SECRET') return undefined;
+        return mockConfig[key as keyof typeof mockConfig];
+      });
+
+      const result = service.validateConfiguration();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when URL is missing', () => {
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'LIVEKIT_URL') return undefined;
+        return mockConfig[key as keyof typeof mockConfig];
+      });
+
+      const result = service.validateConfiguration();
+
+      expect(result).toBe(false);
+    });
+
+    it('should log success when configuration is valid', () => {
+      const loggerSpy = jest.spyOn(service['logger'], 'log');
+
+      service.validateConfiguration();
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'LiveKit configuration validated successfully',
+      );
+    });
+
+    it('should log warning when configuration is incomplete', () => {
+      jest.spyOn(configService, 'get').mockReturnValue(undefined);
+
+      const loggerSpy = jest.spyOn(service['logger'], 'warn');
+
+      service.validateConfiguration();
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'LiveKit configuration incomplete',
+      );
+    });
   });
 });

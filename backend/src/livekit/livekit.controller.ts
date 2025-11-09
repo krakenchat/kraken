@@ -10,7 +10,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '../auth/rbac-resource.decorator';
-import { UserEntity } from '../user/dto/user-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('livekit')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -26,7 +26,7 @@ export class LivekitController {
   })
   async generateToken(
     @Body() createTokenDto: CreateTokenDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     // Use the authenticated user's ID as the identity if not provided
     const tokenDto = {
@@ -39,7 +39,7 @@ export class LivekitController {
   @Post('dm-token')
   async generateDmToken(
     @Body() createTokenDto: CreateTokenDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     // Use the authenticated user's ID as the identity if not provided
     // Note: DM membership is verified in the voice presence service when joining

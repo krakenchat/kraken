@@ -18,12 +18,12 @@ import { RbacGuard } from '@/auth/rbac.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
-import { UserEntity } from '@/user/dto/user-response.dto';
 import {
   RbacResource,
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('community')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -35,7 +35,7 @@ export class CommunityController {
   @RequiredActions(RbacActions.CREATE_COMMUNITY)
   create(
     @Body() createCommunityDto: CreateCommunityDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.communityService.create(createCommunityDto, req.user.id);
   }
@@ -48,7 +48,7 @@ export class CommunityController {
 
   @Get('/mine')
   // No RBAC check needed - users can always see their own communities
-  findAllMine(@Req() req: { user: UserEntity }) {
+  findAllMine(@Req() req: AuthenticatedRequest) {
     return this.communityService.findAll(req.user.id);
   }
 

@@ -5,7 +5,7 @@ import {
   Get,
   Param,
   Post,
-  Request,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { InviteService } from './invite.service';
@@ -15,7 +15,7 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
-import { UserEntity } from '@/user/dto/user-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('invite')
 export class InviteController {
@@ -26,7 +26,7 @@ export class InviteController {
   @RequiredActions(RbacActions.CREATE_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async createInvite(
-    @Request() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateInviteDto,
   ): Promise<InstanceInvite> {
     return this.inviteService.createInvite(
@@ -42,7 +42,7 @@ export class InviteController {
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async getInvites(
-    @Request() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<InstanceInvite[]> {
     return this.inviteService.getInvites(req.user);
   }
@@ -67,7 +67,7 @@ export class InviteController {
   @RequiredActions(RbacActions.DELETE_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async deleteInvite(
-    @Request() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
     @Param('code') code: string,
   ): Promise<void> {
     return this.inviteService.deleteInvite(req.user, code);

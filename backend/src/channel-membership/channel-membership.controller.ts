@@ -23,7 +23,7 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { UserEntity } from '@/user/dto/user-response.dto';
+import { AuthenticatedRequest } from '@/types';
 
 @Controller('channel-membership')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -42,7 +42,7 @@ export class ChannelMembershipController {
   })
   create(
     @Body() createChannelMembershipDto: CreateChannelMembershipDto,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<ChannelMembershipResponseDto> {
     return this.channelMembershipService.create(
       createChannelMembershipDto,
@@ -68,7 +68,7 @@ export class ChannelMembershipController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   findAllForUser(
     @Param('userId', ParseObjectIdPipe) userId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<ChannelMembershipResponseDto[]> {
     // Users can only view their own channel memberships unless they have additional permissions
     if (userId !== req.user.id) {
@@ -85,7 +85,7 @@ export class ChannelMembershipController {
   @RequiredActions(RbacActions.READ_MEMBER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   findMyChannelMemberships(
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<ChannelMembershipResponseDto[]> {
     return this.channelMembershipService.findAllForUser(req.user.id);
   }
@@ -129,7 +129,7 @@ export class ChannelMembershipController {
   })
   leaveChannel(
     @Param('channelId', ParseObjectIdPipe) channelId: string,
-    @Req() req: { user: UserEntity },
+    @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     return this.channelMembershipService.remove(req.user.id, channelId);
   }

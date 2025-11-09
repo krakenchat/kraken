@@ -60,3 +60,4 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .playwright-mcp
 backend/uploads
 .env.*
+backend/coverage

@@ -1,11 +1,6 @@
 import { RbacGuard } from '@/auth/rbac.guard';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import {
-  Logger,
-  UseGuards,
-  UsePipes,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   OnGatewayConnection,
@@ -49,7 +44,8 @@ export class PresenceGateway
     private readonly websocketService: WebsocketService,
   ) {}
 
-  afterInit(server: Server) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  afterInit(_server: Server) {
     this.logger.log('PresenceGateway initialized');
   }
 

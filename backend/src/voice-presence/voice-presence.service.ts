@@ -28,9 +28,11 @@ export class VoicePresenceService {
   private readonly VOICE_PRESENCE_USER_CHANNELS_PREFIX =
     'voice_presence:user_channels';
   // DM voice keys
-  private readonly DM_VOICE_PRESENCE_USER_DATA_PREFIX = 'dm_voice_presence:user';
+  private readonly DM_VOICE_PRESENCE_USER_DATA_PREFIX =
+    'dm_voice_presence:user';
   private readonly DM_VOICE_PRESENCE_MEMBERS_PREFIX = 'dm_voice_presence:dm';
-  private readonly DM_VOICE_PRESENCE_USER_DMS_PREFIX = 'dm_voice_presence:user_dms';
+  private readonly DM_VOICE_PRESENCE_USER_DMS_PREFIX =
+    'dm_voice_presence:user_dms';
   private readonly VOICE_PRESENCE_TTL = 300; // 5 minutes
 
   constructor(
@@ -302,7 +304,7 @@ export class VoicePresenceService {
    * Note: This is now less critical since getChannelPresence automatically
    * cleans up stale entries when detected.
    */
-  async cleanupExpiredPresence(): Promise<void> {
+  cleanupExpiredPresence(): void {
     // With the new SET architecture, cleanup happens automatically:
     // 1. User data keys have TTL and expire naturally
     // 2. getChannelPresence() removes stale set members when detected
