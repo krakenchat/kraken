@@ -5,6 +5,7 @@ export enum ServerEvents {
   DELETE_MESSAGE = "deleteMessage",
   REACTION_ADDED = "reactionAdded",
   REACTION_REMOVED = "reactionRemoved",
+  READ_RECEIPT_UPDATED = "readReceiptUpdated",
   NEW_DM = "newDirectMessage",
   NEW_MENTION = "newMention",
   NOTIFICATION = "notification",

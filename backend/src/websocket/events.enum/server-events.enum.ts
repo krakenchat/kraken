@@ -13,6 +13,9 @@ export enum ServerEvents {
   REACTION_ADDED = 'reactionAdded',
   REACTION_REMOVED = 'reactionRemoved',
 
+  // Read Receipts
+  READ_RECEIPT_UPDATED = 'readReceiptUpdated',
+
   // Messaging: Direct Messages
   NEW_DM = 'newDirectMessage',
 

@@ -18,6 +18,9 @@ export enum ClientEvents {
   ADD_REACTION = 'addReaction',
   REMOVE_REACTION = 'removeReaction',
 
+  // Read Receipts
+  MARK_AS_READ = 'markAsRead',
+
   // Messaging: Direct Messages
   SEND_DM = 'sendDirectMessage',
 

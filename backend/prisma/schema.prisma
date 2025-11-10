@@ -26,6 +26,25 @@ model Message {
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
 }
 
+model ReadReceipt {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String   @db.ObjectId
+  channelId            String?  @db.ObjectId // For channel messages
+  directMessageGroupId String?  @db.ObjectId // For DM messages
+  lastReadMessageId    String   @db.ObjectId // Watermark - last message the user has read
+  lastReadAt           DateTime @default(now())
+
+  user               User?               @relation("UserReadReceipts", fields: [userId], references: [id], onDelete: Cascade)
+  channel            Channel?            @relation("ChannelReadReceipts", fields: [channelId], references: [id], onDelete: Cascade)
+  directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupReadReceipts", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@unique([userId, directMessageGroupId])
+  @@index([userId]) // For fetching all read receipts for a user
+  @@index([channelId]) // For channel-specific queries
+  @@index([directMessageGroupId]) // For DM-specific queries
+}
+
 model User {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
   username       String       @unique
@@ -52,6 +71,7 @@ model User {
 
   ChannelMembership ChannelMembership[] @relation("UserChannelMemberships")
   File              File[]
+  ReadReceipts      ReadReceipt[]       @relation("UserReadReceipts")
 }
 
 model RefreshToken {
@@ -112,6 +132,7 @@ model Channel {
   Message           Message[]
   ChannelMembership ChannelMembership[] @relation("ChannelMembership")
   isPrivate         Boolean             @default(false)
+  ReadReceipts      ReadReceipt[]       @relation("ChannelReadReceipts")
 
   @@unique([communityId, name])
 }
@@ -171,12 +192,13 @@ model UserRoles {
 }
 
 model DirectMessageGroup {
-  id        String                     @id @default(auto()) @map("_id") @db.ObjectId
-  name      String? // Optional, for group DMs
-  members   DirectMessageGroupMember[]
-  createdAt DateTime                   @default(now())
-  messages  Message[]                  @relation("DirectMessageGroupMessages")
-  isGroup   Boolean                    @default(false) // true for group DMs, false for 1:1
+  id           String                     @id @default(auto()) @map("_id") @db.ObjectId
+  name         String? // Optional, for group DMs
+  members      DirectMessageGroupMember[]
+  createdAt    DateTime                   @default(now())
+  messages     Message[]                  @relation("DirectMessageGroupMessages")
+  isGroup      Boolean                    @default(false) // true for group DMs, false for 1:1
+  ReadReceipts ReadReceipt[]              @relation("DirectMessageGroupReadReceipts")
 }
 
 model DirectMessageGroupMember {

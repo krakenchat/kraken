@@ -13,8 +13,10 @@ import { inviteApi } from "../features/invite/inviteApiSlice";
 import { publicInviteApi } from "../features/invite/publicInviteApiSlice";
 import { onboardingApi } from "../features/onboarding/onboardingApiSlice";
 import { directMessagesApi } from "../features/directMessages/directMessagesApiSlice";
+import { readReceiptsApi } from "../features/readReceipts/readReceiptsApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
+import readReceiptsReducer from "../features/readReceipts/readReceiptsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -33,8 +35,10 @@ export const store = configureStore({
     [publicInviteApi.reducerPath]: publicInviteApi.reducer,
     [onboardingApi.reducerPath]: onboardingApi.reducer,
     [directMessagesApi.reducerPath]: directMessagesApi.reducer,
+    [readReceiptsApi.reducerPath]: readReceiptsApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
+    readReceipts: readReceiptsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -52,7 +56,8 @@ export const store = configureStore({
       inviteApi.middleware,
       publicInviteApi.middleware,
       onboardingApi.middleware,
-      directMessagesApi.middleware
+      directMessagesApi.middleware,
+      readReceiptsApi.middleware
     ),
 });
 

@@ -1,0 +1,82 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  Query,
+  HttpCode,
+} from '@nestjs/common';
+import { ReadReceiptsService } from './read-receipts.service';
+import { MarkAsReadDto } from './dto/mark-as-read.dto';
+import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { AuthenticatedRequest } from '@/types';
+import { ParseObjectIdPipe } from 'nestjs-object-id';
+
+@Controller('read-receipts')
+@UseGuards(JwtAuthGuard)
+export class ReadReceiptsController {
+  constructor(private readonly readReceiptsService: ReadReceiptsService) {}
+
+  /**
+   * Mark messages as read up to a specific message
+   * POST /read-receipts/mark-read
+   */
+  @Post('mark-read')
+  @HttpCode(200)
+  async markAsRead(
+    @Req() req: AuthenticatedRequest,
+    @Body() markAsReadDto: MarkAsReadDto,
+  ) {
+    return this.readReceiptsService.markAsRead(req.user.id, markAsReadDto);
+  }
+
+  /**
+   * Get all unread counts for the current user
+   * GET /read-receipts/unread-counts
+   */
+  @Get('unread-counts')
+  async getUnreadCounts(@Req() req: AuthenticatedRequest) {
+    return this.readReceiptsService.getUnreadCounts(req.user.id);
+  }
+
+  /**
+   * Get unread count for a specific channel or DM group
+   * GET /read-receipts/unread-count?channelId=xxx or ?directMessageGroupId=xxx
+   */
+  @Get('unread-count')
+  async getUnreadCount(
+    @Req() req: AuthenticatedRequest,
+    @Query('channelId', ParseObjectIdPipe) channelId?: string,
+    @Query('directMessageGroupId', ParseObjectIdPipe)
+    directMessageGroupId?: string,
+  ) {
+    return this.readReceiptsService.getUnreadCount(
+      req.user.id,
+      channelId,
+      directMessageGroupId,
+    );
+  }
+
+  /**
+   * Get the last read message ID for a specific channel or DM group
+   * GET /read-receipts/last-read?channelId=xxx or ?directMessageGroupId=xxx
+   */
+  @Get('last-read')
+  async getLastReadMessageId(
+    @Req() req: AuthenticatedRequest,
+    @Query('channelId', ParseObjectIdPipe) channelId?: string,
+    @Query('directMessageGroupId', ParseObjectIdPipe)
+    directMessageGroupId?: string,
+  ) {
+    const lastReadMessageId =
+      await this.readReceiptsService.getLastReadMessageId(
+        req.user.id,
+        channelId,
+        directMessageGroupId,
+      );
+
+    return { lastReadMessageId };
+  }
+}

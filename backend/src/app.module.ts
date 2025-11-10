@@ -29,6 +29,7 @@ import { DirectMessagesModule } from './direct-messages/direct-messages.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
+import { ReadReceiptsModule } from './read-receipts/read-receipts.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { HealthModule } from './health/health.module';
     UserModule,
     CommunityModule,
     MessagesModule,
+    ReadReceiptsModule,
     ThrottlerModule.forRoot([
       {
         name: 'short',

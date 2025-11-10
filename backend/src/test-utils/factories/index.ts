@@ -24,3 +24,4 @@ export { DirectMessageGroupFactory } from './direct-message-group.factory';
 export { FileFactory } from './file.factory';
 export { RefreshTokenFactory } from './refresh-token.factory';
 export { InstanceInviteFactory } from './instance-invite.factory';
+export { ReadReceiptFactory } from './read-receipt.factory';

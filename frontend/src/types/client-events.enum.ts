@@ -7,6 +7,7 @@ export enum ClientEvents {
   PRESENCE_ONLINE = "presenceOnline",
   SEND_MESSAGE = "sendMessage",
   SEND_DM = "sendDirectMessage",
+  MARK_AS_READ = "markAsRead",
   TYPING_START = "typingStart",
   TYPING_STOP = "typingStop",
   VOICE_CHANNEL_JOIN = "voice_channel_join",
