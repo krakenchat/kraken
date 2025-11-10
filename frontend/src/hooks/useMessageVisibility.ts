@@ -118,14 +118,15 @@ export const useMessageVisibility = ({
       observerRef.current?.observe(el);
     });
 
+    // Capture ref value for cleanup to avoid stale reference
+    const visibleMessages = visibleMessagesRef.current;
+
     // Cleanup
     return () => {
       if (observerRef.current) {
         observerRef.current.disconnect();
         observerRef.current = null;
       }
-      // Capture ref value in cleanup to avoid stale reference
-      const visibleMessages = visibleMessagesRef.current;
       visibleMessages.clear();
     };
   }, [enabled, containerRef, findLatestVisibleMessage, markAsRead, messages.length]);
