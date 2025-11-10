@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRoom } from './useRoom';
 import {
-  RemoteTrackPublication,
-  LocalTrackPublication,
   Track,
   RoomEvent,
   Participant,
