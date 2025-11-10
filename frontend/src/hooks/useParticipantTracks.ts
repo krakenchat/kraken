@@ -104,25 +104,25 @@ export const useParticipantTracks = (
 
     // Event handlers for track changes
     const handleTrackPublished = (
-      publication: RemoteTrackPublication | LocalTrackPublication
+      _publication: RemoteTrackPublication | LocalTrackPublication
     ) => {
       updateMediaState();
     };
 
     const handleTrackUnpublished = (
-      publication: RemoteTrackPublication | LocalTrackPublication
+      _publication: RemoteTrackPublication | LocalTrackPublication
     ) => {
       updateMediaState();
     };
 
     const handleTrackMuted = (
-      publication: RemoteTrackPublication | LocalTrackPublication
+      _publication: RemoteTrackPublication | LocalTrackPublication
     ) => {
       updateMediaState();
     };
 
     const handleTrackUnmuted = (
-      publication: RemoteTrackPublication | LocalTrackPublication
+      _publication: RemoteTrackPublication | LocalTrackPublication
     ) => {
       updateMediaState();
     };
