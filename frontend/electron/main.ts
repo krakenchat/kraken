@@ -5,7 +5,7 @@
  * It handles window creation, auto-updates, and IPC communication.
  */
 
-import { app, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron';
+import { app, BrowserWindow, ipcMain, session, desktopCapturer, Notification } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
 import * as path from 'path';
@@ -14,6 +14,9 @@ import * as path from 'path';
 initMain();
 
 let mainWindow: BrowserWindow | null = null;
+
+// Track active notifications
+const activeNotifications = new Map<string, Notification>();
 
 /**
  * Configure auto-updater
@@ -127,6 +130,66 @@ function setupIpcHandlers() {
     } catch (error) {
       console.error('Failed to get desktop sources:', error);
       throw error;
+    }
+  });
+
+  // Notification handlers
+  ipcMain.on('notification:show', (_event, options: {
+    title: string;
+    body?: string;
+    icon?: string;
+    tag?: string;
+    silent?: boolean;
+  }) => {
+    try {
+      const notification = new Notification({
+        title: options.title,
+        body: options.body,
+        icon: options.icon,
+        silent: options.silent || false,
+      });
+
+      // Store notification by tag for management
+      if (options.tag) {
+        activeNotifications.set(options.tag, notification);
+      }
+
+      // Handle notification click
+      notification.on('click', () => {
+        // Focus the main window
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+          }
+          mainWindow.focus();
+
+          // Send click event to renderer with notification ID
+          if (options.tag) {
+            mainWindow.webContents.send('notification:click', options.tag);
+          }
+        }
+      });
+
+      // Show the notification
+      notification.show();
+
+      // Clean up after notification is closed
+      notification.on('close', () => {
+        if (options.tag) {
+          activeNotifications.delete(options.tag);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to show notification:', error);
+    }
+  });
+
+  // Clear notifications by tag
+  ipcMain.on('notification:clear', (_event, tag: string) => {
+    const notification = activeNotifications.get(tag);
+    if (notification) {
+      notification.close();
+      activeNotifications.delete(tag);
     }
   });
 }

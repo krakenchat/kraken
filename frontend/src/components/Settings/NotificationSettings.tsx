@@ -1,0 +1,343 @@
+/**
+ * NotificationSettings Component
+ *
+ * UI for managing notification preferences including desktop notifications,
+ * DND mode, sound settings, and default channel notification level.
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Switch,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  Radio,
+  TextField,
+  Button,
+  Box,
+  Divider,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
+import {
+  Notifications as NotificationsIcon,
+  NotificationsOff,
+  VolumeUp,
+  VolumeOff,
+} from '@mui/icons-material';
+import {
+  useGetSettingsQuery,
+  useUpdateSettingsMutation,
+} from '../../features/notifications/notificationsApiSlice';
+import { useNotificationPermission } from '../../hooks/useNotificationPermission';
+import type { UpdateNotificationSettingsDto } from '../../types/notification.type';
+
+export const NotificationSettings: React.FC = () => {
+  const { data: settings, isLoading, error } = useGetSettingsQuery();
+  const [updateSettings, { isLoading: isUpdating }] = useUpdateSettingsMutation();
+  const {
+    isEnabled,
+    isDenied,
+    isSupported,
+    requestPermission,
+    isRequesting,
+  } = useNotificationPermission();
+
+  // Local form state
+  const [formValues, setFormValues] = useState<UpdateNotificationSettingsDto>({
+    desktopEnabled: true,
+    playSound: true,
+    soundType: 'default',
+    doNotDisturb: false,
+    dndStartTime: '22:00',
+    dndEndTime: '08:00',
+    defaultChannelLevel: 'mentions',
+    dmNotifications: true,
+  });
+
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Update form when settings load
+  useEffect(() => {
+    if (settings) {
+      setFormValues({
+        desktopEnabled: settings.desktopEnabled,
+        playSound: settings.playSound,
+        soundType: settings.soundType,
+        doNotDisturb: settings.doNotDisturb,
+        dndStartTime: settings.dndStartTime || '22:00',
+        dndEndTime: settings.dndEndTime || '08:00',
+        defaultChannelLevel: settings.defaultChannelLevel,
+        dmNotifications: settings.dmNotifications,
+      });
+    }
+  }, [settings]);
+
+  const handleChange = <K extends keyof UpdateNotificationSettingsDto>(
+    key: K,
+    value: UpdateNotificationSettingsDto[K]
+  ) => {
+    setFormValues((prev) => ({ ...prev, [key]: value }));
+    setSaveSuccess(false);
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateSettings(formValues).unwrap();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to update notification settings:', error);
+    }
+  };
+
+  const handleRequestPermission = async () => {
+    const result = await requestPermission();
+    if (result === 'granted') {
+      // Enable desktop notifications after granting permission
+      handleChange('desktopEnabled', true);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent>
+          <Alert severity="error">Failed to load notification settings</Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <NotificationsIcon /> Notification Settings
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
+
+        {/* Browser Notification Permission */}
+        {isSupported && !isEnabled && (
+          <Alert
+            severity={isDenied ? 'error' : 'warning'}
+            sx={{ mb: 3 }}
+            action={
+              !isDenied && (
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={handleRequestPermission}
+                  disabled={isRequesting}
+                >
+                  {isRequesting ? 'Requesting...' : 'Enable'}
+                </Button>
+              )
+            }
+          >
+            {isDenied
+              ? 'Browser notifications are blocked. Please enable them in your browser settings.'
+              : 'Browser notifications are disabled. Click "Enable" to receive desktop notifications.'}
+          </Alert>
+        )}
+
+        {/* Desktop Notifications Toggle */}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={formValues.desktopEnabled}
+              onChange={(e) => handleChange('desktopEnabled', e.target.checked)}
+              disabled={!isSupported || isDenied}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1">Desktop Notifications</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Show desktop notifications for new messages and mentions
+              </Typography>
+            </Box>
+          }
+          sx={{ mb: 2, alignItems: 'flex-start' }}
+        />
+
+        {/* Sound Toggle */}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={formValues.playSound}
+              onChange={(e) => handleChange('playSound', e.target.checked)}
+              icon={<VolumeOff />}
+              checkedIcon={<VolumeUp />}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1">Notification Sounds</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Play a sound when you receive a notification
+              </Typography>
+            </Box>
+          }
+          sx={{ mb: 3, alignItems: 'flex-start' }}
+        />
+
+        <Divider sx={{ my: 3 }} />
+
+        {/* Do Not Disturb */}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={formValues.doNotDisturb}
+              onChange={(e) => handleChange('doNotDisturb', e.target.checked)}
+              icon={<NotificationsIcon />}
+              checkedIcon={<NotificationsOff />}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1">Do Not Disturb</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Suppress notifications during specific hours
+              </Typography>
+            </Box>
+          }
+          sx={{ mb: 2, alignItems: 'flex-start' }}
+        />
+
+        {formValues.doNotDisturb && (
+          <Box sx={{ ml: 4, mb: 3, display: 'flex', gap: 2 }}>
+            <TextField
+              label="Start Time"
+              type="time"
+              value={formValues.dndStartTime}
+              onChange={(e) => handleChange('dndStartTime', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ step: 300 }} // 5 min
+              size="small"
+            />
+            <TextField
+              label="End Time"
+              type="time"
+              value={formValues.dndEndTime}
+              onChange={(e) => handleChange('dndEndTime', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ step: 300 }}
+              size="small"
+            />
+          </Box>
+        )}
+
+        <Divider sx={{ my: 3 }} />
+
+        {/* Default Channel Notification Level */}
+        <FormControl component="fieldset" sx={{ mb: 3 }}>
+          <FormLabel component="legend">
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              Default Channel Notifications
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Choose when to receive notifications from channels
+            </Typography>
+          </FormLabel>
+          <RadioGroup
+            value={formValues.defaultChannelLevel}
+            onChange={(e) => handleChange('defaultChannelLevel', e.target.value as 'all' | 'mentions' | 'none')}
+            sx={{ mt: 1 }}
+          >
+            <FormControlLabel
+              value="all"
+              control={<Radio />}
+              label={
+                <Box>
+                  <Typography variant="body2">All Messages</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Get notified for every message in channels
+                  </Typography>
+                </Box>
+              }
+            />
+            <FormControlLabel
+              value="mentions"
+              control={<Radio />}
+              label={
+                <Box>
+                  <Typography variant="body2">Only @mentions</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Only get notified when someone mentions you
+                  </Typography>
+                </Box>
+              }
+            />
+            <FormControlLabel
+              value="none"
+              control={<Radio />}
+              label={
+                <Box>
+                  <Typography variant="body2">Nothing</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    No channel notifications (you can override per channel)
+                  </Typography>
+                </Box>
+              }
+            />
+          </RadioGroup>
+        </FormControl>
+
+        {/* DM Notifications Toggle */}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={formValues.dmNotifications}
+              onChange={(e) => handleChange('dmNotifications', e.target.checked)}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1">Direct Message Notifications</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Get notified for all direct messages
+              </Typography>
+            </Box>
+          }
+          sx={{ mb: 3, alignItems: 'flex-start' }}
+        />
+
+        {/* Save Button */}
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={isUpdating}
+            startIcon={isUpdating && <CircularProgress size={20} />}
+          >
+            {isUpdating ? 'Saving...' : 'Save Changes'}
+          </Button>
+          {saveSuccess && (
+            <Typography variant="body2" color="success.main">
+              Settings saved successfully!
+            </Typography>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default NotificationSettings;

@@ -40,6 +40,17 @@ export interface DesktopSource {
 }
 
 /**
+ * Notification options for Electron notifications
+ */
+export interface ElectronNotificationOptions {
+  title: string;
+  body?: string;
+  icon?: string;
+  tag?: string;
+  silent?: boolean;
+}
+
+/**
  * API exposed to renderer process via window.electronAPI
  */
 const electronAPI = {
@@ -141,6 +152,24 @@ const electronAPI = {
       console.error('Failed to get screen stream:', error);
       return null;
     }
+  },
+
+  // Notifications
+  showNotification: (options: ElectronNotificationOptions) => {
+    ipcRenderer.send('notification:show', options);
+  },
+
+  clearNotifications: (tag: string) => {
+    ipcRenderer.send('notification:clear', tag);
+  },
+
+  onNotificationClick: (callback: (notificationId: string) => void) => {
+    const subscription = (_event: IpcRendererEvent, notificationId: string) => callback(notificationId);
+    ipcRenderer.on('notification:click', subscription);
+
+    return () => {
+      ipcRenderer.removeListener('notification:click', subscription);
+    };
   },
 };
 

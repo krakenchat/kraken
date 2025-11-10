@@ -5,11 +5,13 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 describe('MessagesGateway', () => {
   let gateway: MessagesGateway;
   let messagesService: MessagesService;
   let websocketService: WebsocketService;
+  let notificationsService: NotificationsService;
 
   const mockMessagesService = {
     create: jest.fn(),
@@ -26,6 +28,10 @@ describe('MessagesGateway', () => {
     setServer: jest.fn(),
   };
 
+  const mockNotificationsService = {
+    processMessageForNotifications: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockGuard = { canActivate: jest.fn(() => true) };
 
   beforeEach(async () => {
@@ -40,6 +46,10 @@ describe('MessagesGateway', () => {
           provide: WebsocketService,
           useValue: mockWebsocketService,
         },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
       ],
     })
       .overrideGuard(WsJwtAuthGuard)
@@ -51,6 +61,9 @@ describe('MessagesGateway', () => {
     gateway = module.get<MessagesGateway>(MessagesGateway);
     messagesService = module.get<MessagesService>(MessagesService);
     websocketService = module.get<WebsocketService>(WebsocketService);
+    notificationsService = module.get<NotificationsService>(
+      NotificationsService,
+    );
   });
 
   afterEach(() => {
@@ -64,6 +77,7 @@ describe('MessagesGateway', () => {
   it('should have services', () => {
     expect(messagesService).toBeDefined();
     expect(websocketService).toBeDefined();
+    expect(notificationsService).toBeDefined();
   });
 
   describe('afterInit', () => {

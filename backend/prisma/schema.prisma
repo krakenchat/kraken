@@ -24,6 +24,7 @@ model Message {
 
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
+  notifications      Notification[]
 }
 
 model ReadReceipt {
@@ -43,6 +44,58 @@ model ReadReceipt {
   @@index([userId]) // For fetching all read receipts for a user
   @@index([channelId]) // For channel-specific queries
   @@index([directMessageGroupId]) // For DM-specific queries
+}
+
+model Notification {
+  id                   String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String           @db.ObjectId
+  type                 NotificationType
+  messageId            String?          @db.ObjectId
+  channelId            String?          @db.ObjectId
+  directMessageGroupId String?          @db.ObjectId
+  authorId             String           @db.ObjectId // Who triggered the notification
+  read                 Boolean          @default(false)
+  dismissed            Boolean          @default(false)
+  createdAt            DateTime         @default(now())
+
+  user    User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  author  User     @relation("NotificationAuthors", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read]) // Fast query for unread notifications
+  @@index([userId, createdAt]) // For notification history with pagination
+}
+
+model UserNotificationSettings {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String   @db.ObjectId @unique
+  desktopEnabled      Boolean  @default(true)
+  playSound           Boolean  @default(true)
+  soundType           String   @default("default") // "default", "mention", "dm"
+  doNotDisturb        Boolean  @default(false)
+  dndStartTime        String? // "22:00" - 24-hour format
+  dndEndTime          String? // "08:00" - 24-hour format
+  defaultChannelLevel String   @default("mentions") // 'all' | 'mentions' | 'none'
+  dmNotifications     Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation("UserNotificationSettings", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChannelNotificationOverride {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  channelId String   @db.ObjectId
+  level     String // 'all' | 'mentions' | 'none'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation("ChannelNotificationOverrides", fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation("ChannelNotificationOverrides", fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@index([userId]) // Fast lookup for user's overrides
 }
 
 model User {
@@ -72,6 +125,12 @@ model User {
   ChannelMembership ChannelMembership[] @relation("UserChannelMemberships")
   File              File[]
   ReadReceipts      ReadReceipt[]       @relation("UserReadReceipts")
+
+  // Notification relations
+  notifications                Notification[]                  @relation("UserNotifications")
+  authoredNotifications        Notification[]                  @relation("NotificationAuthors")
+  notificationSettings         UserNotificationSettings?       @relation("UserNotificationSettings")
+  channelNotificationOverrides ChannelNotificationOverride[]   @relation("ChannelNotificationOverrides")
 }
 
 model RefreshToken {
@@ -133,6 +192,7 @@ model Channel {
   ChannelMembership ChannelMembership[] @relation("ChannelMembership")
   isPrivate         Boolean             @default(false)
   ReadReceipts      ReadReceipt[]       @relation("ChannelReadReceipts")
+  notificationOverrides ChannelNotificationOverride[] @relation("ChannelNotificationOverrides")
 
   @@unique([communityId, name])
 }
@@ -330,6 +390,13 @@ enum RbacActions {
 enum InstanceRole {
   OWNER
   USER
+}
+
+enum NotificationType {
+  USER_MENTION
+  SPECIAL_MENTION
+  DIRECT_MESSAGE
+  CHANNEL_MESSAGE
 }
 
 type Span {

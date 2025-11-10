@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
 import { MessagesGateway } from './messages.gateway';
@@ -10,6 +10,7 @@ import { RoomsModule } from '@/rooms/rooms.module';
 import { AuthModule } from '@/auth/auth.module';
 import { FileModule } from '@/file/file.module';
 import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
+import { NotificationsModule } from '@/notifications/notifications.module';
 
 @Module({
   controllers: [MessagesController],
@@ -22,6 +23,7 @@ import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
     RoomsModule,
     AuthModule,
     FileModule,
+    forwardRef(() => NotificationsModule),
   ],
   exports: [MessagesService],
 })

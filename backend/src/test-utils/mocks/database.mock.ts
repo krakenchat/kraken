@@ -60,6 +60,9 @@ export type MockDatabaseService = {
   aliasGroup: MockPrismaModel;
   aliasGroupMember: MockPrismaModel;
   readReceipt: MockPrismaModel;
+  notification: MockPrismaModel;
+  userNotificationSettings: MockPrismaModel;
+  channelNotificationOverride: MockPrismaModel;
 
   // Prisma client methods
   $connect: jest.Mock;
@@ -115,6 +118,9 @@ export function createMockDatabase(): MockDatabaseService {
     aliasGroup: createMockPrismaModel(),
     aliasGroupMember: createMockPrismaModel(),
     readReceipt: createMockPrismaModel(),
+    notification: createMockPrismaModel(),
+    userNotificationSettings: createMockPrismaModel(),
+    channelNotificationOverride: createMockPrismaModel(),
 
     // Prisma client methods
     $connect: jest.fn().mockResolvedValue(undefined),

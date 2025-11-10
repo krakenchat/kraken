@@ -290,7 +290,10 @@ export class ReadReceiptsService {
         const count = await this.databaseService.message.count({
           where: { channelId: receipt.channelId! },
         });
-        unreadCounts.push({ channelId: receipt.channelId!, unreadCount: count });
+        unreadCounts.push({
+          channelId: receipt.channelId!,
+          unreadCount: count,
+        });
       } else {
         // Count messages after last read timestamp
         const count = await this.databaseService.message.count({

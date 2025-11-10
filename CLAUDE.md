@@ -572,3 +572,4 @@ When creating new components, hooks, or modules, use these templates for documen
 
 **After creating new code, ALWAYS create corresponding documentation using these templates.**
 - Remove orphan containers when using docker to run commands
+- use @suites/unit testbed automocks for backend tests and write tests whenever we implement a new backend feature

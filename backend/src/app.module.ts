@@ -30,6 +30,7 @@ import { FileUploadModule } from './file-upload/file-upload.module';
 import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
 import { ReadReceiptsModule } from './read-receipts/read-receipts.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { ReadReceiptsModule } from './read-receipts/read-receipts.module';
     CommunityModule,
     MessagesModule,
     ReadReceiptsModule,
+    NotificationsModule,
     ThrottlerModule.forRoot([
       {
         name: 'short',

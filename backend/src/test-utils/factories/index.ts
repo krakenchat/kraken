@@ -25,3 +25,6 @@ export { FileFactory } from './file.factory';
 export { RefreshTokenFactory } from './refresh-token.factory';
 export { InstanceInviteFactory } from './instance-invite.factory';
 export { ReadReceiptFactory } from './read-receipt.factory';
+export { NotificationFactory } from './notification.factory';
+export { UserNotificationSettingsFactory } from './user-notification-settings.factory';
+export { ChannelNotificationOverrideFactory } from './channel-notification-override.factory';

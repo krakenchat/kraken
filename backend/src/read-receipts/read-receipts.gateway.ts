@@ -91,7 +91,9 @@ export class ReadReceiptsGateway
     } catch (error) {
       this.logger.error('Error marking messages as read', error);
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to mark messages as read';
+        error instanceof Error
+          ? error.message
+          : 'Failed to mark messages as read';
       throw new WsException(errorMessage);
     }
   }

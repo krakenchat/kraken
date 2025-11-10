@@ -20,8 +20,8 @@ export enum ServerEvents {
   NEW_DM = 'newDirectMessage',
 
   // Mentions & Notifications
-  NEW_MENTION = 'newMention',
-  NOTIFICATION = 'notification',
+  NEW_NOTIFICATION = 'newNotification', // New notification created
+  NOTIFICATION_READ = 'notificationRead', // Notification marked as read
 
   // Presence & Typing
   USER_ONLINE = 'userOnline',

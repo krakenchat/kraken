@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { Settings, CheckCircle, Error as ErrorIcon } from '@mui/icons-material';
 import axios from 'axios';
+import NotificationSettings from '../components/Settings/NotificationSettings';
 
 interface HealthResponse {
   status: string;
@@ -155,78 +156,74 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  if (!isElectron) {
-    return (
-      <Box sx={{ p: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Settings
-        </Typography>
-        <Alert severity="info">
-          Settings are only available in the Electron app.
-        </Alert>
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ p: 4 }}>
       <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Settings /> Settings
       </Typography>
 
-      {/* Backend Configuration Section */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Backend Configuration
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
+      {/* Notification Settings Section */}
+      <Box sx={{ mb: 3 }}>
+        <NotificationSettings />
+      </Box>
 
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Current backend URL:
-          </Typography>
-          <Typography variant="body1" sx={{ fontFamily: 'monospace', mb: 2 }}>
-            {currentBackendUrl || 'Not configured'}
-          </Typography>
-
-          <Button variant="contained" onClick={handleOpenDialog}>
-            Change Backend URL
-          </Button>
-
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            Changing the backend URL will reload the application.
-          </Alert>
-        </CardContent>
-      </Card>
-
-      {/* App Information Section */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            App Information
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" color="text.secondary">
-                App Version:
+      {/* Backend Configuration Section (Electron only) */}
+      {isElectron && (
+        <>
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Backend Configuration
               </Typography>
-              <Typography variant="body2">
-                {appVersion || 'Unknown'}
+              <Divider sx={{ mb: 2 }} />
+
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Current backend URL:
               </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" color="text.secondary">
-                Backend Version:
+              <Typography variant="body1" sx={{ fontFamily: 'monospace', mb: 2 }}>
+                {currentBackendUrl || 'Not configured'}
               </Typography>
-              <Typography variant="body2">
-                {backendVersion || 'Unknown'}
+
+              <Button variant="contained" onClick={handleOpenDialog}>
+                Change Backend URL
+              </Button>
+
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                Changing the backend URL will reload the application.
+              </Alert>
+            </CardContent>
+          </Card>
+
+          {/* App Information Section */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                App Information
               </Typography>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
+              <Divider sx={{ mb: 2 }} />
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    App Version:
+                  </Typography>
+                  <Typography variant="body2">
+                    {appVersion || 'Unknown'}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Backend Version:
+                  </Typography>
+                  <Typography variant="body2">
+                    {backendVersion || 'Unknown'}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Change Backend URL Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>

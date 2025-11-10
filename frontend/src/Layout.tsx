@@ -18,6 +18,9 @@ import { useResponsive } from "./hooks/useResponsive";
 import { isElectron } from "./utils/platform";
 import type { User } from "./types/auth.type";
 import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from "./constants/layout";
+import { useNotifications } from "./hooks/useNotifications";
+import NotificationBadge from "./components/Notifications/NotificationBadge";
+import NotificationCenter from "./components/Notifications/NotificationCenter";
 
 const settings = isElectron()
   ? ["Edit Profile", "Settings", "Logout"]
@@ -38,10 +41,18 @@ const Layout: React.FC = () => {
 
   // Listen for real-time voice presence events globally
   useVoiceEvents();
+
+  // Initialize notification WebSocket listeners and desktop notifications
+  useNotifications({
+    showDesktopNotifications: true,
+    playSound: true,
+  });
+
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
   );
+  const [notificationCenterOpen, setNotificationCenterOpen] = React.useState(false);
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElUser(event.currentTarget);
@@ -116,17 +127,26 @@ const Layout: React.FC = () => {
           <ThemeToggle />
           &nbsp;
           {!isLoading && (
-            <ProfileIcon
-              userData={profileUserData}
-              anchorElUser={anchorElUser}
-              handleOpenUserMenu={handleOpenUserMenu}
-              handleCloseUserMenu={handleCloseUserMenu}
-              settings={settings}
-              onSettingClick={handleSettingClick}
-            />
+            <>
+              <NotificationBadge
+                onClick={() => setNotificationCenterOpen(true)}
+              />
+              <ProfileIcon
+                userData={profileUserData}
+                anchorElUser={anchorElUser}
+                handleOpenUserMenu={handleOpenUserMenu}
+                handleCloseUserMenu={handleCloseUserMenu}
+                settings={settings}
+                onSettingClick={handleSettingClick}
+              />
+            </>
           )}
         </Toolbar>
       </AppBar>
+      <NotificationCenter
+        open={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
+      />
       <CommunityToggle
         isExpanded={isMenuExpanded}
         appBarHeight={APPBAR_HEIGHT}

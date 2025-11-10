@@ -1,15 +1,18 @@
 import React from "react";
+import { Box, Typography, Paper } from "@mui/material";
 import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
 import { useParams } from "react-router-dom";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
-import { useGetMentionableChannelsQuery } from "../../features/channel/channelApiSlice";
+import { useGetMentionableChannelsQuery, useGetChannelByIdQuery } from "../../features/channel/channelApiSlice";
 import { useProfileQuery } from "../../features/users/usersSlice";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useAddAttachmentMutation } from "../../features/messages/messagesApiSlice";
 import { useNotification } from "../../contexts/NotificationContext";
+import ChannelNotificationMenu from "./ChannelNotificationMenu";
+import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 
 interface ChannelMessageContainerProps {
@@ -31,6 +34,15 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const [addAttachment] = useAddAttachmentMutation();
   const { showNotification } = useNotification();
   const pendingFilesRef = React.useRef<File[] | null>(null);
+
+  // Fetch channel data for header
+  const { data: channel } = useGetChannelByIdQuery(channelId);
+
+  // Auto-mark notifications as read when viewing this channel
+  useAutoMarkNotificationsRead({
+    contextType: 'channel',
+    contextId: channelId,
+  });
 
   // Fetch community members and channels for mention resolution
   const { data: memberData = [] } = useGetMembersForCommunityQuery(communityId || "");
@@ -127,18 +139,45 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   );
 
   return (
-    <MessageContainerWrapper
-      contextType="channel"
-      contextId={channelId}
-      communityId={communityId}
-      useMessagesHook={() => messagesHookResult}
-      userMentions={userMentions}
-      channelMentions={channelMentions}
-      onSendMessage={handleSendMessage}
-      memberListComponent={memberListComponent}
-      placeholder="Type a message... Use @ for members, @here, @channel"
-      emptyStateMessage="No messages yet. Start the conversation!"
-    />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+      {/* Channel Header */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          px: 2,
+          py: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          # {channel?.name || 'Channel'}
+        </Typography>
+        <ChannelNotificationMenu
+          channelId={channelId}
+          channelName={channel?.name}
+        />
+      </Paper>
+
+      {/* Messages */}
+      <Box sx={{ flex: 1, overflow: 'hidden' }}>
+        <MessageContainerWrapper
+          contextType="channel"
+          contextId={channelId}
+          communityId={communityId}
+          useMessagesHook={() => messagesHookResult}
+          userMentions={userMentions}
+          channelMentions={channelMentions}
+          onSendMessage={handleSendMessage}
+          memberListComponent={memberListComponent}
+          placeholder="Type a message... Use @ for members, @here, @channel"
+          emptyStateMessage="No messages yet. Start the conversation!"
+        />
+      </Box>
+    </Box>
   );
 };
 

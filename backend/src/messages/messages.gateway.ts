@@ -28,6 +28,7 @@ import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 @WebSocketGateway({
   cors: {
@@ -53,6 +54,7 @@ export class MessagesGateway
   constructor(
     private readonly messagesService: MessagesService,
     private readonly websocketService: WebsocketService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -88,6 +90,14 @@ export class MessagesGateway
       authorId: client.handshake.user.id,
       sentAt: new Date(),
     });
+
+    // Process message for notifications (mentions, etc.)
+    // This runs asynchronously and doesn't block message sending
+    this.notificationsService
+      .processMessageForNotifications(message)
+      .catch((error) =>
+        this.logger.error('Failed to process notifications for message', error),
+      );
 
     // Enrich message with file metadata before emitting
     const enrichedMessage =
@@ -126,6 +136,14 @@ export class MessagesGateway
       authorId: client.handshake.user.id,
       sentAt: new Date(),
     });
+
+    // Process message for notifications (mentions, DMs, etc.)
+    // This runs asynchronously and doesn't block message sending
+    this.notificationsService
+      .processMessageForNotifications(message)
+      .catch((error) =>
+        this.logger.error('Failed to process notifications for DM', error),
+      );
 
     // Enrich message with file metadata before emitting
     const enrichedMessage =

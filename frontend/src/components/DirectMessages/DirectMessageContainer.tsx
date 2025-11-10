@@ -8,6 +8,7 @@ import { useFileUpload } from "../../hooks/useFileUpload";
 import { useAddAttachmentMutation } from "../../features/messages/messagesApiSlice";
 import { useNotification } from "../../contexts/NotificationContext";
 import { useSendMessage } from "../../hooks/useSendMessage";
+import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import type { UserMention } from "../../utils/mentionParser";
 
 interface DirectMessageContainerProps {
@@ -27,6 +28,12 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
 
   // Get DM group info to get members for mentions
   const { data: dmGroup } = useGetDmGroupQuery(dmGroupId);
+
+  // Auto-mark notifications as read when viewing this DM
+  useAutoMarkNotificationsRead({
+    contextType: 'dm',
+    contextId: dmGroupId,
+  });
 
   // Convert DM group members to mention format
   const userMentions: UserMention[] = React.useMemo(() => {

@@ -32,6 +32,10 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npm run prisma:generate
+
       - name: Run ESLint
         working-directory: ./backend
         run: npm run lint
