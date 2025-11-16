@@ -91,6 +91,19 @@ describe('LivekitReplayService', () => {
     deleteOldFiles: jest.fn(),
     fileExists: jest.fn(),
     listFiles: jest.fn(),
+    // New prefix-aware methods
+    getSegmentsPrefix: jest.fn().mockReturnValue('/app/storage/replay-segments'),
+    resolveSegmentPath: jest
+      .fn()
+      .mockImplementation(
+        (relativePath: string) =>
+          `/app/storage/replay-segments/${relativePath}`,
+      ),
+    deleteSegmentDirectory: jest.fn(),
+    segmentDirectoryExists: jest.fn(),
+    listSegmentFiles: jest.fn(),
+    readSegmentFile: jest.fn(),
+    getSegmentFileStats: jest.fn(),
   };
 
   const mockWebsocketService = {
@@ -222,7 +235,7 @@ describe('LivekitReplayService', () => {
         egressId: 'old-egress-123',
         userId: 'user-123',
         status: 'active',
-        segmentPath: '/out/old-session',
+        segmentPath: 'old-session', // Relative path (just sessionId)
       };
 
       mockDatabaseService.egressSession.findFirst
@@ -234,6 +247,7 @@ describe('LivekitReplayService', () => {
         ...existingSession,
         status: 'stopped',
       });
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.startReplayBuffer(startParams);
 
@@ -268,7 +282,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         userId: 'user-123',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findFirst.mockResolvedValue(
@@ -279,7 +293,7 @@ describe('LivekitReplayService', () => {
         ...activeSession,
         status: 'stopped',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       const result = await service.stopReplayBuffer('user-123');
 
@@ -311,7 +325,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         userId: 'user-123',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findFirst.mockResolvedValue(
@@ -324,7 +338,7 @@ describe('LivekitReplayService', () => {
         ...activeSession,
         status: 'stopped',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       // Should still succeed and update database
       const result = await service.stopReplayBuffer('user-123');
@@ -338,7 +352,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         userId: 'user-123',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findFirst.mockResolvedValue(
@@ -359,7 +373,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         userId: 'user-123',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findFirst.mockResolvedValue(
@@ -370,12 +384,13 @@ describe('LivekitReplayService', () => {
         ...activeSession,
         status: 'stopped',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.stopReplayBuffer('user-123');
 
-      expect(mockStorageService.deleteDirectory).toHaveBeenCalledWith(
-        '/out/session-1',
+      // Now uses deleteSegmentDirectory with relative path
+      expect(mockStorageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'session-1',
         { recursive: true, force: true },
       );
     });
@@ -389,7 +404,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         channelId: 'channel-1',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
@@ -397,7 +412,7 @@ describe('LivekitReplayService', () => {
         ...session,
         status: 'stopped',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'stopped');
 
@@ -418,7 +433,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         channelId: 'channel-1',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
@@ -426,7 +441,7 @@ describe('LivekitReplayService', () => {
         ...session,
         status: 'failed',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded(
         'egress-123',
@@ -477,7 +492,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         channelId: 'channel-1',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
@@ -485,7 +500,7 @@ describe('LivekitReplayService', () => {
         ...session,
         status: 'failed',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'failed', 'Codec error');
 
@@ -508,7 +523,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         channelId: 'channel-1',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
@@ -516,7 +531,7 @@ describe('LivekitReplayService', () => {
         ...session,
         status: 'stopped',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'stopped');
 
@@ -538,7 +553,7 @@ describe('LivekitReplayService', () => {
         egressId: 'egress-123',
         channelId: 'channel-1',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
       };
 
       mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
@@ -546,12 +561,13 @@ describe('LivekitReplayService', () => {
         ...session,
         status: 'stopped',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'stopped');
 
-      expect(mockStorageService.deleteDirectory).toHaveBeenCalledWith(
-        '/out/session-1',
+      // Now uses deleteSegmentDirectory with relative path
+      expect(mockStorageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'session-1',
         { recursive: true, force: true },
       );
     });
@@ -563,11 +579,12 @@ describe('LivekitReplayService', () => {
         id: 'session-1',
         egressId: 'egress-123',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
         startedAt: new Date('2025-01-01'),
       };
 
       mockDatabaseService.egressSession.findFirst.mockResolvedValue(session);
+      // listFiles is called with the resolved path (via listAndSortSegments)
       mockStorageService.listFiles.mockResolvedValue([
         '2025-01-01T000000-segment_00000.ts',
         '2025-01-01T000010-segment_00001.ts',
@@ -582,6 +599,10 @@ describe('LivekitReplayService', () => {
       expect(result.sessionId).toBe('session-1');
       expect(result.totalSegments).toBe(2);
       expect(result.totalDurationSeconds).toBe(20); // 2 segments * 10 seconds
+      // Verify resolveSegmentPath was called with relative path
+      expect(mockStorageService.resolveSegmentPath).toHaveBeenCalledWith(
+        'session-1',
+      );
     });
 
     it('should return inactive status when no session', async () => {
@@ -597,7 +618,7 @@ describe('LivekitReplayService', () => {
       const session = {
         id: 'session-1',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
         startedAt: new Date('2025-01-01'),
       };
 
@@ -620,7 +641,7 @@ describe('LivekitReplayService', () => {
       const session = {
         id: 'session-1',
         status: 'active',
-        segmentPath: '/out/session-1',
+        segmentPath: 'session-1', // Relative path
         startedAt: new Date('2025-01-01'),
       };
 
@@ -884,7 +905,7 @@ describe('LivekitReplayService', () => {
       const activeSessions = [
         {
           id: 'session-1',
-          segmentPath: '/out/session-1',
+          segmentPath: 'session-1', // Relative path
           status: 'active',
         },
       ];
@@ -892,14 +913,18 @@ describe('LivekitReplayService', () => {
       mockDatabaseService.egressSession.findMany.mockResolvedValue(
         activeSessions,
       );
-      mockStorageService.directoryExists.mockResolvedValue(true);
+      mockStorageService.segmentDirectoryExists.mockResolvedValue(true);
       mockStorageService.deleteOldFiles.mockResolvedValue(5);
 
       await service.cleanupOldSegments();
 
+      // deleteOldFiles is called with resolved path
       expect(mockStorageService.deleteOldFiles).toHaveBeenCalledWith(
-        '/out/session-1',
+        '/app/storage/replay-segments/session-1',
         expect.any(Date),
+      );
+      expect(mockStorageService.resolveSegmentPath).toHaveBeenCalledWith(
+        'session-1',
       );
     });
 
@@ -907,7 +932,7 @@ describe('LivekitReplayService', () => {
       const activeSessions = [
         {
           id: 'session-1',
-          segmentPath: '/out/missing',
+          segmentPath: 'missing', // Relative path
           status: 'active',
         },
       ];
@@ -915,7 +940,7 @@ describe('LivekitReplayService', () => {
       mockDatabaseService.egressSession.findMany.mockResolvedValue(
         activeSessions,
       );
-      mockStorageService.directoryExists.mockResolvedValue(false);
+      mockStorageService.segmentDirectoryExists.mockResolvedValue(false);
 
       await service.cleanupOldSegments();
 
@@ -926,7 +951,7 @@ describe('LivekitReplayService', () => {
       const activeSessions = [
         {
           id: 'session-1',
-          segmentPath: '/out/session-1',
+          segmentPath: 'session-1', // Relative path
           status: 'active',
         },
       ];
@@ -934,7 +959,7 @@ describe('LivekitReplayService', () => {
       mockDatabaseService.egressSession.findMany.mockResolvedValue(
         activeSessions,
       );
-      mockStorageService.directoryExists.mockResolvedValue(true);
+      mockStorageService.segmentDirectoryExists.mockResolvedValue(true);
       mockStorageService.deleteOldFiles.mockRejectedValue(
         new Error('Permission denied'),
       );
@@ -949,7 +974,7 @@ describe('LivekitReplayService', () => {
       const oldSession = {
         id: 'old-session',
         egressId: 'old-egress',
-        segmentPath: '/out/old-session',
+        segmentPath: 'old-session', // Relative path
         status: 'active',
         startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
       };
@@ -962,8 +987,8 @@ describe('LivekitReplayService', () => {
         ...oldSession,
         status: 'stopped',
       });
-      mockStorageService.directoryExists.mockResolvedValue(true);
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      mockStorageService.segmentDirectoryExists.mockResolvedValue(true);
+      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.cleanupOrphanedSessions();
 
@@ -976,8 +1001,9 @@ describe('LivekitReplayService', () => {
           }),
         }),
       );
-      expect(mockStorageService.deleteDirectory).toHaveBeenCalledWith(
-        '/out/old-session',
+      // Now uses deleteSegmentDirectory with relative path
+      expect(mockStorageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'old-session',
         { recursive: true, force: true },
       );
     });
@@ -986,7 +1012,7 @@ describe('LivekitReplayService', () => {
       const oldSession = {
         id: 'old-session',
         egressId: 'old-egress',
-        segmentPath: '/out/old-session',
+        segmentPath: 'old-session', // Relative path
         status: 'active',
         startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
       };
@@ -1001,7 +1027,7 @@ describe('LivekitReplayService', () => {
         ...oldSession,
         status: 'stopped',
       });
-      mockStorageService.directoryExists.mockResolvedValue(false);
+      mockStorageService.segmentDirectoryExists.mockResolvedValue(false);
 
       // Should still cleanup DB record
       await service.cleanupOrphanedSessions();

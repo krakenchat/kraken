@@ -68,9 +68,8 @@ export class LivekitReplayService {
     this.egressClient = new EgressClient(livekitUrl, apiKey, apiSecret);
 
     // Load configuration
-    this.segmentsPath =
-      this.configService.get<string>('REPLAY_SEGMENTS_PATH') ||
-      '/app/storage/replay-segments';
+    // segmentsPath is now loaded from StorageService which handles prefix resolution
+    this.segmentsPath = this.storageService.getSegmentsPrefix();
     this.egressOutputPath =
       this.configService.get<string>('REPLAY_EGRESS_OUTPUT_PATH') || '/out';
 
@@ -87,8 +86,12 @@ export class LivekitReplayService {
     );
 
     this.logger.log('LivekitReplayService initialized');
-    this.logger.log(`Segments path: ${this.segmentsPath}`);
-    this.logger.log(`Egress output path: ${this.egressOutputPath}`);
+    this.logger.log(
+      `Segments path (for reading): ${this.segmentsPath} (via StorageService)`,
+    );
+    this.logger.log(
+      `Egress output path (for LiveKit API): ${this.egressOutputPath}`,
+    );
     this.logger.log(`Clips path: ${this.clipsPath}`);
     this.logger.log(`Cleanup age: ${this.cleanupAgeMinutes} minutes`);
   }
@@ -132,14 +135,14 @@ export class LivekitReplayService {
     const sessionId = new ObjectId().toString();
 
     // Create unique segment path using LiveKit egress output directory
+    // This is the path we tell LiveKit Egress to write to (absolute path for LiveKit API)
     // Organize by session directory for isolation, use {time} template for unique segment names
-    const segmentPath = `${this.egressOutputPath}/${sessionId}/{time}-segment`;
-    const actualSegmentPath = `${this.egressOutputPath}/${sessionId}`;
+    const egressSegmentPath = `${this.egressOutputPath}/${sessionId}/{time}-segment`;
 
     // Configure segmented HLS output for replay buffer
     const outputs = {
       segments: new SegmentedFileOutput({
-        filenamePrefix: segmentPath,
+        filenamePrefix: egressSegmentPath,
         playlistName: 'playlist.m3u8',
         segmentDuration: 10, // 10-second segments
         protocol: SegmentedFileProtocol.HLS_PROTOCOL,
@@ -162,13 +165,17 @@ export class LivekitReplayService {
         `Egress started successfully: ${egressInfo.egressId} for user ${userId} in ${sessionId}`,
       );
 
+      // Store RELATIVE path in DB (just the sessionId directory)
+      // StorageService will resolve this to full path using REPLAY_SEGMENTS_PATH prefix
+      const relativeSegmentPath = sessionId;
+
       const session = await this.databaseService.egressSession.create({
         data: {
           egressId: egressInfo.egressId,
           userId,
           roomName,
           channelId,
-          segmentPath: actualSegmentPath, // Store actual path for cleanup
+          segmentPath: relativeSegmentPath, // Store relative path for portability
           status: 'active',
           startedAt: new Date(),
         },
@@ -240,18 +247,24 @@ export class LivekitReplayService {
       `Session ${session.id} marked as stopped for user ${userId}`,
     );
 
-    // Delete entire egressId directory (cleanup segments)
-    const segmentDir = session.segmentPath;
+    // Delete entire session directory (cleanup segments)
+    // session.segmentPath is now relative, resolve it using StorageService
     try {
-      await this.storageService.deleteDirectory(segmentDir, {
+      await this.storageService.deleteSegmentDirectory(session.segmentPath, {
         recursive: true,
         force: true,
       });
-      this.logger.log(`Cleaned up segment directory: ${segmentDir}`);
+      const resolvedPath = this.storageService.resolveSegmentPath(
+        session.segmentPath,
+      );
+      this.logger.log(`Cleaned up segment directory: ${resolvedPath}`);
     } catch (cleanupError) {
       // Log but don't fail - cleanup is best-effort
+      const resolvedPath = this.storageService.resolveSegmentPath(
+        session.segmentPath,
+      );
       this.logger.warn(
-        `Failed to cleanup segments at ${segmentDir}: ${getErrorMessage(cleanupError)}`,
+        `Failed to cleanup segments at ${resolvedPath}: ${getErrorMessage(cleanupError)}`,
       );
     }
 
@@ -315,18 +328,24 @@ export class LivekitReplayService {
       `Session ${session.id} updated to status: ${status} for user ${session.userId}`,
     );
 
-    // Delete entire egressId directory (cleanup segments)
-    const segmentDir = session.segmentPath;
+    // Delete entire session directory (cleanup segments)
+    // session.segmentPath is now relative, resolve it using StorageService
     try {
-      await this.storageService.deleteDirectory(segmentDir, {
+      await this.storageService.deleteSegmentDirectory(session.segmentPath, {
         recursive: true,
         force: true,
       });
-      this.logger.log(`Cleaned up segment directory: ${segmentDir}`);
+      const resolvedPath = this.storageService.resolveSegmentPath(
+        session.segmentPath,
+      );
+      this.logger.log(`Cleaned up segment directory: ${resolvedPath}`);
     } catch (cleanupError) {
       // Log but don't fail - cleanup is best-effort
+      const resolvedPath = this.storageService.resolveSegmentPath(
+        session.segmentPath,
+      );
       this.logger.warn(
-        `Failed to cleanup segments at ${segmentDir}: ${getErrorMessage(cleanupError)}`,
+        `Failed to cleanup segments at ${resolvedPath}: ${getErrorMessage(cleanupError)}`,
       );
     }
 
@@ -390,14 +409,18 @@ export class LivekitReplayService {
 
       for (const session of activeSessions) {
         try {
-          // Check if segment directory exists
-          const exists = await this.storageService.directoryExists(
+          // Resolve relative segment path to full path
+          const resolvedPath = this.storageService.resolveSegmentPath(
             session.segmentPath,
           );
-          if (!exists) {
-            this.logger.warn(
-              `Segment path does not exist: ${session.segmentPath}`,
+
+          // Check if segment directory exists
+          const exists =
+            await this.storageService.segmentDirectoryExists(
+              session.segmentPath,
             );
+          if (!exists) {
+            this.logger.warn(`Segment path does not exist: ${resolvedPath}`);
             continue;
           }
 
@@ -405,7 +428,7 @@ export class LivekitReplayService {
           // This will delete old .ts segment files but preserve the .m3u8 playlist
           // (playlist is continuously updated so its mtime will be recent)
           const deletedCount = await this.storageService.deleteOldFiles(
-            session.segmentPath,
+            resolvedPath,
             cutoffDate,
           );
 
@@ -489,15 +512,23 @@ export class LivekitReplayService {
           });
 
           // Delete segment directory
-          const segmentPath = session.segmentPath;
-          const exists = await this.storageService.directoryExists(segmentPath);
+          // session.segmentPath is now relative, resolve it using StorageService
+          const exists = await this.storageService.segmentDirectoryExists(
+            session.segmentPath,
+          );
 
           if (exists) {
-            await this.storageService.deleteDirectory(segmentPath, {
-              recursive: true,
-              force: true,
-            });
-            this.logger.debug(`Deleted orphaned segments: ${segmentPath}`);
+            await this.storageService.deleteSegmentDirectory(
+              session.segmentPath,
+              {
+                recursive: true,
+                force: true,
+              },
+            );
+            const resolvedPath = this.storageService.resolveSegmentPath(
+              session.segmentPath,
+            );
+            this.logger.debug(`Deleted orphaned segments: ${resolvedPath}`);
           }
 
           cleanedCount++;
@@ -678,10 +709,12 @@ export class LivekitReplayService {
     // Each segment is ~10 seconds, so 6 segments per minute
     const segmentsNeeded = durationMinutes * 6;
 
-    // 3. Get segment directory from session (now contains egressId path)
-    const segmentDir = session.segmentPath;
+    // 3. Resolve relative segment path to full path
+    const segmentDir = this.storageService.resolveSegmentPath(
+      session.segmentPath,
+    );
 
-    // 4. List ALL segments in egressId directory and sort by sequence
+    // 4. List ALL segments in session directory and sort by sequence
     const allSegments = await this.listAndSortSegments(segmentDir);
 
     if (allSegments.length === 0) {
@@ -749,10 +782,12 @@ export class LivekitReplayService {
       );
     }
 
-    // 2. Get segment directory from session (now contains egressId path)
-    const segmentDir = session.segmentPath;
+    // 2. Resolve relative segment path to full path
+    const segmentDir = this.storageService.resolveSegmentPath(
+      session.segmentPath,
+    );
 
-    // 3. List ALL segments in egressId directory and sort by sequence
+    // 3. List ALL segments in session directory and sort by sequence
     const allSegments = await this.listAndSortSegments(segmentDir);
 
     if (allSegments.length === 0) {
@@ -1040,7 +1075,11 @@ export class LivekitReplayService {
       return { hasActiveSession: false };
     }
 
-    const segments = await this.listAndSortSegments(session.segmentPath);
+    // Resolve relative segment path to full path
+    const segmentDir = this.storageService.resolveSegmentPath(
+      session.segmentPath,
+    );
+    const segments = await this.listAndSortSegments(segmentDir);
 
     if (segments.length === 0) {
       return {
@@ -1095,7 +1134,11 @@ export class LivekitReplayService {
       throw new NotFoundException('No active replay buffer session found.');
     }
 
-    const segments = await this.listAndSortSegments(session.segmentPath);
+    // Resolve relative segment path to full path
+    const segmentDir = this.storageService.resolveSegmentPath(
+      session.segmentPath,
+    );
+    const segments = await this.listAndSortSegments(segmentDir);
 
     if (segments.length === 0) {
       throw new BadRequestException('No segments available in buffer.');
@@ -1179,7 +1222,11 @@ export class LivekitReplayService {
       throw new BadRequestException('Invalid segment filename.');
     }
 
-    const segmentPath = path.join(session.segmentPath, segmentFile);
+    // Resolve relative session path to full path, then join with segment filename
+    const resolvedSessionDir = this.storageService.resolveSegmentPath(
+      session.segmentPath,
+    );
+    const segmentPath = path.join(resolvedSessionDir, segmentFile);
 
     // Verify file exists
     const exists = await this.storageService.fileExists(segmentPath);

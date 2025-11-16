@@ -219,4 +219,70 @@ export class LocalStorageProvider implements IStorageProvider {
     // For local storage, the path is the URL
     return Promise.resolve(path);
   }
+
+  /**
+   * Resolves a relative path with a prefix using path.join
+   * For local filesystem, this joins the prefix and relative path properly
+   */
+  resolvePath(relativePath: string, prefix: string): string {
+    return join(prefix, relativePath);
+  }
+
+  /**
+   * Lists files in a directory with prefix resolution
+   */
+  async listFilesWithPrefix(
+    relativeDir: string,
+    prefix: string,
+    options: ListFilesOptions = {},
+  ): Promise<string[]> {
+    const fullPath = this.resolvePath(relativeDir, prefix);
+    return this.listFiles(fullPath, options);
+  }
+
+  /**
+   * Reads file contents with prefix resolution
+   */
+  async readFileWithPrefix(
+    relativePath: string,
+    prefix: string,
+  ): Promise<Buffer> {
+    const fullPath = this.resolvePath(relativePath, prefix);
+    return this.readFile(fullPath);
+  }
+
+  /**
+   * Deletes a directory with prefix resolution
+   */
+  async deleteDirectoryWithPrefix(
+    relativeDir: string,
+    prefix: string,
+    options: DeleteDirectoryOptions = {},
+  ): Promise<void> {
+    const fullPath = this.resolvePath(relativeDir, prefix);
+    return this.deleteDirectory(fullPath, options);
+  }
+
+  /**
+   * Gets file stats with prefix resolution
+   */
+  async getFileStatsWithPrefix(
+    relativePath: string,
+    prefix: string,
+  ): Promise<FileStats> {
+    const fullPath = this.resolvePath(relativePath, prefix);
+    return this.getFileStats(fullPath);
+  }
+
+  /**
+   * Checks if directory exists with prefix resolution
+   */
+  async directoryExistsWithPrefix(
+    relativeDir: string,
+    prefix: string,
+  ): Promise<boolean> {
+    const fullPath = this.resolvePath(relativeDir, prefix);
+    return this.directoryExists(fullPath);
+  }
 }
+

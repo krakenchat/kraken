@@ -42,6 +42,7 @@ export enum StorageType {
 export class StorageService implements IStorageProvider {
   private readonly logger = new Logger(StorageService.name);
   private readonly defaultStorageType: StorageType;
+  private readonly segmentsPrefix: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -53,9 +54,15 @@ export class StorageService implements IStorageProvider {
       (this.configService.get<string>('STORAGE_TYPE') as StorageType) ||
       StorageType.LOCAL;
 
+    // Load segments prefix for egress segment operations
+    this.segmentsPrefix =
+      this.configService.get<string>('REPLAY_SEGMENTS_PATH') ||
+      '/app/storage/replay-segments';
+
     this.logger.log(
       `StorageService initialized with default type: ${this.defaultStorageType}`,
     );
+    this.logger.log(`Segments prefix: ${this.segmentsPrefix}`);
   }
 
   /**
@@ -145,4 +152,132 @@ export class StorageService implements IStorageProvider {
   async getFileUrl(path: string): Promise<string> {
     return this.getProvider().getFileUrl(path);
   }
+
+  // ==========================================
+  // Prefix-aware delegation methods
+  // ==========================================
+
+  resolvePath(relativePath: string, prefix: string): string {
+    return this.getProvider().resolvePath(relativePath, prefix);
+  }
+
+  async listFilesWithPrefix(
+    relativeDir: string,
+    prefix: string,
+    options?: ListFilesOptions,
+  ): Promise<string[]> {
+    return this.getProvider().listFilesWithPrefix(relativeDir, prefix, options);
+  }
+
+  async readFileWithPrefix(
+    relativePath: string,
+    prefix: string,
+  ): Promise<Buffer> {
+    return this.getProvider().readFileWithPrefix(relativePath, prefix);
+  }
+
+  async deleteDirectoryWithPrefix(
+    relativeDir: string,
+    prefix: string,
+    options?: DeleteDirectoryOptions,
+  ): Promise<void> {
+    return this.getProvider().deleteDirectoryWithPrefix(
+      relativeDir,
+      prefix,
+      options,
+    );
+  }
+
+  async getFileStatsWithPrefix(
+    relativePath: string,
+    prefix: string,
+  ): Promise<FileStats> {
+    return this.getProvider().getFileStatsWithPrefix(relativePath, prefix);
+  }
+
+  async directoryExistsWithPrefix(
+    relativeDir: string,
+    prefix: string,
+  ): Promise<boolean> {
+    return this.getProvider().directoryExistsWithPrefix(relativeDir, prefix);
+  }
+
+  // ==========================================
+  // Segment-specific convenience methods
+  // These auto-apply the REPLAY_SEGMENTS_PATH prefix
+  // ==========================================
+
+  /**
+   * Gets the configured segments prefix
+   * @returns The REPLAY_SEGMENTS_PATH value
+   */
+  getSegmentsPrefix(): string {
+    return this.segmentsPrefix;
+  }
+
+  /**
+   * Resolves a relative segment path to full path using the configured prefix
+   * @param relativePath - Relative path (e.g., "sessionId/file.ts")
+   * @returns Full resolved path
+   */
+  resolveSegmentPath(relativePath: string): string {
+    return this.resolvePath(relativePath, this.segmentsPrefix);
+  }
+
+  /**
+   * Lists files in a segment directory
+   * @param relativeDir - Relative directory path (e.g., "sessionId/")
+   * @param options - List options
+   * @returns Array of filenames
+   */
+  async listSegmentFiles(
+    relativeDir: string,
+    options?: ListFilesOptions,
+  ): Promise<string[]> {
+    return this.listFilesWithPrefix(relativeDir, this.segmentsPrefix, options);
+  }
+
+  /**
+   * Reads a segment file
+   * @param relativePath - Relative file path (e.g., "sessionId/segment.ts")
+   * @returns File contents as Buffer
+   */
+  async readSegmentFile(relativePath: string): Promise<Buffer> {
+    return this.readFileWithPrefix(relativePath, this.segmentsPrefix);
+  }
+
+  /**
+   * Deletes a segment directory
+   * @param relativeDir - Relative directory path (e.g., "sessionId/")
+   * @param options - Deletion options
+   */
+  async deleteSegmentDirectory(
+    relativeDir: string,
+    options?: DeleteDirectoryOptions,
+  ): Promise<void> {
+    return this.deleteDirectoryWithPrefix(
+      relativeDir,
+      this.segmentsPrefix,
+      options,
+    );
+  }
+
+  /**
+   * Gets stats for a segment file
+   * @param relativePath - Relative file path (e.g., "sessionId/segment.ts")
+   * @returns File statistics
+   */
+  async getSegmentFileStats(relativePath: string): Promise<FileStats> {
+    return this.getFileStatsWithPrefix(relativePath, this.segmentsPrefix);
+  }
+
+  /**
+   * Checks if a segment directory exists
+   * @param relativeDir - Relative directory path (e.g., "sessionId/")
+   * @returns true if exists, false otherwise
+   */
+  async segmentDirectoryExists(relativeDir: string): Promise<boolean> {
+    return this.directoryExistsWithPrefix(relativeDir, this.segmentsPrefix);
+  }
 }
+

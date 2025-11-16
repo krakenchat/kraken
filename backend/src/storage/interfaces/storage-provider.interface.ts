@@ -114,4 +114,70 @@ export interface IStorageProvider {
    * @returns URL or path to access the file
    */
   getFileUrl(path: string): Promise<string>;
+
+  /**
+   * Resolves a relative path with a prefix
+   * For local storage: uses path.join(prefix, relativePath)
+   * For S3: concatenates bucket prefix and key
+   * @param relativePath - Relative path (e.g., "sessionId/")
+   * @param prefix - Base path prefix (e.g., "/app/storage/replay-segments")
+   * @returns Full resolved path
+   */
+  resolvePath(relativePath: string, prefix: string): string;
+
+  /**
+   * Lists files in a directory with prefix resolution
+   * @param relativeDir - Relative directory path
+   * @param prefix - Base path prefix
+   * @param options - List options (filter function)
+   * @returns Array of filenames (not full paths)
+   */
+  listFilesWithPrefix(
+    relativeDir: string,
+    prefix: string,
+    options?: ListFilesOptions,
+  ): Promise<string[]>;
+
+  /**
+   * Reads file contents with prefix resolution
+   * @param relativePath - Relative file path
+   * @param prefix - Base path prefix
+   * @returns File contents as Buffer
+   */
+  readFileWithPrefix(relativePath: string, prefix: string): Promise<Buffer>;
+
+  /**
+   * Deletes a directory with prefix resolution
+   * @param relativeDir - Relative directory path
+   * @param prefix - Base path prefix
+   * @param options - Deletion options (recursive, force)
+   */
+  deleteDirectoryWithPrefix(
+    relativeDir: string,
+    prefix: string,
+    options?: DeleteDirectoryOptions,
+  ): Promise<void>;
+
+  /**
+   * Gets file stats with prefix resolution
+   * @param relativePath - Relative file path
+   * @param prefix - Base path prefix
+   * @returns File statistics
+   */
+  getFileStatsWithPrefix(
+    relativePath: string,
+    prefix: string,
+  ): Promise<FileStats>;
+
+  /**
+   * Checks if directory exists with prefix resolution
+   * @param relativeDir - Relative directory path
+   * @param prefix - Base path prefix
+   * @returns true if directory exists, false otherwise
+   */
+  directoryExistsWithPrefix(
+    relativeDir: string,
+    prefix: string,
+  ): Promise<boolean>;
 }
+
