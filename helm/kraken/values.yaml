@@ -391,3 +391,29 @@ fileStorage:
   # Set to empty array [] to use NFSv3 defaults without any custom options
   # Example custom options: ["nfsvers=4.1", "hard", "tcp"]
   # mountOptions: []
+
+# ============================================
+# Replay Segments Storage Configuration
+# ============================================
+# Storage for LiveKit egress replay segments
+# This directory is shared between LiveKit egress pods and the backend
+replayStorage:
+  # Enable replay segments storage
+  # Set to false to disable replay buffer features
+  enabled: false
+
+  # Storage size for replay segments
+  size: 50Gi
+
+  # Mount path in the backend container
+  # This should match the REPLAY_SEGMENTS_PATH environment variable
+  mountPath: "/app/replay-segments"
+
+  # NFS-specific configuration for shared storage
+  # Required when using multiple backend replicas or external LiveKit egress
+  nfs:
+    enabled: false
+    # NFS server IP or hostname
+    server: "nfs-server.example.com"
+    # NFS export path for replay segments
+    path: "/exports/kraken-replay-segments"

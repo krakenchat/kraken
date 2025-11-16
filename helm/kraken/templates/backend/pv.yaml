@@ -36,3 +36,34 @@ spec:
     server: {{ .Values.fileStorage.nfs.server }}
     path: {{ .Values.fileStorage.nfs.path }}
 {{- end }}
+---
+{{- if and .Values.replayStorage.enabled .Values.replayStorage.nfs.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "kraken.fullname" . }}-replay-segments-nfs
+  labels:
+    {{- include "kraken.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.replayStorage.size }}
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  # Optimized NFS mount options for LiveKit egress segments
+  # Critical: Do NOT use nolock or actimeo as they cause stale file handle issues
+  mountOptions:
+    - hard               # Retry indefinitely on server failure (never give up)
+    - nfsvers=3          # Use NFSv3 (stable, well-supported)
+    - intr               # Allow signals to interrupt hung NFS operations
+    - timeo=600          # Initial timeout: 60 seconds (600 deciseconds)
+    - retrans=2          # Retry 2 times before reporting timeout
+    - rsize=1048576      # 1MB read buffer (better performance)
+    - wsize=1048576      # 1MB write buffer (better performance)
+    - tcp                # Use TCP transport (more reliable than UDP)
+    - noatime            # Don't update access time (reduces server load)
+    - nodiratime         # Don't update directory access time
+  nfs:
+    server: {{ .Values.replayStorage.nfs.server }}
+    path: {{ .Values.replayStorage.nfs.path }}
+{{- end }}

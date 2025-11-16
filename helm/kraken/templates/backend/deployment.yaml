@@ -47,10 +47,16 @@ spec:
             {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
-          {{- if .Values.fileStorage.enabled }}
+          {{- if or .Values.fileStorage.enabled .Values.replayStorage.enabled }}
           volumeMounts:
+            {{- if .Values.fileStorage.enabled }}
             - name: uploads
               mountPath: /app/uploads
+            {{- end }}
+            {{- if .Values.replayStorage.enabled }}
+            - name: replay-segments
+              mountPath: {{ .Values.replayStorage.mountPath }}
+            {{- end }}
           {{- end }}
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
@@ -64,13 +70,17 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.fileStorage.enabled }}
       volumes:
+        {{- if .Values.fileStorage.enabled }}
         - name: uploads
           persistentVolumeClaim:
             claimName: {{ include "kraken.fullname" . }}-uploads
-      {{- else }}
-      volumes:
+        {{- else }}
         - name: uploads
           emptyDir: {}  # Fallback to ephemeral storage if persistent storage disabled
-      {{- end }}
+        {{- end }}
+        {{- if .Values.replayStorage.enabled }}
+        - name: replay-segments
+          persistentVolumeClaim:
+            claimName: {{ include "kraken.fullname" . }}-replay-segments
+        {{- end }}

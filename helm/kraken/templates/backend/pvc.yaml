@@ -19,3 +19,22 @@ spec:
   volumeName: {{ include "kraken.fullname" . }}-uploads-nfs
   {{- end }}
 {{- end }}
+---
+{{- if .Values.replayStorage.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kraken.fullname" . }}-replay-segments
+  labels:
+    {{- include "kraken.backend.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple backend pods and LiveKit egress can mount simultaneously
+  resources:
+    requests:
+      storage: {{ .Values.replayStorage.size }}
+  {{- if .Values.replayStorage.nfs.enabled }}
+  # Bind to the specific NFS PV we created for replay segments
+  volumeName: {{ include "kraken.fullname" . }}-replay-segments-nfs
+  {{- end }}
+{{- end }}
