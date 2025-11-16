@@ -30,6 +30,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany  # Multiple backend pods and LiveKit egress can mount simultaneously
+  {{- if hasKey .Values.replayStorage "storageClassName" }}
+  storageClassName: {{ .Values.replayStorage.storageClassName | quote }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.replayStorage.size }}
