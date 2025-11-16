@@ -20,10 +20,12 @@ import {
   ViewSidebar,
   PushPin,
   PushPinOutlined,
+  FiberManualRecord,
 } from '@mui/icons-material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useLocalMediaState } from '../../hooks/useLocalMediaState';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useReplayBufferState } from '../../contexts/ReplayBufferContext';
 
 // Constants
 const GRID_CONSTANTS = {
@@ -48,6 +50,7 @@ interface VideoTileProps {
   audioTrack?: TrackPublication;
   screenTrack?: TrackPublication;
   isLocal?: boolean;
+  isReplayBufferActive?: boolean;
   onToggleFullscreen?: () => void;
   onPin?: () => void;
   isPinned?: boolean;
@@ -60,6 +63,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
   audioTrack,
   screenTrack,
   isLocal = false,
+  isReplayBufferActive = false,
   onToggleFullscreen,
   onPin,
   isPinned = false,
@@ -272,7 +276,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
               {isPinned ? <PushPin fontSize="small" /> : <PushPinOutlined fontSize="small" />}
             </IconButton>
           )}
-          
+
           {/* Spotlight/Fullscreen button */}
           {onToggleFullscreen && (
             <IconButton
@@ -296,6 +300,48 @@ const VideoTile: React.FC<VideoTileProps> = ({
           )}
         </Box>
       </Fade>
+
+      {/* Recording indicator - top left (only for local screen share) */}
+      {isLocal && isSharing && isReplayBufferActive && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 12,
+            left: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            borderRadius: 1,
+            px: 1,
+            py: 0.5,
+          }}
+        >
+          <FiberManualRecord
+            sx={{
+              width: 8,
+              height: 8,
+              color: '#4caf50',
+              animation: 'pulse 1.5s ease-in-out infinite',
+              '@keyframes pulse': {
+                '0%, 100%': { opacity: 1 },
+                '50%': { opacity: 0.5 },
+              },
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: '0.75rem',
+              textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+            }}
+          >
+            Replay Available
+          </Typography>
+        </Box>
+      )}
     </Card>
   );
 };
@@ -321,6 +367,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const { state } = useVoiceConnection();
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
+  const { isReplayBufferActive } = useReplayBufferState();
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>('grid');
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
@@ -560,6 +607,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                 audioTrack={tile.audioTrack}
                 screenTrack={tile.screenTrack}
                 isLocal={tile.isLocal}
+                isReplayBufferActive={isReplayBufferActive}
                 onToggleFullscreen={() => handleTileSpotlight(tile.tileId)}
                 onPin={undefined}
                 isPinned={pinnedTileId === tile.tileId}
@@ -586,6 +634,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             audioTrack={pinnedTile.audioTrack}
             screenTrack={pinnedTile.screenTrack}
             isLocal={pinnedTile.isLocal}
+            isReplayBufferActive={isReplayBufferActive}
             onToggleFullscreen={() => handleTileSpotlight(pinnedTile.tileId)}
             onPin={undefined}
             isPinned={true}
@@ -615,6 +664,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   audioTrack={tile.audioTrack}
                   screenTrack={tile.screenTrack}
                   isLocal={tile.isLocal}
+                  isReplayBufferActive={isReplayBufferActive}
                   onToggleFullscreen={() => handleTilePin(tile.tileId)}
                   onPin={undefined}
                   isPinned={pinnedTileId === tile.tileId}
@@ -639,6 +689,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           audioTrack={spotlightedTile.audioTrack}
           screenTrack={spotlightedTile.screenTrack}
           isLocal={spotlightedTile.isLocal}
+          isReplayBufferActive={isReplayBufferActive}
           onToggleFullscreen={() => handleTileSpotlight(spotlightedTile.tileId)}
           onPin={() => handleTilePin(spotlightedTile.tileId)}
           isPinned={pinnedTileId === spotlightedTile.tileId}

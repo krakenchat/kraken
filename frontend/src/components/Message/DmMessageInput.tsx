@@ -13,18 +13,23 @@ import { StyledPaper, StyledTextField } from "./MessageInputStyles";
 import { FilePreview } from "./FilePreview";
 import { MentionDropdown } from "./MentionDropdown";
 import { useFileAttachments } from "./useFileAttachments";
-import { useMentionHandling, MentionSuggestion } from "./useMentionHandling";
+import { useMentionHandling } from "./useMentionHandling";
+import type { MentionSuggestion } from "./useMentionHandling";
 import {
   parseMessageWithMentions,
-  UserMention,
   getCurrentMention,
+} from "../../utils/mentionParser";
+import type {
+  UserMention,
 } from "../../utils/mentionParser";
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
+import type { Span } from "../../types/message.type";
+import { SpanType } from "../../types/message.type";
 
 export interface DmMessageInputProps {
   userMentions: UserMention[];
-  onSendMessage: (messageContent: string, spans: unknown[], files?: File[]) => void;
+  onSendMessage: (messageContent: string, spans: Span[], files?: File[]) => void;
   placeholder?: string;
 }
 
@@ -182,7 +187,7 @@ export const DmMessageInput: React.FC<DmMessageInputProps> = ({
 
       // Backend requires at least one span, so add empty PLAINTEXT if needed
       if (spans.length === 0) {
-        spans = [{ type: 'PLAINTEXT', text: '' }];
+        spans = [{ type: SpanType.PLAINTEXT, text: '' }];
       }
 
       await onSendMessage(messageText, spans, selectedFiles);

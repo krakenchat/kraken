@@ -21,10 +21,11 @@ import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from "./constants/layo
 import { useNotifications } from "./hooks/useNotifications";
 import NotificationBadge from "./components/Notifications/NotificationBadge";
 import NotificationCenter from "./components/Notifications/NotificationCenter";
+import { ReplayBufferProvider } from "./contexts/ReplayBufferContext";
 
 const settings = isElectron()
-  ? ["Edit Profile", "Settings", "Logout"]
-  : ["Edit Profile", "Logout"];
+  ? ["My Profile", "Settings", "Logout"]
+  : ["My Profile", "Logout"];
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();
@@ -63,8 +64,10 @@ const Layout: React.FC = () => {
   };
 
   const handleSettingClick = (setting: string) => {
-    if (setting === "Edit Profile") {
-      navigate("/profile/edit");
+    if (setting === "My Profile") {
+      if (userData?.id) {
+        navigate(`/profile/${userData.id}`);
+      }
     } else if (setting === "Settings") {
       navigate("/settings");
     } else if (setting === "Logout") {
@@ -88,12 +91,16 @@ const Layout: React.FC = () => {
 
   // Use mobile layout on small screens
   if (isMobile) {
-    return <MobileLayout />;
+    return (
+      <ReplayBufferProvider>
+        <MobileLayout />
+      </ReplayBufferProvider>
+    );
   }
 
   // Desktop layout (original)
   return (
-    <>
+    <ReplayBufferProvider>
       <AppBar position="fixed">
         <Toolbar sx={{ minHeight: APPBAR_HEIGHT }}>
           <div
@@ -168,7 +175,7 @@ const Layout: React.FC = () => {
 
       {/* Voice Components */}
       <VoiceBottomBar />
-    </>
+    </ReplayBufferProvider>
   );
 };
 

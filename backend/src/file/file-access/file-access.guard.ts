@@ -18,6 +18,7 @@ import {
   PublicAccessStrategy,
   CommunityMembershipStrategy,
   MessageAttachmentStrategy,
+  ReplayClipAccessStrategy,
 } from './strategies';
 
 /**
@@ -51,6 +52,11 @@ export class FileAccessGuard implements CanActivate {
       this.membershipService,
       this.channelMembershipService,
     );
+    const replayClipStrategy = new ReplayClipAccessStrategy(
+      this.databaseService,
+      this.membershipService,
+      this.channelMembershipService,
+    );
 
     return new Map<ResourceType, IFileAccessStrategy>([
       [ResourceType.USER_AVATAR, publicStrategy],
@@ -59,6 +65,7 @@ export class FileAccessGuard implements CanActivate {
       [ResourceType.COMMUNITY_BANNER, communityStrategy],
       [ResourceType.CUSTOM_EMOJI, communityStrategy],
       [ResourceType.MESSAGE_ATTACHMENT, messageStrategy],
+      [ResourceType.REPLAY_CLIP, replayClipStrategy],
     ]);
   }
 

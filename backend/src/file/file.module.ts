@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { FileService } from './file.service';
 import { FileController } from './file.controller';
 import { DatabaseModule } from '@/database/database.module';
+import { StorageModule } from '@/storage/storage.module';
 import { MembershipModule } from '@/membership/membership.module';
 import { ChannelMembershipModule } from '@/channel-membership/channel-membership.module';
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
@@ -20,7 +21,12 @@ import {
     CommunityMembershipStrategy,
     MessageAttachmentStrategy,
   ],
-  imports: [DatabaseModule, MembershipModule, ChannelMembershipModule],
+  imports: [
+    DatabaseModule,
+    StorageModule,
+    MembershipModule,
+    ChannelMembershipModule,
+  ],
   exports: [FileService],
 })
 export class FileModule {}

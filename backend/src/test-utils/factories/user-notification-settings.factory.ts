@@ -1,7 +1,9 @@
 import { UserNotificationSettings } from '@prisma/client';
 
 export class UserNotificationSettingsFactory {
-  static build(overrides: Partial<UserNotificationSettings> = {}): UserNotificationSettings {
+  static build(
+    overrides: Partial<UserNotificationSettings> = {},
+  ): UserNotificationSettings {
     const id = overrides.id || this.generateId();
 
     return {
@@ -21,7 +23,9 @@ export class UserNotificationSettingsFactory {
     } as UserNotificationSettings;
   }
 
-  static buildWithDND(overrides: Partial<UserNotificationSettings> = {}): UserNotificationSettings {
+  static buildWithDND(
+    overrides: Partial<UserNotificationSettings> = {},
+  ): UserNotificationSettings {
     return this.build({
       doNotDisturb: true,
       dndStartTime: '22:00',
@@ -30,35 +34,45 @@ export class UserNotificationSettingsFactory {
     });
   }
 
-  static buildMutedDesktop(overrides: Partial<UserNotificationSettings> = {}): UserNotificationSettings {
+  static buildMutedDesktop(
+    overrides: Partial<UserNotificationSettings> = {},
+  ): UserNotificationSettings {
     return this.build({
       desktopEnabled: false,
       ...overrides,
     });
   }
 
-  static buildMutedDMs(overrides: Partial<UserNotificationSettings> = {}): UserNotificationSettings {
+  static buildMutedDMs(
+    overrides: Partial<UserNotificationSettings> = {},
+  ): UserNotificationSettings {
     return this.build({
       dmNotifications: false,
       ...overrides,
     });
   }
 
-  static buildAllChannelsMode(overrides: Partial<UserNotificationSettings> = {}): UserNotificationSettings {
+  static buildAllChannelsMode(
+    overrides: Partial<UserNotificationSettings> = {},
+  ): UserNotificationSettings {
     return this.build({
       defaultChannelLevel: 'all',
       ...overrides,
     });
   }
 
-  static buildMentionsOnlyMode(overrides: Partial<UserNotificationSettings> = {}): UserNotificationSettings {
+  static buildMentionsOnlyMode(
+    overrides: Partial<UserNotificationSettings> = {},
+  ): UserNotificationSettings {
     return this.build({
       defaultChannelLevel: 'mentions',
       ...overrides,
     });
   }
 
-  static buildSilentMode(overrides: Partial<UserNotificationSettings> = {}): UserNotificationSettings {
+  static buildSilentMode(
+    overrides: Partial<UserNotificationSettings> = {},
+  ): UserNotificationSettings {
     return this.build({
       defaultChannelLevel: 'none',
       ...overrides,

@@ -1,12 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { unlink } from 'fs/promises';
+import { StorageService } from '@/storage/storage.service';
 
 @Injectable()
 export class FileService {
   private readonly logger = new Logger(FileService.name);
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly storageService: StorageService,
+  ) {}
 
   findOne(id: string) {
     return this.databaseService.file.findUniqueOrThrow({
@@ -56,7 +59,7 @@ export class FileService {
 
   private async cleanupFile(filePath: string): Promise<void> {
     try {
-      await unlink(filePath);
+      await this.storageService.deleteFile(filePath);
       this.logger.debug(`Cleaned up file: ${filePath}`);
     } catch (error) {
       this.logger.warn(`Failed to clean up file ${filePath}: ${error}`);

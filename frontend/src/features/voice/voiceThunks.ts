@@ -26,6 +26,7 @@ import {
 } from "../../utils/SocketContext";
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
+import { logger } from "../../utils/logger";
 
 interface JoinVoiceChannelParams {
   channelId: string;
@@ -55,7 +56,7 @@ async function connectToLiveKitRoom(
     await room.connect(url, token);
     setRoom(room);
   } catch (error) {
-    console.error('[Voice] ✗ Failed to connect to LiveKit room:', error);
+    logger.error('[Voice] ✗ Failed to connect to LiveKit room:', error);
     throw error;
   }
 
@@ -64,7 +65,7 @@ async function connectToLiveKitRoom(
     await room.localParticipant.setMicrophoneEnabled(true);
     dispatch(setAudioEnabled(true));
   } catch (error) {
-    console.error('[Voice] ✗ Failed to enable microphone:', error);
+    logger.error('[Voice] ✗ Failed to enable microphone:', error);
     // Keep state in sync - mic is disabled if it failed to enable
     dispatch(setAudioEnabled(false));
     // Don't fail the whole join if mic fails, just log it
@@ -128,7 +129,7 @@ export const joinVoiceChannel = createAsyncThunk<
         socket.emit(ClientEvents.VOICE_CHANNEL_JOIN, { channelId });
       }
     } catch (error) {
-      console.error("[Voice] ✗ Failed to join voice channel:", error);
+      logger.error("[Voice] ✗ Failed to join voice channel:", error);
       const message =
         error instanceof Error ? error.message : "Failed to join voice channel";
       dispatch(setConnectionError(message));
@@ -209,7 +210,7 @@ export const switchAudioInputDevice = createAsyncThunk<
       // Update Redux state
       dispatch(setSelectedAudioInputId(deviceId));
     } catch (error) {
-      console.error("Failed to switch audio input device:", error);
+      logger.error("Failed to switch audio input device:", error);
       throw error;
     }
   }
@@ -235,7 +236,7 @@ export const switchAudioOutputDevice = createAsyncThunk<
       // Update Redux state
       dispatch(setSelectedAudioOutputId(deviceId));
     } catch (error) {
-      console.error("Failed to switch audio output device:", error);
+      logger.error("Failed to switch audio output device:", error);
       throw error;
     }
   }
@@ -261,7 +262,7 @@ export const switchVideoInputDevice = createAsyncThunk<
       // Update Redux state
       dispatch(setSelectedVideoInputId(deviceId));
     } catch (error) {
-      console.error("Failed to switch video input device:", error);
+      logger.error("Failed to switch video input device:", error);
       throw error;
     }
   }
@@ -325,7 +326,7 @@ export const joinDmVoice = createAsyncThunk<
 
       // WebSocket notification handled by backend (DM_VOICE_CALL_STARTED or DM_VOICE_USER_JOINED)
     } catch (error) {
-      console.error("Failed to join DM voice call:", error);
+      logger.error("Failed to join DM voice call:", error);
       const message =
         error instanceof Error ? error.message : "Failed to join DM voice call";
       dispatch(setConnectionError(message));
@@ -411,7 +412,7 @@ export const toggleMicrophone = createAsyncThunk<
     // Note: No longer sending mic state to server - LiveKit manages it
     // Server only stores custom UI state (isDeafened)
   } catch (error) {
-    console.error("Failed to toggle microphone:", error);
+    logger.error("Failed to toggle microphone:", error);
     throw error;
   }
 });
@@ -430,12 +431,12 @@ export const toggleCameraUnified = createAsyncThunk<
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) {
-    console.warn('Cannot toggle camera: no active room or channel/DM');
+    logger.warn('Cannot toggle camera: no active room or channel/DM');
     return;
   }
 
   if (room.state !== 'connected') {
-    console.error('Cannot toggle camera: room is not connected, state:', room.state);
+    logger.error('Cannot toggle camera: room is not connected, state:', room.state);
     throw new Error('Room is not connected');
   }
 
@@ -461,7 +462,7 @@ export const toggleCameraUnified = createAsyncThunk<
 
     // Note: No longer sending video state to server - LiveKit manages it
   } catch (error) {
-    console.error("Failed to toggle camera:", error);
+    logger.error("Failed to toggle camera:", error);
     // Revert state on failure
     dispatch(setVideoEnabled(isVideoEnabled));
     throw error;
@@ -482,12 +483,12 @@ export const toggleScreenShareUnified = createAsyncThunk<
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) {
-    console.warn('Cannot toggle screen share: no active room or channel/DM');
+    logger.warn('Cannot toggle screen share: no active room or channel/DM');
     return;
   }
 
   if (room.state !== 'connected') {
-    console.error('Cannot toggle screen share: room is not connected, state:', room.state);
+    logger.error('Cannot toggle screen share: room is not connected, state:', room.state);
     throw new Error('Room is not connected');
   }
 
@@ -517,7 +518,7 @@ export const toggleScreenShareUnified = createAsyncThunk<
     // Update Redux state after successful LiveKit operation
     dispatch(setScreenSharing(newState));
   } catch (error) {
-    console.error("Failed to toggle screen share:", error);
+    logger.error("Failed to toggle screen share:", error);
     // Don't revert server state, only local
     dispatch(setScreenSharing(isScreenSharing));
     throw error;
@@ -569,7 +570,7 @@ export const toggleDeafenUnified = createAsyncThunk<void, void, { state: RootSta
         ).unwrap();
       }
     } catch (error) {
-      console.error("Failed to toggle deafen:", error);
+      logger.error("Failed to toggle deafen:", error);
       // Revert local state on failure
       dispatch(setDeafened(isDeafened));
       if (newDeafenedState && !isMuted) {

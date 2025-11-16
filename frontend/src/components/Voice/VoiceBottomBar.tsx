@@ -26,15 +26,19 @@ import {
   ExpandLess,
   ExpandMore,
   VolumeUp,
+  FiberManualRecord,
+  SaveAlt,
 } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useScreenShare } from "../../hooks/useScreenShare";
 import { useLocalMediaState } from "../../hooks/useLocalMediaState";
 import { useDeafenEffect } from "../../hooks/useDeafenEffect";
+import { useReplayBufferState } from "../../contexts/ReplayBufferContext";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
 import { ScreenSourcePicker } from "./ScreenSourcePicker";
 import { VoiceDebugPanel } from "./VoiceDebugPanel";
+import { CaptureReplayModal } from "./CaptureReplayModal";
 import { ChannelType } from "../../types/channel.type";
 import { useResponsive } from "../../hooks/useResponsive";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
@@ -54,9 +58,13 @@ export const VoiceBottomBar: React.FC = () => {
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [showCaptureModal, setShowCaptureModal] = useState(false);
 
   // Implement proper deafen functionality (mute received audio)
   useDeafenEffect();
+
+  // Automatically manage replay buffer when screen sharing
+  const { isReplayBufferActive } = useReplayBufferState();
 
   // Check if the current user is speaking
   const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;
@@ -100,7 +108,7 @@ export const VoiceBottomBar: React.FC = () => {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const handleDeviceSettingsOpen = (_type?: 'audio' | 'video') => {
     setShowDeviceSettings(true);
     handleSettingsClose();
@@ -319,29 +327,74 @@ export const VoiceBottomBar: React.FC = () => {
               }
               arrow={!isMobile}
             >
-              <IconButton
-                onClick={screenShare.toggleScreenShare}
-                color={screenShare.isScreenSharing ? "primary" : "default"}
-                size={isMobile ? "medium" : "medium"}
-                sx={{
-                  backgroundColor: screenShare.isScreenSharing
-                    ? "primary.main"
-                    : "transparent",
-                  color: screenShare.isScreenSharing
-                    ? "primary.contrastText"
-                    : "text.primary",
-                  minWidth: isMobile ? 48 : "auto",
-                  minHeight: isMobile ? 48 : "auto",
-                  "&:hover": {
-                    backgroundColor: screenShare.isScreenSharing
-                      ? "primary.dark"
-                      : "action.hover",
-                  },
-                }}
+              <Badge
+                overlap="circular"
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                badgeContent={
+                  isReplayBufferActive ? (
+                    <FiberManualRecord
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        color: '#4caf50',
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                        '@keyframes pulse': {
+                          '0%, 100%': { opacity: 1 },
+                          '50%': { opacity: 0.5 },
+                        },
+                      }}
+                    />
+                  ) : null
+                }
               >
-                {screenShare.isScreenSharing ? <StopScreenShare /> : <ScreenShare />}
-              </IconButton>
+                <IconButton
+                  onClick={screenShare.toggleScreenShare}
+                  color={screenShare.isScreenSharing ? "primary" : "default"}
+                  size={isMobile ? "medium" : "medium"}
+                  sx={{
+                    backgroundColor: screenShare.isScreenSharing
+                      ? "primary.main"
+                      : "transparent",
+                    color: screenShare.isScreenSharing
+                      ? "primary.contrastText"
+                      : "text.primary",
+                    minWidth: isMobile ? 48 : "auto",
+                    minHeight: isMobile ? 48 : "auto",
+                    "&:hover": {
+                      backgroundColor: screenShare.isScreenSharing
+                        ? "primary.dark"
+                        : "action.hover",
+                    },
+                  }}
+                >
+                  {screenShare.isScreenSharing ? <StopScreenShare /> : <ScreenShare />}
+                </IconButton>
+              </Badge>
             </Tooltip>
+
+            {/* Capture Replay - only show when replay buffer is active */}
+            {isReplayBufferActive && (
+              <Tooltip
+                title="Capture Replay"
+                arrow={!isMobile}
+              >
+                <IconButton
+                  onClick={() => setShowCaptureModal(true)}
+                  color="success"
+                  size={isMobile ? "medium" : "medium"}
+                  sx={{
+                    minWidth: isMobile ? 48 : "auto",
+                    minHeight: isMobile ? 48 : "auto",
+                    "&:hover": {
+                      backgroundColor: "success.main",
+                      color: "success.contrastText",
+                    },
+                  }}
+                >
+                  <SaveAlt />
+                </IconButton>
+              </Tooltip>
+            )}
 
             {/* Settings - hide on mobile, use menu instead */}
             {!isMobile && (
@@ -420,6 +473,12 @@ export const VoiceBottomBar: React.FC = () => {
           open={screenShare.showSourcePicker}
           onClose={screenShare.handleSourcePickerClose}
           onSelect={screenShare.handleSourceSelect}
+        />
+
+        {/* Capture Replay Dialog */}
+        <CaptureReplayModal
+          open={showCaptureModal}
+          onClose={() => setShowCaptureModal(false)}
         />
       </Paper>
 

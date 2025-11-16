@@ -15,6 +15,8 @@ export enum ServerEvents {
   VOICE_CHANNEL_USER_JOINED = "voiceChannelUserJoined",
   VOICE_CHANNEL_USER_LEFT = "voiceChannelUserLeft",
   VOICE_CHANNEL_USER_UPDATED = "voiceChannelUserUpdated",
+  REPLAY_BUFFER_STOPPED = "replayBufferStopped",
+  REPLAY_BUFFER_FAILED = "replayBufferFailed",
   ACK = "ack",
   ERROR = "error",
 }

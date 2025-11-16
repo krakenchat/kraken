@@ -39,6 +39,10 @@ export enum ServerEvents {
   DM_VOICE_USER_LEFT = 'dmVoiceUserLeft',
   DM_VOICE_USER_UPDATED = 'dmVoiceUserUpdated',
 
+  // Replay Buffer (Screen Recording)
+  REPLAY_BUFFER_STOPPED = 'replayBufferStopped',
+  REPLAY_BUFFER_FAILED = 'replayBufferFailed',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',

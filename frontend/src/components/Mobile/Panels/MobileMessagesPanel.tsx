@@ -299,7 +299,7 @@ export const MobileMessagesPanel: React.FC = () => {
               )}
               renderTags={(tagValue, getTagProps) =>
                 tagValue.map((user, index) => {
-                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                   
                   const { key: _key, ...chipProps } = getTagProps({ index });
                   return (
                     <Chip

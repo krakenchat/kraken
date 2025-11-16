@@ -146,7 +146,7 @@ export const messagesApi = createApi({
         method: "POST",
         body: { fileId },
       }),
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       async onQueryStarted({ messageId: _messageId }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedMessage } = await queryFulfilled;

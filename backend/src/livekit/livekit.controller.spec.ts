@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LivekitController } from './livekit.controller';
 import { LivekitService } from './livekit.service';
+import { LivekitReplayService } from './livekit-replay.service';
+import { StorageService } from '@/storage/storage.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RbacGuard } from '../auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
@@ -14,6 +16,27 @@ describe('LivekitController', () => {
     generateToken: jest.fn(),
     getConnectionInfo: jest.fn(),
     validateConfiguration: jest.fn(),
+  };
+
+  const mockLivekitReplayService = {
+    startReplayBuffer: jest.fn(),
+    stopReplayBuffer: jest.fn(),
+    getSessionInfo: jest.fn(),
+    captureReplay: jest.fn(),
+    getUserClips: jest.fn(),
+    updateClip: jest.fn(),
+    deleteClip: jest.fn(),
+    shareClip: jest.fn(),
+    getPlaylistContent: jest.fn(),
+    getSegmentPath: jest.fn(),
+    getRemuxedSegmentPath: jest.fn(),
+  };
+
+  const mockStorageService = {
+    readFile: jest.fn(),
+    writeFile: jest.fn(),
+    deleteFile: jest.fn(),
+    getFileStats: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn(() => true) };
@@ -30,6 +53,14 @@ describe('LivekitController', () => {
         {
           provide: LivekitService,
           useValue: mockLivekitService,
+        },
+        {
+          provide: LivekitReplayService,
+          useValue: mockLivekitReplayService,
+        },
+        {
+          provide: StorageService,
+          useValue: mockStorageService,
         },
       ],
     })

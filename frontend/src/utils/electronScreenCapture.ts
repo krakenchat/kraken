@@ -6,6 +6,7 @@
  */
 
 import { logger } from './logger';
+import { isElectron } from './platform';
 
 interface DesktopSource {
   id: string;
@@ -26,13 +27,6 @@ declare global {
   interface Window {
     electronAPI?: ElectronAPI;
   }
-}
-
-/**
- * Check if we're running in Electron
- */
-export function isElectron(): boolean {
-  return window.electronAPI?.isElectron === true;
 }
 
 /**

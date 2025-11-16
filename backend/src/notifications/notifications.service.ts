@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, forwardRef, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  forwardRef,
+  Inject,
+} from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import {
   Message,

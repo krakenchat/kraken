@@ -6,11 +6,13 @@ import {
   Alert,
   Container,
   Paper,
+  Divider,
 } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { Edit as EditIcon, ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import { useGetUserByIdQuery, useProfileQuery } from "../features/users/usersSlice";
 import { ProfileHeader } from "../components/Profile";
+import { ClipLibrary } from "../components/Profile/ClipLibrary";
 
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -74,6 +76,10 @@ const ProfilePage: React.FC = () => {
 
       <Paper>
         <ProfileHeader user={profileUser} />
+      </Paper>
+
+      <Paper sx={{ mt: 3, p: 3 }}>
+        <ClipLibrary userId={userId!} isOwnProfile={isOwnProfile} />
       </Paper>
     </Container>
   );

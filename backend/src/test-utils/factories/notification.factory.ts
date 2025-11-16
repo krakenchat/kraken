@@ -46,7 +46,9 @@ export class NotificationFactory {
     });
   }
 
-  static buildSpecialMention(overrides: Partial<Notification> = {}): Notification {
+  static buildSpecialMention(
+    overrides: Partial<Notification> = {},
+  ): Notification {
     return this.build({
       type: NotificationType.SPECIAL_MENTION,
       ...overrides,
@@ -60,7 +62,10 @@ export class NotificationFactory {
     });
   }
 
-  static buildMany(count: number, overrides: Partial<Notification> = {}): Notification[] {
+  static buildMany(
+    count: number,
+    overrides: Partial<Notification> = {},
+  ): Notification[] {
     return Array.from({ length: count }, () => this.build(overrides));
   }
 

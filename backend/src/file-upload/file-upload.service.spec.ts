@@ -2,12 +2,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FileUploadService } from './file-upload.service';
 import { DatabaseService } from '@/database/database.service';
+import { StorageService } from '@/storage/storage.service';
 import { UnprocessableEntityException } from '@nestjs/common';
 import { ResourceType, FileType, StorageType } from '@prisma/client';
-import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 
-jest.mock('fs/promises');
 jest.mock('./validators/resource-type-file.validator');
 
 describe('FileUploadService', () => {
@@ -21,6 +20,12 @@ describe('FileUploadService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+  };
+
+  const mockStorageService = {
+    deleteFile: jest.fn(),
+    fileExists: jest.fn(),
+    readFile: jest.fn(),
   };
 
   const mockUser = {
@@ -50,6 +55,10 @@ describe('FileUploadService', () => {
           provide: DatabaseService,
           useValue: mockDatabaseService,
         },
+        {
+          provide: StorageService,
+          useValue: mockStorageService,
+        },
       ],
     }).compile();
 
@@ -59,9 +68,9 @@ describe('FileUploadService', () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Default mock implementations
-    (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-    (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+    // Default mock implementations - use StorageService instead of direct fs calls
+    mockStorageService.readFile.mockResolvedValue(Buffer.from('test'));
+    mockStorageService.deleteFile.mockResolvedValue(undefined);
 
     // Mock crypto
     const mockHash = {
@@ -148,7 +157,9 @@ describe('FileUploadService', () => {
         service.uploadFile(mockFile, createDto, mockUser),
       ).rejects.toThrow(UnprocessableEntityException);
 
-      expect(fs.unlink).toHaveBeenCalledWith('/tmp/test-123.png');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/test-123.png',
+      );
       expect(mockDatabaseService.file.create).not.toHaveBeenCalled();
     });
 
@@ -175,7 +186,9 @@ describe('FileUploadService', () => {
         service.uploadFile(mockFile, createDto, mockUser),
       ).rejects.toThrow('Database error');
 
-      expect(fs.unlink).toHaveBeenCalledWith('/tmp/test-123.png');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/test-123.png',
+      );
     });
 
     it('should handle video file type', async () => {
@@ -336,7 +349,9 @@ describe('FileUploadService', () => {
 
       await service.uploadFile(mockFile, createDto, mockUser);
 
-      expect(fs.readFile).toHaveBeenCalledWith('/tmp/test-123.png');
+      expect(mockStorageService.readFile).toHaveBeenCalledWith(
+        '/tmp/test-123.png',
+      );
       expect(crypto.createHash).toHaveBeenCalledWith('sha256');
       expect(mockDatabaseService.file.create).toHaveBeenCalledWith({
         data: expect.objectContaining({

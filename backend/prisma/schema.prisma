@@ -68,7 +68,7 @@ model Notification {
 
 model UserNotificationSettings {
   id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId              String   @db.ObjectId @unique
+  userId              String   @unique @db.ObjectId
   desktopEnabled      Boolean  @default(true)
   playSound           Boolean  @default(true)
   soundType           String   @default("default") // "default", "mention", "dm"
@@ -127,10 +127,14 @@ model User {
   ReadReceipts      ReadReceipt[]       @relation("UserReadReceipts")
 
   // Notification relations
-  notifications                Notification[]                  @relation("UserNotifications")
-  authoredNotifications        Notification[]                  @relation("NotificationAuthors")
-  notificationSettings         UserNotificationSettings?       @relation("UserNotificationSettings")
-  channelNotificationOverrides ChannelNotificationOverride[]   @relation("ChannelNotificationOverrides")
+  notifications                Notification[]                @relation("UserNotifications")
+  authoredNotifications        Notification[]                @relation("NotificationAuthors")
+  notificationSettings         UserNotificationSettings?     @relation("UserNotificationSettings")
+  channelNotificationOverrides ChannelNotificationOverride[] @relation("ChannelNotificationOverrides")
+
+  // Replay buffer relations
+  egressSessions EgressSession[]
+  replayClips    ReplayClip[]
 }
 
 model RefreshToken {
@@ -182,16 +186,16 @@ model Community {
 }
 
 model Channel {
-  id                String              @id @default(auto()) @map("_id") @db.ObjectId
-  name              String
-  communityId       String              @db.ObjectId
-  community         Community?          @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  createdAt         DateTime            @default(now())
-  type              ChannelType         @default(TEXT)
-  Message           Message[]
-  ChannelMembership ChannelMembership[] @relation("ChannelMembership")
-  isPrivate         Boolean             @default(false)
-  ReadReceipts      ReadReceipt[]       @relation("ChannelReadReceipts")
+  id                    String                        @id @default(auto()) @map("_id") @db.ObjectId
+  name                  String
+  communityId           String                        @db.ObjectId
+  community             Community?                    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdAt             DateTime                      @default(now())
+  type                  ChannelType                   @default(TEXT)
+  Message               Message[]
+  ChannelMembership     ChannelMembership[]           @relation("ChannelMembership")
+  isPrivate             Boolean                       @default(false)
+  ReadReceipts          ReadReceipt[]                 @relation("ChannelReadReceipts")
   notificationOverrides ChannelNotificationOverride[] @relation("ChannelNotificationOverrides")
 
   @@unique([communityId, name])
@@ -285,15 +289,15 @@ model Friendship {
 }
 
 model File {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
   filename     String // Original filename
   mimeType     String // MIME type (image/jpeg, etc.)
   fileType     FileType // Enum for different file types
   size         Int // File size in bytes
   checksum     String // SHA-256 hash for integrity
-  uploadedBy   User?     @relation(fields: [uploadedById], references: [id])
-  uploadedById String?   @db.ObjectId
-  uploadedAt   DateTime  @default(now())
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id])
+  uploadedById String?      @db.ObjectId
+  uploadedAt   DateTime     @default(now())
   deletedAt    DateTime? // Soft delete
   resourceType ResourceType
   resourceId   String? // ID of the resource this file is associated with (userId, communityId, messageId, etc.)
@@ -302,9 +306,45 @@ model File {
   storageType StorageType @default(LOCAL)
   storagePath String // Local path or cloud key
 
+  // Relations
+  replayClips ReplayClip[]
+
   @@index([uploadedById]) // show my files or files for specific user
   @@index([deletedAt]) // For cleaning up deleted files
   @@index([resourceType, resourceId]) // For fetching files related to a specific resource
+}
+
+model EgressSession {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  egressId    String    @unique // LiveKit egress ID
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roomName    String // LiveKit room name (channel ID)
+  channelId   String    @db.ObjectId // Voice channel ID
+  segmentPath String // Path to segments (for cleanup)
+  status      String // "active", "stopped", "failed"
+  error       String? // Error message if egress failed
+  startedAt   DateTime
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model ReplayClip {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileId          String   @db.ObjectId
+  file            File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  channelId       String?  @db.ObjectId // Optional: which channel it was captured from
+  durationSeconds Int // Duration of the clip in seconds
+  isPublic        Boolean  @default(false) // Show on user's public profile
+  capturedAt      DateTime @default(now())
+
+  @@index([userId, capturedAt])
 }
 
 enum FileType {
@@ -322,6 +362,7 @@ enum ResourceType {
   COMMUNITY_AVATAR
   MESSAGE_ATTACHMENT
   CUSTOM_EMOJI
+  REPLAY_CLIP
 }
 
 enum StorageType {
@@ -385,6 +426,7 @@ enum RbacActions {
   UPDATE_ALIAS_GROUP_MEMBER
   UPDATE_INSTANCE_INVITE
   UPDATE_MEMBER
+  CAPTURE_REPLAY
 }
 
 enum InstanceRole {

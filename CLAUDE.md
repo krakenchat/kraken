@@ -336,6 +336,41 @@ import { isElectron, hasElectronFeature } from './utils/platform';
 - **Full setup**: `docker compose run backend npm run prisma` (generates + pushes)
 - **Prisma studio**: `docker compose run -p 5555:5555 backend npx prisma studio`
 
+### 📹 **LiveKit Egress Storage Setup (Optional)**
+
+For testing replay buffer / screen recording features, you need to configure storage for egress output:
+
+**Quick Start (Local Directory):**
+```bash
+# Copy the example override file
+cp docker-compose.override.yml.example docker-compose.override.yml
+
+# Edit and uncomment the "Quick Start" section (local bind mount)
+# Then restart Docker Compose
+docker-compose down && docker-compose up
+```
+
+**Available Storage Options:**
+
+1. **Local Bind Mount** (easiest for local dev)
+   - Files stored in `./egress-output/` directory
+   - Easy to inspect/delete files directly
+   - Good for: Local testing, debugging recordings
+
+2. **NFS Mount** (production-like)
+   - Files stored on NFS server
+   - Shared storage across multiple instances
+   - Good for: Testing production scenarios, shared dev environments
+
+3. **Docker Named Volume** (default, isolated)
+   - Files managed by Docker internally
+   - Persists across container restarts
+   - Good for: Simple testing without host filesystem clutter
+
+**See `docker-compose.override.yml.example` for detailed configuration examples.**
+
+**Note:** The override file is gitignored, so your local storage config won't affect other developers.
+
 ### 🚨 **Important Notes**
 
 - **Never run npm commands directly on host** - always use Docker containers
@@ -573,3 +608,20 @@ When creating new components, hooks, or modules, use these templates for documen
 **After creating new code, ALWAYS create corresponding documentation using these templates.**
 - Remove orphan containers when using docker to run commands
 - use @suites/unit testbed automocks for backend tests and write tests whenever we implement a new backend feature
+
+## Future TODOs
+
+### Configurable LiveKit Egress Output Storage
+
+**Current State**: LiveKit egress writes HLS segments to local NFS mount (`/out/` via Docker volume).
+
+**Future Enhancement**: Support S3/Azure Blob storage for egress output to enable multi-instance scalability.
+
+**Requirements**:
+- Configure LiveKit egress to write directly to S3 bucket (LiveKit supports this natively)
+- Update segment discovery to list objects from S3 prefix instead of local filesystem
+- Add `StorageService.downloadFile()` method to download segments to local temp directory before FFmpeg processing
+- FFmpeg still requires local filesystem access, so segments must be downloaded temporarily
+- After processing, upload final clip to remote storage via `StorageService.writeFile()`
+- Consider caching downloaded segments to reduce S3 egress costs
+- Update environment variables: `REPLAY_EGRESS_STORAGE_TYPE`, `REPLAY_EGRESS_S3_BUCKET`, etc.

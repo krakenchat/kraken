@@ -1,9 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FileService } from './file.service';
 import { DatabaseService } from '@/database/database.service';
-import * as fs from 'fs/promises';
-
-jest.mock('fs/promises');
+import { StorageService } from '@/storage/storage.service';
 
 describe('FileService', () => {
   let service: FileService;
@@ -18,6 +16,11 @@ describe('FileService', () => {
     },
   };
 
+  const mockStorageService = {
+    deleteFile: jest.fn(),
+    fileExists: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -25,6 +28,10 @@ describe('FileService', () => {
         {
           provide: DatabaseService,
           useValue: mockDatabaseService,
+        },
+        {
+          provide: StorageService,
+          useValue: mockStorageService,
         },
       ],
     }).compile();
@@ -35,8 +42,8 @@ describe('FileService', () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Default mock for unlink
-    (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+    // Default mock for deleteFile
+    mockStorageService.deleteFile.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -157,9 +164,13 @@ describe('FileService', () => {
         },
       });
 
-      expect(fs.unlink).toHaveBeenCalledWith('/tmp/file1.png');
-      expect(fs.unlink).toHaveBeenCalledWith('/tmp/file2.png');
-      expect(fs.unlink).toHaveBeenCalledTimes(2);
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/file1.png',
+      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/file2.png',
+      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledTimes(2);
 
       expect(mockDatabaseService.file.delete).toHaveBeenCalledWith({
         where: { id: 'file-1' },
@@ -183,7 +194,7 @@ describe('FileService', () => {
 
       await service.cleanupOldFiles();
 
-      expect(fs.unlink).not.toHaveBeenCalled();
+      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
       expect(mockDatabaseService.file.delete).not.toHaveBeenCalled();
     });
 
@@ -201,7 +212,7 @@ describe('FileService', () => {
 
       await service.cleanupOldFiles();
 
-      expect(fs.unlink).not.toHaveBeenCalled();
+      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
       expect(mockDatabaseService.file.delete).not.toHaveBeenCalled();
     });
 
@@ -222,15 +233,19 @@ describe('FileService', () => {
       ];
 
       mockDatabaseService.file.findMany.mockResolvedValue(deletedFiles);
-      (fs.unlink as jest.Mock)
+      mockStorageService.deleteFile
         .mockRejectedValueOnce(new Error('File not found'))
         .mockResolvedValueOnce(undefined);
 
       await service.cleanupOldFiles();
 
       // Should have attempted both files
-      expect(fs.unlink).toHaveBeenCalledWith('/tmp/error.png');
-      expect(fs.unlink).toHaveBeenCalledWith('/tmp/success.png');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/error.png',
+      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/success.png',
+      );
 
       // Only successful file should be deleted from DB
       expect(mockDatabaseService.file.delete).toHaveBeenCalledTimes(1);
@@ -244,7 +259,7 @@ describe('FileService', () => {
 
       await service.cleanupOldFiles();
 
-      expect(fs.unlink).not.toHaveBeenCalled();
+      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
       expect(mockDatabaseService.file.delete).not.toHaveBeenCalled();
     });
 
@@ -266,7 +281,9 @@ describe('FileService', () => {
       // Should not throw - just logs error
       await expect(service.cleanupOldFiles()).resolves.toBeUndefined();
 
-      expect(fs.unlink).toHaveBeenCalledWith('/tmp/file.png');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/file.png',
+      );
     });
   });
 });

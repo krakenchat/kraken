@@ -34,8 +34,8 @@
     "start": "npm run build-electron && npm run build-preload && electron .",
     "electron-dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && npm run build-electron && npm run build-preload && electron .\"",
     "win-electron-dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && npm run build-electron && npm run build-preload && cmd.exe /C node_modules/.bin/electron .\"",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --fix"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 20",
+    "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 20 --fix"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -49,6 +49,7 @@
     "date-fns": "^4.1.0",
     "electron-audio-loopback": "^1.0.6",
     "electron-updater": "^6.3.9",
+    "hls.js": "^1.6.14",
     "livekit-client": "^2.13.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

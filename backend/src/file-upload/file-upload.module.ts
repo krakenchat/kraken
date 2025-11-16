@@ -4,6 +4,7 @@ import { FileUploadController } from './file-upload.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@/database/database.module';
+import { StorageModule } from '@/storage/storage.module';
 
 @Module({
   controllers: [FileUploadController],
@@ -20,6 +21,7 @@ import { DatabaseModule } from '@/database/database.module';
       inject: [ConfigService],
     }),
     DatabaseModule,
+    StorageModule,
   ],
 })
 export class FileUploadModule {}

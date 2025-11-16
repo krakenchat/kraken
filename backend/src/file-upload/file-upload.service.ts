@@ -7,7 +7,7 @@ import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { DatabaseService } from '@/database/database.service';
 import { FileType, StorageType } from '@prisma/client';
 import { createHash } from 'crypto';
-import { readFile, unlink } from 'fs/promises';
+import { StorageService } from '@/storage/storage.service';
 import { ResourceTypeFileValidator } from './validators';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
@@ -15,7 +15,10 @@ import { UserEntity } from '@/user/dto/user-response.dto';
 export class FileUploadService {
   private readonly logger = new Logger(FileUploadService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async uploadFile(
     file: Express.Multer.File,
@@ -81,7 +84,7 @@ export class FileUploadService {
    */
   private async cleanupFile(filePath: string): Promise<void> {
     try {
-      await unlink(filePath);
+      await this.storageService.deleteFile(filePath);
       this.logger.debug(`Cleaned up file: ${filePath}`);
     } catch (error) {
       this.logger.warn(`Failed to clean up file ${filePath}: ${error}`);
@@ -92,7 +95,7 @@ export class FileUploadService {
    * Generate SHA-256 checksum for a file
    */
   private async generateChecksum(filePath: string): Promise<string> {
-    const fileBuffer = await readFile(filePath);
+    const fileBuffer = await this.storageService.readFile(filePath);
     return createHash('sha256').update(fileBuffer).digest('hex');
   }
 

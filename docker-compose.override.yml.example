@@ -1,0 +1,110 @@
+# Docker Compose Local Overrides
+#
+# Copy this file to `docker-compose.override.yml` to customize your local development setup.
+# The override file is automatically merged with docker-compose.yml when you run docker-compose commands.
+#
+# Setup:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   # Edit docker-compose.override.yml with your preferred configuration
+#   docker-compose up
+#
+# Note: docker-compose.override.yml is gitignored so your local config won't be committed.
+
+# ==============================================================================
+# EGRESS OUTPUT STORAGE CONFIGURATION
+# ==============================================================================
+# Choose ONE of the following options for storing LiveKit egress recordings:
+
+# ------------------------------------------------------------------------------
+# Option 1: NFS Mount (Production-like, shared storage)
+# ------------------------------------------------------------------------------
+# Use this if you have an NFS server for testing production-like scenarios.
+# Requires: NFS client installed on host, NFS server accessible
+#
+# services:
+#   backend:
+#     volumes:
+#       - type: volume
+#         source: egress-output
+#         target: /out
+#
+# volumes:
+#   egress-output:
+#     driver: local
+#     driver_opts:
+#       type: nfs
+#       o: addr=192.168.1.100,nfsvers=4,rw
+#       device: ":/path/to/nfs/share/kraken-egress"
+#
+# Configuration notes:
+#   - Replace 192.168.1.100 with your NFS server IP
+#   - Replace /path/to/nfs/share/kraken-egress with your NFS export path
+#   - Adjust nfsvers (3 or 4) based on your NFS server version
+#   - Add mount options as needed: nolock, soft, timeo=30, etc.
+
+# ------------------------------------------------------------------------------
+# Option 2: Local Bind Mount (Simplest, good for local dev)
+# ------------------------------------------------------------------------------
+# Use this for easy local development. Files are stored in a local directory.
+# Requires: Nothing special, works out of the box
+#
+# services:
+#   backend:
+#     volumes:
+#       - ./egress-output:/out
+#
+# Configuration notes:
+#   - Directory ./egress-output will be created automatically
+#   - Easy to inspect/delete files directly on your filesystem
+#   - Files persist across container restarts
+#   - Add ./egress-output to .gitignore if you create it
+
+# ------------------------------------------------------------------------------
+# Option 3: Docker Named Volume (Default, isolated)
+# ------------------------------------------------------------------------------
+# Use this if you don't need to access files directly from host.
+# Requires: Nothing, Docker manages the volume
+#
+# services:
+#   backend:
+#     volumes:
+#       - egress-output:/out
+#
+# volumes:
+#   egress-output:
+#     # No driver specified = default local driver
+#
+# Configuration notes:
+#   - Files stored in Docker's internal volume storage
+#   - Persist across container restarts
+#   - View with: docker volume inspect kraken_egress-output
+#   - Clean with: docker volume rm kraken_egress-output
+
+# ==============================================================================
+# EXAMPLE: Quick Start (Local Bind Mount)
+# ==============================================================================
+# Uncomment the following to get started quickly:
+
+# services:
+#   backend:
+#     volumes:
+#       - ./egress-output:/out
+
+# ==============================================================================
+# OTHER LOCAL OVERRIDES
+# ==============================================================================
+# You can override any service configuration here, for example:
+#
+# services:
+#   backend:
+#     environment:
+#       - DEBUG=true
+#       - LOG_LEVEL=verbose
+#
+#   frontend:
+#     ports:
+#       - "8080:5173"  # Use different port
+#
+#   mongo:
+#     volumes:
+#       - ~/mongo-data:/data/db  # Use custom data location

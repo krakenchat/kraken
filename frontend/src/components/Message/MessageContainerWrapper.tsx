@@ -2,7 +2,7 @@ import React from "react";
 import MessageContainer from "../Message/MessageContainer";
 import MessageInput from "./MessageInput";
 import { useProfileQuery } from "../../features/users/usersSlice";
-import type { Message } from "../../types/message.type";
+import type { Message, Span } from "../../types/message.type";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 
 
@@ -22,7 +22,7 @@ export interface MessageContainerWrapperProps {
   useMessagesHook: () => MessagesHookResult;
   userMentions: UserMention[];
   channelMentions?: ChannelMention[];
-  onSendMessage: (messageContent: string, spans: unknown[], files?: File[]) => void;
+  onSendMessage: (messageContent: string, spans: Span[], files?: File[]) => void;
   memberListComponent?: React.ReactNode;
   placeholder?: string;
   emptyStateMessage?: string;

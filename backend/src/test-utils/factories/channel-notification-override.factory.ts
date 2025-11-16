@@ -1,7 +1,9 @@
 import { ChannelNotificationOverride } from '@prisma/client';
 
 export class ChannelNotificationOverrideFactory {
-  static build(overrides: Partial<ChannelNotificationOverride> = {}): ChannelNotificationOverride {
+  static build(
+    overrides: Partial<ChannelNotificationOverride> = {},
+  ): ChannelNotificationOverride {
     const id = overrides.id || this.generateId();
 
     return {
@@ -15,28 +17,37 @@ export class ChannelNotificationOverrideFactory {
     } as ChannelNotificationOverride;
   }
 
-  static buildAllMessages(overrides: Partial<ChannelNotificationOverride> = {}): ChannelNotificationOverride {
+  static buildAllMessages(
+    overrides: Partial<ChannelNotificationOverride> = {},
+  ): ChannelNotificationOverride {
     return this.build({
       level: 'all',
       ...overrides,
     });
   }
 
-  static buildMentionsOnly(overrides: Partial<ChannelNotificationOverride> = {}): ChannelNotificationOverride {
+  static buildMentionsOnly(
+    overrides: Partial<ChannelNotificationOverride> = {},
+  ): ChannelNotificationOverride {
     return this.build({
       level: 'mentions',
       ...overrides,
     });
   }
 
-  static buildMuted(overrides: Partial<ChannelNotificationOverride> = {}): ChannelNotificationOverride {
+  static buildMuted(
+    overrides: Partial<ChannelNotificationOverride> = {},
+  ): ChannelNotificationOverride {
     return this.build({
       level: 'none',
       ...overrides,
     });
   }
 
-  static buildMany(count: number, overrides: Partial<ChannelNotificationOverride> = {}): ChannelNotificationOverride[] {
+  static buildMany(
+    count: number,
+    overrides: Partial<ChannelNotificationOverride> = {},
+  ): ChannelNotificationOverride[] {
     return Array.from({ length: count }, () => this.build(overrides));
   }
 

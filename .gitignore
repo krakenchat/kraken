@@ -61,3 +61,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 backend/uploads
 .env.*
 backend/coverage
+
+# Docker Compose local overrides
+docker-compose.override.yml

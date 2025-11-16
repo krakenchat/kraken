@@ -61,9 +61,8 @@ describe('MessagesGateway', () => {
     gateway = module.get<MessagesGateway>(MessagesGateway);
     messagesService = module.get<MessagesService>(MessagesService);
     websocketService = module.get<WebsocketService>(WebsocketService);
-    notificationsService = module.get<NotificationsService>(
-      NotificationsService,
-    );
+    notificationsService =
+      module.get<NotificationsService>(NotificationsService);
   });
 
   afterEach(() => {

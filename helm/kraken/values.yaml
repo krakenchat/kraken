@@ -317,6 +317,10 @@ livekit:
   apiKey: "your-livekit-api-key"
   apiSecret: "your-livekit-api-secret"
 
+  # Webhook secret for verifying LiveKit webhook signatures
+  # Generate with: openssl rand -hex 32
+  webhookSecret: "your-livekit-webhook-secret"
+
 # ============================================
 # Application Secrets
 # ============================================

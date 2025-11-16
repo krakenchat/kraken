@@ -327,7 +327,10 @@ describe('AuthController', () => {
       const result = await controller.logout(req, mockRes);
 
       expect(authService.verifyRefreshToken).not.toHaveBeenCalled();
-      expect(mockRes.clearCookie).not.toHaveBeenCalled();
+      // Should still clear access_token cookie even when no refresh token
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('access_token', {
+        path: '/',
+      });
       expect(result).toEqual({ message: 'Logged out successfully' });
     });
 

@@ -1,7 +1,7 @@
 import { SpanType, MessageSpan } from "../types/message.type";
 
 export interface MentionMatch {
-  type: 'user' | 'special';
+  type: 'user' | 'special' | 'channel';
   start: number;
   end: number;
   text: string;
@@ -15,17 +15,22 @@ export interface UserMention {
   displayName?: string;
 }
 
+export interface ChannelMention {
+  id: string;
+  name: string;
+}
+
 /**
- * Parse message text for potential mentions (@user, @here, @channel)
+ * Parse message text for potential mentions (@user, @here, @channel, #channel)
  * Returns array of mention objects with positions
  */
 export function findMentions(text: string): MentionMatch[] {
   const mentions: MentionMatch[] = [];
-  
+
   // User mentions pattern: @word (word can contain letters, numbers, underscore, hyphen)
   const userMentionRegex = /@(\w[\w\-_]*)/g;
   let match;
-  
+
   while ((match = userMentionRegex.exec(text)) !== null) {
     const query = match[1];
     // Check if this is a special mention
@@ -47,7 +52,21 @@ export function findMentions(text: string): MentionMatch[] {
       });
     }
   }
-  
+
+  // Channel mentions pattern: #word (word can contain letters, numbers, underscore, hyphen)
+  const channelMentionRegex = /#(\w[\w\-_]*)/g;
+
+  while ((match = channelMentionRegex.exec(text)) !== null) {
+    const query = match[1];
+    mentions.push({
+      type: 'channel',
+      start: match.index,
+      end: match.index + match[0].length,
+      text: match[0],
+      query: query,
+    });
+  }
+
   return mentions.sort((a, b) => a.start - b.start);
 }
 
@@ -57,13 +76,14 @@ export function findMentions(text: string): MentionMatch[] {
  */
 export function parseMessageWithMentions(
   text: string,
-  userMentions: UserMention[] = []
+  userMentions: UserMention[] = [],
+  channelMentions: ChannelMention[] = []
 ): MessageSpan[] {
   const spans: MessageSpan[] = [];
   const mentions = findMentions(text);
-  
+
   let lastIndex = 0;
-  
+
   for (const mention of mentions) {
     // Add plaintext before this mention
     if (mention.start > lastIndex) {
@@ -75,13 +95,13 @@ export function parseMessageWithMentions(
         });
       }
     }
-    
+
     // Find resolved mention
     if (mention.type === 'user') {
       const resolvedUser = userMentions.find(
         user => user.username.toLowerCase() === mention.query.toLowerCase()
       );
-      
+
       if (resolvedUser) {
         spans.push({
           type: SpanType.USER_MENTION,
@@ -102,11 +122,30 @@ export function parseMessageWithMentions(
         text: mention.text,
         specialKind: mention.query,
       });
+    } else if (mention.type === 'channel') {
+      // Channel mentions (#channel-name)
+      const resolvedChannel = channelMentions.find(
+        channel => channel.name.toLowerCase() === mention.query.toLowerCase()
+      );
+
+      if (resolvedChannel) {
+        spans.push({
+          type: SpanType.COMMUNITY_MENTION,
+          text: `#${resolvedChannel.name}`,
+          communityId: resolvedChannel.id,
+        });
+      } else {
+        // Unresolved channel mention becomes plaintext
+        spans.push({
+          type: SpanType.PLAINTEXT,
+          text: mention.text,
+        });
+      }
     }
-    
+
     lastIndex = mention.end;
   }
-  
+
   // Add remaining plaintext
   if (lastIndex < text.length) {
     const remainingText = text.substring(lastIndex);
@@ -117,7 +156,7 @@ export function parseMessageWithMentions(
       });
     }
   }
-  
+
   // If no mentions were found, return single plaintext span
   if (spans.length === 0 && text.trim()) {
     spans.push({
@@ -125,7 +164,7 @@ export function parseMessageWithMentions(
       text: text,
     });
   }
-  
+
   return spans;
 }
 
@@ -154,16 +193,16 @@ export function spansToText(spans: MessageSpan[]): string {
 export function getCurrentMention(
   text: string,
   cursorPosition: number
-): { type: 'user' | 'special'; query: string; start: number; end: number } | null {
+): { type: 'user' | 'special' | 'channel'; query: string; start: number; end: number } | null {
   // Look backwards from cursor to find start of potential mention
   let start = cursorPosition;
-  
+
   // Find the start of the current word/mention
   while (start > 0) {
     const char = text[start - 1];
     if (char === '@') {
       const query = text.substring(start, cursorPosition);
-      
+
       // Validate query (should only contain valid mention characters)
       if (/^[\w\-_]*$/.test(query)) {
         // Determine if this is a special mention
@@ -176,6 +215,19 @@ export function getCurrentMention(
         };
       }
       break;
+    } else if (char === '#') {
+      const query = text.substring(start, cursorPosition);
+
+      // Validate query (should only contain valid mention characters)
+      if (/^[\w\-_]*$/.test(query)) {
+        return {
+          type: 'channel',
+          query,
+          start: start - 1, // Include the #
+          end: cursorPosition,
+        };
+      }
+      break;
     } else if (/[\w\-_]/.test(char)) {
       start--;
     } else {
@@ -183,7 +235,7 @@ export function getCurrentMention(
       break;
     }
   }
-  
+
   return null;
 }
 
@@ -194,26 +246,38 @@ export function getCurrentMention(
 export function insertMention(
   text: string,
   cursorPosition: number,
-  mention: { type: 'user' | 'special'; username?: string; specialKind?: string }
+  mention: { type: 'user' | 'special' | 'channel'; username?: string; specialKind?: string; channelName?: string }
 ): { newText: string; newCursorPosition: number } {
   const currentMention = getCurrentMention(text, cursorPosition);
-  
+
   if (!currentMention) {
     // No current mention, just insert at cursor
-    const mentionText = mention.type === 'user' ? mention.username : mention.specialKind;
-    const insertText = `@${mentionText} `;
-    
+    let insertText: string;
+    if (mention.type === 'user') {
+      insertText = `@${mention.username} `;
+    } else if (mention.type === 'special') {
+      insertText = `@${mention.specialKind} `;
+    } else {
+      insertText = `#${mention.channelName} `;
+    }
+
     const newText = text.slice(0, cursorPosition) + insertText + text.slice(cursorPosition);
     return {
       newText,
       newCursorPosition: cursorPosition + insertText.length,
     };
   }
-  
+
   // Replace current mention
-  const mentionText = mention.type === 'user' ? mention.username : mention.specialKind;
-  const insertText = `@${mentionText} `;
-  
+  let insertText: string;
+  if (mention.type === 'user') {
+    insertText = `@${mention.username} `;
+  } else if (mention.type === 'special') {
+    insertText = `@${mention.specialKind} `;
+  } else {
+    insertText = `#${mention.channelName} `;
+  }
+
   const newText = text.slice(0, currentMention.start) + insertText + text.slice(currentMention.end);
   return {
     newText,

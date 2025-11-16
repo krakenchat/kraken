@@ -15,6 +15,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
 import { AuthenticatedRequest } from '@/types';
+import { setAccessTokenCookie, clearAccessTokenCookie } from './cookie-helper';
 
 @Controller('auth')
 export class AuthController {
@@ -38,7 +39,8 @@ export class AuthController {
       req.user.id,
     );
 
-    // Always set the cookie for web clients
+    // Always set cookies for web clients (access token for browser media, refresh for sessions)
+    setAccessTokenCookie(res, accessToken);
     this.setRefreshCookie(res, refreshToken);
 
     // Check if this is an Electron client
@@ -100,15 +102,18 @@ export class AuthController {
       return this.authService.generateRefreshToken(user.id, tx);
     });
 
-    // Always set cookie for web clients
+    const newAccessToken = this.authService.login(user);
+
+    // Always set cookies for web clients
+    setAccessTokenCookie(res, newAccessToken);
     this.setRefreshCookie(res, token);
 
     // Return new refresh token in body for Electron clients
     if (isElectron) {
-      return { accessToken: this.authService.login(user), refreshToken: token };
+      return { accessToken: newAccessToken, refreshToken: token };
     }
 
-    return { accessToken: this.authService.login(user) };
+    return { accessToken: newAccessToken };
   }
 
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
@@ -130,6 +135,9 @@ export class AuthController {
 
       res.clearCookie(this.REFRESH_TOKEN_COOKIE_NAME);
     }
+
+    // Always clear access token cookie on logout
+    clearAccessTokenCookie(res);
 
     return { message: 'Logged out successfully' };
   }

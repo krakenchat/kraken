@@ -18,17 +18,21 @@ import { useMentionAutocomplete } from "../../hooks/useMentionAutocomplete";
 import {
   parseMessageWithMentions,
   insertMention,
+} from "../../utils/mentionParser";
+import type {
   UserMention,
   ChannelMention,
 } from "../../utils/mentionParser";
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
+import type { Span } from "../../types/message.type";
+import { SpanType } from "../../types/message.type";
 
 export interface ChannelMessageInputProps {
   communityId: string;
   userMentions: UserMention[];
   channelMentions: ChannelMention[];
-  onSendMessage: (messageContent: string, spans: unknown[], files?: File[]) => void;
+  onSendMessage: (messageContent: string, spans: Span[], files?: File[]) => void;
   placeholder?: string;
 }
 
@@ -106,7 +110,7 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
 
       // Backend requires at least one span, so add empty PLAINTEXT if needed
       if (spans.length === 0) {
-        spans = [{ type: 'PLAINTEXT', text: '' }];
+        spans = [{ type: SpanType.PLAINTEXT, text: '' }];
       }
 
       await onSendMessage(messageText, spans, selectedFiles);

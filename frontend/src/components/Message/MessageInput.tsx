@@ -11,14 +11,15 @@
 import React from "react";
 import { ChannelMessageInput } from "./ChannelMessageInput";
 import { DmMessageInput } from "./DmMessageInput";
-import { UserMention, ChannelMention } from "../../utils/mentionParser";
+import type { UserMention, ChannelMention } from "../../utils/mentionParser";
+import type { Span } from "../../types/message.type";
 
 export interface MessageInputProps {
   contextType: 'channel' | 'dm';
   contextId: string;
   userMentions: UserMention[];
   channelMentions?: ChannelMention[];
-  onSendMessage: (messageContent: string, spans: unknown[], files?: File[]) => void;
+  onSendMessage: (messageContent: string, spans: Span[], files?: File[]) => void;
   placeholder?: string;
   communityId?: string; // For channels to use mention autocomplete
 }
