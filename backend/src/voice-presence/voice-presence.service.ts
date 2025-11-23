@@ -167,9 +167,13 @@ export class VoicePresenceService {
       // Stop any active replay buffer egress for this user
       try {
         await this.livekitReplayService.stopReplayBuffer(userId);
-      } catch (error) {
+      } catch (error: unknown) {
         // Ignore if no session found (404), log other errors
-        if ((error as any)?.status !== 404) {
+        const isNotFoundError =
+          error instanceof Error &&
+          'status' in error &&
+          (error as Error & { status: number }).status === 404;
+        if (!isNotFoundError) {
           this.logger.warn(
             `Failed to stop replay buffer on leave for user ${userId}: ${
               error instanceof Error ? error.message : String(error)

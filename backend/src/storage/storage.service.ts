@@ -280,4 +280,3 @@ export class StorageService implements IStorageProvider {
     return this.directoryExistsWithPrefix(relativeDir, this.segmentsPrefix);
   }
 }
-

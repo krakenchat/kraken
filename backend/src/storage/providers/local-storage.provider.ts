@@ -285,4 +285,3 @@ export class LocalStorageProvider implements IStorageProvider {
     return this.directoryExists(fullPath);
   }
 }
-

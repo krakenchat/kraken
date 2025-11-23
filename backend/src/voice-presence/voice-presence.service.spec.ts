@@ -14,7 +14,6 @@ describe('VoicePresenceService', () => {
   let websocketService: WebsocketService;
   let channelsService: ChannelsService;
   let databaseService: DatabaseService;
-  let livekitReplayService: LivekitReplayService;
 
   const mockRedisClient = {
     pipeline: jest.fn().mockReturnValue({
@@ -86,7 +85,6 @@ describe('VoicePresenceService', () => {
     websocketService = module.get<WebsocketService>(WebsocketService);
     channelsService = module.get<ChannelsService>(ChannelsService);
     databaseService = module.get<DatabaseService>(DatabaseService);
-    livekitReplayService = module.get<LivekitReplayService>(LivekitReplayService);
   });
 
   afterEach(() => {

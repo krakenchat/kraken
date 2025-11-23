@@ -180,4 +180,3 @@ export interface IStorageProvider {
     prefix: string,
   ): Promise<boolean>;
 }
-

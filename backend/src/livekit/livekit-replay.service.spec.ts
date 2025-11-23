@@ -92,7 +92,9 @@ describe('LivekitReplayService', () => {
     fileExists: jest.fn(),
     listFiles: jest.fn(),
     // New prefix-aware methods
-    getSegmentsPrefix: jest.fn().mockReturnValue('/app/storage/replay-segments'),
+    getSegmentsPrefix: jest
+      .fn()
+      .mockReturnValue('/app/storage/replay-segments'),
     resolveSegmentPath: jest
       .fn()
       .mockImplementation(
