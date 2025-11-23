@@ -219,16 +219,18 @@ export class FfmpegService {
       ];
 
       const outputOptions = [
-        '-c copy', // Stream copy (no re-encoding)
-        '-movflags +faststart', // Optimize for web playback
+        '-c',
+        'copy', // Stream copy (no re-encoding)
+        '-movflags',
+        '+faststart', // Optimize for web playback
       ];
 
       // Add trim options if provided
       if (trimOptions) {
         // -ss before input is faster but less accurate; after input is frame-accurate
         // Using after input for precision
-        outputOptions.unshift(`-ss ${trimOptions.startOffset}`);
-        outputOptions.push(`-t ${trimOptions.duration}`);
+        outputOptions.unshift('-ss', String(trimOptions.startOffset));
+        outputOptions.push('-t', String(trimOptions.duration));
       }
 
       const command = this.ffmpegProvider

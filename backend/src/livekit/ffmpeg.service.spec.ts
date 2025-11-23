@@ -146,8 +146,10 @@ describe('FfmpegService', () => {
       await service.concatenateSegments(segmentPaths, outputPath);
 
       expect(mockCommand.outputOptions).toHaveBeenCalledWith(
-        '-c copy',
-        '-movflags +faststart',
+        '-c',
+        'copy',
+        '-movflags',
+        '+faststart',
       );
       expect(mockCommand.output).toHaveBeenCalledWith(outputPath);
     });
@@ -159,10 +161,14 @@ describe('FfmpegService', () => {
       });
 
       expect(mockCommand.outputOptions).toHaveBeenCalledWith(
-        '-ss 5',
-        '-c copy',
-        '-movflags +faststart',
-        '-t 60',
+        '-ss',
+        '5',
+        '-c',
+        'copy',
+        '-movflags',
+        '+faststart',
+        '-t',
+        '60',
       );
     });
 
