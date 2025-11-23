@@ -135,8 +135,10 @@ describe('FfmpegService', () => {
         '/tmp/replay-concat-mock-uuid-1234/concat.txt',
       );
       expect(mockCommand.inputOptions).toHaveBeenCalledWith(
-        '-f concat',
-        '-safe 0',
+        '-f',
+        'concat',
+        '-safe',
+        '0',
       );
     });
 

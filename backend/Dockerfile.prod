@@ -41,8 +41,8 @@ FROM node:22-alpine AS production
 ARG GITHUB_REPOSITORY=user/kraken
 ARG BUILD_DATE
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
+# Install OpenSSL for Prisma and FFmpeg for video processing (replay clips)
+RUN apk add --no-cache openssl ffmpeg
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

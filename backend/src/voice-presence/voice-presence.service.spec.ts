@@ -4,6 +4,7 @@ import { RedisService } from '@/redis/redis.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { DatabaseService } from '@/database/database.service';
+import { LivekitReplayService } from '@/livekit/livekit-replay.service';
 import { UserFactory, ChannelFactory } from '@/test-utils';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
@@ -13,6 +14,7 @@ describe('VoicePresenceService', () => {
   let websocketService: WebsocketService;
   let channelsService: ChannelsService;
   let databaseService: DatabaseService;
+  let livekitReplayService: LivekitReplayService;
 
   const mockRedisClient = {
     pipeline: jest.fn().mockReturnValue({
@@ -48,6 +50,10 @@ describe('VoicePresenceService', () => {
     },
   };
 
+  const mockLivekitReplayService = {
+    stopReplayBuffer: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -68,6 +74,10 @@ describe('VoicePresenceService', () => {
           provide: DatabaseService,
           useValue: mockDatabaseService,
         },
+        {
+          provide: LivekitReplayService,
+          useValue: mockLivekitReplayService,
+        },
       ],
     }).compile();
 
@@ -76,6 +86,7 @@ describe('VoicePresenceService', () => {
     websocketService = module.get<WebsocketService>(WebsocketService);
     channelsService = module.get<ChannelsService>(ChannelsService);
     databaseService = module.get<DatabaseService>(DatabaseService);
+    livekitReplayService = module.get<LivekitReplayService>(LivekitReplayService);
   });
 
   afterEach(() => {
