@@ -5,6 +5,7 @@ import { UserEntity } from '@/user/dto/user-response.dto';
 import { ChannelsService } from '@/channels/channels.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { DatabaseService } from '@/database/database.service';
+import { LivekitReplayService } from '@/livekit/livekit-replay.service';
 
 /**
  * Voice presence user data
@@ -49,6 +50,7 @@ export class VoicePresenceService {
     private readonly websocketService: WebsocketService,
     private readonly channelsService: ChannelsService,
     private readonly databaseService: DatabaseService,
+    private readonly livekitReplayService: LivekitReplayService,
   ) {}
 
   /**
@@ -161,6 +163,20 @@ export class VoicePresenceService {
           user: userData,
         },
       );
+
+      // Stop any active replay buffer egress for this user
+      try {
+        await this.livekitReplayService.stopReplayBuffer(userId);
+      } catch (error) {
+        // Ignore if no session found (404), log other errors
+        if ((error as any)?.status !== 404) {
+          this.logger.warn(
+            `Failed to stop replay buffer on leave for user ${userId}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      }
 
       this.logger.log(`User ${userId} left voice channel ${channelId}`);
     } catch (error) {

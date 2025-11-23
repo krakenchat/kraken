@@ -212,8 +212,10 @@ export class FfmpegService {
   ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const inputOptions = [
-        '-f concat', // Use concat demuxer
-        '-safe 0', // Allow absolute paths
+        '-f',
+        'concat', // Use concat demuxer
+        '-safe',
+        '0', // Allow absolute paths
       ];
 
       const outputOptions = [

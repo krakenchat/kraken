@@ -13,6 +13,7 @@ import { AuthModule } from '@/auth/auth.module';
 import { UserModule } from '@/user/user.module';
 import { RolesModule } from '@/roles/roles.module';
 import { DatabaseModule } from '@/database/database.module';
+import { LivekitModule } from '@/livekit/livekit.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DatabaseModule } from '@/database/database.module';
     UserModule,
     RolesModule,
     DatabaseModule,
+    LivekitModule,
   ],
   controllers: [
     VoicePresenceController,

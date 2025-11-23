@@ -415,10 +415,9 @@ export class LivekitReplayService {
           );
 
           // Check if segment directory exists
-          const exists =
-            await this.storageService.segmentDirectoryExists(
-              session.segmentPath,
-            );
+          const exists = await this.storageService.segmentDirectoryExists(
+            session.segmentPath,
+          );
           if (!exists) {
             this.logger.warn(`Segment path does not exist: ${resolvedPath}`);
             continue;
@@ -553,10 +552,10 @@ export class LivekitReplayService {
   /**
    * Reconcile egress status with LiveKit
    *
-   * Runs every 10 minutes to verify that our database status matches LiveKit's actual egress status
+   * Runs every 1 minute to verify that our database status matches LiveKit's actual egress status
    * This catches edge cases where webhooks might have been missed or failed
    */
-  @Cron('*/10 * * * *') // Every 10 minutes
+  @Cron('*/1 * * * *') // Every 1 minute
   async reconcileEgressStatus() {
     this.logger.debug('Running egress status reconciliation...');
 
