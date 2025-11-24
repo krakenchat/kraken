@@ -69,11 +69,15 @@ export const useReplayBuffer = () => {
         return;
       }
 
+      // Get participant identity for track resolution query
+      const participantIdentity = room.localParticipant?.identity;
+
       console.log('[ReplayBuffer] Screen share published, starting replay buffer', {
         channelId: currentVoiceChannel,
         roomName: room.name,
         videoTrackId,
         audioTrackId,
+        participantIdentity,
       });
 
       // Mark operation as pending to prevent concurrent calls
@@ -85,6 +89,7 @@ export const useReplayBuffer = () => {
           roomName: room.name,
           videoTrackId,
           audioTrackId: audioTrackId || '',
+          participantIdentity, // Pass identity for track resolution matching
         }).unwrap();
 
         isActiveRef.current = true;

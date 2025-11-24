@@ -110,6 +110,7 @@ export class LivekitController {
       roomName: dto.roomName,
       videoTrackId: dto.videoTrackId,
       audioTrackId: dto.audioTrackId,
+      participantIdentity: dto.participantIdentity,
     });
   }
 

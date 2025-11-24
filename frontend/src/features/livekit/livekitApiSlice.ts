@@ -21,6 +21,8 @@ export interface StartReplayBufferRequest {
   roomName: string;
   videoTrackId: string;
   audioTrackId: string;
+  /** Participant identity for querying track resolution to match egress encoding */
+  participantIdentity?: string;
 }
 
 export interface ReplayBufferResponse {

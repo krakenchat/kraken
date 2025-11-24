@@ -8,10 +8,15 @@ import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import {
   EgressClient,
+  RoomServiceClient,
   SegmentedFileOutput,
   SegmentedFileProtocol,
+  EncodingOptions,
   EncodingOptionsPreset,
   EgressStatus,
+  VideoCodec,
+  AudioCodec,
+  TrackType,
 } from 'livekit-server-sdk';
 import { Prisma } from '@prisma/client';
 import { ObjectId } from 'mongodb';
@@ -40,6 +45,7 @@ import * as path from 'path';
 export class LivekitReplayService {
   private readonly logger = new Logger(LivekitReplayService.name);
   private readonly egressClient: EgressClient;
+  private readonly roomServiceClient: RoomServiceClient;
   private readonly segmentsPath: string;
   private readonly egressOutputPath: string;
   private readonly clipsPath: string;
@@ -66,6 +72,11 @@ export class LivekitReplayService {
     }
 
     this.egressClient = new EgressClient(livekitUrl, apiKey, apiSecret);
+    this.roomServiceClient = new RoomServiceClient(
+      livekitUrl,
+      apiKey,
+      apiSecret,
+    );
 
     // Load configuration
     // segmentsPath is now loaded from StorageService which handles prefix resolution
@@ -99,7 +110,8 @@ export class LivekitReplayService {
   /**
    * Start replay buffer egress for a user's screen share
    *
-   * Automatically stops any existing active session for the user before starting new one
+   * Automatically stops any existing active session for the user before starting new one.
+   * Queries the source track to match encoding resolution to the actual screen share quality.
    */
   async startReplayBuffer(params: {
     userId: string;
@@ -107,8 +119,16 @@ export class LivekitReplayService {
     roomName: string;
     videoTrackId: string;
     audioTrackId: string;
+    participantIdentity?: string;
   }) {
-    const { userId, channelId, roomName, videoTrackId, audioTrackId } = params;
+    const {
+      userId,
+      channelId,
+      roomName,
+      videoTrackId,
+      audioTrackId,
+      participantIdentity,
+    } = params;
 
     this.logger.log(
       `Starting replay buffer for user ${userId} in room ${roomName}`,
@@ -150,6 +170,52 @@ export class LivekitReplayService {
     };
 
     try {
+      // Query track resolution to match egress encoding to source quality
+      let encodingOptions: EncodingOptions | EncodingOptionsPreset =
+        EncodingOptionsPreset.H264_1080P_30;
+
+      if (participantIdentity) {
+        try {
+          const participant = await this.roomServiceClient.getParticipant(
+            roomName,
+            participantIdentity,
+          );
+
+          const videoTrack = participant.tracks.find(
+            (track) =>
+              track.sid === videoTrackId && track.type === TrackType.VIDEO,
+          );
+
+          if (videoTrack?.width && videoTrack?.height) {
+            // Create custom encoding options matching source track resolution
+            encodingOptions = new EncodingOptions({
+              width: videoTrack.width,
+              height: videoTrack.height,
+              framerate: 30, // Cap at 30fps for reasonable file sizes
+              videoCodec: VideoCodec.H264_HIGH,
+              audioBitrate: 128000, // 128kbps audio
+              audioCodec: AudioCodec.OPUS,
+            });
+
+            this.logger.log(
+              `Using source track resolution: ${videoTrack.width}x${videoTrack.height}`,
+            );
+          } else {
+            this.logger.warn(
+              `Track ${videoTrackId} has no resolution info, using default preset`,
+            );
+          }
+        } catch (queryError) {
+          this.logger.warn(
+            `Failed to query track resolution, using default preset: ${getErrorMessage(queryError)}`,
+          );
+        }
+      } else {
+        this.logger.log(
+          'No participantIdentity provided, using default encoding preset',
+        );
+      }
+
       // Start track composite egress
       const egressInfo = await this.egressClient.startTrackCompositeEgress(
         roomName,
@@ -157,7 +223,7 @@ export class LivekitReplayService {
         {
           videoTrackId,
           audioTrackId,
-          encodingOptions: EncodingOptionsPreset.H264_1080P_60,
+          encodingOptions,
         },
       );
 

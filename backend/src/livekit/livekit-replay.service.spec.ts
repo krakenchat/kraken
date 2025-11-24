@@ -17,12 +17,27 @@ jest.mock('livekit-server-sdk', () => ({
     stopEgress: jest.fn(),
     listEgress: jest.fn(),
   })),
+  RoomServiceClient: jest.fn().mockImplementation(() => ({
+    getParticipant: jest.fn(),
+  })),
   SegmentedFileOutput: jest.fn(),
   SegmentedFileProtocol: {
     HLS_PROTOCOL: 'HLS_PROTOCOL',
   },
+  EncodingOptions: jest.fn().mockImplementation((opts) => opts),
   EncodingOptionsPreset: {
+    H264_1080P_30: 'H264_1080P_30',
     H264_1080P_60: 'H264_1080P_60',
+  },
+  VideoCodec: {
+    H264_HIGH: 'H264_HIGH',
+  },
+  AudioCodec: {
+    OPUS: 'OPUS',
+  },
+  TrackType: {
+    VIDEO: 1,
+    AUDIO: 2,
   },
   EgressStatus: {
     EGRESS_COMPLETE: 4,
