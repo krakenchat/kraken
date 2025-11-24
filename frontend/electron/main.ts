@@ -211,6 +211,8 @@ function createWindow() {
       // Enable preload script
       preload: path.join(__dirname, 'preload.cjs'),
     },
+    // Enable fullscreen for HTML5 video elements
+    fullscreenable: true,
     // Better default window style
     backgroundColor: '#1a1a1a',
     show: false, // Don't show until ready
@@ -244,9 +246,9 @@ function createWindow() {
 
 // When Electron has finished initialization
 app.whenReady().then(() => {
-  // Setup media permissions for camera, microphone, and screen sharing
+  // Setup media permissions for camera, microphone, screen sharing, and fullscreen
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowedPermissions = ['media', 'display-capture'];
+    const allowedPermissions = ['media', 'display-capture', 'fullscreen'];
 
     if (allowedPermissions.includes(permission)) {
       console.log(`Granting permission: ${permission}`);
