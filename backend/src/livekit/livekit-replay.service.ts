@@ -1049,6 +1049,24 @@ export class LivekitReplayService {
       );
 
       messageId = message.id;
+
+      // Emit websocket event for real-time notification
+      const enrichedMessage =
+        await this.messagesService.enrichMessageWithFileMetadata(message);
+
+      if (dto.destination === 'channel' && dto.targetChannelId) {
+        this.websocketService.sendToRoom(
+          dto.targetChannelId,
+          ServerEvents.NEW_MESSAGE,
+          { message: enrichedMessage },
+        );
+      } else if (dto.destination === 'dm' && dto.targetDirectMessageGroupId) {
+        this.websocketService.sendToRoom(
+          dto.targetDirectMessageGroupId,
+          ServerEvents.NEW_DM,
+          { message: enrichedMessage },
+        );
+      }
     } else {
       this.logger.log(
         `Clip saved to library only (destination: ${dto.destination})`,
