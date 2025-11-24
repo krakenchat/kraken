@@ -870,9 +870,28 @@ export class LivekitReplayService {
     );
 
     // 8. Get ACTUAL duration from FFmpeg probe (not estimated)
-    const actualDurationRaw =
-      await this.ffmpegService.getVideoDuration(clipPath);
-    const actualDurationSeconds = Math.round(actualDurationRaw);
+    let actualDurationSeconds: number;
+    try {
+      const actualDurationRaw =
+        await this.ffmpegService.getVideoDuration(clipPath);
+      actualDurationSeconds = Math.round(actualDurationRaw);
+      // Fallback to estimated duration if probe fails or returns invalid value
+      if (
+        !Number.isFinite(actualDurationSeconds) ||
+        actualDurationSeconds <= 0
+      ) {
+        this.logger.warn(
+          `FFprobe returned invalid duration (${actualDurationRaw}), using estimated: ${estimatedDurationSeconds}s`,
+        );
+        actualDurationSeconds = estimatedDurationSeconds;
+      }
+    } catch (probeError) {
+      this.logger.warn(
+        `FFprobe failed, using estimated duration: ${estimatedDurationSeconds}s`,
+        probeError,
+      );
+      actualDurationSeconds = estimatedDurationSeconds;
+    }
 
     this.logger.log(
       `Actual video duration: ${actualDurationSeconds}s (estimated: ${estimatedDurationSeconds}s)`,
@@ -904,8 +923,8 @@ export class LivekitReplayService {
     // 8. Create ReplayClip record
     const clip = await this.databaseService.replayClip.create({
       data: {
-        userId,
-        fileId: file.id,
+        user: { connect: { id: userId } },
+        file: { connect: { id: file.id } },
         channelId: session.channelId,
         durationSeconds: actualDurationSeconds,
       },
