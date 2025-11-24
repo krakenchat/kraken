@@ -61,6 +61,15 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     // Reaction management
     RbacActions.CREATE_REACTION,
     RbacActions.DELETE_REACTION,
+
+    // Instance administration (for instance admins)
+    RbacActions.READ_INSTANCE_SETTINGS,
+    RbacActions.UPDATE_INSTANCE_SETTINGS,
+    RbacActions.READ_INSTANCE_STATS,
+    RbacActions.BAN_USER,
+    RbacActions.READ_USER,
+    RbacActions.UPDATE_USER,
+    RbacActions.DELETE_USER,
   ],
 };
 

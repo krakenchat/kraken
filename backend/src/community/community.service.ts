@@ -165,4 +165,183 @@ export class CommunityService {
       throw new NotFoundException('Community not found');
     }
   }
+
+  // ============================================
+  // Admin Community Management Methods
+  // ============================================
+
+  /**
+   * Get all communities with stats for admin dashboard
+   */
+  async findAllWithStats(
+    limit: number = 50,
+    continuationToken?: string,
+    search?: string,
+  ): Promise<{
+    communities: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      avatar: string | null;
+      banner: string | null;
+      createdAt: Date;
+      memberCount: number;
+      channelCount: number;
+    }>;
+    continuationToken?: string;
+  }> {
+    const whereClause: { name?: { contains: string; mode: 'insensitive' } } =
+      {};
+
+    if (search) {
+      whereClause.name = { contains: search, mode: 'insensitive' };
+    }
+
+    const communities = await this.databaseService.community.findMany({
+      where: whereClause,
+      take: limit + 1,
+      orderBy: { createdAt: 'desc' },
+      ...(continuationToken
+        ? { cursor: { id: continuationToken }, skip: 1 }
+        : {}),
+      include: {
+        _count: {
+          select: {
+            memberships: true,
+            channels: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = communities.length > limit;
+    const resultCommunities = hasMore ? communities.slice(0, -1) : communities;
+
+    return {
+      communities: resultCommunities.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        avatar: c.avatar,
+        banner: c.banner,
+        createdAt: c.createdAt,
+        memberCount: c._count.memberships,
+        channelCount: c._count.channels,
+      })),
+      continuationToken: hasMore
+        ? resultCommunities[resultCommunities.length - 1].id
+        : undefined,
+    };
+  }
+
+  /**
+   * Get a single community with detailed stats for admin
+   */
+  async findOneWithStats(id: string): Promise<{
+    id: string;
+    name: string;
+    description: string | null;
+    avatar: string | null;
+    banner: string | null;
+    createdAt: Date;
+    memberCount: number;
+    channelCount: number;
+    messageCount: number;
+  }> {
+    const community = await this.databaseService.community.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            memberships: true,
+            channels: true,
+          },
+        },
+      },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found');
+    }
+
+    // Get message count for this community
+    const messageCount = await this.databaseService.message.count({
+      where: {
+        channel: {
+          communityId: id,
+        },
+        deletedAt: null,
+      },
+    });
+
+    return {
+      id: community.id,
+      name: community.name,
+      description: community.description,
+      avatar: community.avatar,
+      banner: community.banner,
+      createdAt: community.createdAt,
+      memberCount: community._count.memberships,
+      channelCount: community._count.channels,
+      messageCount,
+    };
+  }
+
+  /**
+   * Force delete a community (admin action - bypasses ownership check)
+   */
+  async forceRemove(id: string): Promise<void> {
+    const community = await this.databaseService.community.findUnique({
+      where: { id },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found');
+    }
+
+    try {
+      await this.databaseService.$transaction(async (tx) => {
+        // Delete all channel memberships for channels in this community
+        await tx.channelMembership.deleteMany({
+          where: {
+            channel: {
+              communityId: id,
+            },
+          },
+        });
+
+        // Delete all messages in channels of this community
+        await tx.message.deleteMany({
+          where: {
+            channel: {
+              communityId: id,
+            },
+          },
+        });
+
+        // Delete all channels
+        await tx.channel.deleteMany({
+          where: { communityId: id },
+        });
+
+        // Delete all user roles for this community
+        await tx.userRoles.deleteMany({
+          where: { communityId: id },
+        });
+
+        // Delete all memberships
+        await tx.membership.deleteMany({
+          where: { communityId: id },
+        });
+
+        // Finally delete the community
+        await tx.community.delete({
+          where: { id },
+        });
+      });
+    } catch (error) {
+      this.logger.error('Error force removing community', error);
+      throw error;
+    }
+  }
 }

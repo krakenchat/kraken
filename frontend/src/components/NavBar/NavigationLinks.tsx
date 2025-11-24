@@ -48,7 +48,7 @@ const NavigationLinks: React.FC<NavigationLinksProps> = ({
         </>
       ) : (
         <>
-          {canViewInvites && <NavLink to="/admin/invites">Invites</NavLink>}
+          {canViewInvites && <NavLink to="/admin">Admin</NavLink>}
           <Button
             onClick={handleLogout}
             disabled={logoutLoading}

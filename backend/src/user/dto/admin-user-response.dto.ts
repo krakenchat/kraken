@@ -1,39 +1,30 @@
-import { $Enums, User } from '@prisma/client';
 import { Exclude } from 'class-transformer';
+import { $Enums, User } from '@prisma/client';
 
-export class UserEntity implements User {
+/**
+ * Admin-level user response that includes ban status and other sensitive fields
+ */
+export class AdminUserEntity implements User {
   id: string;
   username: string;
-
-  @Exclude()
   email: string | null;
-
-  @Exclude()
   verified: boolean;
   role: $Enums.InstanceRole;
-
-  @Exclude()
   createdAt: Date;
-
-  @Exclude()
-  hashedPassword: string;
-
   avatarUrl: string | null;
   bannerUrl: string | null;
   lastSeen: Date | null;
   displayName: string | null;
 
-  // Ban status (excluded from public responses by default)
-  @Exclude()
+  // Ban status (visible to admins)
   banned: boolean;
-
-  @Exclude()
   bannedAt: Date | null;
-
-  @Exclude()
   bannedById: string | null;
 
-  constructor(partial: Partial<UserEntity>) {
+  @Exclude()
+  hashedPassword: string;
+
+  constructor(partial: Partial<AdminUserEntity>) {
     Object.assign(this, partial);
   }
 }

@@ -57,6 +57,7 @@ export type MockDatabaseService = {
   file: MockPrismaModel;
   refreshToken: MockPrismaModel;
   instanceInvite: MockPrismaModel;
+  instanceSettings: MockPrismaModel;
   aliasGroup: MockPrismaModel;
   aliasGroupMember: MockPrismaModel;
   readReceipt: MockPrismaModel;
@@ -115,6 +116,7 @@ export function createMockDatabase(): MockDatabaseService {
     file: createMockPrismaModel(),
     refreshToken: createMockPrismaModel(),
     instanceInvite: createMockPrismaModel(),
+    instanceSettings: createMockPrismaModel(),
     aliasGroup: createMockPrismaModel(),
     aliasGroupMember: createMockPrismaModel(),
     readReceipt: createMockPrismaModel(),

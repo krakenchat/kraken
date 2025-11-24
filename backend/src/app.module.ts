@@ -31,6 +31,7 @@ import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
 import { ReadReceiptsModule } from './read-receipts/read-receipts.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { InstanceModule } from './instance/instance.module';
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     DirectMessagesModule,
     FileUploadModule,
     FileModule,
+    InstanceModule,
   ],
   controllers: [AppController],
   providers: [

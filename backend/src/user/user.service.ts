@@ -1,10 +1,12 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { InstanceInvite, InstanceRole, User, Prisma } from '@prisma/client';
+import { AdminUserEntity } from './dto/admin-user-response.dto';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { InviteService } from '../invite/invite.service';
@@ -251,5 +253,192 @@ export class UserService {
     });
 
     return new UserEntity(updatedUser);
+  }
+
+  // ============================================
+  // Admin User Management Methods
+  // ============================================
+
+  /**
+   * Get all users with admin-level details (includes ban status)
+   */
+  async findAllAdmin(
+    limit: number = 50,
+    continuationToken?: string,
+    filters?: {
+      banned?: boolean;
+      role?: InstanceRole;
+      search?: string;
+    },
+  ): Promise<{ users: AdminUserEntity[]; continuationToken?: string }> {
+    const whereClause: Prisma.UserWhereInput = {};
+
+    if (filters?.banned !== undefined) {
+      whereClause.banned = filters.banned;
+    }
+
+    if (filters?.role) {
+      whereClause.role = filters.role;
+    }
+
+    if (filters?.search) {
+      whereClause.OR = [
+        { username: { contains: filters.search, mode: 'insensitive' } },
+        { email: { contains: filters.search, mode: 'insensitive' } },
+        { displayName: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const query = {
+      where: whereClause,
+      take: limit + 1, // Fetch one extra to determine if there are more
+      orderBy: { createdAt: 'desc' as const },
+      ...(continuationToken
+        ? { cursor: { id: continuationToken }, skip: 1 }
+        : {}),
+    };
+
+    const users = await this.database.user.findMany(query);
+    const hasMore = users.length > limit;
+    const resultUsers = hasMore ? users.slice(0, -1) : users;
+
+    return {
+      users: resultUsers.map((u) => new AdminUserEntity(u)),
+      continuationToken: hasMore
+        ? resultUsers[resultUsers.length - 1].id
+        : undefined,
+    };
+  }
+
+  /**
+   * Update a user's instance role (OWNER/USER)
+   */
+  async updateUserRole(
+    targetUserId: string,
+    newRole: InstanceRole,
+    actingUserId: string,
+  ): Promise<AdminUserEntity> {
+    const targetUser = await this.findById(targetUserId);
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const actingUser = await this.findById(actingUserId);
+    if (!actingUser) {
+      throw new NotFoundException('Acting user not found');
+    }
+
+    // Only OWNER can change roles
+    if (actingUser.role !== InstanceRole.OWNER) {
+      throw new ForbiddenException(
+        'Only instance owners can change user roles',
+      );
+    }
+
+    // Prevent demoting yourself if you're the last owner
+    if (
+      targetUserId === actingUserId &&
+      targetUser.role === InstanceRole.OWNER &&
+      newRole !== InstanceRole.OWNER
+    ) {
+      const ownerCount = await this.database.user.count({
+        where: { role: InstanceRole.OWNER },
+      });
+      if (ownerCount <= 1) {
+        throw new ForbiddenException(
+          'Cannot demote the last owner. Promote another user first.',
+        );
+      }
+    }
+
+    const updatedUser = await this.database.user.update({
+      where: { id: targetUserId },
+      data: { role: newRole },
+    });
+
+    return new AdminUserEntity(updatedUser);
+  }
+
+  /**
+   * Ban or unban a user
+   */
+  async setBanStatus(
+    targetUserId: string,
+    banned: boolean,
+    actingUserId: string,
+  ): Promise<AdminUserEntity> {
+    const targetUser = await this.findById(targetUserId);
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Cannot ban yourself
+    if (targetUserId === actingUserId) {
+      throw new ForbiddenException('Cannot ban yourself');
+    }
+
+    // Cannot ban an OWNER
+    if (targetUser.role === InstanceRole.OWNER) {
+      throw new ForbiddenException('Cannot ban an instance owner');
+    }
+
+    const updatedUser = await this.database.user.update({
+      where: { id: targetUserId },
+      data: {
+        banned,
+        bannedAt: banned ? new Date() : null,
+        bannedById: banned ? actingUserId : null,
+      },
+    });
+
+    return new AdminUserEntity(updatedUser);
+  }
+
+  /**
+   * Delete a user account (admin action)
+   */
+  async deleteUser(targetUserId: string, actingUserId: string): Promise<void> {
+    const targetUser = await this.findById(targetUserId);
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const actingUser = await this.findById(actingUserId);
+    if (!actingUser) {
+      throw new NotFoundException('Acting user not found');
+    }
+
+    // Cannot delete yourself
+    if (targetUserId === actingUserId) {
+      throw new ForbiddenException(
+        'Cannot delete your own account through admin panel',
+      );
+    }
+
+    // Only OWNER can delete users
+    if (actingUser.role !== InstanceRole.OWNER) {
+      throw new ForbiddenException('Only instance owners can delete users');
+    }
+
+    // Cannot delete another OWNER
+    if (targetUser.role === InstanceRole.OWNER) {
+      throw new ForbiddenException('Cannot delete an instance owner');
+    }
+
+    // Delete user and cascade will handle related records
+    await this.database.user.delete({
+      where: { id: targetUserId },
+    });
+  }
+
+  /**
+   * Get a single user with admin-level details
+   */
+  async findByIdAdmin(userId: string): Promise<AdminUserEntity | null> {
+    const user = await this.findById(userId);
+    if (!user) {
+      return null;
+    }
+    return new AdminUserEntity(user);
   }
 }

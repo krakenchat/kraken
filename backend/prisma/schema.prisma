@@ -112,6 +112,13 @@ model User {
   lastSeen       DateTime?
   displayName    String?
 
+  // Ban status
+  banned     Boolean   @default(false)
+  bannedAt   DateTime?
+  bannedById String?   @db.ObjectId
+  bannedBy   User?     @relation("BannedByUser", fields: [bannedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  bannedUsers User[]   @relation("BannedByUser")
+
   InstanceInvite InstanceInvite[]
 
   UserRoles UserRoles[]
@@ -158,6 +165,21 @@ model InstanceInvite {
   createdAt          DateTime  @default(now())
   usedByIds          String[]  @db.ObjectId
   disabled           Boolean   @default(false)
+}
+
+model InstanceSettings {
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
+  name             String             @default("Kraken")
+  description      String?
+  registrationMode RegistrationMode   @default(INVITE_ONLY)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+enum RegistrationMode {
+  OPEN        // Anyone can register
+  INVITE_ONLY // Requires an invite code
+  CLOSED      // Registration disabled
 }
 
 model Membership {
@@ -427,6 +449,11 @@ enum RbacActions {
   UPDATE_INSTANCE_INVITE
   UPDATE_MEMBER
   CAPTURE_REPLAY
+  // Instance administration
+  READ_INSTANCE_SETTINGS
+  UPDATE_INSTANCE_SETTINGS
+  READ_INSTANCE_STATS
+  BAN_USER
 }
 
 enum InstanceRole {

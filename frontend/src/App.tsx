@@ -7,6 +7,13 @@ import CreateCommunityPage from "./pages/CreateCommunityPage";
 import EditCommunityPage from "./pages/EditCommunityPage";
 import JoinInvitePage from "./pages/JoinInvitePage";
 import AdminInvitePage from "./pages/AdminInvitePage";
+import AdminLayout from "./components/admin/AdminLayout";
+import {
+  AdminDashboard,
+  AdminUsersPage,
+  AdminCommunitiesPage,
+  AdminSettingsPage,
+} from "./pages/admin";
 import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -127,8 +134,16 @@ function App() {
               <Route path="/" element={<Layout />}>
                 <Route index element={<HomePage />} />
                 <Route path="direct-messages" element={<DirectMessagesPage />} />
-                <Route path="admin/invites" element={<AdminInvitePage />} />
                 <Route path="settings" element={<SettingsPage />} />
+
+                {/* Admin routes with dedicated layout */}
+                <Route path="admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="communities" element={<AdminCommunitiesPage />} />
+                  <Route path="invites" element={<AdminInvitePage />} />
+                  <Route path="settings" element={<AdminSettingsPage />} />
+                </Route>
                 <Route path="profile/edit" element={<ProfileEditPage />} />
                 <Route path="profile/:userId" element={<ProfilePage />} />
                 <Route path="community/create" element={<CreateCommunityPage />} />

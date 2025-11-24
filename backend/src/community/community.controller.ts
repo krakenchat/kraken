@@ -9,6 +9,9 @@ import {
   UseGuards,
   Req,
   HttpCode,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { CommunityService } from './community.service';
@@ -87,5 +90,48 @@ export class CommunityController {
   })
   remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.communityService.remove(id);
+  }
+
+  // ============================================
+  // Admin Community Management Endpoints
+  // ============================================
+
+  /**
+   * Get all communities with stats for admin dashboard
+   */
+  @Get('admin/list')
+  @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  findAllWithStats(
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('continuationToken') continuationToken?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.communityService.findAllWithStats(
+      limit,
+      continuationToken,
+      search,
+    );
+  }
+
+  /**
+   * Get a single community with detailed stats for admin
+   */
+  @Get('admin/:id')
+  @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  findOneWithStats(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.communityService.findOneWithStats(id);
+  }
+
+  /**
+   * Force delete a community (admin action - bypasses ownership check)
+   */
+  @Delete('admin/:id')
+  @HttpCode(204)
+  @RequiredActions(RbacActions.DELETE_COMMUNITY)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  forceRemove(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.communityService.forceRemove(id);
   }
 }

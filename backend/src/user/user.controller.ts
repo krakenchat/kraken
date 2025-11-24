@@ -10,15 +10,21 @@ import {
   ParseIntPipe,
   Patch,
   Req,
+  Delete,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEntity } from './dto/user-response.dto';
+import { AdminUserEntity } from './dto/admin-user-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { BanUserDto } from './dto/ban-user.dto';
 import { Public } from '@/auth/public.decorator';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
-import { RbacActions } from '@prisma/client';
+import { InstanceRole, RbacActions } from '@prisma/client';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
 
@@ -113,5 +119,91 @@ export class UserController {
     @Query('continuationToken') continuationToken?: string,
   ): Promise<{ users: UserEntity[]; continuationToken?: string }> {
     return this.userService.findAll(limit, continuationToken);
+  }
+
+  // ============================================
+  // Admin User Management Endpoints
+  // ============================================
+
+  /**
+   * Get all users with admin-level details (includes ban status)
+   */
+  @Get('admin/list')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.READ_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async findAllUsersAdmin(
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('continuationToken') continuationToken?: string,
+    @Query('banned', new DefaultValuePipe(undefined)) banned?: string,
+    @Query('role') role?: InstanceRole,
+    @Query('search') search?: string,
+  ): Promise<{ users: AdminUserEntity[]; continuationToken?: string }> {
+    const filters = {
+      banned: banned === 'true' ? true : banned === 'false' ? false : undefined,
+      role,
+      search,
+    };
+    return this.userService.findAllAdmin(limit, continuationToken, filters);
+  }
+
+  /**
+   * Get a single user with admin-level details
+   */
+  @Get('admin/:id')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.READ_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async getUserByIdAdmin(@Param('id') id: string): Promise<AdminUserEntity> {
+    const user = await this.userService.findByIdAdmin(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  /**
+   * Update a user's instance role (OWNER/USER)
+   */
+  @Patch('admin/:id/role')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async updateUserRole(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateUserRoleDto,
+  ): Promise<AdminUserEntity> {
+    return this.userService.updateUserRole(id, dto.role, req.user.id);
+  }
+
+  /**
+   * Ban or unban a user
+   */
+  @Patch('admin/:id/ban')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.BAN_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async setBanStatus(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: BanUserDto,
+  ): Promise<AdminUserEntity> {
+    return this.userService.setBanStatus(id, dto.banned, req.user.id);
+  }
+
+  /**
+   * Delete a user account (admin action)
+   */
+  @Delete('admin/:id')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.DELETE_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async deleteUser(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<{ success: boolean }> {
+    await this.userService.deleteUser(id, req.user.id);
+    return { success: true };
   }
 }
