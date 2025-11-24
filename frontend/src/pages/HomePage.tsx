@@ -81,7 +81,7 @@ const DesktopHomePage: React.FC = () => {
       setLastCreatedInvite(newInvite.code);
 
       // Auto-copy the invite link
-      const inviteUrl = `${window.location.origin}/join/${newInvite.code}`;
+      const inviteUrl = `${window.location.origin}/#/join/${newInvite.code}`;
       await navigator.clipboard.writeText(inviteUrl);
       setSnackbarOpen(true);
     } catch (error) {
@@ -91,7 +91,7 @@ const DesktopHomePage: React.FC = () => {
 
   const handleCopyInvite = async () => {
     if (lastCreatedInvite) {
-      const inviteUrl = `${window.location.origin}/join/${lastCreatedInvite}`;
+      const inviteUrl = `${window.location.origin}/#/join/${lastCreatedInvite}`;
       await navigator.clipboard.writeText(inviteUrl);
       setSnackbarOpen(true);
     }

@@ -67,7 +67,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
   });
 
   const getInviteUrl = (code: string) => {
-    return `${window.location.origin}/join/${code}`;
+    return `${window.location.origin}/#/join/${code}`;
   };
 
   const handleCopyInvite = async (code: string) => {
