@@ -20,10 +20,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromExtractors([
         // Primary: Authorization header
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-        // Fallback: Cookie (for browser <img>, <video> tags)
+        // Fallback 1: Cookie (for same-origin browser requests)
         (req: Request): string | null => {
           const cookies = req?.cookies as Record<string, string> | undefined;
           return cookies?.access_token || null;
+        },
+        // Fallback 2: Query parameter (for embedded <img>, <video> tags in Electron/cross-origin)
+        // This allows URLs like /api/file/123?token=<jwt> for embedded resources
+        (req: Request): string | null => {
+          const token = req?.query?.token;
+          if (typeof token === 'string' && token.length > 0) {
+            return token;
+          }
+          return null;
         },
       ]),
       ignoreExpiration: false,

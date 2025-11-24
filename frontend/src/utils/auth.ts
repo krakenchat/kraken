@@ -88,3 +88,50 @@ export function clearAuthToken(): void {
 export function isAuthenticated(): boolean {
   return getAuthToken() !== null;
 }
+
+/**
+ * Append authentication token to a URL as a query parameter
+ *
+ * This is needed for embedded resources (<img>, <video>, <source> tags) that
+ * cannot use Authorization headers or may not receive cookies in cross-origin
+ * contexts (e.g., Electron app loading resources from the API server).
+ *
+ * The backend JWT strategy accepts tokens via:
+ * 1. Authorization header (primary)
+ * 2. Cookie (same-origin browser requests)
+ * 3. Query parameter ?token=<jwt> (for embedded resources)
+ *
+ * @param url - The URL to authenticate (can be relative or absolute)
+ * @returns The URL with token appended, or original URL if no token available
+ *
+ * @example
+ * // For video tags in Electron
+ * <video src={getAuthenticatedUrl('/api/file/123')} />
+ *
+ * // For HLS.js playlist URLs
+ * hls.loadSource(getAuthenticatedUrl('/api/livekit/replay/preview/playlist.m3u8'));
+ */
+export function getAuthenticatedUrl(url: string): string {
+  const token = getAuthToken();
+
+  if (!token) {
+    logger.warn('[Auth] No token available for authenticated URL');
+    return url;
+  }
+
+  try {
+    // Handle both absolute and relative URLs
+    const urlObj = new URL(url, window.location.origin);
+
+    // Don't add token if it's already present
+    if (urlObj.searchParams.has('token')) {
+      return url;
+    }
+
+    urlObj.searchParams.set('token', token);
+    return urlObj.toString();
+  } catch (error) {
+    logger.error('[Auth] Error creating authenticated URL:', error);
+    return url;
+  }
+}

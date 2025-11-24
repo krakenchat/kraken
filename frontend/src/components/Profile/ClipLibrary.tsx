@@ -47,7 +47,7 @@ import { useGetChannelsForCommunityQuery } from '../../features/channel/channelA
 import { useGetUserDmGroupsQuery } from '../../features/directMessages/directMessagesApiSlice';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
-import { getAuthToken } from '../../utils/auth';
+import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
 import type { Community } from '../../types/community.type';
 import type { Channel } from '../../types/channel.type';
 import type { DirectMessageGroup } from '../../types/direct-message.type';
@@ -112,7 +112,7 @@ const ClipCard: React.FC<{
           crossOrigin="use-credentials"
           aria-label={`Video clip: ${clip.filename}`}
         >
-          <source src={getApiUrl(clip.downloadUrl)} type="video/mp4" />
+          <source src={getAuthenticatedUrl(getApiUrl(clip.downloadUrl))} type="video/mp4" />
           Your browser does not support video playback.
         </video>
       </Box>

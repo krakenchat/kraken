@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material';
 import Hls from 'hls.js';
 import { getApiUrl } from '../../config/env';
+import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
 import { useGetSessionInfoQuery } from '../../features/livekit/livekitApiSlice';
 
 interface TrimPreviewProps {
@@ -88,7 +89,8 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
     if (!videoRef.current || !sessionInfo?.hasActiveSession || !maxDuration) return;
 
     const video = videoRef.current;
-    const playlistUrl = getApiUrl('/livekit/replay/preview/playlist.m3u8');
+    // Use authenticated URL for embedded resources (works in Electron cross-origin)
+    const playlistUrl = getAuthenticatedUrl(getApiUrl('/livekit/replay/preview/playlist.m3u8'));
 
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -102,8 +104,14 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
         // Relax parsing strictness for HDMV-style MPEG-TS
         stretchShortVideoTrack: true,
         forceKeyFrameOnDiscontinuity: true,
-        xhrSetup: (xhr) => {
+        xhrSetup: (xhr, _url) => {
+          // Send cookies for same-origin requests
           xhr.withCredentials = true;
+          // Also set Authorization header as backup (more reliable for XHR)
+          const token = getAuthToken();
+          if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }
         },
       });
 
@@ -173,6 +181,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
         hlsRef.current = null;
       };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari native HLS - uses authenticated URL with token query param
       video.src = playlistUrl;
       const handleLoadedMetadata = () => {
         setIsLoading(false);
