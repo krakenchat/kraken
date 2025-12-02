@@ -2,6 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { VoiceBottomBar } from '../Voice/VoiceBottomBar';
+import { AudioRenderer } from '../Voice/AudioRenderer';
 import { MobileNavigationProvider } from './Navigation/MobileNavigationContext';
 import { MobileBottomNavigation } from './Navigation/MobileBottomNavigation';
 import { MobilePanelContainer } from './Panels/MobilePanelContainer';
@@ -46,6 +47,9 @@ export const MobileLayout: React.FC = () => {
 
         {/* Voice bar (only shows when in call) */}
         {hasVoiceBar && <VoiceBottomBar />}
+
+        {/* Audio renderer for remote participants */}
+        <AudioRenderer />
 
         {/* Bottom navigation - always visible */}
         <MobileBottomNavigation />

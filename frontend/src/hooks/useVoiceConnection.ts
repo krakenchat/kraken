@@ -118,8 +118,8 @@ export const useVoiceConnection = () => {
   }, [dispatch, getRoom]);
 
   const handleToggleDeafen = useCallback(async () => {
-    await dispatch(toggleDeafenUnified()).unwrap();
-  }, [dispatch]);
+    await dispatch(toggleDeafenUnified({ getRoom })).unwrap();
+  }, [dispatch, getRoom]);
 
   const handleSetShowVideoTiles = useCallback(
     (show: boolean) => {

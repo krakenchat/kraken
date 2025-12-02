@@ -8,7 +8,7 @@ import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
 import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
-import { VoiceBottomBar } from "./components/Voice";
+import { VoiceBottomBar, AudioRenderer } from "./components/Voice";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
@@ -175,6 +175,7 @@ const Layout: React.FC = () => {
 
       {/* Voice Components */}
       <VoiceBottomBar />
+      <AudioRenderer />
     </ReplayBufferProvider>
   );
 };

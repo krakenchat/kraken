@@ -1,4 +1,4 @@
-import { createAsyncThunk, Dispatch, UnknownAction } from "@reduxjs/toolkit";
+import { createAsyncThunk } from "@reduxjs/toolkit";
 import { Room, VideoCaptureOptions } from "livekit-client";
 import { Socket } from "socket.io-client";
 import { RootState } from "../../app/store";
@@ -8,10 +8,6 @@ import {
   setDmConnected,
   setDisconnected,
   setConnectionError,
-  setAudioEnabled,
-  setVideoEnabled,
-  setScreenSharing,
-  setMuted,
   setDeafened,
   setSelectedAudioInputId,
   setSelectedAudioOutputId,
@@ -47,8 +43,7 @@ interface JoinVoiceChannelParams {
 async function connectToLiveKitRoom(
   url: string,
   token: string,
-  setRoom: (room: Room | null) => void,
-  dispatch: Dispatch<UnknownAction>
+  setRoom: (room: Room | null) => void
 ): Promise<Room> {
   const room = new Room();
 
@@ -61,13 +56,11 @@ async function connectToLiveKitRoom(
   }
 
   // Enable microphone by default when joining
+  // Audio state is read directly from LiveKit via useLocalMediaState() - no Redux dispatch needed
   try {
     await room.localParticipant.setMicrophoneEnabled(true);
-    dispatch(setAudioEnabled(true));
   } catch (error) {
     logger.error('[Voice] ✗ Failed to enable microphone:', error);
-    // Keep state in sync - mic is disabled if it failed to enable
-    dispatch(setAudioEnabled(false));
     // Don't fail the whole join if mic fails, just log it
   }
 
@@ -112,7 +105,7 @@ export const joinVoiceChannel = createAsyncThunk<
       ).unwrap();
 
       // Connect to LiveKit room and enable microphone
-      await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom, dispatch);
+      await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
 
       dispatch(
         setConnected({
@@ -315,7 +308,7 @@ export const joinDmVoice = createAsyncThunk<
       ).unwrap();
 
       // Connect to LiveKit room and enable microphone
-      await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom, dispatch);
+      await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
 
       dispatch(
         setDmConnected({
@@ -390,27 +383,27 @@ export const leaveDmVoice = createAsyncThunk<
  * Replaces: toggleAudio, toggleDmAudio, toggleMute, toggleDmMute
  *
  * This actually controls the LiveKit microphone track (fixes bug where toggleMute didn't affect LiveKit)
+ * Audio state is read directly from LiveKit - no Redux dispatch needed
  */
 export const toggleMicrophone = createAsyncThunk<
   void,
   { getRoom: () => Room | null },
   { state: RootState }
->("voice/toggleMicrophone", async ({ getRoom }, { dispatch, getState }) => {
+>("voice/toggleMicrophone", async ({ getRoom }, { getState }) => {
   const state = getState();
-  const { isAudioEnabled, currentChannelId, currentDmGroupId } = state.voice;
+  const { currentChannelId, currentDmGroupId } = state.voice;
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) return;
 
-  const newState = !isAudioEnabled;
+  // Read current mic state directly from LiveKit
+  const isCurrentlyEnabled = room.localParticipant.isMicrophoneEnabled;
+  const newState = !isCurrentlyEnabled;
 
   try {
-    // First toggle LiveKit microphone
+    // Toggle LiveKit microphone - state is read via useLocalMediaState() hook
     await room.localParticipant.setMicrophoneEnabled(newState);
-    dispatch(setAudioEnabled(newState));
-
-    // Note: No longer sending mic state to server - LiveKit manages it
-    // Server only stores custom UI state (isDeafened)
+    // Note: No Redux dispatch needed - components read from LiveKit via useLocalMediaState()
   } catch (error) {
     logger.error("Failed to toggle microphone:", error);
     throw error;
@@ -420,14 +413,15 @@ export const toggleMicrophone = createAsyncThunk<
 /**
  * Unified camera toggle for both channels and DMs
  * Replaces: toggleVideo, toggleDmVideo
+ * Video state is read directly from LiveKit - no Redux dispatch needed
  */
 export const toggleCameraUnified = createAsyncThunk<
   void,
   { getRoom: () => Room | null },
   { state: RootState }
->("voice/toggleCameraUnified", async ({ getRoom }, { dispatch, getState }) => {
+>("voice/toggleCameraUnified", async ({ getRoom }, { getState }) => {
   const state = getState();
-  const { isVideoEnabled, currentChannelId, currentDmGroupId, selectedVideoInputId } = state.voice;
+  const { currentChannelId, currentDmGroupId, selectedVideoInputId } = state.voice;
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) {
@@ -440,12 +434,11 @@ export const toggleCameraUnified = createAsyncThunk<
     throw new Error('Room is not connected');
   }
 
-  const newState = !isVideoEnabled;
+  // Read current camera state directly from LiveKit
+  const isCurrentlyEnabled = room.localParticipant.isCameraEnabled;
+  const newState = !isCurrentlyEnabled;
 
   try {
-    // Update local state first for responsive UI
-    dispatch(setVideoEnabled(newState));
-
     // Prepare video capture options
     const videoCaptureOptions: VideoCaptureOptions | undefined = newState
       ? {
@@ -457,14 +450,11 @@ export const toggleCameraUnified = createAsyncThunk<
         }
       : undefined;
 
-    // Toggle LiveKit camera
+    // Toggle LiveKit camera - state is read via useLocalMediaState() hook
     await room.localParticipant.setCameraEnabled(newState, videoCaptureOptions);
-
-    // Note: No longer sending video state to server - LiveKit manages it
+    // Note: No Redux dispatch needed - components read from LiveKit via useLocalMediaState()
   } catch (error) {
     logger.error("Failed to toggle camera:", error);
-    // Revert state on failure
-    dispatch(setVideoEnabled(isVideoEnabled));
     throw error;
   }
 });
@@ -472,14 +462,15 @@ export const toggleCameraUnified = createAsyncThunk<
 /**
  * Unified screen share toggle for both channels and DMs
  * Replaces: toggleScreenShare, toggleDmScreenShare
+ * Screen share state is read directly from LiveKit - no Redux dispatch needed
  */
 export const toggleScreenShareUnified = createAsyncThunk<
   void,
   { getRoom: () => Room | null },
   { state: RootState }
->("voice/toggleScreenShareUnified", async ({ getRoom }, { dispatch, getState }) => {
+>("voice/toggleScreenShareUnified", async ({ getRoom }, { getState }) => {
   const state = getState();
-  const { isScreenSharing, currentChannelId, currentDmGroupId } = state.voice;
+  const { currentChannelId, currentDmGroupId } = state.voice;
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) {
@@ -492,11 +483,11 @@ export const toggleScreenShareUnified = createAsyncThunk<
     throw new Error('Room is not connected');
   }
 
-  const newState = !isScreenSharing;
+  // Read current screen share state directly from LiveKit
+  const isCurrentlySharing = room.localParticipant.isScreenShareEnabled;
+  const newState = !isCurrentlySharing;
 
   try {
-    // Note: No longer sending screen share state to server - LiveKit manages it
-
     // Handle the actual LiveKit screen share
     if (newState) {
       // Get screen share settings (set by ScreenSourcePicker for Electron)
@@ -514,13 +505,9 @@ export const toggleScreenShareUnified = createAsyncThunk<
     } else {
       await room.localParticipant.setScreenShareEnabled(false);
     }
-
-    // Update Redux state after successful LiveKit operation
-    dispatch(setScreenSharing(newState));
+    // Note: No Redux dispatch needed - components read from LiveKit via useLocalMediaState()
   } catch (error) {
     logger.error("Failed to toggle screen share:", error);
-    // Don't revert server state, only local
-    dispatch(setScreenSharing(isScreenSharing));
     throw error;
   }
 });
@@ -528,44 +515,50 @@ export const toggleScreenShareUnified = createAsyncThunk<
 /**
  * Unified deafen toggle for both channels and DMs
  * Replaces: toggleDeafen, toggleDmDeafen
+ *
+ * Deafen is a custom UI state (server-synced) - not managed by LiveKit
+ * When deafening, we also disable the microphone (Discord-style behavior)
  */
-export const toggleDeafenUnified = createAsyncThunk<void, void, { state: RootState }>(
+export const toggleDeafenUnified = createAsyncThunk<
+  void,
+  { getRoom?: () => Room | null },
+  { state: RootState }
+>(
   "voice/toggleDeafenUnified",
-  async (_, { dispatch, getState }) => {
+  async ({ getRoom }, { dispatch, getState }) => {
     const state = getState();
-    const { isDeafened, isMuted, contextType, currentChannelId, currentDmGroupId } = state.voice;
+    const { isDeafened, contextType, currentChannelId, currentDmGroupId } = state.voice;
 
     if (!currentChannelId && !currentDmGroupId) return;
 
     const newDeafenedState = !isDeafened;
+    const room = getRoom?.();
 
     try {
       dispatch(setDeafened(newDeafenedState));
 
-      // When deafening, automatically mute as well (Discord-style)
-      if (newDeafenedState && !isMuted) {
-        dispatch(setMuted(true));
+      // When deafening, automatically mute mic as well (Discord-style)
+      // Read mic state from LiveKit, not Redux
+      if (newDeafenedState && room) {
+        const isMicEnabled = room.localParticipant.isMicrophoneEnabled;
+        if (isMicEnabled) {
+          await room.localParticipant.setMicrophoneEnabled(false);
+        }
       }
 
-      // Update server state
+      // Update server state (only isDeafened - mic state is managed by LiveKit)
       if (contextType === 'dm' && currentDmGroupId) {
         await dispatch(
           voicePresenceApi.endpoints.updateDmVoiceState.initiate({
             dmGroupId: currentDmGroupId,
-            updates: {
-              isDeafened: newDeafenedState,
-              ...(newDeafenedState && !isMuted && { isMuted: true }),
-            },
+            updates: { isDeafened: newDeafenedState },
           })
         ).unwrap();
       } else if (contextType === 'channel' && currentChannelId) {
         await dispatch(
           voicePresenceApi.endpoints.updateVoiceState.initiate({
             channelId: currentChannelId,
-            updates: {
-              isDeafened: newDeafenedState,
-              ...(newDeafenedState && !isMuted && { isMuted: true }),
-            },
+            updates: { isDeafened: newDeafenedState },
           })
         ).unwrap();
       }
@@ -573,9 +566,6 @@ export const toggleDeafenUnified = createAsyncThunk<void, void, { state: RootSta
       logger.error("Failed to toggle deafen:", error);
       // Revert local state on failure
       dispatch(setDeafened(isDeafened));
-      if (newDeafenedState && !isMuted) {
-        dispatch(setMuted(isMuted));
-      }
       throw error;
     }
   }

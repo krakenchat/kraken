@@ -1,5 +1,4 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { VoicePresenceUser } from '../voice-presence/voicePresenceApiSlice';
 
 export type VoiceContextType = 'channel' | 'dm' | null;
 
@@ -24,17 +23,10 @@ export interface VoiceState {
   dmGroupName: string | null;
 
   // LiveKit room managed separately (not stored in Redux due to non-serializable nature)
+  // Media state (audio, video, screen share, speaking) is read from LiveKit via useLocalMediaState()
 
-  // Participants (from voice presence)
-  participants: VoicePresenceUser[];
-
-  // Local user voice states
-  isAudioEnabled: boolean;
-  isVideoEnabled: boolean;
-  isScreenSharing: boolean;
-  isMuted: boolean;
+  // Custom UI state (server-synced)
   isDeafened: boolean;
-  isSpeaking: boolean;
 
   // UI state
   showVideoTiles: boolean;
@@ -57,13 +49,7 @@ const initialState: VoiceState = {
   createdAt: null,
   currentDmGroupId: null,
   dmGroupName: null,
-  participants: [],
-  isAudioEnabled: true,
-  isVideoEnabled: false,
-  isScreenSharing: false,
-  isMuted: false,
   isDeafened: false,
-  isSpeaking: false,
   showVideoTiles: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
@@ -132,50 +118,12 @@ const voiceSlice = createSlice({
       state.isConnecting = false;
       state.connectionError = action.payload;
     },
-    
-    // Local voice state actions
-    setAudioEnabled: (state, action: PayloadAction<boolean>) => {
-      state.isAudioEnabled = action.payload;
-    },
-    
-    setVideoEnabled: (state, action: PayloadAction<boolean>) => {
-      state.isVideoEnabled = action.payload;
-    },
-    
-    setScreenSharing: (state, action: PayloadAction<boolean>) => {
-      state.isScreenSharing = action.payload;
-    },
-    
-    setMuted: (state, action: PayloadAction<boolean>) => {
-      state.isMuted = action.payload;
-    },
-    
+
+    // Custom UI state (server-synced)
     setDeafened: (state, action: PayloadAction<boolean>) => {
       state.isDeafened = action.payload;
     },
 
-    setSpeaking: (state, action: PayloadAction<boolean>) => {
-      state.isSpeaking = action.payload;
-    },
-
-    // Participant management actions
-    setParticipants: (state, action: PayloadAction<VoicePresenceUser[]>) => {
-      state.participants = action.payload;
-    },
-    
-    updateParticipant: (state, action: PayloadAction<VoicePresenceUser>) => {
-      const index = state.participants.findIndex(p => p.id === action.payload.id);
-      if (index !== -1) {
-        state.participants[index] = action.payload;
-      } else {
-        state.participants.push(action.payload);
-      }
-    },
-    
-    removeParticipant: (state, action: PayloadAction<string>) => {
-      state.participants = state.participants.filter(p => p.id !== action.payload);
-    },
-    
     // UI actions
     setShowVideoTiles: (state, action: PayloadAction<boolean>) => {
       state.showVideoTiles = action.payload;
@@ -202,15 +150,7 @@ export const {
   setDmConnected,
   setDisconnected,
   setConnectionError,
-  setAudioEnabled,
-  setVideoEnabled,
-  setScreenSharing,
-  setMuted,
   setDeafened,
-  setSpeaking,
-  setParticipants,
-  updateParticipant,
-  removeParticipant,
   setShowVideoTiles,
   setSelectedAudioInputId,
   setSelectedAudioOutputId,

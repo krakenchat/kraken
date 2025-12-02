@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Button, Tooltip, CircularProgress } from '@mui/material';
 import { VolumeUp, VolumeOff, VideoCall } from '@mui/icons-material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
+import { useLocalMediaState } from '../../hooks/useLocalMediaState';
 import { ChannelType } from '../../types/channel.type';
 import { Channel } from '../../types/channel.type';
 
@@ -10,11 +11,12 @@ interface VoiceChannelJoinButtonProps {
   disabled?: boolean;
 }
 
-export const VoiceChannelJoinButton: React.FC<VoiceChannelJoinButtonProps> = ({ 
-  channel, 
-  disabled = false 
+export const VoiceChannelJoinButton: React.FC<VoiceChannelJoinButtonProps> = ({
+  channel,
+  disabled = false
 }) => {
   const { state, actions } = useVoiceConnection();
+  const { isCameraEnabled } = useLocalMediaState();
 
   if (channel.type !== ChannelType.VOICE) {
     return null;
@@ -47,7 +49,7 @@ export const VoiceChannelJoinButton: React.FC<VoiceChannelJoinButtonProps> = ({
       return <CircularProgress size={16} color="inherit" />;
     }
     if (isCurrentChannel) {
-      return state.isVideoEnabled ? <VideoCall /> : <VolumeOff />;
+      return isCameraEnabled ? <VideoCall /> : <VolumeOff />;
     }
     return <VolumeUp />;
   };

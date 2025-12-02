@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Box, IconButton, Tooltip, CircularProgress } from "@mui/material";
 import { Phone, Videocam } from "@mui/icons-material";
-import { useDmVoiceConnection } from "../../hooks/useDmVoiceConnection";
+import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 
 interface DMVoiceControlsProps {
   dmGroupId: string;
@@ -12,7 +12,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
   dmGroupId,
   dmGroupName,
 }) => {
-  const { state, actions } = useDmVoiceConnection();
+  const { state, actions } = useVoiceConnection();
   const [isJoining, setIsJoining] = useState(false);
 
   // Check if we're currently in this DM's voice call
@@ -28,7 +28,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
     if (isInAnyCall) {
       // If already in a call, leave it first
       if (state.contextType === "dm") {
-        await actions.leaveDmVoice();
+        await actions.leaveVoiceChannel();
       }
       // Don't handle channel calls here - let the user manually leave
       return;
@@ -48,7 +48,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
     if (isInAnyCall) {
       // If already in a call, leave it first
       if (state.contextType === "dm") {
-        await actions.leaveDmVoice();
+        await actions.leaveVoiceChannel();
       }
       return;
     }
