@@ -6,6 +6,7 @@ import { useRoom } from "./useRoom";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { useGetConnectionInfoQuery } from "../features/livekit/livekitApiSlice";
 import { setShowVideoTiles } from "../features/voice/voiceSlice";
+import { logger } from "../utils/logger";
 import {
   joinVoiceChannel,
   leaveVoiceChannel,
@@ -37,10 +38,15 @@ export const useVoiceConnection = () => {
       isPrivate: boolean,
       createdAt: string
     ) => {
+      logger.info('[useVoiceConnection] handleJoinVoiceChannel called');
+      logger.info('[useVoiceConnection] user:', user?.id, 'connectionInfo:', !!connectionInfo);
+
       if (!user || !connectionInfo) {
+        logger.error('[useVoiceConnection] ✗ Missing user or connectionInfo', { user: !!user, connectionInfo: !!connectionInfo });
         throw new Error("User or connection info not available");
       }
 
+      logger.info('[useVoiceConnection] Dispatching joinVoiceChannel thunk...');
       await dispatch(
         joinVoiceChannel({
           channelId,
@@ -58,6 +64,7 @@ export const useVoiceConnection = () => {
           setRoom,
         })
       ).unwrap();
+      logger.info('[useVoiceConnection] ✓ joinVoiceChannel thunk completed');
     },
     [dispatch, user, connectionInfo, socket, setRoom]
   );

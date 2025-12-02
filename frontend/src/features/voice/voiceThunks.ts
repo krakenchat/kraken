@@ -45,10 +45,13 @@ async function connectToLiveKitRoom(
   token: string,
   setRoom: (room: Room | null) => void
 ): Promise<Room> {
+  logger.info('[Voice] Creating new LiveKit room instance');
   const room = new Room();
 
   try {
+    logger.info('[Voice] Connecting to LiveKit server:', url);
     await room.connect(url, token);
+    logger.info('[Voice] ✓ Connected to LiveKit room, state:', room.state);
     setRoom(room);
   } catch (error) {
     logger.error('[Voice] ✗ Failed to connect to LiveKit room:', error);
@@ -57,13 +60,22 @@ async function connectToLiveKitRoom(
 
   // Enable microphone by default when joining
   // Audio state is read directly from LiveKit via useLocalMediaState() - no Redux dispatch needed
+  // Use a timeout to prevent hanging if mic permissions are pending (common on Edge)
+  logger.info('[Voice] Attempting to enable microphone...');
   try {
-    await room.localParticipant.setMicrophoneEnabled(true);
+    const micPromise = room.localParticipant.setMicrophoneEnabled(true);
+    const timeoutPromise = new Promise<void>((_, reject) =>
+      setTimeout(() => reject(new Error('Microphone enable timeout (5s)')), 5000)
+    );
+    await Promise.race([micPromise, timeoutPromise]);
+    logger.info('[Voice] ✓ Microphone enabled successfully');
   } catch (error) {
-    logger.error('[Voice] ✗ Failed to enable microphone:', error);
+    logger.warn('[Voice] ⚠ Failed to enable microphone (user will join muted):', error);
     // Don't fail the whole join if mic fails, just log it
+    // User will appear muted but can manually unmute later
   }
 
+  logger.info('[Voice] ✓ Room connection complete');
   return room;
 }
 
@@ -87,10 +99,16 @@ export const joinVoiceChannel = createAsyncThunk<
     },
     { dispatch }
   ) => {
+    logger.info('[Voice] === Starting voice channel join ===');
+    logger.info('[Voice] Channel:', channelId, channelName);
+    logger.info('[Voice] User:', user.id, user.displayName || user.username);
+
     try {
       dispatch(setConnecting(true));
+      logger.info('[Voice] Set connecting state');
 
       // Generate LiveKit token
+      logger.info('[Voice] Requesting LiveKit token...');
       const tokenResponse = await dispatch(
         livekitApi.endpoints.generateToken.initiate({
           roomId: channelId,
@@ -98,15 +116,20 @@ export const joinVoiceChannel = createAsyncThunk<
           name: user.displayName || user.username,
         })
       ).unwrap();
+      logger.info('[Voice] ✓ Got LiveKit token');
 
       // Join voice channel on backend
+      logger.info('[Voice] Joining voice channel on backend...');
       await dispatch(
         voicePresenceApi.endpoints.joinVoiceChannel.initiate(channelId)
       ).unwrap();
+      logger.info('[Voice] ✓ Joined voice channel on backend');
 
       // Connect to LiveKit room and enable microphone
+      logger.info('[Voice] Connecting to LiveKit room...');
       await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
 
+      logger.info('[Voice] Dispatching setConnected...');
       dispatch(
         setConnected({
           channelId,
@@ -116,11 +139,17 @@ export const joinVoiceChannel = createAsyncThunk<
           createdAt,
         })
       );
+      logger.info('[Voice] ✓ setConnected dispatched');
 
       // Notify via WebSocket
       if (socket) {
+        logger.info('[Voice] Emitting VOICE_CHANNEL_JOIN event');
         socket.emit(ClientEvents.VOICE_CHANNEL_JOIN, { channelId });
+      } else {
+        logger.warn('[Voice] ⚠ No socket available for voice channel join notification');
       }
+
+      logger.info('[Voice] === Voice channel join complete ===');
     } catch (error) {
       logger.error("[Voice] ✗ Failed to join voice channel:", error);
       const message =
@@ -149,21 +178,32 @@ export const leaveVoiceChannel = createAsyncThunk<
     const { currentChannelId } = state.voice;
     const room = getRoom();
 
-    if (!currentChannelId || !room) return;
+    if (!currentChannelId || !room) {
+      logger.warn('[Voice] leaveVoiceChannel: No channel or room', { currentChannelId, room: !!room });
+      return;
+    }
+
+    logger.info('[Voice] === Leaving voice channel ===');
+    logger.info('[Voice] Channel:', currentChannelId);
 
     try {
       const channelId = currentChannelId;
 
       // Disconnect from LiveKit room
+      logger.info('[Voice] Disconnecting from LiveKit room...');
       await room.disconnect();
+      logger.info('[Voice] ✓ Disconnected from LiveKit');
 
       // Leave voice channel on backend
+      logger.info('[Voice] Leaving voice channel on backend...');
       await dispatch(
         voicePresenceApi.endpoints.leaveVoiceChannel.initiate(channelId)
       ).unwrap();
+      logger.info('[Voice] ✓ Left voice channel on backend');
 
       // Notify via WebSocket
       if (socket) {
+        logger.info('[Voice] Emitting VOICE_CHANNEL_LEAVE event');
         socket.emit(ClientEvents.VOICE_CHANNEL_LEAVE, { channelId });
       }
 
@@ -171,7 +211,9 @@ export const leaveVoiceChannel = createAsyncThunk<
       setRoom(null);
 
       dispatch(setDisconnected());
+      logger.info('[Voice] === Voice channel leave complete ===');
     } catch (error) {
+      logger.error('[Voice] ✗ Failed to leave voice channel:', error);
       const message =
         error instanceof Error
           ? error.message
@@ -394,18 +436,23 @@ export const toggleMicrophone = createAsyncThunk<
   const { currentChannelId, currentDmGroupId } = state.voice;
   const room = getRoom();
 
-  if (!room || (!currentChannelId && !currentDmGroupId)) return;
+  if (!room || (!currentChannelId && !currentDmGroupId)) {
+    logger.warn('[Voice] toggleMicrophone: No room or channel/DM', { room: !!room, currentChannelId, currentDmGroupId });
+    return;
+  }
 
   // Read current mic state directly from LiveKit
   const isCurrentlyEnabled = room.localParticipant.isMicrophoneEnabled;
   const newState = !isCurrentlyEnabled;
+  logger.info('[Voice] Toggling microphone:', isCurrentlyEnabled, '->', newState);
 
   try {
     // Toggle LiveKit microphone - state is read via useLocalMediaState() hook
     await room.localParticipant.setMicrophoneEnabled(newState);
+    logger.info('[Voice] ✓ Microphone toggled successfully');
     // Note: No Redux dispatch needed - components read from LiveKit via useLocalMediaState()
   } catch (error) {
-    logger.error("Failed to toggle microphone:", error);
+    logger.error("[Voice] ✗ Failed to toggle microphone:", error);
     throw error;
   }
 });
@@ -425,18 +472,19 @@ export const toggleCameraUnified = createAsyncThunk<
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) {
-    logger.warn('Cannot toggle camera: no active room or channel/DM');
+    logger.warn('[Voice] toggleCamera: No room or channel/DM', { room: !!room, currentChannelId, currentDmGroupId });
     return;
   }
 
   if (room.state !== 'connected') {
-    logger.error('Cannot toggle camera: room is not connected, state:', room.state);
+    logger.error('[Voice] toggleCamera: Room not connected, state:', room.state);
     throw new Error('Room is not connected');
   }
 
   // Read current camera state directly from LiveKit
   const isCurrentlyEnabled = room.localParticipant.isCameraEnabled;
   const newState = !isCurrentlyEnabled;
+  logger.info('[Voice] Toggling camera:', isCurrentlyEnabled, '->', newState);
 
   try {
     // Prepare video capture options
@@ -452,9 +500,10 @@ export const toggleCameraUnified = createAsyncThunk<
 
     // Toggle LiveKit camera - state is read via useLocalMediaState() hook
     await room.localParticipant.setCameraEnabled(newState, videoCaptureOptions);
+    logger.info('[Voice] ✓ Camera toggled successfully');
     // Note: No Redux dispatch needed - components read from LiveKit via useLocalMediaState()
   } catch (error) {
-    logger.error("Failed to toggle camera:", error);
+    logger.error("[Voice] ✗ Failed to toggle camera:", error);
     throw error;
   }
 });
@@ -474,24 +523,26 @@ export const toggleScreenShareUnified = createAsyncThunk<
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) {
-    logger.warn('Cannot toggle screen share: no active room or channel/DM');
+    logger.warn('[Voice] toggleScreenShare: No room or channel/DM', { room: !!room, currentChannelId, currentDmGroupId });
     return;
   }
 
   if (room.state !== 'connected') {
-    logger.error('Cannot toggle screen share: room is not connected, state:', room.state);
+    logger.error('[Voice] toggleScreenShare: Room not connected, state:', room.state);
     throw new Error('Room is not connected');
   }
 
   // Read current screen share state directly from LiveKit
   const isCurrentlySharing = room.localParticipant.isScreenShareEnabled;
   const newState = !isCurrentlySharing;
+  logger.info('[Voice] Toggling screen share:', isCurrentlySharing, '->', newState);
 
   try {
     // Handle the actual LiveKit screen share
     if (newState) {
       // Get screen share settings (set by ScreenSourcePicker for Electron)
       const settings = getScreenShareSettings() || DEFAULT_SCREEN_SHARE_SETTINGS;
+      logger.info('[Voice] Screen share settings:', settings);
 
       // Get resolution and audio configs using shared utilities
       const resolutionConfig = getResolutionConfig(settings.resolution, settings.fps);
@@ -505,9 +556,10 @@ export const toggleScreenShareUnified = createAsyncThunk<
     } else {
       await room.localParticipant.setScreenShareEnabled(false);
     }
+    logger.info('[Voice] ✓ Screen share toggled successfully');
     // Note: No Redux dispatch needed - components read from LiveKit via useLocalMediaState()
   } catch (error) {
-    logger.error("Failed to toggle screen share:", error);
+    logger.error("[Voice] ✗ Failed to toggle screen share:", error);
     throw error;
   }
 });

@@ -29,7 +29,13 @@ export const VoiceChannelJoinButton: React.FC<VoiceChannelJoinButtonProps> = ({
     if (isCurrentChannel) {
       await actions.leaveVoiceChannel();
     } else {
-      await actions.joinVoiceChannel(channel.id, channel.name);
+      await actions.joinVoiceChannel(
+        channel.id,
+        channel.name,
+        channel.communityId,
+        channel.isPrivate,
+        channel.createdAt
+      );
     }
   };
 

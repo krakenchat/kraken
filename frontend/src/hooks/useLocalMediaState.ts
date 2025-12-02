@@ -7,6 +7,7 @@ import {
   Track,
   LocalTrackPublication
 } from 'livekit-client';
+import { logger } from '../utils/logger';
 
 /**
  * Hook to read local participant's media state directly from LiveKit
@@ -38,6 +39,7 @@ export const useLocalMediaState = () => {
   useEffect(() => {
     if (!room) {
       // Reset state when no room is connected
+      logger.debug('[useLocalMediaState] No room, resetting media state');
       setIsCameraEnabled(false);
       setIsMicrophoneEnabled(false);
       setIsScreenShareEnabled(false);
@@ -47,6 +49,7 @@ export const useLocalMediaState = () => {
     }
 
     const localParticipant = room.localParticipant;
+    logger.info('[useLocalMediaState] Room connected, identity:', localParticipant.identity);
 
     // Initialize state from current publications
     const updateMediaState = () => {
@@ -66,6 +69,12 @@ export const useLocalMediaState = () => {
       const screenSharePublication = localParticipant.getTrackPublication(Track.Source.ScreenShare);
       const isScreenPublished = !!screenSharePublication && !screenSharePublication.isMuted;
       setIsScreenShareEnabled(isScreenPublished);
+
+      logger.debug('[useLocalMediaState] Media state updated:', {
+        mic: isMicPublished,
+        camera: isCameraPublished,
+        screen: isScreenPublished,
+      });
     };
 
     // Initialize state
@@ -73,6 +82,7 @@ export const useLocalMediaState = () => {
 
     // Listen to track published/unpublished events
     const handleLocalTrackPublished = (publication: LocalTrackPublication) => {
+      logger.info('[useLocalMediaState] Track published:', publication.source);
       if (publication.source === Track.Source.Camera) {
         setIsCameraEnabled(true);
         setVideoTrack(publication.track as LocalVideoTrack);
@@ -85,6 +95,7 @@ export const useLocalMediaState = () => {
     };
 
     const handleLocalTrackUnpublished = (publication: LocalTrackPublication) => {
+      logger.info('[useLocalMediaState] Track unpublished:', publication.source);
       if (publication.source === Track.Source.Camera) {
         setIsCameraEnabled(false);
         setVideoTrack(undefined);
@@ -98,6 +109,7 @@ export const useLocalMediaState = () => {
 
     const handleTrackMuted = (publication: LocalTrackPublication) => {
       // When a track is muted (not unpublished), update state
+      logger.info('[useLocalMediaState] Track muted:', publication.source);
       if (publication.source === Track.Source.Camera) {
         setIsCameraEnabled(false);
       } else if (publication.source === Track.Source.Microphone) {
@@ -109,6 +121,7 @@ export const useLocalMediaState = () => {
 
     const handleTrackUnmuted = (publication: LocalTrackPublication) => {
       // When a track is unmuted, update state
+      logger.info('[useLocalMediaState] Track unmuted:', publication.source);
       if (publication.source === Track.Source.Camera) {
         setIsCameraEnabled(true);
       } else if (publication.source === Track.Source.Microphone) {

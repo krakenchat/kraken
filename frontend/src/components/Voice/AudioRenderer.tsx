@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { RemoteParticipant, RemoteTrackPublication, Track, AudioTrack, RoomEvent } from 'livekit-client';
 import { useRoom } from '../../hooks/useRoom';
+import { logger } from '../../utils/logger';
 
 /**
  * Renders a hidden audio element for a single remote participant's audio track.
@@ -11,24 +12,32 @@ interface ParticipantAudioProps {
   audioPublication: RemoteTrackPublication;
 }
 
-const ParticipantAudio: React.FC<ParticipantAudioProps> = ({ audioPublication }) => {
+const ParticipantAudio: React.FC<ParticipantAudioProps> = ({ participant, audioPublication }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (!audioElement) return;
+    if (!audioElement) {
+      logger.warn('[AudioRenderer] No audio element ref for participant:', participant.identity);
+      return;
+    }
 
     const track = audioPublication.track as AudioTrack | undefined;
-    if (!track) return;
+    if (!track) {
+      logger.warn('[AudioRenderer] No track for publication:', audioPublication.trackSid);
+      return;
+    }
 
     // Attach the audio track to the audio element
+    logger.info('[AudioRenderer] Attaching audio track for:', participant.identity, 'trackSid:', audioPublication.trackSid);
     track.attach(audioElement);
 
     return () => {
       // Detach the audio track when unmounting or track changes
+      logger.info('[AudioRenderer] Detaching audio track for:', participant.identity);
       track.detach(audioElement);
     };
-  }, [audioPublication, audioPublication.track]);
+  }, [audioPublication, audioPublication.track, participant.identity]);
 
   return (
     <audio
@@ -63,22 +72,26 @@ export const AudioRenderer: React.FC = () => {
   // Update audio tracks list when participants/tracks change
   const updateAudioTracks = useCallback(() => {
     if (!room) {
+      logger.debug('[AudioRenderer] No room, clearing audio tracks');
       setAudioTracks(new Map());
       return;
     }
 
     const newTracks = new Map<string, { participant: RemoteParticipant; publication: RemoteTrackPublication }>();
 
+    logger.debug('[AudioRenderer] Updating audio tracks, remote participants:', room.remoteParticipants.size);
     room.remoteParticipants.forEach((participant) => {
       participant.audioTrackPublications.forEach((publication) => {
         // Only include microphone tracks (not screen share audio)
         if (publication.source === Track.Source.Microphone && publication.track) {
           const key = `${participant.identity}-${publication.trackSid}`;
           newTracks.set(key, { participant, publication });
+          logger.debug('[AudioRenderer] Found mic track for:', participant.identity);
         }
       });
     });
 
+    logger.info('[AudioRenderer] Audio tracks updated, count:', newTracks.size);
     setAudioTracks(newTracks);
   }, [room]);
 
