@@ -34,6 +34,7 @@ import { useScreenShare } from "../../hooks/useScreenShare";
 import { useLocalMediaState } from "../../hooks/useLocalMediaState";
 import { useDeafenEffect } from "../../hooks/useDeafenEffect";
 import { useReplayBufferState } from "../../contexts/ReplayBufferContext";
+import { useGetChannelPresenceQuery, useGetDmPresenceQuery } from "../../features/voice-presence/voicePresenceApiSlice";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
 import { ScreenSourcePicker } from "./ScreenSourcePicker";
@@ -59,6 +60,19 @@ export const VoiceBottomBar: React.FC = () => {
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [showCaptureModal, setShowCaptureModal] = useState(false);
+
+  // Get participant count from server (works for both channel and DM)
+  const { data: channelPresence } = useGetChannelPresenceQuery(
+    state.currentChannelId ?? '',
+    { skip: !state.currentChannelId || state.contextType !== 'channel' }
+  );
+  const { data: dmPresence } = useGetDmPresenceQuery(
+    state.currentDmGroupId ?? '',
+    { skip: !state.currentDmGroupId || state.contextType !== 'dm' }
+  );
+  const participantCount = state.contextType === 'channel'
+    ? (channelPresence?.count ?? 0)
+    : (dmPresence?.count ?? 0);
 
   // Implement proper deafen functionality (mute received audio)
   useDeafenEffect();
@@ -227,7 +241,7 @@ export const VoiceBottomBar: React.FC = () => {
                       : "transparent",
                   }}
                 >
-                  <Badge badgeContent={state.participants.length} color="primary">
+                  <Badge badgeContent={participantCount} color="primary">
                     {showUserList ? <ExpandMore /> : <ExpandLess />}
                   </Badge>
                 </IconButton>
