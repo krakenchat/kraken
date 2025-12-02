@@ -37,6 +37,9 @@ spec:
           env:
             - name: BACKEND_URL
               value: {{ .Values.frontend.env.backendUrl | quote }}
+            {{- with .Values.frontend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           livenessProbe:
             {{- toYaml .Values.frontend.livenessProbe | nindent 12 }}
           readinessProbe:

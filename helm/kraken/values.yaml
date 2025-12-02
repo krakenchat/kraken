@@ -147,6 +147,19 @@ frontend:
     # Backend URL (internal service URL)
     backendUrl: "http://kraken-backend:3000"
 
+  # Extra environment variables for the frontend container
+  # These are injected at runtime (useful for telemetry, feature flags, etc.)
+  # Example:
+  #   extraEnv:
+  #     - name: VITE_TELEMETRY_ENDPOINT
+  #       value: "https://openobserve.example.com"
+  #     - name: VITE_TELEMETRY_CLIENT_TOKEN
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: telemetry-secrets
+  #           key: client-token
+  extraEnv: []
+
   # Node selector for pod assignment
   nodeSelector: {}
 
