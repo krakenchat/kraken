@@ -6,6 +6,7 @@ export interface Channel {
   isPrivate: boolean;
   description?: string;
   createdAt: string;
+  position?: number;
 }
 
 export enum ChannelType {

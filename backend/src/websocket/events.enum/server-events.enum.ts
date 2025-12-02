@@ -43,6 +43,9 @@ export enum ServerEvents {
   REPLAY_BUFFER_STOPPED = 'replayBufferStopped',
   REPLAY_BUFFER_FAILED = 'replayBufferFailed',
 
+  // Channel Management
+  CHANNELS_REORDERED = 'channelsReordered',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',

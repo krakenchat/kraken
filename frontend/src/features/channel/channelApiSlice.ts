@@ -83,6 +83,32 @@ export const channelApi = createApi({
         { type: "Channel", id: `mentionable-${communityId}` },
       ],
     }),
+    moveChannelUp: builder.mutation<
+      Channel[],
+      { channelId: string; communityId: string }
+    >({
+      query: ({ channelId, communityId }) => ({
+        url: `/${channelId}/move-up`,
+        method: "POST",
+        body: { communityId },
+      }),
+      invalidatesTags: (_result, _error, { communityId }) => [
+        { type: "Channel", id: `community-${communityId}` },
+      ],
+    }),
+    moveChannelDown: builder.mutation<
+      Channel[],
+      { channelId: string; communityId: string }
+    >({
+      query: ({ channelId, communityId }) => ({
+        url: `/${channelId}/move-down`,
+        method: "POST",
+        body: { communityId },
+      }),
+      invalidatesTags: (_result, _error, { communityId }) => [
+        { type: "Channel", id: `community-${communityId}` },
+      ],
+    }),
   }),
 });
 
@@ -93,4 +119,6 @@ export const {
   useUpdateChannelMutation,
   useDeleteChannelMutation,
   useGetMentionableChannelsQuery,
+  useMoveChannelUpMutation,
+  useMoveChannelDownMutation,
 } = channelApi;

@@ -9,19 +9,38 @@ import { UpdateChannelDto } from './dto/update-channel.dto';
 import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { ChannelType, Prisma } from '@prisma/client';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
 @Injectable()
 export class ChannelsService {
   private readonly logger = new Logger(ChannelsService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly websocketService: WebsocketService,
+  ) {}
 
   async create(createChannelDto: CreateChannelDto, user: UserEntity) {
     try {
       // Use a transaction to create the channel and the membership
       const result = await this.databaseService.$transaction(async (prisma) => {
+        // Get max position for this channel type in the community
+        const maxPosition = await prisma.channel.aggregate({
+          where: {
+            communityId: createChannelDto.communityId,
+            type: createChannelDto.type,
+          },
+          _max: { position: true },
+        });
+
+        const newPosition = (maxPosition._max.position ?? -1) + 1;
+
         const channel = await prisma.channel.create({
-          data: createChannelDto,
+          data: {
+            ...createChannelDto,
+            position: newPosition,
+          },
         });
         await prisma.channelMembership.create({
           data: {
@@ -55,6 +74,11 @@ export class ChannelsService {
   findAll(communityId: string) {
     return this.databaseService.channel.findMany({
       where: { communityId },
+      orderBy: [
+        { type: 'asc' }, // TEXT before VOICE (alphabetically)
+        { position: 'asc' },
+        { createdAt: 'asc' }, // Tiebreaker for existing channels with position 0
+      ],
     });
   }
 
@@ -216,5 +240,93 @@ export class ChannelsService {
       );
       throw error;
     }
+  }
+
+  async moveChannelUp(channelId: string, communityId: string) {
+    return this.databaseService.$transaction(async (prisma) => {
+      const channel = await prisma.channel.findUniqueOrThrow({
+        where: { id: channelId },
+      });
+
+      // Find the channel above with the same type and lower position
+      const channelAbove = await prisma.channel.findFirst({
+        where: {
+          communityId,
+          type: channel.type,
+          position: { lt: channel.position },
+        },
+        orderBy: { position: 'desc' },
+      });
+
+      if (!channelAbove) {
+        // Already at the top, return current list
+        return this.findAll(communityId);
+      }
+
+      // Swap positions
+      await prisma.channel.update({
+        where: { id: channel.id },
+        data: { position: channelAbove.position },
+      });
+      await prisma.channel.update({
+        where: { id: channelAbove.id },
+        data: { position: channel.position },
+      });
+
+      const updatedChannels = await this.findAll(communityId);
+
+      // Emit WebSocket event for real-time updates
+      this.websocketService.sendToRoom(
+        `community:${communityId}`,
+        ServerEvents.CHANNELS_REORDERED,
+        { communityId, channels: updatedChannels },
+      );
+
+      return updatedChannels;
+    });
+  }
+
+  async moveChannelDown(channelId: string, communityId: string) {
+    return this.databaseService.$transaction(async (prisma) => {
+      const channel = await prisma.channel.findUniqueOrThrow({
+        where: { id: channelId },
+      });
+
+      // Find the channel below with the same type and higher position
+      const channelBelow = await prisma.channel.findFirst({
+        where: {
+          communityId,
+          type: channel.type,
+          position: { gt: channel.position },
+        },
+        orderBy: { position: 'asc' },
+      });
+
+      if (!channelBelow) {
+        // Already at the bottom, return current list
+        return this.findAll(communityId);
+      }
+
+      // Swap positions
+      await prisma.channel.update({
+        where: { id: channel.id },
+        data: { position: channelBelow.position },
+      });
+      await prisma.channel.update({
+        where: { id: channelBelow.id },
+        data: { position: channel.position },
+      });
+
+      const updatedChannels = await this.findAll(communityId);
+
+      // Emit WebSocket event for real-time updates
+      this.websocketService.sendToRoom(
+        `community:${communityId}`,
+        ServerEvents.CHANNELS_REORDERED,
+        { communityId, channels: updatedChannels },
+      );
+
+      return updatedChannels;
+    });
   }
 }

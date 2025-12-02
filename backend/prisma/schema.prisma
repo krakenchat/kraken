@@ -214,6 +214,7 @@ model Channel {
   community             Community?                    @relation(fields: [communityId], references: [id], onDelete: Cascade)
   createdAt             DateTime                      @default(now())
   type                  ChannelType                   @default(TEXT)
+  position              Int                           @default(0)
   Message               Message[]
   ChannelMembership     ChannelMembership[]           @relation("ChannelMembership")
   isPrivate             Boolean                       @default(false)
@@ -221,6 +222,7 @@ model Channel {
   notificationOverrides ChannelNotificationOverride[] @relation("ChannelNotificationOverrides")
 
   @@unique([communityId, name])
+  @@index([communityId, type, position])
 }
 
 model ChannelMembership {

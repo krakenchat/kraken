@@ -13,6 +13,7 @@ import {
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { MoveChannelDto } from './dto/move-channel.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -110,5 +111,35 @@ export class ChannelsController {
   })
   remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.channelsService.remove(id);
+  }
+
+  @Post(':id/move-up')
+  @HttpCode(200)
+  @RequiredActions(RbacActions.UPDATE_CHANNEL)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.BODY,
+  })
+  moveUp(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() moveChannelDto: MoveChannelDto,
+  ) {
+    return this.channelsService.moveChannelUp(id, moveChannelDto.communityId);
+  }
+
+  @Post(':id/move-down')
+  @HttpCode(200)
+  @RequiredActions(RbacActions.UPDATE_CHANNEL)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.BODY,
+  })
+  moveDown(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() moveChannelDto: MoveChannelDto,
+  ) {
+    return this.channelsService.moveChannelDown(id, moveChannelDto.communityId);
   }
 }
