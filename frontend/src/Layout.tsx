@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Outlet, useNavigate } from "react-router-dom";
@@ -22,6 +22,7 @@ import { useNotifications } from "./hooks/useNotifications";
 import NotificationBadge from "./components/Notifications/NotificationBadge";
 import NotificationCenter from "./components/Notifications/NotificationCenter";
 import { ReplayBufferProvider } from "./contexts/ReplayBufferContext";
+import { setTelemetryUser, clearTelemetryUser } from "./services/telemetry";
 
 const settings = isElectron()
   ? ["My Profile", "Settings", "Logout"]
@@ -48,6 +49,16 @@ const Layout: React.FC = () => {
     showDesktopNotifications: true,
     playSound: true,
   });
+
+  // Set telemetry user context when profile loads
+  useEffect(() => {
+    if (userData && !isLoading && !isError) {
+      setTelemetryUser({
+        id: userData.id,
+        username: userData.username,
+      });
+    }
+  }, [userData, isLoading, isError]);
 
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
@@ -78,6 +89,7 @@ const Layout: React.FC = () => {
   const handleLogout = async () => {
     await logout(null, false).unwrap();
     localStorage.removeItem("accessToken");
+    clearTelemetryUser();
     navigate("/login");
   };
 

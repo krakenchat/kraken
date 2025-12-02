@@ -21,6 +21,12 @@ COPY . .
 ARG VITE_API_URL=/api
 ARG VITE_WS_URL=
 
+# Telemetry - use placeholders that will be replaced at runtime
+ENV VITE_TELEMETRY_ENDPOINT=__VITE_TELEMETRY_ENDPOINT__
+ENV VITE_TELEMETRY_CLIENT_TOKEN=__VITE_TELEMETRY_CLIENT_TOKEN__
+ENV VITE_TELEMETRY_ORG_ID=__VITE_TELEMETRY_ORG_ID__
+ENV VITE_APP_VERSION=__VITE_APP_VERSION__
+
 # Build the application with Vite
 RUN npm run build
 
@@ -64,9 +70,22 @@ RUN mkdir -p /tmp/nginx/client_body /tmp/nginx/proxy /tmp/nginx/fastcgi /tmp/ngi
 # Create a startup script that works without root
 RUN printf '#!/bin/sh\n\
 set -e\n\
-# Substitute environment variables\n\
+\n\
+# Replace telemetry placeholders in JS files with runtime env vars\n\
+# Only replace if env var is set (non-empty), otherwise use empty string to disable\n\
+for file in /usr/share/nginx/html/assets/*.js; do\n\
+  if [ -f "$file" ]; then\n\
+    sed -i "s|__VITE_TELEMETRY_ENDPOINT__|${VITE_TELEMETRY_ENDPOINT:-}|g" "$file"\n\
+    sed -i "s|__VITE_TELEMETRY_CLIENT_TOKEN__|${VITE_TELEMETRY_CLIENT_TOKEN:-}|g" "$file"\n\
+    sed -i "s|__VITE_TELEMETRY_ORG_ID__|${VITE_TELEMETRY_ORG_ID:-default}|g" "$file"\n\
+    sed -i "s|__VITE_APP_VERSION__|${VITE_APP_VERSION:-1.0.0}|g" "$file"\n\
+  fi\n\
+done\n\
+\n\
+# Substitute nginx environment variables\n\
 export BACKEND_URL=${BACKEND_URL:-http://backend:3000}\n\
 envsubst "\$BACKEND_URL" < /etc/nginx/nginx.conf.template > /tmp/nginx.conf\n\
+\n\
 # Run nginx from /tmp config (non-root friendly)\n\
 exec nginx -c /tmp/nginx.conf -g "daemon off; pid /tmp/nginx.pid;"\n' > /docker-entrypoint.sh && \
     chmod +x /docker-entrypoint.sh && \

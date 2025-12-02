@@ -9,6 +9,7 @@ import { getApiUrl } from "../config/env";
 import { getAuthToken } from "../utils/auth";
 import { logger } from "../utils/logger";
 import { isElectron } from "../utils/platform";
+import { trackNetworkError } from "../services/telemetry";
 
 // Track refresh attempts to prevent infinite loops
 let isRefreshing = false;
@@ -93,6 +94,13 @@ const getBaseAuthedQuery = (
         redirectToLogin();
         return result; // Return the original 401 error
       }
+    }
+
+    // Track non-auth errors to telemetry (skip 401s as they're handled above)
+    if (result.error && result.error.status !== 401) {
+      const endpoint = typeof args === 'string' ? args : (args as FetchArgs).url || 'unknown';
+      const status = typeof result.error.status === 'number' ? result.error.status : 0;
+      trackNetworkError(endpoint, status, result.error.data);
     }
 
     return result;

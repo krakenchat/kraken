@@ -44,6 +44,8 @@
     "@livekit/components-react": "^2.9.9",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
+    "@openobserve/browser-logs": "^0.2.11",
+    "@openobserve/browser-rum": "^0.2.11",
     "@reduxjs/toolkit": "^2.7.0",
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
