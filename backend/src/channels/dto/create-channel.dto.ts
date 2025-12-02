@@ -1,6 +1,13 @@
 import { $Enums, Channel } from '@prisma/client';
 import { Exclude } from 'class-transformer';
-import { IsString, IsNotEmpty, IsEnum, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsBoolean,
+  IsOptional,
+  IsNumber,
+} from 'class-validator';
 
 export class CreateChannelDto implements Channel {
   @IsBoolean()
@@ -17,6 +24,10 @@ export class CreateChannelDto implements Channel {
 
   @IsEnum($Enums.ChannelType)
   type: $Enums.ChannelType;
+
+  @IsNumber()
+  @IsOptional()
+  position: number;
 
   @Exclude()
   id: string;
