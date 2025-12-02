@@ -43,6 +43,7 @@ export function initTelemetry(): void {
       service: 'kraken-frontend',
       env: import.meta.env.MODE,
       version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+      apiVersion: 'v1',
       sessionSampleRate: 100,
       sessionReplaySampleRate: 100,
       trackResources: true,
@@ -58,6 +59,7 @@ export function initTelemetry(): void {
       organizationIdentifier: orgId,
       service: 'kraken-frontend',
       env: import.meta.env.MODE,
+      apiVersion: 'v1',
       forwardErrorsToLogs: true,
       forwardConsoleLogs: ['error', 'warn'],
     });
