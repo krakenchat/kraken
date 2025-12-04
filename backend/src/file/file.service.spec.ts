@@ -117,6 +117,27 @@ describe('FileService', () => {
       await expect(service.markForDeletion(fileId)).resolves.toBeUndefined();
     });
 
+    it('should use transaction client when provided', async () => {
+      const fileId = 'file-tx';
+      const mockTxClient = {
+        file: {
+          update: jest.fn().mockResolvedValue({
+            id: fileId,
+            deletedAt: new Date(),
+          }),
+        },
+      };
+
+      await service.markForDeletion(fileId, mockTxClient as any);
+
+      // Should use tx client instead of databaseService
+      expect(mockTxClient.file.update).toHaveBeenCalledWith({
+        where: { id: fileId },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(mockDatabaseService.file.update).not.toHaveBeenCalled();
+    });
+
     it('should handle multiple mark for deletion calls', async () => {
       const fileIds = ['file-1', 'file-2', 'file-3'];
 

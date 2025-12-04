@@ -109,7 +109,12 @@ describe('MessagesController', () => {
         authorId: mockUser.id,
       });
 
+      const enrichedMessage = { ...mockMessage, attachments: [] };
+
       jest.spyOn(service, 'create').mockResolvedValue(mockMessage as any);
+      jest
+        .spyOn(service, 'enrichMessageWithFileMetadata')
+        .mockResolvedValue(enrichedMessage as any);
 
       const result = await controller.create(mockRequest, createDto);
 
@@ -120,7 +125,10 @@ describe('MessagesController', () => {
           sentAt: expect.any(Date),
         }),
       );
-      expect(result).toEqual(mockMessage);
+      expect(service.enrichMessageWithFileMetadata).toHaveBeenCalledWith(
+        mockMessage,
+      );
+      expect(result).toEqual(enrichedMessage);
     });
 
     it('should set sentAt timestamp when creating message', async () => {
@@ -138,7 +146,11 @@ describe('MessagesController', () => {
         reactions: [],
       };
 
-      jest.spyOn(service, 'create').mockResolvedValue({} as any);
+      const mockMessage = {};
+      jest.spyOn(service, 'create').mockResolvedValue(mockMessage as any);
+      jest
+        .spyOn(service, 'enrichMessageWithFileMetadata')
+        .mockResolvedValue({ attachments: [] } as any);
 
       await controller.create(mockRequest, createDto);
 
@@ -443,21 +455,28 @@ describe('MessagesController', () => {
   });
 
   describe('findOne', () => {
-    it('should return a single message by ID', async () => {
+    it('should return a single message by ID with enriched attachments', async () => {
       const messageId = 'msg-123';
       const mockMessage = MessageFactory.build({ id: messageId });
+      const enrichedMessage = { ...mockMessage, attachments: [] };
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockMessage as any);
+      jest
+        .spyOn(service, 'enrichMessageWithFileMetadata')
+        .mockResolvedValue(enrichedMessage as any);
 
       const result = await controller.findOne(messageId);
 
       expect(service.findOne).toHaveBeenCalledWith(messageId);
-      expect(result).toEqual(mockMessage);
+      expect(service.enrichMessageWithFileMetadata).toHaveBeenCalledWith(
+        mockMessage,
+      );
+      expect(result).toEqual(enrichedMessage);
     });
   });
 
   describe('update', () => {
-    it('should update message and emit WebSocket event', async () => {
+    it('should update message and emit WebSocket event with enriched message', async () => {
       const messageId = 'msg-123';
       const updateDto: UpdateMessageDto = {
         spans: [
@@ -483,8 +502,13 @@ describe('MessagesController', () => {
         id: messageId,
       });
 
+      const enrichedMessage = { ...updatedMessage, attachments: [] };
+
       jest.spyOn(service, 'findOne').mockResolvedValue(originalMessage as any);
       jest.spyOn(service, 'update').mockResolvedValue(updatedMessage as any);
+      jest
+        .spyOn(service, 'enrichMessageWithFileMetadata')
+        .mockResolvedValue(enrichedMessage as any);
 
       const result = await controller.update(messageId, updateDto);
 
@@ -492,12 +516,15 @@ describe('MessagesController', () => {
       expect(service.update).toHaveBeenCalledWith(messageId, updateDto, [
         'old-file',
       ]);
+      expect(service.enrichMessageWithFileMetadata).toHaveBeenCalledWith(
+        updatedMessage,
+      );
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'channel-123',
         ServerEvents.UPDATE_MESSAGE,
-        { message: updatedMessage },
+        { message: enrichedMessage },
       );
-      expect(result).toEqual(updatedMessage);
+      expect(result).toEqual(enrichedMessage);
     });
 
     it('should handle DM group message updates', async () => {
@@ -513,16 +540,20 @@ describe('MessagesController', () => {
       });
 
       const updatedMessage = MessageFactory.build();
+      const enrichedMessage = { ...updatedMessage, attachments: [] };
 
       jest.spyOn(service, 'findOne').mockResolvedValue(originalMessage as any);
       jest.spyOn(service, 'update').mockResolvedValue(updatedMessage as any);
+      jest
+        .spyOn(service, 'enrichMessageWithFileMetadata')
+        .mockResolvedValue(enrichedMessage as any);
 
       await controller.update(messageId, updateDto);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'dm-group-123',
         ServerEvents.UPDATE_MESSAGE,
-        expect.any(Object),
+        { message: enrichedMessage },
       );
     });
   });

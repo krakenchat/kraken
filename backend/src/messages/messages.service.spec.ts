@@ -136,7 +136,11 @@ describe('MessagesService', () => {
 
       await service.update(messageId, updateDto, originalAttachments);
 
-      expect(fileService.markForDeletion).toHaveBeenCalledWith('file-2');
+      // markForDeletion is called with fileId and transaction client
+      expect(fileService.markForDeletion).toHaveBeenCalledWith(
+        'file-2',
+        expect.any(Object),
+      );
       expect(fileService.markForDeletion).toHaveBeenCalledTimes(1);
     });
 
@@ -150,8 +154,15 @@ describe('MessagesService', () => {
 
       await service.update(messageId, updateDto, originalAttachments);
 
-      expect(fileService.markForDeletion).toHaveBeenCalledWith('file-2');
-      expect(fileService.markForDeletion).toHaveBeenCalledWith('file-3');
+      // markForDeletion is called with fileId and transaction client
+      expect(fileService.markForDeletion).toHaveBeenCalledWith(
+        'file-2',
+        expect.any(Object),
+      );
+      expect(fileService.markForDeletion).toHaveBeenCalledWith(
+        'file-3',
+        expect.any(Object),
+      );
       expect(fileService.markForDeletion).toHaveBeenCalledTimes(2);
     });
 
@@ -202,7 +213,7 @@ describe('MessagesService', () => {
       });
     });
 
-    it('should mark attachments for deletion before removing message', async () => {
+    it('should mark attachments for deletion when removing message', async () => {
       const messageId = 'msg-123';
       const attachments = ['file-1', 'file-2'];
 
@@ -210,8 +221,15 @@ describe('MessagesService', () => {
 
       await service.remove(messageId, attachments);
 
-      expect(fileService.markForDeletion).toHaveBeenCalledWith('file-1');
-      expect(fileService.markForDeletion).toHaveBeenCalledWith('file-2');
+      // markForDeletion is called with fileId and transaction client
+      expect(fileService.markForDeletion).toHaveBeenCalledWith(
+        'file-1',
+        expect.any(Object),
+      );
+      expect(fileService.markForDeletion).toHaveBeenCalledWith(
+        'file-2',
+        expect.any(Object),
+      );
       expect(fileService.markForDeletion).toHaveBeenCalledTimes(2);
     });
 

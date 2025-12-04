@@ -36,52 +36,51 @@ describe('DirectMessagesService', () => {
   describe('findUserDmGroups', () => {
     it('should return all DM groups for a user', async () => {
       const user = UserFactory.build();
-      const dmGroups = [
-        {
-          userId: user.id,
-          group: {
-            id: 'dm-1',
-            name: null,
-            isGroup: false,
-            createdAt: new Date(),
-            members: [
-              {
-                userId: user.id,
-                user: {
-                  id: user.id,
-                  username: user.username,
-                  displayName: user.displayName,
-                  avatarUrl: user.avatarUrl,
-                },
-              },
-            ],
-            messages: [MessageFactory.buildDirectMessage()],
-          },
-        },
-      ];
+      const createdAt = new Date();
+      const lastMessage = MessageFactory.buildDirectMessage({
+        directMessageGroupId: 'dm-1',
+      });
 
-      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue(
-        dmGroups,
-      );
+      // Mock the batched query approach
+      // Step 1: Return group IDs
+      mockDatabase.directMessageGroupMember.findMany
+        .mockResolvedValueOnce([{ groupId: 'dm-1' }])
+        // Step 2 (parallel): Return members with users
+        .mockResolvedValueOnce([
+          {
+            groupId: 'dm-1',
+            userId: user.id,
+            id: 'membership-1',
+            joinedAt: new Date(),
+            user: {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+            },
+          },
+        ]);
+
+      // Groups query
+      mockDatabase.directMessageGroup.findMany.mockResolvedValue([
+        {
+          id: 'dm-1',
+          name: null,
+          isGroup: false,
+          createdAt,
+        },
+      ]);
+
+      // Messages query
+      mockDatabase.message.findMany.mockResolvedValue([lastMessage]);
 
       const result = await service.findUserDmGroups(user.id);
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('dm-1');
       expect(result[0].isGroup).toBe(false);
-      expect(
-        mockDatabase.directMessageGroupMember.findMany,
-      ).toHaveBeenCalledWith({
-        where: { userId: user.id },
-        include: expect.objectContaining({
-          group: expect.any(Object),
-        }),
-        orderBy: {
-          group: {
-            createdAt: 'desc',
-          },
-        },
-      });
+      expect(result[0].members).toHaveLength(1);
+      expect(result[0].lastMessage).toBeDefined();
     });
 
     it('should return empty array when user has no DM groups', async () => {
@@ -95,23 +94,37 @@ describe('DirectMessagesService', () => {
 
     it('should handle last message being null', async () => {
       const user = UserFactory.build();
-      const dmGroups = [
-        {
-          userId: user.id,
-          group: {
-            id: 'dm-1',
-            name: null,
-            isGroup: false,
-            createdAt: new Date(),
-            members: [],
-            messages: [], // No messages
-          },
-        },
-      ];
+      const createdAt = new Date();
 
-      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue(
-        dmGroups,
-      );
+      // Mock the batched query approach
+      mockDatabase.directMessageGroupMember.findMany
+        .mockResolvedValueOnce([{ groupId: 'dm-1' }])
+        .mockResolvedValueOnce([
+          {
+            groupId: 'dm-1',
+            userId: user.id,
+            id: 'membership-1',
+            joinedAt: new Date(),
+            user: {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+            },
+          },
+        ]);
+
+      mockDatabase.directMessageGroup.findMany.mockResolvedValue([
+        {
+          id: 'dm-1',
+          name: null,
+          isGroup: false,
+          createdAt,
+        },
+      ]);
+
+      // No messages
+      mockDatabase.message.findMany.mockResolvedValue([]);
 
       const result = await service.findUserDmGroups(user.id);
 

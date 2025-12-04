@@ -11,10 +11,13 @@ interface MessagesState {
   byChannelId: {
     [channelId: string]: ChannelMessages;
   };
+  // Index for O(1) message lookup: messageId -> channelId
+  messageIndex: Record<string, string>;
 }
 
 const initialState: MessagesState = {
   byChannelId: {},
+  messageIndex: {},
 };
 
 const MAX_MESSAGES = 1000;
@@ -32,9 +35,22 @@ const messagesSlice = createSlice({
       }>
     ) {
       const { channelId, messages, continuationToken } = action.payload;
+
+      // Remove old messages from index
+      const oldMessages = state.byChannelId[channelId]?.messages || [];
+      oldMessages.forEach((msg) => {
+        delete state.messageIndex[msg.id];
+      });
+
+      // Add new messages to index
+      const slicedMessages = messages.slice(-MAX_MESSAGES);
+      slicedMessages.forEach((msg) => {
+        state.messageIndex[msg.id] = channelId;
+      });
+
       // Replace all messages for this channel (used for initial loads)
       state.byChannelId[channelId] = {
-        messages: messages.slice(-MAX_MESSAGES),
+        messages: slicedMessages,
         continuationToken,
       };
     },
@@ -55,8 +71,26 @@ const messagesSlice = createSlice({
       // Filter out messages that already exist
       const newMessages = messages.filter((msg) => !existingIds.has(msg.id));
 
+      // Add new messages to index
+      newMessages.forEach((msg) => {
+        state.messageIndex[msg.id] = channelId;
+      });
+
+      // Combine and slice
+      const combinedMessages = [...existing, ...newMessages].slice(-MAX_MESSAGES);
+
+      // Remove messages that were trimmed from the index
+      if (combinedMessages.length < existing.length + newMessages.length) {
+        const keptIds = new Set(combinedMessages.map((msg) => msg.id));
+        [...existing, ...newMessages].forEach((msg) => {
+          if (!keptIds.has(msg.id)) {
+            delete state.messageIndex[msg.id];
+          }
+        });
+      }
+
       state.byChannelId[channelId] = {
-        messages: [...existing, ...newMessages].slice(-MAX_MESSAGES),
+        messages: combinedMessages,
         continuationToken,
       };
     },
@@ -73,9 +107,25 @@ const messagesSlice = createSlice({
         return;
       }
 
+      // Add new message to index
+      state.messageIndex[message.id] = channelId;
+
+      // Combine and slice
+      const combinedMessages = [message, ...existing].slice(0, MAX_MESSAGES);
+
+      // Remove message that was trimmed from the index (last one if we exceeded MAX)
+      if (combinedMessages.length > existing.length) {
+        const keptIds = new Set(combinedMessages.map((msg) => msg.id));
+        [...existing, message].forEach((msg) => {
+          if (!keptIds.has(msg.id)) {
+            delete state.messageIndex[msg.id];
+          }
+        });
+      }
+
       state.byChannelId[channelId] = {
         ...state.byChannelId[channelId],
-        messages: [message, ...existing].slice(0, MAX_MESSAGES),
+        messages: combinedMessages,
       };
     },
     updateMessage(
@@ -97,6 +147,10 @@ const messagesSlice = createSlice({
     ) {
       const { channelId, id } = action.payload;
       const existing = state.byChannelId[channelId]?.messages || [];
+
+      // Remove from index
+      delete state.messageIndex[id];
+
       state.byChannelId[channelId] = {
         ...state.byChannelId[channelId],
         messages: existing.filter((msg) => msg.id !== id),
@@ -104,6 +158,13 @@ const messagesSlice = createSlice({
     },
     clearMessages(state, action: PayloadAction<{ channelId: string }>) {
       const { channelId } = action.payload;
+
+      // Remove all messages for this channel from index
+      const messages = state.byChannelId[channelId]?.messages || [];
+      messages.forEach((msg) => {
+        delete state.messageIndex[msg.id];
+      });
+
       delete state.byChannelId[channelId];
     },
   },
@@ -128,6 +189,10 @@ export const makeSelectContinuationTokenByChannel = () =>
     ],
     (byChannelId, channelId) => byChannelId[channelId]?.continuationToken
   );
+
+// Selector for message index (O(1) message lookup)
+export const selectMessageIndex = (state: RootState) =>
+  state.messages.messageIndex;
 
 export const {
   setMessages,

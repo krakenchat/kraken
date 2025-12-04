@@ -48,15 +48,17 @@ export class MessagesController {
     idKey: 'channelId',
     source: ResourceIdSource.BODY,
   })
-  create(
+  async create(
     @Req() req: AuthenticatedRequest,
     @Body() createMessageDto: CreateMessageDto,
   ) {
-    return this.messagesService.create({
+    const message = await this.messagesService.create({
       ...createMessageDto,
       authorId: req.user.id,
       sentAt: new Date(),
     });
+    // Enrich with file metadata for consistent response shape
+    return this.messagesService.enrichMessageWithFileMetadata(message);
   }
 
   @Get('/group/:groupId')
@@ -202,8 +204,10 @@ export class MessagesController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  findOne(@Param('id', ParseObjectIdPipe) id: string) {
-    return this.messagesService.findOne(id);
+  async findOne(@Param('id', ParseObjectIdPipe) id: string) {
+    const message = await this.messagesService.findOne(id);
+    // Enrich with file metadata for consistent response shape
+    return this.messagesService.enrichMessageWithFileMetadata(message);
   }
 
   @Patch(':id')
@@ -222,16 +226,20 @@ export class MessagesController {
       originalMessage.attachments,
     );
 
+    // Enrich with file metadata for consistent response shape
+    const enrichedMessage =
+      await this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
+
     // Emit WebSocket event to the channel room
     const roomId =
       originalMessage.channelId || originalMessage.directMessageGroupId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
-        message: updatedMessage,
+        message: enrichedMessage,
       });
     }
 
-    return updatedMessage;
+    return enrichedMessage;
   }
 
   @HttpCode(204)

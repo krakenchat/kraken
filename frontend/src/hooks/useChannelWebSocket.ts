@@ -8,16 +8,20 @@ import {
   prependMessage,
   updateMessage,
   deleteMessage,
+  selectMessageIndex,
 } from "../features/messages/messagesSlice";
 
 export function useChannelWebSocket(communityId: string | undefined) {
   const dispatch = useAppDispatch();
   const socket = useSocket();
   const messagesByChannelId = useAppSelector((state) => state.messages.byChannelId);
+  const messageIndex = useAppSelector(selectMessageIndex);
 
-  // Use ref to access latest messages without triggering effect re-runs
+  // Use refs to access latest state without triggering effect re-runs
   const messagesByChannelIdRef = useRef(messagesByChannelId);
   messagesByChannelIdRef.current = messagesByChannelId;
+  const messageIndexRef = useRef(messageIndex);
+  messageIndexRef.current = messageIndex;
 
   useEffect(() => {
     if (!socket || !communityId) return;
@@ -57,28 +61,33 @@ export function useChannelWebSocket(communityId: string | undefined) {
       messageId: string;
       reaction: Reaction;
     }) => {
-      // Use ref to access latest messages without effect re-runs
+      // O(1) lookup using message index
+      const channelId = messageIndexRef.current[messageId];
+      if (!channelId) return;
+
       const currentMessages = messagesByChannelIdRef.current;
-      // Find the message in all channels and update it
-      Object.keys(currentMessages).forEach((channelId) => {
-        const messages = currentMessages[channelId]?.messages || [];
-        const messageToUpdate = messages.find(msg => msg.id === messageId);
-        if (messageToUpdate) {
-          const updatedReactions = [...messageToUpdate.reactions];
-          const existingIndex = updatedReactions.findIndex(r => r.emoji === reaction.emoji);
+      const messages = currentMessages[channelId]?.messages || [];
+      const messageToUpdate = messages.find((msg) => msg.id === messageId);
 
-          if (existingIndex >= 0) {
-            updatedReactions[existingIndex] = reaction;
-          } else {
-            updatedReactions.push(reaction);
-          }
+      if (messageToUpdate) {
+        const updatedReactions = [...messageToUpdate.reactions];
+        const existingIndex = updatedReactions.findIndex(
+          (r) => r.emoji === reaction.emoji
+        );
 
-          dispatch(updateMessage({
-            channelId,
-            message: { ...messageToUpdate, reactions: updatedReactions }
-          }));
+        if (existingIndex >= 0) {
+          updatedReactions[existingIndex] = reaction;
+        } else {
+          updatedReactions.push(reaction);
         }
-      });
+
+        dispatch(
+          updateMessage({
+            channelId,
+            message: { ...messageToUpdate, reactions: updatedReactions },
+          })
+        );
+      }
     };
 
     const handleReactionRemoved = ({
@@ -89,19 +98,22 @@ export function useChannelWebSocket(communityId: string | undefined) {
       emoji: string;
       reactions: Reaction[];
     }) => {
-      // Use ref to access latest messages without effect re-runs
+      // O(1) lookup using message index
+      const channelId = messageIndexRef.current[messageId];
+      if (!channelId) return;
+
       const currentMessages = messagesByChannelIdRef.current;
-      // Find the message in all channels and update it with the correct reactions array
-      Object.keys(currentMessages).forEach((channelId) => {
-        const messages = currentMessages[channelId]?.messages || [];
-        const messageToUpdate = messages.find(msg => msg.id === messageId);
-        if (messageToUpdate) {
-          dispatch(updateMessage({
+      const messages = currentMessages[channelId]?.messages || [];
+      const messageToUpdate = messages.find((msg) => msg.id === messageId);
+
+      if (messageToUpdate) {
+        dispatch(
+          updateMessage({
             channelId,
-            message: { ...messageToUpdate, reactions }
-          }));
-        }
-      });
+            message: { ...messageToUpdate, reactions },
+          })
+        );
+      }
     };
 
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);

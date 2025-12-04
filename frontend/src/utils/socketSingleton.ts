@@ -3,18 +3,22 @@ import type {
   ServerToClientEvents,
   ClientToServerEvents,
 } from "./SocketContext";
-import { setCachedItem } from "../utils/storage";
-import axios from "axios";
-import { getWebSocketUrl, getApiUrl } from "../config/env";
-import { getAuthToken } from "./auth";
+import { getWebSocketUrl } from "../config/env";
 import { logger } from "./logger";
-import { isElectron } from "./platform";
+import {
+  getAccessToken,
+  refreshToken,
+  onTokenRefreshed,
+} from "./tokenService";
 
 let socketInstance: Socket<ServerToClientEvents, ClientToServerEvents> | null =
   null;
 let connectPromise: Promise<
   Socket<ServerToClientEvents, ClientToServerEvents>
 > | null = null;
+
+// Subscribe to token refresh events to update socket auth
+let unsubscribeTokenRefresh: (() => void) | null = null;
 
 export async function getSocketSingleton(): Promise<
   Socket<ServerToClientEvents, ClientToServerEvents>
@@ -25,68 +29,49 @@ export async function getSocketSingleton(): Promise<
   if (connectPromise) {
     return connectPromise;
   }
+
   connectPromise = (async () => {
-    let token = getAuthToken();
+    // Use centralized token service for refresh
+    let token = getAccessToken();
 
-    // Try to refresh token
-    try {
-      const refreshUrl = getApiUrl("/auth/refresh");
-      logger.dev("[Socket] Refreshing token at:", refreshUrl);
+    // If no token, try to refresh
+    if (!token) {
+      logger.dev("[Socket] No access token, attempting refresh...");
+      token = await refreshToken();
+    }
 
-      // Check if we're in Electron and have a stored refresh token
-      const isElectronApp = isElectron();
-
-      let refreshResponse;
-      if (isElectronApp) {
-        const refreshToken = localStorage.getItem("refreshToken");
-        if (refreshToken) {
-          // For Electron, send refresh token in body
-          refreshResponse = await axios.post<{ accessToken: string; refreshToken?: string }>(
-            refreshUrl,
-            { refreshToken }
-          );
-        } else {
-          throw new Error("No refresh token available for Electron client");
-        }
-      } else {
-        // For web clients, use cookie-based refresh
-        refreshResponse = await axios.post<{ accessToken: string }>(
-          refreshUrl,
-          {},
-          { withCredentials: true }
-        );
-      }
-
-      if (refreshResponse?.data?.accessToken) {
-        setCachedItem("accessToken", refreshResponse.data.accessToken);
-        token = refreshResponse.data.accessToken;
-
-        // Update stored refresh token for Electron
-        if (isElectronApp && refreshResponse.data.refreshToken) {
-          localStorage.setItem("refreshToken", refreshResponse.data.refreshToken);
-        }
-
-        logger.dev("[Socket] Token refreshed successfully");
-      }
-    } catch (error) {
-      logger.error("[Socket] Error refreshing token:", error);
-      token = null;
+    if (!token) {
+      const error = new Error(
+        "No token available for socket connection. Please log in and configure server connection."
+      );
+      logger.error("[Socket]", error.message);
+      throw error;
     }
 
     // Use configurable WebSocket URL from environment
     const url = getWebSocketUrl();
     logger.dev("[Socket] Connecting to WebSocket URL:", url);
 
-    if (!token) {
-      const error = new Error("No token available for socket connection. Please log in and configure server connection.");
-      logger.error("[Socket]", error.message);
-      throw error;
-    }
-
     socketInstance = io(url, {
       transports: ["websocket"],
       auth: { token: `Bearer ${token}` },
     });
+
+    // Subscribe to token refresh events to update socket auth
+    // This ensures the socket uses the new token if it reconnects
+    if (unsubscribeTokenRefresh) {
+      unsubscribeTokenRefresh();
+    }
+    unsubscribeTokenRefresh = onTokenRefreshed((newToken) => {
+      logger.dev("[Socket] Token refreshed, updating socket auth");
+      if (socketInstance) {
+        socketInstance.auth = { token: `Bearer ${newToken}` };
+        // If socket is disconnected, the new auth will be used on reconnect
+        // If we need to reconnect immediately, we could call:
+        // socketInstance.disconnect().connect();
+      }
+    });
+
     return new Promise<Socket<ServerToClientEvents, ClientToServerEvents>>(
       (resolve, reject) => {
         socketInstance!.on("connect", () => {
@@ -99,5 +84,21 @@ export async function getSocketSingleton(): Promise<
       }
     );
   })();
+
   return connectPromise;
+}
+
+/**
+ * Disconnect the socket and cleanup
+ */
+export function disconnectSocket(): void {
+  if (unsubscribeTokenRefresh) {
+    unsubscribeTokenRefresh();
+    unsubscribeTokenRefresh = null;
+  }
+  if (socketInstance) {
+    socketInstance.disconnect();
+    socketInstance = null;
+  }
+  connectPromise = null;
 }

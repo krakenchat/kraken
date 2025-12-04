@@ -324,11 +324,38 @@ describe('AuthService', () => {
 
     it('should return null when token not found in database', async () => {
       mockDatabase.refreshToken.findUnique.mockResolvedValue(null);
+      mockBcrypt.compare.mockResolvedValue(false as never);
 
       const result = await service.validateRefreshToken('nonexistent', 'token');
 
       expect(result).toBeNull();
-      expect(bcrypt.compare).not.toHaveBeenCalled();
+      // bcrypt.compare should still be called with dummy hash to prevent timing attacks
+      expect(bcrypt.compare).toHaveBeenCalled();
+    });
+
+    it('should always call bcrypt.compare to prevent timing attacks (token exists)', async () => {
+      const jti = 'existing-token';
+      const mockToken = RefreshTokenFactory.build({ id: jti });
+
+      mockDatabase.refreshToken.findUnique.mockResolvedValue(mockToken);
+      mockBcrypt.compare.mockResolvedValue(true as never);
+
+      await service.validateRefreshToken(jti, 'token');
+
+      expect(bcrypt.compare).toHaveBeenCalledWith('token', mockToken.tokenHash);
+    });
+
+    it('should always call bcrypt.compare to prevent timing attacks (token missing)', async () => {
+      mockDatabase.refreshToken.findUnique.mockResolvedValue(null);
+      mockBcrypt.compare.mockResolvedValue(false as never);
+
+      await service.validateRefreshToken('nonexistent', 'token');
+
+      // Should compare against dummy hash when token not found
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'token',
+        expect.stringContaining('$2b$10$'),
+      );
     });
 
     it('should return null when token hash does not match', async () => {

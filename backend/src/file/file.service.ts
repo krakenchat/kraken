@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { StorageService } from '@/storage/storage.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class FileService {
@@ -17,9 +18,10 @@ export class FileService {
     });
   }
 
-  async markForDeletion(fileId: string) {
+  async markForDeletion(fileId: string, tx?: Prisma.TransactionClient) {
     try {
-      await this.databaseService.file.update({
+      const client = tx ?? this.databaseService;
+      await client.file.update({
         where: { id: fileId },
         data: { deletedAt: new Date() },
       });

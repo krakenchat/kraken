@@ -17,51 +17,85 @@ export class DirectMessagesService {
 
   async findUserDmGroups(userId: string): Promise<DmGroupResponseDto[]> {
     try {
+      // Step 1: Get user's DM group memberships (just group IDs)
       const memberships =
         await this.databaseService.directMessageGroupMember.findMany({
           where: { userId },
+          select: { groupId: true },
+        });
+
+      if (memberships.length === 0) {
+        return [];
+      }
+
+      const groupIds = memberships.map((m) => m.groupId);
+
+      // Step 2: Batch queries in parallel for better performance
+      const [groups, allMembers, lastMessages] = await Promise.all([
+        // Fetch all groups
+        this.databaseService.directMessageGroup.findMany({
+          where: { id: { in: groupIds } },
+          orderBy: { createdAt: 'desc' },
+        }),
+        // Fetch all members for all groups with user data
+        this.databaseService.directMessageGroupMember.findMany({
+          where: { groupId: { in: groupIds } },
           include: {
-            group: {
-              include: {
-                members: {
-                  include: {
-                    user: {
-                      select: {
-                        id: true,
-                        username: true,
-                        displayName: true,
-                        avatarUrl: true,
-                      },
-                    },
-                  },
-                },
-                messages: {
-                  take: 1,
-                  orderBy: { sentAt: 'desc' },
-                  select: {
-                    id: true,
-                    authorId: true,
-                    spans: true,
-                    sentAt: true,
-                  },
-                },
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
               },
             },
           },
-          orderBy: {
-            group: {
-              createdAt: 'desc',
-            },
+        }),
+        // Fetch last message for each group
+        // Use Message model (DM messages have directMessageGroupId set)
+        this.databaseService.message.findMany({
+          where: { directMessageGroupId: { in: groupIds } },
+          orderBy: { sentAt: 'desc' },
+          select: {
+            id: true,
+            authorId: true,
+            spans: true,
+            sentAt: true,
+            directMessageGroupId: true,
           },
-        });
+        }),
+      ]);
 
-      return memberships.map((membership) => ({
-        id: membership.group.id,
-        name: membership.group.name,
-        isGroup: membership.group.isGroup,
-        createdAt: membership.group.createdAt,
-        members: membership.group.members,
-        lastMessage: membership.group.messages[0] || null,
+      // Step 3: Build lookup maps for efficient assembly
+      const membersByGroupId = new Map<string, typeof allMembers>();
+      for (const member of allMembers) {
+        const existing = membersByGroupId.get(member.groupId) || [];
+        existing.push(member);
+        membersByGroupId.set(member.groupId, existing);
+      }
+
+      // Get first (most recent) message per group
+      const lastMessageByGroupId = new Map<
+        string,
+        (typeof lastMessages)[0] | null
+      >();
+      for (const message of lastMessages) {
+        if (
+          message.directMessageGroupId &&
+          !lastMessageByGroupId.has(message.directMessageGroupId)
+        ) {
+          lastMessageByGroupId.set(message.directMessageGroupId, message);
+        }
+      }
+
+      // Step 4: Assemble response
+      return groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        isGroup: group.isGroup,
+        createdAt: group.createdAt,
+        members: membersByGroupId.get(group.id) || [],
+        lastMessage: lastMessageByGroupId.get(group.id) || null,
       }));
     } catch (error) {
       this.logger.error('Error finding user DM groups', error);

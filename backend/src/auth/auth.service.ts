@@ -13,6 +13,9 @@ import { ObjectId } from 'mongodb';
 export class AuthService {
   private readonly jwtRefreshSecret: string | undefined;
   private readonly logger = new Logger(AuthService.name);
+  // Dummy hash for timing-attack prevention - bcrypt.compare() must always run
+  private readonly DUMMY_HASH =
+    '$2b$10$dummyhashfortimingattackprevention000000000000000';
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
@@ -133,14 +136,18 @@ export class AuthService {
       where: { id: jti },
     });
 
-    if (!token) {
-      return null;
-    }
+    // Always run bcrypt.compare() to prevent timing attacks
+    // If token doesn't exist, compare against dummy hash to maintain consistent timing
+    const isMatch = await bcrypt.compare(
+      refreshToken,
+      token?.tokenHash ?? this.DUMMY_HASH,
+    );
 
-    const isMatch = await bcrypt.compare(refreshToken, token.tokenHash);
-    if (isMatch) {
+    if (isMatch && token) {
       return token;
     }
+
+    return null;
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_6AM)

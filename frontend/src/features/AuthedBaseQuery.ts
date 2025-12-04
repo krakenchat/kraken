@@ -3,26 +3,14 @@ import type {
   FetchArgs,
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
-import axios from "axios";
-import { setCachedItem } from "../utils/storage";
-import { getApiUrl } from "../config/env";
 import { getAuthToken } from "../utils/auth";
 import { logger } from "../utils/logger";
-import { isElectron } from "../utils/platform";
 import { trackNetworkError } from "../services/telemetry";
-
-// Track refresh attempts to prevent infinite loops
-let isRefreshing = false;
-let refreshAttempts = 0;
-const MAX_REFRESH_ATTEMPTS = 1;
-
-const redirectToLogin = () => {
-  localStorage.removeItem("accessToken");
-  // Use hash for HashRouter compatibility (especially in Electron)
-  if (window.location.hash !== "#/login") {
-    window.location.hash = "#/login";
-  }
-};
+import {
+  refreshToken,
+  isRefreshing,
+  redirectToLogin,
+} from "../utils/tokenService";
 
 const getBaseAuthedQuery = (
   baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError>
@@ -34,72 +22,39 @@ const getBaseAuthedQuery = (
       result.error &&
       (result.error.status === 401 || result.error.data === "Unauthorized")
     ) {
-      // If we're already refreshing or have exceeded max attempts, redirect to login
-      if (isRefreshing || refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-        logger.dev("Authentication failed - redirecting to login");
+      // If we're already refreshing, wait for it to complete
+      if (isRefreshing()) {
+        logger.dev("Token refresh already in progress, waiting...");
+        const newToken = await refreshToken();
+        if (newToken) {
+          // Retry the original request with new token
+          return baseQuery(args, api, extraOptions);
+        }
         redirectToLogin();
-        return result; // Return the original error
+        return result;
       }
 
       logger.dev("Unauthorized, trying to refresh token");
-      isRefreshing = true;
-      refreshAttempts++;
 
-      try {
-        // Try to refresh - check if we're in Electron
-        const isElectronApp = isElectron();
+      // Use centralized token refresh
+      const newToken = await refreshToken();
 
-        let refreshResponse;
-        if (isElectronApp) {
-          const refreshToken = localStorage.getItem("refreshToken");
-          if (refreshToken) {
-            // For Electron, send refresh token in body
-            refreshResponse = await axios.post<{ accessToken: string; refreshToken?: string }>(
-              getApiUrl("/auth/refresh"),
-              { refreshToken }
-            );
-          } else {
-            throw new Error("No refresh token available for Electron client");
-          }
-        } else {
-          // For web clients, use cookie-based refresh
-          refreshResponse = await axios.post<{ accessToken: string }>(
-            getApiUrl("/auth/refresh"),
-            {},
-            { withCredentials: true }
-          );
-        }
-
-        logger.dev("Refresh response", refreshResponse);
-        if (refreshResponse?.data?.accessToken) {
-          setCachedItem("accessToken", refreshResponse.data.accessToken);
-
-          // Update stored refresh token for Electron
-          if (isElectronApp && refreshResponse.data.refreshToken) {
-            localStorage.setItem("refreshToken", refreshResponse.data.refreshToken);
-          }
-
-          // Reset attempts on successful refresh
-          refreshAttempts = 0;
-          isRefreshing = false;
-
-          // Retry the original request with new token
-          return baseQuery(args, api, extraOptions);
-        } else {
-          throw new Error("No access token in refresh response");
-        }
-      } catch (refreshError) {
-        logger.error("Token refresh failed:", refreshError);
-        isRefreshing = false;
+      if (newToken) {
+        // Retry the original request with new token
+        return baseQuery(args, api, extraOptions);
+      } else {
+        logger.dev("Authentication failed - redirecting to login");
         redirectToLogin();
-        return result; // Return the original 401 error
+        return result; // Return the original error
       }
     }
 
     // Track non-auth errors to telemetry (skip 401s as they're handled above)
     if (result.error && result.error.status !== 401) {
-      const endpoint = typeof args === 'string' ? args : (args as FetchArgs).url || 'unknown';
-      const status = typeof result.error.status === 'number' ? result.error.status : 0;
+      const endpoint =
+        typeof args === "string" ? args : (args as FetchArgs).url || "unknown";
+      const status =
+        typeof result.error.status === "number" ? result.error.status : 0;
       trackNetworkError(endpoint, status, result.error.data);
     }
 

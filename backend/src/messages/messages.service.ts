@@ -3,7 +3,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
-import { Message } from '@prisma/client';
+import { Message, Prisma } from '@prisma/client';
 
 @Injectable()
 export class MessagesService {
@@ -37,33 +37,41 @@ export class MessagesService {
     originalAttachments?: string[],
   ) {
     try {
-      // If attachments are being updated and we have the original list, mark removed ones for deletion
-      if (
-        updateMessageDto.attachments &&
-        originalAttachments &&
-        Array.isArray(originalAttachments)
-      ) {
-        const newAttachments = updateMessageDto.attachments;
-        const removedAttachments = originalAttachments.filter(
-          (oldId) => !newAttachments.includes(oldId),
-        );
+      // Wrap in transaction to ensure message update and file marking are atomic
+      return await this.databaseService.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          // Update the message first
+          const updatedMessage = await tx.message.update({
+            where: { id },
+            data: updateMessageDto,
+          });
 
-        // Mark removed attachments for deletion (cron job will clean them up)
-        for (const fileId of removedAttachments) {
-          await this.fileService.markForDeletion(fileId);
-        }
+          // If attachments are being updated and we have the original list, mark removed ones for deletion
+          if (
+            updateMessageDto.attachments &&
+            originalAttachments &&
+            Array.isArray(originalAttachments)
+          ) {
+            const newAttachments = updateMessageDto.attachments;
+            const removedAttachments = originalAttachments.filter(
+              (oldId) => !newAttachments.includes(oldId),
+            );
 
-        if (removedAttachments.length > 0) {
-          this.logger.debug(
-            `Marked ${removedAttachments.length} removed attachments for deletion`,
-          );
-        }
-      }
+            // Mark removed attachments for deletion within transaction
+            for (const fileId of removedAttachments) {
+              await this.fileService.markForDeletion(fileId, tx);
+            }
 
-      return await this.databaseService.message.update({
-        where: { id },
-        data: updateMessageDto,
-      });
+            if (removedAttachments.length > 0) {
+              this.logger.debug(
+                `Marked ${removedAttachments.length} removed attachments for deletion`,
+              );
+            }
+          }
+
+          return updatedMessage;
+        },
+      );
     } catch (error) {
       this.logger.error('Error updating message', error);
       throw error;
@@ -72,19 +80,31 @@ export class MessagesService {
 
   async remove(id: string, attachments?: string[]) {
     try {
-      // Mark all attachments for deletion before removing the message
-      if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-        for (const fileId of attachments) {
-          await this.fileService.markForDeletion(fileId);
-        }
-        this.logger.debug(
-          `Marked ${attachments.length} attachments for deletion`,
-        );
-      }
+      // Wrap in transaction to ensure message delete and file marking are atomic
+      return await this.databaseService.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          // Delete the message first
+          const deletedMessage = await tx.message.delete({
+            where: { id },
+          });
 
-      return await this.databaseService.message.delete({
-        where: { id },
-      });
+          // Mark all attachments for deletion after message is deleted
+          if (
+            attachments &&
+            Array.isArray(attachments) &&
+            attachments.length > 0
+          ) {
+            for (const fileId of attachments) {
+              await this.fileService.markForDeletion(fileId, tx);
+            }
+            this.logger.debug(
+              `Marked ${attachments.length} attachments for deletion`,
+            );
+          }
+
+          return deletedMessage;
+        },
+      );
     } catch (error) {
       this.logger.error('Error deleting message', error);
       // probably 404
