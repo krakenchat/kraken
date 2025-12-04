@@ -99,6 +99,8 @@ export interface NewNotificationPayload {
   type: NotificationType;
   messageId: string | null;
   channelId: string | null;
+  communityId: string | null;
+  channelName: string | null;
   directMessageGroupId: string | null;
   authorId: string;
   author?: {

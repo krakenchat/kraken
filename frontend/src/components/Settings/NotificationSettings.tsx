@@ -28,12 +28,15 @@ import {
   NotificationsOff,
   VolumeUp,
   VolumeOff,
+  PhoneAndroid as PhoneAndroidIcon,
 } from '@mui/icons-material';
 import {
   useGetSettingsQuery,
   useUpdateSettingsMutation,
 } from '../../features/notifications/notificationsApiSlice';
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { isElectron } from '../../utils/platform';
 import type { UpdateNotificationSettingsDto } from '../../types/notification.type';
 
 export const NotificationSettings: React.FC = () => {
@@ -46,6 +49,18 @@ export const NotificationSettings: React.FC = () => {
     requestPermission,
     isRequesting,
   } = useNotificationPermission();
+
+  // Push notifications (web only)
+  const {
+    isSupported: isPushSupported,
+    isServerEnabled: isPushServerEnabled,
+    isSubscribed: isPushSubscribed,
+    isLoading: isPushLoading,
+    error: pushError,
+    toggle: togglePush,
+  } = usePushNotifications();
+
+  const showPushOption = !isElectron() && isPushSupported && isPushServerEnabled;
 
   // Local form state
   const [formValues, setFormValues] = useState<UpdateNotificationSettingsDto>({
@@ -176,6 +191,37 @@ export const NotificationSettings: React.FC = () => {
           }
           sx={{ mb: 2, alignItems: 'flex-start' }}
         />
+
+        {/* Push Notifications Toggle (Web PWA only) */}
+        {showPushOption && (
+          <>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isPushSubscribed}
+                  onChange={togglePush}
+                  disabled={isPushLoading}
+                  icon={<PhoneAndroidIcon />}
+                  checkedIcon={<PhoneAndroidIcon />}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body1">Background Notifications</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Receive notifications even when the app is closed (requires PWA install)
+                  </Typography>
+                </Box>
+              }
+              sx={{ mb: 2, alignItems: 'flex-start' }}
+            />
+            {pushError && (
+              <Alert severity="error" sx={{ mb: 2, ml: 4 }}>
+                {pushError}
+              </Alert>
+            )}
+          </>
+        )}
 
         {/* Sound Toggle */}
         <FormControlLabel

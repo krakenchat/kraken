@@ -15,6 +15,7 @@ import { onboardingApi } from "../features/onboarding/onboardingApiSlice";
 import { directMessagesApi } from "../features/directMessages/directMessagesApiSlice";
 import { readReceiptsApi } from "../features/readReceipts/readReceiptsApiSlice";
 import { notificationsApi } from "../features/notifications/notificationsApiSlice";
+import { pushNotificationsApi } from "../features/push-notifications/pushNotificationsApiSlice";
 import { adminApi } from "../features/admin/adminApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
@@ -40,6 +41,7 @@ export const store = configureStore({
     [directMessagesApi.reducerPath]: directMessagesApi.reducer,
     [readReceiptsApi.reducerPath]: readReceiptsApi.reducer,
     [notificationsApi.reducerPath]: notificationsApi.reducer,
+    [pushNotificationsApi.reducerPath]: pushNotificationsApi.reducer,
     [adminApi.reducerPath]: adminApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
@@ -65,6 +67,7 @@ export const store = configureStore({
       directMessagesApi.middleware,
       readReceiptsApi.middleware,
       notificationsApi.middleware,
+      pushNotificationsApi.middleware,
       adminApi.middleware
     ),
 });

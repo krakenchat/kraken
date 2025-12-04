@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSocket } from './useSocket';
 import { ServerEvents } from '../types/server-events.enum';
 import {
@@ -23,6 +24,7 @@ import {
   markNotificationAsRead as markAsReadAction,
   markNotificationAsShown,
 } from '../features/notifications/notificationsSlice';
+import { isElectron, getElectronAPI } from '../utils/platform';
 
 /**
  * Options for the useNotifications hook
@@ -46,7 +48,7 @@ export interface UseNotificationsOptions {
   onNotificationReceived?: (notification: NewNotificationPayload) => void;
 
   /**
-   * Callback when a notification is clicked
+   * Callback when a notification is clicked (in addition to default navigation)
    */
   onNotificationClick?: (notificationId: string) => void;
 }
@@ -64,7 +66,11 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   const socket = useSocket();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Store notifications for lookup when Electron click events come in
+  const notificationsRef = useRef<Map<string, NewNotificationPayload>>(new Map());
 
   // Initialize notification sound
   // Note: Sound feature is disabled until a sound file is added to /public/sounds/
@@ -107,11 +113,46 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   }, [playSound]);
 
   /**
+   * Navigate to the source of a notification
+   */
+  const navigateToNotification = useCallback(
+    (notification: { communityId?: string | null; channelId?: string | null; directMessageGroupId?: string | null }) => {
+      if (notification.communityId && notification.channelId) {
+        // Channel notification - navigate to the channel
+        navigate(`/community/${notification.communityId}/channel/${notification.channelId}`);
+      } else if (notification.directMessageGroupId) {
+        // DM notification - navigate to direct messages with group selected
+        navigate(`/direct-messages?group=${notification.directMessageGroupId}`);
+      }
+    },
+    [navigate]
+  );
+
+  /**
+   * Handle notification click (from desktop notification or Electron)
+   */
+  const handleNotificationClicked = useCallback(
+    (notificationId: string) => {
+      // Look up the notification data
+      const notification = notificationsRef.current.get(notificationId);
+      if (notification) {
+        navigateToNotification(notification);
+      }
+      // Call custom callback if provided
+      onNotificationClick?.(notificationId);
+    },
+    [navigateToNotification, onNotificationClick]
+  );
+
+  /**
    * Handle new notification from WebSocket
    */
   const handleNewNotification = useCallback(
     async (payload: NewNotificationPayload) => {
       console.log('[Notifications] New notification received:', payload);
+
+      // Store notification for later lookup (e.g., Electron click events)
+      notificationsRef.current.set(payload.notificationId, payload);
 
       // Add notification to Redux state
       dispatch(addNotification(payload));
@@ -139,9 +180,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
           type: payload.type,
           authorUsername: payload.author?.username || 'Unknown',
           messageText,
-          // TODO: Fetch channel/DM group names from state
-          // channelName: ...,
-          // dmGroupName: ...,
+          channelName: payload.channelName ?? undefined,
         });
 
         await showNotification({
@@ -153,11 +192,11 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
             notificationId: payload.notificationId,
             messageId: payload.messageId,
             channelId: payload.channelId,
+            communityId: payload.communityId,
             directMessageGroupId: payload.directMessageGroupId,
           },
           onClick: () => {
-            onNotificationClick?.(payload.notificationId);
-            // TODO: Navigate to the message/channel
+            handleNotificationClicked(payload.notificationId);
           },
         });
 
@@ -171,7 +210,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       playSound,
       playNotificationSound,
       onNotificationReceived,
-      onNotificationClick,
+      handleNotificationClicked,
     ]
   );
 
@@ -204,6 +243,26 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   }, [socket, handleNewNotification, handleNotificationRead]);
 
   /**
+   * Set up Electron notification click handler
+   * When user clicks a notification in Electron, this navigates to the source
+   */
+  useEffect(() => {
+    if (!isElectron()) return;
+
+    const electronAPI = getElectronAPI();
+    if (!electronAPI?.onNotificationClick) return;
+
+    const unsubscribe = electronAPI.onNotificationClick((notificationId: string) => {
+      console.log('[Notifications] Electron notification clicked:', notificationId);
+      handleNotificationClicked(notificationId);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [handleNotificationClicked]);
+
+  /**
    * Request notification permission
    */
   const requestPermission = useCallback(async () => {
@@ -221,6 +280,6 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   return {
     requestPermission,
     checkPermission,
-    // More methods will be added when we integrate with Redux state
+    navigateToNotification,
   };
 }

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Box, Typography, useTheme, useMediaQuery, Paper, IconButton } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import DirectMessageList from "../components/DirectMessages/DirectMessageList";
@@ -60,12 +61,24 @@ const Content = styled(Box)(() => ({
 }));
 
 const DirectMessagesPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDmGroupId, setSelectedDmGroupId] = useState<string | undefined>();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { data: currentUser } = useProfileQuery();
-  
+
+  // Handle ?group=<id> query param for deep linking (e.g., from notifications)
+  useEffect(() => {
+    const groupFromUrl = searchParams.get("group");
+    if (groupFromUrl && groupFromUrl !== selectedDmGroupId) {
+      setSelectedDmGroupId(groupFromUrl);
+      // Clear the query param after applying it to avoid stale state on refresh
+      searchParams.delete("group");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, selectedDmGroupId, setSearchParams]);
+
   const { data: selectedDmGroup } = useGetDmGroupQuery(selectedDmGroupId!, {
     skip: !selectedDmGroupId,
   });

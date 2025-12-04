@@ -64,6 +64,11 @@ export class NotificationsGateway
         id: string;
         spans: any[];
       } | null;
+      channel?: {
+        id: string;
+        name: string;
+        communityId: string;
+      } | null;
     },
   ): void {
     const userRoom = `user:${userId}`;
@@ -73,6 +78,8 @@ export class NotificationsGateway
       type: notification.type,
       messageId: notification.messageId,
       channelId: notification.channelId,
+      communityId: notification.channel?.communityId ?? null,
+      channelName: notification.channel?.name ?? null,
       directMessageGroupId: notification.directMessageGroupId,
       authorId: notification.authorId,
       author: notification.author,

@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsService } from './notifications.service';
 import { NotificationsGateway } from './notifications.gateway';
 import { DatabaseService } from '@/database/database.service';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
+import { PresenceService } from '@/presence/presence.service';
 import { NotificationType, SpanType } from '@prisma/client';
 import {
   createMockDatabase,
@@ -20,6 +22,15 @@ describe('NotificationsService', () => {
     emitNotificationRead: jest.fn(),
   };
 
+  const mockPushNotificationsService = {
+    isEnabled: jest.fn().mockReturnValue(false),
+    sendToUser: jest.fn().mockResolvedValue({ sent: 0, failed: 0 }),
+  };
+
+  const mockPresenceService = {
+    isOnline: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
@@ -33,6 +44,14 @@ describe('NotificationsService', () => {
         {
           provide: NotificationsGateway,
           useValue: mockNotificationsGateway,
+        },
+        {
+          provide: PushNotificationsService,
+          useValue: mockPushNotificationsService,
+        },
+        {
+          provide: PresenceService,
+          useValue: mockPresenceService,
         },
       ],
     }).compile();

@@ -6,7 +6,7 @@
 
 ## Overview
 
-Full notification system with user mentions, DM notifications, per-channel settings, Do Not Disturb mode, and real-time WebSocket delivery.
+Full notification system with user mentions, DM notifications, per-channel settings, Do Not Disturb mode, and real-time WebSocket delivery. Integrates with [Push Notifications](./push-notifications.md) for background delivery when users are offline.
 
 ## Key Exports
 
@@ -50,7 +50,20 @@ await notificationsService.setChannelOverride(userId, channelId, {
 - `CHANNEL_MESSAGE` - New message in subscribed channel
 - `DIRECT_MESSAGE` - New DM
 
+## Push Notifications
+
+When a notification is created, the service checks if the user is offline (no active WebSocket connections). If so, and push is configured, a push notification is sent:
+
+```typescript
+// Automatic in createNotification() - fire and forget
+this.sendPushIfOffline(userId, notification);
+```
+
+See [Push Notifications Module](./push-notifications.md) for VAPID configuration and subscription management.
+
 ## Related
 
+- [Push Notifications Module](./push-notifications.md)
 - [useNotifications Hook](../hooks/useNotifications.md)
+- [usePushNotifications Hook](../hooks/usePushNotifications.md)
 - [WebSocket Events](../api/websocket-events.md)

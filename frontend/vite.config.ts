@@ -8,6 +8,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // Use injectManifest for custom service worker with push notification handling
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw-custom.ts",
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
         name: "Kraken Chat",
@@ -38,40 +42,13 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         // Increase limit for large bundles (default is 2MB)
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-        // Cache strategies for static assets only
-        // NOTE: No API caching - real-time chat app needs fresh data
-        runtimeCaching: [
-          {
-            // Cache images more aggressively
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "image-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-              },
-            },
-          },
-          {
-            // Cache fonts
-            urlPattern: /\.(?:woff|woff2|ttf|eot)$/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "font-cache",
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-              },
-            },
-          },
-        ],
       },
       devOptions: {
         enabled: true, // Enable PWA in dev mode for testing
+        type: "module",
       },
     }),
   ],

@@ -31,6 +31,7 @@ import { FileModule } from './file/file.module';
 import { HealthModule } from './health/health.module';
 import { ReadReceiptsModule } from './read-receipts/read-receipts.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { InstanceModule } from './instance/instance.module';
 
 @Module({
@@ -71,6 +72,7 @@ import { InstanceModule } from './instance/instance.module';
     MessagesModule,
     ReadReceiptsModule,
     NotificationsModule,
+    PushNotificationsModule,
     ThrottlerModule.forRoot([
       {
         name: 'short',

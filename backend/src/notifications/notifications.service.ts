@@ -19,6 +19,8 @@ import { UpdateNotificationSettingsDto } from './dto/update-notification-setting
 import { UpdateChannelOverrideDto } from './dto/update-channel-override.dto';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 import { NotificationsGateway } from './notifications.gateway';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
+import { PresenceService } from '@/presence/presence.service';
 
 @Injectable()
 export class NotificationsService {
@@ -28,6 +30,8 @@ export class NotificationsService {
     private readonly databaseService: DatabaseService,
     @Inject(forwardRef(() => NotificationsGateway))
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly pushNotificationsService: PushNotificationsService,
+    private readonly presenceService: PresenceService,
   ) {}
 
   /**
@@ -292,13 +296,123 @@ export class NotificationsService {
             spans: true,
           },
         },
+        channel: {
+          select: {
+            id: true,
+            name: true,
+            communityId: true,
+          },
+        },
       },
     });
 
     // Emit WebSocket event to notify the user in real-time
     this.notificationsGateway.emitNotificationToUser(dto.userId, notification);
 
+    // Send push notification if user is not online (fire-and-forget to avoid blocking)
+    this.sendPushIfOffline(dto.userId, notification).catch((error) => {
+      this.logger.error(`Failed to send push notification to user ${dto.userId}:`, error);
+    });
+
     return notification;
+  }
+
+  /**
+   * Send push notification if user is not currently online
+   */
+  private async sendPushIfOffline(
+    userId: string,
+    notification: Notification & {
+      author: { username: string; displayName: string | null } | null;
+      channel: { name: string; communityId: string } | null;
+    },
+  ): Promise<void> {
+    try {
+      // Check if push notifications are enabled
+      if (!this.pushNotificationsService.isEnabled()) {
+        return;
+      }
+
+      // Check if user is online (has active WebSocket connections)
+      const isOnline = await this.presenceService.isOnline(userId);
+      if (isOnline) {
+        this.logger.debug(
+          `Skipping push for user ${userId} - user is online`,
+        );
+        return;
+      }
+
+      // Format notification for push
+      const title = this.formatPushTitle(notification);
+      const body = this.formatPushBody(notification);
+
+      await this.pushNotificationsService.sendToUser(userId, {
+        title,
+        body,
+        tag: notification.id, // Prevents duplicate notifications
+        data: {
+          notificationId: notification.id,
+          channelId: notification.channelId,
+          communityId: notification.channel?.communityId,
+          directMessageGroupId: notification.directMessageGroupId,
+          type: notification.type,
+        },
+      });
+
+      this.logger.debug(`Push notification sent to offline user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send push notification to user ${userId}:`,
+        error,
+      );
+      // Don't throw - push failures shouldn't break notification creation
+    }
+  }
+
+  /**
+   * Format push notification title
+   */
+  private formatPushTitle(
+    notification: Notification & {
+      author: { username: string; displayName: string | null } | null;
+      channel: { name: string } | null;
+    },
+  ): string {
+    const authorName =
+      notification.author?.displayName || notification.author?.username || 'Someone';
+
+    if (notification.type === NotificationType.DIRECT_MESSAGE) {
+      return `Message from ${authorName}`;
+    }
+
+    if (notification.channel) {
+      return `#${notification.channel.name}`;
+    }
+
+    return 'New notification';
+  }
+
+  /**
+   * Format push notification body
+   */
+  private formatPushBody(
+    notification: Notification & {
+      author: { username: string; displayName: string | null } | null;
+    },
+  ): string {
+    const authorName =
+      notification.author?.displayName || notification.author?.username || 'Someone';
+
+    switch (notification.type) {
+      case NotificationType.USER_MENTION:
+        return `${authorName} mentioned you`;
+      case NotificationType.DIRECT_MESSAGE:
+        return 'You have a new message';
+      case NotificationType.CHANNEL_MESSAGE:
+        return `${authorName} sent a message`;
+      default:
+        return 'You have a new notification';
+    }
   }
 
   /**
