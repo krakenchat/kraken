@@ -66,6 +66,58 @@ This will bring up:
 
 ---
 
+## LiveKit Configuration
+
+Kraken uses [LiveKit](https://livekit.io/) for voice and video calls. You'll need a LiveKit server (self-hosted or LiveKit Cloud).
+
+### Backend Environment Variables
+
+Add these to `backend/.env`:
+
+```bash
+LIVEKIT_URL=wss://your-livekit-server.com
+LIVEKIT_API_KEY=your-api-key
+LIVEKIT_API_SECRET=your-api-secret
+```
+
+### Webhook Configuration (Required)
+
+LiveKit must be configured to send webhook events to your Kraken backend. This is required for:
+- Voice channel presence (seeing who's in a voice channel)
+- Replay buffer / screen recording features
+
+**For LiveKit Cloud:**
+1. Go to [LiveKit Cloud Dashboard](https://cloud.livekit.io/)
+2. Select your project → Settings → Webhooks
+3. Add webhook URL: `https://your-kraken-domain.com/api/livekit/webhook`
+4. Enable these events:
+   - `participant_joined`
+   - `participant_left`
+   - `egress_started`
+   - `egress_updated`
+   - `egress_ended`
+
+**For Self-Hosted LiveKit:**
+
+Add to your `livekit.yaml` configuration:
+
+```yaml
+webhook:
+  api_key: your-livekit-api-key
+  urls:
+    - https://your-kraken-domain.com/api/livekit/webhook
+  events:
+    - participant_joined
+    - participant_left
+    - egress_started
+    - egress_updated
+    - egress_ended
+```
+
+Then restart your LiveKit server.
+
+---
+
 ## Database Migrations & Prisma
 
 - **MongoDB (messages):** Uses `prisma db push` from `prisma/mongo.schema.prisma` to sync types in Mongo (no migrations engine).
