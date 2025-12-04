@@ -39,10 +39,8 @@ export class DirectMessagesController {
   }
 
   @Post()
-  @RequiredActions(RbacActions.CREATE_MESSAGE)
-  @RbacResource({
-    type: RbacResourceType.INSTANCE,
-  })
+  // No RBAC required - creating DMs is a basic user action available to all authenticated users
+  // The JwtAuthGuard already ensures the user is authenticated
   async createDmGroup(
     @Body() createDmGroupDto: CreateDmGroupDto,
     @Req() req: { user: { id: string } },

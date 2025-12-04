@@ -128,6 +128,9 @@ export class LivekitController {
    */
   @Get('replay/stream')
   @RequiredActions(RbacActions.CAPTURE_REPLAY)
+  @RbacResource({
+    type: RbacResourceType.INSTANCE,
+  })
   async streamReplay(
     @Query() query: StreamReplayDto,
     @Req() req: AuthenticatedRequest,
@@ -246,6 +249,9 @@ export class LivekitController {
    */
   @Post('replay/capture')
   @RequiredActions(RbacActions.CAPTURE_REPLAY)
+  @RbacResource({
+    type: RbacResourceType.INSTANCE,
+  })
   async captureReplay(
     @Body() dto: CaptureReplayDto,
     @Req() req: AuthenticatedRequest,

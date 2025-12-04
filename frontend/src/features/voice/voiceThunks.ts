@@ -23,6 +23,16 @@ import {
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
 import { logger } from "../../utils/logger";
+import { getCachedItem } from "../../utils/storage";
+
+// Storage key must match useDeviceSettings.ts
+const DEVICE_PREFERENCES_KEY = 'kraken_device_preferences';
+
+interface DevicePreferences {
+  audioInputDeviceId: string;
+  audioOutputDeviceId: string;
+  videoInputDeviceId: string;
+}
 
 interface JoinVoiceChannelParams {
   channelId: string;
@@ -73,6 +83,33 @@ async function connectToLiveKitRoom(
     logger.warn('[Voice] ⚠ Failed to enable microphone (user will join muted):', error);
     // Don't fail the whole join if mic fails, just log it
     // User will appear muted but can manually unmute later
+  }
+
+  // Apply saved device preferences from localStorage
+  // This ensures audio settings persist across page refreshes
+  const savedPreferences = getCachedItem<DevicePreferences>(DEVICE_PREFERENCES_KEY);
+  if (savedPreferences) {
+    logger.info('[Voice] Applying saved device preferences:', savedPreferences);
+
+    try {
+      // Apply saved audio input device if not 'default'
+      if (savedPreferences.audioInputDeviceId && savedPreferences.audioInputDeviceId !== 'default') {
+        await room.switchActiveDevice('audioinput', savedPreferences.audioInputDeviceId);
+        logger.info('[Voice] ✓ Applied saved audio input device:', savedPreferences.audioInputDeviceId);
+      }
+
+      // Apply saved audio output device if not 'default'
+      if (savedPreferences.audioOutputDeviceId && savedPreferences.audioOutputDeviceId !== 'default') {
+        await room.switchActiveDevice('audiooutput', savedPreferences.audioOutputDeviceId);
+        logger.info('[Voice] ✓ Applied saved audio output device:', savedPreferences.audioOutputDeviceId);
+      }
+
+      // Note: Video input is applied when camera is enabled, not at connection time
+    } catch (error) {
+      // Don't fail the connection if device switching fails
+      // The saved device might no longer be available
+      logger.warn('[Voice] ⚠ Failed to apply saved device preferences:', error);
+    }
   }
 
   logger.info('[Voice] ✓ Room connection complete');
@@ -140,6 +177,13 @@ export const joinVoiceChannel = createAsyncThunk<
         })
       );
       logger.info('[Voice] ✓ setConnected dispatched');
+
+      // Invalidate presence cache to ensure we fetch fresh data after joining
+      // This fixes the issue where presence list is empty after page refresh + rejoin
+      logger.info('[Voice] Invalidating presence cache...');
+      dispatch(
+        voicePresenceApi.util.invalidateTags([{ type: "VoicePresence", id: channelId }])
+      );
 
       // Notify via WebSocket
       if (socket) {
@@ -357,6 +401,11 @@ export const joinDmVoice = createAsyncThunk<
           dmGroupId,
           dmGroupName,
         })
+      );
+
+      // Invalidate presence cache to ensure we fetch fresh data after joining
+      dispatch(
+        voicePresenceApi.util.invalidateTags([{ type: "VoicePresence", id: `dm-${dmGroupId}` }])
       );
 
       // WebSocket notification handled by backend (DM_VOICE_CALL_STARTED or DM_VOICE_USER_JOINED)

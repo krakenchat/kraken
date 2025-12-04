@@ -81,6 +81,10 @@ const VideoTile: React.FC<VideoTileProps> = ({
     const track = videoTrack.track as VideoTrack;
     if (track) {
       track.attach(videoElement);
+      // Explicitly trigger playback to ensure video displays
+      videoElement.play().catch(() => {
+        // Ignore autoplay errors - browser policy might block auto-play
+      });
       return () => {
         track.detach(videoElement);
       };
@@ -95,6 +99,12 @@ const VideoTile: React.FC<VideoTileProps> = ({
     const track = screenTrack.track as VideoTrack;
     if (track) {
       track.attach(screenElement);
+      // Explicitly trigger playback to ensure video displays
+      // This fixes the issue where screen shares appear black until user interaction
+      screenElement.play().catch(() => {
+        // Ignore autoplay errors - browser policy might block auto-play
+        // The video will play when the user interacts with the page
+      });
       return () => {
         track.detach(screenElement);
       };

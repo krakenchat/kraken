@@ -70,6 +70,9 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     RbacActions.READ_USER,
     RbacActions.UPDATE_USER,
     RbacActions.DELETE_USER,
+
+    // Replay capture permission
+    RbacActions.CAPTURE_REPLAY,
   ],
 };
 
@@ -108,6 +111,9 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
     // Alias group management (limited)
     RbacActions.READ_ALIAS_GROUP,
     RbacActions.READ_ALIAS_GROUP_MEMBER,
+
+    // Replay capture permission
+    RbacActions.CAPTURE_REPLAY,
   ],
 };
 
@@ -136,6 +142,9 @@ export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
     // Basic alias group reading
     RbacActions.READ_ALIAS_GROUP,
     RbacActions.READ_ALIAS_GROUP_MEMBER,
+
+    // Replay capture permission
+    RbacActions.CAPTURE_REPLAY,
   ],
 };
 

@@ -1,6 +1,75 @@
-import React, { useState } from 'react';
-import { IconButton, Popover, Box, Typography } from '@mui/material';
-import { AddReaction as AddReactionIcon } from '@mui/icons-material';
+import React, { useState, useMemo } from 'react';
+import { IconButton, Popover, Box, Typography, TextField, InputAdornment } from '@mui/material';
+import { AddReaction as AddReactionIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
+
+// Emoji names for search functionality
+const EMOJI_NAMES: Record<string, string[]> = {
+  '👍': ['thumbs up', 'like', 'yes', 'good', 'ok', 'approve'],
+  '👎': ['thumbs down', 'dislike', 'no', 'bad', 'disapprove'],
+  '❤️': ['heart', 'love', 'red heart'],
+  '😂': ['laugh', 'lol', 'joy', 'crying laughing', 'tears'],
+  '😮': ['surprised', 'wow', 'shocked', 'omg'],
+  '😢': ['sad', 'cry', 'crying'],
+  '😡': ['angry', 'mad', 'rage'],
+  '👏': ['clap', 'applause', 'bravo'],
+  '🎉': ['party', 'celebrate', 'tada', 'celebration'],
+  '🔥': ['fire', 'hot', 'lit', 'flames'],
+  '💯': ['hundred', 'perfect', '100'],
+  '⭐': ['star', 'favorite'],
+  '✅': ['check', 'done', 'complete', 'yes'],
+  '❌': ['x', 'no', 'wrong', 'cancel', 'cross'],
+  '🤔': ['thinking', 'hmm', 'think'],
+  '😍': ['love eyes', 'heart eyes', 'adore'],
+  '😀': ['grin', 'happy', 'smile'],
+  '😊': ['blush', 'happy', 'smile'],
+  '😭': ['sob', 'crying hard', 'tears'],
+  '🥳': ['party face', 'celebrate'],
+  '😎': ['cool', 'sunglasses'],
+  '🤣': ['rofl', 'rolling'],
+  '😱': ['scream', 'fear', 'scared'],
+  '🙏': ['pray', 'please', 'thanks', 'hope'],
+  '💪': ['muscle', 'strong', 'flex'],
+  '🤝': ['handshake', 'deal', 'agree'],
+  '🙌': ['raise hands', 'hooray', 'praise'],
+  '💎': ['diamond', 'gem'],
+  '🔔': ['bell', 'notification', 'alert'],
+  '🎂': ['cake', 'birthday'],
+  '🎁': ['gift', 'present'],
+  '🎈': ['balloon', 'party'],
+  '✨': ['sparkle', 'magic', 'shine'],
+  '🌟': ['glowing star', 'shine'],
+  '💥': ['boom', 'explosion'],
+  '💫': ['dizzy', 'star'],
+  '🐶': ['dog', 'puppy'],
+  '🐱': ['cat', 'kitty'],
+  '🐻': ['bear', 'teddy'],
+  '🦊': ['fox'],
+  '🐼': ['panda'],
+  '🦁': ['lion'],
+  '🐯': ['tiger'],
+  '🍕': ['pizza'],
+  '🍔': ['burger', 'hamburger'],
+  '🍟': ['fries', 'french fries'],
+  '🍦': ['ice cream'],
+  '🍰': ['cake', 'slice'],
+  '☕': ['coffee', 'tea'],
+  '🍺': ['beer'],
+  '🍷': ['wine'],
+  '⚽': ['soccer', 'football'],
+  '🏀': ['basketball'],
+  '🏈': ['football', 'american football'],
+  '⚾': ['baseball'],
+  '🎮': ['game', 'controller', 'gaming'],
+  '🎬': ['movie', 'film', 'action'],
+  '🎵': ['music', 'note'],
+  '🎧': ['headphones', 'music'],
+  '💻': ['computer', 'laptop'],
+  '📱': ['phone', 'mobile'],
+  '🏆': ['trophy', 'winner', 'champion'],
+  '🥇': ['gold', 'first', 'medal'],
+  '🥈': ['silver', 'second'],
+  '🥉': ['bronze', 'third'],
+};
 
 const EMOJI_CATEGORIES = {
   'Frequently Used': [
@@ -76,6 +145,7 @@ interface EmojiPickerProps {
 
 export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -83,6 +153,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
 
   const handleClose = () => {
     setAnchorEl(null);
+    setSearchQuery(''); // Clear search on close
   };
 
   const handleEmojiClick = (emoji: string) => {
@@ -90,6 +161,38 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
     handleClose();
   };
 
+  // Filter emojis based on search query
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return EMOJI_CATEGORIES;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    const results: Record<string, string[]> = {};
+
+    // Search through all categories
+    Object.entries(EMOJI_CATEGORIES).forEach(([category, emojis]) => {
+      const matchedEmojis = emojis.filter((emoji) => {
+        // Check if emoji itself contains the query (for searching by emoji)
+        if (emoji.includes(query)) return true;
+
+        // Check if any of the emoji's names match the query
+        const names = EMOJI_NAMES[emoji];
+        if (names) {
+          return names.some((name) => name.toLowerCase().includes(query));
+        }
+        return false;
+      });
+
+      if (matchedEmojis.length > 0) {
+        results[category] = matchedEmojis;
+      }
+    });
+
+    return results;
+  }, [searchQuery]);
+
+  const hasResults = Object.keys(filteredCategories).length > 0;
   const open = Boolean(anchorEl);
 
   return (
@@ -116,27 +219,62 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
           display: 'flex', 
           flexDirection: 'column',
         }}>
-          {/* Header */}
+          {/* Header with Search */}
           <Box
-            sx={{ 
-              p: 1.5, 
+            sx={{
+              p: 1.5,
               pb: 1,
               borderBottom: '1px solid',
               borderColor: 'divider',
               flexShrink: 0,
             }}
           >
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                fontWeight: 500,
-                fontSize: '0.85rem',
-                color: 'text.secondary',
-                margin: 0,
+            <TextField
+              size="small"
+              placeholder="Search emojis..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  fontSize: '0.85rem',
+                  borderRadius: '8px',
+                  backgroundColor: 'action.hover',
+                  '& fieldset': {
+                    border: 'none',
+                  },
+                  '&:hover fieldset': {
+                    border: 'none',
+                  },
+                  '&.Mui-focused fieldset': {
+                    border: '1px solid',
+                    borderColor: 'primary.main',
+                  },
+                },
+                '& .MuiOutlinedInput-input': {
+                  padding: '8px 12px',
+                },
               }}
-            >
-              Choose your reaction
-            </Typography>
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setSearchQuery('')}
+                      sx={{ p: 0.5 }}
+                    >
+                      <ClearIcon sx={{ fontSize: '0.9rem' }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
           </Box>
           
           {/* Scrollable Content */}
@@ -163,64 +301,82 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
               },
             }}
           >
-            {Object.entries(EMOJI_CATEGORIES).map(([categoryName, emojis], index) => (
-              <Box key={categoryName} sx={{ mb: 1.5 }}>
-                {/* Category Header */}
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: 'block',
-                    mb: 0.75,
-                    mt: index === 0 ? 0 : 1,
-                    fontSize: '0.7rem',
-                    fontWeight: 500,
-                    color: 'text.disabled',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  {categoryName}
-                </Typography>
-                
-                {/* Emoji Grid */}
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(8, 1fr)',
-                    gap: '2px',
-                    width: '100%',
-                  }}
-                >
-                  {emojis.map((emoji) => (
-                    <IconButton
-                      key={`${categoryName}-${emoji}`}
-                      size="small"
-                      onClick={() => handleEmojiClick(emoji)}
-                      sx={{
-                        fontSize: '16px',
-                        padding: '4px',
-                        borderRadius: '4px',
-                        aspectRatio: '1',
-                        minWidth: 'unset',
-                        width: '100%',
-                        height: 'auto',
-                        transition: 'all 0.12s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          backgroundColor: 'rgba(88, 101, 242, 0.12)',
-                          transform: 'scale(1.1)',
-                        },
-                        '&:active': {
-                          transform: 'scale(0.95)',
-                          transition: 'all 0.05s ease',
-                        }
-                      }}
-                    >
-                      {emoji}
-                    </IconButton>
-                  ))}
+            {hasResults ? (
+              Object.entries(filteredCategories).map(([categoryName, emojis], index) => (
+                <Box key={categoryName} sx={{ mb: 1.5 }}>
+                  {/* Category Header */}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: 'block',
+                      mb: 0.75,
+                      mt: index === 0 ? 0 : 1,
+                      fontSize: '0.7rem',
+                      fontWeight: 500,
+                      color: 'text.disabled',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    {searchQuery ? `${categoryName} (${emojis.length})` : categoryName}
+                  </Typography>
+
+                  {/* Emoji Grid */}
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(8, 1fr)',
+                      gap: '2px',
+                      width: '100%',
+                    }}
+                  >
+                    {emojis.map((emoji) => (
+                      <IconButton
+                        key={`${categoryName}-${emoji}`}
+                        size="small"
+                        onClick={() => handleEmojiClick(emoji)}
+                        sx={{
+                          fontSize: '16px',
+                          padding: '4px',
+                          borderRadius: '4px',
+                          aspectRatio: '1',
+                          minWidth: 'unset',
+                          width: '100%',
+                          height: 'auto',
+                          transition: 'all 0.12s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            backgroundColor: 'rgba(88, 101, 242, 0.12)',
+                            transform: 'scale(1.1)',
+                          },
+                          '&:active': {
+                            transform: 'scale(0.95)',
+                            transition: 'all 0.05s ease',
+                          }
+                        }}
+                      >
+                        {emoji}
+                      </IconButton>
+                    ))}
+                  </Box>
                 </Box>
+              ))
+            ) : (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  py: 4,
+                  color: 'text.disabled',
+                }}
+              >
+                <Typography variant="body2">No emojis found</Typography>
+                <Typography variant="caption" sx={{ mt: 0.5 }}>
+                  Try a different search term
+                </Typography>
               </Box>
-            ))}
+            )}
           </Box>
         </Box>
       </Popover>

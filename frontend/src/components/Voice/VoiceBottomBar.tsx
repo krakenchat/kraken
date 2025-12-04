@@ -27,7 +27,7 @@ import {
   ExpandMore,
   VolumeUp,
   FiberManualRecord,
-  SaveAlt,
+  MovieCreation,
 } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useScreenShare } from "../../hooks/useScreenShare";
@@ -405,7 +405,7 @@ export const VoiceBottomBar: React.FC = () => {
                     },
                   }}
                 >
-                  <SaveAlt />
+                  <MovieCreation />
                 </IconButton>
               </Tooltip>
             )}

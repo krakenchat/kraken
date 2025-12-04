@@ -337,13 +337,25 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
 
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
+
+    // Validate x is within bounds
+    if (x < 0 || x > rect.width) return;
+
     const percentage = x / rect.width;
     const clickTime = percentage * maxDuration;
 
-    // Only seek within selection
-    if (clickTime >= startTime && clickTime <= endTime) {
-      videoRef.current.currentTime = clickTime;
-      setCurrentTime(clickTime);
+    // Use refs to avoid stale closure issues
+    // Add small epsilon for floating-point boundary comparisons
+    const epsilon = 0.01;
+    const currentStartTime = startTimeRef.current;
+    const currentEndTime = endTimeRef.current;
+
+    // Only seek within selection (with epsilon tolerance at boundaries)
+    if (clickTime >= currentStartTime - epsilon && clickTime <= currentEndTime + epsilon) {
+      // Clamp to actual range
+      const clampedTime = Math.max(currentStartTime, Math.min(currentEndTime, clickTime));
+      videoRef.current.currentTime = clampedTime;
+      setCurrentTime(clampedTime);
     }
   };
 
