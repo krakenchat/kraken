@@ -29,6 +29,7 @@ import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApi
 import { CircularProgress, Box } from "@mui/material";
 import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
+import { PWAInstallPrompt } from "./components/PWA/PWAInstallPrompt";
 import { hasServers } from "./utils/serverStorage";
 import { isElectron } from "./utils/platform";
 import { useState } from "react";
@@ -120,6 +121,7 @@ function App() {
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <AutoUpdater />
+      <PWAInstallPrompt />
       <AvatarCacheProvider>
         <NotificationProvider>
           <RoomProvider>
