@@ -1,23 +1,24 @@
-# Voice Connection Persistence Implementation Plan
+# Voice Connection Persistence
 
-Voice connection persistence is a **critical Discord-like feature** where users remain connected to voice channels while navigating the application. Kraken has excellent LiveKit integration but lacks the persistent connection behavior that users expect.
+> **Status:** Mostly Implemented
+> **Location:** `frontend/src/components/Voice/`, `frontend/src/hooks/useVoiceConnection.ts`
 
-## 🎯 **Current Status vs Discord Behavior**
+Voice connection persistence ensures users remain connected to voice channels while navigating the application, with persistent controls accessible from any page.
 
-### **Discord Voice Behavior**:
-- Join voice channel → persistent bottom bar appears
-- Navigate between text channels → voice connection maintained
-- Navigate between servers → voice connection maintained
-- Only disconnect when explicitly leaving or closing app
-- Voice controls always accessible via bottom bar
-- Video overlay toggles on/off without breaking connection
+## Current Implementation Status
 
-### **Kraken Current Behavior**:
-- ✅ Voice connection works within channel view
-- ❌ Connection drops when navigating away from voice channel
-- ❌ No persistent voice controls
-- ❌ Voice state not maintained across route changes
-- ❌ Video tiles disappear on navigation
+### Implemented Features
+- ✅ **VoiceBottomBar** - Persistent controls bar when connected to voice
+- ✅ **Voice connection works within channel view**
+- ✅ **VideoTiles** - Floating video tiles for participants
+- ✅ **Voice state in Redux** - Global voice state management
+- ✅ **useVoiceConnection hook** - Centralized voice control API
+- ✅ **LiveKit integration** - Full audio/video/screen share support
+- ✅ **Connection recovery** - Reconnection on network issues
+
+### Remaining Work
+- ⚠️ **Cross-tab synchronization** - Voice state not synced across browser tabs
+- ⚠️ **Page refresh recovery** - Connection lost on refresh (localStorage approach documented below)
 
 ## 🏗️ **Current Architecture Analysis**
 

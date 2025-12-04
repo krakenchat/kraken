@@ -436,6 +436,25 @@ Voice presence operations trigger real-time WebSocket events:
 4. **Sync State:** Update voice state via `/state` endpoint as needed
 5. **Leave Presence:** Call `/leave` endpoint when disconnecting
 
+### LiveKit Webhook Integration
+
+Voice presence is also updated via LiveKit webhooks for reliability. When users disconnect unexpectedly (browser crash, network loss), the LiveKit webhook ensures presence is cleaned up.
+
+**Webhook Endpoint:** `POST /api/livekit/webhook`
+
+**Events Handled:**
+- `participant_joined` - Updates voice presence when user connects to LiveKit room
+- `participant_left` - Removes user from voice presence on disconnect
+- `egress_started` / `egress_ended` - Replay buffer status updates
+
+**Configuration Required:**
+In LiveKit Cloud or self-hosted config, add webhook URL pointing to your Kraken backend:
+```
+https://your-domain.com/api/livekit/webhook
+```
+
+See main README.md for full LiveKit webhook configuration instructions.
+
 ### Room ID Mapping
 - **LiveKit Room ID:** Uses channel ID directly as the LiveKit room identifier
 - **Consistent Naming:** Ensures presence system and LiveKit room are linked

@@ -1,24 +1,24 @@
 # Replay Buffer (Screen Recording) Feature
 
-> **Status:** Implemented (Phase 1 - MVP)
+> **Status:** Fully Implemented
 > **Location:** `backend/src/livekit/livekit-replay.service.ts`, `frontend/src/hooks/useReplayBuffer.ts`
 > **Type:** LiveKit Egress Integration
 
 ## Overview
 
-The Replay Buffer feature provides automatic screen recording during screen sharing sessions using LiveKit's Track Composite Egress. Similar to NVIDIA ShadowPlay, it maintains a rolling buffer of recent screen share footage that can later be saved (Phase 2, not yet implemented).
+The Replay Buffer feature provides automatic screen recording during screen sharing sessions using LiveKit's Track Composite Egress. Similar to NVIDIA ShadowPlay, it maintains a rolling buffer of recent screen share footage that can be captured, trimmed, and shared.
 
-**Current Implementation (Phase 1):**
+**Implemented Features:**
 - ✅ Automatically starts egress recording when user shares screen
 - ✅ Automatically stops when screen share ends
 - ✅ Handles disconnections and failures gracefully via webhooks
 - ✅ Cleans up old segment files and orphaned sessions
 - ✅ Notifies users when recording fails
-
-**Not Yet Implemented (Phase 2+):**
-- ❌ "Save Last N Minutes" UI button
-- ❌ Replay clip library and browsing
-- ❌ Sharing clips in channels/DMs
+- ✅ **CaptureReplayModal** - Save clips with duration presets (1/2/5/10 min)
+- ✅ **TrimPreview** - HLS video preview with trim handles for editing
+- ✅ **ClipLibrary** - Browse, download, share, and manage saved clips
+- ✅ **Clip sharing** - Share clips to channels or DMs
+- ✅ **Public/private clips** - Toggle visibility on saved clips
 
 ## Architecture
 
@@ -575,31 +575,45 @@ db.egressSession.updateMany(
 - Check frontend console for Socket.IO connection errors
 - Verify `useReplayBuffer` hook is actually running (add console.log)
 
-## Future Enhancements (Phase 2+)
+## UI Components
 
-### Save Last N Minutes UI
+### CaptureReplayModal
+Opens when user wants to save a clip. Provides:
+- Duration presets (1, 2, 5, 10 minutes) with size estimates
+- Option to trim before saving
+- Destination picker for sharing to channel/DM
+- Save to library only option
 
-**Planned Implementation:**
-- Button in voice controls: "Save Last 5 Minutes"
-- Backend endpoint to copy segments to permanent storage
-- Convert HLS segments to single MP4 file
-- Store in S3/database with metadata
+See [CaptureReplayModal Component](../components/voice/CaptureReplayModal.md)
 
-### Replay Clip Library
+### TrimPreview
+HLS video player with interactive timeline:
+- Draggable start/end trim handles
+- Play/pause and skip controls
+- Loop within selected range
+- Time display
 
-**Planned Features:**
-- List of saved clips per user
-- Thumbnail generation
-- Clip metadata (title, timestamp, channel)
-- Delete/share clips
+See [TrimPreview Component](../components/voice/TrimPreview.md)
 
-### Clip Sharing
+### ClipLibrary
+User's saved clips browser:
+- Grid view with thumbnails
+- Download, delete, share actions
+- Public/private visibility toggle
+- View other users' public clips
 
-**Planned Features:**
-- Share clip link in channel/DM
-- Embed player in chat
-- Permission-based viewing (community members only, etc.)
-- Download original file
+See [ClipLibrary Component](../components/profile/ClipLibrary.md)
+
+## Future Enhancements
+
+### S3 Storage Backend
+Currently uses local/NFS storage. Future enhancement to support S3/Azure Blob:
+- Configure LiveKit egress to write directly to S3
+- Update segment discovery to list S3 objects
+- Download segments temporarily for FFmpeg processing
+- Upload final clips to cloud storage
+
+See `CLAUDE.md` for detailed TODO on configurable egress storage.
 
 ## Related Documentation
 

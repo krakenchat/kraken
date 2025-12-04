@@ -35,12 +35,31 @@ This document provides a comprehensive cross-reference system linking all relate
 - **Module:** [Messages Module](modules/messaging/messages.md)
 
 ### Voice & Video Integration
-- **Component:** [VoiceBottomBar](components/voice/VoiceBottomBar.md)
+- **Component:** [VoiceBottomBar](components/voice/VoiceBottomBar.md), [VideoTiles](components/voice/VideoTiles.md)
 - **API:** [LiveKit API](api/livekit.md) → `POST /api/livekit/token`
 - **WebSocket:** [Voice Presence Events](api/websocket-events.md#voice_channel_join)
-- **Hook:** [useVoiceConnection](hooks/useVoiceConnection.md)
+- **Webhook:** [LiveKit Webhooks](api/voice-presence.md#livekit-webhook-integration)
+- **Hook:** [useVoiceConnection](hooks/useVoiceConnection.md), [useScreenShare](hooks/useScreenShare.md)
 - **State:** [Voice Slice](state/voiceSlice.md) + [LiveKit API](state/livekitApi.md)
 - **Module:** [LiveKit Module](modules/voice/livekit.md)
+
+### Replay Buffer & Clips
+- **Components:** [CaptureReplayModal](components/voice/CaptureReplayModal.md), [TrimPreview](components/voice/TrimPreview.md), [ClipLibrary](components/profile/ClipLibrary.md)
+- **API:** [LiveKit API](api/livekit.md) → `POST /api/livekit/replay/start`
+- **Hook:** [useReplayBuffer](hooks/useReplayBuffer.md)
+- **Feature:** [Replay Buffer](features/replay-buffer.md)
+
+### Notifications System
+- **Components:** [NotificationBadge](components/notifications/NotificationBadge.md), [NotificationCenter](components/notifications/NotificationCenter.md), [NotificationSettings](components/settings/NotificationSettings.md)
+- **API:** Notifications endpoints
+- **WebSocket:** `NEW_NOTIFICATION`, `NOTIFICATION_READ`
+- **Hook:** [useNotifications](hooks/useNotifications.md), [useNotificationPermission](hooks/useNotificationPermission.md)
+- **Module:** [Notifications Module](modules/notifications.md)
+
+### Read Receipts
+- **Module:** [Read Receipts Module](modules/read-receipts.md)
+- **API:** Mark as read, unread counts
+- **Integration:** Message components, channel list unread indicators
 
 ---
 
