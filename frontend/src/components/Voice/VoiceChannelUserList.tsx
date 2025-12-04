@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -18,13 +18,15 @@ import {
   ScreenShare,
   VolumeOff,
 } from "@mui/icons-material";
-import { useGetChannelPresenceQuery } from "../../features/voice-presence/voicePresenceApiSlice";
+import { useGetChannelPresenceQuery, VoicePresenceUser } from "../../features/voice-presence/voicePresenceApiSlice";
 import { formatDistanceToNow } from "date-fns";
 import { Channel } from "../../types/channel.type";
 import { ChannelType } from "../../types/channel.type";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import { useParticipantTracks } from "../../hooks/useParticipantTracks";
 import UserAvatar from "../Common/UserAvatar";
+import { useVoiceConnection } from "../../hooks/useVoiceConnection";
+import { RoomEvent, Participant } from "livekit-client";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -37,17 +39,95 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   showInline = false,
   showDiscordStyle = false,
 }) => {
+  const { state: voiceState } = useVoiceConnection();
+  const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUser[]>([]);
 
+  // Check if we're connected to this specific channel
+  const isConnectedToThisChannel = voiceState.currentChannelId === channel.id && voiceState.isConnected;
+
+  // Use backend presence query only when NOT connected to this channel
+  // (for viewing other voice channels we're not in)
   const {
-    data: presence,
-    isLoading,
-    error,
+    data: backendPresence,
+    isLoading: backendLoading,
+    error: backendError,
   } = useGetChannelPresenceQuery(channel.id, {
-    skip: channel.type !== ChannelType.VOICE,
+    skip: channel.type !== ChannelType.VOICE || isConnectedToThisChannel,
   });
 
   // Hook for real-time speaking detection via LiveKit
   const { isSpeaking } = useSpeakingDetection();
+
+  // When connected to this channel, get participants directly from LiveKit
+  useEffect(() => {
+    if (!isConnectedToThisChannel || !voiceState.room) {
+      setLivekitParticipants([]);
+      return;
+    }
+
+    const room = voiceState.room;
+
+    const updateParticipants = () => {
+      const participants: VoicePresenceUser[] = [];
+
+      // Add local participant
+      const local = room.localParticipant;
+      if (local && local.identity) {
+        participants.push({
+          id: local.identity,
+          username: local.name || local.identity,
+          displayName: local.name || undefined,
+          avatarUrl: local.metadata ? JSON.parse(local.metadata).avatarUrl : undefined,
+          joinedAt: new Date().toISOString(), // LiveKit doesn't track join time, use now
+          isDeafened: false, // Will be updated by component
+        });
+      }
+
+      // Add remote participants
+      room.remoteParticipants.forEach((participant: Participant) => {
+        let metadata: { avatarUrl?: string } = {};
+        try {
+          if (participant.metadata) {
+            metadata = JSON.parse(participant.metadata);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+
+        participants.push({
+          id: participant.identity,
+          username: participant.name || participant.identity,
+          displayName: participant.name || undefined,
+          avatarUrl: metadata.avatarUrl,
+          joinedAt: new Date().toISOString(),
+          isDeafened: false,
+        });
+      });
+
+      setLivekitParticipants(participants);
+    };
+
+    // Initial update
+    updateParticipants();
+
+    // Listen for participant changes
+    room.on(RoomEvent.ParticipantConnected, updateParticipants);
+    room.on(RoomEvent.ParticipantDisconnected, updateParticipants);
+    room.on(RoomEvent.Connected, updateParticipants);
+
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, updateParticipants);
+      room.off(RoomEvent.ParticipantDisconnected, updateParticipants);
+      room.off(RoomEvent.Connected, updateParticipants);
+    };
+  }, [isConnectedToThisChannel, voiceState.room]);
+
+  // Determine which data source to use
+  const presence = isConnectedToThisChannel
+    ? { channelId: channel.id, users: livekitParticipants, count: livekitParticipants.length }
+    : backendPresence;
+  const isLoading = !isConnectedToThisChannel && backendLoading;
+  const error = !isConnectedToThisChannel && backendError;
 
   if (channel.type !== ChannelType.VOICE) {
     return null;
