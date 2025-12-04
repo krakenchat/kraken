@@ -71,8 +71,9 @@ export class ChannelsService {
     }
   }
 
-  findAll(communityId: string) {
-    return this.databaseService.channel.findMany({
+  findAll(communityId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? this.databaseService;
+    return client.channel.findMany({
       where: { communityId },
       orderBy: [
         { type: 'asc' }, // TEXT before VOICE (alphabetically)
@@ -244,6 +245,9 @@ export class ChannelsService {
 
   async moveChannelUp(channelId: string, communityId: string) {
     return this.databaseService.$transaction(async (prisma) => {
+      // First, normalize positions if needed (handles legacy channels with position 0)
+      await this.normalizePositions(prisma, communityId);
+
       const channel = await prisma.channel.findUniqueOrThrow({
         where: { id: channelId },
       });
@@ -260,7 +264,7 @@ export class ChannelsService {
 
       if (!channelAbove) {
         // Already at the top, return current list
-        return this.findAll(communityId);
+        return this.findAll(communityId, prisma);
       }
 
       // Swap positions
@@ -273,7 +277,7 @@ export class ChannelsService {
         data: { position: channel.position },
       });
 
-      const updatedChannels = await this.findAll(communityId);
+      const updatedChannels = await this.findAll(communityId, prisma);
 
       // Emit WebSocket event for real-time updates
       this.websocketService.sendToRoom(
@@ -288,6 +292,9 @@ export class ChannelsService {
 
   async moveChannelDown(channelId: string, communityId: string) {
     return this.databaseService.$transaction(async (prisma) => {
+      // First, normalize positions if needed (handles legacy channels with position 0)
+      await this.normalizePositions(prisma, communityId);
+
       const channel = await prisma.channel.findUniqueOrThrow({
         where: { id: channelId },
       });
@@ -304,7 +311,7 @@ export class ChannelsService {
 
       if (!channelBelow) {
         // Already at the bottom, return current list
-        return this.findAll(communityId);
+        return this.findAll(communityId, prisma);
       }
 
       // Swap positions
@@ -317,7 +324,7 @@ export class ChannelsService {
         data: { position: channel.position },
       });
 
-      const updatedChannels = await this.findAll(communityId);
+      const updatedChannels = await this.findAll(communityId, prisma);
 
       // Emit WebSocket event for real-time updates
       this.websocketService.sendToRoom(
@@ -328,5 +335,39 @@ export class ChannelsService {
 
       return updatedChannels;
     });
+  }
+
+  /**
+   * Normalize channel positions for a community.
+   * This ensures each channel has a unique position within its type,
+   * handling legacy channels that may have position 0.
+   */
+  private async normalizePositions(
+    prisma: Prisma.TransactionClient,
+    communityId: string,
+  ) {
+    // Get all channels grouped by type, ordered by position then createdAt
+    for (const type of [ChannelType.TEXT, ChannelType.VOICE]) {
+      const channels = await prisma.channel.findMany({
+        where: { communityId, type },
+        orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      });
+
+      // Check if normalization is needed (duplicate positions)
+      const positions = channels.map((c) => c.position);
+      const hasDuplicates = positions.length !== new Set(positions).size;
+
+      if (hasDuplicates) {
+        // Reassign sequential positions
+        for (let i = 0; i < channels.length; i++) {
+          if (channels[i].position !== i) {
+            await prisma.channel.update({
+              where: { id: channels[i].id },
+              data: { position: i },
+            });
+          }
+        }
+      }
+    }
   }
 }

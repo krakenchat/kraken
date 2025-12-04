@@ -22,12 +22,21 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from "@mui/icons-material";
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  KeyboardArrowUp as ArrowUpIcon,
+  KeyboardArrowDown as ArrowDownIcon,
+} from "@mui/icons-material";
+import { ChannelType } from "../../types/channel.type";
 import {
   useGetChannelsForCommunityQuery,
   useCreateChannelMutation,
   useUpdateChannelMutation,
   useDeleteChannelMutation,
+  useMoveChannelUpMutation,
+  useMoveChannelDownMutation,
 } from "../../features/channel/channelApiSlice";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import type { Channel } from "../../types/channel.type";
@@ -65,6 +74,23 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
   const [createChannel, { isLoading: creatingChannel }] = useCreateChannelMutation();
   const [updateChannel, { isLoading: updatingChannel }] = useUpdateChannelMutation();
   const [deleteChannel, { isLoading: deletingChannel }] = useDeleteChannelMutation();
+  const [moveUp, { isLoading: movingUp }] = useMoveChannelUpMutation();
+  const [moveDown, { isLoading: movingDown }] = useMoveChannelDownMutation();
+
+  // Sort channels by type (TEXT first) then by position
+  const sortedChannels = React.useMemo(() => {
+    if (!channels) return [];
+    return [...channels].sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === ChannelType.TEXT ? -1 : 1;
+      }
+      return (a.position ?? 0) - (b.position ?? 0);
+    });
+  }, [channels]);
+
+  // Get channels by type for determining first/last
+  const textChannels = sortedChannels.filter((c) => c.type === ChannelType.TEXT);
+  const voiceChannels = sortedChannels.filter((c) => c.type === ChannelType.VOICE);
 
   const { hasPermissions: canCreateChannels } = useUserPermissions({
     resourceType: "COMMUNITY",
@@ -170,6 +196,28 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
     setChannelToDelete(null);
   }, []);
 
+  const handleMoveUp = useCallback(
+    async (channelId: string) => {
+      try {
+        await moveUp({ channelId, communityId }).unwrap();
+      } catch (error) {
+        console.error("Failed to move channel up:", error);
+      }
+    },
+    [moveUp, communityId]
+  );
+
+  const handleMoveDown = useCallback(
+    async (channelId: string) => {
+      try {
+        await moveDown({ channelId, communityId }).unwrap();
+      } catch (error) {
+        console.error("Failed to move channel down:", error);
+      }
+    },
+    [moveDown, communityId]
+  );
+
   const handleCloseCreateDialog = useCallback(() => {
     setCreateDialogOpen(false);
     setFormData({
@@ -223,57 +271,173 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
           )}
         </Box>
 
-        <Box display="flex" flexDirection="column" gap={1}>
-          {channels?.map((channel) => (
-            <Box
-              key={channel.id}
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              p={1}
-              border={1}
-              borderColor="divider"
-              borderRadius={1}
-            >
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="body2" fontWeight="medium">
-                  {channel.name}
-                </Typography>
-                {channel.isPrivate && (
-                  <Chip label="Private" size="small" color="warning" />
-                )}
-                {channel.description && (
-                  <Typography variant="caption" color="text.secondary">
-                    {channel.description}
-                  </Typography>
-                )}
-              </Box>
-              
-              {canManageChannels && (
-                <Box display="flex" gap={1}>
-                  {canUpdateChannels && (
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEditChannel(channel)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  )}
-                  {canDeleteChannels && channel.name !== "general" && (
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDeleteChannel(channel.id, channel.name)}
-                      disabled={deletingChannel}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  )}
-                </Box>
-              )}
+        {/* Text Channels */}
+        {textChannels.length > 0 && (
+          <Box mb={2}>
+            <Typography variant="subtitle2" color="text.secondary" mb={1}>
+              Text Channels
+            </Typography>
+            <Box display="flex" flexDirection="column" gap={1}>
+              {textChannels.map((channel, index) => {
+                const isFirst = index === 0;
+                const isLast = index === textChannels.length - 1;
+                return (
+                  <Box
+                    key={channel.id}
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    p={1}
+                    border={1}
+                    borderColor="divider"
+                    borderRadius={1}
+                  >
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography variant="body2" fontWeight="medium">
+                        {channel.name}
+                      </Typography>
+                      {channel.isPrivate && (
+                        <Chip label="Private" size="small" color="warning" />
+                      )}
+                      {channel.description && (
+                        <Typography variant="caption" color="text.secondary">
+                          {channel.description}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {canManageChannels && (
+                      <Box display="flex" gap={0.5}>
+                        {canUpdateChannels && (
+                          <>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleMoveUp(channel.id)}
+                              disabled={isFirst || movingUp || movingDown}
+                              title="Move up"
+                            >
+                              <ArrowUpIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleMoveDown(channel.id)}
+                              disabled={isLast || movingUp || movingDown}
+                              title="Move down"
+                            >
+                              <ArrowDownIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEditChannel(channel)}
+                              title="Edit channel"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+                        {canDeleteChannels && channel.name !== "general" && (
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteChannel(channel.id, channel.name)}
+                            disabled={deletingChannel}
+                            title="Delete channel"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
-          ))}
-        </Box>
+          </Box>
+        )}
+
+        {/* Voice Channels */}
+        {voiceChannels.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" mb={1}>
+              Voice Channels
+            </Typography>
+            <Box display="flex" flexDirection="column" gap={1}>
+              {voiceChannels.map((channel, index) => {
+                const isFirst = index === 0;
+                const isLast = index === voiceChannels.length - 1;
+                return (
+                  <Box
+                    key={channel.id}
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    p={1}
+                    border={1}
+                    borderColor="divider"
+                    borderRadius={1}
+                  >
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography variant="body2" fontWeight="medium">
+                        {channel.name}
+                      </Typography>
+                      {channel.isPrivate && (
+                        <Chip label="Private" size="small" color="warning" />
+                      )}
+                      {channel.description && (
+                        <Typography variant="caption" color="text.secondary">
+                          {channel.description}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {canManageChannels && (
+                      <Box display="flex" gap={0.5}>
+                        {canUpdateChannels && (
+                          <>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleMoveUp(channel.id)}
+                              disabled={isFirst || movingUp || movingDown}
+                              title="Move up"
+                            >
+                              <ArrowUpIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleMoveDown(channel.id)}
+                              disabled={isLast || movingUp || movingDown}
+                              title="Move down"
+                            >
+                              <ArrowDownIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEditChannel(channel)}
+                              title="Edit channel"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+                        {canDeleteChannels && channel.name !== "general" && (
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteChannel(channel.id, channel.name)}
+                            disabled={deletingChannel}
+                            title="Delete channel"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
 
         {/* Create Channel Dialog */}
         <Dialog
