@@ -133,6 +133,7 @@ describe('LivekitService', () => {
         canPublish: true,
         canSubscribe: true,
         canPublishData: true,
+        canUpdateOwnMetadata: true,
       });
     });
 

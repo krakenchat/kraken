@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ChannelsService } from './channels.service';
 import { DatabaseService } from '@/database/database.service';
+import { WebsocketService } from '@/websocket/websocket.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ChannelType } from '@prisma/client';
 import { createMockDatabase, UserFactory, ChannelFactory } from '@/test-utils';
@@ -8,6 +9,10 @@ import { createMockDatabase, UserFactory, ChannelFactory } from '@/test-utils';
 describe('ChannelsService', () => {
   let service: ChannelsService;
   let mockDatabase: any;
+
+  const mockWebsocketService = {
+    sendToRoom: jest.fn(),
+  };
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -18,6 +23,10 @@ describe('ChannelsService', () => {
         {
           provide: DatabaseService,
           useValue: mockDatabase,
+        },
+        {
+          provide: WebsocketService,
+          useValue: mockWebsocketService,
         },
       ],
     }).compile();
@@ -38,8 +47,9 @@ describe('ChannelsService', () => {
         type: ChannelType.TEXT,
         isPrivate: false,
       } as any;
-      const channel = ChannelFactory.build();
+      const channel = ChannelFactory.build({ position: 0 });
 
+      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
       mockDatabase.channel.create.mockResolvedValue(channel);
       mockDatabase.channelMembership.create.mockResolvedValue({
         userId: user.id,
@@ -50,7 +60,7 @@ describe('ChannelsService', () => {
 
       expect(result).toEqual(channel);
       expect(mockDatabase.channel.create).toHaveBeenCalledWith({
-        data: createDto,
+        data: { ...createDto, position: 0 },
       });
       expect(mockDatabase.channelMembership.create).toHaveBeenCalledWith({
         data: {
@@ -69,6 +79,7 @@ describe('ChannelsService', () => {
         isPrivate: false,
       } as any;
 
+      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
       const duplicateError = { code: 'P2002' };
       mockDatabase.channel.create.mockRejectedValue(duplicateError);
 
@@ -89,6 +100,7 @@ describe('ChannelsService', () => {
         isPrivate: false,
       } as any;
 
+      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
       mockDatabase.channel.create.mockRejectedValue(
         new Error('DB connection error'),
       );
@@ -106,8 +118,9 @@ describe('ChannelsService', () => {
         type: ChannelType.TEXT,
         isPrivate: true,
       } as any;
-      const channel = ChannelFactory.build({ isPrivate: true });
+      const channel = ChannelFactory.build({ isPrivate: true, position: 0 });
 
+      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
       mockDatabase.channel.create.mockResolvedValue(channel);
       mockDatabase.channelMembership.create.mockResolvedValue({
         userId: user.id,
@@ -127,8 +140,9 @@ describe('ChannelsService', () => {
         type: ChannelType.VOICE,
         isPrivate: false,
       } as any;
-      const channel = ChannelFactory.build({ type: ChannelType.VOICE });
+      const channel = ChannelFactory.build({ type: ChannelType.VOICE, position: 0 });
 
+      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
       mockDatabase.channel.create.mockResolvedValue(channel);
       mockDatabase.channelMembership.create.mockResolvedValue({
         userId: user.id,
@@ -156,6 +170,7 @@ describe('ChannelsService', () => {
       expect(result).toEqual(channels);
       expect(mockDatabase.channel.findMany).toHaveBeenCalledWith({
         where: { communityId },
+        orderBy: [{ type: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }],
       });
     });
 

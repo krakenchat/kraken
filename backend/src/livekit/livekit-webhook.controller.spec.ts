@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LivekitWebhookController } from './livekit-webhook.controller';
 import { LivekitReplayService } from './livekit-replay.service';
+import { VoicePresenceService } from '../voice-presence/voice-presence.service';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException } from '@nestjs/common';
 import { WebhookReceiver } from 'livekit-server-sdk';
@@ -24,6 +25,11 @@ describe('LivekitWebhookController', () => {
 
   const mockReplayService = {
     handleEgressEnded: jest.fn(),
+  };
+
+  const mockVoicePresenceService = {
+    handleWebhookParticipantJoined: jest.fn(),
+    handleWebhookParticipantLeft: jest.fn(),
   };
 
   const mockConfigService = {
@@ -78,6 +84,10 @@ describe('LivekitWebhookController', () => {
           provide: ConfigService,
           useValue: mockConfigService,
         },
+        {
+          provide: VoicePresenceService,
+          useValue: mockVoicePresenceService,
+        },
       ],
     }).compile();
 
@@ -114,6 +124,10 @@ describe('LivekitWebhookController', () => {
           {
             provide: ConfigService,
             useValue: mockConfigService,
+          },
+          {
+            provide: VoicePresenceService,
+            useValue: mockVoicePresenceService,
           },
         ],
       }).compile();
@@ -201,6 +215,10 @@ describe('LivekitWebhookController', () => {
             {
               provide: ConfigService,
               useValue: mockConfigService,
+            },
+            {
+              provide: VoicePresenceService,
+              useValue: mockVoicePresenceService,
             },
           ],
         }).compile();

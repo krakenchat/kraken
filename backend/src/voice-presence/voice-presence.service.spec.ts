@@ -2,17 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { VoicePresenceService } from './voice-presence.service';
 import { RedisService } from '@/redis/redis.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ChannelsService } from '@/channels/channels.service';
 import { DatabaseService } from '@/database/database.service';
 import { LivekitReplayService } from '@/livekit/livekit-replay.service';
-import { UserFactory, ChannelFactory } from '@/test-utils';
+import { UserFactory } from '@/test-utils';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
 describe('VoicePresenceService', () => {
   let service: VoicePresenceService;
   let redisService: RedisService;
   let websocketService: WebsocketService;
-  let channelsService: ChannelsService;
   let databaseService: DatabaseService;
 
   const mockRedisClient = {
@@ -39,10 +37,6 @@ describe('VoicePresenceService', () => {
     sendToRoom: jest.fn(),
   };
 
-  const mockChannelsService = {
-    findOne: jest.fn(),
-  };
-
   const mockDatabaseService = {
     directMessageGroup: {
       findFirst: jest.fn(),
@@ -66,10 +60,6 @@ describe('VoicePresenceService', () => {
           useValue: mockWebsocketService,
         },
         {
-          provide: ChannelsService,
-          useValue: mockChannelsService,
-        },
-        {
           provide: DatabaseService,
           useValue: mockDatabaseService,
         },
@@ -83,7 +73,6 @@ describe('VoicePresenceService', () => {
     service = module.get<VoicePresenceService>(VoicePresenceService);
     redisService = module.get<RedisService>(RedisService);
     websocketService = module.get<WebsocketService>(WebsocketService);
-    channelsService = module.get<ChannelsService>(ChannelsService);
     databaseService = module.get<DatabaseService>(DatabaseService);
   });
 
@@ -93,72 +82,6 @@ describe('VoicePresenceService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-  });
-
-  describe('joinVoiceChannel', () => {
-    it('should join voice channel successfully', async () => {
-      const channelId = 'channel-123';
-      const user = UserFactory.build();
-      const mockChannel = ChannelFactory.build({ id: channelId });
-
-      jest.spyOn(channelsService, 'findOne').mockResolvedValue(mockChannel);
-
-      await service.joinVoiceChannel(channelId, user);
-
-      expect(channelsService.findOne).toHaveBeenCalledWith(channelId);
-      expect(mockRedisClient.pipeline).toHaveBeenCalled();
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        channelId,
-        ServerEvents.VOICE_CHANNEL_USER_JOINED,
-        expect.objectContaining({
-          channelId,
-          user: expect.objectContaining({
-            id: user.id,
-            username: user.username,
-            isDeafened: false,
-          }),
-        }),
-      );
-    });
-
-    it('should store user data with correct initial state', async () => {
-      const channelId = 'channel-456';
-      const user = UserFactory.build({
-        displayName: 'Test User',
-        avatarUrl: 'https://example.com/avatar.png',
-      });
-      const mockChannel = ChannelFactory.build({ id: channelId });
-
-      jest.spyOn(channelsService, 'findOne').mockResolvedValue(mockChannel);
-
-      const pipelineMock = mockRedisClient.pipeline();
-
-      await service.joinVoiceChannel(channelId, user);
-
-      expect(pipelineMock.set).toHaveBeenCalledWith(
-        expect.stringContaining(`voice_presence:user:${channelId}:${user.id}`),
-        expect.stringContaining(user.username),
-        'EX',
-        300,
-      );
-      expect(pipelineMock.sadd).toHaveBeenCalledTimes(2);
-      expect(pipelineMock.exec).toHaveBeenCalled();
-    });
-
-    it('should throw error when channel verification fails', async () => {
-      const channelId = 'invalid-channel';
-      const user = UserFactory.build();
-
-      jest
-        .spyOn(channelsService, 'findOne')
-        .mockRejectedValue(new Error('Channel not found'));
-
-      await expect(service.joinVoiceChannel(channelId, user)).rejects.toThrow(
-        'Channel not found',
-      );
-
-      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
-    });
   });
 
   describe('leaveVoiceChannel', () => {
@@ -335,86 +258,6 @@ describe('VoicePresenceService', () => {
     });
   });
 
-  describe('updateVoiceState', () => {
-    it('should update voice state successfully', async () => {
-      const channelId = 'channel-123';
-      const userId = 'user-123';
-      const existingData = {
-        id: userId,
-        username: 'testuser',
-        joinedAt: new Date().toISOString(),
-        isDeafened: false,
-      };
-      const updates = {
-        isDeafened: true,
-      };
-
-      jest
-        .spyOn(redisService, 'get')
-        .mockResolvedValue(JSON.stringify(existingData));
-      jest.spyOn(redisService, 'set').mockResolvedValue('OK');
-
-      await service.updateVoiceState(channelId, userId, updates);
-
-      expect(redisService.set).toHaveBeenCalledWith(
-        expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
-        expect.stringContaining('"isDeafened":true'),
-        300,
-      );
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        channelId,
-        ServerEvents.VOICE_CHANNEL_USER_UPDATED,
-        {
-          channelId,
-          userId,
-          user: {
-            ...existingData,
-            ...updates,
-          },
-          updates,
-        },
-      );
-    });
-
-    it('should handle user not found gracefully', async () => {
-      const channelId = 'channel-123';
-      const userId = 'nonexistent-user';
-      const updates = { isDeafened: true };
-
-      jest.spyOn(redisService, 'get').mockResolvedValue(null);
-
-      await service.updateVoiceState(channelId, userId, updates);
-
-      expect(redisService.set).not.toHaveBeenCalled();
-      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
-    });
-
-    it('should update only specified fields', async () => {
-      const channelId = 'channel-456';
-      const userId = 'user-456';
-      const existingData = {
-        id: userId,
-        username: 'testuser',
-        joinedAt: new Date(),
-        isDeafened: false,
-      };
-      const updates = { isDeafened: true };
-
-      jest
-        .spyOn(redisService, 'get')
-        .mockResolvedValue(JSON.stringify(existingData));
-      jest.spyOn(redisService, 'set').mockResolvedValue('OK');
-
-      await service.updateVoiceState(channelId, userId, updates);
-
-      const setCall = (redisService.set as jest.Mock).mock.calls[0];
-      const savedData = JSON.parse(setCall[1]);
-
-      expect(savedData.isDeafened).toBe(true);
-      expect(savedData.username).toBe('testuser'); // Unchanged
-    });
-  });
-
   describe('refreshPresence', () => {
     it('should refresh TTL for user presence', async () => {
       const channelId = 'channel-123';
@@ -483,111 +326,6 @@ describe('VoicePresenceService', () => {
       const result = await service.getUserVoiceChannels(userId);
 
       expect(result).toEqual([]);
-    });
-  });
-
-  describe('joinDmVoice', () => {
-    it('should join DM voice as first user and trigger ringing', async () => {
-      const dmGroupId = 'dm-group-123';
-      const user = UserFactory.build();
-      const mockDmGroup = {
-        id: dmGroupId,
-        members: [{ userId: user.id, user }],
-      };
-
-      jest
-        .spyOn(databaseService.directMessageGroup, 'findFirst')
-        .mockResolvedValue(mockDmGroup as any);
-      mockRedisClient.smembers.mockResolvedValue([]); // No existing members
-
-      await service.joinDmVoice(dmGroupId, user);
-
-      expect(databaseService.directMessageGroup.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            id: dmGroupId,
-          }),
-        }),
-      );
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        dmGroupId,
-        ServerEvents.DM_VOICE_CALL_STARTED,
-        expect.objectContaining({
-          dmGroupId,
-          startedBy: user.id,
-        }),
-      );
-    });
-
-    it('should join DM voice as non-first user without ringing', async () => {
-      const dmGroupId = 'dm-group-456';
-      const user = UserFactory.build();
-      const mockDmGroup = {
-        id: dmGroupId,
-        members: [{ userId: user.id, user }],
-      };
-
-      jest
-        .spyOn(databaseService.directMessageGroup, 'findFirst')
-        .mockResolvedValue(mockDmGroup as any);
-      mockRedisClient.smembers.mockResolvedValue(['other-user-id']); // Existing member
-
-      await service.joinDmVoice(dmGroupId, user);
-
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        dmGroupId,
-        ServerEvents.DM_VOICE_USER_JOINED,
-        expect.objectContaining({
-          dmGroupId,
-          user: expect.objectContaining({
-            id: user.id,
-          }),
-        }),
-      );
-    });
-
-    it('should throw error when DM group not found', async () => {
-      const dmGroupId = 'invalid-dm';
-      const user = UserFactory.build();
-
-      jest
-        .spyOn(databaseService.directMessageGroup, 'findFirst')
-        .mockResolvedValue(null);
-
-      await expect(service.joinDmVoice(dmGroupId, user)).rejects.toThrow(
-        'DM group not found or user is not a member',
-      );
-
-      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
-    });
-
-    it('should store user data in Redis correctly', async () => {
-      const dmGroupId = 'dm-group-789';
-      const user = UserFactory.build();
-      const mockDmGroup = {
-        id: dmGroupId,
-        members: [{ userId: user.id, user }],
-      };
-
-      jest
-        .spyOn(databaseService.directMessageGroup, 'findFirst')
-        .mockResolvedValue(mockDmGroup as any);
-      mockRedisClient.smembers.mockResolvedValue([]);
-
-      const pipelineMock = mockRedisClient.pipeline();
-
-      await service.joinDmVoice(dmGroupId, user);
-
-      expect(pipelineMock.set).toHaveBeenCalledWith(
-        expect.stringContaining(
-          `dm_voice_presence:user:${dmGroupId}:${user.id}`,
-        ),
-        expect.stringContaining(user.username),
-        'EX',
-        300,
-      );
-      expect(pipelineMock.sadd).toHaveBeenCalledTimes(2);
-      expect(pipelineMock.exec).toHaveBeenCalled();
     });
   });
 
@@ -700,63 +438,6 @@ describe('VoicePresenceService', () => {
         expect.stringContaining(`dm_voice_presence:dm:${dmGroupId}:members`),
         'user-2',
       );
-    });
-  });
-
-  describe('updateDmVoiceState', () => {
-    it('should update DM voice state successfully', async () => {
-      const dmGroupId = 'dm-group-123';
-      const userId = 'user-123';
-      const existingData = {
-        id: userId,
-        username: 'testuser',
-        joinedAt: new Date().toISOString(),
-        isDeafened: false,
-      };
-      const updates = {
-        isDeafened: true,
-      };
-
-      jest
-        .spyOn(redisService, 'get')
-        .mockResolvedValue(JSON.stringify(existingData));
-      jest.spyOn(redisService, 'set').mockResolvedValue('OK');
-
-      await service.updateDmVoiceState(dmGroupId, userId, updates);
-
-      expect(redisService.set).toHaveBeenCalledWith(
-        expect.stringContaining(
-          `dm_voice_presence:user:${dmGroupId}:${userId}`,
-        ),
-        expect.stringContaining('"isDeafened":true'),
-        300,
-      );
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        dmGroupId,
-        ServerEvents.DM_VOICE_USER_UPDATED,
-        {
-          dmGroupId,
-          userId,
-          user: {
-            ...existingData,
-            ...updates,
-          },
-          updates,
-        },
-      );
-    });
-
-    it('should handle user not found gracefully', async () => {
-      const dmGroupId = 'dm-group-456';
-      const userId = 'nonexistent-user';
-      const updates = { isDeafened: true };
-
-      jest.spyOn(redisService, 'get').mockResolvedValue(null);
-
-      await service.updateDmVoiceState(dmGroupId, userId, updates);
-
-      expect(redisService.set).not.toHaveBeenCalled();
-      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
   });
 });
