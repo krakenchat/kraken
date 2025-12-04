@@ -1,5 +1,5 @@
 import { useSocket } from "./useSocket";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Message, Reaction } from "../types/message.type";
 import { ServerEvents } from "../types/server-events.enum";
 import { ClientEvents } from "../types/client-events.enum";
@@ -14,6 +14,10 @@ export function useChannelWebSocket(communityId: string | undefined) {
   const dispatch = useAppDispatch();
   const socket = useSocket();
   const messagesByChannelId = useAppSelector((state) => state.messages.byChannelId);
+
+  // Use ref to access latest messages without triggering effect re-runs
+  const messagesByChannelIdRef = useRef(messagesByChannelId);
+  messagesByChannelIdRef.current = messagesByChannelId;
 
   useEffect(() => {
     if (!socket || !communityId) return;
@@ -53,20 +57,22 @@ export function useChannelWebSocket(communityId: string | undefined) {
       messageId: string;
       reaction: Reaction;
     }) => {
+      // Use ref to access latest messages without effect re-runs
+      const currentMessages = messagesByChannelIdRef.current;
       // Find the message in all channels and update it
-      Object.keys(messagesByChannelId).forEach((channelId) => {
-        const messages = messagesByChannelId[channelId]?.messages || [];
+      Object.keys(currentMessages).forEach((channelId) => {
+        const messages = currentMessages[channelId]?.messages || [];
         const messageToUpdate = messages.find(msg => msg.id === messageId);
         if (messageToUpdate) {
           const updatedReactions = [...messageToUpdate.reactions];
           const existingIndex = updatedReactions.findIndex(r => r.emoji === reaction.emoji);
-          
+
           if (existingIndex >= 0) {
             updatedReactions[existingIndex] = reaction;
           } else {
             updatedReactions.push(reaction);
           }
-          
+
           dispatch(updateMessage({
             channelId,
             message: { ...messageToUpdate, reactions: updatedReactions }
@@ -83,9 +89,11 @@ export function useChannelWebSocket(communityId: string | undefined) {
       emoji: string;
       reactions: Reaction[];
     }) => {
+      // Use ref to access latest messages without effect re-runs
+      const currentMessages = messagesByChannelIdRef.current;
       // Find the message in all channels and update it with the correct reactions array
-      Object.keys(messagesByChannelId).forEach((channelId) => {
-        const messages = messagesByChannelId[channelId]?.messages || [];
+      Object.keys(currentMessages).forEach((channelId) => {
+        const messages = currentMessages[channelId]?.messages || [];
         const messageToUpdate = messages.find(msg => msg.id === messageId);
         if (messageToUpdate) {
           dispatch(updateMessage({
@@ -101,7 +109,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
     socket.on(ServerEvents.REACTION_ADDED, handleReactionAdded);
     socket.on(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
-    
+
     return () => {
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
       socket.off(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
@@ -109,7 +117,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.REACTION_ADDED, handleReactionAdded);
       socket.off(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
     };
-  }, [socket, communityId, dispatch, messagesByChannelId]);
+  }, [socket, communityId, dispatch]); // Removed messagesByChannelId from deps
 
   const sendMessage = (msg: Omit<Message, "id">) => {
     // @ts-expect-error: id will be assigned by the server

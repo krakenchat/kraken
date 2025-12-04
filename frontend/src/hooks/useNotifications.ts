@@ -67,10 +67,23 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Initialize notification sound
+  // Note: Sound feature is disabled until a sound file is added to /public/sounds/
+  const soundEnabledRef = useRef(false);
+
   useEffect(() => {
     if (playSound && typeof Audio !== 'undefined') {
-      // TODO: Add notification sound file to public assets
-      // audioRef.current = new Audio('/sounds/notification.mp3');
+      // Try to load the notification sound
+      const audio = new Audio('/sounds/notification.mp3');
+      audio.addEventListener('canplaythrough', () => {
+        audioRef.current = audio;
+        soundEnabledRef.current = true;
+      });
+      audio.addEventListener('error', () => {
+        // Sound file not found - this is expected if no sound file has been added
+        soundEnabledRef.current = false;
+      });
+      // Preload the audio
+      audio.load();
     }
 
     return () => {
@@ -82,10 +95,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   }, [playSound]);
 
   /**
-   * Play notification sound
+   * Play notification sound (if a sound file is available)
    */
   const playNotificationSound = useCallback(() => {
-    if (audioRef.current && playSound) {
+    if (audioRef.current && soundEnabledRef.current && playSound) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
         console.error('[Notifications] Error playing sound:', error);

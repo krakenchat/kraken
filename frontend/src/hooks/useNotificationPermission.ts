@@ -5,7 +5,7 @@
  * Useful for settings UI and permission prompts.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   supportsNotifications,
   getNotificationPermission,
@@ -73,30 +73,41 @@ export function useNotificationPermission() {
   /**
    * Listen for permission changes (browser API support is limited)
    */
+  // Store permission status and handler in refs to enable proper cleanup
+  const permissionStatusRef = useRef<PermissionStatus | null>(null);
+  const handleChangeRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     if (!isSupported || typeof navigator === 'undefined') return;
 
     // Note: The Permissions API for notifications is not widely supported
     // This is a best-effort attempt to track permission changes
     if ('permissions' in navigator && 'query' in navigator.permissions) {
+      const handleChange = () => {
+        const newPermission = getNotificationPermission();
+        setPermission(newPermission);
+      };
+      handleChangeRef.current = handleChange;
+
       navigator.permissions
         .query({ name: 'notifications' as PermissionName })
         .then((permissionStatus) => {
-          const handleChange = () => {
-            const newPermission = getNotificationPermission();
-            setPermission(newPermission);
-          };
-
+          permissionStatusRef.current = permissionStatus;
           permissionStatus.addEventListener('change', handleChange);
-
-          return () => {
-            permissionStatus.removeEventListener('change', handleChange);
-          };
         })
         .catch((error) => {
           // Permissions API not supported or query failed
           console.debug('[Notifications] Permissions API not available:', error);
         });
+
+      // Cleanup: remove event listener on unmount
+      return () => {
+        if (permissionStatusRef.current && handleChangeRef.current) {
+          permissionStatusRef.current.removeEventListener('change', handleChangeRef.current);
+          permissionStatusRef.current = null;
+          handleChangeRef.current = null;
+        }
+      };
     }
   }, [isSupported]);
 

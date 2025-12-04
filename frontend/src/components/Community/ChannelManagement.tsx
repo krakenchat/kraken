@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Card,
@@ -86,16 +86,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
 
   const canManageChannels = canCreateChannels || canUpdateChannels || canDeleteChannels;
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      type: "TEXT",
-      isPrivate: false,
-    });
-  };
-
-  const handleCreateChannel = async () => {
+  const handleCreateChannel = useCallback(async () => {
     if (!formData.name.trim()) return;
 
     try {
@@ -106,15 +97,20 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
         communityId,
         isPrivate: formData.isPrivate,
       }).unwrap();
-      
+
       setCreateDialogOpen(false);
-      resetForm();
+      setFormData({
+        name: "",
+        description: "",
+        type: "TEXT",
+        isPrivate: false,
+      });
     } catch (error) {
       console.error("Failed to create channel:", error);
     }
-  };
+  }, [formData, communityId, createChannel]);
 
-  const handleEditChannel = (channel: Channel) => {
+  const handleEditChannel = useCallback((channel: Channel) => {
     setEditingChannel(channel);
     setFormData({
       name: channel.name,
@@ -123,9 +119,9 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
       isPrivate: channel.isPrivate,
     });
     setEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleUpdateChannel = async () => {
+  const handleUpdateChannel = useCallback(async () => {
     if (!editingChannel || !formData.name.trim()) return;
 
     try {
@@ -137,21 +133,26 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
           isPrivate: formData.isPrivate,
         },
       }).unwrap();
-      
+
       setEditDialogOpen(false);
       setEditingChannel(null);
-      resetForm();
+      setFormData({
+        name: "",
+        description: "",
+        type: "TEXT",
+        isPrivate: false,
+      });
     } catch (error) {
       console.error("Failed to update channel:", error);
     }
-  };
+  }, [editingChannel, formData, updateChannel]);
 
-  const handleDeleteChannel = (channelId: string, channelName: string) => {
+  const handleDeleteChannel = useCallback((channelId: string, channelName: string) => {
     setChannelToDelete({ id: channelId, name: channelName });
     setConfirmDeleteOpen(true);
-  };
+  }, []);
 
-  const confirmDeleteChannel = async () => {
+  const confirmDeleteChannel = useCallback(async () => {
     if (!channelToDelete) return;
 
     try {
@@ -162,23 +163,33 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
       setConfirmDeleteOpen(false);
       setChannelToDelete(null);
     }
-  };
+  }, [channelToDelete, deleteChannel]);
 
-  const cancelDeleteChannel = () => {
+  const cancelDeleteChannel = useCallback(() => {
     setConfirmDeleteOpen(false);
     setChannelToDelete(null);
-  };
+  }, []);
 
-  const handleCloseCreateDialog = () => {
+  const handleCloseCreateDialog = useCallback(() => {
     setCreateDialogOpen(false);
-    resetForm();
-  };
+    setFormData({
+      name: "",
+      description: "",
+      type: "TEXT",
+      isPrivate: false,
+    });
+  }, []);
 
-  const handleCloseEditDialog = () => {
+  const handleCloseEditDialog = useCallback(() => {
     setEditDialogOpen(false);
     setEditingChannel(null);
-    resetForm();
-  };
+    setFormData({
+      name: "",
+      description: "",
+      type: "TEXT",
+      isPrivate: false,
+    });
+  }, []);
 
   if (loadingChannels) {
     return (

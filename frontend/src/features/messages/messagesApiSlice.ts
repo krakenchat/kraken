@@ -119,23 +119,57 @@ export const messagesApi = createApi({
     }),
     addReaction: builder.mutation<
       Message,
-      { messageId: string; emoji: string }
+      { messageId: string; emoji: string; channelId?: string }
     >({
       query: ({ messageId, emoji }) => ({
         url: "/reactions",
         method: "POST",
         body: { messageId, emoji },
       }),
+      async onQueryStarted({ channelId: argChannelId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updatedMessage } = await queryFulfilled;
+          // Use channelId from arg or from the response
+          const channelId = argChannelId || updatedMessage.channelId;
+          if (channelId) {
+            dispatch(
+              updateMessage({
+                channelId,
+                message: updatedMessage,
+              })
+            );
+          }
+        } catch (error) {
+          console.error("Failed to add reaction:", error);
+        }
+      },
     }),
     removeReaction: builder.mutation<
       Message,
-      { messageId: string; emoji: string }
+      { messageId: string; emoji: string; channelId?: string }
     >({
       query: ({ messageId, emoji }) => ({
         url: "/reactions",
         method: "DELETE",
         body: { messageId, emoji },
       }),
+      async onQueryStarted({ channelId: argChannelId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updatedMessage } = await queryFulfilled;
+          // Use channelId from arg or from the response
+          const channelId = argChannelId || updatedMessage.channelId;
+          if (channelId) {
+            dispatch(
+              updateMessage({
+                channelId,
+                message: updatedMessage,
+              })
+            );
+          }
+        } catch (error) {
+          console.error("Failed to remove reaction:", error);
+        }
+      },
     }),
     addAttachment: builder.mutation<
       Message,

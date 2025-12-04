@@ -7,7 +7,6 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { VoicePresenceService } from './voice-presence.service';
-import { VoiceStateUpdateDto } from './dto/voice-state-update.dto';
 import { Socket } from 'socket.io';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import {
@@ -36,8 +35,17 @@ class VoiceChannelEventDto {
   channelId: string;
 }
 
-class VoiceStateEventDto extends VoiceChannelEventDto {}
-
+/**
+ * Voice Presence WebSocket Gateway
+ *
+ * NOTE: Voice presence is now primarily managed by LiveKit webhooks.
+ * - participant_joined webhook → updates Redis when user connects to LiveKit
+ * - participant_left webhook → updates Redis when user disconnects from LiveKit
+ *
+ * This gateway provides:
+ * - Cleanup on WebSocket disconnect (backup for LiveKit webhook)
+ * - Presence TTL refresh
+ */
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway()
 @UsePipes(
@@ -58,92 +66,14 @@ export class VoicePresenceGateway implements OnGatewayDisconnect {
     );
 
     // Clean up user's voice presence in all channels they were in
+    // This is a backup for LiveKit webhooks - if the webhook fails,
+    // we still clean up when the user's WebSocket disconnects
     const voiceChannels = await this.voicePresenceService.getUserVoiceChannels(
       user.id,
     );
     for (const channelId of voiceChannels) {
       await this.voicePresenceService.leaveVoiceChannel(channelId, user.id);
     }
-  }
-
-  @SubscribeMessage(ClientEvents.VOICE_CHANNEL_JOIN)
-  @RequiredActions(RbacActions.JOIN_CHANNEL)
-  @RbacResource({
-    type: RbacResourceType.CHANNEL,
-    idKey: 'channelId',
-    source: ResourceIdSource.PAYLOAD,
-  })
-  async handleJoinVoiceChannel(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
-    @MessageBody() data: VoiceChannelEventDto,
-  ) {
-    const user = client.handshake.user;
-    await this.voicePresenceService.joinVoiceChannel(data.channelId, user);
-
-    this.logger.log(
-      `User ${user.id} joined voice channel ${data.channelId} via WebSocket`,
-    );
-
-    return {
-      success: true,
-      channelId: data.channelId,
-    };
-  }
-
-  @SubscribeMessage(ClientEvents.VOICE_CHANNEL_LEAVE)
-  @RequiredActions(RbacActions.JOIN_CHANNEL)
-  @RbacResource({
-    type: RbacResourceType.CHANNEL,
-    idKey: 'channelId',
-    source: ResourceIdSource.PAYLOAD,
-  })
-  async handleLeaveVoiceChannel(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
-    @MessageBody() data: VoiceChannelEventDto,
-  ) {
-    const user = client.handshake.user;
-    await this.voicePresenceService.leaveVoiceChannel(data.channelId, user.id);
-
-    this.logger.log(
-      `User ${user.id} left voice channel ${data.channelId} via WebSocket`,
-    );
-
-    return {
-      success: true,
-      channelId: data.channelId,
-    };
-  }
-
-  @SubscribeMessage(ClientEvents.VOICE_STATE_UPDATE)
-  @RequiredActions(RbacActions.JOIN_CHANNEL)
-  @RbacResource({
-    type: RbacResourceType.CHANNEL,
-    idKey: 'channelId',
-    source: ResourceIdSource.PAYLOAD,
-  })
-  async handleVoiceStateUpdate(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
-    @MessageBody() data: VoiceStateEventDto & VoiceStateUpdateDto,
-  ) {
-    const user = client.handshake.user;
-    const { channelId, ...updates } = data;
-
-    await this.voicePresenceService.updateVoiceState(
-      channelId,
-      user.id,
-      updates,
-    );
-
-    this.logger.log(
-      `User ${user.id} updated voice state in channel ${channelId}`,
-      updates,
-    );
-
-    return {
-      success: true,
-      channelId,
-      updates,
-    };
   }
 
   @SubscribeMessage(ClientEvents.VOICE_PRESENCE_REFRESH)

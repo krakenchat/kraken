@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '../auth/auth.module';
@@ -6,6 +6,7 @@ import { DatabaseModule } from '@/database/database.module';
 import { StorageModule } from '@/storage/storage.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
 import { MessagesModule } from '@/messages/messages.module';
+import { VoicePresenceModule } from '@/voice-presence/voice-presence.module';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
 import { FfmpegService } from './ffmpeg.service';
@@ -26,6 +27,8 @@ import { RolesModule } from '@/roles/roles.module';
     MessagesModule,
     UserModule,
     RolesModule,
+    // Use forwardRef to handle circular dependency (VoicePresenceModule imports LivekitModule)
+    forwardRef(() => VoicePresenceModule),
   ],
   controllers: [LivekitController, LivekitWebhookController],
   providers: [

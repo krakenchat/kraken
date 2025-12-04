@@ -1,6 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { Room, VideoCaptureOptions } from "livekit-client";
-import { Socket } from "socket.io-client";
 import { RootState } from "../../app/store";
 import {
   setConnecting,
@@ -15,11 +14,6 @@ import {
 } from "./voiceSlice";
 import { voicePresenceApi } from "../voice-presence/voicePresenceApiSlice";
 import { livekitApi } from "../livekit/livekitApiSlice";
-import { ClientEvents } from "../../types/client-events.enum";
-import {
-  ServerToClientEvents,
-  ClientToServerEvents,
-} from "../../utils/SocketContext";
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
 import { logger } from "../../utils/logger";
@@ -42,7 +36,6 @@ interface JoinVoiceChannelParams {
   createdAt: string;
   user: { id: string; username: string; displayName?: string };
   connectionInfo: { url: string };
-  socket?: Socket<ServerToClientEvents, ClientToServerEvents>;
   setRoom: (room: Room | null) => void;
 }
 
@@ -63,6 +56,12 @@ async function connectToLiveKitRoom(
     await room.connect(url, token);
     logger.info('[Voice] ✓ Connected to LiveKit room, state:', room.state);
     setRoom(room);
+
+    // Set initial participant metadata
+    // This is picked up by LiveKit webhooks when participant_joined is fired
+    const initialMetadata = JSON.stringify({ isDeafened: false });
+    await room.localParticipant.setMetadata(initialMetadata);
+    logger.info('[Voice] ✓ Set initial participant metadata');
   } catch (error) {
     logger.error('[Voice] ✗ Failed to connect to LiveKit room:', error);
     throw error;
@@ -131,7 +130,6 @@ export const joinVoiceChannel = createAsyncThunk<
       createdAt,
       user,
       connectionInfo,
-      socket,
       setRoom,
     },
     { dispatch }
@@ -155,12 +153,9 @@ export const joinVoiceChannel = createAsyncThunk<
       ).unwrap();
       logger.info('[Voice] ✓ Got LiveKit token');
 
-      // Join voice channel on backend
-      logger.info('[Voice] Joining voice channel on backend...');
-      await dispatch(
-        voicePresenceApi.endpoints.joinVoiceChannel.initiate(channelId)
-      ).unwrap();
-      logger.info('[Voice] ✓ Joined voice channel on backend');
+      // Note: Voice presence is now managed by LiveKit webhooks
+      // When we connect to LiveKit, the participant_joined webhook will update Redis
+      // No need for explicit joinVoiceChannel REST call
 
       // Connect to LiveKit room and enable microphone
       logger.info('[Voice] Connecting to LiveKit room...');
@@ -185,13 +180,8 @@ export const joinVoiceChannel = createAsyncThunk<
         voicePresenceApi.util.invalidateTags([{ type: "VoicePresence", id: channelId }])
       );
 
-      // Notify via WebSocket
-      if (socket) {
-        logger.info('[Voice] Emitting VOICE_CHANNEL_JOIN event');
-        socket.emit(ClientEvents.VOICE_CHANNEL_JOIN, { channelId });
-      } else {
-        logger.warn('[Voice] ⚠ No socket available for voice channel join notification');
-      }
+      // Note: Voice presence is now managed by LiveKit webhooks
+      // The participant_joined webhook will update Redis when we connect
 
       logger.info('[Voice] === Voice channel join complete ===');
     } catch (error) {
@@ -210,14 +200,13 @@ export const joinVoiceChannel = createAsyncThunk<
 export const leaveVoiceChannel = createAsyncThunk<
   void,
   {
-    socket?: Socket<ServerToClientEvents, ClientToServerEvents>;
     getRoom: () => Room | null;
     setRoom: (room: Room | null) => void;
   },
   { state: RootState }
 >(
   "voice/leaveChannel",
-  async ({ socket, getRoom, setRoom }, { dispatch, getState }) => {
+  async ({ getRoom, setRoom }, { dispatch, getState }) => {
     const state = getState();
     const { currentChannelId } = state.voice;
     const room = getRoom();
@@ -234,22 +223,11 @@ export const leaveVoiceChannel = createAsyncThunk<
       const channelId = currentChannelId;
 
       // Disconnect from LiveKit room
+      // Note: Voice presence is now managed by LiveKit webhooks
+      // When we disconnect, the participant_left webhook will update Redis
       logger.info('[Voice] Disconnecting from LiveKit room...');
       await room.disconnect();
       logger.info('[Voice] ✓ Disconnected from LiveKit');
-
-      // Leave voice channel on backend
-      logger.info('[Voice] Leaving voice channel on backend...');
-      await dispatch(
-        voicePresenceApi.endpoints.leaveVoiceChannel.initiate(channelId)
-      ).unwrap();
-      logger.info('[Voice] ✓ Left voice channel on backend');
-
-      // Notify via WebSocket
-      if (socket) {
-        logger.info('[Voice] Emitting VOICE_CHANNEL_LEAVE event');
-        socket.emit(ClientEvents.VOICE_CHANNEL_LEAVE, { channelId });
-      }
 
       // Clear room reference
       setRoom(null);
@@ -356,7 +334,6 @@ interface JoinDmVoiceParams {
   dmGroupName: string;
   user: { id: string; username: string; displayName?: string };
   connectionInfo: { url: string };
-  socket?: Socket<ServerToClientEvents, ClientToServerEvents>;
   setRoom: (room: Room | null) => void;
 }
 
@@ -388,10 +365,8 @@ export const joinDmVoice = createAsyncThunk<
         })
       ).unwrap();
 
-      // Join DM voice on backend
-      await dispatch(
-        voicePresenceApi.endpoints.joinDmVoice.initiate(dmGroupId)
-      ).unwrap();
+      // Note: DM voice presence is now managed by LiveKit webhooks
+      // When we connect to LiveKit, the participant_joined webhook will update Redis
 
       // Connect to LiveKit room and enable microphone
       await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
@@ -425,7 +400,6 @@ export const joinDmVoice = createAsyncThunk<
 export const leaveDmVoice = createAsyncThunk<
   void,
   {
-    socket?: Socket<ServerToClientEvents, ClientToServerEvents>;
     getRoom: () => Room | null;
     setRoom: (room: Room | null) => void;
   },
@@ -440,15 +414,10 @@ export const leaveDmVoice = createAsyncThunk<
     if (!currentDmGroupId || !room) return;
 
     try {
-      const dmGroupId = currentDmGroupId;
-
       // Disconnect from LiveKit room
+      // Note: DM voice presence is now managed by LiveKit webhooks
+      // When we disconnect, the participant_left webhook will update Redis
       await room.disconnect();
-
-      // Leave DM voice on backend
-      await dispatch(
-        voicePresenceApi.endpoints.leaveDmVoice.initiate(dmGroupId)
-      ).unwrap();
 
       // Clear room reference
       setRoom(null);
@@ -617,7 +586,11 @@ export const toggleScreenShareUnified = createAsyncThunk<
  * Unified deafen toggle for both channels and DMs
  * Replaces: toggleDeafen, toggleDmDeafen
  *
- * Deafen is a custom UI state (server-synced) - not managed by LiveKit
+ * Deafen is a custom UI state - stored in both:
+ * 1. Redux (for local UI state)
+ * 2. LiveKit participant metadata (so other connected users can see)
+ * 3. Redis via REST (for non-connected users to query) - to be removed in Phase 3
+ *
  * When deafening, we also disable the microphone (Discord-style behavior)
  */
 export const toggleDeafenUnified = createAsyncThunk<
@@ -638,6 +611,20 @@ export const toggleDeafenUnified = createAsyncThunk<
     try {
       dispatch(setDeafened(newDeafenedState));
 
+      // Update LiveKit participant metadata so other connected users can see our deafen state
+      if (room) {
+        const currentMetadata = room.localParticipant.metadata;
+        let metadata: Record<string, unknown> = {};
+        try {
+          metadata = currentMetadata ? JSON.parse(currentMetadata) : {};
+        } catch {
+          // Invalid existing metadata, start fresh
+        }
+        metadata.isDeafened = newDeafenedState;
+        await room.localParticipant.setMetadata(JSON.stringify(metadata));
+        logger.info('[Voice] Updated LiveKit metadata with isDeafened:', newDeafenedState);
+      }
+
       // When deafening, automatically mute mic as well (Discord-style)
       // Read mic state from LiveKit, not Redux
       if (newDeafenedState && room) {
@@ -647,7 +634,8 @@ export const toggleDeafenUnified = createAsyncThunk<
         }
       }
 
-      // Update server state (only isDeafened - mic state is managed by LiveKit)
+      // Update server state (for non-connected users to query)
+      // Note: This will be removed in Phase 3 once webhooks fully replace REST
       if (contextType === 'dm' && currentDmGroupId) {
         await dispatch(
           voicePresenceApi.endpoints.updateDmVoiceState.initiate({

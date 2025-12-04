@@ -43,6 +43,8 @@ export class LivekitService {
         canPublish: true,
         canSubscribe: true,
         canPublishData: true,
+        // Allow participants to update their own metadata (for isDeafened state)
+        canUpdateOwnMetadata: true,
       });
 
       const jwt = await token.toJwt();

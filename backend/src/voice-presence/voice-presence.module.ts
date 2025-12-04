@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { VoicePresenceService } from './voice-presence.service';
 import {
   VoicePresenceController,
@@ -8,7 +8,6 @@ import {
 import { VoicePresenceGateway } from './voice-presence.gateway';
 import { RedisModule } from '@/redis/redis.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
-import { ChannelsModule } from '@/channels/channels.module';
 import { AuthModule } from '@/auth/auth.module';
 import { UserModule } from '@/user/user.module';
 import { RolesModule } from '@/roles/roles.module';
@@ -19,12 +18,12 @@ import { LivekitModule } from '@/livekit/livekit.module';
   imports: [
     RedisModule,
     WebsocketModule,
-    ChannelsModule,
     AuthModule,
     UserModule,
     RolesModule,
     DatabaseModule,
-    LivekitModule,
+    // Use forwardRef to handle circular dependency (LivekitModule imports VoicePresenceModule)
+    forwardRef(() => LivekitModule),
   ],
   controllers: [
     VoicePresenceController,

@@ -69,14 +69,40 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
       // Update ref to prevent re-processing
       lastProcessedContextRef.current = contextId;
 
-      // Mark all as read in parallel
-      Promise.all(
-        notificationsToMark.map((notification) =>
-          markAsRead(notification.id).unwrap().catch((error) => {
-            console.error(`Failed to mark notification ${notification.id} as read:`, error);
-          })
-        )
-      );
+      // Track if effect is still active (for cleanup)
+      let isCancelled = false;
+
+      // Mark all as read in parallel with proper error handling
+      (async () => {
+        try {
+          const results = await Promise.allSettled(
+            notificationsToMark.map((notification) =>
+              markAsRead(notification.id).unwrap()
+            )
+          );
+
+          // Only log if not cancelled (component still mounted)
+          if (!isCancelled) {
+            const failures = results.filter((r) => r.status === 'rejected');
+            if (failures.length > 0) {
+              console.error(
+                `[Auto-mark] Failed to mark ${failures.length}/${notificationsToMark.length} notification(s) as read:`,
+                failures.map((f) => (f as PromiseRejectedResult).reason)
+              );
+            }
+          }
+        } catch (error) {
+          // Unexpected error in Promise.allSettled itself (should not happen)
+          if (!isCancelled) {
+            console.error('[Auto-mark] Unexpected error marking notifications as read:', error);
+          }
+        }
+      })();
+
+      // Cleanup: prevent state updates if navigated away
+      return () => {
+        isCancelled = true;
+      };
     } else {
       // Update ref even if no notifications to mark
       lastProcessedContextRef.current = contextId;

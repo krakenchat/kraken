@@ -26,8 +26,11 @@ export type ServerToClientEvents = {
 
 export type ClientToServerEvents = {
   [ClientEvents.JOIN_ALL]: (communityId: string) => void;
+  [ClientEvents.LEAVE_ALL]: (communityId: string) => void;
   [ClientEvents.JOIN_ROOM]: (channelId: string) => void;
   [ClientEvents.LEAVE_ROOM]: (channelId: string) => void;
+  [ClientEvents.JOIN_DM_ROOM]: (dmGroupId: string) => void;
+  [ClientEvents.LEAVE_DM_ROOM]: (dmGroupId: string) => void;
   [ClientEvents.SEND_MESSAGE]: (
     data: Omit<NewMessagePayload, "id">,
     callback?: (messageId: string) => void
@@ -39,8 +42,8 @@ export type ClientToServerEvents = {
   }, callback?: (messageId: string) => void) => void;
   [ClientEvents.VOICE_CHANNEL_JOIN]: (data: { channelId: string }) => void;
   [ClientEvents.VOICE_CHANNEL_LEAVE]: (data: { channelId: string }) => void;
-  [ClientEvents.VOICE_STATE_UPDATE]: (data: { 
-    channelId: string; 
+  [ClientEvents.VOICE_STATE_UPDATE]: (data: {
+    channelId: string;
     isVideoEnabled?: boolean;
     isScreenSharing?: boolean;
     isMuted?: boolean;

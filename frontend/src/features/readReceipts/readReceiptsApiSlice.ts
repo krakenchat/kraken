@@ -7,7 +7,6 @@ import {
 } from "../../types/read-receipt.type";
 import {
   setUnreadCounts,
-  updateUnreadCount,
   markAsRead,
 } from "./readReceiptsSlice";
 
@@ -34,6 +33,8 @@ export const readReceiptsApi = createApi({
     }),
 
     // Get unread count for a specific channel or DM group
+    // Note: Data is available via RTK Query cache. The Redux slice (readReceiptsSlice)
+    // is used for optimistic updates and WebSocket-driven updates.
     getUnreadCount: builder.query<
       UnreadCount,
       { channelId?: string; directMessageGroupId?: string }
@@ -54,14 +55,8 @@ export const readReceiptsApi = createApi({
           id: arg.channelId || arg.directMessageGroupId,
         },
       ],
-      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
-        try {
-          const { data } = await queryFulfilled;
-          dispatch(updateUnreadCount(data));
-        } catch (error) {
-          console.error("Failed to fetch unread count:", error);
-        }
-      },
+      // Removed redundant dispatch to Redux slice - data is in RTK Query cache
+      // The slice is updated by WebSocket events and optimistic updates only
     }),
 
     // Get last read message ID for a channel or DM group

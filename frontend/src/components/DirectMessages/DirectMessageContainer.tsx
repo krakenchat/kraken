@@ -48,7 +48,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   const messagesHookResult = useDirectMessages(dmGroupId);
 
   // Setup unified send message hook with callback
-  const sendMessage = useSendMessage("dm", async (messageId: string) => {
+  const { sendMessage } = useSendMessage("dm", async (messageId: string) => {
     const files = pendingFilesRef.current;
     if (!files || files.length === 0) return;
 

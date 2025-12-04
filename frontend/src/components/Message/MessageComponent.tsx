@@ -24,7 +24,7 @@ interface MessageProps {
   message: MessageType;
 }
 
-function MessageComponent({ message }: MessageProps) {
+function MessageComponentInner({ message }: MessageProps) {
   const { data: author } = useGetUserByIdQuery(message.authorId);
   const { data: currentUser } = useProfileQuery();
 
@@ -126,5 +126,32 @@ function MessageComponent({ message }: MessageProps) {
     </Container>
   );
 }
+
+/**
+ * Memoized message component to prevent unnecessary re-renders in lists.
+ * Only re-renders when the message data actually changes.
+ */
+const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps) => {
+  const prevMsg = prevProps.message;
+  const nextMsg = nextProps.message;
+
+  // Compare message properties that would require a re-render
+  return (
+    prevMsg.id === nextMsg.id &&
+    prevMsg.content === nextMsg.content &&
+    prevMsg.editedAt === nextMsg.editedAt &&
+    prevMsg.authorId === nextMsg.authorId &&
+    prevMsg.sentAt === nextMsg.sentAt &&
+    // Deep compare reactions array
+    prevMsg.reactions.length === nextMsg.reactions.length &&
+    prevMsg.reactions.every((r, i) =>
+      r.emoji === nextMsg.reactions[i]?.emoji &&
+      r.count === nextMsg.reactions[i]?.count
+    ) &&
+    // Deep compare attachments array
+    prevMsg.attachments?.length === nextMsg.attachments?.length &&
+    prevMsg.attachments?.every((a, i) => a.id === nextMsg.attachments?.[i]?.id)
+  );
+});
 
 export default MessageComponent;

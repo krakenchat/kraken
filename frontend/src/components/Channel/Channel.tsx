@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   Channel as ChannelType,
   ChannelType as ChannelKind,
@@ -19,6 +20,7 @@ import {
   useMoveChannelDownMutation,
 } from "../../features/channel/channelApiSlice";
 import type { ListItemProps } from "@mui/material/ListItem";
+import { useNotification } from "../../contexts/NotificationContext";
 
 interface ChannelProps {
   channel: ChannelType;
@@ -64,39 +66,48 @@ export function Channel({
     channelId: string;
   }>();
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
+  const { showNotification } = useNotification();
 
   const [moveUp, { isLoading: isMovingUp }] = useMoveChannelUpMutation();
   const [moveDown, { isLoading: isMovingDown }] = useMoveChannelDownMutation();
 
-  const handleMoveUp = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isFirstInType || isMovingUp || !communityId) return;
+  const handleMoveUp = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isFirstInType || isMovingUp || !communityId) return;
 
-    try {
-      await moveUp({
-        channelId: channel.id,
-        communityId,
-      }).unwrap();
-    } catch (error) {
-      console.error("Failed to move channel up:", error);
-    }
-  };
+      try {
+        await moveUp({
+          channelId: channel.id,
+          communityId,
+        }).unwrap();
+      } catch (error) {
+        console.error("Failed to move channel up:", error);
+        showNotification("Failed to reorder channel", "error");
+      }
+    },
+    [isFirstInType, isMovingUp, communityId, moveUp, channel.id, showNotification]
+  );
 
-  const handleMoveDown = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isLastInType || isMovingDown || !communityId) return;
+  const handleMoveDown = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isLastInType || isMovingDown || !communityId) return;
 
-    try {
-      await moveDown({
-        channelId: channel.id,
-        communityId,
-      }).unwrap();
-    } catch (error) {
-      console.error("Failed to move channel down:", error);
-    }
-  };
+      try {
+        await moveDown({
+          channelId: channel.id,
+          communityId,
+        }).unwrap();
+      } catch (error) {
+        console.error("Failed to move channel down:", error);
+        showNotification("Failed to reorder channel", "error");
+      }
+    },
+    [isLastInType, isMovingDown, communityId, moveDown, channel.id, showNotification]
+  );
 
-  const handleClick = async () => {
+  const handleClick = useCallback(async () => {
     if (channel.type === ChannelKind.TEXT) {
       // Navigate to text channel
       navigate(`/community/${communityId}/channel/${channel.id}`);
@@ -119,10 +130,23 @@ export function Channel({
           navigate(`/community/${communityId}/channel/${channel.id}`);
         }
       } catch (error) {
-        console.error('Failed to join voice channel:', error);
+        console.error("Failed to join voice channel:", error);
+        showNotification("Failed to join voice channel. Please try again.", "error");
       }
     }
-  };
+  }, [
+    channel.type,
+    channel.id,
+    channel.name,
+    channel.isPrivate,
+    channel.createdAt,
+    communityId,
+    navigate,
+    voiceState.currentChannelId,
+    voiceState.isConnected,
+    voiceActions,
+    showNotification,
+  ]);
 
   return (
     <Box>

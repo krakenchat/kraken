@@ -129,7 +129,9 @@ export const useMessageVisibility = ({
       }
       visibleMessages.clear();
     };
-  }, [enabled, containerRef, findLatestVisibleMessage, markAsRead, messages.length]);
+  // Note: messages.length removed from deps - we use messagesRef for current messages
+  // Re-running when messages change is unnecessary since observer watches DOM elements
+  }, [enabled, containerRef, findLatestVisibleMessage, markAsRead]);
 
   return {
     markAsRead,

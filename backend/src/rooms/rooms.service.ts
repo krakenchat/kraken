@@ -78,4 +78,61 @@ export class RoomsService {
   async join(client: Socket, id: string) {
     await client.join(id);
   }
+
+  /**
+   * Leave a specific room
+   */
+  async leave(client: Socket, id: string) {
+    await client.leave(id);
+    this.logger.debug(`Client ${client.id} left room ${id}`);
+  }
+
+  /**
+   * Leave all community-related rooms (channels, private channels, DMs, alias groups)
+   * Called when switching communities or navigating away
+   */
+  async leaveAll(
+    client: Socket & { handshake: { user: { id: string } } },
+    communityId: string,
+  ) {
+    // Get all public channels in the community
+    const publicChannels = await this.databaseService.channel.findMany({
+      where: {
+        communityId,
+        isPrivate: false,
+      },
+    });
+
+    // Leave all public channels
+    for (const channel of publicChannels) {
+      await client.leave(channel.id);
+    }
+
+    // Get private channels the user has membership to
+    const privateChannelMemberships =
+      await this.databaseService.channelMembership.findMany({
+        where: {
+          userId: client.handshake.user.id,
+          channel: {
+            communityId,
+            isPrivate: true,
+          },
+        },
+        include: {
+          channel: true,
+        },
+      });
+
+    // Leave private channels
+    for (const membership of privateChannelMemberships) {
+      await client.leave(membership.channelId);
+    }
+
+    // Note: We don't leave DM rooms on community change since DMs are community-independent
+    // DM rooms are left when the user explicitly leaves a DM conversation
+
+    this.logger.debug(
+      `User ${client.handshake.user.id} left community ${communityId} rooms (now in ${client.rooms.size} rooms)`,
+    );
+  }
 }

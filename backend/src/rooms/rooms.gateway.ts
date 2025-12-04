@@ -107,4 +107,45 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     );
     return this.roomsService.join(client, dmGroupId);
   }
+
+  @SubscribeMessage(ClientEvents.LEAVE_ROOM)
+  async leaveRoom(
+    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @MessageBody() id: string,
+  ) {
+    this.logger.log(`User ${client.handshake.user.id} leaving room: ${id}`);
+    return this.roomsService.leave(client, id);
+  }
+
+  @SubscribeMessage(ClientEvents.LEAVE_ALL)
+  @RequiredActions(RbacActions.READ_COMMUNITY)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    source: ResourceIdSource.TEXT_PAYLOAD,
+  })
+  async leaveAll(
+    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @MessageBody() communityId: string,
+  ) {
+    this.logger.log(
+      `User ${client.handshake.user.id} leaving all rooms for community ${communityId}`,
+    );
+    return this.roomsService.leaveAll(client, communityId);
+  }
+
+  @SubscribeMessage(ClientEvents.LEAVE_DM_ROOM)
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.DM_GROUP,
+    source: ResourceIdSource.TEXT_PAYLOAD,
+  })
+  async leaveDmRoom(
+    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @MessageBody() dmGroupId: string,
+  ) {
+    this.logger.log(
+      `User ${client.handshake.user.id} leaving DM room: ${dmGroupId}`,
+    );
+    return this.roomsService.leave(client, dmGroupId);
+  }
 }

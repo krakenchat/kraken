@@ -66,7 +66,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const messagesHookResult = useChannelMessages(channelId);
 
   // Setup unified send message hook with callback
-  const sendMessage = useSendMessage("channel", async (messageId: string) => {
+  const { sendMessage } = useSendMessage("channel", async (messageId: string) => {
     const files = pendingFilesRef.current;
     if (!files || files.length === 0) return;
 

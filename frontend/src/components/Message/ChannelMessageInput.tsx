@@ -25,6 +25,7 @@ import type {
 } from "../../utils/mentionParser";
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
+import { useNotification } from "../../contexts/NotificationContext";
 import type { Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
 
@@ -46,6 +47,17 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { showNotification } = useNotification();
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const {
     selectedFiles,
@@ -90,10 +102,15 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
     const result = insertMention(text, cursorPosition, mentionData);
     setText(result.newText);
 
-    setTimeout(() => {
+    // Clear any existing timeout before setting a new one
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.setSelectionRange(result.newCursorPosition, result.newCursorPosition);
       }
+      timeoutRef.current = null;
     }, 0);
 
     mentionHook.close();
@@ -126,6 +143,7 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
       });
     } catch (error) {
       logger.error("Failed to send message:", error);
+      showNotification("Failed to send message. Please try again.", "error");
     } finally {
       setSending(false);
     }

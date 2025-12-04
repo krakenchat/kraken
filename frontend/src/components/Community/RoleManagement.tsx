@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Card,
@@ -101,7 +101,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
   const [deleteRole, { isLoading: deletingRoleLoading }] = useDeleteRoleMutation();
 
-  const handleCreateRole = async (data: { name?: string; actions: string[] }) => {
+  const handleCreateRole = useCallback(async (data: { name?: string; actions: string[] }) => {
     try {
       await createRole({
         communityId,
@@ -114,9 +114,9 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     } catch {
       // Error handled by RTK Query
     }
-  };
+  }, [communityId, createRole]);
 
-  const handleUpdateRole = async (data: { name?: string; actions: string[] }) => {
+  const handleUpdateRole = useCallback(async (data: { name?: string; actions: string[] }) => {
     if (!editingRole) return;
 
     try {
@@ -128,9 +128,9 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     } catch {
       // Error handled by RTK Query
     }
-  };
+  }, [editingRole, updateRole]);
 
-  const handleDeleteRole = async () => {
+  const handleDeleteRole = useCallback(async () => {
     if (!roleToDelete) return;
 
     try {
@@ -140,7 +140,25 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     } catch {
       // Error handled by RTK Query - will stay open to show error
     }
-  };
+  }, [roleToDelete, deleteRole]);
+
+  const handleCancelEdit = useCallback(() => {
+    setCreatingRole(false);
+    setEditingRole(null);
+  }, []);
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteConfirmOpen(false);
+  }, []);
+
+  const handleOpenDeleteDialog = useCallback((role: RoleDto) => {
+    setRoleToDelete(role);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleCloseUsersDialog = useCallback(() => {
+    setViewingRoleUsers(null);
+  }, []);
 
   const isDefaultRole = (roleName: string) => {
     return ['Community Admin', 'Moderator', 'Member'].includes(roleName);
@@ -166,10 +184,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
       <RoleEditor
         role={editingRole || undefined}
         onSave={editingRole ? handleUpdateRole : handleCreateRole}
-        onCancel={() => {
-          setCreatingRole(false);
-          setEditingRole(null);
-        }}
+        onCancel={handleCancelEdit}
         isLoading={creatingRoleLoading || updatingRoleLoading}
         error={
           createRoleError
@@ -300,10 +315,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
                               <IconButton
                                 size="small"
                                 color="error"
-                                onClick={() => {
-                                  setRoleToDelete(role);
-                                  setDeleteConfirmOpen(true);
-                                }}
+                                onClick={() => handleOpenDeleteDialog(role)}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -349,7 +361,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={handleCloseDeleteDialog}
         maxWidth="sm"
         fullWidth
       >
@@ -361,7 +373,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>
+          <Button onClick={handleCloseDeleteDialog}>
             Cancel
           </Button>
           <Button
@@ -378,7 +390,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
       {/* Role Users Dialog */}
       <Dialog
         open={Boolean(viewingRoleUsers)}
-        onClose={() => setViewingRoleUsers(null)}
+        onClose={handleCloseUsersDialog}
         maxWidth="md"
         fullWidth
       >
@@ -422,7 +434,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setViewingRoleUsers(null)}>
+          <Button onClick={handleCloseUsersDialog}>
             Close
           </Button>
         </DialogActions>

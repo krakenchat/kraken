@@ -8,7 +8,6 @@ import { VoicePresenceService } from './voice-presence.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RbacGuard } from '../auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
-import { VoiceStateUpdateDto } from './dto/voice-state-update.dto';
 
 describe('VoicePresenceController', () => {
   let controller: VoicePresenceController;
@@ -16,15 +15,7 @@ describe('VoicePresenceController', () => {
 
   const mockVoicePresenceService = {
     getChannelPresence: jest.fn(),
-    joinVoiceChannel: jest.fn(),
-    leaveVoiceChannel: jest.fn(),
-    updateVoiceState: jest.fn(),
     refreshPresence: jest.fn(),
-    getDmPresence: jest.fn(),
-    joinDmVoice: jest.fn(),
-    leaveDmVoice: jest.fn(),
-    updateDmVoiceState: jest.fn(),
-    getUserVoiceChannels: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn(() => true) };
@@ -106,116 +97,6 @@ describe('VoicePresenceController', () => {
     });
   });
 
-  describe('joinVoiceChannel', () => {
-    it('should join voice channel and return success', async () => {
-      const channelId = 'channel-123';
-
-      jest.spyOn(service, 'joinVoiceChannel').mockResolvedValue();
-
-      const result = await controller.joinVoiceChannel(channelId, mockRequest);
-
-      expect(service.joinVoiceChannel).toHaveBeenCalledWith(
-        channelId,
-        mockUser,
-      );
-      expect(result).toEqual({
-        success: true,
-        message: 'Successfully joined voice channel',
-        channelId,
-      });
-    });
-
-    it('should pass full user object to service', async () => {
-      const channelId = 'channel-789';
-
-      jest.spyOn(service, 'joinVoiceChannel').mockResolvedValue();
-
-      await controller.joinVoiceChannel(channelId, mockRequest);
-
-      const callArgs = (service.joinVoiceChannel as jest.Mock).mock.calls[0];
-      expect(callArgs[1]).toEqual(mockUser);
-    });
-  });
-
-  describe('leaveVoiceChannel', () => {
-    it('should leave voice channel and return success', async () => {
-      const channelId = 'channel-123';
-
-      jest.spyOn(service, 'leaveVoiceChannel').mockResolvedValue();
-
-      const result = await controller.leaveVoiceChannel(channelId, mockRequest);
-
-      expect(service.leaveVoiceChannel).toHaveBeenCalledWith(
-        channelId,
-        mockUser.id,
-      );
-      expect(result).toEqual({
-        success: true,
-        message: 'Successfully left voice channel',
-        channelId,
-      });
-    });
-
-    it('should use user ID from request', async () => {
-      const channelId = 'channel-456';
-
-      jest.spyOn(service, 'leaveVoiceChannel').mockResolvedValue();
-
-      await controller.leaveVoiceChannel(channelId, mockRequest);
-
-      expect(service.leaveVoiceChannel).toHaveBeenCalledWith(
-        channelId,
-        mockUser.id,
-      );
-    });
-  });
-
-  describe('updateVoiceState', () => {
-    it('should update voice state and return success with updates', async () => {
-      const channelId = 'channel-123';
-      const stateUpdate: VoiceStateUpdateDto = {
-        isDeafened: true,
-      };
-
-      jest.spyOn(service, 'updateVoiceState').mockResolvedValue();
-
-      const result = await controller.updateVoiceState(
-        channelId,
-        stateUpdate,
-        mockRequest,
-      );
-
-      expect(service.updateVoiceState).toHaveBeenCalledWith(
-        channelId,
-        mockUser.id,
-        stateUpdate,
-      );
-      expect(result).toEqual({
-        success: true,
-        message: 'Voice state updated successfully',
-        channelId,
-        updates: stateUpdate,
-      });
-    });
-
-    it('should handle deafen state update', async () => {
-      const channelId = 'channel-456';
-      const stateUpdate: VoiceStateUpdateDto = {
-        isDeafened: false,
-      };
-
-      jest.spyOn(service, 'updateVoiceState').mockResolvedValue();
-
-      const result = await controller.updateVoiceState(
-        channelId,
-        stateUpdate,
-        mockRequest,
-      );
-
-      expect(result.updates).toEqual(stateUpdate);
-    });
-  });
-
   describe('refreshPresence', () => {
     it('should refresh presence and return success', async () => {
       const channelId = 'channel-123';
@@ -243,17 +124,9 @@ describe('DmVoicePresenceController', () => {
 
   const mockVoicePresenceService = {
     getDmPresence: jest.fn(),
-    joinDmVoice: jest.fn(),
-    leaveDmVoice: jest.fn(),
-    updateDmVoiceState: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn(() => true) };
-
-  const mockUser = UserFactory.build();
-  const mockRequest = {
-    user: mockUser,
-  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -304,69 +177,6 @@ describe('DmVoicePresenceController', () => {
         dmGroupId,
         users: mockUsers,
         count: 1,
-      });
-    });
-  });
-
-  describe('joinDmVoice', () => {
-    it('should join DM voice and return success', async () => {
-      const dmGroupId = 'dm-group-123';
-
-      jest.spyOn(service, 'joinDmVoice').mockResolvedValue();
-
-      const result = await controller.joinDmVoice(dmGroupId, mockRequest);
-
-      expect(service.joinDmVoice).toHaveBeenCalledWith(dmGroupId, mockUser);
-      expect(result).toEqual({
-        success: true,
-        message: 'Successfully joined DM voice call',
-        dmGroupId,
-      });
-    });
-  });
-
-  describe('leaveDmVoice', () => {
-    it('should leave DM voice and return success', async () => {
-      const dmGroupId = 'dm-group-123';
-
-      jest.spyOn(service, 'leaveDmVoice').mockResolvedValue();
-
-      const result = await controller.leaveDmVoice(dmGroupId, mockRequest);
-
-      expect(service.leaveDmVoice).toHaveBeenCalledWith(dmGroupId, mockUser.id);
-      expect(result).toEqual({
-        success: true,
-        message: 'Successfully left DM voice call',
-        dmGroupId,
-      });
-    });
-  });
-
-  describe('updateDmVoiceState', () => {
-    it('should update DM voice state and return success', async () => {
-      const dmGroupId = 'dm-group-123';
-      const stateUpdate: VoiceStateUpdateDto = {
-        isDeafened: true,
-      };
-
-      jest.spyOn(service, 'updateDmVoiceState').mockResolvedValue();
-
-      const result = await controller.updateDmVoiceState(
-        dmGroupId,
-        stateUpdate,
-        mockRequest,
-      );
-
-      expect(service.updateDmVoiceState).toHaveBeenCalledWith(
-        dmGroupId,
-        mockUser.id,
-        stateUpdate,
-      );
-      expect(result).toEqual({
-        success: true,
-        message: 'DM voice state updated successfully',
-        dmGroupId,
-        updates: stateUpdate,
       });
     });
   });

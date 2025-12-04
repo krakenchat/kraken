@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -383,54 +383,64 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
   const [, setTrackUpdate] = useState(0); // Force re-render on track changes
 
-  // Listen to LiveKit room events for track publications/unpublications
-  useEffect(() => {
-    if (!state.room) return;
+  // Define callbacks before any early returns (React hooks must be called unconditionally)
+  // Memoize grid layout calculation
+  const getGridLayout = useCallback((tileCount: number) => {
+    // Mobile: use 1-2 columns max for better visibility
+    if (isMobile) {
+      if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
+      if (tileCount <= 4) return { cols: isPortrait ? 1 : 2, maxHeight: isPortrait ? '50%' : '50%' };
+      return { cols: 2, maxHeight: '33.333%' };
+    }
 
-    const handleTrackPublished = () => {
-      setTrackUpdate((prev) => prev + 1);
-    };
+    // Desktop: original logic
+    if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
+    if (tileCount <= 4) return { cols: 2, maxHeight: '50%' };
+    if (tileCount <= 9) return { cols: 3, maxHeight: '33.333%' };
+    return { cols: 4, maxHeight: '25%' };
+  }, [isMobile, isPortrait]);
 
-    const handleTrackUnpublished = () => {
-      setTrackUpdate((prev) => prev + 1);
-    };
+  const handleTilePin = useCallback((tileId: string) => {
+    setPinnedTileId(prev => prev === tileId ? null : tileId);
+    setLayoutMode(prev => {
+      if (prev !== 'sidebar' && pinnedTileId !== tileId) {
+        return 'sidebar';
+      }
+      return prev;
+    });
+  }, [pinnedTileId]);
 
-    // Local participant events
-    state.room.localParticipant.on('trackPublished', handleTrackPublished);
-    state.room.localParticipant.on('trackUnpublished', handleTrackUnpublished);
+  const handleTileSpotlight = useCallback((tileId: string) => {
+    setLayoutMode(prevLayout => {
+      if (prevLayout === 'spotlight' && spotlightTileId === tileId) {
+        // If we're in spotlight mode and clicking the same tile, go back to grid
+        setSpotlightTileId(null);
+        return 'grid';
+      } else {
+        // Otherwise, spotlight this tile
+        setSpotlightTileId(tileId);
+        return 'spotlight';
+      }
+    });
+  }, [spotlightTileId]);
 
-    // Remote participant events
-    state.room.on('trackPublished', handleTrackPublished);
-    state.room.on('trackUnpublished', handleTrackUnpublished);
+  // Memoize video tiles to avoid recalculating on every render
+  const videoTiles = useMemo((): VideoTile[] => {
+    if (!state.room) return [];
 
-    return () => {
-      state.room?.localParticipant.off('trackPublished', handleTrackPublished);
-      state.room?.localParticipant.off('trackUnpublished', handleTrackUnpublished);
-      state.room?.off('trackPublished', handleTrackPublished);
-      state.room?.off('trackUnpublished', handleTrackUnpublished);
-    };
-  }, [state.room]);
-
-  if (!state.isConnected || !state.room) {
-    return null;
-  }
-
-  const participants = Array.from(state.room.remoteParticipants.values());
-  const localParticipant = state.room.localParticipant;
-  
-  // Create tiles for each participant's tracks (camera and/or screen share)
-  const createParticipantTiles = (): VideoTile[] => {
     const tiles: VideoTile[] = [];
+    const localParticipant = state.room.localParticipant;
+    const participants = Array.from(state.room.remoteParticipants.values());
 
     // Add local participant tiles
     if (isCameraEnabled || isScreenShareEnabled) {
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
       const audioTrack = Array.from(localParticipant.audioTrackPublications.values())[0];
-      
-      const videoTrack = videoTracks.find((track: TrackPublication) => 
+
+      const videoTrack = videoTracks.find((track: TrackPublication) =>
         track.source !== 'screen_share' && track.source !== 'screen_share_audio'
       );
-      const screenTrack = videoTracks.find((track: TrackPublication) => 
+      const screenTrack = videoTracks.find((track: TrackPublication) =>
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
@@ -477,11 +487,11 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     participants.forEach(participant => {
       const videoTracks = Array.from(participant.videoTrackPublications.values());
       const audioTrack = Array.from(participant.audioTrackPublications.values())[0];
-      
-      const videoTrack = videoTracks.find((track: TrackPublication) => 
+
+      const videoTrack = videoTracks.find((track: TrackPublication) =>
         track.source !== 'screen_share' && track.source !== 'screen_share_audio'
       );
-      const screenTrack = videoTracks.find((track: TrackPublication) => 
+      const screenTrack = videoTracks.find((track: TrackPublication) =>
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
@@ -525,44 +535,40 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     });
 
     return tiles;
-  };
+  }, [state.room, isCameraEnabled, isScreenShareEnabled]);
 
-  const videoTiles = createParticipantTiles();
+  // Listen to LiveKit room events for track publications/unpublications
+  useEffect(() => {
+    if (!state.room) return;
 
-  // Layout calculation functions
-  const getGridLayout = (tileCount: number) => {
-    // Mobile: use 1-2 columns max for better visibility
-    if (isMobile) {
-      if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
-      if (tileCount <= 4) return { cols: isPortrait ? 1 : 2, maxHeight: isPortrait ? '50%' : '50%' };
-      return { cols: 2, maxHeight: '33.333%' };
-    }
+    const handleTrackPublished = () => {
+      setTrackUpdate((prev) => prev + 1);
+    };
 
-    // Desktop: original logic
-    if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
-    if (tileCount <= 4) return { cols: 2, maxHeight: '50%' };
-    if (tileCount <= 9) return { cols: 3, maxHeight: '33.333%' };
-    return { cols: 4, maxHeight: '25%' };
-  };
+    const handleTrackUnpublished = () => {
+      setTrackUpdate((prev) => prev + 1);
+    };
 
-  const handleTilePin = (tileId: string) => {
-    setPinnedTileId(pinnedTileId === tileId ? null : tileId);
-    if (layoutMode !== 'sidebar' && pinnedTileId !== tileId) {
-      setLayoutMode('sidebar');
-    }
-  };
+    // Local participant events
+    state.room.localParticipant.on('trackPublished', handleTrackPublished);
+    state.room.localParticipant.on('trackUnpublished', handleTrackUnpublished);
 
-  const handleTileSpotlight = (tileId: string) => {
-    if (layoutMode === 'spotlight' && spotlightTileId === tileId) {
-      // If we're in spotlight mode and clicking the same tile, go back to grid
-      setSpotlightTileId(null);
-      setLayoutMode('grid');
-    } else {
-      // Otherwise, spotlight this tile
-      setSpotlightTileId(tileId);
-      setLayoutMode('spotlight');
-    }
-  };
+    // Remote participant events
+    state.room.on('trackPublished', handleTrackPublished);
+    state.room.on('trackUnpublished', handleTrackUnpublished);
+
+    return () => {
+      state.room?.localParticipant.off('trackPublished', handleTrackPublished);
+      state.room?.localParticipant.off('trackUnpublished', handleTrackUnpublished);
+      state.room?.off('trackPublished', handleTrackPublished);
+      state.room?.off('trackUnpublished', handleTrackUnpublished);
+    };
+  }, [state.room]);
+
+  // Early return if not connected
+  if (!state.isConnected || !state.room) {
+    return null;
+  }
 
   if (videoTiles.length === 0) {
     // Show a placeholder when connected but no video tracks

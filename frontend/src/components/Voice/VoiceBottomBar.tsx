@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -83,6 +83,43 @@ export const VoiceBottomBar: React.FC = () => {
   // Check if the current user is speaking
   const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;
 
+  // Define callbacks before any early returns (React hooks must be called unconditionally)
+  const handleSettingsClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setSettingsAnchor(event.currentTarget);
+  }, []);
+
+  const handleSettingsClose = useCallback(() => {
+    setSettingsAnchor(null);
+  }, []);
+
+  const handleToggleVideo = useCallback(() => {
+    actions.toggleVideo();
+    if (!isCameraEnabled) {
+      actions.setShowVideoTiles(true);
+    }
+  }, [actions, isCameraEnabled]);
+
+  const handleDeviceSettingsOpen = useCallback(() => {
+    setShowDeviceSettings(true);
+    setSettingsAnchor(null);
+  }, []);
+
+  const handleDeviceSettingsClose = useCallback(() => {
+    setShowDeviceSettings(false);
+  }, []);
+
+  const handleDeviceChange = useCallback(async (type: 'audio' | 'video', deviceId: string) => {
+    try {
+      if (type === 'audio') {
+        await actions.switchAudioInputDevice(deviceId);
+      } else if (type === 'video') {
+        await actions.switchVideoInputDevice(deviceId);
+      }
+    } catch (error) {
+      console.error(`Failed to switch ${type} device:`, error);
+    }
+  }, [actions]);
+
   // Keyboard shortcut to toggle debug panel (Ctrl+Shift+D)
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -106,43 +143,6 @@ export const VoiceBottomBar: React.FC = () => {
     : state.channelName || 'Voice Channel';
 
   const displayType = state.contextType === 'dm' ? 'DM Voice Call' : 'Voice Connected';
-
-  const handleSettingsClick = (event: React.MouseEvent<HTMLElement>) => {
-    setSettingsAnchor(event.currentTarget);
-  };
-
-  const handleSettingsClose = () => {
-    setSettingsAnchor(null);
-  };
-
-  const handleToggleVideo = () => {
-    actions.toggleVideo();
-    if (!isCameraEnabled) {
-      actions.setShowVideoTiles(true);
-    }
-  };
-
-   
-  const handleDeviceSettingsOpen = (_type?: 'audio' | 'video') => {
-    setShowDeviceSettings(true);
-    handleSettingsClose();
-  };
-
-  const handleDeviceSettingsClose = () => {
-    setShowDeviceSettings(false);
-  };
-
-  const handleDeviceChange = async (type: 'audio' | 'video', deviceId: string) => {
-    try {
-      if (type === 'audio') {
-        await actions.switchAudioInputDevice(deviceId);
-      } else if (type === 'video') {
-        await actions.switchVideoInputDevice(deviceId);
-      }
-    } catch (error) {
-      console.error(`Failed to switch ${type} device:`, error);
-    }
-  };
 
   return (
     <>

@@ -3,6 +3,14 @@ import React, { createContext, useContext, useRef, useCallback, useEffect } from
 import { getApiUrl } from "../config/env";
 import { getAuthToken } from "../utils/auth";
 
+// Maximum number of cached blob URLs to prevent memory leaks
+const MAX_CACHE_SIZE = 100;
+
+interface CacheEntry {
+  blobUrl: string;
+  lastAccessed: number;
+}
+
 interface FileCacheContextType {
   getBlob: (fileId: string) => string | null;
   setBlob: (fileId: string, blobUrl: string) => void;
@@ -25,21 +33,65 @@ export const useAvatarCache = useFileCache;
 
 interface FileCacheProviderProps {
   children: React.ReactNode;
+  maxCacheSize?: number;
 }
 
-export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }) => {
+export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({
+  children,
+  maxCacheSize = MAX_CACHE_SIZE,
+}) => {
   // Use ref to store cache so it doesn't trigger re-renders
-  const cacheRef = useRef<Map<string, string>>(new Map());
+  // Now stores CacheEntry with lastAccessed timestamp for LRU eviction
+  const cacheRef = useRef<Map<string, CacheEntry>>(new Map());
   // Track in-flight requests to prevent duplicate fetches (race condition fix)
   const pendingRef = useRef<Map<string, Promise<string>>>(new Map());
 
+  /**
+   * Evict least recently used entries when cache exceeds max size.
+   * Revokes blob URLs to free memory.
+   */
+  const evictIfNeeded = useCallback(() => {
+    const cache = cacheRef.current;
+    if (cache.size <= maxCacheSize) return;
+
+    // Convert to array and sort by lastAccessed (oldest first)
+    const entries = Array.from(cache.entries()).sort(
+      ([, a], [, b]) => a.lastAccessed - b.lastAccessed
+    );
+
+    // Evict oldest entries until we're at 80% capacity
+    const targetSize = Math.floor(maxCacheSize * 0.8);
+    const entriesToRemove = entries.slice(0, cache.size - targetSize);
+
+    for (const [fileId, entry] of entriesToRemove) {
+      URL.revokeObjectURL(entry.blobUrl);
+      cache.delete(fileId);
+    }
+
+    if (entriesToRemove.length > 0) {
+      console.debug(
+        `[FileCache] Evicted ${entriesToRemove.length} entries, cache size: ${cache.size}`
+      );
+    }
+  }, [maxCacheSize]);
+
   const getBlob = useCallback((fileId: string): string | null => {
-    return cacheRef.current.get(fileId) || null;
+    const entry = cacheRef.current.get(fileId);
+    if (entry) {
+      // Update lastAccessed time on access (LRU behavior)
+      entry.lastAccessed = Date.now();
+      return entry.blobUrl;
+    }
+    return null;
   }, []);
 
   const setBlob = useCallback((fileId: string, blobUrl: string) => {
-    cacheRef.current.set(fileId, blobUrl);
-  }, []);
+    cacheRef.current.set(fileId, {
+      blobUrl,
+      lastAccessed: Date.now(),
+    });
+    evictIfNeeded();
+  }, [evictIfNeeded]);
 
   const hasBlob = useCallback((fileId: string): boolean => {
     return cacheRef.current.has(fileId);
@@ -49,7 +101,9 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }
     // 1. Return cached blob URL if exists
     const cached = cacheRef.current.get(fileId);
     if (cached) {
-      return cached;
+      // Update lastAccessed time on access (LRU behavior)
+      cached.lastAccessed = Date.now();
+      return cached.blobUrl;
     }
 
     // 2. Return in-flight promise if already fetching (prevents duplicate fetches!)
@@ -81,11 +135,17 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
 
-        // Store in cache
-        cacheRef.current.set(fileId, blobUrl);
+        // Store in cache with timestamp
+        cacheRef.current.set(fileId, {
+          blobUrl,
+          lastAccessed: Date.now(),
+        });
 
         // Clean up pending tracker
         pendingRef.current.delete(fileId);
+
+        // Check if eviction is needed
+        evictIfNeeded();
 
         return blobUrl;
       } catch (error) {
@@ -99,7 +159,7 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }
     pendingRef.current.set(fileId, fetchPromise);
 
     return fetchPromise;
-  }, []);
+  }, [evictIfNeeded]);
 
   // Cleanup: Revoke all blob URLs when provider unmounts
   useEffect(() => {
@@ -108,8 +168,8 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({ children }
     const pending = pendingRef.current;
 
     return () => {
-      cache.forEach((blobUrl) => {
-        URL.revokeObjectURL(blobUrl);
+      cache.forEach((entry) => {
+        URL.revokeObjectURL(entry.blobUrl);
       });
       cache.clear();
       pending.clear();

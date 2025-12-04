@@ -1,8 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { RedisService } from '@/redis/redis.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { UserEntity } from '@/user/dto/user-response.dto';
-import { ChannelsService } from '@/channels/channels.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { DatabaseService } from '@/database/database.service';
 import { LivekitReplayService } from '@/livekit/livekit-replay.service';
@@ -48,76 +46,13 @@ export class VoicePresenceService {
   constructor(
     private readonly redisService: RedisService,
     private readonly websocketService: WebsocketService,
-    private readonly channelsService: ChannelsService,
     private readonly databaseService: DatabaseService,
+    @Inject(forwardRef(() => LivekitReplayService))
     private readonly livekitReplayService: LivekitReplayService,
   ) {}
 
   /**
-   * Join a voice channel
-   */
-  async joinVoiceChannel(channelId: string, user: UserEntity): Promise<void> {
-    try {
-      // Verify channel exists and user has access
-      await this.channelsService.findOne(channelId);
-
-      const voiceUser: VoicePresenceUser = {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName ?? undefined,
-        avatarUrl: user.avatarUrl ?? undefined,
-        joinedAt: new Date(),
-        isDeafened: false, // Only custom state we store
-      };
-
-      // Keys for Redis SET architecture
-      const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${user.id}`;
-      const channelMembersKey = `${this.VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX}:${channelId}:members`;
-      const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${user.id}`;
-
-      const client = this.redisService.getClient();
-
-      // Use pipeline for atomic operations
-      const pipeline = client.pipeline();
-
-      // Store user data with TTL
-      pipeline.set(
-        userDataKey,
-        JSON.stringify(voiceUser),
-        'EX',
-        this.VOICE_PRESENCE_TTL,
-      );
-
-      // Add user to channel members set
-      pipeline.sadd(channelMembersKey, user.id);
-
-      // Add channel to user's channels set
-      pipeline.sadd(userChannelsKey, channelId);
-
-      await pipeline.exec();
-
-      // Notify other users in the channel
-      this.websocketService.sendToRoom(
-        channelId,
-        ServerEvents.VOICE_CHANNEL_USER_JOINED,
-        {
-          channelId,
-          user: voiceUser,
-        },
-      );
-
-      this.logger.log(`User ${user.id} joined voice channel ${channelId}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to join voice channel ${channelId} for user ${user.id}`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Leave a voice channel
+   * Leave a voice channel - called by LiveKit webhook handler
    */
   async leaveVoiceChannel(channelId: string, userId: string): Promise<void> {
     try {
@@ -252,66 +187,6 @@ export class VoicePresenceService {
   }
 
   /**
-   * Update user's voice state (video, screen share, etc.)
-   */
-  /**
-   * Update voice state for a user in a channel
-   *
-   * NOTE: We only update isDeafened now.
-   * Media states are managed by LiveKit and read directly on the frontend.
-   */
-  async updateVoiceState(
-    channelId: string,
-    userId: string,
-    updates: Partial<Pick<VoicePresenceUser, 'isDeafened'>>,
-  ): Promise<void> {
-    try {
-      const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
-      const userDataStr = await this.redisService.get(userDataKey);
-
-      if (!userDataStr) {
-        this.logger.warn(
-          `User ${userId} not found in voice channel ${channelId}`,
-        );
-        return;
-      }
-
-      const userData = JSON.parse(userDataStr) as VoicePresenceUser;
-      const updatedData = { ...userData, ...updates };
-
-      // Update in Redis with fresh TTL
-      await this.redisService.set(
-        userDataKey,
-        JSON.stringify(updatedData),
-        this.VOICE_PRESENCE_TTL,
-      );
-
-      // Notify other users of the state change
-      this.websocketService.sendToRoom(
-        channelId,
-        ServerEvents.VOICE_CHANNEL_USER_UPDATED,
-        {
-          channelId,
-          userId,
-          user: updatedData,
-          updates,
-        },
-      );
-
-      this.logger.log(
-        `Updated voice state for user ${userId} in channel ${channelId}`,
-        updates,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to update voice state for user ${userId} in channel ${channelId}`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
    * Refresh a user's presence in the voice channel (extend TTL)
    */
   async refreshPresence(channelId: string, userId: string): Promise<void> {
@@ -340,6 +215,313 @@ export class VoicePresenceService {
   }
 
   /**
+   * Handle participant join from LiveKit webhook
+   *
+   * This is the authoritative source of truth for voice presence.
+   * When LiveKit notifies us a participant joined, we update Redis
+   * and emit WebSocket events to all clients.
+   */
+  async handleWebhookParticipantJoined(
+    roomName: string,
+    userId: string,
+    participantName?: string,
+    metadata?: string,
+  ): Promise<void> {
+    try {
+      // Determine if this is a channel or DM based on the room name
+      // Room names are either channelId (UUID) or dmGroupId (UUID)
+      // We need to check if the room is a DM by looking it up
+
+      const dmGroup = await this.databaseService.directMessageGroup.findUnique({
+        where: { id: roomName },
+      });
+
+      if (dmGroup) {
+        // This is a DM voice call
+        await this.handleWebhookDmParticipantJoined(
+          roomName,
+          userId,
+          participantName,
+          metadata,
+        );
+      } else {
+        // This is a channel voice call
+        await this.handleWebhookChannelParticipantJoined(
+          roomName,
+          userId,
+          participantName,
+          metadata,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle webhook participant_joined for user ${userId} in room ${roomName}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle participant leave from LiveKit webhook
+   *
+   * This is the authoritative source of truth for voice presence.
+   * When LiveKit notifies us a participant left, we update Redis
+   * and emit WebSocket events to all clients.
+   */
+  async handleWebhookParticipantLeft(
+    roomName: string,
+    userId: string,
+  ): Promise<void> {
+    try {
+      // Check if this is a DM or channel
+      const dmGroup = await this.databaseService.directMessageGroup.findUnique({
+        where: { id: roomName },
+      });
+
+      if (dmGroup) {
+        await this.leaveDmVoice(roomName, userId);
+      } else {
+        await this.leaveVoiceChannel(roomName, userId);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle webhook participant_left for user ${userId} in room ${roomName}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle channel participant join from webhook
+   */
+  private async handleWebhookChannelParticipantJoined(
+    channelId: string,
+    userId: string,
+    participantName?: string,
+    metadata?: string,
+  ): Promise<void> {
+    // Check if user is already in the channel (duplicate webhook or reconnection)
+    const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
+    const existingData = await this.redisService.get(userDataKey);
+
+    if (existingData) {
+      // User already in channel - just refresh TTL and maybe update metadata
+      this.logger.debug(
+        `User ${userId} already in channel ${channelId}, refreshing presence`,
+      );
+      await this.redisService.expire(userDataKey, this.VOICE_PRESENCE_TTL);
+
+      // Update metadata if provided (for isDeafened sync)
+      if (metadata) {
+        const userData = JSON.parse(existingData) as VoicePresenceUser;
+        try {
+          const parsedMeta = JSON.parse(metadata);
+          if (parsedMeta.isDeafened !== undefined) {
+            userData.isDeafened = parsedMeta.isDeafened;
+            await this.redisService.set(
+              userDataKey,
+              JSON.stringify(userData),
+              this.VOICE_PRESENCE_TTL,
+            );
+          }
+        } catch {
+          // Invalid metadata JSON, ignore
+        }
+      }
+      return;
+    }
+
+    // Look up user info from database
+    const user = await this.databaseService.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      this.logger.warn(
+        `User ${userId} not found in database for voice presence`,
+      );
+      return;
+    }
+
+    // Parse metadata for isDeafened
+    let isDeafened = false;
+    if (metadata) {
+      try {
+        const parsedMeta = JSON.parse(metadata);
+        isDeafened = parsedMeta.isDeafened ?? false;
+      } catch {
+        // Invalid metadata JSON, use default
+      }
+    }
+
+    const voiceUser: VoicePresenceUser = {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName ?? undefined,
+      avatarUrl: user.avatarUrl ?? undefined,
+      joinedAt: new Date(),
+      isDeafened,
+    };
+
+    // Keys for Redis SET architecture
+    const channelMembersKey = `${this.VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX}:${channelId}:members`;
+    const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${userId}`;
+
+    const client = this.redisService.getClient();
+
+    // Use pipeline for atomic operations
+    const pipeline = client.pipeline();
+
+    // Store user data with TTL
+    pipeline.set(
+      userDataKey,
+      JSON.stringify(voiceUser),
+      'EX',
+      this.VOICE_PRESENCE_TTL,
+    );
+
+    // Add user to channel members set
+    pipeline.sadd(channelMembersKey, userId);
+
+    // Add channel to user's channels set
+    pipeline.sadd(userChannelsKey, channelId);
+
+    await pipeline.exec();
+
+    // Notify other users in the channel
+    this.websocketService.sendToRoom(
+      channelId,
+      ServerEvents.VOICE_CHANNEL_USER_JOINED,
+      {
+        channelId,
+        user: voiceUser,
+      },
+    );
+
+    this.logger.log(
+      `[Webhook] User ${userId} joined voice channel ${channelId}`,
+    );
+  }
+
+  /**
+   * Handle DM participant join from webhook
+   */
+  private async handleWebhookDmParticipantJoined(
+    dmGroupId: string,
+    userId: string,
+    participantName?: string,
+    metadata?: string,
+  ): Promise<void> {
+    // Check if user is already in the DM call
+    const userDataKey = `${this.DM_VOICE_PRESENCE_USER_DATA_PREFIX}:${dmGroupId}:${userId}`;
+    const existingData = await this.redisService.get(userDataKey);
+
+    if (existingData) {
+      // User already in DM call - refresh TTL
+      this.logger.debug(
+        `User ${userId} already in DM ${dmGroupId}, refreshing presence`,
+      );
+      await this.redisService.expire(userDataKey, this.VOICE_PRESENCE_TTL);
+      return;
+    }
+
+    // Look up user info from database
+    const user = await this.databaseService.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      this.logger.warn(
+        `User ${userId} not found in database for DM voice presence`,
+      );
+      return;
+    }
+
+    // Parse metadata for isDeafened
+    let isDeafened = false;
+    if (metadata) {
+      try {
+        const parsedMeta = JSON.parse(metadata);
+        isDeafened = parsedMeta.isDeafened ?? false;
+      } catch {
+        // Invalid metadata JSON, use default
+      }
+    }
+
+    const voiceUser: VoicePresenceUser = {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName ?? undefined,
+      avatarUrl: user.avatarUrl ?? undefined,
+      joinedAt: new Date(),
+      isDeafened,
+    };
+
+    // Keys for Redis SET architecture (DM-specific)
+    const dmMembersKey = `${this.DM_VOICE_PRESENCE_MEMBERS_PREFIX}:${dmGroupId}:members`;
+    const userDmsKey = `${this.DM_VOICE_PRESENCE_USER_DMS_PREFIX}:${userId}`;
+
+    const client = this.redisService.getClient();
+
+    // Check if this is the first user joining
+    const existingMembers = await client.smembers(dmMembersKey);
+    const isFirstUser = existingMembers.length === 0;
+
+    // Use pipeline for atomic operations
+    const pipeline = client.pipeline();
+
+    // Store user data with TTL
+    pipeline.set(
+      userDataKey,
+      JSON.stringify(voiceUser),
+      'EX',
+      this.VOICE_PRESENCE_TTL,
+    );
+
+    // Add user to DM members set
+    pipeline.sadd(dmMembersKey, userId);
+
+    // Add DM to user's DMs set
+    pipeline.sadd(userDmsKey, dmGroupId);
+
+    await pipeline.exec();
+
+    if (isFirstUser) {
+      // First user joining - emit "call started" event
+      this.websocketService.sendToRoom(
+        dmGroupId,
+        ServerEvents.DM_VOICE_CALL_STARTED,
+        {
+          dmGroupId,
+          startedBy: userId,
+          starter: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+          },
+        },
+      );
+      this.logger.log(
+        `[Webhook] User ${userId} started DM voice call in ${dmGroupId}`,
+      );
+    } else {
+      // Not first user - just notify that someone joined
+      this.websocketService.sendToRoom(
+        dmGroupId,
+        ServerEvents.DM_VOICE_USER_JOINED,
+        {
+          dmGroupId,
+          user: voiceUser,
+        },
+      );
+      this.logger.log(`[Webhook] User ${userId} joined DM voice call ${dmGroupId}`);
+    }
+  }
+
+  /**
    * Get all channels where a user is currently in voice
    */
   async getUserVoiceChannels(userId: string): Promise<string[]> {
@@ -361,114 +543,7 @@ export class VoicePresenceService {
   }
 
   /**
-   * Join a DM voice call (Discord-style with ringing)
-   */
-  async joinDmVoice(dmGroupId: string, user: UserEntity): Promise<void> {
-    try {
-      // Verify DM group exists and user is a member
-      const dmGroup = await this.databaseService.directMessageGroup.findFirst({
-        where: {
-          id: dmGroupId,
-          members: {
-            some: {
-              userId: user.id,
-            },
-          },
-        },
-        include: {
-          members: {
-            include: {
-              user: true,
-            },
-          },
-        },
-      });
-
-      if (!dmGroup) {
-        throw new Error('DM group not found or user is not a member');
-      }
-
-      const voiceUser: VoicePresenceUser = {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName ?? undefined,
-        avatarUrl: user.avatarUrl ?? undefined,
-        joinedAt: new Date(),
-        isDeafened: false, // Only custom state we store
-      };
-
-      // Keys for Redis SET architecture (DM-specific)
-      const userDataKey = `${this.DM_VOICE_PRESENCE_USER_DATA_PREFIX}:${dmGroupId}:${user.id}`;
-      const dmMembersKey = `${this.DM_VOICE_PRESENCE_MEMBERS_PREFIX}:${dmGroupId}:members`;
-      const userDmsKey = `${this.DM_VOICE_PRESENCE_USER_DMS_PREFIX}:${user.id}`;
-
-      const client = this.redisService.getClient();
-
-      // Check if this is the first user joining (for ringing logic)
-      const existingMembers = await client.smembers(dmMembersKey);
-      const isFirstUser = existingMembers.length === 0;
-
-      // Use pipeline for atomic operations
-      const pipeline = client.pipeline();
-
-      // Store user data with TTL
-      pipeline.set(
-        userDataKey,
-        JSON.stringify(voiceUser),
-        'EX',
-        this.VOICE_PRESENCE_TTL,
-      );
-
-      // Add user to DM members set
-      pipeline.sadd(dmMembersKey, user.id);
-
-      // Add DM to user's DMs set
-      pipeline.sadd(userDmsKey, dmGroupId);
-
-      await pipeline.exec();
-
-      if (isFirstUser) {
-        // First user joining - emit "call started" event to all DM members (ringing)
-        this.websocketService.sendToRoom(
-          dmGroupId,
-          ServerEvents.DM_VOICE_CALL_STARTED,
-          {
-            dmGroupId,
-            startedBy: user.id,
-            starter: {
-              id: user.id,
-              username: user.username,
-              displayName: user.displayName,
-              avatarUrl: user.avatarUrl,
-            },
-          },
-        );
-        this.logger.log(
-          `User ${user.id} started DM voice call in ${dmGroupId} (ringing other members)`,
-        );
-      } else {
-        // Not first user - just notify that someone joined
-        this.websocketService.sendToRoom(
-          dmGroupId,
-          ServerEvents.DM_VOICE_USER_JOINED,
-          {
-            dmGroupId,
-            user: voiceUser,
-          },
-        );
-        this.logger.log(`User ${user.id} joined DM voice call ${dmGroupId}`);
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to join DM voice for ${dmGroupId} by user ${user.id}`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Leave a DM voice call
+   * Leave a DM voice call - called by LiveKit webhook handler
    */
   async leaveDmVoice(dmGroupId: string, userId: string): Promise<void> {
     try {
@@ -578,66 +653,6 @@ export class VoicePresenceService {
     } catch (error) {
       this.logger.error(
         `Failed to get presence for DM voice call ${dmGroupId}`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Update user's voice state in DM call (video, screen share, etc.)
-   */
-  /**
-   * Update voice state for a user in a DM call
-   *
-   * NOTE: We only update isDeafened now.
-   * Media states are managed by LiveKit and read directly on the frontend.
-   */
-  async updateDmVoiceState(
-    dmGroupId: string,
-    userId: string,
-    updates: Partial<Pick<VoicePresenceUser, 'isDeafened'>>,
-  ): Promise<void> {
-    try {
-      const userDataKey = `${this.DM_VOICE_PRESENCE_USER_DATA_PREFIX}:${dmGroupId}:${userId}`;
-      const userDataStr = await this.redisService.get(userDataKey);
-
-      if (!userDataStr) {
-        this.logger.warn(
-          `User ${userId} not found in DM voice call ${dmGroupId}`,
-        );
-        return;
-      }
-
-      const userData = JSON.parse(userDataStr) as VoicePresenceUser;
-      const updatedData = { ...userData, ...updates };
-
-      // Update in Redis with fresh TTL
-      await this.redisService.set(
-        userDataKey,
-        JSON.stringify(updatedData),
-        this.VOICE_PRESENCE_TTL,
-      );
-
-      // Notify other users of the state change
-      this.websocketService.sendToRoom(
-        dmGroupId,
-        ServerEvents.DM_VOICE_USER_UPDATED,
-        {
-          dmGroupId,
-          userId,
-          user: updatedData,
-          updates,
-        },
-      );
-
-      this.logger.log(
-        `Updated DM voice state for user ${userId} in DM ${dmGroupId}`,
-        updates,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to update DM voice state for user ${userId} in DM ${dmGroupId}`,
         error,
       );
       throw error;

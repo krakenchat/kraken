@@ -7,10 +7,13 @@ import {
   BadRequestException,
   RawBodyRequest,
   Req,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WebhookReceiver } from 'livekit-server-sdk';
 import { LivekitReplayService } from './livekit-replay.service';
+import { VoicePresenceService } from '@/voice-presence/voice-presence.service';
 import {
   LiveKitWebhookDto,
   LiveKitWebhookEvent,
@@ -36,6 +39,8 @@ export class LivekitWebhookController {
   constructor(
     private readonly configService: ConfigService,
     private readonly livekitReplayService: LivekitReplayService,
+    @Inject(forwardRef(() => VoicePresenceService))
+    private readonly voicePresenceService: VoicePresenceService,
   ) {
     const apiKey = this.configService.get<string>('LIVEKIT_API_KEY');
     const apiSecret = this.configService.get<string>('LIVEKIT_API_SECRET');
@@ -98,14 +103,91 @@ export class LivekitWebhookController {
       }
     }
 
-    // Handle egress_ended event
-    if (body.event === LiveKitWebhookEvent.EGRESS_ENDED) {
-      await this.handleEgressEnded(body);
-    } else {
-      this.logger.debug(`Ignoring webhook event: ${body.event}`);
+    // Handle events by type
+    switch (body.event) {
+      case LiveKitWebhookEvent.PARTICIPANT_JOINED:
+        await this.handleParticipantJoined(body);
+        break;
+
+      case LiveKitWebhookEvent.PARTICIPANT_LEFT:
+        await this.handleParticipantLeft(body);
+        break;
+
+      case LiveKitWebhookEvent.EGRESS_ENDED:
+        await this.handleEgressEnded(body);
+        break;
+
+      case LiveKitWebhookEvent.ROOM_FINISHED:
+        // Room finished event could be used for cleanup, but we handle
+        // individual participant leaves which is sufficient
+        this.logger.debug(`Room finished: ${body.room?.name}`);
+        break;
+
+      default:
+        this.logger.debug(`Ignoring webhook event: ${body.event}`);
     }
 
     return { success: true };
+  }
+
+  /**
+   * Handle participant_joined webhook event
+   *
+   * This is the authoritative source for voice presence.
+   * When a participant joins a LiveKit room, we update Redis and notify clients.
+   */
+  private async handleParticipantJoined(webhook: LiveKitWebhookDto) {
+    const { room, participant } = webhook;
+
+    if (!room?.name || !participant?.identity) {
+      this.logger.warn(
+        'participant_joined webhook missing room.name or participant.identity',
+      );
+      return;
+    }
+
+    try {
+      await this.voicePresenceService.handleWebhookParticipantJoined(
+        room.name,
+        participant.identity,
+        participant.name,
+        participant.metadata,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle participant_joined for ${participant.identity} in room ${room.name}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Don't throw - acknowledge webhook receipt even if processing fails
+    }
+  }
+
+  /**
+   * Handle participant_left webhook event
+   *
+   * This is the authoritative source for voice presence.
+   * When a participant leaves a LiveKit room, we update Redis and notify clients.
+   */
+  private async handleParticipantLeft(webhook: LiveKitWebhookDto) {
+    const { room, participant } = webhook;
+
+    if (!room?.name || !participant?.identity) {
+      this.logger.warn(
+        'participant_left webhook missing room.name or participant.identity',
+      );
+      return;
+    }
+
+    try {
+      await this.voicePresenceService.handleWebhookParticipantLeft(
+        room.name,
+        participant.identity,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle participant_left for ${participant.identity} in room ${room.name}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Don't throw - acknowledge webhook receipt even if processing fails
+    }
   }
 
   /**
@@ -115,6 +197,12 @@ export class LivekitWebhookController {
    */
   private async handleEgressEnded(webhook: LiveKitWebhookDto) {
     const { egressInfo } = webhook;
+
+    if (!egressInfo) {
+      this.logger.warn('egress_ended webhook missing egressInfo');
+      return;
+    }
+
     const { egressId, status, error: errorMessage } = egressInfo;
 
     this.logger.log(
