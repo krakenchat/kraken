@@ -1,7 +1,9 @@
-import React from "react";
-import { Box, Typography, Paper } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Typography, Paper, IconButton, Tooltip } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
+import MessageSearch from "../Message/MessageSearch";
 import { useParams } from "react-router-dom";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessage } from "../../hooks/useSendMessage";
@@ -34,6 +36,15 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const [addAttachment] = useAddAttachmentMutation();
   const { showNotification } = useNotification();
   const pendingFilesRef = React.useRef<File[] | null>(null);
+
+  // Search state
+  const [searchAnchorEl, setSearchAnchorEl] = useState<HTMLElement | null>(null);
+  const handleSearchOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setSearchAnchorEl(event.currentTarget);
+  };
+  const handleSearchClose = () => {
+    setSearchAnchorEl(null);
+  };
 
   // Fetch channel data for header
   const { data: channel } = useGetChannelByIdQuery(channelId);
@@ -156,11 +167,26 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         <Typography variant="h6" sx={{ fontWeight: 600 }}>
           # {channel?.name || 'Channel'}
         </Typography>
-        <ChannelNotificationMenu
-          channelId={channelId}
-          channelName={channel?.name}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title="Search messages">
+            <IconButton size="small" onClick={handleSearchOpen}>
+              <SearchIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <ChannelNotificationMenu
+            channelId={channelId}
+            channelName={channel?.name}
+          />
+        </Box>
       </Paper>
+
+      {/* Message Search Popover */}
+      <MessageSearch
+        channelId={channelId}
+        communityId={communityId || ""}
+        anchorEl={searchAnchorEl}
+        onClose={handleSearchClose}
+      />
 
       {/* Messages */}
       <Box sx={{ flex: 1, overflow: 'hidden' }}>

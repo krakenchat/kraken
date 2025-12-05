@@ -64,7 +64,10 @@ describe('MessagesService', () => {
       expect(result).toEqual(createdMessage);
 
       expect(mockDatabase.message.create).toHaveBeenCalledWith({
-        data: createDto,
+        data: {
+          ...createDto,
+          searchText: 'Hello world',
+        },
       });
     });
   });
@@ -122,7 +125,10 @@ describe('MessagesService', () => {
       expect(result).toEqual(updatedMessage);
       expect(mockDatabase.message.update).toHaveBeenCalledWith({
         where: { id: messageId },
-        data: updateDto,
+        data: {
+          ...updateDto,
+          searchText: 'Updated text',
+        },
       });
     });
 

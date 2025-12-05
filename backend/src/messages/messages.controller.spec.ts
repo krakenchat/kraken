@@ -101,6 +101,7 @@ describe('MessagesController', () => {
         editedAt: null,
         deletedAt: null,
         id: '',
+        searchText: null,
         reactions: [],
       };
 
@@ -143,6 +144,7 @@ describe('MessagesController', () => {
         editedAt: null,
         deletedAt: null,
         id: '',
+        searchText: null,
         reactions: [],
       };
 

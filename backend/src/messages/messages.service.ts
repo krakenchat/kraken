@@ -14,9 +14,28 @@ export class MessagesService {
     private readonly fileService: FileService,
   ) {}
 
+  /**
+   * Flattens message spans into a single searchable text string.
+   * Extracts text from all spans and joins them with spaces.
+   */
+  private flattenSpansToText(
+    spans: { text: string | null }[],
+  ): string | undefined {
+    const text = spans
+      .filter((span) => span.text)
+      .map((span) => span.text)
+      .join(' ')
+      .trim();
+    return text.length > 0 ? text : undefined;
+  }
+
   async create(createMessageDto: CreateMessageDto) {
+    const searchText = this.flattenSpansToText(createMessageDto.spans);
     return this.databaseService.message.create({
-      data: createMessageDto,
+      data: {
+        ...createMessageDto,
+        searchText,
+      },
     });
   }
 
@@ -40,10 +59,17 @@ export class MessagesService {
       // Wrap in transaction to ensure message update and file marking are atomic
       return await this.databaseService.$transaction(
         async (tx: Prisma.TransactionClient) => {
+          // If spans are being updated, recompute searchText
+          const dataToUpdate = { ...updateMessageDto };
+          if (updateMessageDto.spans) {
+            (dataToUpdate as Record<string, unknown>).searchText =
+              this.flattenSpansToText(updateMessageDto.spans);
+          }
+
           // Update the message first
           const updatedMessage = await tx.message.update({
             where: { id },
-            data: updateMessageDto,
+            data: dataToUpdate,
           });
 
           // If attachments are being updated and we have the original list, mark removed ones for deletion
@@ -304,5 +330,147 @@ export class MessagesService {
     const nextToken =
       messages.length === limit ? messages[messages.length - 1].id : undefined;
     return { messages: messagesWithMetadata, continuationToken: nextToken };
+  }
+
+  /**
+   * Search messages in a specific channel
+   */
+  async searchChannelMessages(channelId: string, query: string, limit = 50) {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const messages = await this.databaseService.message.findMany({
+      where: {
+        channelId,
+        deletedAt: null,
+        searchText: { contains: query, mode: 'insensitive' },
+      },
+      take: limit,
+      orderBy: { sentAt: 'desc' },
+    });
+
+    return this.enrichMessagesWithFileMetadata(messages);
+  }
+
+  /**
+   * Search messages in a specific direct message group
+   */
+  async searchDirectMessages(
+    directMessageGroupId: string,
+    query: string,
+    limit = 50,
+  ) {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const messages = await this.databaseService.message.findMany({
+      where: {
+        directMessageGroupId,
+        deletedAt: null,
+        searchText: { contains: query, mode: 'insensitive' },
+      },
+      take: limit,
+      orderBy: { sentAt: 'desc' },
+    });
+
+    return this.enrichMessagesWithFileMetadata(messages);
+  }
+
+  /**
+   * Search messages across all accessible channels in a community
+   */
+  async searchCommunityMessages(
+    communityId: string,
+    userId: string,
+    query: string,
+    limit = 50,
+  ) {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    // Get all channels the user has access to in this community
+    const accessibleChannels = await this.databaseService.channel.findMany({
+      where: {
+        communityId,
+        OR: [
+          { isPrivate: false }, // Public channels
+          {
+            isPrivate: true,
+            ChannelMembership: { some: { userId } }, // Private channels user is a member of
+          },
+        ],
+      },
+      select: { id: true, name: true },
+    });
+
+    const channelIds = accessibleChannels.map((c) => c.id);
+    const channelMap = new Map(accessibleChannels.map((c) => [c.id, c.name]));
+
+    if (channelIds.length === 0) {
+      return [];
+    }
+
+    const messages = await this.databaseService.message.findMany({
+      where: {
+        channelId: { in: channelIds },
+        deletedAt: null,
+        searchText: { contains: query, mode: 'insensitive' },
+      },
+      take: limit,
+      orderBy: { sentAt: 'desc' },
+    });
+
+    const enrichedMessages =
+      await this.enrichMessagesWithFileMetadata(messages);
+
+    // Add channel name to each message
+    return enrichedMessages.map((msg) => ({
+      ...msg,
+      channelName: channelMap.get(msg.channelId ?? '') ?? 'Unknown',
+    }));
+  }
+
+  /**
+   * Helper to enrich multiple messages with file metadata
+   */
+  private async enrichMessagesWithFileMetadata(messages: Message[]) {
+    if (messages.length === 0) {
+      return [];
+    }
+
+    // Collect all unique file IDs from all messages
+    const allFileIds = new Set<string>();
+    messages.forEach((message) => {
+      message.attachments.forEach((fileId) => allFileIds.add(fileId));
+    });
+
+    // Fetch all files in a single query
+    const files =
+      allFileIds.size > 0
+        ? await this.databaseService.file.findMany({
+            where: { id: { in: Array.from(allFileIds) } },
+            select: {
+              id: true,
+              filename: true,
+              mimeType: true,
+              fileType: true,
+              size: true,
+            },
+          })
+        : [];
+
+    // Create a map for quick lookup
+    const fileMap = new Map(files.map((file) => [file.id, file]));
+
+    // Transform messages to include file metadata
+    return messages.map((message) => ({
+      ...message,
+      attachments: message.attachments
+        .map((fileId) => fileMap.get(fileId))
+        .filter((file): file is NonNullable<typeof file> => file !== undefined),
+    }));
   }
 }

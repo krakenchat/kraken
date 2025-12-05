@@ -57,5 +57,8 @@ export class CreateMessageDto implements Message {
   pendingAttachments: number | null;
 
   @Exclude()
+  searchText: string | null;
+
+  @Exclude()
   reactions: { emoji: string; userIds: string[] }[];
 }

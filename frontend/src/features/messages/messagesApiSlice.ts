@@ -180,7 +180,7 @@ export const messagesApi = createApi({
         method: "POST",
         body: { fileId },
       }),
-       
+
       async onQueryStarted({ messageId: _messageId }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedMessage } = await queryFulfilled;
@@ -198,6 +198,33 @@ export const messagesApi = createApi({
         }
       },
     }),
+    searchChannelMessages: builder.query<
+      Message[],
+      { channelId: string; query: string; limit?: number }
+    >({
+      query: ({ channelId, query, limit = 50 }) => ({
+        url: `/search/channel/${channelId}?q=${encodeURIComponent(query)}&limit=${limit}`,
+        method: "GET",
+      }),
+    }),
+    searchDirectMessages: builder.query<
+      Message[],
+      { groupId: string; query: string; limit?: number }
+    >({
+      query: ({ groupId, query, limit = 50 }) => ({
+        url: `/search/group/${groupId}?q=${encodeURIComponent(query)}&limit=${limit}`,
+        method: "GET",
+      }),
+    }),
+    searchCommunityMessages: builder.query<
+      (Message & { channelName: string })[],
+      { communityId: string; query: string; limit?: number }
+    >({
+      query: ({ communityId, query, limit = 50 }) => ({
+        url: `/search/community/${communityId}?q=${encodeURIComponent(query)}&limit=${limit}`,
+        method: "GET",
+      }),
+    }),
   }),
 });
 
@@ -209,4 +236,10 @@ export const {
   useAddReactionMutation,
   useRemoveReactionMutation,
   useAddAttachmentMutation,
+  useSearchChannelMessagesQuery,
+  useLazySearchChannelMessagesQuery,
+  useSearchDirectMessagesQuery,
+  useLazySearchDirectMessagesQuery,
+  useSearchCommunityMessagesQuery,
+  useLazySearchCommunityMessagesQuery,
 } = messagesApi;

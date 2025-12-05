@@ -103,6 +103,68 @@ export class MessagesController {
     );
   }
 
+  @Get('search/channel/:channelId')
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
+  searchChannelMessages(
+    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Query('q') query: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 50;
+    return this.messagesService.searchChannelMessages(
+      channelId,
+      query,
+      parsedLimit,
+    );
+  }
+
+  @Get('search/group/:groupId')
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.DM_GROUP,
+    idKey: 'groupId',
+    source: ResourceIdSource.PARAM,
+  })
+  searchDirectMessages(
+    @Param('groupId', ParseObjectIdPipe) groupId: string,
+    @Query('q') query: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 50;
+    return this.messagesService.searchDirectMessages(
+      groupId,
+      query,
+      parsedLimit,
+    );
+  }
+
+  @Get('search/community/:communityId')
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  searchCommunityMessages(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Query('q') query: string,
+    @Req() req: AuthenticatedRequest,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 50;
+    return this.messagesService.searchCommunityMessages(
+      communityId,
+      req.user.id,
+      query,
+      parsedLimit,
+    );
+  }
+
   @Post('reactions')
   @RequiredActions(RbacActions.CREATE_REACTION)
   @RbacResource({

@@ -21,10 +21,14 @@ model Message {
   deletedAt            DateTime?
   attachments          String[]   @db.ObjectId
   pendingAttachments   Int?       @default(0) // Count of files currently uploading
+  searchText           String? // Flattened text from spans for searching
 
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
   notifications      Notification[]
+
+  @@index([channelId, searchText])
+  @@index([directMessageGroupId, searchText])
 }
 
 model ReadReceipt {
