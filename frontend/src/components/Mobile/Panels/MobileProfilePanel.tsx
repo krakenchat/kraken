@@ -1,3 +1,10 @@
+/**
+ * MobileProfilePanel Component
+ *
+ * Shows user profile and settings.
+ * Uses the new MobileAppBar component.
+ */
+
 import React from 'react';
 import {
   Box,
@@ -8,8 +15,6 @@ import {
   ListItemIcon,
   ListItemText,
   Avatar,
-  AppBar,
-  Toolbar,
   Divider,
   Card,
   CardContent,
@@ -22,12 +27,13 @@ import {
 import { useProfileQuery } from '../../../features/users/usersSlice';
 import { useLazyLogoutQuery } from '../../../features/auth/authSlice';
 import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
-import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
+import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { useNavigate } from 'react-router-dom';
+import MobileAppBar from '../MobileAppBar';
 
 /**
  * Profile panel - Shows user profile and settings
- * First panel in the Profile tab
+ * Default screen for the Profile tab
  */
 export const MobileProfilePanel: React.FC = () => {
   const navigate = useNavigate();
@@ -60,24 +66,7 @@ export const MobileProfilePanel: React.FC = () => {
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* App bar */}
-      <AppBar
-        position="sticky"
-        elevation={1}
-        sx={{ backgroundColor: 'background.paper' }}
-      >
-        <Toolbar sx={{ minHeight: LAYOUT_CONSTANTS.APPBAR_HEIGHT_MOBILE }}>
-          <Typography
-            variant="h6"
-            sx={{
-              flex: 1,
-              fontSize: '1.125rem',
-              fontWeight: 600,
-            }}
-          >
-            Profile
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <MobileAppBar title="Profile" />
 
       {/* Content */}
       <Box
@@ -174,7 +163,7 @@ export const MobileProfilePanel: React.FC = () => {
             <ListItem disablePadding>
               <ListItemButton
                 onClick={handleEditProfile}
-                sx={{ minHeight: LAYOUT_CONSTANTS.MIN_TOUCH_TARGET }}
+                sx={{ minHeight: TOUCH_TARGETS.RECOMMENDED }}
               >
                 <ListItemIcon>
                   <EditIcon />
@@ -190,7 +179,7 @@ export const MobileProfilePanel: React.FC = () => {
               <ListItem disablePadding>
                 <ListItemButton
                   onClick={handleAdminPanel}
-                  sx={{ minHeight: LAYOUT_CONSTANTS.MIN_TOUCH_TARGET }}
+                  sx={{ minHeight: TOUCH_TARGETS.RECOMMENDED }}
                 >
                   <ListItemIcon>
                     <AdminIcon />
@@ -211,7 +200,7 @@ export const MobileProfilePanel: React.FC = () => {
               <ListItemButton
                 onClick={handleLogout}
                 sx={{
-                  minHeight: LAYOUT_CONSTANTS.MIN_TOUCH_TARGET,
+                  minHeight: TOUCH_TARGETS.RECOMMENDED,
                   color: 'error.main',
                 }}
               >

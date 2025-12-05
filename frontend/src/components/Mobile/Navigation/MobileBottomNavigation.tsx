@@ -1,5 +1,12 @@
+/**
+ * MobileBottomNavigation Component
+ *
+ * Discord-style bottom navigation with 4 tabs.
+ * Integrates with screen-based navigation for clean tab switching.
+ */
+
 import React from 'react';
-import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
+import { BottomNavigation, BottomNavigationAction, Paper, Badge } from '@mui/material';
 import {
   Home as HomeIcon,
   Chat as ChatIcon,
@@ -7,11 +14,14 @@ import {
   Person as PersonIcon,
 } from '@mui/icons-material';
 import { useMobileNavigation, type MobileTab } from './MobileNavigationContext';
-import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
+import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
 
 /**
- * Discord-style bottom navigation with 4 tabs
- * Material Design 3 compliant bottom navigation bar
+ * Bottom navigation bar with 4 tabs:
+ * - Home: Communities and channels
+ * - Messages: Direct messages
+ * - Notifications: Mentions and activity
+ * - Profile: User settings
  */
 export const MobileBottomNavigation: React.FC = () => {
   const { activeTab, setActiveTab } = useMobileNavigation();
@@ -29,6 +39,8 @@ export const MobileBottomNavigation: React.FC = () => {
         left: 0,
         right: 0,
         zIndex: (theme) => theme.zIndex.appBar,
+        // Safe area padding for devices with home indicator
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       <BottomNavigation
@@ -39,31 +51,46 @@ export const MobileBottomNavigation: React.FC = () => {
           height: LAYOUT_CONSTANTS.BOTTOM_NAV_HEIGHT_MOBILE,
           '& .MuiBottomNavigationAction-root': {
             minWidth: 'auto',
+            minHeight: TOUCH_TARGETS.MINIMUM,
             padding: '6px 12px 8px',
+            gap: '4px',
           },
           '& .MuiBottomNavigationAction-label': {
-            fontSize: '0.75rem',
+            fontSize: '0.6875rem',
             fontWeight: 500,
+            marginTop: '2px',
             '&.Mui-selected': {
-              fontSize: '0.75rem',
+              fontSize: '0.6875rem',
+              fontWeight: 600,
             },
+          },
+          '& .MuiSvgIcon-root': {
+            fontSize: '1.375rem',
           },
         }}
       >
         <BottomNavigationAction
-          label="Communities"
-          value="communities"
+          label="Home"
+          value="home"
           icon={<HomeIcon />}
         />
         <BottomNavigationAction
           label="Messages"
           value="messages"
-          icon={<ChatIcon />}
+          icon={
+            <Badge badgeContent={0} color="error">
+              <ChatIcon />
+            </Badge>
+          }
         />
         <BottomNavigationAction
           label="Notifications"
           value="notifications"
-          icon={<NotificationsIcon />}
+          icon={
+            <Badge badgeContent={0} color="error">
+              <NotificationsIcon />
+            </Badge>
+          }
         />
         <BottomNavigationAction
           label="Profile"

@@ -1,3 +1,10 @@
+/**
+ * MobileMessagesPanel Component
+ *
+ * Shows list of DM conversations.
+ * Uses the new screen-based navigation with MobileAppBar.
+ */
+
 import React, { useState } from 'react';
 import {
   Box,
@@ -8,8 +15,6 @@ import {
   ListItemAvatar,
   ListItemText,
   Avatar,
-  AppBar,
-  Toolbar,
   Fab,
   CircularProgress,
   Dialog,
@@ -30,8 +35,9 @@ import { useGetUserDmGroupsQuery, useCreateDmGroupMutation } from '../../../feat
 import { useGetAllUsersQuery, useProfileQuery } from '../../../features/users/usersSlice';
 import UserAvatar from '../../Common/UserAvatar';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
-import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
+import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { DirectMessageGroup } from '../../../types/direct-message.type';
+import MobileAppBar from '../MobileAppBar';
 
 interface User {
   id: string;
@@ -42,10 +48,10 @@ interface User {
 
 /**
  * Messages panel - Shows list of DM conversations
- * First panel in the Messages tab
+ * Default screen for the Messages tab
  */
 export const MobileMessagesPanel: React.FC = () => {
-  const { pushPanel } = useMobileNavigation();
+  const { navigateToDmChat } = useMobileNavigation();
   const { data: dmGroups = [], isLoading } = useGetUserDmGroupsQuery();
   const { data: usersData } = useGetAllUsersQuery({ limit: 100 });
   const users = usersData?.users || [];
@@ -57,10 +63,7 @@ export const MobileMessagesPanel: React.FC = () => {
   const [groupName, setGroupName] = useState('');
 
   const handleDmClick = (dmGroupId: string) => {
-    pushPanel({
-      type: 'dm-chat',
-      dmGroupId,
-    });
+    navigateToDmChat(dmGroupId);
   };
 
   const handleCreateDM = async () => {
@@ -127,24 +130,7 @@ export const MobileMessagesPanel: React.FC = () => {
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* App bar */}
-      <AppBar
-        position="sticky"
-        elevation={1}
-        sx={{ backgroundColor: 'background.paper' }}
-      >
-        <Toolbar sx={{ minHeight: LAYOUT_CONSTANTS.APPBAR_HEIGHT_MOBILE }}>
-          <Typography
-            variant="h6"
-            sx={{
-              flex: 1,
-              fontSize: '1.125rem',
-              fontWeight: 600,
-            }}
-          >
-            Messages
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <MobileAppBar title="Messages" />
 
       {/* DM list */}
       {isLoading ? (
@@ -175,7 +161,7 @@ export const MobileMessagesPanel: React.FC = () => {
                     borderRadius: 1,
                     margin: '4px 0',
                     padding: '8px 16px',
-                    minHeight: LAYOUT_CONSTANTS.MIN_TOUCH_TARGET,
+                    minHeight: TOUCH_TARGETS.RECOMMENDED,
                     minWidth: 0,
                   }}
                 >
@@ -299,7 +285,7 @@ export const MobileMessagesPanel: React.FC = () => {
               )}
               renderTags={(tagValue, getTagProps) =>
                 tagValue.map((user, index) => {
-                   
+
                   const { key: _key, ...chipProps } = getTagProps({ index });
                   return (
                     <Chip

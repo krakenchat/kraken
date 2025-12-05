@@ -1,3 +1,16 @@
+/**
+ * MobileLayout Component
+ *
+ * Main mobile layout with Discord-style navigation.
+ * Uses drawer + screens pattern instead of panel stack.
+ *
+ * Architecture:
+ * - Community drawer (swipe from left edge)
+ * - Screen-based navigation (max 2 levels deep)
+ * - Bottom navigation tabs
+ * - Voice bar when connected
+ */
+
 import React from 'react';
 import { Box } from '@mui/material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
@@ -5,12 +18,13 @@ import { VoiceBottomBar } from '../Voice/VoiceBottomBar';
 import { AudioRenderer } from '../Voice/AudioRenderer';
 import { MobileNavigationProvider } from './Navigation/MobileNavigationContext';
 import { MobileBottomNavigation } from './Navigation/MobileBottomNavigation';
-import { MobilePanelContainer } from './Panels/MobilePanelContainer';
+import MobileCommunityDrawer from './Navigation/MobileCommunityDrawer';
+import { MobileScreenContainer } from './Screens/MobileScreenContainer';
 import { LAYOUT_CONSTANTS } from '../../utils/breakpoints';
 
 /**
  * Main mobile layout with Discord-style navigation
- * Bottom tabs + swipeable panels
+ * Drawer + Screens pattern replaces the old panel stack
  */
 export const MobileLayout: React.FC = () => {
   const { state: voiceState } = useVoiceConnection();
@@ -24,7 +38,7 @@ export const MobileLayout: React.FC = () => {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          height: '100vh',
+          height: '100dvh', // Use dynamic viewport height for mobile
           width: '100vw',
           overflow: 'hidden',
           position: 'fixed',
@@ -32,9 +46,14 @@ export const MobileLayout: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
+          // Safe area padding for notches and gesture bars
+          paddingTop: 'env(safe-area-inset-top)',
         }}
       >
-        {/* Panel container - main content area */}
+        {/* Community drawer - swipe from left edge */}
+        <MobileCommunityDrawer />
+
+        {/* Screen container - main content area */}
         <Box
           sx={{
             flex: 1,
@@ -42,7 +61,7 @@ export const MobileLayout: React.FC = () => {
             position: 'relative',
           }}
         >
-          <MobilePanelContainer bottomOffset={voiceBarOffset} />
+          <MobileScreenContainer bottomOffset={voiceBarOffset} />
         </Box>
 
         {/* Voice bar (only shows when in call) */}

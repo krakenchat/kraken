@@ -1,114 +1,297 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useCallback } from 'react';
+/**
+ * Mobile Navigation Context
+ *
+ * Screen-based navigation model (replaces panel stack).
+ * Integrates with React Router for proper PWA back button support.
+ */
+
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Bottom tab options
-export type MobileTab = 'communities' | 'messages' | 'notifications' | 'profile';
+export type MobileTab = 'home' | 'messages' | 'notifications' | 'profile';
 
-// Panel types that can be in the stack
-export type PanelType =
-  | 'communities'
-  | 'channels'
-  | 'chat'
-  | 'messages'
-  | 'dm-chat'
-  | 'profile'
-  | 'notifications';
+// Screen types - flat hierarchy, max 2 levels deep
+export type ScreenType =
+  | 'channels'      // Community channel list (home tab default)
+  | 'chat'          // Channel chat view
+  | 'dm-list'       // DM conversations list (messages tab default)
+  | 'dm-chat'       // DM chat view
+  | 'notifications' // Notifications list (notifications tab default)
+  | 'profile';      // Profile/settings (profile tab default)
 
-export interface Panel {
-  type: PanelType;
-  // Optional context data for the panel
-  communityId?: string;
-  channelId?: string;
-  dmGroupId?: string;
+// Navigation state
+export interface MobileNavigationState {
+  // Current screen
+  currentScreen: ScreenType;
+
+  // Community context (for channels/chat screens)
+  communityId: string | null;
+  channelId: string | null;
+
+  // DM context (for dm-chat screen)
+  dmGroupId: string | null;
+
+  // UI state
+  isDrawerOpen: boolean;
 }
 
+// Context type with actions
 interface MobileNavigationContextType {
-  // Current active bottom tab
+  // Current state
+  state: MobileNavigationState;
   activeTab: MobileTab;
+
+  // Screen navigation
+  navigateToChannels: (communityId: string) => void;
+  navigateToChat: (communityId: string, channelId: string) => void;
+  navigateToDmList: () => void;
+  navigateToDmChat: (dmGroupId: string) => void;
+  navigateToNotifications: () => void;
+  navigateToProfile: () => void;
+
+  // Generic back navigation
+  goBack: () => void;
+  canGoBack: () => boolean;
+
+  // Tab switching
   setActiveTab: (tab: MobileTab) => void;
 
-  // Panel stack (e.g., [communities, channels, chat])
-  panelStack: Panel[];
+  // Drawer control
+  openDrawer: () => void;
+  closeDrawer: () => void;
+  toggleDrawer: () => void;
 
-  // Navigate to a new panel (pushes onto stack)
-  pushPanel: (panel: Panel) => void;
-
-  // Go back (pops from stack)
-  popPanel: () => void;
-
-  // Clear stack and start fresh
-  clearPanels: () => void;
-
-  // Replace entire stack (useful for tab switches)
-  setPanelStack: (panels: Panel[]) => void;
-
-  // Get the currently visible panel
-  getCurrentPanel: () => Panel | null;
+  // Legacy compatibility - get current screen info
+  getCurrentScreen: () => { type: ScreenType; communityId?: string; channelId?: string; dmGroupId?: string };
 }
 
 const MobileNavigationContext = createContext<MobileNavigationContextType | undefined>(
   undefined
 );
 
+// Helper to determine active tab from screen
+const getTabFromScreen = (screen: ScreenType): MobileTab => {
+  switch (screen) {
+    case 'channels':
+    case 'chat':
+      return 'home';
+    case 'dm-list':
+    case 'dm-chat':
+      return 'messages';
+    case 'notifications':
+      return 'notifications';
+    case 'profile':
+      return 'profile';
+  }
+};
+
 export const MobileNavigationProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [activeTab, setActiveTabState] = useState<MobileTab>('communities');
-  const [panelStack, setPanelStack] = useState<Panel[]>([{ type: 'communities' }]);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const pushPanel = useCallback((panel: Panel) => {
-    setPanelStack((prev) => [...prev, panel]);
-  }, []);
+  // Navigation state
+  const [state, setState] = useState<MobileNavigationState>({
+    currentScreen: 'channels',
+    communityId: null,
+    channelId: null,
+    dmGroupId: null,
+    isDrawerOpen: false,
+  });
 
-  const popPanel = useCallback(() => {
-    setPanelStack((prev) => {
-      if (prev.length <= 1) {
-        // Don't pop if only one panel (base level)
-        return prev;
+  // Track last community for returning from other tabs
+  const [lastCommunityId, setLastCommunityId] = useState<string | null>(null);
+
+  // Sync state from URL on location change
+  useEffect(() => {
+    const path = location.pathname;
+
+    // Parse URL to determine current screen
+    if (path.startsWith('/community/')) {
+      const segments = path.split('/');
+      const communityId = segments[2];
+      const channelId = segments[4]; // /community/:id/channel/:channelId
+
+      if (channelId) {
+        setState(prev => ({
+          ...prev,
+          currentScreen: 'chat',
+          communityId,
+          channelId,
+          dmGroupId: null,
+        }));
+      } else if (communityId) {
+        setState(prev => ({
+          ...prev,
+          currentScreen: 'channels',
+          communityId,
+          channelId: null,
+          dmGroupId: null,
+        }));
+        setLastCommunityId(communityId);
       }
-      return prev.slice(0, -1);
-    });
-  }, []);
+    } else if (path.startsWith('/direct-messages')) {
+      const segments = path.split('/');
+      const dmGroupId = segments[2]; // /direct-messages/:dmGroupId
 
-  const clearPanels = useCallback(() => {
-    setPanelStack([]);
-  }, []);
+      if (dmGroupId) {
+        setState(prev => ({
+          ...prev,
+          currentScreen: 'dm-chat',
+          dmGroupId,
+          communityId: null,
+          channelId: null,
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          currentScreen: 'dm-list',
+          dmGroupId: null,
+          communityId: null,
+          channelId: null,
+        }));
+      }
+    } else if (path === '/notifications') {
+      setState(prev => ({
+        ...prev,
+        currentScreen: 'notifications',
+        communityId: null,
+        channelId: null,
+        dmGroupId: null,
+      }));
+    } else if (path === '/profile' || path.startsWith('/profile/')) {
+      setState(prev => ({
+        ...prev,
+        currentScreen: 'profile',
+        communityId: null,
+        channelId: null,
+        dmGroupId: null,
+      }));
+    } else if (path === '/' || path === '') {
+      // Home - show channels for last community or first community
+      setState(prev => ({
+        ...prev,
+        currentScreen: 'channels',
+        channelId: null,
+        dmGroupId: null,
+      }));
+    }
+  }, [location.pathname]);
 
-  const getCurrentPanel = useCallback((): Panel | null => {
-    if (panelStack.length === 0) return null;
-    return panelStack[panelStack.length - 1];
-  }, [panelStack]);
+  // Derived active tab
+  const activeTab = getTabFromScreen(state.currentScreen);
 
-  // When tab changes, reset panel stack appropriately
+  // Navigation actions
+  const navigateToChannels = useCallback((communityId: string) => {
+    setLastCommunityId(communityId);
+    navigate(`/community/${communityId}`);
+  }, [navigate]);
+
+  const navigateToChat = useCallback((communityId: string, channelId: string) => {
+    setLastCommunityId(communityId);
+    navigate(`/community/${communityId}/channel/${channelId}`);
+  }, [navigate]);
+
+  const navigateToDmList = useCallback(() => {
+    navigate('/direct-messages');
+  }, [navigate]);
+
+  const navigateToDmChat = useCallback((dmGroupId: string) => {
+    navigate(`/direct-messages/${dmGroupId}`);
+  }, [navigate]);
+
+  const navigateToNotifications = useCallback(() => {
+    navigate('/notifications');
+  }, [navigate]);
+
+  const navigateToProfile = useCallback(() => {
+    navigate('/profile');
+  }, [navigate]);
+
+  // Back navigation
+  const canGoBack = useCallback((): boolean => {
+    // Can go back if we're in a detail view
+    return state.currentScreen === 'chat' || state.currentScreen === 'dm-chat';
+  }, [state.currentScreen]);
+
+  const goBack = useCallback(() => {
+    if (state.currentScreen === 'chat' && state.communityId) {
+      // Go back from chat to channels
+      navigate(`/community/${state.communityId}`);
+    } else if (state.currentScreen === 'dm-chat') {
+      // Go back from DM chat to DM list
+      navigate('/direct-messages');
+    } else {
+      // Use browser history for other cases
+      navigate(-1);
+    }
+  }, [state.currentScreen, state.communityId, navigate]);
+
+  // Tab switching
   const setActiveTab = useCallback((tab: MobileTab) => {
-    setActiveTabState(tab);
+    // Close drawer when switching tabs
+    setState(prev => ({ ...prev, isDrawerOpen: false }));
 
-    // Set default panel for each tab
     switch (tab) {
-      case 'communities':
-        setPanelStack([{ type: 'communities' }]);
+      case 'home':
+        if (lastCommunityId) {
+          navigate(`/community/${lastCommunityId}`);
+        } else {
+          navigate('/');
+        }
         break;
       case 'messages':
-        setPanelStack([{ type: 'messages' }]);
+        navigate('/direct-messages');
         break;
       case 'notifications':
-        setPanelStack([{ type: 'notifications' }]);
+        navigate('/notifications');
         break;
       case 'profile':
-        setPanelStack([{ type: 'profile' }]);
+        navigate('/profile');
         break;
     }
+  }, [navigate, lastCommunityId]);
+
+  // Drawer control
+  const openDrawer = useCallback(() => {
+    setState(prev => ({ ...prev, isDrawerOpen: true }));
   }, []);
 
+  const closeDrawer = useCallback(() => {
+    setState(prev => ({ ...prev, isDrawerOpen: false }));
+  }, []);
+
+  const toggleDrawer = useCallback(() => {
+    setState(prev => ({ ...prev, isDrawerOpen: !prev.isDrawerOpen }));
+  }, []);
+
+  // Legacy compatibility
+  const getCurrentScreen = useCallback(() => ({
+    type: state.currentScreen,
+    communityId: state.communityId || undefined,
+    channelId: state.channelId || undefined,
+    dmGroupId: state.dmGroupId || undefined,
+  }), [state]);
+
   const value: MobileNavigationContextType = {
+    state,
     activeTab,
+    navigateToChannels,
+    navigateToChat,
+    navigateToDmList,
+    navigateToDmChat,
+    navigateToNotifications,
+    navigateToProfile,
+    goBack,
+    canGoBack,
     setActiveTab,
-    panelStack,
-    pushPanel,
-    popPanel,
-    clearPanels,
-    setPanelStack,
-    getCurrentPanel,
+    openDrawer,
+    closeDrawer,
+    toggleDrawer,
+    getCurrentScreen,
   };
 
   return (
@@ -124,4 +307,15 @@ export const useMobileNavigation = () => {
     throw new Error('useMobileNavigation must be used within MobileNavigationProvider');
   }
   return context;
+};
+
+// Convenience hook for just checking if drawer is open
+export const useMobileDrawer = () => {
+  const { state, openDrawer, closeDrawer, toggleDrawer } = useMobileNavigation();
+  return {
+    isOpen: state.isDrawerOpen,
+    open: openDrawer,
+    close: closeDrawer,
+    toggle: toggleDrawer,
+  };
 };

@@ -1,18 +1,19 @@
+/**
+ * MobileChatPanel Component
+ *
+ * Chat view for channels and DMs.
+ * Uses the new screen-based navigation with MobileAppBar.
+ */
+
 import React from 'react';
 import {
   Box,
-  Typography,
-  IconButton,
-  AppBar,
-  Toolbar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
 import {
-  ArrowBack as ArrowBackIcon,
-  MoreVert as MoreVertIcon,
   People as PeopleIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
@@ -20,12 +21,12 @@ import { useGetChannelByIdQuery } from '../../../features/channel/channelApiSlic
 import { useGetDmGroupQuery } from '../../../features/directMessages/directMessagesApiSlice';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { ChannelType } from '../../../types/channel.type';
-import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
 import ChannelMessageContainer from '../../Channel/ChannelMessageContainer';
 import { VideoTiles } from '../../Voice/VideoTiles';
 import { VoiceChannelJoinButton } from '../../Voice/VoiceChannelJoinButton';
 import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
 import { ErrorBoundary } from '../../ErrorBoundary';
+import MobileAppBar from '../MobileAppBar';
 
 interface MobileChatPanelProps {
   communityId?: string;
@@ -35,13 +36,13 @@ interface MobileChatPanelProps {
 
 /**
  * Chat panel - Shows messages for a selected channel or DM
- * Third panel in the Communities tab, or second panel in Messages tab
+ * Detail screen that slides in from the right
  */
 export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
   channelId,
   dmGroupId,
 }) => {
-  const { popPanel } = useMobileNavigation();
+  const { goBack } = useMobileNavigation();
   const { state: voiceState } = useVoiceConnection();
 
   // Fetch channel or DM data
@@ -58,10 +59,6 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
   const isVoiceChannel = channel?.type === ChannelType.VOICE;
   const isConnectedToThisChannel =
     voiceState.isConnected && voiceState.currentChannelId === channelId;
-
-  const handleBack = () => {
-    popPanel();
-  };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchor(event.currentTarget);
@@ -137,40 +134,16 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* App bar */}
-      <AppBar
-        position="sticky"
-        elevation={1}
-        sx={{ backgroundColor: 'background.paper' }}
-      >
-        <Toolbar sx={{ minHeight: LAYOUT_CONSTANTS.APPBAR_HEIGHT_MOBILE }}>
-          <IconButton edge="start" color="inherit" onClick={handleBack} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
-          </IconButton>
-
-          <Typography
-            variant="h6"
-            sx={{
-              flex: 1,
-              fontSize: '1.125rem',
-              fontWeight: 600,
-            }}
-            noWrap
-          >
-            {title}
-          </Typography>
-
-          {/* Show members button for text channels */}
-          {channel?.type === ChannelType.TEXT && (
-            <IconButton color="inherit" onClick={handleShowMembers}>
-              <PeopleIcon />
-            </IconButton>
-          )}
-
-          <IconButton edge="end" color="inherit" onClick={handleMenuOpen}>
-            <MoreVertIcon />
-          </IconButton>
-
+      {/* App bar with back button */}
+      <MobileAppBar
+        title={title}
+        showBack
+        onBack={goBack}
+        showMembers={channel?.type === ChannelType.TEXT}
+        onMembersClick={handleShowMembers}
+        showMore
+        onMoreClick={handleMenuOpen}
+        actions={
           <Menu
             anchorEl={menuAnchor}
             open={Boolean(menuAnchor)}
@@ -193,8 +166,8 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
               <ListItemText>Channel Settings</ListItemText>
             </MenuItem>
           </Menu>
-        </Toolbar>
-      </AppBar>
+        }
+      />
 
       {/* Content */}
       <Box sx={{ flex: 1, overflow: 'hidden' }}>

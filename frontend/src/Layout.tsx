@@ -14,6 +14,7 @@ import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import { useVoiceEvents } from "./hooks/useVoiceEvents";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
+import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
 import { useResponsive } from "./hooks/useResponsive";
 import { isElectron } from "./utils/platform";
 import type { User } from "./types/auth.type";
@@ -33,7 +34,7 @@ const Layout: React.FC = () => {
   const { data: userData, isLoading, isError } = useProfileQuery(undefined);
   const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
   const { state: voiceState } = useVoiceConnection();
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
 
   // Send presence heartbeat to keep user marked as online
   usePresenceHeartbeat(userData !== undefined && !isLoading && !isError);
@@ -101,11 +102,20 @@ const Layout: React.FC = () => {
       }
     : undefined;
 
-  // Use mobile layout on small screens
+  // Use mobile layout on phones (< 768px)
   if (isMobile) {
     return (
       <ReplayBufferProvider>
         <MobileLayout />
+      </ReplayBufferProvider>
+    );
+  }
+
+  // Use tablet layout on tablets (768-1199px)
+  if (isTablet) {
+    return (
+      <ReplayBufferProvider>
+        <TabletLayout />
       </ReplayBufferProvider>
     );
   }
