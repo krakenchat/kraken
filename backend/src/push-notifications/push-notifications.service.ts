@@ -28,7 +28,8 @@ export class PushNotificationsService implements OnModuleInit {
     const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
     const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
     const subject =
-      this.configService.get<string>('VAPID_SUBJECT') || 'mailto:admin@localhost';
+      this.configService.get<string>('VAPID_SUBJECT') ||
+      'mailto:admin@localhost';
 
     if (!publicKey || !privateKey) {
       this.logger.warn(
@@ -186,7 +187,9 @@ export class PushNotificationsService implements OnModuleInit {
   /**
    * Remove an invalid/expired subscription
    */
-  private async removeInvalidSubscription(subscriptionId: string): Promise<void> {
+  private async removeInvalidSubscription(
+    subscriptionId: string,
+  ): Promise<void> {
     try {
       await this.databaseService.pushSubscription.delete({
         where: { id: subscriptionId },

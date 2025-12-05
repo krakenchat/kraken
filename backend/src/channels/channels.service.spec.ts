@@ -49,7 +49,9 @@ describe('ChannelsService', () => {
       } as any;
       const channel = ChannelFactory.build({ position: 0 });
 
-      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
+      mockDatabase.channel.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
       mockDatabase.channel.create.mockResolvedValue(channel);
       mockDatabase.channelMembership.create.mockResolvedValue({
         userId: user.id,
@@ -79,7 +81,9 @@ describe('ChannelsService', () => {
         isPrivate: false,
       } as any;
 
-      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
+      mockDatabase.channel.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
       const duplicateError = { code: 'P2002' };
       mockDatabase.channel.create.mockRejectedValue(duplicateError);
 
@@ -100,7 +104,9 @@ describe('ChannelsService', () => {
         isPrivate: false,
       } as any;
 
-      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
+      mockDatabase.channel.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
       mockDatabase.channel.create.mockRejectedValue(
         new Error('DB connection error'),
       );
@@ -120,7 +126,9 @@ describe('ChannelsService', () => {
       } as any;
       const channel = ChannelFactory.build({ isPrivate: true, position: 0 });
 
-      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
+      mockDatabase.channel.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
       mockDatabase.channel.create.mockResolvedValue(channel);
       mockDatabase.channelMembership.create.mockResolvedValue({
         userId: user.id,
@@ -140,9 +148,14 @@ describe('ChannelsService', () => {
         type: ChannelType.VOICE,
         isPrivate: false,
       } as any;
-      const channel = ChannelFactory.build({ type: ChannelType.VOICE, position: 0 });
+      const channel = ChannelFactory.build({
+        type: ChannelType.VOICE,
+        position: 0,
+      });
 
-      mockDatabase.channel.aggregate.mockResolvedValue({ _max: { position: null } });
+      mockDatabase.channel.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
       mockDatabase.channel.create.mockResolvedValue(channel);
       mockDatabase.channelMembership.create.mockResolvedValue({
         userId: user.id,

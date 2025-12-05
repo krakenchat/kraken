@@ -29,6 +29,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { ModerationService } from '@/moderation/moderation.service';
 
 @WebSocketGateway({
   cors: {
@@ -55,6 +56,7 @@ export class MessagesGateway
     private readonly messagesService: MessagesService,
     private readonly websocketService: WebsocketService,
     private readonly notificationsService: NotificationsService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -83,6 +85,24 @@ export class MessagesGateway
   ): Promise<string> {
     if (!payload.channelId) {
       throw new WsException('channelId is required for channel messages');
+    }
+
+    // Check if user is timed out in this community
+    const communityId = await this.moderationService.getCommunityIdFromChannel(
+      payload.channelId,
+    );
+    const timeoutStatus = await this.moderationService.isUserTimedOut(
+      communityId,
+      client.handshake.user.id,
+    );
+    if (timeoutStatus.isTimedOut) {
+      const remainingMs = timeoutStatus.expiresAt
+        ? timeoutStatus.expiresAt.getTime() - Date.now()
+        : 0;
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      throw new WsException(
+        `You are timed out in this community. Time remaining: ${remainingSeconds} seconds`,
+      );
     }
 
     const message = await this.messagesService.create({

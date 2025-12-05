@@ -6,6 +6,7 @@ import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { ModerationService } from '@/moderation/moderation.service';
 
 describe('MessagesGateway', () => {
   let gateway: MessagesGateway;
@@ -32,6 +33,11 @@ describe('MessagesGateway', () => {
     processMessageForNotifications: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockModerationService = {
+    getCommunityIdFromChannel: jest.fn().mockResolvedValue('community-123'),
+    isUserTimedOut: jest.fn().mockResolvedValue({ isTimedOut: false }),
+  };
+
   const mockGuard = { canActivate: jest.fn(() => true) };
 
   beforeEach(async () => {
@@ -49,6 +55,10 @@ describe('MessagesGateway', () => {
         {
           provide: NotificationsService,
           useValue: mockNotificationsService,
+        },
+        {
+          provide: ModerationService,
+          useValue: mockModerationService,
         },
       ],
     })

@@ -182,7 +182,9 @@ describe('PushNotificationsService', () => {
         { id: 'sub-2', userId, endpoint: 'https://push2.example.com' },
       ];
 
-      mockDatabase.pushSubscription.findMany.mockResolvedValue(mockSubscriptions);
+      mockDatabase.pushSubscription.findMany.mockResolvedValue(
+        mockSubscriptions,
+      );
 
       const result = await service.getUserSubscriptions(userId);
 
@@ -243,7 +245,9 @@ describe('PushNotificationsService', () => {
         },
       ];
 
-      mockDatabase.pushSubscription.findMany.mockResolvedValue(mockSubscriptions);
+      mockDatabase.pushSubscription.findMany.mockResolvedValue(
+        mockSubscriptions,
+      );
       (webpush.sendNotification as jest.Mock).mockResolvedValue({});
 
       const result = await service.sendToUser(userId, payload);
@@ -260,8 +264,12 @@ describe('PushNotificationsService', () => {
         keys: { p256dh: 'key1', auth: 'auth1' },
       };
 
-      mockDatabase.pushSubscription.findMany.mockResolvedValue([mockSubscription]);
-      (webpush.sendNotification as jest.Mock).mockRejectedValue({ statusCode: 410 });
+      mockDatabase.pushSubscription.findMany.mockResolvedValue([
+        mockSubscription,
+      ]);
+      (webpush.sendNotification as jest.Mock).mockRejectedValue({
+        statusCode: 410,
+      });
       mockDatabase.pushSubscription.delete.mockResolvedValue(mockSubscription);
 
       const result = await service.sendToUser(userId, payload);
@@ -280,8 +288,12 @@ describe('PushNotificationsService', () => {
         keys: { p256dh: 'key1', auth: 'auth1' },
       };
 
-      mockDatabase.pushSubscription.findMany.mockResolvedValue([mockSubscription]);
-      (webpush.sendNotification as jest.Mock).mockRejectedValue({ statusCode: 404 });
+      mockDatabase.pushSubscription.findMany.mockResolvedValue([
+        mockSubscription,
+      ]);
+      (webpush.sendNotification as jest.Mock).mockRejectedValue({
+        statusCode: 404,
+      });
       mockDatabase.pushSubscription.delete.mockResolvedValue(mockSubscription);
 
       const result = await service.sendToUser(userId, payload);
@@ -309,13 +321,16 @@ describe('PushNotificationsService', () => {
       });
 
       // Verify the date is approximately 30 days ago
-      const callArgs = mockDatabase.pushSubscription.deleteMany.mock.calls[0][0];
+      const callArgs =
+        mockDatabase.pushSubscription.deleteMany.mock.calls[0][0];
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const calledDate = callArgs.where.updatedAt.lt as Date;
 
       // Should be within a few seconds of 30 days ago
-      expect(Math.abs(calledDate.getTime() - thirtyDaysAgo.getTime())).toBeLessThan(5000);
+      expect(
+        Math.abs(calledDate.getTime() - thirtyDaysAgo.getTime()),
+      ).toBeLessThan(5000);
     });
   });
 });

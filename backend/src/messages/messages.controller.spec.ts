@@ -103,6 +103,11 @@ describe('MessagesController', () => {
         id: '',
         searchText: null,
         reactions: [],
+        pinned: false,
+        pinnedAt: null,
+        pinnedBy: null,
+        deletedBy: null,
+        deletedByReason: null,
       };
 
       const mockMessage = MessageFactory.build({
@@ -146,6 +151,11 @@ describe('MessagesController', () => {
         id: '',
         searchText: null,
         reactions: [],
+        pinned: false,
+        pinnedAt: null,
+        pinnedBy: null,
+        deletedBy: null,
+        deletedByReason: null,
       };
 
       const mockMessage = {};

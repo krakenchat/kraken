@@ -23,12 +23,22 @@ model Message {
   pendingAttachments   Int?       @default(0) // Count of files currently uploading
   searchText           String? // Flattened text from spans for searching
 
+  // Pinning fields
+  pinned   Boolean   @default(false)
+  pinnedAt DateTime?
+  pinnedBy String?   @db.ObjectId
+
+  // Moderation fields (for soft delete by mods)
+  deletedBy       String? @db.ObjectId // Who deleted the message (null if author)
+  deletedByReason String? // Reason for mod deletion
+
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
   notifications      Notification[]
 
   @@index([channelId, searchText])
   @@index([directMessageGroupId, searchText])
+  @@index([channelId, pinned]) // For fetching pinned messages in a channel
 }
 
 model ReadReceipt {
@@ -212,6 +222,11 @@ model Community {
   description String?
   UserRoles   UserRoles[]
 
+  // Moderation relations
+  bans           CommunityBan[]     @relation("CommunityBans")
+  timeouts       CommunityTimeout[] @relation("CommunityTimeouts")
+  moderationLogs ModerationLog[]    @relation("ModerationLogs")
+
   @@unique([name])
 }
 
@@ -380,6 +395,53 @@ model ReplayClip {
   @@index([userId, capturedAt])
 }
 
+model CommunityBan {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  communityId String    @db.ObjectId
+  userId      String    @db.ObjectId
+  moderatorId String    @db.ObjectId
+  reason      String?
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime? // null = permanent ban
+  active      Boolean   @default(true)
+
+  community Community @relation("CommunityBans", fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([communityId, active])
+}
+
+model CommunityTimeout {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  communityId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  moderatorId String   @db.ObjectId
+  reason      String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime // Required - timeouts are always temporary
+
+  community Community @relation("CommunityTimeouts", fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([communityId, expiresAt])
+}
+
+model ModerationLog {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  communityId     String           @db.ObjectId
+  moderatorId     String           @db.ObjectId
+  targetUserId    String?          @db.ObjectId
+  targetMessageId String?          @db.ObjectId
+  action          ModerationAction
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+
+  community Community @relation("ModerationLogs", fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, createdAt])
+}
+
 enum FileType {
   IMAGE
   VIDEO
@@ -465,11 +527,31 @@ enum RbacActions {
   UPDATE_INSTANCE_SETTINGS
   READ_INSTANCE_STATS
   BAN_USER
+  // Community moderation
+  KICK_USER
+  TIMEOUT_USER
+  UNBAN_USER
+  PIN_MESSAGE
+  UNPIN_MESSAGE
+  DELETE_ANY_MESSAGE
+  VIEW_BAN_LIST
+  VIEW_MODERATION_LOGS
 }
 
 enum InstanceRole {
   OWNER
   USER
+}
+
+enum ModerationAction {
+  BAN_USER
+  UNBAN_USER
+  KICK_USER
+  TIMEOUT_USER
+  REMOVE_TIMEOUT
+  DELETE_MESSAGE
+  PIN_MESSAGE
+  UNPIN_MESSAGE
 }
 
 enum NotificationType {

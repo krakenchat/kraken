@@ -61,4 +61,21 @@ export class CreateMessageDto implements Message {
 
   @Exclude()
   reactions: { emoji: string; userIds: string[] }[];
+
+  // Pinning fields (excluded - set by moderation actions)
+  @Exclude()
+  pinned: boolean;
+
+  @Exclude()
+  pinnedAt: Date | null;
+
+  @Exclude()
+  pinnedBy: string | null;
+
+  // Moderation deletion fields (excluded - set by moderation actions)
+  @Exclude()
+  deletedBy: string | null;
+
+  @Exclude()
+  deletedByReason: string | null;
 }

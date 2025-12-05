@@ -11,6 +11,7 @@ import { AuthModule } from '@/auth/auth.module';
 import { FileModule } from '@/file/file.module';
 import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
 import { NotificationsModule } from '@/notifications/notifications.module';
+import { ModerationModule } from '@/moderation/moderation.module';
 
 @Module({
   controllers: [MessagesController],
@@ -24,6 +25,7 @@ import { NotificationsModule } from '@/notifications/notifications.module';
     AuthModule,
     FileModule,
     forwardRef(() => NotificationsModule),
+    forwardRef(() => ModerationModule),
   ],
   exports: [MessagesService],
 })

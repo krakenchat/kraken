@@ -517,7 +517,9 @@ export class VoicePresenceService {
           user: voiceUser,
         },
       );
-      this.logger.log(`[Webhook] User ${userId} joined DM voice call ${dmGroupId}`);
+      this.logger.log(
+        `[Webhook] User ${userId} joined DM voice call ${dmGroupId}`,
+      );
     }
   }
 

@@ -311,7 +311,10 @@ export class NotificationsService {
 
     // Send push notification if user is not online (fire-and-forget to avoid blocking)
     this.sendPushIfOffline(dto.userId, notification).catch((error) => {
-      this.logger.error(`Failed to send push notification to user ${dto.userId}:`, error);
+      this.logger.error(
+        `Failed to send push notification to user ${dto.userId}:`,
+        error,
+      );
     });
 
     return notification;
@@ -336,9 +339,7 @@ export class NotificationsService {
       // Check if user is online (has active WebSocket connections)
       const isOnline = await this.presenceService.isOnline(userId);
       if (isOnline) {
-        this.logger.debug(
-          `Skipping push for user ${userId} - user is online`,
-        );
+        this.logger.debug(`Skipping push for user ${userId} - user is online`);
         return;
       }
 
@@ -379,7 +380,9 @@ export class NotificationsService {
     },
   ): string {
     const authorName =
-      notification.author?.displayName || notification.author?.username || 'Someone';
+      notification.author?.displayName ||
+      notification.author?.username ||
+      'Someone';
 
     if (notification.type === NotificationType.DIRECT_MESSAGE) {
       return `Message from ${authorName}`;
@@ -401,7 +404,9 @@ export class NotificationsService {
     },
   ): string {
     const authorName =
-      notification.author?.displayName || notification.author?.username || 'Someone';
+      notification.author?.displayName ||
+      notification.author?.username ||
+      'Someone';
 
     switch (notification.type) {
       case NotificationType.USER_MENTION:

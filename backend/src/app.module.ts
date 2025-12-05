@@ -33,6 +33,7 @@ import { ReadReceiptsModule } from './read-receipts/read-receipts.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { InstanceModule } from './instance/instance.module';
+import { ModerationModule } from './moderation/moderation.module';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { InstanceModule } from './instance/instance.module';
     FileUploadModule,
     FileModule,
     InstanceModule,
+    ModerationModule,
   ],
   controllers: [AppController],
   providers: [

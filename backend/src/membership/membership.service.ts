@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
@@ -52,6 +53,25 @@ export class MembershipService {
         throw new ConflictException(
           'User is already a member of this community',
         );
+      }
+
+      // Check if user is banned from this community
+      const ban = await this.databaseService.communityBan.findUnique({
+        where: {
+          communityId_userId: { communityId, userId },
+        },
+      });
+
+      if (ban && ban.active) {
+        // Check if ban has expired
+        if (!ban.expiresAt || ban.expiresAt > new Date()) {
+          throw new ForbiddenException('You are banned from this community');
+        }
+        // Auto-expire the ban if it has expired
+        await this.databaseService.communityBan.update({
+          where: { id: ban.id },
+          data: { active: false },
+        });
       }
 
       const membership = await this.databaseService.membership.create({

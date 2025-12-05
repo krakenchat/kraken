@@ -73,6 +73,16 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
 
     // Replay capture permission
     RbacActions.CAPTURE_REPLAY,
+
+    // Community moderation (full)
+    RbacActions.KICK_USER,
+    RbacActions.TIMEOUT_USER,
+    RbacActions.UNBAN_USER,
+    RbacActions.PIN_MESSAGE,
+    RbacActions.UNPIN_MESSAGE,
+    RbacActions.DELETE_ANY_MESSAGE,
+    RbacActions.VIEW_BAN_LIST,
+    RbacActions.VIEW_MODERATION_LOGS,
   ],
 };
 
@@ -114,6 +124,14 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
 
     // Replay capture permission
     RbacActions.CAPTURE_REPLAY,
+
+    // Community moderation (limited - no unban, no logs)
+    RbacActions.KICK_USER,
+    RbacActions.TIMEOUT_USER,
+    RbacActions.PIN_MESSAGE,
+    RbacActions.UNPIN_MESSAGE,
+    RbacActions.DELETE_ANY_MESSAGE,
+    RbacActions.VIEW_BAN_LIST,
   ],
 };
 

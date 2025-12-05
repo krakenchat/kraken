@@ -46,6 +46,14 @@ export enum ServerEvents {
   // Channel Management
   CHANNELS_REORDERED = 'channelsReordered',
 
+  // Moderation Events
+  USER_BANNED = 'userBanned',
+  USER_KICKED = 'userKicked',
+  USER_TIMED_OUT = 'userTimedOut',
+  TIMEOUT_REMOVED = 'timeoutRemoved',
+  MESSAGE_PINNED = 'messagePinned',
+  MESSAGE_UNPINNED = 'messageUnpinned',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',
