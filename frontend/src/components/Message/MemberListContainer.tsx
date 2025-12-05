@@ -130,6 +130,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
       isLoading={isLoading}
       error={error}
       title={title}
+      communityId={communityId}
     />
   );
 };

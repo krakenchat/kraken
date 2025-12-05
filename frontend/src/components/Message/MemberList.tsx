@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Typography,
@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import UserAvatar from "../Common/UserAvatar";
+import { UserModerationMenu } from "../Moderation";
 
 interface MemberData {
   id: string;
@@ -27,6 +28,7 @@ interface MemberListProps {
   error?: unknown;
   title?: string;
   maxHeight?: number | string;
+  communityId?: string; // For moderation actions
 }
 
 const MemberListSkeleton: React.FC = () => (
@@ -41,13 +43,36 @@ const MemberListSkeleton: React.FC = () => (
   </ListItem>
 );
 
+interface ContextMenuState {
+  anchorEl: HTMLElement | null;
+  member: MemberData | null;
+}
+
 const MemberList: React.FC<MemberListProps> = ({
   members,
   isLoading = false,
   error = null,
   title = "Members",
   maxHeight = 400,
+  communityId,
 }) => {
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    anchorEl: null,
+    member: null,
+  });
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLElement>, member: MemberData) => {
+    event.preventDefault();
+    setContextMenu({
+      anchorEl: event.currentTarget,
+      member,
+    });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({ anchorEl: null, member: null });
+  };
+
   if (error) {
     return (
       <Box sx={{ width: 240, p: 2 }}>
@@ -101,9 +126,11 @@ const MemberList: React.FC<MemberListProps> = ({
             : members.map((member) => (
                 <ListItem
                   key={member.id}
+                  onContextMenu={(e) => handleContextMenu(e, member)}
                   sx={{
                     px: 2,
                     py: 0.5,
+                    cursor: communityId ? "context-menu" : "default",
                     "&:hover": {
                       backgroundColor: alpha("#000", 0.02),
                     },
@@ -165,6 +192,18 @@ const MemberList: React.FC<MemberListProps> = ({
           </Box>
         )}
       </Box>
+
+      {/* Moderation Context Menu */}
+      {communityId && contextMenu.member && (
+        <UserModerationMenu
+          anchorEl={contextMenu.anchorEl}
+          open={Boolean(contextMenu.anchorEl)}
+          onClose={handleCloseContextMenu}
+          userId={contextMenu.member.id}
+          username={contextMenu.member.username}
+          communityId={communityId}
+        />
+      )}
     </Box>
   );
 };

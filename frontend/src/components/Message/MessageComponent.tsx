@@ -6,10 +6,12 @@
  */
 
 import React, { useMemo } from "react";
-import { Typography } from "@mui/material";
+import { Typography, Tooltip, Box } from "@mui/material";
+import PushPinIcon from "@mui/icons-material/PushPin";
 import type { Message as MessageType } from "../../types/message.type";
 import { useGetUserByIdQuery, useProfileQuery } from "../../features/users/usersSlice";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
+import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import { MessageReactions } from "./MessageReactions";
 import { MessageAttachments } from "./MessageAttachments";
 import { MessageEditForm } from "./MessageEditForm";
@@ -35,6 +37,7 @@ function MessageComponentInner({ message }: MessageProps) {
 
   // Check if user can moderate messages in this channel
   const canDeleteMessage = useCanPerformAction("CHANNEL", message.channelId, "DELETE_MESSAGE");
+  const canPinMessage = useCanPerformAction("CHANNEL", message.channelId, RBAC_ACTIONS.PIN_MESSAGE);
 
   // Users can edit their own messages (backend MessageOwnershipGuard handles all permission logic)
   const canEditMessage = useMemo(() => {
@@ -46,6 +49,8 @@ function MessageComponentInner({ message }: MessageProps) {
   const canRemoveMessage = useMemo(() => {
     return isOwnMessage || canDeleteMessage;
   }, [isOwnMessage, canDeleteMessage]);
+
+  const isPinned = message.pinned === true;
 
   const {
     isEditing,
@@ -63,6 +68,8 @@ function MessageComponentInner({ message }: MessageProps) {
     handleCancelDelete,
     handleReactionClick,
     handleEmojiSelect,
+    handlePin,
+    handleUnpin,
   } = useMessageActions(message, currentUser?.id);
 
   return (
@@ -75,10 +82,11 @@ function MessageComponentInner({ message }: MessageProps) {
         <UserAvatar user={author} size="small" />
       </div>
       <div style={{ flex: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: 700 }}>
-          {author?.displayName || author?.username || message.authorId}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {author?.displayName || author?.username || message.authorId}
+          </Typography>
           <Typography
-            sx={{ marginLeft: "6px" }}
             variant="caption"
             color="text.secondary"
           >
@@ -87,7 +95,18 @@ function MessageComponentInner({ message }: MessageProps) {
               <span style={{ marginLeft: 4 }}>(edited)</span>
             )}
           </Typography>
-        </Typography>
+          {isPinned && (
+            <Tooltip title="Pinned message">
+              <PushPinIcon
+                sx={{
+                  fontSize: 14,
+                  color: "primary.main",
+                  ml: 0.5,
+                }}
+              />
+            </Tooltip>
+          )}
+        </Box>
         {isEditing ? (
           <MessageEditForm
             editText={editText}
@@ -111,16 +130,20 @@ function MessageComponentInner({ message }: MessageProps) {
           </>
         )}
       </div>
-      {(canEditMessage || canRemoveMessage) && !isEditing && (
+      {(canEditMessage || canRemoveMessage || canPinMessage) && !isEditing && (
         <MessageToolbar
           canEdit={canEditMessage}
           canDelete={canRemoveMessage}
+          canPin={canPinMessage}
+          isPinned={isPinned}
           stagedForDelete={stagedForDelete}
           onEdit={handleEditClick}
           onDelete={handleDeleteClick}
           onConfirmDelete={handleConfirmDelete}
           onCancelDelete={handleCancelDelete}
           onEmojiSelect={handleEmojiSelect}
+          onPin={handlePin}
+          onUnpin={handleUnpin}
         />
       )}
     </Container>
@@ -142,6 +165,7 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevMsg.editedAt === nextMsg.editedAt &&
     prevMsg.authorId === nextMsg.authorId &&
     prevMsg.sentAt === nextMsg.sentAt &&
+    prevMsg.pinned === nextMsg.pinned &&
     // Deep compare reactions array
     prevMsg.reactions.length === nextMsg.reactions.length &&
     prevMsg.reactions.every((r, i) =>

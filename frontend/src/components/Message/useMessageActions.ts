@@ -15,6 +15,10 @@ import {
   useAddReactionMutation,
   useRemoveReactionMutation,
 } from "../../features/messages/messagesApiSlice";
+import {
+  usePinMessageMutation,
+  useUnpinMessageMutation,
+} from "../../features/moderation/moderationApiSlice";
 import { logger } from "../../utils/logger";
 
 export interface UseMessageActionsReturn {
@@ -33,6 +37,8 @@ export interface UseMessageActionsReturn {
   handleCancelDelete: () => void;
   handleReactionClick: (emoji: string) => Promise<void>;
   handleEmojiSelect: (emoji: string) => Promise<void>;
+  handlePin: () => Promise<void>;
+  handleUnpin: () => Promise<void>;
 }
 
 /**
@@ -46,6 +52,8 @@ export function useMessageActions(
   const [deleteMessage] = useDeleteMessageMutation();
   const [addReaction] = useAddReactionMutation();
   const [removeReaction] = useRemoveReactionMutation();
+  const [pinMessage] = usePinMessageMutation();
+  const [unpinMessage] = useUnpinMessageMutation();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
@@ -163,6 +171,22 @@ export function useMessageActions(
     }
   }, [message.id, addReaction]);
 
+  const handlePin = useCallback(async () => {
+    try {
+      await pinMessage(message.id).unwrap();
+    } catch (error) {
+      logger.error("Failed to pin message:", error);
+    }
+  }, [message.id, pinMessage]);
+
+  const handleUnpin = useCallback(async () => {
+    try {
+      await unpinMessage(message.id).unwrap();
+    } catch (error) {
+      logger.error("Failed to unpin message:", error);
+    }
+  }, [message.id, unpinMessage]);
+
   return {
     isEditing,
     editText,
@@ -179,5 +203,7 @@ export function useMessageActions(
     handleCancelDelete,
     handleReactionClick,
     handleEmojiSelect,
+    handlePin,
+    handleUnpin,
   };
 }

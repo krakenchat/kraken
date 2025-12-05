@@ -1,16 +1,18 @@
 /**
  * MessageToolbar Component
  *
- * Floating toolbar for message actions (edit, delete, react).
+ * Floating toolbar for message actions (edit, delete, react, pin).
  * Shows on hover with confirmation UI for destructive actions.
  */
 
 import React from "react";
-import { Box, IconButton, Typography } from "@mui/material";
+import { Box, IconButton, Typography, Tooltip } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckIcon from "@mui/icons-material/Check";
 import CancelIcon from "@mui/icons-material/Cancel";
+import PushPinIcon from "@mui/icons-material/PushPin";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import { styled } from "@mui/material/styles";
 import { EmojiPicker } from "./EmojiPicker";
 
@@ -35,23 +37,31 @@ const MessageTools = styled(Box, {
 export interface MessageToolbarProps {
   canEdit: boolean;
   canDelete: boolean;
+  canPin: boolean;
+  isPinned: boolean;
   stagedForDelete: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
   onEmojiSelect: (emoji: string) => void;
+  onPin: () => void;
+  onUnpin: () => void;
 }
 
 export const MessageToolbar: React.FC<MessageToolbarProps> = ({
   canEdit,
   canDelete,
+  canPin,
+  isPinned,
   stagedForDelete,
   onEdit,
   onDelete,
   onConfirmDelete,
   onCancelDelete,
   onEmojiSelect,
+  onPin,
+  onUnpin,
 }) => {
   return (
     <MessageTools
@@ -87,6 +97,17 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
       ) : (
         <>
           <EmojiPicker onEmojiSelect={onEmojiSelect} />
+          {canPin && (
+            <Tooltip title={isPinned ? "Unpin message" : "Pin message"}>
+              <IconButton
+                size="small"
+                onClick={isPinned ? onUnpin : onPin}
+                sx={{ color: isPinned ? "primary.main" : undefined }}
+              >
+                {isPinned ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+          )}
           {canEdit && (
             <IconButton size="small" onClick={onEdit}>
               <EditIcon fontSize="small" />

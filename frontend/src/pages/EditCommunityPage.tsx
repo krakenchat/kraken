@@ -30,6 +30,11 @@ import {
   PrivateChannelMembership,
   RoleManagement,
 } from "../components/Community";
+import {
+  BanListPanel,
+  TimeoutListPanel,
+  ModerationLogsPanel,
+} from "../components/Moderation";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -103,6 +108,12 @@ const EditCommunityPage: React.FC = () => {
     resourceType: "COMMUNITY",
     resourceId: communityId!,
     actions: ["CREATE_CHANNEL"],
+  });
+
+  const { hasPermissions: canViewModeration } = useUserPermissions({
+    resourceType: "COMMUNITY",
+    resourceId: communityId!,
+    actions: ["VIEW_BAN_LIST"],
   });
 
   const {
@@ -242,6 +253,7 @@ const EditCommunityPage: React.FC = () => {
             <Tab label="Channels" {...a11yProps(2)} disabled={!canManageChannels} />
             <Tab label="Private Channels" {...a11yProps(3)} disabled={!canManageChannels} />
             <Tab label="Roles" {...a11yProps(4)} />
+            <Tab label="Moderation" {...a11yProps(5)} disabled={!canViewModeration} />
           </Tabs>
         </Box>
 
@@ -319,6 +331,28 @@ const EditCommunityPage: React.FC = () => {
 
         <TabPanel value={tabValue} index={4}>
           <RoleManagement communityId={communityId!} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={5}>
+          {canViewModeration ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                <Box sx={{ flex: "1 1 300px", minWidth: 300 }}>
+                  <BanListPanel communityId={communityId!} />
+                </Box>
+                <Box sx={{ flex: "1 1 300px", minWidth: 300 }}>
+                  <TimeoutListPanel communityId={communityId!} />
+                </Box>
+              </Box>
+              <Box>
+                <ModerationLogsPanel communityId={communityId!} />
+              </Box>
+            </Box>
+          ) : (
+            <Alert severity="warning">
+              You don't have permission to view moderation tools.
+            </Alert>
+          )}
         </TabPanel>
       </Paper>
     </Root>

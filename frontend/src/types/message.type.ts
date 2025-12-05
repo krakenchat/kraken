@@ -40,4 +40,8 @@ export interface Message {
   sentAt: string;
   editedAt?: string;
   deletedAt?: string;
+  // Pinning fields
+  pinned?: boolean;
+  pinnedAt?: string;
+  pinnedBy?: string;
 }
