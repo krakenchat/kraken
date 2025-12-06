@@ -3,12 +3,12 @@ import {
   Channel as ChannelType,
   ChannelType as ChannelKind,
 } from "../../types/channel.type";
-import { Box } from "@mui/material";
+import { Box, alpha } from "@mui/material";
 import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
-import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
+import TagIcon from "@mui/icons-material/Tag";
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import { styled } from "@mui/material/styles";
 import { useNavigate, useParams } from "react-router-dom";
 import { VoiceChannelUserList } from "../Voice";
@@ -25,23 +25,39 @@ interface ChannelContainerProps extends ListItemProps {
 }
 
 const ChannelName = styled(ListItemText)(({ theme }) => ({
-  fontWeight: 500,
-  fontSize: theme.typography.body2.fontSize,
+  "& .MuiListItemText-primary": {
+    fontWeight: 500,
+    fontSize: theme.typography.body2.fontSize,
+  },
 }));
 
 const ChannelContainer = styled(ListItem, {
   shouldForwardProp: (prop) => prop !== "isSelected",
 })<ChannelContainerProps>(({ theme, isSelected }) => ({
-  padding: theme.spacing(0.5, 2),
+  padding: theme.spacing(0.75, 1.5),
+  marginLeft: theme.spacing(1),
+  marginRight: theme.spacing(1),
+  marginBottom: theme.spacing(0.25),
+  borderRadius: theme.spacing(1),
   display: "flex",
   alignItems: "center",
-  width: "100%",
-  backgroundColor: isSelected ? theme.palette.action.selected : undefined,
-  fontWeight: isSelected ? 600 : undefined,
+  width: "auto",
+  transition: "all 0.15s ease-in-out",
+  backgroundColor: isSelected
+    ? theme.palette.mode === "dark"
+      ? alpha(theme.palette.primary.main, 0.2)
+      : alpha(theme.palette.primary.main, 0.12)
+    : "transparent",
+  color: isSelected ? theme.palette.primary.main : theme.palette.text.secondary,
   "&:hover": {
     backgroundColor: isSelected
-      ? theme.palette.action.selected
-      : theme.palette.action.hover,
+      ? theme.palette.mode === "dark"
+        ? alpha(theme.palette.primary.main, 0.25)
+        : alpha(theme.palette.primary.main, 0.15)
+      : theme.palette.mode === "dark"
+        ? alpha(theme.palette.common.white, 0.08)
+        : alpha(theme.palette.common.black, 0.04),
+    color: isSelected ? theme.palette.primary.main : theme.palette.text.primary,
   },
 }));
 
@@ -102,11 +118,11 @@ export function Channel({ channel }: ChannelProps) {
         sx={{ pl: 2, cursor: "pointer" }}
         onClick={handleClick}
       >
-        <ListItemIcon sx={{ minWidth: 32 }}>
+        <ListItemIcon sx={{ minWidth: 28, color: "inherit" }}>
           {channel.type === ChannelKind.TEXT ? (
-            <ChatBubbleOutlineIcon fontSize="small" />
+            <TagIcon sx={{ fontSize: 18 }} />
           ) : (
-            <VolumeUpOutlinedIcon fontSize="small" />
+            <VolumeUpIcon sx={{ fontSize: 18 }} />
           )}
         </ListItemIcon>
         <ChannelName primary={channel.name} />

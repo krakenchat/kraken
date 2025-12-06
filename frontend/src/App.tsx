@@ -39,6 +39,114 @@ const darkTheme = createTheme({
     dark: true,
     light: true,
   },
+  components: {
+    // Add subtle shadows to Paper components (cards, panels, etc.)
+    MuiPaper: {
+      defaultProps: {
+        elevation: 0,
+      },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          backgroundImage: 'none',
+          ...(theme.palette.mode === 'dark' && {
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }),
+          ...(theme.palette.mode === 'light' && {
+            backgroundColor: '#ffffff',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          }),
+        }),
+      },
+    },
+    // Enhance Card components
+    MuiCard: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          backgroundImage: 'none',
+          transition: 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out',
+          ...(theme.palette.mode === 'dark' && {
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            '&:hover': {
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+            },
+          }),
+          ...(theme.palette.mode === 'light' && {
+            backgroundColor: '#ffffff',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+            '&:hover': {
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            },
+          }),
+        }),
+      },
+    },
+    // Style buttons with more visual feedback
+    MuiButton: {
+      styleOverrides: {
+        contained: {
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          },
+        },
+        outlined: ({ theme }) => ({
+          ...(theme.palette.mode === 'dark' && {
+            borderColor: 'rgba(255, 255, 255, 0.23)',
+            '&:hover': {
+              borderColor: 'rgba(255, 255, 255, 0.4)',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            },
+          }),
+        }),
+      },
+    },
+    // Improve list items with better hover states
+    MuiListItemButton: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          borderRadius: 8,
+          marginBottom: 2,
+          transition: 'background-color 0.15s ease-in-out',
+          ...(theme.palette.mode === 'dark' && {
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            },
+            '&.Mui-selected': {
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.16)',
+              },
+            },
+          }),
+        }),
+      },
+    },
+    // Style chips with subtle backgrounds
+    MuiChip: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          ...(theme.palette.mode === 'dark' && {
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          }),
+        }),
+      },
+    },
+    // Improve drawer styling
+    MuiDrawer: {
+      styleOverrides: {
+        paper: ({ theme }) => ({
+          ...(theme.palette.mode === 'dark' && {
+            backgroundColor: '#1a1a1a',
+            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          }),
+        }),
+      },
+    },
+  },
 });
 
 function App() {

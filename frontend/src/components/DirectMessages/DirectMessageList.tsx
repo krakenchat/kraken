@@ -25,6 +25,7 @@ import { useGetUserDmGroupsQuery, useCreateDmGroupMutation } from "../../feature
 import { useGetAllUsersQuery, useProfileQuery } from "../../features/users/usersSlice";
 import { DirectMessageGroup } from "../../types/direct-message.type";
 import UserAvatar from "../Common/UserAvatar";
+import EmptyState from "../Common/EmptyState";
 
 interface DirectMessageListProps {
   selectedDmGroupId?: string;
@@ -192,11 +193,13 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
             </ListItem>
           ))}
           {dmGroups.length === 0 && (
-            <Box sx={{ p: 3, textAlign: "center" }}>
-              <Typography color="text.secondary">
-                No direct messages yet. Start a conversation!
-              </Typography>
-            </Box>
+            <EmptyState
+              variant="dm"
+              action={{
+                label: "Start a conversation",
+                onClick: () => setShowCreateDialog(true),
+              }}
+            />
           )}
         </List>
       </Box>

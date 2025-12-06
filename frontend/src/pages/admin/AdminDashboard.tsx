@@ -26,21 +26,42 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
-  <Card sx={{ height: "100%" }}>
-    <CardContent>
+  <Card
+    sx={{
+      height: "100%",
+      position: "relative",
+      overflow: "hidden",
+      transition: "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+      "&:hover": {
+        transform: "translateY(-2px)",
+      },
+    }}
+  >
+    {/* Subtle gradient accent at top */}
+    <Box
+      sx={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 4,
+        background: `linear-gradient(90deg, ${color} 0%, ${color}88 100%)`,
+      }}
+    />
+    <CardContent sx={{ pt: 3 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
         <Box
           sx={{
             p: 1.5,
             borderRadius: 2,
-            backgroundColor: `${color}20`,
+            background: `linear-gradient(135deg, ${color}25 0%, ${color}15 100%)`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           {React.cloneElement(icon as React.ReactElement, {
-            sx: { fontSize: 32, color },
+            sx: { fontSize: 28, color },
           })}
         </Box>
         <Box>

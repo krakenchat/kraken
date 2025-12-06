@@ -203,16 +203,24 @@ const DesktopHomePage: React.FC = () => {
           sx={{
             width: "100%",
             maxWidth: 400,
-            padding: 2,
-            borderRadius: 2,
-            boxShadow: 3,
+            borderRadius: 3,
+            overflow: "hidden",
           }}
         >
+          {/* Gradient Banner */}
+          <Box
+            sx={{
+              height: 80,
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            }}
+          />
           <CardContent
             sx={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
+              mt: -5,
+              pb: 3,
             }}
           >
             <Avatar
@@ -224,27 +232,42 @@ const DesktopHomePage: React.FC = () => {
                 marginBottom: 2,
                 backgroundColor: "#1976d2",
                 fontSize: 32,
+                border: 4,
+                borderColor: "background.paper",
               }}
             >
               {!avatarUrl && data.displayName?.charAt(0).toUpperCase()}
             </Avatar>
-            <Typography variant="h5" component="h1" sx={{ marginBottom: 1 }}>
+            <Typography variant="h5" component="h1" fontWeight={600}>
               {data.displayName}
             </Typography>
             <Typography
-              variant="body1"
-              color="textSecondary"
-              sx={{ marginBottom: 1 }}
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 1 }}
             >
               @{data.username}
             </Typography>
-            <Typography
-              variant="body2"
-              color="textSecondary"
-              sx={{ marginBottom: 1 }}
+            <Box
+              sx={{
+                display: "inline-flex",
+                px: 2,
+                py: 0.5,
+                borderRadius: 2,
+                bgcolor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "rgba(255, 255, 255, 0.08)"
+                    : "rgba(0, 0, 0, 0.04)",
+              }}
             >
-              Role: {data.role}
-            </Typography>
+              <Typography
+                variant="caption"
+                fontWeight={600}
+                color="primary"
+              >
+                {data.role}
+              </Typography>
+            </Box>
           </CardContent>
         </Card>
       )}

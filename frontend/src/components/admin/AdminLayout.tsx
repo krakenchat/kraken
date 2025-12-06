@@ -18,7 +18,6 @@ import {
   Groups as CommunitiesIcon,
   Link as InvitesIcon,
   Settings as SettingsIcon,
-  ArrowBack as BackIcon,
 } from "@mui/icons-material";
 
 const DRAWER_WIDTH = 240;
@@ -101,20 +100,6 @@ const AdminLayout: React.FC = () => {
               </ListItemButton>
             </ListItem>
           ))}
-        </List>
-
-        <Divider />
-
-        {/* Back to app */}
-        <List>
-          <ListItem disablePadding>
-            <ListItemButton onClick={() => navigate("/")}>
-              <ListItemIcon>
-                <BackIcon />
-              </ListItemIcon>
-              <ListItemText primary="Back to App" />
-            </ListItemButton>
-          </ListItem>
         </List>
       </Drawer>
 

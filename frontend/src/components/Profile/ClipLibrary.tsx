@@ -30,8 +30,6 @@ import {
   Share,
   Public,
   PublicOff,
-  VideoFile,
-  PlayArrow,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import {
@@ -48,6 +46,7 @@ import { useGetUserDmGroupsQuery } from '../../features/directMessages/directMes
 import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
+import EmptyState from '../Common/EmptyState';
 import type { Community } from '../../types/community.type';
 import type { Channel } from '../../types/channel.type';
 import type { DirectMessageGroup } from '../../types/direct-message.type';
@@ -338,14 +337,14 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
   if (!clips || clips.length === 0) {
     return (
-      <Box py={4} textAlign="center">
-        <VideoFile sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-        <Typography color="text.secondary">
-          {isOwnProfile
-            ? 'No clips in your library yet. Capture a replay while screen sharing to get started!'
-            : 'No public clips to show'}
-        </Typography>
-      </Box>
+      <EmptyState
+        variant="clips"
+        description={
+          isOwnProfile
+            ? 'Capture a replay while screen sharing to save your best moments.'
+            : 'This user has no public clips to show.'
+        }
+      />
     );
   }
 

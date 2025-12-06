@@ -1,19 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { 
-  Box, 
-  CircularProgress, 
-  Alert, 
-  Tabs, 
-  Tab, 
+import {
+  Box,
+  CircularProgress,
+  Alert,
+  Tabs,
+  Tab,
   Paper,
   Typography,
-  Button,
   Container,
   Breadcrumbs,
   Link,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import {
   useGetCommunityByIdQuery,
   useUpdateCommunityMutation,
@@ -221,22 +219,13 @@ const EditCommunityPage: React.FC = () => {
     <Root>
       {/* Header */}
       <Box mb={3}>
-        <Box display="flex" alignItems="center" gap={2} mb={2}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={handleGoBack}
-            color="inherit"
-          >
-            Back to Community
-          </Button>
-        </Box>
-        
         <Breadcrumbs>
-          <Link 
-            component="button" 
-            variant="body1" 
+          <Link
+            component="button"
+            variant="body1"
             onClick={handleGoBack}
-            sx={{ textDecoration: 'none' }}
+            underline="hover"
+            sx={{ cursor: 'pointer' }}
           >
             {community.name}
           </Link>
