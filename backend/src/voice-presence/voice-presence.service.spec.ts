@@ -4,14 +4,14 @@ import { RedisService } from '@/redis/redis.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
 import { LivekitReplayService } from '@/livekit/livekit-replay.service';
-import { UserFactory } from '@/test-utils';
+// UserFactory not currently used but may be needed for future tests
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
 describe('VoicePresenceService', () => {
   let service: VoicePresenceService;
   let redisService: RedisService;
   let websocketService: WebsocketService;
-  let databaseService: DatabaseService;
+  // databaseService retrieved but used indirectly through mocks
 
   const mockRedisClient = {
     pipeline: jest.fn().mockReturnValue({
@@ -73,7 +73,8 @@ describe('VoicePresenceService', () => {
     service = module.get<VoicePresenceService>(VoicePresenceService);
     redisService = module.get<RedisService>(RedisService);
     websocketService = module.get<WebsocketService>(WebsocketService);
-    databaseService = module.get<DatabaseService>(DatabaseService);
+    // databaseService retrieved for DI but accessed through mocks
+    module.get<DatabaseService>(DatabaseService);
   });
 
   afterEach(() => {

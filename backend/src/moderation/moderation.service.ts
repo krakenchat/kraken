@@ -10,7 +10,12 @@ import { RolesService } from '@/roles/roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
-import { ModerationAction, Prisma, CommunityBan, CommunityTimeout } from '@prisma/client';
+import {
+  ModerationAction,
+  Prisma,
+  CommunityBan,
+  CommunityTimeout,
+} from '@prisma/client';
 
 // Role hierarchy (name-based): Owner > Admin > Moderator > Member
 const ROLE_HIERARCHY: Record<string, number> = {
@@ -437,12 +442,16 @@ export class ModerationService {
     );
 
     // Emit WebSocket event to community
-    this.websocketService.sendToRoom(communityId, ServerEvents.TIMEOUT_REMOVED, {
+    this.websocketService.sendToRoom(
       communityId,
-      userId,
-      moderatorId,
-      reason,
-    });
+      ServerEvents.TIMEOUT_REMOVED,
+      {
+        communityId,
+        userId,
+        moderatorId,
+        reason,
+      },
+    );
   }
 
   async isUserTimedOut(
@@ -635,7 +644,9 @@ export class ModerationService {
     }
 
     if (!message.channel) {
-      throw new ForbiddenException('Cannot delete direct messages as moderator');
+      throw new ForbiddenException(
+        'Cannot delete direct messages as moderator',
+      );
     }
 
     if (message.deletedAt) {

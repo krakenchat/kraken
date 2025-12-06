@@ -27,7 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useMobileNavigation } from './MobileNavigationContext';
-import { useGetCommunitiesQuery } from '../../../features/community/communityApiSlice';
+import { useMyCommunitiesQuery } from '../../../features/community/communityApiSlice';
 import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { MOBILE_CONSTANTS, TOUCH_TARGETS, MOBILE_ANIMATIONS } from '../../../utils/breakpoints';
 import type { Community } from '../../../types/community.type';
@@ -126,7 +126,7 @@ const CommunityListSkeleton: React.FC = () => (
 const MobileCommunityDrawer: React.FC = () => {
   const navigate = useNavigate();
   const { state, closeDrawer, navigateToChannels, navigateToDmList } = useMobileNavigation();
-  const { data: communities, isLoading } = useGetCommunitiesQuery();
+  const { data: communities, isLoading } = useMyCommunitiesQuery();
 
   const handleCommunitySelect = (communityId: string) => {
     navigateToChannels(communityId);

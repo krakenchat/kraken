@@ -12,7 +12,7 @@ import { InviteModule } from './invite/invite.module';
 import { CommunityModule } from './community/community.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
 import { RoomsModule } from './rooms/rooms.module';
@@ -74,23 +74,33 @@ import { ModerationModule } from './moderation/moderation.module';
     ReadReceiptsModule,
     NotificationsModule,
     PushNotificationsModule,
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: 1000,
-        limit: 20,
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): ThrottlerModuleOptions => {
+        const isTest = configService.get<string>('NODE_ENV') === 'test';
+        // Much higher limits for E2E tests to avoid rate limiting
+        const multiplier = isTest ? 100 : 1;
+        return {
+          throttlers: [
+            {
+              name: 'short',
+              ttl: 1000,
+              limit: 20 * multiplier,
+            },
+            {
+              name: 'medium',
+              ttl: 10000,
+              limit: 100 * multiplier,
+            },
+            {
+              name: 'long',
+              ttl: 60000,
+              limit: 500 * multiplier,
+            },
+          ],
+        };
       },
-      {
-        name: 'medium',
-        ttl: 10000,
-        limit: 100,
-      },
-      {
-        name: 'long',
-        ttl: 60000,
-        limit: 500,
-      },
-    ]),
+    }),
     ChannelsModule,
     RoomsModule,
     WebsocketModule,
@@ -110,10 +120,15 @@ import { ModerationModule } from './moderation/moderation.module';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    // Conditionally provide ThrottlerGuard - skip in test mode
+    ...(process.env.NODE_ENV === 'test'
+      ? []
+      : [
+          {
+            provide: APP_GUARD,
+            useClass: ThrottlerGuard,
+          },
+        ]),
     WebsocketService,
   ],
 })

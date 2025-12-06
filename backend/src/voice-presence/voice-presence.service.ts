@@ -317,7 +317,7 @@ export class VoicePresenceService {
       if (metadata) {
         const userData = JSON.parse(existingData) as VoicePresenceUser;
         try {
-          const parsedMeta = JSON.parse(metadata);
+          const parsedMeta = JSON.parse(metadata) as { isDeafened?: boolean };
           if (parsedMeta.isDeafened !== undefined) {
             userData.isDeafened = parsedMeta.isDeafened;
             await this.redisService.set(
@@ -349,7 +349,7 @@ export class VoicePresenceService {
     let isDeafened = false;
     if (metadata) {
       try {
-        const parsedMeta = JSON.parse(metadata);
+        const parsedMeta = JSON.parse(metadata) as { isDeafened?: boolean };
         isDeafened = parsedMeta.isDeafened ?? false;
       } catch {
         // Invalid metadata JSON, use default
@@ -443,7 +443,7 @@ export class VoicePresenceService {
     let isDeafened = false;
     if (metadata) {
       try {
-        const parsedMeta = JSON.parse(metadata);
+        const parsedMeta = JSON.parse(metadata) as { isDeafened?: boolean };
         isDeafened = parsedMeta.isDeafened ?? false;
       } catch {
         // Invalid metadata JSON, use default

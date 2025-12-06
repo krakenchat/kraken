@@ -9,7 +9,11 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { createMockDatabase, UserFactory, CommunityFactory, ChannelFactory, MessageFactory } from '@/test-utils';
+import {
+  createMockDatabase,
+  ChannelFactory,
+  MessageFactory,
+} from '@/test-utils';
 import { ModerationAction } from '@prisma/client';
 
 describe('ModerationService', () => {
@@ -57,10 +61,20 @@ describe('ModerationService', () => {
     jest.clearAllMocks();
   });
 
-  const mockAdminRole = { id: '1', name: 'Admin', actions: [] as any[], createdAt: new Date() };
-  const mockMemberRole = { id: '2', name: 'Member', actions: [] as any[], createdAt: new Date() };
+  const mockAdminRole = {
+    id: '1',
+    name: 'Admin',
+    actions: [] as any[],
+    createdAt: new Date(),
+  };
+  const mockMemberRole = {
+    id: '2',
+    name: 'Member',
+    actions: [] as any[],
+    createdAt: new Date(),
+  };
 
-  const createMockUserRoles = (roles: typeof mockAdminRole[]) => ({
+  const createMockUserRoles = (roles: (typeof mockAdminRole)[]) => ({
     userId: 'test-user',
     resourceId: communityId,
     resourceType: 'COMMUNITY' as const,
@@ -81,11 +95,15 @@ describe('ModerationService', () => {
     it('should ban a user successfully', async () => {
       const mockTx = {
         communityBan: { upsert: jest.fn().mockResolvedValue({}) },
-        channelMembership: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+        channelMembership: {
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
         userRoles: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
         membership: { delete: jest.fn().mockResolvedValue({}) },
       };
-      mockDatabase.$transaction.mockImplementation(async (callback) => callback(mockTx));
+      mockDatabase.$transaction.mockImplementation((callback) =>
+        callback(mockTx),
+      );
 
       await service.banUser(communityId, userId, moderatorId, 'spam');
 
@@ -136,13 +154,23 @@ describe('ModerationService', () => {
       const expiresAt = new Date(Date.now() + 86400000); // 1 day from now
       const mockTx = {
         communityBan: { upsert: jest.fn().mockResolvedValue({}) },
-        channelMembership: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+        channelMembership: {
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
         userRoles: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
         membership: { delete: jest.fn().mockResolvedValue({}) },
       };
-      mockDatabase.$transaction.mockImplementation(async (callback) => callback(mockTx));
+      mockDatabase.$transaction.mockImplementation((callback) =>
+        callback(mockTx),
+      );
 
-      await service.banUser(communityId, userId, moderatorId, 'temp ban', expiresAt);
+      await service.banUser(
+        communityId,
+        userId,
+        moderatorId,
+        'temp ban',
+        expiresAt,
+      );
 
       expect(mockTx.communityBan.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -247,13 +275,22 @@ describe('ModerationService', () => {
 
     it('should kick a user successfully', async () => {
       const mockTx = {
-        channelMembership: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+        channelMembership: {
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
         userRoles: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
         membership: { delete: jest.fn().mockResolvedValue({}) },
       };
-      mockDatabase.$transaction.mockImplementation(async (callback) => callback(mockTx));
+      mockDatabase.$transaction.mockImplementation((callback) =>
+        callback(mockTx),
+      );
 
-      await service.kickUser(communityId, userId, moderatorId, 'rule violation');
+      await service.kickUser(
+        communityId,
+        userId,
+        moderatorId,
+        'rule violation',
+      );
 
       expect(mockTx.membership.delete).toHaveBeenCalled();
       expect(mockDatabase.moderationLog.create).toHaveBeenCalledWith(
@@ -289,7 +326,13 @@ describe('ModerationService', () => {
     });
 
     it('should timeout a user successfully', async () => {
-      await service.timeoutUser(communityId, userId, moderatorId, 600, 'cool down');
+      await service.timeoutUser(
+        communityId,
+        userId,
+        moderatorId,
+        600,
+        'cool down',
+      );
 
       expect(mockDatabase.communityTimeout.upsert).toHaveBeenCalled();
       expect(mockDatabase.moderationLog.create).toHaveBeenCalledWith(
@@ -433,7 +476,10 @@ describe('ModerationService', () => {
 
     it('should throw ConflictException when message is already pinned', async () => {
       const channel = ChannelFactory.build({ communityId });
-      const message = MessageFactory.build({ channelId: channel.id, pinned: true });
+      const message = MessageFactory.build({
+        channelId: channel.id,
+        pinned: true,
+      });
       mockDatabase.message.findUnique.mockResolvedValue({
         ...message,
         channel,
@@ -448,7 +494,10 @@ describe('ModerationService', () => {
   describe('unpinMessage', () => {
     it('should unpin a message successfully', async () => {
       const channel = ChannelFactory.build({ communityId });
-      const message = MessageFactory.build({ channelId: channel.id, pinned: true });
+      const message = MessageFactory.build({
+        channelId: channel.id,
+        pinned: true,
+      });
       mockDatabase.message.findUnique.mockResolvedValue({
         ...message,
         channel,
@@ -471,22 +520,28 @@ describe('ModerationService', () => {
 
     it('should throw ConflictException when message is not pinned', async () => {
       const channel = ChannelFactory.build({ communityId });
-      const message = MessageFactory.build({ channelId: channel.id, pinned: false });
+      const message = MessageFactory.build({
+        channelId: channel.id,
+        pinned: false,
+      });
       mockDatabase.message.findUnique.mockResolvedValue({
         ...message,
         channel,
       } as any);
 
-      await expect(service.unpinMessage(message.id, moderatorId)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.unpinMessage(message.id, moderatorId),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
   describe('deleteMessageAsMod', () => {
     it('should soft delete a message successfully', async () => {
       const channel = ChannelFactory.build({ communityId });
-      const message = MessageFactory.build({ channelId: channel.id, deletedAt: null });
+      const message = MessageFactory.build({
+        channelId: channel.id,
+        deletedAt: null,
+      });
       mockDatabase.message.findUnique.mockResolvedValue({
         ...message,
         channel,
@@ -494,7 +549,11 @@ describe('ModerationService', () => {
       mockDatabase.message.update.mockResolvedValue({} as any);
       mockDatabase.moderationLog.create.mockResolvedValue({} as any);
 
-      await service.deleteMessageAsMod(message.id, moderatorId, 'inappropriate');
+      await service.deleteMessageAsMod(
+        message.id,
+        moderatorId,
+        'inappropriate',
+      );
 
       expect(mockDatabase.message.update).toHaveBeenCalledWith({
         where: { id: message.id },
@@ -650,7 +709,11 @@ describe('ModerationService', () => {
     it('should return active bans', async () => {
       const bans = [
         { id: 'ban-1', active: true, expiresAt: null },
-        { id: 'ban-2', active: true, expiresAt: new Date(Date.now() + 86400000) },
+        {
+          id: 'ban-2',
+          active: true,
+          expiresAt: new Date(Date.now() + 86400000),
+        },
       ];
       mockDatabase.communityBan.findMany.mockResolvedValue(bans as any);
 

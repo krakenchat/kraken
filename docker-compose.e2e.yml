@@ -1,0 +1,110 @@
+version: '3.8'
+
+# Docker Compose configuration for E2E tests
+# Uses separate test database to isolate from development data
+
+services:
+  # MongoDB for E2E tests (separate from dev)
+  mongo-test:
+    image: mongo:7.0
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27018:27017"  # Different port to avoid conflicts
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo-test:27017'}]}) }" | mongosh --port 27017 --quiet
+      interval: 5s
+      timeout: 30s
+      start_period: 0s
+      start_interval: 1s
+      retries: 30
+    volumes:
+      - mongo-test-data:/data/db
+    networks:
+      - e2e-network
+
+  # Redis for E2E tests
+  redis-test:
+    image: redis:latest
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - e2e-network
+
+  # Backend service for E2E tests
+  backend-test:
+    build:
+      context: ./backend
+    command: npm run start:dev
+    ports:
+      - "3001:3000"  # Different port to avoid conflicts
+    environment:
+      - NODE_ENV=test
+      - MONGODB_URL=mongodb://mongo-test:27017/kraken_e2e_test?replicaSet=rs0
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - JWT_SECRET=e2e-test-jwt-secret-change-in-production
+      - JWT_REFRESH_SECRET=e2e-test-refresh-secret-change-in-production
+      - SKIP_INVITE_CODE=true  # Allow registration without invite code in tests
+      # LiveKit - placeholder values for E2E (not testing voice/video)
+      - LIVEKIT_URL=wss://e2e-test.livekit.cloud
+      - LIVEKIT_API_KEY=e2e-test-api-key
+      - LIVEKIT_API_SECRET=e2e-test-api-secret
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - e2e-network
+
+  # Frontend service for E2E tests
+  frontend-test:
+    build:
+      context: ./frontend
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "5174:5173"  # Different port to avoid conflicts
+    environment:
+      - NODE_ENV=test
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      # Override vite config for E2E (proxy to backend-test)
+      - ./frontend/vite.config.e2e.ts:/app/vite.config.ts:ro
+    depends_on:
+      - backend-test
+    networks:
+      - e2e-network
+
+  # Playwright test runner
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    volumes:
+      - ./frontend:/app
+      - ./frontend/playwright-report:/app/playwright-report
+      - ./frontend/test-results:/app/test-results
+    working_dir: /app
+    environment:
+      - E2E_BASE_URL=http://frontend-test:5173
+      - CI=true
+    command: npx playwright test --reporter=html
+    depends_on:
+      - frontend-test
+      - backend-test
+    networks:
+      - e2e-network
+
+networks:
+  e2e-network:
+    driver: bridge
+
+volumes:
+  mongo-test-data:

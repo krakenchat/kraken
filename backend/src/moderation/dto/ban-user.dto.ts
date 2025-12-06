@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsDateString } from 'class-validator';
 
 export class BanUserDto {
   @IsString()

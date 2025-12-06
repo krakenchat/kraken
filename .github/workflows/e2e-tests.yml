@@ -1,0 +1,213 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+
+      - name: Start E2E services
+        run: |
+          docker compose -f docker-compose.e2e.yml up -d mongo-test redis-test
+          echo "Waiting for MongoDB..."
+          for i in {1..30}; do
+            if docker compose -f docker-compose.e2e.yml exec -T mongo-test mongosh --eval "rs.status()" > /dev/null 2>&1; then
+              echo "MongoDB is ready!"
+              break
+            fi
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in {1..15}; do
+            if docker compose -f docker-compose.e2e.yml exec -T redis-test redis-cli ping > /dev/null 2>&1; then
+              echo "Redis is ready!"
+              break
+            fi
+            sleep 1
+          done
+          docker compose -f docker-compose.e2e.yml up -d backend-test
+
+      - name: Wait for backend
+        run: |
+          echo "Waiting for backend..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Backend failed to start"
+              docker compose -f docker-compose.e2e.yml logs backend-test --tail=100
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Seed test database
+        run: |
+          echo "Seeding test database..."
+          docker compose -f docker-compose.e2e.yml exec -T backend-test npx ts-node prisma/seed-e2e.ts
+
+      - name: Start frontend
+        run: |
+          docker compose -f docker-compose.e2e.yml up -d frontend-test
+          echo "Waiting for frontend..."
+          for i in {1..30}; do
+            if curl -s http://localhost:5174 > /dev/null 2>&1; then
+              echo "Frontend is ready!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Frontend failed to start"
+              docker compose -f docker-compose.e2e.yml logs frontend-test --tail=50
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Run Playwright tests (Chromium)
+        working-directory: frontend
+        run: npx playwright test --project=chromium
+        env:
+          E2E_BASE_URL: http://localhost:5174
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v
+
+  # Cross-browser tests (runs after chromium passes)
+  e2e-cross-browser:
+    name: E2E (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    needs: e2e
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [firefox, webkit, mobile-chrome, mobile-safari]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+
+      - name: Start E2E services
+        run: |
+          docker compose -f docker-compose.e2e.yml up -d mongo-test redis-test
+          for i in {1..30}; do
+            if docker compose -f docker-compose.e2e.yml exec -T mongo-test mongosh --eval "rs.status()" > /dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          for i in {1..15}; do
+            if docker compose -f docker-compose.e2e.yml exec -T redis-test redis-cli ping > /dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          docker compose -f docker-compose.e2e.yml up -d backend-test
+
+      - name: Wait for backend and seed
+        run: |
+          for i in {1..60}; do
+            if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.e2e.yml exec -T backend-test npx ts-node prisma/seed-e2e.ts
+
+      - name: Start frontend
+        run: |
+          docker compose -f docker-compose.e2e.yml up -d frontend-test
+          for i in {1..30}; do
+            if curl -s http://localhost:5174 > /dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Run Playwright tests (${{ matrix.project }})
+        working-directory: frontend
+        run: npx playwright test --project=${{ matrix.project }}
+        env:
+          E2E_BASE_URL: http://localhost:5174
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results-${{ matrix.project }}
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v
