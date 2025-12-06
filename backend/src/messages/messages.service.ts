@@ -340,6 +340,22 @@ export class MessagesService {
       return [];
     }
 
+    this.logger.log(
+      `Searching messages in channel ${channelId} for query: "${query}"`,
+    );
+
+    // First, let's see how many messages exist in this channel at all
+    const totalInChannel = await this.databaseService.message.count({
+      where: { channelId, deletedAt: null },
+    });
+    this.logger.log(`Total messages in channel: ${totalInChannel}`);
+
+    // Check how many have searchText populated
+    const withSearchText = await this.databaseService.message.count({
+      where: { channelId, deletedAt: null, searchText: { not: null } },
+    });
+    this.logger.log(`Messages with searchText: ${withSearchText}`);
+
     const messages = await this.databaseService.message.findMany({
       where: {
         channelId,
@@ -349,6 +365,8 @@ export class MessagesService {
       take: limit,
       orderBy: { sentAt: 'desc' },
     });
+
+    this.logger.log(`Found ${messages.length} messages matching query "${query}"`);
 
     return this.enrichMessagesWithFileMetadata(messages);
   }

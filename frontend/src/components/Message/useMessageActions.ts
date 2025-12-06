@@ -173,7 +173,7 @@ export function useMessageActions(
 
   const handlePin = useCallback(async () => {
     try {
-      await pinMessage(message.id).unwrap();
+      await pinMessage({ messageId: message.id }).unwrap();
     } catch (error) {
       logger.error("Failed to pin message:", error);
     }
@@ -181,7 +181,7 @@ export function useMessageActions(
 
   const handleUnpin = useCallback(async () => {
     try {
-      await unpinMessage(message.id).unwrap();
+      await unpinMessage({ messageId: message.id }).unwrap();
     } catch (error) {
       logger.error("Failed to unpin message:", error);
     }
