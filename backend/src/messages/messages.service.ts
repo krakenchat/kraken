@@ -359,17 +359,28 @@ export class MessagesService {
       `Debug: Found ${allInChannel.length} messages in channel. Sample searchText values: ${JSON.stringify(allInChannel.map((m) => m.searchText))}`,
     );
 
-    // Use findRaw for direct MongoDB regex query (Prisma contains doesn't work on MongoDB)
-    const messages = await this.databaseService.message.findRaw({
-      filter: {
-        channelId: { $oid: channelId },
-        deletedAt: null,
-        searchText: { $regex: lowerQuery, $options: 'i' },
-      },
-      options: {
-        sort: { sentAt: -1 },
-        limit: limit,
-      },
+    // Debug: Test if any messages have searchText that contains our query
+    const matchingViaContains = allInChannel.filter(
+      (m) => m.searchText && m.searchText.includes(lowerQuery),
+    );
+    this.logger.log(
+      `Debug: ${matchingViaContains.length} of ${allInChannel.length} sample messages would match "${lowerQuery}" via JS includes`,
+    );
+
+    // Use aggregateRaw for direct MongoDB regex query (Prisma contains doesn't work on MongoDB)
+    // We use aggregateRaw instead of findRaw because it handles ObjectId conversion better
+    const messages = await this.databaseService.message.aggregateRaw({
+      pipeline: [
+        {
+          $match: {
+            channelId: { $oid: channelId },
+            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+            searchText: { $regex: lowerQuery, $options: 'i' },
+          },
+        },
+        { $sort: { sentAt: -1 } },
+        { $limit: limit },
+      ],
     });
 
     this.logger.log(`Found ${(messages as any[]).length} messages matching query "${lowerQuery}"`);
