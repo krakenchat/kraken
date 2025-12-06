@@ -165,6 +165,22 @@ export class MessagesController {
     );
   }
 
+  /**
+   * Backfill searchText for messages that don't have it.
+   * Admin-only endpoint for one-time migration.
+   */
+  @Post('admin/backfill-search-text')
+  @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async backfillSearchText(
+    @Query('channelId') channelId?: string,
+  ): Promise<{ updatedCount: number }> {
+    const updatedCount = await this.messagesService.backfillSearchText(
+      channelId,
+    );
+    return { updatedCount };
+  }
+
   @Post('reactions')
   @RequiredActions(RbacActions.CREATE_REACTION)
   @RbacResource({

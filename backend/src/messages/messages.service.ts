@@ -383,10 +383,11 @@ export class MessagesService {
       ],
     });
 
-    this.logger.log(`Found ${(messages as any[]).length} messages matching query "${lowerQuery}"`);
+    const messagesArray = messages as unknown as any[];
+    this.logger.log(`Found ${messagesArray.length} messages matching query "${lowerQuery}"`);
 
     // Convert raw MongoDB documents to Prisma format
-    const formattedMessages = (messages as any[]).map((msg) => ({
+    const formattedMessages = messagesArray.map((msg) => ({
       ...msg,
       id: msg._id.$oid,
       channelId: msg.channelId?.$oid || null,
@@ -415,17 +416,35 @@ export class MessagesService {
     // Convert query to lowercase since searchText is stored lowercase
     const lowerQuery = query.toLowerCase();
 
-    const messages = await this.databaseService.message.findMany({
-      where: {
-        directMessageGroupId,
-        deletedAt: null,
-        searchText: { contains: lowerQuery },
-      },
-      take: limit,
-      orderBy: { sentAt: 'desc' },
+    // Use aggregateRaw for MongoDB regex search
+    const messages = await this.databaseService.message.aggregateRaw({
+      pipeline: [
+        {
+          $match: {
+            directMessageGroupId: { $oid: directMessageGroupId },
+            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+            searchText: { $regex: lowerQuery, $options: 'i' },
+          },
+        },
+        { $sort: { sentAt: -1 } },
+        { $limit: limit },
+      ],
     });
 
-    return this.enrichMessagesWithFileMetadata(messages);
+    // Convert raw MongoDB documents to Prisma format
+    const messagesArray = messages as unknown as any[];
+    const formattedMessages = messagesArray.map((msg) => ({
+      ...msg,
+      id: msg._id.$oid,
+      channelId: msg.channelId?.$oid || null,
+      directMessageGroupId: msg.directMessageGroupId?.$oid || null,
+      sentAt: new Date(msg.sentAt.$date),
+      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
+      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
+      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
+    }));
+
+    return this.enrichMessagesWithFileMetadata(formattedMessages as any);
   }
 
   /**
@@ -466,24 +485,93 @@ export class MessagesService {
       return [];
     }
 
-    const messages = await this.databaseService.message.findMany({
-      where: {
-        channelId: { in: channelIds },
-        deletedAt: null,
-        searchText: { contains: lowerQuery },
-      },
-      take: limit,
-      orderBy: { sentAt: 'desc' },
+    // Use aggregateRaw for MongoDB regex search across multiple channels
+    const messages = await this.databaseService.message.aggregateRaw({
+      pipeline: [
+        {
+          $match: {
+            channelId: { $in: channelIds.map((id) => ({ $oid: id })) },
+            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+            searchText: { $regex: lowerQuery, $options: 'i' },
+          },
+        },
+        { $sort: { sentAt: -1 } },
+        { $limit: limit },
+      ],
     });
 
-    const enrichedMessages =
-      await this.enrichMessagesWithFileMetadata(messages);
+    // Convert raw MongoDB documents to Prisma format
+    const messagesArray = messages as unknown as any[];
+    const formattedMessages = messagesArray.map((msg) => ({
+      ...msg,
+      id: msg._id.$oid,
+      channelId: msg.channelId?.$oid || null,
+      directMessageGroupId: msg.directMessageGroupId?.$oid || null,
+      sentAt: new Date(msg.sentAt.$date),
+      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
+      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
+      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
+    }));
+
+    const enrichedMessages = await this.enrichMessagesWithFileMetadata(
+      formattedMessages as any,
+    );
 
     // Add channel name to each message
     return enrichedMessages.map((msg) => ({
       ...msg,
       channelName: channelMap.get(msg.channelId ?? '') ?? 'Unknown',
     }));
+  }
+
+  /**
+   * Backfill searchText for messages that don't have it.
+   * This is needed for messages created before the search feature was added.
+   * @param channelId - Optional: Only backfill messages in this channel
+   * @returns Number of messages updated
+   */
+  async backfillSearchText(channelId?: string): Promise<number> {
+    this.logger.log(
+      `Starting searchText backfill${channelId ? ` for channel ${channelId}` : ' for all messages'}`,
+    );
+
+    // Find messages without searchText
+    const messagesWithoutSearchText = await this.databaseService.message.findMany({
+      where: {
+        ...(channelId && { channelId }),
+        searchText: null,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        spans: true,
+      },
+      take: 1000, // Process in batches to avoid memory issues
+    });
+
+    this.logger.log(
+      `Found ${messagesWithoutSearchText.length} messages without searchText`,
+    );
+
+    if (messagesWithoutSearchText.length === 0) {
+      return 0;
+    }
+
+    let updatedCount = 0;
+
+    for (const message of messagesWithoutSearchText) {
+      const searchText = this.flattenSpansToText(message.spans as any[]);
+      if (searchText) {
+        await this.databaseService.message.update({
+          where: { id: message.id },
+          data: { searchText },
+        });
+        updatedCount++;
+      }
+    }
+
+    this.logger.log(`Backfilled searchText for ${updatedCount} messages`);
+    return updatedCount;
   }
 
   /**
