@@ -6,7 +6,7 @@ import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
 import MessageSearch from "../Message/MessageSearch";
 import { PinnedMessagesPanel } from "../Moderation";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
@@ -34,6 +34,23 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const { communityId } = useParams<{
     communityId: string;
   }>();
+
+  // Get highlight message ID from URL params
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const highlightMessageId = searchParams.get("highlight");
+
+  // Clear highlight param from URL after a delay (so the flash animation can play)
+  React.useEffect(() => {
+    if (highlightMessageId) {
+      const timer = setTimeout(() => {
+        navigate(`/community/${communityId}/channel/${channelId}`, {
+          replace: true,
+        });
+      }, 3000); // Clear after 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [highlightMessageId, communityId, channelId, navigate]);
 
   const { uploadFile } = useFileUpload();
   const [addAttachment] = useAddAttachmentMutation();
@@ -215,6 +232,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
           memberListComponent={memberListComponent}
           placeholder="Type a message... Use @ for members, @here, @channel"
           emptyStateMessage="No messages yet. Start the conversation!"
+          highlightMessageId={highlightMessageId || undefined}
         />
       </Box>
 

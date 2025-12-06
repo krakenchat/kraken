@@ -24,9 +24,11 @@ import UserAvatar from "../Common/UserAvatar";
 
 interface MessageProps {
   message: MessageType;
+  isAuthor?: boolean;
+  isSearchHighlight?: boolean;
 }
 
-function MessageComponentInner({ message }: MessageProps) {
+function MessageComponentInner({ message, isSearchHighlight }: MessageProps) {
   const { data: author } = useGetUserByIdQuery(message.authorId);
   const { data: currentUser } = useProfileQuery();
 
@@ -77,6 +79,7 @@ function MessageComponentInner({ message }: MessageProps) {
       stagedForDelete={stagedForDelete}
       isDeleting={isDeleting}
       isHighlighted={isMentioned}
+      isSearchHighlight={isSearchHighlight}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
         <UserAvatar user={author} size="small" />
@@ -166,6 +169,7 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevMsg.authorId === nextMsg.authorId &&
     prevMsg.sentAt === nextMsg.sentAt &&
     prevMsg.pinned === nextMsg.pinned &&
+    prevProps.isSearchHighlight === nextProps.isSearchHighlight &&
     // Deep compare reactions array
     prevMsg.reactions.length === nextMsg.reactions.length &&
     prevMsg.reactions.every((r, i) =>

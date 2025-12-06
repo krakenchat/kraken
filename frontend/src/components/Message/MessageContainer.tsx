@@ -11,21 +11,24 @@ interface MessageContainerProps {
   isLoading: boolean;
   error: unknown;
   authorId: string;
-  
+
   // Pagination
   continuationToken?: string;
   isLoadingMore: boolean;
   onLoadMore?: () => Promise<void>;
-  
+
   // Message Input
   messageInput: React.ReactNode;
-  
+
   // Member List
   memberListComponent?: React.ReactNode;
   showMemberList?: boolean;
-  
+
   // Optional customization
   emptyStateMessage?: string;
+
+  // Search highlight
+  highlightMessageId?: string;
 }
 
 const MessageContainer: React.FC<MessageContainerProps> = ({
@@ -40,11 +43,23 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   memberListComponent,
   showMemberList = true,
   emptyStateMessage = "No messages yet. Start the conversation!",
+  highlightMessageId,
 }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const channelRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+
+  // Scroll to highlighted message when it's available
+  useEffect(() => {
+    if (highlightMessageId && messages.length > 0) {
+      const messageEl = messageRefs.current.get(highlightMessageId);
+      if (messageEl) {
+        messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [highlightMessageId, messages]);
 
   const scrollToBottom = useCallback(() => {
     if (channelRef.current) {
@@ -186,11 +201,19 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
         {messages && messages.length > 0 ? (
           messages.map((message) => (
-            <MessageComponent
+            <div
               key={message.id}
-              message={message}
-              isAuthor={message.authorId === authorId}
-            />
+              ref={(el) => {
+                if (el) messageRefs.current.set(message.id, el);
+                else messageRefs.current.delete(message.id);
+              }}
+            >
+              <MessageComponent
+                message={message}
+                isAuthor={message.authorId === authorId}
+                isSearchHighlight={highlightMessageId === message.id}
+              />
+            </div>
           ))
         ) : (
           <div

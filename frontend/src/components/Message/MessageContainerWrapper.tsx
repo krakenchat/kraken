@@ -26,6 +26,7 @@ export interface MessageContainerWrapperProps {
   memberListComponent?: React.ReactNode;
   placeholder?: string;
   emptyStateMessage?: string;
+  highlightMessageId?: string;
 }
 
 const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
@@ -39,6 +40,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
   memberListComponent,
   placeholder = "Type a message...",
   emptyStateMessage = "No messages yet. Start the conversation!",
+  highlightMessageId,
 }) => {
   const { data: user } = useProfileQuery();
   const authorId = user?.id || "";
@@ -78,6 +80,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       messageInput={messageInput}
       memberListComponent={memberListComponent}
       emptyStateMessage={emptyStateMessage}
+      highlightMessageId={highlightMessageId}
     />
   );
 };

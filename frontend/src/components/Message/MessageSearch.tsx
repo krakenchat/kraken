@@ -120,11 +120,12 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
 
   const handleResultClick = useCallback(
     (result: SearchResult) => {
-      // Navigate to the channel/message
+      // Navigate to the channel/message with highlight param
       const targetChannelId = result.channelId;
       if (targetChannelId) {
-        // TODO: Scroll to specific message after navigation
-        navigate(`/community/${communityId}/channel/${targetChannelId}`);
+        navigate(
+          `/community/${communityId}/channel/${targetChannelId}?highlight=${result.id}`
+        );
       }
       onClose();
     },
