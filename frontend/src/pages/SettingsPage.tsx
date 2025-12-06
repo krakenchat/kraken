@@ -13,10 +13,28 @@ import {
   Alert,
   CircularProgress,
   Divider,
+  Switch,
+  FormControlLabel,
+  ToggleButton,
+  ToggleButtonGroup,
+  alpha,
 } from '@mui/material';
-import { Settings, CheckCircle, Error as ErrorIcon } from '@mui/icons-material';
+import {
+  Settings,
+  CheckCircle,
+  Error as ErrorIcon,
+  Palette,
+  DarkMode,
+  LightMode,
+} from '@mui/icons-material';
 import axios from 'axios';
 import NotificationSettings from '../components/Settings/NotificationSettings';
+import {
+  useTheme,
+  accentColors,
+  type AccentColor,
+  type ThemeIntensity,
+} from '../contexts/ThemeContext';
 
 interface HealthResponse {
   status: string;
@@ -24,6 +42,118 @@ interface HealthResponse {
   version: string;
   timestamp: string;
 }
+
+// Appearance Settings Component
+const AppearanceSettings: React.FC = () => {
+  const { settings, setMode, setAccentColor, setIntensity, toggleMode } = useTheme();
+
+  const handleIntensityChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    newIntensity: ThemeIntensity | null
+  ) => {
+    if (newIntensity) {
+      setIntensity(newIntensity);
+    }
+  };
+
+  return (
+    <Card sx={{ mb: 3 }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Palette /> Appearance
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
+
+        {/* Dark/Light Mode Toggle */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Theme Mode
+          </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={settings.mode === 'dark'}
+                onChange={toggleMode}
+                icon={<LightMode sx={{ fontSize: 20 }} />}
+                checkedIcon={<DarkMode sx={{ fontSize: 20 }} />}
+              />
+            }
+            label={settings.mode === 'dark' ? 'Dark Mode' : 'Light Mode'}
+          />
+        </Box>
+
+        {/* Accent Color Selection */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Accent Color
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            {accentColors.map((color) => (
+              <Box
+                key={color.id}
+                onClick={() => setAccentColor(color.id)}
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  backgroundColor: color.primary,
+                  cursor: 'pointer',
+                  border: settings.accentColor === color.id
+                    ? '3px solid white'
+                    : '3px solid transparent',
+                  boxShadow: settings.accentColor === color.id
+                    ? `0 0 0 2px ${color.primary}`
+                    : 'none',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                    boxShadow: `0 4px 12px ${alpha(color.primary, 0.4)}`,
+                  },
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title={color.name}
+              >
+                {settings.accentColor === color.id && (
+                  <CheckCircle sx={{ color: 'white', fontSize: 24 }} />
+                )}
+              </Box>
+            ))}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            {accentColors.find((c) => c.id === settings.accentColor)?.name}
+          </Typography>
+        </Box>
+
+        {/* Theme Intensity */}
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Theme Intensity
+          </Typography>
+          <ToggleButtonGroup
+            value={settings.intensity}
+            exclusive
+            onChange={handleIntensityChange}
+            size="small"
+          >
+            <ToggleButton value="subtle">
+              Subtle
+            </ToggleButton>
+            <ToggleButton value="vibrant">
+              Vibrant
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            {settings.intensity === 'subtle'
+              ? 'Neutral backgrounds with accent color highlights'
+              : 'Accent color permeates more of the interface'}
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
 
 const SettingsPage: React.FC = () => {
   const [isElectron, setIsElectron] = useState(false);
@@ -166,6 +296,9 @@ const SettingsPage: React.FC = () => {
       <Box sx={{ mb: 3 }}>
         <NotificationSettings />
       </Box>
+
+      {/* Appearance Settings Section */}
+      <AppearanceSettings />
 
       {/* Backend Configuration Section (Electron only) */}
       {isElectron && (
