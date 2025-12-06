@@ -656,9 +656,7 @@ export class ModerationService {
       ...message,
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
-        .filter(
-          (file): file is NonNullable<typeof file> => file !== undefined,
-        ),
+        .filter((file): file is NonNullable<typeof file> => file !== undefined),
     }));
   }
 

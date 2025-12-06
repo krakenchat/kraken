@@ -5,6 +5,31 @@ import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
 import { Message, Prisma } from '@prisma/client';
 
+/**
+ * Raw MongoDB document structure returned by aggregateRaw
+ * MongoDB returns ObjectIds and dates in extended JSON format
+ */
+interface RawMongoMessage {
+  _id: { $oid: string };
+  channelId?: { $oid: string } | null;
+  directMessageGroupId?: { $oid: string } | null;
+  authorId: { $oid: string };
+  sentAt: { $date: string };
+  editedAt?: { $date: string } | null;
+  deletedAt?: { $date: string } | null;
+  pinnedAt?: { $date: string } | null;
+  attachments: string[];
+  spans: Prisma.JsonValue;
+  searchText?: string | null;
+  reactions: Prisma.JsonValue;
+  replyToId?: { $oid: string } | null;
+  pendingAttachments?: number | null;
+  pinned?: boolean;
+  pinnedBy?: { $oid: string } | null;
+  deletedBy?: { $oid: string } | null;
+  deletedByReason?: string | null;
+}
+
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
@@ -349,24 +374,6 @@ export class MessagesService {
       `Searching messages in channel ${channelId} for query: "${lowerQuery}"`,
     );
 
-    // Debug: First check how many messages exist in this channel
-    const allInChannel = await this.databaseService.message.findMany({
-      where: { channelId, deletedAt: null },
-      take: 5,
-      select: { id: true, searchText: true },
-    });
-    this.logger.log(
-      `Debug: Found ${allInChannel.length} messages in channel. Sample searchText values: ${JSON.stringify(allInChannel.map((m) => m.searchText))}`,
-    );
-
-    // Debug: Test if any messages have searchText that contains our query
-    const matchingViaContains = allInChannel.filter(
-      (m) => m.searchText && m.searchText.includes(lowerQuery),
-    );
-    this.logger.log(
-      `Debug: ${matchingViaContains.length} of ${allInChannel.length} sample messages would match "${lowerQuery}" via JS includes`,
-    );
-
     // Use aggregateRaw for direct MongoDB regex query (Prisma contains doesn't work on MongoDB)
     // We use aggregateRaw instead of findRaw because it handles ObjectId conversion better
     const messages = await this.databaseService.message.aggregateRaw({
@@ -383,22 +390,15 @@ export class MessagesService {
       ],
     });
 
-    const messagesArray = messages as unknown as any[];
-    this.logger.log(`Found ${messagesArray.length} messages matching query "${lowerQuery}"`);
+    const messagesArray = messages as unknown as RawMongoMessage[];
+    this.logger.log(
+      `Found ${messagesArray.length} messages matching query "${lowerQuery}"`,
+    );
 
     // Convert raw MongoDB documents to Prisma format
-    const formattedMessages = messagesArray.map((msg) => ({
-      ...msg,
-      id: msg._id.$oid,
-      channelId: msg.channelId?.$oid || null,
-      directMessageGroupId: msg.directMessageGroupId?.$oid || null,
-      sentAt: new Date(msg.sentAt.$date),
-      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
-      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
-      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
-    }));
+    const formattedMessages = this.convertRawMongoMessages(messagesArray);
 
-    return this.enrichMessagesWithFileMetadata(formattedMessages as any);
+    return this.enrichMessagesWithFileMetadata(formattedMessages);
   }
 
   /**
@@ -432,19 +432,10 @@ export class MessagesService {
     });
 
     // Convert raw MongoDB documents to Prisma format
-    const messagesArray = messages as unknown as any[];
-    const formattedMessages = messagesArray.map((msg) => ({
-      ...msg,
-      id: msg._id.$oid,
-      channelId: msg.channelId?.$oid || null,
-      directMessageGroupId: msg.directMessageGroupId?.$oid || null,
-      sentAt: new Date(msg.sentAt.$date),
-      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
-      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
-      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
-    }));
+    const messagesArray = messages as unknown as RawMongoMessage[];
+    const formattedMessages = this.convertRawMongoMessages(messagesArray);
 
-    return this.enrichMessagesWithFileMetadata(formattedMessages as any);
+    return this.enrichMessagesWithFileMetadata(formattedMessages);
   }
 
   /**
@@ -501,26 +492,43 @@ export class MessagesService {
     });
 
     // Convert raw MongoDB documents to Prisma format
-    const messagesArray = messages as unknown as any[];
-    const formattedMessages = messagesArray.map((msg) => ({
-      ...msg,
-      id: msg._id.$oid,
-      channelId: msg.channelId?.$oid || null,
-      directMessageGroupId: msg.directMessageGroupId?.$oid || null,
-      sentAt: new Date(msg.sentAt.$date),
-      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
-      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
-      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
-    }));
+    const messagesArray = messages as unknown as RawMongoMessage[];
+    const formattedMessages = this.convertRawMongoMessages(messagesArray);
 
-    const enrichedMessages = await this.enrichMessagesWithFileMetadata(
-      formattedMessages as any,
-    );
+    const enrichedMessages =
+      await this.enrichMessagesWithFileMetadata(formattedMessages);
 
     // Add channel name to each message
     return enrichedMessages.map((msg) => ({
       ...msg,
       channelName: channelMap.get(msg.channelId ?? '') ?? 'Unknown',
+    }));
+  }
+
+  /**
+   * Converts raw MongoDB documents from aggregateRaw to Prisma Message format.
+   * Handles the extended JSON format used by MongoDB for ObjectIds and dates.
+   */
+  private convertRawMongoMessages(rawMessages: RawMongoMessage[]): Message[] {
+    return rawMessages.map((msg) => ({
+      id: msg._id.$oid,
+      channelId: msg.channelId?.$oid ?? null,
+      directMessageGroupId: msg.directMessageGroupId?.$oid ?? null,
+      authorId: msg.authorId.$oid,
+      sentAt: new Date(msg.sentAt.$date),
+      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
+      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
+      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
+      attachments: msg.attachments,
+      spans: msg.spans as Message['spans'],
+      searchText: msg.searchText ?? null,
+      reactions: msg.reactions as Message['reactions'],
+      replyToId: msg.replyToId?.$oid ?? null,
+      pendingAttachments: msg.pendingAttachments ?? null,
+      pinned: msg.pinned ?? false,
+      pinnedBy: msg.pinnedBy?.$oid ?? null,
+      deletedBy: msg.deletedBy?.$oid ?? null,
+      deletedByReason: msg.deletedByReason ?? null,
     }));
   }
 
