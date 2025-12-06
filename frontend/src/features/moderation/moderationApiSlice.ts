@@ -50,13 +50,13 @@ export interface ModerationLog {
 
 export interface PinnedMessage {
   id: string;
-  content: string;
   authorId: string;
   channelId: string;
+  spans: { type: string; text: string | null }[];
+  sentAt: string;
   pinned: boolean;
   pinnedAt: string | null;
   pinnedBy: string | null;
-  createdAt: string;
   author?: {
     id: string;
     username: string;

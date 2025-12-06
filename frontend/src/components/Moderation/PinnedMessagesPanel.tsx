@@ -16,7 +16,6 @@ import {
   Skeleton,
   Alert,
   Tooltip,
-  Paper,
   Divider,
 } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
@@ -25,6 +24,7 @@ import { alpha } from "@mui/material/styles";
 import {
   useGetPinnedMessagesQuery,
   useUnpinMessageMutation,
+  PinnedMessage,
 } from "../../features/moderation/moderationApiSlice";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
@@ -77,6 +77,14 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
     );
   }
 
+  // Helper to extract text from spans
+  const getMessageContent = (message: PinnedMessage): string => {
+    return message.spans
+      .filter((span) => span.text)
+      .map((span) => span.text)
+      .join(" ");
+  };
+
   if (error) {
     return (
       <Box sx={{ p: 2 }}>
@@ -86,10 +94,9 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
   }
 
   return (
-    <Paper
+    <Box
       sx={{
-        width: 320,
-        maxHeight: "80vh",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
       }}
@@ -176,7 +183,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
                           {message.author?.displayName || message.author?.username || "Unknown"}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(message.sentAt), { addSuffix: true })}
                         </Typography>
                       </Box>
                     }
@@ -192,7 +199,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
                           wordBreak: "break-word",
                         }}
                       >
-                        {message.content}
+                        {getMessageContent(message)}
                       </Typography>
                     }
                   />
@@ -202,7 +209,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
           </List>
         )}
       </Box>
-    </Paper>
+    </Box>
   );
 };
 

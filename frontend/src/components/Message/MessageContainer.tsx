@@ -200,21 +200,25 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         </div>
 
         {messages && messages.length > 0 ? (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              ref={(el) => {
-                if (el) messageRefs.current.set(message.id, el);
-                else messageRefs.current.delete(message.id);
-              }}
-            >
-              <MessageComponent
-                message={message}
-                isAuthor={message.authorId === authorId}
-                isSearchHighlight={highlightMessageId === message.id}
-              />
-            </div>
-          ))
+          messages.map((message) => {
+            const isHighlighted = highlightMessageId === message.id;
+            return (
+              <div
+                // Add highlightMessageId to key to force re-mount and replay animation
+                key={isHighlighted ? `${message.id}-highlight` : message.id}
+                ref={(el) => {
+                  if (el) messageRefs.current.set(message.id, el);
+                  else messageRefs.current.delete(message.id);
+                }}
+              >
+                <MessageComponent
+                  message={message}
+                  isAuthor={message.authorId === authorId}
+                  isSearchHighlight={isHighlighted}
+                />
+              </div>
+            );
+          })
         ) : (
           <div
             style={{

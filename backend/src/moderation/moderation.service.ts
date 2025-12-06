@@ -627,13 +627,26 @@ export class ModerationService {
       return [];
     }
 
-    // Collect all unique file IDs from all messages
+    // Collect all unique author IDs and file IDs
+    const authorIds = new Set<string>();
     const allFileIds = new Set<string>();
     messages.forEach((message) => {
+      authorIds.add(message.authorId);
       message.attachments.forEach((fileId) => allFileIds.add(fileId));
     });
 
-    // Fetch all files in a single query
+    // Fetch authors
+    const authors = await this.databaseService.user.findMany({
+      where: { id: { in: Array.from(authorIds) } },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    });
+
+    // Fetch files
     const files =
       allFileIds.size > 0
         ? await this.databaseService.file.findMany({
@@ -648,12 +661,14 @@ export class ModerationService {
           })
         : [];
 
-    // Create a map for quick lookup
+    // Create maps for quick lookup
+    const authorMap = new Map(authors.map((author) => [author.id, author]));
     const fileMap = new Map(files.map((file) => [file.id, file]));
 
-    // Transform messages to include file metadata
+    // Transform messages to include author and file metadata
     return messages.map((message) => ({
       ...message,
+      author: authorMap.get(message.authorId) || null,
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
         .filter((file): file is NonNullable<typeof file> => file !== undefined),

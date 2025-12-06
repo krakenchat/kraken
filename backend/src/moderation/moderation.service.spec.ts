@@ -775,16 +775,45 @@ describe('ModerationService', () => {
   });
 
   describe('getPinnedMessages', () => {
-    it('should return pinned messages for channel', async () => {
+    it('should return pinned messages for channel with authors', async () => {
       const messages = [
-        { id: 'msg-1', pinned: true, deletedAt: null, attachments: [] },
-        { id: 'msg-2', pinned: true, deletedAt: null, attachments: [] },
+        {
+          id: 'msg-1',
+          authorId: 'user-1',
+          pinned: true,
+          deletedAt: null,
+          attachments: [],
+        },
+        {
+          id: 'msg-2',
+          authorId: 'user-2',
+          pinned: true,
+          deletedAt: null,
+          attachments: [],
+        },
+      ];
+      const authors = [
+        {
+          id: 'user-1',
+          username: 'user1',
+          displayName: 'User 1',
+          avatarUrl: null,
+        },
+        {
+          id: 'user-2',
+          username: 'user2',
+          displayName: 'User 2',
+          avatarUrl: null,
+        },
       ];
       mockDatabase.message.findMany.mockResolvedValue(messages as any);
+      mockDatabase.user.findMany.mockResolvedValue(authors as any);
 
       const result = await service.getPinnedMessages(channelId);
 
       expect(result).toHaveLength(2);
+      expect(result[0].author).toEqual(authors[0]);
+      expect(result[1].author).toEqual(authors[1]);
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: {
           channelId,
@@ -792,6 +821,15 @@ describe('ModerationService', () => {
           deletedAt: null,
         },
         orderBy: { pinnedAt: 'desc' },
+      });
+      expect(mockDatabase.user.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['user-1', 'user-2'] } },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
       });
     });
   });
