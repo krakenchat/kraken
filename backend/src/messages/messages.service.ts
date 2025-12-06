@@ -349,19 +349,34 @@ export class MessagesService {
       `Searching messages in channel ${channelId} for query: "${lowerQuery}"`,
     );
 
-    const messages = await this.databaseService.message.findMany({
-      where: {
-        channelId,
+    // Use findRaw for direct MongoDB regex query (Prisma contains doesn't work on MongoDB)
+    const messages = await this.databaseService.message.findRaw({
+      filter: {
+        channelId: { $oid: channelId },
         deletedAt: null,
-        searchText: { contains: lowerQuery },
+        searchText: { $regex: lowerQuery, $options: 'i' },
       },
-      take: limit,
-      orderBy: { sentAt: 'desc' },
+      options: {
+        sort: { sentAt: -1 },
+        limit: limit,
+      },
     });
 
-    this.logger.log(`Found ${messages.length} messages matching query "${lowerQuery}"`);
+    this.logger.log(`Found ${(messages as any[]).length} messages matching query "${lowerQuery}"`);
 
-    return this.enrichMessagesWithFileMetadata(messages);
+    // Convert raw MongoDB documents to Prisma format
+    const formattedMessages = (messages as any[]).map((msg) => ({
+      ...msg,
+      id: msg._id.$oid,
+      channelId: msg.channelId?.$oid || null,
+      directMessageGroupId: msg.directMessageGroupId?.$oid || null,
+      sentAt: new Date(msg.sentAt.$date),
+      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
+      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
+      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
+    }));
+
+    return this.enrichMessagesWithFileMetadata(formattedMessages as any);
   }
 
   /**
