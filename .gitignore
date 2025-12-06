@@ -64,6 +64,9 @@ backend/uploads
 frontend/playwright-report/
 frontend/test-results/
 frontend/playwright/.cache/
+
+# Vite PWA dev artifacts
+frontend/dev-dist/
 .env.*
 backend/coverage
 
