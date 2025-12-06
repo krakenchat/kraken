@@ -116,11 +116,64 @@ export function useChannelWebSocket(communityId: string | undefined) {
       }
     };
 
+    const handleMessagePinned = ({
+      messageId,
+      channelId,
+      pinnedBy,
+      pinnedAt,
+    }: {
+      messageId: string;
+      channelId: string;
+      pinnedBy: string;
+      pinnedAt: string;
+    }) => {
+      const currentMessages = messagesByChannelIdRef.current;
+      const messages = currentMessages[channelId]?.messages || [];
+      const messageToUpdate = messages.find((msg) => msg.id === messageId);
+
+      if (messageToUpdate) {
+        dispatch(
+          updateMessage({
+            channelId,
+            message: { ...messageToUpdate, pinned: true, pinnedBy, pinnedAt },
+          })
+        );
+      }
+    };
+
+    const handleMessageUnpinned = ({
+      messageId,
+      channelId,
+    }: {
+      messageId: string;
+      channelId: string;
+    }) => {
+      const currentMessages = messagesByChannelIdRef.current;
+      const messages = currentMessages[channelId]?.messages || [];
+      const messageToUpdate = messages.find((msg) => msg.id === messageId);
+
+      if (messageToUpdate) {
+        dispatch(
+          updateMessage({
+            channelId,
+            message: {
+              ...messageToUpdate,
+              pinned: false,
+              pinnedBy: null,
+              pinnedAt: null,
+            },
+          })
+        );
+      }
+    };
+
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
     socket.on(ServerEvents.REACTION_ADDED, handleReactionAdded);
     socket.on(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
+    socket.on(ServerEvents.MESSAGE_PINNED, handleMessagePinned);
+    socket.on(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
 
     return () => {
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
@@ -128,6 +181,8 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
       socket.off(ServerEvents.REACTION_ADDED, handleReactionAdded);
       socket.off(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
+      socket.off(ServerEvents.MESSAGE_PINNED, handleMessagePinned);
+      socket.off(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
     };
   }, [socket, communityId, dispatch]); // Removed messagesByChannelId from deps
 

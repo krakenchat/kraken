@@ -17,6 +17,9 @@ export enum ServerEvents {
   VOICE_CHANNEL_USER_UPDATED = "voiceChannelUserUpdated",
   REPLAY_BUFFER_STOPPED = "replayBufferStopped",
   REPLAY_BUFFER_FAILED = "replayBufferFailed",
+  // Moderation Events
+  MESSAGE_PINNED = "messagePinned",
+  MESSAGE_UNPINNED = "messageUnpinned",
   ACK = "ack",
   ERROR = "error",
 }

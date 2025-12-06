@@ -622,7 +622,44 @@ export class ModerationService {
       orderBy: { pinnedAt: 'desc' },
     });
 
-    return messages;
+    // Enrich messages with file metadata (same as MessagesService)
+    if (messages.length === 0) {
+      return [];
+    }
+
+    // Collect all unique file IDs from all messages
+    const allFileIds = new Set<string>();
+    messages.forEach((message) => {
+      message.attachments.forEach((fileId) => allFileIds.add(fileId));
+    });
+
+    // Fetch all files in a single query
+    const files =
+      allFileIds.size > 0
+        ? await this.databaseService.file.findMany({
+            where: { id: { in: Array.from(allFileIds) } },
+            select: {
+              id: true,
+              filename: true,
+              mimeType: true,
+              fileType: true,
+              size: true,
+            },
+          })
+        : [];
+
+    // Create a map for quick lookup
+    const fileMap = new Map(files.map((file) => [file.id, file]));
+
+    // Transform messages to include file metadata
+    return messages.map((message) => ({
+      ...message,
+      attachments: message.attachments
+        .map((fileId) => fileMap.get(fileId))
+        .filter(
+          (file): file is NonNullable<typeof file> => file !== undefined,
+        ),
+    }));
   }
 
   // =========================================

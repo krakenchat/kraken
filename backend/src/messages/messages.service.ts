@@ -17,6 +17,7 @@ export class MessagesService {
   /**
    * Flattens message spans into a single searchable text string.
    * Extracts text from all spans and joins them with spaces.
+   * Returns lowercase for case-insensitive search compatibility with MongoDB.
    */
   private flattenSpansToText(
     spans: { text: string | null }[],
@@ -25,7 +26,8 @@ export class MessagesService {
       .filter((span) => span.text)
       .map((span) => span.text)
       .join(' ')
-      .trim();
+      .trim()
+      .toLowerCase(); // Store as lowercase for MongoDB case-insensitive search
     return text.length > 0 ? text : undefined;
   }
 
@@ -340,33 +342,24 @@ export class MessagesService {
       return [];
     }
 
+    // Convert query to lowercase since searchText is stored lowercase
+    const lowerQuery = query.toLowerCase();
+
     this.logger.log(
-      `Searching messages in channel ${channelId} for query: "${query}"`,
+      `Searching messages in channel ${channelId} for query: "${lowerQuery}"`,
     );
-
-    // First, let's see how many messages exist in this channel at all
-    const totalInChannel = await this.databaseService.message.count({
-      where: { channelId, deletedAt: null },
-    });
-    this.logger.log(`Total messages in channel: ${totalInChannel}`);
-
-    // Check how many have searchText populated
-    const withSearchText = await this.databaseService.message.count({
-      where: { channelId, deletedAt: null, searchText: { not: null } },
-    });
-    this.logger.log(`Messages with searchText: ${withSearchText}`);
 
     const messages = await this.databaseService.message.findMany({
       where: {
         channelId,
         deletedAt: null,
-        searchText: { contains: query, mode: 'insensitive' },
+        searchText: { contains: lowerQuery },
       },
       take: limit,
       orderBy: { sentAt: 'desc' },
     });
 
-    this.logger.log(`Found ${messages.length} messages matching query "${query}"`);
+    this.logger.log(`Found ${messages.length} messages matching query "${lowerQuery}"`);
 
     return this.enrichMessagesWithFileMetadata(messages);
   }
@@ -383,11 +376,14 @@ export class MessagesService {
       return [];
     }
 
+    // Convert query to lowercase since searchText is stored lowercase
+    const lowerQuery = query.toLowerCase();
+
     const messages = await this.databaseService.message.findMany({
       where: {
         directMessageGroupId,
         deletedAt: null,
-        searchText: { contains: query, mode: 'insensitive' },
+        searchText: { contains: lowerQuery },
       },
       take: limit,
       orderBy: { sentAt: 'desc' },
@@ -408,6 +404,9 @@ export class MessagesService {
     if (!query || query.trim().length === 0) {
       return [];
     }
+
+    // Convert query to lowercase since searchText is stored lowercase
+    const lowerQuery = query.toLowerCase();
 
     // Get all channels the user has access to in this community
     const accessibleChannels = await this.databaseService.channel.findMany({
@@ -435,7 +434,7 @@ export class MessagesService {
       where: {
         channelId: { in: channelIds },
         deletedAt: null,
-        searchText: { contains: query, mode: 'insensitive' },
+        searchText: { contains: lowerQuery },
       },
       take: limit,
       orderBy: { sentAt: 'desc' },
