@@ -148,18 +148,13 @@ const MobileCommunityDrawer: React.FC = () => {
     closeDrawer();
   };
 
-  // iOS edge swipe detection
-  const iOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
-
   return (
     <SwipeableDrawer
       anchor="left"
       open={state.isDrawerOpen}
       onClose={closeDrawer}
-      onOpen={() => {}} // Required by SwipeableDrawer but we handle opening elsewhere
-      disableBackdropTransition={!iOS}
-      disableDiscovery={iOS}
-      swipeAreaWidth={MOBILE_CONSTANTS.EDGE_SWIPE_ZONE}
+      onOpen={() => {}} // No-op since we use button to open
+      disableSwipeToOpen // Disable edge swipe to avoid Chrome back gesture conflict
       sx={{
         '& .MuiDrawer-paper': {
           width: MOBILE_CONSTANTS.DRAWER_WIDTH,

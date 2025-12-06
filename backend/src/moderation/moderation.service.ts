@@ -613,24 +613,29 @@ export class ModerationService {
   }
 
   async getPinnedMessages(channelId: string) {
+    // Note: We don't filter on deletedAt here because in MongoDB,
+    // optional fields that don't exist won't match { field: null }.
+    // Instead, deleted messages should have pinned set to false when deleted.
     const messages = await this.databaseService.message.findMany({
       where: {
         channelId,
         pinned: true,
-        deletedAt: null,
       },
       orderBy: { pinnedAt: 'desc' },
     });
 
+    // Filter out deleted messages in memory (handles both null and undefined)
+    const activeMessages = messages.filter((m) => !m.deletedAt);
+
     // Enrich messages with file metadata (same as MessagesService)
-    if (messages.length === 0) {
+    if (activeMessages.length === 0) {
       return [];
     }
 
     // Collect all unique author IDs and file IDs
     const authorIds = new Set<string>();
     const allFileIds = new Set<string>();
-    messages.forEach((message) => {
+    activeMessages.forEach((message) => {
       authorIds.add(message.authorId);
       message.attachments.forEach((fileId) => allFileIds.add(fileId));
     });
@@ -666,7 +671,7 @@ export class ModerationService {
     const fileMap = new Map(files.map((file) => [file.id, file]));
 
     // Transform messages to include author and file metadata
-    return messages.map((message) => ({
+    return activeMessages.map((message) => ({
       ...message,
       author: authorMap.get(message.authorId) || null,
       attachments: message.attachments

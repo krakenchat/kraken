@@ -22,10 +22,13 @@ import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 
 interface ChannelMessageContainerProps {
   channelId: string;
+  /** Hide the built-in header (for mobile which has its own app bar) */
+  hideHeader?: boolean;
 }
 
 const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   channelId,
+  hideHeader = false,
 }) => {
   const { data: user } = useProfileQuery();
   const authorId = user?.id || "";
@@ -175,41 +178,43 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-      {/* Channel Header */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderBottom: 1,
-          borderColor: 'divider',
-          px: 2,
-          py: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          # {channel?.name || 'Channel'}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title={`Pinned messages (${pinnedMessages.length})`}>
-            <IconButton size="small" onClick={() => setPinnedPanelOpen(true)}>
-              <Badge badgeContent={pinnedMessages.length} color="primary" max={99}>
-                <PushPinIcon fontSize="small" />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Search messages">
-            <IconButton size="small" onClick={handleSearchOpen}>
-              <SearchIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <ChannelNotificationMenu
-            channelId={channelId}
-            channelName={channel?.name}
-          />
-        </Box>
-      </Paper>
+      {/* Channel Header - hidden on mobile which has its own app bar */}
+      {!hideHeader && (
+        <Paper
+          elevation={0}
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            px: 2,
+            py: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            # {channel?.name || 'Channel'}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title={`Pinned messages (${pinnedMessages.length})`}>
+              <IconButton size="small" onClick={() => setPinnedPanelOpen(true)}>
+                <Badge badgeContent={pinnedMessages.length} color="primary" max={99}>
+                  <PushPinIcon fontSize="small" />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Search messages">
+              <IconButton size="small" onClick={handleSearchOpen}>
+                <SearchIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <ChannelNotificationMenu
+              channelId={channelId}
+              channelName={channel?.name}
+            />
+          </Box>
+        </Paper>
+      )}
 
       {/* Message Search Popover */}
       <MessageSearch

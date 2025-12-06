@@ -24,6 +24,7 @@ import { MobileChatPanel } from '../Panels/MobileChatPanel';
 import { MobileMessagesPanel } from '../Panels/MobileMessagesPanel';
 import { MobileProfilePanel } from '../Panels/MobileProfilePanel';
 import { NotificationsScreen } from './NotificationsScreen';
+import MobileAppBar from '../MobileAppBar';
 
 interface MobileScreenContainerProps {
   bottomOffset?: number;
@@ -70,25 +71,28 @@ export const MobileScreenContainer: React.FC<MobileScreenContainerProps> = ({
     switch (currentScreen) {
       case 'channels':
         if (!communityId) {
-          // No community selected - show empty state
+          // No community selected - show empty state with app bar
           return (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                gap: 2,
-                p: 3,
-              }}
-            >
-              <Typography variant="h6" color="text.secondary">
-                No Community Selected
-              </Typography>
-              <Typography variant="body2" color="text.secondary" textAlign="center">
-                Swipe from the left edge or tap the menu icon to select a community.
-              </Typography>
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <MobileAppBar title="Home" showDrawerTrigger />
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flex: 1,
+                  gap: 2,
+                  p: 3,
+                }}
+              >
+                <Typography variant="h6" color="text.secondary">
+                  No Community Selected
+                </Typography>
+                <Typography variant="body2" color="text.secondary" textAlign="center">
+                  Tap the menu icon to select a community.
+                </Typography>
+              </Box>
             </Box>
           );
         }

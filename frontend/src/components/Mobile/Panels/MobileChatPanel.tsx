@@ -12,10 +12,17 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  SwipeableDrawer,
+  IconButton,
+  Typography,
+  Badge,
 } from '@mui/material';
 import {
   People as PeopleIcon,
   Settings as SettingsIcon,
+  Close as CloseIcon,
+  PushPin as PushPinIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useGetChannelByIdQuery } from '../../../features/channel/channelApiSlice';
 import { useGetDmGroupQuery } from '../../../features/directMessages/directMessagesApiSlice';
@@ -27,6 +34,9 @@ import { VoiceChannelJoinButton } from '../../Voice/VoiceChannelJoinButton';
 import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import MobileAppBar from '../MobileAppBar';
+import MemberListContainer from '../../Message/MemberListContainer';
+import { useGetPinnedMessagesQuery } from '../../../features/moderation/moderationApiSlice';
+import { PinnedMessagesPanel } from '../../Moderation';
 
 interface MobileChatPanelProps {
   communityId?: string;
@@ -55,6 +65,12 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
 
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
   const [showMemberDrawer, setShowMemberDrawer] = React.useState(false);
+  const [showPinnedDrawer, setShowPinnedDrawer] = React.useState(false);
+
+  // Fetch pinned messages count for badge
+  const { data: pinnedMessages = [] } = useGetPinnedMessagesQuery(channelId || '', {
+    skip: !channelId,
+  });
 
   const isVoiceChannel = channel?.type === ChannelType.VOICE;
   const isConnectedToThisChannel =
@@ -129,7 +145,7 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
 
     // Text channel or DM
     const contextId = channelId || dmGroupId || '';
-    return <ChannelMessageContainer channelId={contextId} />;
+    return <ChannelMessageContainer channelId={contextId} hideHeader />;
   };
 
   return (
@@ -159,6 +175,16 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
                 <ListItemText>View Members</ListItemText>
               </MenuItem>
             )}
+            {channelId && (
+              <MenuItem onClick={() => { setShowPinnedDrawer(true); handleMenuClose(); }}>
+                <ListItemIcon>
+                  <Badge badgeContent={pinnedMessages.length} color="primary" max={99}>
+                    <PushPinIcon fontSize="small" />
+                  </Badge>
+                </ListItemIcon>
+                <ListItemText>Pinned Messages</ListItemText>
+              </MenuItem>
+            )}
             <MenuItem onClick={handleChannelSettings}>
               <ListItemIcon>
                 <SettingsIcon fontSize="small" />
@@ -174,23 +200,93 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
         {renderContent()}
       </Box>
 
-      {/* TODO: Member drawer overlay */}
-      {showMemberDrawer && (
+      {/* Member drawer - slides in from right */}
+      <SwipeableDrawer
+        anchor="right"
+        open={showMemberDrawer}
+        onClose={() => setShowMemberDrawer(false)}
+        onOpen={() => setShowMemberDrawer(true)}
+        disableSwipeToOpen
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: 280,
+            maxWidth: '85vw',
+          },
+        }}
+      >
         <Box
-          onClick={() => setShowMemberDrawer(false)}
           sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            pt: 'env(safe-area-inset-top)',
           }}
         >
-          {/* Member drawer content - implement later */}
+          {/* Header */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              px: 2,
+              py: 1.5,
+              borderBottom: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+              Members
+            </Typography>
+            <IconButton
+              onClick={() => setShowMemberDrawer(false)}
+              size="small"
+              aria-label="Close members"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          {/* Member list */}
+          <Box sx={{ flex: 1, overflow: 'auto' }}>
+            {channelId && channel?.communityId && (
+              <MemberListContainer
+                contextType="channel"
+                contextId={channelId}
+                communityId={channel.communityId}
+              />
+            )}
+            {dmGroupId && (
+              <MemberListContainer
+                contextType="dm"
+                contextId={dmGroupId}
+              />
+            )}
+          </Box>
         </Box>
-      )}
+      </SwipeableDrawer>
+
+      {/* Pinned messages drawer - slides in from right */}
+      <SwipeableDrawer
+        anchor="right"
+        open={showPinnedDrawer}
+        onClose={() => setShowPinnedDrawer(false)}
+        onOpen={() => setShowPinnedDrawer(true)}
+        disableSwipeToOpen
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: 320,
+            maxWidth: '90vw',
+          },
+        }}
+      >
+        {channelId && channel?.communityId && (
+          <PinnedMessagesPanel
+            channelId={channelId}
+            communityId={channel.communityId}
+            onClose={() => setShowPinnedDrawer(false)}
+          />
+        )}
+      </SwipeableDrawer>
     </Box>
   );
 };
