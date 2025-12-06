@@ -349,6 +349,16 @@ export class MessagesService {
       `Searching messages in channel ${channelId} for query: "${lowerQuery}"`,
     );
 
+    // Debug: First check how many messages exist in this channel
+    const allInChannel = await this.databaseService.message.findMany({
+      where: { channelId, deletedAt: null },
+      take: 5,
+      select: { id: true, searchText: true },
+    });
+    this.logger.log(
+      `Debug: Found ${allInChannel.length} messages in channel. Sample searchText values: ${JSON.stringify(allInChannel.map((m) => m.searchText))}`,
+    );
+
     // Use findRaw for direct MongoDB regex query (Prisma contains doesn't work on MongoDB)
     const messages = await this.databaseService.message.findRaw({
       filter: {
