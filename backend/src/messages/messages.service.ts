@@ -525,56 +525,6 @@ export class MessagesService {
   }
 
   /**
-   * Backfill searchText for messages that don't have it.
-   * This is needed for messages created before the search feature was added.
-   * @param channelId - Optional: Only backfill messages in this channel
-   * @returns Number of messages updated
-   */
-  async backfillSearchText(channelId?: string): Promise<number> {
-    this.logger.log(
-      `Starting searchText backfill${channelId ? ` for channel ${channelId}` : ' for all messages'}`,
-    );
-
-    // Find messages without searchText
-    const messagesWithoutSearchText = await this.databaseService.message.findMany({
-      where: {
-        ...(channelId && { channelId }),
-        searchText: null,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        spans: true,
-      },
-      take: 1000, // Process in batches to avoid memory issues
-    });
-
-    this.logger.log(
-      `Found ${messagesWithoutSearchText.length} messages without searchText`,
-    );
-
-    if (messagesWithoutSearchText.length === 0) {
-      return 0;
-    }
-
-    let updatedCount = 0;
-
-    for (const message of messagesWithoutSearchText) {
-      const searchText = this.flattenSpansToText(message.spans as any[]);
-      if (searchText) {
-        await this.databaseService.message.update({
-          where: { id: message.id },
-          data: { searchText },
-        });
-        updatedCount++;
-      }
-    }
-
-    this.logger.log(`Backfilled searchText for ${updatedCount} messages`);
-    return updatedCount;
-  }
-
-  /**
    * Helper to enrich multiple messages with file metadata
    */
   private async enrichMessagesWithFileMetadata(messages: Message[]) {
