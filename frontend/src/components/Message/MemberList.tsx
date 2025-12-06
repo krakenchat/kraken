@@ -199,8 +199,8 @@ const MemberList: React.FC<MemberListProps> = ({
           anchorEl={contextMenu.anchorEl}
           open={Boolean(contextMenu.anchorEl)}
           onClose={handleCloseContextMenu}
-          userId={contextMenu.member.id}
-          username={contextMenu.member.username}
+          targetUserId={contextMenu.member.id}
+          targetUserName={contextMenu.member.username}
           communityId={communityId}
         />
       )}
