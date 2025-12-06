@@ -777,8 +777,8 @@ describe('ModerationService', () => {
   describe('getPinnedMessages', () => {
     it('should return pinned messages for channel', async () => {
       const messages = [
-        { id: 'msg-1', pinned: true, deletedAt: null },
-        { id: 'msg-2', pinned: true, deletedAt: null },
+        { id: 'msg-1', pinned: true, deletedAt: null, attachments: [] },
+        { id: 'msg-2', pinned: true, deletedAt: null, attachments: [] },
       ];
       mockDatabase.message.findMany.mockResolvedValue(messages as any);
 

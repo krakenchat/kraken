@@ -66,7 +66,7 @@ describe('MessagesService', () => {
       expect(mockDatabase.message.create).toHaveBeenCalledWith({
         data: {
           ...createDto,
-          searchText: 'Hello world',
+          searchText: 'hello world', // Lowercase for MongoDB case-insensitive search
         },
       });
     });
@@ -127,7 +127,7 @@ describe('MessagesService', () => {
         where: { id: messageId },
         data: {
           ...updateDto,
-          searchText: 'Updated text',
+          searchText: 'updated text', // Lowercase for MongoDB case-insensitive search
         },
       });
     });
