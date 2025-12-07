@@ -26,7 +26,7 @@ import {
 } from "@mui/material";
 import BlockIcon from "@mui/icons-material/Block";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   useGetBanListQuery,
   useUnbanUserMutation,
@@ -108,6 +108,7 @@ const UnbanDialog: React.FC<UnbanDialogProps> = ({
 };
 
 const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
+  const theme = useTheme();
   const { data: bans, isLoading, error } = useGetBanListQuery(communityId);
   const [unbanUser, { isLoading: isUnbanning }] = useUnbanUserMutation();
   const [selectedBan, setSelectedBan] = useState<CommunityBan | null>(null);
@@ -185,7 +186,7 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
             py: 4,
             px: 2,
             borderRadius: 1,
-            backgroundColor: alpha("#000", 0.02),
+            backgroundColor: theme.palette.semantic.overlay.light,
           }}
         >
           <CheckCircleIcon sx={{ fontSize: 48, color: "success.main", mb: 2 }} />
@@ -205,7 +206,7 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
                   borderRadius: 1,
                   border: 1,
                   borderColor: "divider",
-                  backgroundColor: alpha("#000", 0.02),
+                  backgroundColor: theme.palette.semantic.overlay.light,
                 }}
                 secondaryAction={
                   canUnban && (

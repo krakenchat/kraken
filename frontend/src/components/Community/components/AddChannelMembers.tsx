@@ -11,6 +11,7 @@ import {
   alpha,
   Alert,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { PersonAdd as PersonAddIcon } from "@mui/icons-material";
 import { useCreateChannelMembershipMutation } from "../../../features/membership";
 
@@ -53,6 +54,7 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
   isLoadingCommunityMembers,
   communityMembersError,
 }) => {
+  const theme = useTheme();
   const [createChannelMembership, { isLoading: isAdding }] = useCreateChannelMembershipMutation();
 
   const currentChannelMemberIds = useMemo(() => 
@@ -130,7 +132,7 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
                   borderColor: "divider",
                   borderRadius: 1,
                   "&:hover": {
-                    bgcolor: alpha("#000", 0.02),
+                    bgcolor: theme.palette.semantic.overlay.light,
                   },
                 }}
               >

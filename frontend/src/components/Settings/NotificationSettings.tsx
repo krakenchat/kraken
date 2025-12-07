@@ -23,13 +23,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import {
-  Notifications as NotificationsIcon,
-  NotificationsOff,
-  VolumeUp,
-  VolumeOff,
-  PhoneAndroid as PhoneAndroidIcon,
-} from '@mui/icons-material';
+import { Notifications as NotificationsIcon } from '@mui/icons-material';
 import {
   useGetSettingsQuery,
   useUpdateSettingsMutation,
@@ -201,8 +195,6 @@ export const NotificationSettings: React.FC = () => {
                   checked={isPushSubscribed}
                   onChange={togglePush}
                   disabled={isPushLoading}
-                  icon={<PhoneAndroidIcon />}
-                  checkedIcon={<PhoneAndroidIcon />}
                 />
               }
               label={
@@ -229,8 +221,6 @@ export const NotificationSettings: React.FC = () => {
             <Switch
               checked={formValues.playSound}
               onChange={(e) => handleChange('playSound', e.target.checked)}
-              icon={<VolumeOff />}
-              checkedIcon={<VolumeUp />}
             />
           }
           label={
@@ -252,8 +242,6 @@ export const NotificationSettings: React.FC = () => {
             <Switch
               checked={formValues.doNotDisturb}
               onChange={(e) => handleChange('doNotDisturb', e.target.checked)}
-              icon={<NotificationsIcon />}
-              checkedIcon={<NotificationsOff />}
             />
           }
           label={

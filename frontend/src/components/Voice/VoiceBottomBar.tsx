@@ -12,6 +12,7 @@ import {
   Badge,
   Collapse,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   Mic,
   MicOff,
@@ -48,6 +49,7 @@ import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import { useProfileQuery } from "../../features/users/usersSlice";
 
 export const VoiceBottomBar: React.FC = () => {
+  const theme = useTheme();
   const { state, actions } = useVoiceConnection();
   const screenShare = useScreenShare();
   const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
@@ -245,8 +247,8 @@ export const VoiceBottomBar: React.FC = () => {
                   color: !isMicrophoneEnabled ? "error.contrastText" : "text.primary",
                   minWidth: isMobile ? 48 : "auto",
                   minHeight: isMobile ? 48 : "auto",
-                  border: isMicrophoneEnabled && isCurrentUserSpeaking ? "2px solid #43b581" : "2px solid transparent",
-                  boxShadow: isMicrophoneEnabled && isCurrentUserSpeaking ? "0 0 8px #43b581" : "none",
+                  border: isMicrophoneEnabled && isCurrentUserSpeaking ? `2px solid ${theme.palette.semantic.status.positive}` : "2px solid transparent",
+                  boxShadow: isMicrophoneEnabled && isCurrentUserSpeaking ? `0 0 8px ${theme.palette.semantic.status.positive}` : "none",
                   transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                   "&:hover": {
                     backgroundColor: !isMicrophoneEnabled
@@ -333,7 +335,7 @@ export const VoiceBottomBar: React.FC = () => {
                       sx={{
                         width: 8,
                         height: 8,
-                        color: '#4caf50',
+                        color: theme.palette.semantic.status.positive,
                         animation: 'pulse 1.5s ease-in-out infinite',
                         '@keyframes pulse': {
                           '0%, 100%': { opacity: 1 },

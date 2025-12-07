@@ -17,6 +17,7 @@ import {
   DialogActions,
   Alert,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { useRemoveChannelMembershipMutation } from "../../../features/membership";
 
@@ -48,9 +49,10 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
   error,
   canDeleteMembers,
 }) => {
+  const theme = useTheme();
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [userToRemove, setUserToRemove] = useState<{id: string, name: string} | null>(null);
-  
+
   const [removeChannelMembership, { isLoading: isRemoving }] = useRemoveChannelMembershipMutation();
 
   const handleRemoveMember = (userId: string, username: string) => {
@@ -134,7 +136,7 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
                     borderColor: "divider",
                     borderRadius: 1,
                     "&:hover": {
-                      bgcolor: alpha("#000", 0.02),
+                      bgcolor: theme.palette.semantic.overlay.light,
                     },
                   }}
                 >

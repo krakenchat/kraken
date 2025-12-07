@@ -26,7 +26,7 @@ import {
 } from "@mui/material";
 import TimerIcon from "@mui/icons-material/Timer";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   useGetTimeoutListQuery,
   useRemoveTimeoutMutation,
@@ -124,6 +124,7 @@ const formatTimeRemaining = (expiresAt: string): string => {
 };
 
 const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
+  const theme = useTheme();
   const { data: timeouts, isLoading, error } = useGetTimeoutListQuery(communityId);
   const [removeTimeout, { isLoading: isRemoving }] = useRemoveTimeoutMutation();
   const [selectedTimeout, setSelectedTimeout] = useState<CommunityTimeout | null>(null);
@@ -200,7 +201,7 @@ const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
             py: 4,
             px: 2,
             borderRadius: 1,
-            backgroundColor: alpha("#000", 0.02),
+            backgroundColor: theme.palette.semantic.overlay.light,
           }}
         >
           <CheckCircleIcon sx={{ fontSize: 48, color: "success.main", mb: 2 }} />
@@ -218,7 +219,7 @@ const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
                 borderRadius: 1,
                 border: 1,
                 borderColor: "divider",
-                backgroundColor: alpha("#000", 0.02),
+                backgroundColor: theme.palette.semantic.overlay.light,
               }}
               secondaryAction={
                 canRemoveTimeout && (

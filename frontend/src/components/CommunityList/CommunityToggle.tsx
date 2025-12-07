@@ -42,6 +42,7 @@ const Sidebar = styled(Drawer, {
   "& .MuiDrawer-paper": {
     width: expanded ? (isMobile ? "100vw" : EXPANDED_WIDTH) : COLLAPSED_WIDTH,
     boxSizing: "border-box",
+    background: theme.palette.background.paper,
     borderRight: `1px solid ${theme.palette.divider}`,
     display: "flex",
     alignItems: "center",
@@ -143,7 +144,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
                     mr: 2,
                   }}
                 >
-                  <ChatIcon />
+                  <ChatIcon sx={{ color: "primary.contrastText" }} />
                 </Avatar>
                 <Box sx={{ textAlign: "left", textTransform: "none" }}>
                   <Box sx={{ fontSize: 14, fontWeight: 600, color: "text.primary" }}>
@@ -166,7 +167,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
                     bgcolor: "primary.main",
                   }}
                 >
-                  <ChatIcon />
+                  <ChatIcon sx={{ color: "primary.contrastText" }} />
                 </Avatar>
               </Button>
             </Tooltip>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Paper, Typography, Chip, Divider } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import { useRoom } from '../../hooks/useRoom';
 import { useSpeakingDetection } from '../../hooks/useSpeakingDetection';
 import { useProfileQuery } from '../../features/users/usersSlice';
@@ -13,6 +14,7 @@ import { useProfileQuery } from '../../features/users/usersSlice';
  * - Audio levels
  */
 export const VoiceDebugPanel: React.FC = () => {
+  const theme = useTheme();
   const { room } = useRoom();
   const { speakingMap, isSpeaking } = useSpeakingDetection();
   const { data: currentUser } = useProfileQuery();
@@ -76,8 +78,8 @@ export const VoiceDebugPanel: React.FC = () => {
           p: 2,
           zIndex: 9999,
           minWidth: 300,
-          backgroundColor: 'rgba(0, 0, 0, 0.9)',
-          color: 'white',
+          backgroundColor: alpha(theme.palette.background.paper, 0.95),
+          color: theme.palette.text.primary,
         }}
       >
         <Typography variant="h6" gutterBottom>
@@ -108,8 +110,8 @@ export const VoiceDebugPanel: React.FC = () => {
         zIndex: 9999,
         minWidth: 300,
         maxWidth: 400,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        color: 'white',
+        backgroundColor: alpha(theme.palette.background.paper, 0.95),
+        color: theme.palette.text.primary,
       }}
     >
       <Typography variant="h6" gutterBottom>
@@ -180,7 +182,7 @@ export const VoiceDebugPanel: React.FC = () => {
                 width: 16,
                 height: 16,
                 borderRadius: '50%',
-                backgroundColor: isCurrentUserSpeaking ? '#00ff00' : '#666',
+                backgroundColor: isCurrentUserSpeaking ? theme.palette.semantic.status.positive : theme.palette.action.disabled,
                 transition: 'background-color 0.2s',
               }}
             />
@@ -217,7 +219,7 @@ export const VoiceDebugPanel: React.FC = () => {
                 width: `${audioLevel}%`,
                 height: '100%',
                 backgroundColor:
-                  audioLevel > 50 ? '#00ff00' : audioLevel > 20 ? '#ffff00' : '#ff0000',
+                  audioLevel > 50 ? theme.palette.semantic.status.positive : audioLevel > 20 ? theme.palette.warning.main : theme.palette.semantic.status.negative,
                 transition: 'width 0.1s',
               }}
             />

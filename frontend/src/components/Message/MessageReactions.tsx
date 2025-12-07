@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Chip } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import type { Reaction } from '../../types/message.type';
 import { useProfileQuery } from '../../features/users/usersSlice';
 import { ReactionTooltip } from './ReactionTooltip';
@@ -11,13 +12,14 @@ interface MessageReactionsProps {
 }
 
 // Component to display user info for a single reaction
-const SingleReactionChip: React.FC<{ 
-  reaction: Reaction; 
-  userHasReacted: boolean; 
-  onReactionClick: (emoji: string) => void 
+const SingleReactionChip: React.FC<{
+  reaction: Reaction;
+  userHasReacted: boolean;
+  onReactionClick: (emoji: string) => void
 }> = ({ reaction, userHasReacted, onReactionClick }) => {
+  const theme = useTheme();
   const count = reaction.userIds.length;
-  
+
   return (
     <ReactionTooltip userIds={reaction.userIds}>
       <Chip
@@ -30,24 +32,24 @@ const SingleReactionChip: React.FC<{
           fontSize: '13px',
           fontWeight: 500,
           cursor: 'pointer',
-          backgroundColor: userHasReacted 
-            ? 'rgba(88, 101, 242, 0.15)' // Discord-like blue
-            : 'rgba(255, 255, 255, 0.08)', // Subtle background
-          color: userHasReacted 
-            ? 'rgb(88, 101, 242)' // Discord blue
+          backgroundColor: userHasReacted
+            ? alpha(theme.palette.primary.main, 0.15)
+            : theme.palette.semantic.overlay.medium,
+          color: userHasReacted
+            ? theme.palette.primary.main
             : 'text.primary',
-          border: userHasReacted 
-            ? '1px solid rgba(88, 101, 242, 0.3)'
-            : '1px solid rgba(255, 255, 255, 0.15)',
+          border: userHasReacted
+            ? `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
+            : `1px solid ${theme.palette.divider}`,
           borderRadius: '12px',
           transition: 'all 0.15s ease',
           '&:hover': {
-            backgroundColor: userHasReacted 
-              ? 'rgba(88, 101, 242, 0.25)'
-              : 'rgba(255, 255, 255, 0.12)',
-            borderColor: userHasReacted 
-              ? 'rgba(88, 101, 242, 0.5)'
-              : 'rgba(255, 255, 255, 0.25)',
+            backgroundColor: userHasReacted
+              ? alpha(theme.palette.primary.main, 0.25)
+              : theme.palette.semantic.overlay.heavy,
+            borderColor: userHasReacted
+              ? alpha(theme.palette.primary.main, 0.5)
+              : theme.palette.divider,
             transform: 'scale(1.05)',
           },
           '&:active': {

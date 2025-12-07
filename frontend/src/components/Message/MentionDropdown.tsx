@@ -273,7 +273,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
           px: 2,
           py: 1,
           borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          background: alpha(theme.palette.background.default, 0.3),
+          background: alpha(theme.palette.background.paper, 0.3),
         }}
       >
         <Typography

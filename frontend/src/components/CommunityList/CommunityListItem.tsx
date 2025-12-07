@@ -5,6 +5,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { Community } from "../../types/community.type";
 import { Button } from "@mui/material";
+import { useTheme, alpha } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 
@@ -15,14 +16,19 @@ interface CommunityListItemProps {
 }
 
 // Deterministic hash to color function
-function stringToColor(str: string): string {
+function stringToColor(str: string): { bg: string; text: string } {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   // Generate color in HSL for better distribution
   const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 65%, 55%)`;
+  const saturation = 65;
+  const lightness = 45; // Slightly darker for better contrast with white text
+  return {
+    bg: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+    text: '#ffffff', // White text contrasts well with 45% lightness backgrounds
+  };
 }
 
 function getCommunityAvatar(community: Community): string {
@@ -41,6 +47,7 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
   isExpanded,
   selected = false,
 }) => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const { blobUrl: avatarUrl } = useAuthenticatedImage(community.avatar);
   const { blobUrl: bannerUrl } = useAuthenticatedImage(community.banner);
@@ -66,17 +73,18 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
           overflow: "hidden",
           padding: "8px",
           transition: "background 0.2s, box-shadow 0.2s",
-          background: selected ? "rgba(25, 118, 210, 0.12)" : undefined,
-          boxShadow: selected ? "0 0 0 2px #1976d2" : undefined,
+          background: selected ? alpha(theme.palette.primary.main, 0.12) : undefined,
+          boxShadow: selected ? `0 0 0 2px ${theme.palette.primary.main}` : undefined,
         }}
       >
         <Avatar
           sx={{
             width: 48,
             height: 48,
-            bgcolor: !community.avatar
-              ? stringToColor(community.id)
-              : undefined,
+            ...(!community.avatar && {
+              bgcolor: stringToColor(community.id).bg,
+              color: stringToColor(community.id).text,
+            }),
             fontWeight: 700,
             fontSize: 24,
             ml: isExpanded ? 0 : "auto",

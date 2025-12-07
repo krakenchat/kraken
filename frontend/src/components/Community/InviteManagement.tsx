@@ -19,6 +19,7 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { 
   Delete as DeleteIcon, 
   Add as AddIcon, 
@@ -38,6 +39,7 @@ interface InviteManagementProps {
 }
 
 const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
+  const theme = useTheme();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [inviteToDelete, setInviteToDelete] = useState<InstanceInvite | null>(null);
@@ -199,7 +201,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
                       borderRadius: 1,
                       bgcolor: disabled ? alpha("#f44336", 0.05) : "transparent",
                       "&:hover": {
-                        bgcolor: disabled ? alpha("#f44336", 0.1) : alpha("#000", 0.02),
+                        bgcolor: disabled ? alpha("#f44336", 0.1) : theme.palette.semantic.overlay.light,
                       },
                     }}
                   >

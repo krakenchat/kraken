@@ -9,6 +9,7 @@ import {
   Fade,
   Grid,
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
   Mic,
   MicOff,
@@ -69,6 +70,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
   isPinned = false,
   isSpotlighted = false,
 }) => {
+  const theme = useTheme();
   const videoRef = useRef<HTMLVideoElement>(null);
   const screenRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -190,7 +192,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
             bottom: 0,
             left: 0,
             right: 0,
-            background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+            background: `linear-gradient(transparent, ${alpha(theme.palette.background.paper, 0.85)})`,
             p: 1,
             display: 'flex',
             alignItems: 'center',
@@ -220,7 +222,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
                 width: 24,
                 height: 24,
                 borderRadius: '50%',
-                backgroundColor: hasAudio ? 'rgba(76, 175, 80, 0.8)' : 'rgba(244, 67, 54, 0.8)',
+                backgroundColor: hasAudio ? alpha(theme.palette.semantic.status.positive, 0.8) : alpha(theme.palette.semantic.status.negative, 0.8),
               }}
             >
               {hasAudio ? (
@@ -239,7 +241,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
                 width: 24,
                 height: 24,
                 borderRadius: '50%',
-                backgroundColor: (hasVideo || hasScreen) ? 'rgba(76, 175, 80, 0.8)' : 'rgba(244, 67, 54, 0.8)',
+                backgroundColor: (hasVideo || hasScreen) ? alpha(theme.palette.semantic.status.positive, 0.8) : alpha(theme.palette.semantic.status.negative, 0.8),
               }}
             >
               {hasScreen ? (
@@ -269,12 +271,12 @@ const VideoTile: React.FC<VideoTileProps> = ({
           {onPin && (
             <IconButton
               sx={{
-                backgroundColor: isPinned ? 'rgba(76, 175, 80, 0.8)' : 'rgba(0,0,0,0.5)',
-                color: 'white',
+                backgroundColor: isPinned ? alpha(theme.palette.semantic.status.positive, 0.8) : alpha(theme.palette.background.paper, 0.5),
+                color: theme.palette.common.white,
                 width: 32,
                 height: 32,
                 '&:hover': {
-                  backgroundColor: isPinned ? 'rgba(76, 175, 80, 1)' : 'rgba(0,0,0,0.7)',
+                  backgroundColor: isPinned ? theme.palette.semantic.status.positive : alpha(theme.palette.background.paper, 0.7),
                 },
               }}
               size="small"
@@ -291,12 +293,12 @@ const VideoTile: React.FC<VideoTileProps> = ({
           {onToggleFullscreen && (
             <IconButton
               sx={{
-                backgroundColor: isSpotlighted ? 'rgba(76, 175, 80, 0.8)' : 'rgba(0,0,0,0.5)',
-                color: 'white',
+                backgroundColor: isSpotlighted ? alpha(theme.palette.semantic.status.positive, 0.8) : alpha(theme.palette.background.paper, 0.5),
+                color: theme.palette.common.white,
                 width: 32,
                 height: 32,
                 '&:hover': {
-                  backgroundColor: isSpotlighted ? 'rgba(76, 175, 80, 1)' : 'rgba(0,0,0,0.7)',
+                  backgroundColor: isSpotlighted ? theme.palette.semantic.status.positive : alpha(theme.palette.background.paper, 0.7),
                 },
               }}
               size="small"
@@ -321,7 +323,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 0.5,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backgroundColor: alpha(theme.palette.background.paper, 0.7),
             borderRadius: 1,
             px: 1,
             py: 0.5,
@@ -331,7 +333,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
             sx={{
               width: 8,
               height: 8,
-              color: '#4caf50',
+              color: theme.palette.semantic.status.positive,
               animation: 'pulse 1.5s ease-in-out infinite',
               '@keyframes pulse': {
                 '0%, 100%': { opacity: 1 },
@@ -374,6 +376,7 @@ interface VideoTilesProps {
 }
 
 export const VideoTiles: React.FC<VideoTilesProps> = () => {
+  const theme = useTheme();
   const { state } = useVoiceConnection();
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
@@ -732,7 +735,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             justifyContent: 'flex-end',
             alignItems: 'center',
             p: 1,
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            borderBottom: `1px solid ${theme.palette.divider}`,
             minHeight: GRID_CONSTANTS.HEADER_HEIGHT,
             flexShrink: 0
           }}
@@ -744,10 +747,10 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                 size="small"
                 onClick={() => setLayoutMode('grid')}
                 sx={{
-                  backgroundColor: layoutMode === 'grid' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
-                  color: 'white',
+                  backgroundColor: layoutMode === 'grid' ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: layoutMode === 'grid' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
+                    backgroundColor: layoutMode === 'grid' ? theme.palette.primary.main : theme.palette.action.selected,
                   },
                 }}
               >
@@ -760,10 +763,10 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                 size="small"
                 onClick={() => setLayoutMode('sidebar')}
                 sx={{
-                  backgroundColor: layoutMode === 'sidebar' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
-                  color: 'white',
+                  backgroundColor: layoutMode === 'sidebar' ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: layoutMode === 'sidebar' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
+                    backgroundColor: layoutMode === 'sidebar' ? theme.palette.primary.main : theme.palette.action.selected,
                   },
                 }}
               >
@@ -776,10 +779,10 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                 size="small"
                 onClick={() => setLayoutMode('spotlight')}
                 sx={{
-                  backgroundColor: layoutMode === 'spotlight' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.1)',
-                  color: 'white',
+                  backgroundColor: layoutMode === 'spotlight' ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: layoutMode === 'spotlight' ? 'rgba(76, 175, 80, 1)' : 'rgba(255,255,255,0.2)',
+                    backgroundColor: layoutMode === 'spotlight' ? theme.palette.primary.main : theme.palette.action.selected,
                   },
                 }}
               >

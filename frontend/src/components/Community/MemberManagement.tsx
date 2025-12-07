@@ -17,6 +17,7 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon } from "@mui/icons-material";
 import {
   useGetMembersForCommunityQuery,
@@ -33,6 +34,7 @@ interface MemberManagementProps {
 }
 
 const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
+  const theme = useTheme();
   const usersPerPage = 10;
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [userToRemove, setUserToRemove] = useState<{id: string, name: string} | null>(null);
@@ -160,7 +162,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
                     borderColor: "divider",
                     borderRadius: 1,
                     "&:hover": {
-                      bgcolor: alpha("#000", 0.02),
+                      bgcolor: theme.palette.semantic.overlay.light,
                     },
                   }}
                 >
@@ -263,7 +265,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
                           borderRadius: 1,
                           opacity: isAlreadyMember ? 0.5 : 1,
                           "&:hover": !isAlreadyMember ? {
-                            bgcolor: alpha("#000", 0.02),
+                            bgcolor: theme.palette.semantic.overlay.light,
                           } : {},
                         }}
                       >

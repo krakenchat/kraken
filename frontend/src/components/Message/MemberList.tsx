@@ -10,7 +10,7 @@ import {
   Skeleton,
   Alert,
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import UserAvatar from "../Common/UserAvatar";
 import { UserModerationMenu } from "../Moderation";
 
@@ -56,6 +56,7 @@ const MemberList: React.FC<MemberListProps> = ({
   maxHeight = 400,
   communityId,
 }) => {
+  const theme = useTheme();
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     anchorEl: null,
     member: null,
@@ -132,7 +133,7 @@ const MemberList: React.FC<MemberListProps> = ({
                     py: 0.5,
                     cursor: communityId ? "context-menu" : "default",
                     "&:hover": {
-                      backgroundColor: alpha("#000", 0.02),
+                      backgroundColor: theme.palette.semantic.overlay.light,
                     },
                   }}
                 >

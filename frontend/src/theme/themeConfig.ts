@@ -1,6 +1,51 @@
 import { createTheme, Theme, alpha } from '@mui/material/styles';
 import type { ThemeMode, AccentColor, ThemeIntensity } from './constants';
 
+// Extend MUI theme with custom semantic colors
+declare module '@mui/material/styles' {
+  interface Palette {
+    semantic: {
+      status: {
+        positive: string;  // Green - for speaking, enabled, success states
+        negative: string;  // Red - for muted, disabled, error states
+      };
+      overlay: {
+        light: string;   // Subtle backgrounds, hover states
+        medium: string;  // Stronger backgrounds
+        heavy: string;   // Scrollbars, heavy overlays
+      };
+    };
+  }
+  interface PaletteOptions {
+    semantic?: {
+      status?: {
+        positive?: string;
+        negative?: string;
+      };
+      overlay?: {
+        light?: string;
+        medium?: string;
+        heavy?: string;
+      };
+    };
+  }
+}
+
+// Helper to blend two hex colors
+function blendColors(color1: string, color2: string, weight: number): string {
+  const hex = (c: string) => parseInt(c, 16);
+  const r1 = hex(color1.slice(1, 3));
+  const g1 = hex(color1.slice(3, 5));
+  const b1 = hex(color1.slice(5, 7));
+  const r2 = hex(color2.slice(1, 3));
+  const g2 = hex(color2.slice(3, 5));
+  const b2 = hex(color2.slice(5, 7));
+  const r = Math.round(r1 * weight + r2 * (1 - weight));
+  const g = Math.round(g1 * weight + g2 * (1 - weight));
+  const b = Math.round(b1 * weight + b2 * (1 - weight));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
 // Accent color palettes
 const accentPalettes = {
   teal: {
@@ -69,6 +114,20 @@ export function generateTheme(
   const isDark = mode === 'dark';
   const isVibrant = intensity === 'vibrant';
 
+  // Semantic colors that adapt to light/dark mode
+  // Simplified to just status indicators and overlay levels
+  const semanticColors = {
+    status: {
+      positive: '#22c55e', // Green - for speaking, enabled, success states
+      negative: '#ef4444', // Red - for muted, disabled, error states
+    },
+    overlay: {
+      light: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+      medium: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+      heavy: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+    },
+  };
+
   return createTheme({
     palette: {
       mode,
@@ -84,6 +143,7 @@ export function generateTheme(
         paper: base.background.paper,
       },
       text: base.text,
+      semantic: semanticColors,
     },
     components: {
       // Paper components
@@ -95,7 +155,10 @@ export function generateTheme(
           root: {
             backgroundImage: 'none',
             backgroundColor: base.background.paper,
-            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.2 : 0.1)}`,
+            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.25 : 0.1)}`,
+            ...(isVibrant && {
+              boxShadow: `0 0 0 1px ${alpha(accent.primary, 0.05)} inset`,
+            }),
           },
         },
       },
@@ -106,12 +169,18 @@ export function generateTheme(
           root: {
             backgroundImage: 'none',
             backgroundColor: base.background.paper,
-            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.2 : 0.08)}`,
-            transition: 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out',
+            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.3 : 0.08)}`,
+            transition: 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out, border-color 0.2s ease-in-out',
+            ...(isVibrant && {
+              boxShadow: `0 2px 12px ${alpha(accent.primary, 0.12)}`,
+            }),
             '&:hover': {
               boxShadow: isDark
-                ? `0 4px 20px ${alpha(accent.primary, isVibrant ? 0.2 : 0.1)}`
-                : `0 4px 16px rgba(0, 0, 0, 0.12)`,
+                ? `0 4px 24px ${alpha(accent.primary, isVibrant ? 0.3 : 0.1)}`
+                : `0 4px 20px ${alpha(accent.primary, isVibrant ? 0.2 : 0.08)}`,
+              ...(isVibrant && {
+                borderColor: alpha(accent.primary, 0.5),
+              }),
             },
           },
         },
@@ -179,12 +248,13 @@ export function generateTheme(
       MuiDrawer: {
         styleOverrides: {
           paper: {
-            backgroundColor: isVibrant
-              ? alpha(accent.dark, isDark ? 0.1 : 0.05)
-              : base.background.paper,
-            borderRight: `1px solid ${alpha(accent.primary, isVibrant ? 0.2 : 0.08)}`,
-            ...(isVibrant && isDark && {
-              background: `linear-gradient(180deg, ${alpha(accent.dark, 0.15)} 0%, ${base.background.paper} 100%)`,
+            backgroundImage: 'none',
+            backgroundColor: base.background.paper,
+            borderRight: `1px solid ${alpha(accent.primary, isVibrant ? 0.4 : 0.08)}`,
+            ...(isVibrant && {
+              background: isDark
+                ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.paper, 0.4)} 0%, ${base.background.paper} 100%)`
+                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.25)} 0%, ${base.background.paper} 100%)`,
             }),
           },
         },
@@ -195,11 +265,11 @@ export function generateTheme(
         styleOverrides: {
           root: {
             backgroundColor: isDark ? '#151820' : '#ffffff',
-            borderBottom: `1px solid ${alpha(accent.primary, isVibrant ? 0.25 : 0.1)}`,
+            borderBottom: `1px solid ${alpha(accent.primary, isVibrant ? 0.45 : 0.1)}`,
             ...(isVibrant && {
               background: isDark
-                ? `linear-gradient(90deg, #151820 0%, ${alpha(accent.dark, 0.2)} 100%)`
-                : `linear-gradient(90deg, #ffffff 0%, ${alpha(accent.light, 0.1)} 100%)`,
+                ? `linear-gradient(90deg, #151820 0%, ${blendColors(accent.dark, '#151820', 0.45)} 100%)`
+                : `linear-gradient(90deg, #ffffff 0%, ${blendColors(accent.primary, '#ffffff', 0.25)} 100%)`,
             }),
           },
         },
@@ -344,8 +414,10 @@ export function generateTheme(
         styleOverrides: {
           body: {
             backgroundColor: base.background.default,
-            ...(isVibrant && isDark && {
-              background: `linear-gradient(180deg, ${alpha(accent.dark, 0.08)} 0%, ${base.background.default} 300px)`,
+            ...(isVibrant && {
+              background: isDark
+                ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.default, 0.2)} 0%, ${base.background.default} 500px)`
+                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.default, 0.15)} 0%, ${base.background.default} 500px)`,
               backgroundAttachment: 'fixed',
             }),
           },

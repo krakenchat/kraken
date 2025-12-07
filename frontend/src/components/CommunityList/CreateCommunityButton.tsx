@@ -4,6 +4,7 @@ import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { Button } from "@mui/material";
+import { useTheme, alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 
 interface CreateCommunityButtonProps {
@@ -15,6 +16,8 @@ const CreateCommunityButton: React.FC<CreateCommunityButtonProps> = ({
   isExpanded,
   onClick,
 }) => {
+  const theme = useTheme();
+
   const content = (
     <Button onClick={onClick} variant="text" sx={{ width: "90%", padding: 0 }}>
       <Box
@@ -27,11 +30,11 @@ const CreateCommunityButton: React.FC<CreateCommunityButtonProps> = ({
           overflow: "hidden",
           padding: "8px",
           transition: "background 0.2s, box-shadow 0.2s",
-          background: "rgba(128, 128, 128, 0.12)",
-          border: "2px dashed rgba(128, 128, 128, 0.3)",
+          background: alpha(theme.palette.text.secondary, 0.12),
+          border: `2px dashed ${alpha(theme.palette.text.secondary, 0.3)}`,
           "&:hover": {
-            background: "rgba(128, 128, 128, 0.2)",
-            border: "2px dashed rgba(128, 128, 128, 0.5)",
+            background: alpha(theme.palette.text.secondary, 0.2),
+            border: `2px dashed ${alpha(theme.palette.text.secondary, 0.5)}`,
           },
         }}
       >
@@ -39,14 +42,14 @@ const CreateCommunityButton: React.FC<CreateCommunityButtonProps> = ({
           sx={{
             width: 48,
             height: 48,
-            bgcolor: "rgba(128, 128, 128, 0.3)",
+            bgcolor: "action.hover",
             ml: isExpanded ? 0 : "auto",
             mr: isExpanded ? 2 : "auto",
             zIndex: 1,
             transition: "box-shadow 0.2s",
           }}
         >
-          <AddIcon sx={{ color: "text.secondary", fontSize: 24 }} />
+          <AddIcon sx={{ color: "text.primary", fontSize: 24 }} />
         </Avatar>
         {isExpanded && (
           <Box

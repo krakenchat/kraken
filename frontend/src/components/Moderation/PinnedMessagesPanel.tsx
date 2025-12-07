@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import CloseIcon from "@mui/icons-material/Close";
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   useGetPinnedMessagesQuery,
   useUnpinMessageMutation,
@@ -44,6 +44,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
   onMessageClick,
   onClose,
 }) => {
+  const theme = useTheme();
   const { data: pinnedMessages, isLoading, error } = useGetPinnedMessagesQuery(channelId);
   const [unpinMessage] = useUnpinMessageMutation();
 
@@ -152,7 +153,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
                     alignItems: "flex-start",
                     cursor: onMessageClick ? "pointer" : "default",
                     "&:hover": {
-                      backgroundColor: alpha("#000", 0.04),
+                      backgroundColor: theme.palette.semantic.overlay.medium,
                     },
                   }}
                   onClick={() => handleMessageClick(message.id)}

@@ -30,7 +30,7 @@ import TimerIcon from "@mui/icons-material/Timer";
 import TimerOffIcon from "@mui/icons-material/TimerOff";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PushPinIcon from "@mui/icons-material/PushPin";
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   useGetModerationLogsQuery,
   ModerationAction,
@@ -44,20 +44,23 @@ interface ModerationLogsPanelProps {
 
 const PAGE_SIZE = 20;
 
-const ACTION_CONFIG: Record<ModerationAction, { icon: React.ReactNode; label: string; color: string }> = {
-  BAN_USER: { icon: <BlockIcon />, label: "Ban User", color: "error.main" },
-  UNBAN_USER: { icon: <LockOpenIcon />, label: "Unban User", color: "success.main" },
-  KICK_USER: { icon: <PersonRemoveIcon />, label: "Kick User", color: "warning.main" },
-  TIMEOUT_USER: { icon: <TimerIcon />, label: "Timeout User", color: "warning.main" },
-  REMOVE_TIMEOUT: { icon: <TimerOffIcon />, label: "Remove Timeout", color: "success.main" },
-  DELETE_MESSAGE: { icon: <DeleteIcon />, label: "Delete Message", color: "error.main" },
-  PIN_MESSAGE: { icon: <PushPinIcon />, label: "Pin Message", color: "primary.main" },
-  UNPIN_MESSAGE: { icon: <PushPinIcon />, label: "Unpin Message", color: "text.secondary" },
+type ActionColorKey = 'error' | 'success' | 'warning' | 'primary' | 'secondary';
+
+const ACTION_CONFIG: Record<ModerationAction, { icon: React.ReactNode; label: string; colorKey: ActionColorKey }> = {
+  BAN_USER: { icon: <BlockIcon />, label: "Ban User", colorKey: "error" },
+  UNBAN_USER: { icon: <LockOpenIcon />, label: "Unban User", colorKey: "success" },
+  KICK_USER: { icon: <PersonRemoveIcon />, label: "Kick User", colorKey: "warning" },
+  TIMEOUT_USER: { icon: <TimerIcon />, label: "Timeout User", colorKey: "warning" },
+  REMOVE_TIMEOUT: { icon: <TimerOffIcon />, label: "Remove Timeout", colorKey: "success" },
+  DELETE_MESSAGE: { icon: <DeleteIcon />, label: "Delete Message", colorKey: "error" },
+  PIN_MESSAGE: { icon: <PushPinIcon />, label: "Pin Message", colorKey: "primary" },
+  UNPIN_MESSAGE: { icon: <PushPinIcon />, label: "Unpin Message", colorKey: "secondary" },
 };
 
 const ModerationLogsPanel: React.FC<ModerationLogsPanelProps> = ({ communityId }) => {
   const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState<ModerationAction | "">("");
+  const theme = useTheme();
 
   const { data, isLoading, error } = useGetModerationLogsQuery({
     communityId,
@@ -78,7 +81,10 @@ const ModerationLogsPanel: React.FC<ModerationLogsPanelProps> = ({ communityId }
   };
 
   const getActionDisplay = (action: ModerationAction) => {
-    return ACTION_CONFIG[action] || { icon: <HistoryIcon />, label: action, color: "text.primary" };
+    const config = ACTION_CONFIG[action] || { icon: <HistoryIcon />, label: action, colorKey: "primary" as ActionColorKey };
+    // Resolve the actual color from the theme
+    const color = theme.palette[config.colorKey].main;
+    return { ...config, color };
   };
 
   const formatLogEntry = (log: ModerationLog): string => {
@@ -157,7 +163,7 @@ const ModerationLogsPanel: React.FC<ModerationLogsPanelProps> = ({ communityId }
             py: 4,
             px: 2,
             borderRadius: 1,
-            backgroundColor: alpha("#000", 0.02),
+            backgroundColor: theme.palette.semantic.overlay.light,
           }}
         >
           <HistoryIcon sx={{ fontSize: 48, color: "text.disabled", mb: 2 }} />
@@ -178,7 +184,7 @@ const ModerationLogsPanel: React.FC<ModerationLogsPanelProps> = ({ communityId }
                     borderRadius: 1,
                     border: 1,
                     borderColor: "divider",
-                    backgroundColor: alpha("#000", 0.02),
+                    backgroundColor: theme.palette.semantic.overlay.light,
                   }}
                 >
                   <ListItemIcon sx={{ color: actionDisplay.color }}>

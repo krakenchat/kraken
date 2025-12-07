@@ -16,6 +16,7 @@ import {
   Link as InvitesIcon,
   Block as BannedIcon,
 } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
 import { useGetInstanceStatsQuery } from "../../features/admin/adminApiSlice";
 
 interface StatCardProps {
@@ -78,6 +79,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
 );
 
 const AdminDashboard: React.FC = () => {
+  const theme = useTheme();
   const { data: stats, isLoading, error } = useGetInstanceStatsQuery();
 
   if (isLoading) {
@@ -118,7 +120,7 @@ const AdminDashboard: React.FC = () => {
             title="Total Users"
             value={stats?.totalUsers ?? 0}
             icon={<PeopleIcon />}
-            color="#2196f3"
+            color={theme.palette.info.main}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -126,7 +128,7 @@ const AdminDashboard: React.FC = () => {
             title="Communities"
             value={stats?.totalCommunities ?? 0}
             icon={<CommunitiesIcon />}
-            color="#4caf50"
+            color={theme.palette.success.main}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -134,7 +136,7 @@ const AdminDashboard: React.FC = () => {
             title="Channels"
             value={stats?.totalChannels ?? 0}
             icon={<ChannelsIcon />}
-            color="#ff9800"
+            color={theme.palette.warning.main}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -142,7 +144,7 @@ const AdminDashboard: React.FC = () => {
             title="Messages"
             value={stats?.totalMessages ?? 0}
             icon={<MessagesIcon />}
-            color="#9c27b0"
+            color={theme.palette.secondary.main}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -150,7 +152,7 @@ const AdminDashboard: React.FC = () => {
             title="Active Invites"
             value={stats?.activeInvites ?? 0}
             icon={<InvitesIcon />}
-            color="#00bcd4"
+            color={theme.palette.primary.main}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -158,7 +160,7 @@ const AdminDashboard: React.FC = () => {
             title="Banned Users"
             value={stats?.bannedUsers ?? 0}
             icon={<BannedIcon />}
-            color="#f44336"
+            color={theme.palette.error.main}
           />
         </Grid>
       </Grid>

@@ -31,6 +31,7 @@ import {
   FormGroup,
   FormLabel,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   Add as AddIcon,
   ContentCopy as CopyIcon,
@@ -53,6 +54,7 @@ interface InviteFilters {
 }
 
 const AdminInvitePage: React.FC = () => {
+  const theme = useTheme();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [inviteToDelete, setInviteToDelete] = useState<InstanceInvite | null>(null);
@@ -366,7 +368,7 @@ const AdminInvitePage: React.FC = () => {
                       borderRadius: 1,
                       bgcolor: isDisabled ? alpha("#f44336", 0.05) : "transparent",
                       "&:hover": {
-                        bgcolor: isDisabled ? alpha("#f44336", 0.1) : alpha("#000", 0.02),
+                        bgcolor: isDisabled ? alpha("#f44336", 0.1) : theme.palette.semantic.overlay.light,
                       },
                     }}
                   >

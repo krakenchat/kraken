@@ -11,6 +11,7 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   Mic,
   MicOff,
@@ -39,6 +40,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   showInline = false,
   showDiscordStyle = false,
 }) => {
+  const theme = useTheme();
   const { state: voiceState } = useVoiceConnection();
   const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUser[]>([]);
 
@@ -188,7 +190,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           pl: 4, // Indent under voice channel like Discord
           minHeight: 40,
           "&:hover": {
-            backgroundColor: "rgba(255, 255, 255, 0.03)",
+            backgroundColor: theme.palette.semantic.overlay.light,
           },
         }}
       >
@@ -196,7 +198,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
             <Box
               sx={{
-                border: speaking ? "2px solid #00ff00" : "2px solid transparent",
+                border: speaking ? `2px solid ${theme.palette.semantic.status.positive}` : "2px solid transparent",
                 transition: "border-color 0.2s ease",
                 borderRadius: "50%",
               }}
@@ -211,7 +213,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                   position: "absolute",
                   bottom: -2,
                   right: -2,
-                  backgroundColor: "#f04747",
+                  backgroundColor: theme.palette.semantic.status.negative,
                   borderRadius: "50%",
                   width: 16,
                   height: 16,
@@ -230,7 +232,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                   position: "absolute",
                   bottom: -2,
                   right: -2,
-                  backgroundColor: "#f04747",
+                  backgroundColor: theme.palette.semantic.status.negative,
                   borderRadius: "50%",
                   width: 16,
                   height: 16,
@@ -267,25 +269,25 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                 {/* Deafened state takes priority over muted */}
                 {userState.isDeafened ? (
                   <Tooltip title="Deafened">
-                    <VolumeOff sx={{ fontSize: 16, color: "#f04747" }} />
+                    <VolumeOff sx={{ fontSize: 16, color: theme.palette.semantic.status.negative }} />
                   </Tooltip>
                 ) : userState.isMuted ? (
                   <Tooltip title="Muted">
-                    <MicOff sx={{ fontSize: 16, color: "#f04747" }} />
+                    <MicOff sx={{ fontSize: 16, color: theme.palette.semantic.status.negative }} />
                   </Tooltip>
                 ) : null}
 
                 {/* Video enabled state */}
                 {userState.isVideoEnabled && (
                   <Tooltip title="Camera">
-                    <Videocam sx={{ fontSize: 16, color: "#43b581" }} />
+                    <Videocam sx={{ fontSize: 16, color: theme.palette.semantic.status.positive }} />
                   </Tooltip>
                 )}
 
                 {/* Screen sharing state */}
                 {userState.isScreenSharing && (
                   <Tooltip title="Screen Share">
-                    <ScreenShare sx={{ fontSize: 16, color: "#593695" }} />
+                    <ScreenShare sx={{ fontSize: 16, color: theme.palette.primary.main }} />
                   </Tooltip>
                 )}
               </Box>
@@ -450,7 +452,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           width: 6,
         },
         "&::-webkit-scrollbar-thumb": {
-          backgroundColor: "rgba(0,0,0,0.2)",
+          backgroundColor: theme.palette.semantic.overlay.heavy,
           borderRadius: 3,
         },
       }}

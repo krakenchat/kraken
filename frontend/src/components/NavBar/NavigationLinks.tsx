@@ -1,18 +1,23 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Button, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import type { User } from "../../types/auth.type";
-import styled from "@emotion/styled";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 
-const NavLink = styled(Link)`
-  color: white;
-  text-decoration: none;
-  margin-right: 16px;
-  &:last-of-type {
-    margin-right: 0;
-  }
-`;
+const NavLink = styled(Link)(({ theme }) => ({
+  color: theme.palette.text.primary,
+  textDecoration: "none",
+  marginRight: 16,
+  opacity: 0.9,
+  transition: "opacity 0.15s ease",
+  "&:hover": {
+    opacity: 1,
+  },
+  "&:last-of-type": {
+    marginRight: 0,
+  },
+}));
 
 interface NavigationLinksProps {
   isLoading: boolean;
@@ -38,7 +43,7 @@ const NavigationLinks: React.FC<NavigationLinksProps> = ({
     <>
       <NavLink to="/">Home</NavLink>
       {isLoading ? (
-        <Typography variant="body2" sx={{ color: "white", marginRight: 16 }}>
+        <Typography variant="body2" sx={{ color: "text.primary", marginRight: 16 }}>
           Loading...
         </Typography>
       ) : isError || !userData ? (
@@ -49,13 +54,16 @@ const NavigationLinks: React.FC<NavigationLinksProps> = ({
       ) : (
         <>
           {canViewInvites && <NavLink to="/admin">Admin</NavLink>}
-          <Button
-            onClick={handleLogout}
-            disabled={logoutLoading}
-            sx={{ color: "white", textTransform: "none" }}
+          <NavLink
+            to="#"
+            onClick={(e) => {
+              e.preventDefault();
+              if (!logoutLoading) handleLogout();
+            }}
+            style={logoutLoading ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
           >
             Logout
-          </Button>
+          </NavLink>
         </>
       )}
     </>

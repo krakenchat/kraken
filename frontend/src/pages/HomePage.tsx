@@ -18,6 +18,7 @@ import {
   ContentCopy as CopyIcon,
   Settings as SettingsIcon,
 } from "@mui/icons-material";
+import { useTheme, alpha } from "@mui/material/styles";
 import { Link } from "react-router-dom";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
@@ -40,6 +41,7 @@ const HomePage: React.FC = () => {
 };
 
 const DesktopHomePage: React.FC = () => {
+  const theme = useTheme();
   const { data, isLoading, isError } = useProfileQuery(undefined);
   const { data: communities = [] } = useMyCommunitiesQuery();
   const [createInvite, { isLoading: creatingInvite }] =
@@ -124,7 +126,7 @@ const DesktopHomePage: React.FC = () => {
             width: "100%",
             maxWidth: 500,
             borderRadius: 2,
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
             color: "white",
           }}
         >
@@ -211,7 +213,7 @@ const DesktopHomePage: React.FC = () => {
           <Box
             sx={{
               height: 80,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
             }}
           />
           <CardContent
