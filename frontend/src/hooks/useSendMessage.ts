@@ -62,21 +62,22 @@ export function useSendMessage(
             ? ClientEvents.SEND_MESSAGE
             : ClientEvents.SEND_DM;
 
-        // Emit with acknowledgment callback
-        socket.emit(event, payload, (messageId: string) => {
-          if (callback) {
-            callback(messageId);
-          }
-          resolve({ success: true, messageId });
-        });
-
         // Add a timeout in case server doesn't respond
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           resolve({
             success: false,
             error: new Error("Message send timed out. Please try again."),
           });
         }, 10000); // 10 second timeout
+
+        // Emit with acknowledgment callback
+        socket.emit(event, payload, (messageId: string) => {
+          clearTimeout(timeoutId); // Clear timeout on success
+          if (callback) {
+            callback(messageId);
+          }
+          resolve({ success: true, messageId });
+        });
       });
     },
     [socket, contextType, callback]

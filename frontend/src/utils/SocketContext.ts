@@ -3,43 +3,165 @@ import { createContext } from "react";
 import { ServerEvents } from "../types/server-events.enum";
 import { ClientEvents } from "../types/client-events.enum";
 import {
+  // Acknowledgments & Errors
   AckPayload,
   ErrorPayload,
+  // Messages
   NewMessagePayload,
   UpdateMessagePayload,
   DeleteMessagePayload,
+  // Reactions
+  ReactionAddedPayload,
+  ReactionRemovedPayload,
+  // Read Receipts
+  ReadReceiptUpdatedPayload,
+  // Notifications
+  NewNotificationPayload,
+  NotificationReadPayload,
+  // Presence
+  UserOnlinePayload,
+  UserOfflinePayload,
+  UserTypingPayload,
+  // Voice Channels
+  VoiceChannelUserJoinedPayload,
+  VoiceChannelUserLeftPayload,
+  VoiceChannelUserUpdatedPayload,
+  // DM Voice
+  DmVoiceCallStartedPayload,
+  DmVoiceUserJoinedPayload,
+  DmVoiceUserLeftPayload,
+  DmVoiceUserUpdatedPayload,
+  // Replay Buffer
+  ReplayBufferStoppedPayload,
+  ReplayBufferFailedPayload,
+  // Channel Management
+  ChannelsReorderedPayload,
+  // Moderation
+  UserBannedPayload,
+  UserKickedPayload,
+  UserTimedOutPayload,
+  TimeoutRemovedPayload,
+  MessagePinnedPayload,
+  MessageUnpinnedPayload,
 } from "../types/websocket-payloads";
-import { VoicePresenceUser } from "../features/voice-presence/voicePresenceApiSlice";
-import { Span, FileMetadata, Message } from "../types/message.type";
+import { Span, FileMetadata } from "../types/message.type";
 
+/**
+ * Server-to-Client WebSocket event types.
+ * IMPORTANT: Keep in sync with backend ServerEvents enum.
+ */
 export type ServerToClientEvents = {
+  // Messaging: Channels
   [ServerEvents.NEW_MESSAGE]: (data: NewMessagePayload) => void;
   [ServerEvents.UPDATE_MESSAGE]: (data: UpdateMessagePayload) => void;
   [ServerEvents.DELETE_MESSAGE]: (data: DeleteMessagePayload) => void;
-  [ServerEvents.NEW_DM]: (data: { message: Message }) => void;
-  [ServerEvents.VOICE_CHANNEL_USER_JOINED]: (data: { channelId: string; user: VoicePresenceUser }) => void;
-  [ServerEvents.VOICE_CHANNEL_USER_LEFT]: (data: { channelId: string; userId: string; user: VoicePresenceUser }) => void;
-  [ServerEvents.VOICE_CHANNEL_USER_UPDATED]: (data: { channelId: string; userId: string; user: VoicePresenceUser; updates: Record<string, unknown> }) => void;
+
+  // Message Reactions
+  [ServerEvents.REACTION_ADDED]: (data: ReactionAddedPayload) => void;
+  [ServerEvents.REACTION_REMOVED]: (data: ReactionRemovedPayload) => void;
+
+  // Read Receipts
+  [ServerEvents.READ_RECEIPT_UPDATED]: (data: ReadReceiptUpdatedPayload) => void;
+
+  // Messaging: Direct Messages
+  [ServerEvents.NEW_DM]: (data: NewMessagePayload) => void;
+
+  // Mentions & Notifications
+  [ServerEvents.NEW_NOTIFICATION]: (data: NewNotificationPayload) => void;
+  [ServerEvents.NOTIFICATION_READ]: (data: NotificationReadPayload) => void;
+
+  // Presence & Typing
+  [ServerEvents.USER_ONLINE]: (data: UserOnlinePayload) => void;
+  [ServerEvents.USER_OFFLINE]: (data: UserOfflinePayload) => void;
+  [ServerEvents.USER_TYPING]: (data: UserTypingPayload) => void;
+
+  // Voice Channels
+  [ServerEvents.VOICE_CHANNEL_USER_JOINED]: (data: VoiceChannelUserJoinedPayload) => void;
+  [ServerEvents.VOICE_CHANNEL_USER_LEFT]: (data: VoiceChannelUserLeftPayload) => void;
+  [ServerEvents.VOICE_CHANNEL_USER_UPDATED]: (data: VoiceChannelUserUpdatedPayload) => void;
+
+  // DM Voice Calls
+  [ServerEvents.DM_VOICE_CALL_STARTED]: (data: DmVoiceCallStartedPayload) => void;
+  [ServerEvents.DM_VOICE_USER_JOINED]: (data: DmVoiceUserJoinedPayload) => void;
+  [ServerEvents.DM_VOICE_USER_LEFT]: (data: DmVoiceUserLeftPayload) => void;
+  [ServerEvents.DM_VOICE_USER_UPDATED]: (data: DmVoiceUserUpdatedPayload) => void;
+
+  // Replay Buffer (Screen Recording)
+  [ServerEvents.REPLAY_BUFFER_STOPPED]: (data: ReplayBufferStoppedPayload) => void;
+  [ServerEvents.REPLAY_BUFFER_FAILED]: (data: ReplayBufferFailedPayload) => void;
+
+  // Channel Management
+  [ServerEvents.CHANNELS_REORDERED]: (data: ChannelsReorderedPayload) => void;
+
+  // Moderation Events
+  [ServerEvents.USER_BANNED]: (data: UserBannedPayload) => void;
+  [ServerEvents.USER_KICKED]: (data: UserKickedPayload) => void;
+  [ServerEvents.USER_TIMED_OUT]: (data: UserTimedOutPayload) => void;
+  [ServerEvents.TIMEOUT_REMOVED]: (data: TimeoutRemovedPayload) => void;
+  [ServerEvents.MESSAGE_PINNED]: (data: MessagePinnedPayload) => void;
+  [ServerEvents.MESSAGE_UNPINNED]: (data: MessageUnpinnedPayload) => void;
+
+  // Acknowledgments & Errors
   [ServerEvents.ACK]: (data: AckPayload) => void;
   [ServerEvents.ERROR]: (data: ErrorPayload) => void;
 };
 
+/**
+ * Client-to-Server WebSocket event types.
+ * IMPORTANT: Keep in sync with backend ClientEvents enum.
+ */
 export type ClientToServerEvents = {
+  // Connection & Room Management
   [ClientEvents.JOIN_ALL]: (communityId: string) => void;
   [ClientEvents.LEAVE_ALL]: (communityId: string) => void;
   [ClientEvents.JOIN_ROOM]: (channelId: string) => void;
   [ClientEvents.LEAVE_ROOM]: (channelId: string) => void;
   [ClientEvents.JOIN_DM_ROOM]: (dmGroupId: string) => void;
   [ClientEvents.LEAVE_DM_ROOM]: (dmGroupId: string) => void;
+  [ClientEvents.PRESENCE_ONLINE]: () => void;
+
+  // Messaging: Channels
   [ClientEvents.SEND_MESSAGE]: (
-    data: Omit<NewMessagePayload, "id">,
+    data: {
+      channelId: string;
+      spans: Span[];
+      attachments: FileMetadata[];
+    },
     callback?: (messageId: string) => void
   ) => void;
-  [ClientEvents.SEND_DM]: (data: {
-    directMessageGroupId: string;
-    spans: Span[];
-    attachments: FileMetadata[];
-  }, callback?: (messageId: string) => void) => void;
+
+  // Messaging: Direct Messages
+  [ClientEvents.SEND_DM]: (
+    data: {
+      directMessageGroupId: string;
+      spans: Span[];
+      attachments: FileMetadata[];
+    },
+    callback?: (messageId: string) => void
+  ) => void;
+
+  // Message Reactions
+  [ClientEvents.ADD_REACTION]: (data: { messageId: string; emoji: string }) => void;
+  [ClientEvents.REMOVE_REACTION]: (data: { messageId: string; emoji: string }) => void;
+
+  // Read Receipts
+  [ClientEvents.MARK_AS_READ]: (data: {
+    channelId?: string;
+    directMessageGroupId?: string;
+    lastReadMessageId: string;
+  }) => void;
+
+  // Presence & Typing
+  [ClientEvents.TYPING_START]: (data: {
+    channelId?: string;
+    directMessageGroupId?: string;
+  }) => void;
+  [ClientEvents.TYPING_STOP]: (data: {
+    channelId?: string;
+    directMessageGroupId?: string;
+  }) => void;
+
+  // Voice Channels
   [ClientEvents.VOICE_CHANNEL_JOIN]: (data: { channelId: string }) => void;
   [ClientEvents.VOICE_CHANNEL_LEAVE]: (data: { channelId: string }) => void;
   [ClientEvents.VOICE_STATE_UPDATE]: (data: {

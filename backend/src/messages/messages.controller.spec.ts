@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
+import { ReactionsService } from './reactions.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
@@ -16,6 +17,7 @@ import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 describe('MessagesController', () => {
   let controller: MessagesController;
   let service: MessagesService;
+  let reactionsService: ReactionsService;
   let websocketService: WebsocketService;
 
   const mockMessagesService = {
@@ -25,10 +27,13 @@ describe('MessagesController', () => {
     findOne: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
-    addReaction: jest.fn(),
-    removeReaction: jest.fn(),
     addAttachment: jest.fn(),
     enrichMessageWithFileMetadata: jest.fn(),
+  };
+
+  const mockReactionsService = {
+    addReaction: jest.fn(),
+    removeReaction: jest.fn(),
   };
 
   const mockWebsocketService = {
@@ -52,6 +57,10 @@ describe('MessagesController', () => {
           useValue: mockMessagesService,
         },
         {
+          provide: ReactionsService,
+          useValue: mockReactionsService,
+        },
+        {
           provide: WebsocketService,
           useValue: mockWebsocketService,
         },
@@ -67,6 +76,7 @@ describe('MessagesController', () => {
 
     controller = module.get<MessagesController>(MessagesController);
     service = module.get<MessagesService>(MessagesService);
+    reactionsService = module.get<ReactionsService>(ReactionsService);
     websocketService = module.get<WebsocketService>(WebsocketService);
   });
 
@@ -264,11 +274,13 @@ describe('MessagesController', () => {
         reactions: [{ emoji: '👍', userIds: [mockUser.id] }],
       });
 
-      jest.spyOn(service, 'addReaction').mockResolvedValue(mockMessage as any);
+      jest
+        .spyOn(reactionsService, 'addReaction')
+        .mockResolvedValue(mockMessage as any);
 
       const result = await controller.addReaction(addReactionDto, mockRequest);
 
-      expect(service.addReaction).toHaveBeenCalledWith(
+      expect(reactionsService.addReaction).toHaveBeenCalledWith(
         'msg-123',
         '👍',
         mockUser.id,
@@ -297,7 +309,9 @@ describe('MessagesController', () => {
         reactions: [{ emoji: '❤️', userIds: [mockUser.id] }],
       });
 
-      jest.spyOn(service, 'addReaction').mockResolvedValue(mockMessage as any);
+      jest
+        .spyOn(reactionsService, 'addReaction')
+        .mockResolvedValue(mockMessage as any);
 
       await controller.addReaction(addReactionDto, mockRequest);
 
@@ -322,7 +336,9 @@ describe('MessagesController', () => {
         reactions: [],
       });
 
-      jest.spyOn(service, 'addReaction').mockResolvedValue(mockMessage as any);
+      jest
+        .spyOn(reactionsService, 'addReaction')
+        .mockResolvedValue(mockMessage as any);
 
       await controller.addReaction(addReactionDto, mockRequest);
 
@@ -344,7 +360,7 @@ describe('MessagesController', () => {
       });
 
       jest
-        .spyOn(service, 'removeReaction')
+        .spyOn(reactionsService, 'removeReaction')
         .mockResolvedValue(mockMessage as any);
 
       const result = await controller.removeReaction(
@@ -352,7 +368,7 @@ describe('MessagesController', () => {
         mockRequest,
       );
 
-      expect(service.removeReaction).toHaveBeenCalledWith(
+      expect(reactionsService.removeReaction).toHaveBeenCalledWith(
         'msg-123',
         '👍',
         mockUser.id,
@@ -382,7 +398,7 @@ describe('MessagesController', () => {
       });
 
       jest
-        .spyOn(service, 'removeReaction')
+        .spyOn(reactionsService, 'removeReaction')
         .mockResolvedValue(mockMessage as any);
 
       await controller.removeReaction(removeReactionDto, mockRequest);

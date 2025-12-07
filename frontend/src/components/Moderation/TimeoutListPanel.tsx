@@ -35,7 +35,7 @@ import {
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import UserAvatar from "../Common/UserAvatar";
-import { formatDistanceToNow, format, isPast, differenceInSeconds } from "date-fns";
+import { format, isPast, differenceInSeconds } from "date-fns";
 
 interface TimeoutListPanelProps {
   communityId: string;

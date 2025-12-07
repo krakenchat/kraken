@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { LivekitController } from './livekit.controller';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
+import { ClipLibraryService } from './clip-library.service';
 import { StorageService } from '@/storage/storage.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RbacGuard } from '../auth/rbac.guard';
@@ -23,13 +24,17 @@ describe('LivekitController', () => {
     stopReplayBuffer: jest.fn(),
     getSessionInfo: jest.fn(),
     captureReplay: jest.fn(),
-    getUserClips: jest.fn(),
-    updateClip: jest.fn(),
-    deleteClip: jest.fn(),
-    shareClip: jest.fn(),
     getPlaylistContent: jest.fn(),
     getSegmentPath: jest.fn(),
     getRemuxedSegmentPath: jest.fn(),
+  };
+
+  const mockClipLibraryService = {
+    getUserClips: jest.fn(),
+    getPublicClips: jest.fn(),
+    updateClip: jest.fn(),
+    deleteClip: jest.fn(),
+    shareClip: jest.fn(),
   };
 
   const mockStorageService = {
@@ -57,6 +62,10 @@ describe('LivekitController', () => {
         {
           provide: LivekitReplayService,
           useValue: mockLivekitReplayService,
+        },
+        {
+          provide: ClipLibraryService,
+          useValue: mockClipLibraryService,
         },
         {
           provide: StorageService,

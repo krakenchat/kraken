@@ -13,10 +13,8 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
-  IconButton,
   Skeleton,
   Alert,
-  Tooltip,
   Chip,
   Button,
   Dialog,
@@ -54,7 +52,7 @@ interface UnbanDialogProps {
 const UnbanDialog: React.FC<UnbanDialogProps> = ({
   open,
   onClose,
-  ban,
+  ban: _ban,
   onUnban,
   isLoading,
 }) => {

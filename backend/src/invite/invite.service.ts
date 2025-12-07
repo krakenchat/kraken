@@ -1,10 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { UserEntity } from '../user/dto/user-response.dto';
 import { InstanceInvite, Prisma } from '@prisma/client';
 
 @Injectable()
 export class InviteService {
+  private readonly logger = new Logger(InviteService.name);
+
   constructor(private readonly database: DatabaseService) {}
 
   async createInvite(
@@ -24,7 +31,7 @@ export class InviteService {
       })
     ) {
       // If it does, generate a new one
-      console.warn(`Short code ${shortCode} collision! Generating new one`);
+      this.logger.warn(`Short code ${shortCode} collision! Generating new one`);
       shortCode = this.generateInviteCode();
     }
 
@@ -69,7 +76,7 @@ export class InviteService {
     });
 
     if (!invite) {
-      console.warn('Invalid invite code', inviteCode);
+      this.logger.warn(`Invalid invite code: ${inviteCode}`);
       return null;
     }
 
@@ -80,7 +87,7 @@ export class InviteService {
       (invite.maxUses !== null && invite.uses >= invite.maxUses) ||
       invite.usedByIds.includes(userId)
     ) {
-      console.warn('Invalid or already used invite', invite);
+      this.logger.warn(`Invalid or already used invite: ${invite.code}`);
       return null;
     }
 
@@ -118,13 +125,13 @@ export class InviteService {
     });
 
     if (!invite) {
-      throw new Error('Invite not found');
+      throw new NotFoundException('Invite not found');
     }
 
     // Only allow the creator or an admin to delete the invite
     if (invite.createdById !== user.id) {
       // TODO: Check if user has admin permissions
-      throw new Error('Unauthorized to delete this invite');
+      throw new ForbiddenException('Unauthorized to delete this invite');
     }
 
     await this.database.instanceInvite.delete({

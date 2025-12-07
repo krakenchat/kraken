@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MessagesGateway } from './messages.gateway';
 import { MessagesService } from './messages.service';
+import { ReactionsService } from './reactions.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
@@ -11,6 +12,7 @@ import { ModerationService } from '@/moderation/moderation.service';
 describe('MessagesGateway', () => {
   let gateway: MessagesGateway;
   let messagesService: MessagesService;
+  let reactionsService: ReactionsService;
   let websocketService: WebsocketService;
   let notificationsService: NotificationsService;
 
@@ -19,9 +21,12 @@ describe('MessagesGateway', () => {
     findAll: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    enrichMessageWithFileMetadata: jest.fn(),
+  };
+
+  const mockReactionsService = {
     addReaction: jest.fn(),
     removeReaction: jest.fn(),
-    enrichMessageWithFileMetadata: jest.fn(),
   };
 
   const mockWebsocketService = {
@@ -49,6 +54,10 @@ describe('MessagesGateway', () => {
           useValue: mockMessagesService,
         },
         {
+          provide: ReactionsService,
+          useValue: mockReactionsService,
+        },
+        {
           provide: WebsocketService,
           useValue: mockWebsocketService,
         },
@@ -70,6 +79,7 @@ describe('MessagesGateway', () => {
 
     gateway = module.get<MessagesGateway>(MessagesGateway);
     messagesService = module.get<MessagesService>(MessagesService);
+    reactionsService = module.get<ReactionsService>(ReactionsService);
     websocketService = module.get<WebsocketService>(WebsocketService);
     notificationsService =
       module.get<NotificationsService>(NotificationsService);
@@ -85,6 +95,7 @@ describe('MessagesGateway', () => {
 
   it('should have services', () => {
     expect(messagesService).toBeDefined();
+    expect(reactionsService).toBeDefined();
     expect(websocketService).toBeDefined();
     expect(notificationsService).toBeDefined();
   });
@@ -255,11 +266,11 @@ describe('MessagesGateway', () => {
         reactions: [{ emoji: '👍', count: 1, users: ['user-789'] }],
       };
 
-      mockMessagesService.addReaction.mockResolvedValue(updatedMessage);
+      mockReactionsService.addReaction.mockResolvedValue(updatedMessage);
 
       await gateway.handleAddReaction(payload as any, mockClient);
 
-      expect(mockMessagesService.addReaction).toHaveBeenCalledWith(
+      expect(mockReactionsService.addReaction).toHaveBeenCalledWith(
         'msg-789',
         '👍',
         'user-789',
@@ -289,7 +300,7 @@ describe('MessagesGateway', () => {
         reactions: [{ emoji: '❤️', count: 1, users: ['user-999'] }],
       };
 
-      mockMessagesService.addReaction.mockResolvedValue(updatedMessage);
+      mockReactionsService.addReaction.mockResolvedValue(updatedMessage);
 
       await gateway.handleAddReaction(payload as any, mockClient);
 
@@ -316,11 +327,11 @@ describe('MessagesGateway', () => {
         reactions: [{ emoji: '👍', count: 1, users: ['user-111'] }],
       };
 
-      mockMessagesService.addReaction.mockResolvedValue(updatedMessage);
+      mockReactionsService.addReaction.mockResolvedValue(updatedMessage);
 
       await gateway.handleAddReaction(payload as any, mockClient);
 
-      expect(mockMessagesService.addReaction).toHaveBeenCalled();
+      expect(mockReactionsService.addReaction).toHaveBeenCalled();
       expect(mockWebsocketService.sendToRoom).not.toHaveBeenCalled();
     });
   });
@@ -341,11 +352,11 @@ describe('MessagesGateway', () => {
         reactions: [],
       };
 
-      mockMessagesService.removeReaction.mockResolvedValue(updatedMessage);
+      mockReactionsService.removeReaction.mockResolvedValue(updatedMessage);
 
       await gateway.handleRemoveReaction(payload as any, mockClient);
 
-      expect(mockMessagesService.removeReaction).toHaveBeenCalledWith(
+      expect(mockReactionsService.removeReaction).toHaveBeenCalledWith(
         'msg-222',
         '👍',
         'user-222',
@@ -376,7 +387,7 @@ describe('MessagesGateway', () => {
         reactions: [],
       };
 
-      mockMessagesService.removeReaction.mockResolvedValue(updatedMessage);
+      mockReactionsService.removeReaction.mockResolvedValue(updatedMessage);
 
       await gateway.handleRemoveReaction(payload as any, mockClient);
 
@@ -404,11 +415,11 @@ describe('MessagesGateway', () => {
         reactions: [],
       };
 
-      mockMessagesService.removeReaction.mockResolvedValue(updatedMessage);
+      mockReactionsService.removeReaction.mockResolvedValue(updatedMessage);
 
       await gateway.handleRemoveReaction(payload as any, mockClient);
 
-      expect(mockMessagesService.removeReaction).toHaveBeenCalled();
+      expect(mockReactionsService.removeReaction).toHaveBeenCalled();
       expect(mockWebsocketService.sendToRoom).not.toHaveBeenCalled();
     });
   });

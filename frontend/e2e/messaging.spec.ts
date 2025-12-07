@@ -14,7 +14,7 @@ import {
 
 test.describe('Messaging', () => {
   let testCommunity: { id: string; name: string };
-  let testChannel: { id: string; name: string };
+  let _testChannel: { id: string; name: string };
   let authToken: string;
 
   test.beforeAll(async ({ request }) => {
@@ -24,7 +24,7 @@ test.describe('Messaging', () => {
     testCommunity = await createTestCommunity(request, {
       name: generateTestName('msg-test'),
     }, authToken);
-    testChannel = await createTestChannel(request, testCommunity.id, {
+    _testChannel = await createTestChannel(request, testCommunity.id, {
       name: 'general',
       type: 'TEXT',
     }, authToken);

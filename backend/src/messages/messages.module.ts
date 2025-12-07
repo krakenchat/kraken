@@ -1,5 +1,6 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { MessagesService } from './messages.service';
+import { ReactionsService } from './reactions.service';
 import { MessagesController } from './messages.controller';
 import { MessagesGateway } from './messages.gateway';
 import { DatabaseModule } from '@/database/database.module';
@@ -15,7 +16,12 @@ import { ModerationModule } from '@/moderation/moderation.module';
 
 @Module({
   controllers: [MessagesController],
-  providers: [MessagesService, MessagesGateway, MessageOwnershipGuard],
+  providers: [
+    MessagesService,
+    ReactionsService,
+    MessagesGateway,
+    MessageOwnershipGuard,
+  ],
   imports: [
     DatabaseModule,
     UserModule,
@@ -24,9 +30,9 @@ import { ModerationModule } from '@/moderation/moderation.module';
     RoomsModule,
     AuthModule,
     FileModule,
-    forwardRef(() => NotificationsModule),
-    forwardRef(() => ModerationModule),
+    NotificationsModule,
+    ModerationModule,
   ],
-  exports: [MessagesService],
+  exports: [MessagesService, ReactionsService],
 })
 export class MessagesModule {}

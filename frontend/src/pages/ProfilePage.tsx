@@ -6,7 +6,6 @@ import {
   Alert,
   Container,
   Paper,
-  Divider,
 } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { Edit as EditIcon, ArrowBack as ArrowBackIcon } from "@mui/icons-material";

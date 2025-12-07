@@ -1,103 +1,113 @@
 import { useSocket } from "./useSocket";
-import { useEffect } from "react";
-import { Message, Reaction } from "../types/message.type";
+import { useEffect, useRef } from "react";
 import { ServerEvents } from "../types/server-events.enum";
 import { ClientEvents } from "../types/client-events.enum";
+import {
+  NewMessagePayload,
+  UpdateMessagePayload,
+  DeleteMessagePayload,
+  ReactionAddedPayload,
+  ReactionRemovedPayload,
+} from "../types/websocket-payloads";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
   prependMessage,
   updateMessage,
   deleteMessage,
+  selectMessageIndex,
+  selectMessagesByContextId,
 } from "../features/messages/messagesSlice";
 import { logger } from "../utils/logger";
 
 export function useDirectMessageWebSocket() {
   const dispatch = useAppDispatch();
   const socket = useSocket();
-  const messagesByChannelId = useAppSelector((state) => state.messages.byChannelId);
+  const messagesByContextId = useAppSelector(selectMessagesByContextId);
+  const messageIndex = useAppSelector(selectMessageIndex);
+
+  // Use refs to access latest state without triggering effect re-runs
+  const messagesByContextIdRef = useRef(messagesByContextId);
+  messagesByContextIdRef.current = messagesByContextId;
+  const messageIndexRef = useRef(messageIndex);
+  messageIndexRef.current = messageIndex;
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewDM = ({ message }: { message: Message }) => {
+    const handleNewDM = ({ message }: NewMessagePayload) => {
       logger.dev("[useDirectMessageWebSocket] Received NEW_DM event:", message);
-      const targetDmGroupId = message.directMessageGroupId;
-      if (targetDmGroupId) {
-        logger.dev("[useDirectMessageWebSocket] Adding message to DM group:", targetDmGroupId);
-        dispatch(prependMessage({ channelId: targetDmGroupId, message }));
+      const contextId = message.directMessageGroupId;
+      if (contextId) {
+        logger.dev("[useDirectMessageWebSocket] Adding message to DM group:", contextId);
+        dispatch(prependMessage({ contextId, message }));
       } else {
         logger.warn("[useDirectMessageWebSocket] No directMessageGroupId in message:", message);
       }
     };
 
-    const handleUpdateMessage = ({ message }: { message: Message }) => {
-      const targetDmGroupId = message.directMessageGroupId;
-      if (targetDmGroupId) {
-        dispatch(updateMessage({ channelId: targetDmGroupId, message }));
+    const handleUpdateMessage = ({ message }: UpdateMessagePayload) => {
+      const contextId = message.directMessageGroupId;
+      if (contextId) {
+        dispatch(updateMessage({ contextId, message }));
       }
     };
 
     const handleDeleteMessage = ({
       messageId,
       directMessageGroupId,
-    }: {
-      messageId: string;
-      channelId?: string | null;
-      directMessageGroupId?: string | null;
-    }) => {
+    }: DeleteMessagePayload) => {
       if (directMessageGroupId) {
-        dispatch(deleteMessage({ channelId: directMessageGroupId, id: messageId }));
+        dispatch(deleteMessage({ contextId: directMessageGroupId, id: messageId }));
       }
     };
 
     const handleReactionAdded = ({
       messageId,
       reaction,
-    }: {
-      messageId: string;
-      reaction: Reaction;
-    }) => {
-      // Find the message in all DM groups and update it
-      Object.keys(messagesByChannelId).forEach((dmGroupId) => {
-        const messages = messagesByChannelId[dmGroupId]?.messages || [];
-        const messageToUpdate = messages.find(msg => msg.id === messageId);
-        if (messageToUpdate && messageToUpdate.directMessageGroupId) {
-          const updatedReactions = [...messageToUpdate.reactions];
-          const existingIndex = updatedReactions.findIndex(r => r.emoji === reaction.emoji);
-          
-          if (existingIndex >= 0) {
-            updatedReactions[existingIndex] = reaction;
-          } else {
-            updatedReactions.push(reaction);
-          }
-          
-          dispatch(updateMessage({
-            channelId: dmGroupId,
-            message: { ...messageToUpdate, reactions: updatedReactions }
-          }));
+    }: ReactionAddedPayload) => {
+      // O(1) lookup using message index
+      const contextId = messageIndexRef.current[messageId];
+      if (!contextId) return;
+
+      const currentMessages = messagesByContextIdRef.current;
+      const messages = currentMessages[contextId]?.messages || [];
+      const messageToUpdate = messages.find(msg => msg.id === messageId);
+
+      if (messageToUpdate && messageToUpdate.directMessageGroupId) {
+        const updatedReactions = [...messageToUpdate.reactions];
+        const existingIndex = updatedReactions.findIndex(r => r.emoji === reaction.emoji);
+
+        if (existingIndex >= 0) {
+          updatedReactions[existingIndex] = reaction;
+        } else {
+          updatedReactions.push(reaction);
         }
-      });
+
+        dispatch(updateMessage({
+          contextId,
+          message: { ...messageToUpdate, reactions: updatedReactions }
+        }));
+      }
     };
 
     const handleReactionRemoved = ({
       messageId,
       reactions,
-    }: {
-      messageId: string;
-      emoji: string;
-      reactions: Reaction[];
-    }) => {
-      // Find the message in all DM groups and update it with the correct reactions array
-      Object.keys(messagesByChannelId).forEach((dmGroupId) => {
-        const messages = messagesByChannelId[dmGroupId]?.messages || [];
-        const messageToUpdate = messages.find(msg => msg.id === messageId);
-        if (messageToUpdate && messageToUpdate.directMessageGroupId) {
-          dispatch(updateMessage({
-            channelId: dmGroupId,
-            message: { ...messageToUpdate, reactions }
-          }));
-        }
-      });
+    }: ReactionRemovedPayload) => {
+      // O(1) lookup using message index
+      const contextId = messageIndexRef.current[messageId];
+      if (!contextId) return;
+
+      const currentMessages = messagesByContextIdRef.current;
+      const messages = currentMessages[contextId]?.messages || [];
+      const messageToUpdate = messages.find(msg => msg.id === messageId);
+
+      if (messageToUpdate && messageToUpdate.directMessageGroupId) {
+        dispatch(updateMessage({
+          contextId,
+          message: { ...messageToUpdate, reactions }
+        }));
+      }
     };
 
     // Listen to DM-specific events
@@ -114,7 +124,7 @@ export function useDirectMessageWebSocket() {
       socket.off(ServerEvents.REACTION_ADDED, handleReactionAdded);
       socket.off(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
     };
-  }, [socket, dispatch, messagesByChannelId]);
+  }, [socket, dispatch]); // Using refs for latest state without re-triggering effect
 
   const joinDmGroup = (dmGroupId: string) => {
     socket?.emit(ClientEvents.JOIN_DM_ROOM, dmGroupId);

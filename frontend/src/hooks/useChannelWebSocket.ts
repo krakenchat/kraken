@@ -1,25 +1,35 @@
 import { useSocket } from "./useSocket";
 import { useEffect, useRef } from "react";
-import { Message, Reaction } from "../types/message.type";
+import { Message } from "../types/message.type";
 import { ServerEvents } from "../types/server-events.enum";
 import { ClientEvents } from "../types/client-events.enum";
+import {
+  NewMessagePayload,
+  UpdateMessagePayload,
+  DeleteMessagePayload,
+  ReactionAddedPayload,
+  ReactionRemovedPayload,
+  MessagePinnedPayload,
+  MessageUnpinnedPayload,
+} from "../types/websocket-payloads";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
   prependMessage,
   updateMessage,
   deleteMessage,
   selectMessageIndex,
+  selectMessagesByContextId,
 } from "../features/messages/messagesSlice";
 
 export function useChannelWebSocket(communityId: string | undefined) {
   const dispatch = useAppDispatch();
   const socket = useSocket();
-  const messagesByChannelId = useAppSelector((state) => state.messages.byChannelId);
+  const messagesByContextId = useAppSelector(selectMessagesByContextId);
   const messageIndex = useAppSelector(selectMessageIndex);
 
   // Use refs to access latest state without triggering effect re-runs
-  const messagesByChannelIdRef = useRef(messagesByChannelId);
-  messagesByChannelIdRef.current = messagesByChannelId;
+  const messagesByContextIdRef = useRef(messagesByContextId);
+  messagesByContextIdRef.current = messagesByContextId;
   const messageIndexRef = useRef(messageIndex);
   messageIndexRef.current = messageIndex;
 
@@ -27,46 +37,39 @@ export function useChannelWebSocket(communityId: string | undefined) {
     if (!socket || !communityId) return;
     // No need to join/leave community here; handled by useCommunityJoin
 
-    const handleNewMessage = ({ message }: { message: Message }) => {
-      const targetChannelId = message.channelId || message.directMessageGroupId;
-      if (targetChannelId) {
-        dispatch(prependMessage({ channelId: targetChannelId, message }));
+    const handleNewMessage = ({ message }: NewMessagePayload) => {
+      const contextId = message.channelId || message.directMessageGroupId;
+      if (contextId) {
+        dispatch(prependMessage({ contextId, message }));
       }
     };
-    const handleUpdateMessage = ({ message }: { message: Message }) => {
-      const targetChannelId = message.channelId || message.directMessageGroupId;
-      if (targetChannelId) {
-        dispatch(updateMessage({ channelId: targetChannelId, message }));
+    const handleUpdateMessage = ({ message }: UpdateMessagePayload) => {
+      const contextId = message.channelId || message.directMessageGroupId;
+      if (contextId) {
+        dispatch(updateMessage({ contextId, message }));
       }
     };
     const handleDeleteMessage = ({
       messageId,
       channelId,
       directMessageGroupId,
-    }: {
-      messageId: string;
-      channelId?: string | null;
-      directMessageGroupId?: string | null;
-    }) => {
-      const targetChannelId = channelId || directMessageGroupId;
-      if (targetChannelId) {
-        dispatch(deleteMessage({ channelId: targetChannelId, id: messageId }));
+    }: DeleteMessagePayload) => {
+      const contextId = channelId || directMessageGroupId;
+      if (contextId) {
+        dispatch(deleteMessage({ contextId, id: messageId }));
       }
     };
 
     const handleReactionAdded = ({
       messageId,
       reaction,
-    }: {
-      messageId: string;
-      reaction: Reaction;
-    }) => {
+    }: ReactionAddedPayload) => {
       // O(1) lookup using message index
-      const channelId = messageIndexRef.current[messageId];
-      if (!channelId) return;
+      const contextId = messageIndexRef.current[messageId];
+      if (!contextId) return;
 
-      const currentMessages = messagesByChannelIdRef.current;
-      const messages = currentMessages[channelId]?.messages || [];
+      const currentMessages = messagesByContextIdRef.current;
+      const messages = currentMessages[contextId]?.messages || [];
       const messageToUpdate = messages.find((msg) => msg.id === messageId);
 
       if (messageToUpdate) {
@@ -83,7 +86,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
 
         dispatch(
           updateMessage({
-            channelId,
+            contextId,
             message: { ...messageToUpdate, reactions: updatedReactions },
           })
         );
@@ -93,23 +96,19 @@ export function useChannelWebSocket(communityId: string | undefined) {
     const handleReactionRemoved = ({
       messageId,
       reactions,
-    }: {
-      messageId: string;
-      emoji: string;
-      reactions: Reaction[];
-    }) => {
+    }: ReactionRemovedPayload) => {
       // O(1) lookup using message index
-      const channelId = messageIndexRef.current[messageId];
-      if (!channelId) return;
+      const contextId = messageIndexRef.current[messageId];
+      if (!contextId) return;
 
-      const currentMessages = messagesByChannelIdRef.current;
-      const messages = currentMessages[channelId]?.messages || [];
+      const currentMessages = messagesByContextIdRef.current;
+      const messages = currentMessages[contextId]?.messages || [];
       const messageToUpdate = messages.find((msg) => msg.id === messageId);
 
       if (messageToUpdate) {
         dispatch(
           updateMessage({
-            channelId,
+            contextId,
             message: { ...messageToUpdate, reactions },
           })
         );
@@ -121,20 +120,17 @@ export function useChannelWebSocket(communityId: string | undefined) {
       channelId,
       pinnedBy,
       pinnedAt,
-    }: {
-      messageId: string;
-      channelId: string;
-      pinnedBy: string;
-      pinnedAt: string;
-    }) => {
-      const currentMessages = messagesByChannelIdRef.current;
-      const messages = currentMessages[channelId]?.messages || [];
+    }: MessagePinnedPayload) => {
+      // channelId from payload is the context ID for pinned messages
+      const contextId = channelId;
+      const currentMessages = messagesByContextIdRef.current;
+      const messages = currentMessages[contextId]?.messages || [];
       const messageToUpdate = messages.find((msg) => msg.id === messageId);
 
       if (messageToUpdate) {
         dispatch(
           updateMessage({
-            channelId,
+            contextId,
             message: { ...messageToUpdate, pinned: true, pinnedBy, pinnedAt },
           })
         );
@@ -144,18 +140,17 @@ export function useChannelWebSocket(communityId: string | undefined) {
     const handleMessageUnpinned = ({
       messageId,
       channelId,
-    }: {
-      messageId: string;
-      channelId: string;
-    }) => {
-      const currentMessages = messagesByChannelIdRef.current;
-      const messages = currentMessages[channelId]?.messages || [];
+    }: MessageUnpinnedPayload) => {
+      // channelId from payload is the context ID for pinned messages
+      const contextId = channelId;
+      const currentMessages = messagesByContextIdRef.current;
+      const messages = currentMessages[contextId]?.messages || [];
       const messageToUpdate = messages.find((msg) => msg.id === messageId);
 
       if (messageToUpdate) {
         dispatch(
           updateMessage({
-            channelId,
+            contextId,
             message: {
               ...messageToUpdate,
               pinned: false,
@@ -184,7 +179,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.MESSAGE_PINNED, handleMessagePinned);
       socket.off(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
     };
-  }, [socket, communityId, dispatch]); // Removed messagesByChannelId from deps
+  }, [socket, communityId, dispatch]); // Using refs for latest state without re-triggering effect
 
   const sendMessage = (msg: Omit<Message, "id">) => {
     // @ts-expect-error: id will be assigned by the server

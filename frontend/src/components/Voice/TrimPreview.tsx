@@ -65,7 +65,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
 
   // Fetch session info to get buffer duration
   // refetchOnMountOrArgChange ensures fresh data when component mounts
-  const { data: sessionInfo, isLoading: sessionLoading, refetch } = useGetSessionInfoQuery(undefined, {
+  const { data: sessionInfo, isLoading: sessionLoading, refetch: _refetch } = useGetSessionInfoQuery(undefined, {
     refetchOnMountOrArgChange: true,
   });
   const maxDuration = sessionInfo?.totalDurationSeconds || 0;

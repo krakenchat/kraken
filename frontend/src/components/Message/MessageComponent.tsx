@@ -5,13 +5,12 @@
  * Orchestrates message rendering, editing, deletion, and reactions.
  */
 
-import React, { useMemo } from "react";
+import React from "react";
 import { Typography, Tooltip, Box } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import type { Message as MessageType } from "../../types/message.type";
 import { useGetUserByIdQuery, useProfileQuery } from "../../features/users/usersSlice";
-import { useCanPerformAction } from "../../features/roles/useUserPermissions";
-import { RBAC_ACTIONS } from "../../constants/rbacActions";
+import { useMessagePermissions } from "../../hooks/useMessagePermissions";
 import { MessageReactions } from "./MessageReactions";
 import { MessageAttachments } from "./MessageAttachments";
 import { MessageEditForm } from "./MessageEditForm";
@@ -35,22 +34,11 @@ function MessageComponentInner({ message, isSearchHighlight }: MessageProps) {
   // Check if this message mentions the current user
   const isMentioned = isUserMentioned(message, currentUser?.id);
 
-  const isOwnMessage = currentUser?.id === message.authorId;
-
-  // Check if user can moderate messages in this channel
-  const canDeleteMessage = useCanPerformAction("CHANNEL", message.channelId, "DELETE_MESSAGE");
-  const canPinMessage = useCanPerformAction("CHANNEL", message.channelId, RBAC_ACTIONS.PIN_MESSAGE);
-
-  // Users can edit their own messages (backend MessageOwnershipGuard handles all permission logic)
-  const canEditMessage = useMemo(() => {
-    return isOwnMessage;
-  }, [isOwnMessage]);
-
-  // Users can delete their own messages (backend MessageOwnershipGuard handles all logic)
-  // Users with DELETE_MESSAGE permission can delete any message
-  const canRemoveMessage = useMemo(() => {
-    return isOwnMessage || canDeleteMessage;
-  }, [isOwnMessage, canDeleteMessage]);
+  // Use extracted hook for cleaner permission logic
+  const { canEdit, canDelete, canPin } = useMessagePermissions({
+    message,
+    currentUserId: currentUser?.id,
+  });
 
   const isPinned = message.pinned === true;
 
@@ -133,11 +121,11 @@ function MessageComponentInner({ message, isSearchHighlight }: MessageProps) {
           </>
         )}
       </div>
-      {(canEditMessage || canRemoveMessage || canPinMessage) && !isEditing && (
+      {(canEdit || canDelete || canPin) && !isEditing && (
         <MessageToolbar
-          canEdit={canEditMessage}
-          canDelete={canRemoveMessage}
-          canPin={canPinMessage}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          canPin={canPin}
           isPinned={isPinned}
           stagedForDelete={stagedForDelete}
           onEdit={handleEditClick}

@@ -12,7 +12,7 @@
  * - Calls backend to stop egress recording
  */
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Track, LocalTrackPublication, RoomEvent } from 'livekit-client';
 import {
   useStartReplayBufferMutation,

@@ -6,8 +6,8 @@ import {
   useLazyGetMessagesByChannelQuery,
 } from "../features/messages/messagesApiSlice";
 import {
-  makeSelectMessagesByChannel,
-  makeSelectContinuationTokenByChannel,
+  makeSelectMessagesByContext,
+  makeSelectContinuationTokenByContext,
 } from "../features/messages/messagesSlice";
 import { useChannelWebSocket } from "./useChannelWebSocket";
 import type { RootState } from "../app/store";
@@ -15,7 +15,7 @@ import type { Message } from "../types/message.type";
 
 export const useChannelMessages = (channelId: string) => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  
+
   // WebSocket connection
   const { communityId } = useParams<{ communityId: string }>();
   useChannelWebSocket(communityId);
@@ -23,22 +23,22 @@ export const useChannelMessages = (channelId: string) => {
   // Initial data fetch
   const { error, isLoading } = useGetMessagesByChannelQuery({ channelId });
 
-  // Memoized selectors for this specific channel
-  const selectMessagesByChannel = React.useMemo(
-    () => makeSelectMessagesByChannel(),
+  // Memoized selectors for this specific channel (contextId = channelId)
+  const selectMessages = React.useMemo(
+    () => makeSelectMessagesByContext(),
     []
   );
-  const selectContinuationTokenByChannel = React.useMemo(
-    () => makeSelectContinuationTokenByChannel(),
+  const selectContinuationToken = React.useMemo(
+    () => makeSelectContinuationTokenByContext(),
     []
   );
 
   // Get messages from Redux store
   const messages: Message[] = useSelector((state: RootState) =>
-    selectMessagesByChannel(state, channelId)
+    selectMessages(state, channelId)
   );
   const continuationToken = useSelector((state: RootState) =>
-    selectContinuationTokenByChannel(state, channelId)
+    selectContinuationToken(state, channelId)
   );
 
   // Lazy query for pagination

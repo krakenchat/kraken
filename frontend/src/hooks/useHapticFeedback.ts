@@ -52,7 +52,7 @@ export const useHapticFeedback = () => {
         : HAPTIC_PATTERNS[pattern];
 
       navigator.vibrate(vibrationPattern);
-    } catch (e) {
+    } catch {
       // Silently fail - haptic feedback is optional
     }
   }, []);
@@ -65,7 +65,7 @@ export const useHapticFeedback = () => {
 
     try {
       navigator.vibrate(0);
-    } catch (e) {
+    } catch {
       // Silently fail
     }
   }, []);

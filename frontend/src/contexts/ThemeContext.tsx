@@ -1,16 +1,25 @@
+/**
+ * Theme Context
+ *
+ * Provides theme state management for the application.
+ * Types and constants are in ../theme/constants.ts to comply with React Fast Refresh.
+ */
+
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { generateTheme } from '../theme/themeConfig';
+import {
+  type ThemeMode,
+  type AccentColor,
+  type ThemeIntensity,
+  type ThemeSettings,
+  STORAGE_KEY,
+  defaultSettings,
+} from '../theme/constants';
 
-export type ThemeMode = 'dark' | 'light';
-export type AccentColor = 'teal' | 'purple' | 'orange' | 'blue';
-export type ThemeIntensity = 'subtle' | 'vibrant';
-
-export interface ThemeSettings {
-  mode: ThemeMode;
-  accentColor: AccentColor;
-  intensity: ThemeIntensity;
-}
+// Re-export types and constants for backward compatibility
+export type { ThemeMode, AccentColor, ThemeIntensity, ThemeSettings };
+export { accentColors } from '../theme/constants';
 
 interface ThemeContextType {
   settings: ThemeSettings;
@@ -19,14 +28,6 @@ interface ThemeContextType {
   setIntensity: (intensity: ThemeIntensity) => void;
   toggleMode: () => void;
 }
-
-const STORAGE_KEY = 'kraken-theme';
-
-const defaultSettings: ThemeSettings = {
-  mode: 'dark',
-  accentColor: 'teal',
-  intensity: 'subtle',
-};
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -110,6 +111,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
   if (!context) {
@@ -117,11 +119,3 @@ export function useTheme(): ThemeContextType {
   }
   return context;
 }
-
-// Export accent color info for the settings UI
-export const accentColors: { id: AccentColor; name: string; primary: string }[] = [
-  { id: 'teal', name: 'Ocean Teal', primary: '#0d9488' },
-  { id: 'purple', name: 'Soft Purple', primary: '#8b5cf6' },
-  { id: 'orange', name: 'Coral Orange', primary: '#f97316' },
-  { id: 'blue', name: 'Default Blue', primary: '#3b82f6' },
-];

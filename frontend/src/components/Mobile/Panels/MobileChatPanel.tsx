@@ -22,7 +22,6 @@ import {
   Settings as SettingsIcon,
   Close as CloseIcon,
   PushPin as PushPinIcon,
-  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useGetChannelByIdQuery } from '../../../features/channel/channelApiSlice';
 import { useGetDmGroupQuery } from '../../../features/directMessages/directMessagesApiSlice';

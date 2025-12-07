@@ -54,7 +54,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
   const { data: vapidData, isLoading: isLoadingVapid } = useGetVapidPublicKeyQuery(undefined, {
     skip: !isPushSupported(),
   });
-  const { data: pushStatus, isLoading: isLoadingStatus, refetch: refetchStatus } = useGetPushStatusQuery(undefined, {
+  const { data: _pushStatus, isLoading: isLoadingStatus, refetch: refetchStatus } = useGetPushStatusQuery(undefined, {
     skip: !isPushSupported(),
   });
 

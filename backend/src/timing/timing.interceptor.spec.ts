@@ -1,14 +1,18 @@
 import { TimingInterceptor } from './timing.interceptor';
-import { CallHandler, ExecutionContext } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { of } from 'rxjs';
 
 describe('TimingInterceptor', () => {
   let interceptor: TimingInterceptor;
   let mockExecutionContext: ExecutionContext;
   let mockCallHandler: CallHandler;
+  let loggerSpy: jest.SpyInstance;
 
   beforeEach(() => {
     interceptor = new TimingInterceptor();
+
+    // Spy on the Logger.prototype.log method
+    loggerSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
 
     mockExecutionContext = {
       switchToHttp: jest.fn().mockReturnValue({
@@ -24,13 +28,15 @@ describe('TimingInterceptor', () => {
     };
   });
 
+  afterEach(() => {
+    loggerSpy.mockRestore();
+  });
+
   it('should be defined', () => {
     expect(interceptor).toBeDefined();
   });
 
   it('should intercept and log timing', (done) => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
     const result$ = interceptor.intercept(
       mockExecutionContext,
       mockCallHandler,
@@ -40,15 +46,13 @@ describe('TimingInterceptor', () => {
       next: (value) => {
         expect(value).toBe('response');
         expect(mockCallHandler.handle).toHaveBeenCalled();
-        expect(consoleSpy).toHaveBeenCalled();
+        expect(loggerSpy).toHaveBeenCalled();
 
-        const logCall = consoleSpy.mock.calls[0][0];
-        expect(logCall).toContain('[Timing]');
+        const logCall = loggerSpy.mock.calls[0][0];
         expect(logCall).toContain('GET');
         expect(logCall).toContain('/api/test');
         expect(logCall).toMatch(/\d+ms$/);
 
-        consoleSpy.mockRestore();
         done();
       },
     });
@@ -65,8 +69,6 @@ describe('TimingInterceptor', () => {
       }),
     } as any;
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
     const result$ = interceptor.intercept(
       mockExecutionContext,
       mockCallHandler,
@@ -74,11 +76,10 @@ describe('TimingInterceptor', () => {
 
     result$.subscribe({
       next: () => {
-        const logCall = consoleSpy.mock.calls[0][0];
+        const logCall = loggerSpy.mock.calls[0][0];
         expect(logCall).toContain('/api/original');
         expect(logCall).not.toContain('/api/fallback');
 
-        consoleSpy.mockRestore();
         done();
       },
     });
@@ -94,8 +95,6 @@ describe('TimingInterceptor', () => {
       }),
     } as any;
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
     const result$ = interceptor.intercept(
       mockExecutionContext,
       mockCallHandler,
@@ -103,47 +102,44 @@ describe('TimingInterceptor', () => {
 
     result$.subscribe({
       next: () => {
-        const logCall = consoleSpy.mock.calls[0][0];
+        const logCall = loggerSpy.mock.calls[0][0];
         expect(logCall).toContain('/api/fallback');
 
-        consoleSpy.mockRestore();
         done();
       },
     });
   });
 
-  it('should log different HTTP methods', (done) => {
+  it('should log different HTTP methods', async () => {
     const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
-    const promises = methods.map((method) => {
-      return new Promise<void>((resolve) => {
-        mockExecutionContext = {
-          switchToHttp: jest.fn().mockReturnValue({
-            getRequest: jest.fn().mockReturnValue({
-              method,
-              url: '/api/test',
-            }),
+
+    for (const method of methods) {
+      loggerSpy.mockClear();
+
+      mockExecutionContext = {
+        switchToHttp: jest.fn().mockReturnValue({
+          getRequest: jest.fn().mockReturnValue({
+            method,
+            url: '/api/test',
           }),
-        } as any;
+        }),
+      } as any;
 
-        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
-        interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
-          next: () => {
-            const logCall = consoleSpy.mock.calls[0][0];
-            expect(logCall).toContain(method);
-            consoleSpy.mockRestore();
-            resolve();
-          },
-        });
+      await new Promise<void>((resolve) => {
+        interceptor
+          .intercept(mockExecutionContext, mockCallHandler)
+          .subscribe({
+            next: () => {
+              const logCall = loggerSpy.mock.calls[0][0];
+              expect(logCall).toContain(method);
+              resolve();
+            },
+          });
       });
-    });
-
-    void Promise.all(promises).then(() => done());
+    }
   });
 
   it('should measure elapsed time', (done) => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
     const result$ = interceptor.intercept(
       mockExecutionContext,
       mockCallHandler,
@@ -151,14 +147,13 @@ describe('TimingInterceptor', () => {
 
     result$.subscribe({
       next: () => {
-        const logCall = consoleSpy.mock.calls[0][0];
+        const logCall = loggerSpy.mock.calls[0][0];
         const match = logCall.match(/(\d+)ms$/);
         expect(match).toBeTruthy();
 
         const duration = parseInt(match[1], 10);
         expect(duration).toBeGreaterThanOrEqual(0);
 
-        consoleSpy.mockRestore();
         done();
       },
     });

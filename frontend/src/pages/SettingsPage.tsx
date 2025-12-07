@@ -32,7 +32,6 @@ import NotificationSettings from '../components/Settings/NotificationSettings';
 import {
   useTheme,
   accentColors,
-  type AccentColor,
   type ThemeIntensity,
 } from '../contexts/ThemeContext';
 
@@ -45,7 +44,7 @@ interface HealthResponse {
 
 // Appearance Settings Component
 const AppearanceSettings: React.FC = () => {
-  const { settings, setMode, setAccentColor, setIntensity, toggleMode } = useTheme();
+  const { settings, setAccentColor, setIntensity, toggleMode } = useTheme();
 
   const handleIntensityChange = (
     _event: React.MouseEvent<HTMLElement>,

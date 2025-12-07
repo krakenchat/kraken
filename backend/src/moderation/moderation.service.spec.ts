@@ -814,11 +814,11 @@ describe('ModerationService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].author).toEqual(authors[0]);
       expect(result[1].author).toEqual(authors[1]);
+      // Note: deletedAt is filtered in memory, not in query (MongoDB null field issue)
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: {
           channelId,
           pinned: true,
-          deletedAt: null,
         },
         orderBy: { pinnedAt: 'desc' },
       });

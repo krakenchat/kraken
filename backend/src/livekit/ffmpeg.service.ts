@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import { StorageService } from '@/storage/storage.service';
@@ -53,7 +58,7 @@ export class FfmpegService {
     },
   ): Promise<void> {
     if (segmentPaths.length === 0) {
-      throw new Error('No segments provided for concatenation');
+      throw new BadRequestException('No segments provided for concatenation');
     }
 
     const tempDir = `/tmp/replay-concat-${uuidv4()}`;
@@ -296,7 +301,9 @@ export class FfmpegService {
       this.logger.error(
         `Failed to probe video duration: ${getErrorMessage(err)}`,
       );
-      throw new Error(`FFprobe failed: ${getErrorMessage(err)}`);
+      throw new InternalServerErrorException(
+        `FFprobe failed: ${getErrorMessage(err)}`,
+      );
     }
   }
 

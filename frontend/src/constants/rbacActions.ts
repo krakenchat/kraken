@@ -1,3 +1,13 @@
+// RBAC Resource Types - keep in sync with backend RbacResourceType enum
+export const RBAC_RESOURCES = {
+  COMMUNITY: 'COMMUNITY',
+  CHANNEL: 'CHANNEL',
+  INSTANCE: 'INSTANCE',
+  DM_GROUP: 'DM_GROUP',
+} as const;
+
+export type RbacResource = typeof RBAC_RESOURCES[keyof typeof RBAC_RESOURCES];
+
 // RBAC Actions mapping - keep in sync with backend RbacActions enum
 export const RBAC_ACTIONS = {
   // Message Management

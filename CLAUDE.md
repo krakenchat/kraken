@@ -375,7 +375,7 @@ docker-compose down && docker-compose up
 
 - **Never run npm commands directly on host** - always use Docker containers
 - **Hot reload is enabled** - file changes automatically update in containers
-- **Ports**: Frontend (5173), Backend (3001), MongoDB (27017), Redis (6379)
+- **Ports**: Frontend (5173), Backend (3000), MongoDB (27017), Redis (6379)
 - **Data persistence**: MongoDB and Redis data is persisted in Docker volumes
 
 ### 📋 **Daily Development Workflow**
@@ -404,7 +404,7 @@ docker-compose down
 
 - **Services not starting**: Try `docker-compose down` then `docker-compose build --no-cache`
 - **Database connection issues**: Ensure MongoDB container is healthy with `docker-compose ps`
-- **Port conflicts**: Check if ports 3001, 5173, 27017, 6379 are available
+- **Port conflicts**: Check if ports 3000, 5173, 27017, 6379 are available
 - **Permission issues**: Use `docker compose run --rm backend bash` to debug
 - **Fresh start**: `docker-compose down -v && docker-compose build --no-cache && docker-compose up`
 

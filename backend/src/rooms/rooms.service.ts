@@ -1,16 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { DatabaseService } from '@/database/database.service';
+import { AuthenticatedSocket } from '@/common/utils/socket.utils';
 
 @Injectable()
 export class RoomsService {
   private readonly logger = new Logger(RoomsService.name);
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async joinAll(
-    client: Socket & { handshake: { user: { id: string } } },
-    communityId: string,
-  ) {
+  async joinAll(client: AuthenticatedSocket, communityId: string) {
     await client.join(client.handshake.user.id);
 
     // Get all public channels in the community (user joins automatically if they're a community member)
@@ -91,10 +89,7 @@ export class RoomsService {
    * Leave all community-related rooms (channels, private channels, DMs, alias groups)
    * Called when switching communities or navigating away
    */
-  async leaveAll(
-    client: Socket & { handshake: { user: { id: string } } },
-    communityId: string,
-  ) {
+  async leaveAll(client: AuthenticatedSocket, communityId: string) {
     // Get all public channels in the community
     const publicChannels = await this.databaseService.channel.findMany({
       where: {

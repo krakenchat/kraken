@@ -170,12 +170,10 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
       showNotification('Recording saved', 'success');
 
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to capture replay:', error);
-      showNotification(
-        error?.data?.message || 'Failed to capture replay',
-        'error'
-      );
+      const errorMessage = (error as { data?: { message?: string } })?.data?.message || 'Failed to capture replay';
+      showNotification(errorMessage, 'error');
     }
   };
 

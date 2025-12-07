@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { useGetDmMessagesQuery } from "../features/directMessages/directMessagesApiSlice";
-import { 
-  makeSelectMessagesByChannel,
-  makeSelectContinuationTokenByChannel 
+import {
+  makeSelectMessagesByContext,
+  makeSelectContinuationTokenByContext,
 } from "../features/messages/messagesSlice";
 import { useDirectMessageWebSocket } from "./useDirectMessageWebSocket";
 import type { RootState } from "../app/store";
@@ -11,29 +11,29 @@ import type { Message } from "../types/message.type";
 
 export const useDirectMessages = (dmGroupId: string) => {
   const [isLoadingMore] = useState(false); // DMs don't have pagination yet
-  
+
   // WebSocket connection for DMs
   const { joinDmGroup, leaveDmGroup } = useDirectMessageWebSocket();
 
   // Initial data fetch - this will populate Redux store via onQueryStarted
   const { error, isLoading } = useGetDmMessagesQuery(dmGroupId);
 
-  // Memoized selectors for this specific DM group (same pattern as channels)
-  const selectMessagesByChannel = React.useMemo(
-    () => makeSelectMessagesByChannel(),
+  // Memoized selectors for this DM group (contextId = dmGroupId)
+  const selectMessages = React.useMemo(
+    () => makeSelectMessagesByContext(),
     []
   );
-  const selectContinuationTokenByChannel = React.useMemo(
-    () => makeSelectContinuationTokenByChannel(),
+  const selectContinuationToken = React.useMemo(
+    () => makeSelectContinuationTokenByContext(),
     []
   );
 
-  // Get messages from Redux store only (same pattern as channels)
+  // Get messages from Redux store (contextId = dmGroupId)
   const messages: Message[] = useSelector((state: RootState) =>
-    selectMessagesByChannel(state, dmGroupId)
+    selectMessages(state, dmGroupId)
   );
   const continuationToken = useSelector((state: RootState) =>
-    selectContinuationTokenByChannel(state, dmGroupId)
+    selectContinuationToken(state, dmGroupId)
   );
 
   // Join/leave DM group for WebSocket

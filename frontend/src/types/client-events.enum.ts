@@ -1,5 +1,9 @@
-// src/websocket/client-events.enum.ts (frontend copy)
+/**
+ * Events emitted by the client and handled by the server.
+ * IMPORTANT: Keep in sync with backend/src/websocket/events.enum/client-events.enum.ts
+ */
 export enum ClientEvents {
+  // Connection & Room Management
   JOIN_ALL = "joinAll",
   JOIN_ROOM = "joinRoom",
   LEAVE_ROOM = "leaveRoom",
@@ -7,11 +11,25 @@ export enum ClientEvents {
   JOIN_DM_ROOM = "joinDmRoom",
   LEAVE_DM_ROOM = "leaveDmRoom",
   PRESENCE_ONLINE = "presenceOnline",
+
+  // Messaging: Channels
   SEND_MESSAGE = "sendMessage",
-  SEND_DM = "sendDirectMessage",
+
+  // Message Reactions
+  ADD_REACTION = "addReaction",
+  REMOVE_REACTION = "removeReaction",
+
+  // Read Receipts
   MARK_AS_READ = "markAsRead",
+
+  // Messaging: Direct Messages
+  SEND_DM = "sendDirectMessage",
+
+  // Presence & Typing
   TYPING_START = "typingStart",
   TYPING_STOP = "typingStop",
+
+  // Voice Channels
   VOICE_CHANNEL_JOIN = "voice_channel_join",
   VOICE_CHANNEL_LEAVE = "voice_channel_leave",
   VOICE_STATE_UPDATE = "voice_state_update",

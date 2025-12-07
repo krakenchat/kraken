@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RedisService } from '@/redis/redis.service';
+import { version } from '../../package.json';
 
 @Injectable()
 export class HealthService implements OnModuleInit {
@@ -51,7 +52,7 @@ export class HealthService implements OnModuleInit {
     return {
       status: 'ok',
       instanceName: this.instanceName,
-      version: '0.0.1', // TODO: Load from package.json
+      version,
       timestamp: new Date().toISOString(),
     };
   }

@@ -9,7 +9,6 @@ import {
 } from '@nestjs/websockets';
 import { RoomsService } from './rooms.service';
 import { Server, Socket } from 'socket.io';
-import { UserEntity } from '@/user/dto/user-response.dto';
 import {
   Logger,
   UseGuards,
@@ -30,6 +29,12 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { WsLoggingExceptionFilter } from '../websocket/ws-exception.filter';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import {
+  getSocketUser,
+  getSocketUserId,
+  isAuthenticated,
+  AuthenticatedSocket,
+} from '@/common/utils/socket.utils';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway()
@@ -52,10 +57,11 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
-    const user = (client.handshake as { user?: UserEntity }).user;
-    this.websocketService.sendToAll(ServerEvents.USER_OFFLINE, {
-      userId: user?.id,
-    });
+    if (isAuthenticated(client)) {
+      this.websocketService.sendToAll(ServerEvents.USER_OFFLINE, {
+        userId: client.handshake.user.id,
+      });
+    }
   }
 
   @SubscribeMessage(ClientEvents.JOIN_ALL)
@@ -65,18 +71,19 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     source: ResourceIdSource.TEXT_PAYLOAD,
   })
   async joinAll(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
     @MessageBody() communityId: string,
   ) {
-    const user = client.handshake.user;
+    const user = getSocketUser(client);
     this.logger.log(
-      `User ${client.handshake.user.id} joined all rooms with communityId ${communityId}`,
+      `User ${user.id} joined all rooms with communityId ${communityId}`,
     );
 
     this.websocketService.sendToAll(ServerEvents.USER_ONLINE, {
       userId: user.id,
     });
-    return this.roomsService.joinAll(client, communityId);
+    // Cast is safe here as WsJwtAuthGuard ensures authentication
+    return this.roomsService.joinAll(client as AuthenticatedSocket, communityId);
   }
 
   @SubscribeMessage(ClientEvents.JOIN_ROOM)
@@ -85,10 +92,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     type: RbacResourceType.CHANNEL,
     source: ResourceIdSource.TEXT_PAYLOAD,
   })
-  async findOne(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
-    @MessageBody() id: string,
-  ) {
+  async findOne(@ConnectedSocket() client: Socket, @MessageBody() id: string) {
     return this.roomsService.join(client, id);
   }
 
@@ -99,21 +103,21 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     source: ResourceIdSource.TEXT_PAYLOAD,
   })
   async joinDmRoom(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
     @MessageBody() dmGroupId: string,
   ) {
-    this.logger.log(
-      `User ${client.handshake.user.id} joining DM room: ${dmGroupId}`,
-    );
+    const userId = getSocketUserId(client);
+    this.logger.log(`User ${userId} joining DM room: ${dmGroupId}`);
     return this.roomsService.join(client, dmGroupId);
   }
 
   @SubscribeMessage(ClientEvents.LEAVE_ROOM)
   async leaveRoom(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
     @MessageBody() id: string,
   ) {
-    this.logger.log(`User ${client.handshake.user.id} leaving room: ${id}`);
+    const userId = getSocketUserId(client);
+    this.logger.log(`User ${userId} leaving room: ${id}`);
     return this.roomsService.leave(client, id);
   }
 
@@ -124,13 +128,15 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     source: ResourceIdSource.TEXT_PAYLOAD,
   })
   async leaveAll(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
     @MessageBody() communityId: string,
   ) {
+    const userId = getSocketUserId(client);
     this.logger.log(
-      `User ${client.handshake.user.id} leaving all rooms for community ${communityId}`,
+      `User ${userId} leaving all rooms for community ${communityId}`,
     );
-    return this.roomsService.leaveAll(client, communityId);
+    // Cast is safe here as WsJwtAuthGuard ensures authentication
+    return this.roomsService.leaveAll(client as AuthenticatedSocket, communityId);
   }
 
   @SubscribeMessage(ClientEvents.LEAVE_DM_ROOM)
@@ -140,12 +146,11 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     source: ResourceIdSource.TEXT_PAYLOAD,
   })
   async leaveDmRoom(
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
     @MessageBody() dmGroupId: string,
   ) {
-    this.logger.log(
-      `User ${client.handshake.user.id} leaving DM room: ${dmGroupId}`,
-    );
+    const userId = getSocketUserId(client);
+    this.logger.log(`User ${userId} leaving DM room: ${dmGroupId}`);
     return this.roomsService.leave(client, dmGroupId);
   }
 }

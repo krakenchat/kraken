@@ -7,7 +7,6 @@ import {
   ListItemAvatar,
   ListItemText,
   Avatar,
-  Typography,
   Dialog,
   DialogTitle,
   DialogContent,

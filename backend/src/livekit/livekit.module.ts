@@ -9,6 +9,7 @@ import { MessagesModule } from '@/messages/messages.module';
 import { VoicePresenceModule } from '@/voice-presence/voice-presence.module';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
+import { ClipLibraryService } from './clip-library.service';
 import { FfmpegService } from './ffmpeg.service';
 import { FfmpegProvider } from './providers/ffmpeg.provider';
 import { LivekitController } from './livekit.controller';
@@ -34,9 +35,10 @@ import { RolesModule } from '@/roles/roles.module';
   providers: [
     LivekitService,
     LivekitReplayService,
+    ClipLibraryService,
     FfmpegService,
     FfmpegProvider,
   ],
-  exports: [LivekitService, LivekitReplayService],
+  exports: [LivekitService, LivekitReplayService, ClipLibraryService],
 })
 export class LivekitModule {}

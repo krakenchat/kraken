@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   NotFoundException,
   NotImplementedException,
   Param,
@@ -18,6 +19,8 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 
 @Controller('file')
 export class FileController {
+  private readonly logger = new Logger(FileController.name);
+
   constructor(private readonly fileService: FileService) {}
 
   @Get(':id/metadata')
@@ -38,7 +41,7 @@ export class FileController {
         size: file.size,
       };
     } catch (error) {
-      console.error('Error fetching file metadata:', error);
+      this.logger.error('Error fetching file metadata:', error);
       throw new NotFoundException('File not found');
     }
   }
@@ -66,7 +69,7 @@ export class FileController {
 
       return new StreamableFile(stream);
     } catch (error) {
-      console.error('Error fetching file:', error);
+      this.logger.error('Error fetching file:', error);
       throw new NotFoundException('File not found');
     }
   }

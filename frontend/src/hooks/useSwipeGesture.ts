@@ -221,7 +221,7 @@ export const useLongPress = (
   const timeout = useRef<NodeJS.Timeout>();
   const isLongPressTriggered = useRef(false);
 
-  const start = useCallback((e: TouchEvent | React.MouseEvent) => {
+  const start = useCallback((_e: TouchEvent | React.MouseEvent) => {
     if (!enabled) return;
 
     isLongPressTriggered.current = false;

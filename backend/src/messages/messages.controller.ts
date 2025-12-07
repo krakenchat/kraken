@@ -12,6 +12,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
+import { ReactionsService } from './reactions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
@@ -37,6 +38,7 @@ import { AuthenticatedRequest } from '@/types';
 export class MessagesController {
   constructor(
     private readonly messagesService: MessagesService,
+    private readonly reactionsService: ReactionsService,
     private readonly websocketService: WebsocketService,
   ) {}
 
@@ -176,7 +178,7 @@ export class MessagesController {
     @Body() addReactionDto: AddReactionDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    const result = await this.messagesService.addReaction(
+    const result = await this.reactionsService.addReaction(
       addReactionDto.messageId,
       addReactionDto.emoji,
       req.user.id,
@@ -208,7 +210,7 @@ export class MessagesController {
     @Body() removeReactionDto: RemoveReactionDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    const result = await this.messagesService.removeReaction(
+    const result = await this.reactionsService.removeReaction(
       removeReactionDto.messageId,
       removeReactionDto.emoji,
       req.user.id,

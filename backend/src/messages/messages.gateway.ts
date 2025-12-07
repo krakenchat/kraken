@@ -5,8 +5,13 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { RbacGuard } from '@/auth/rbac.guard';
-import { UserEntity } from '@/user/dto/user-response.dto';
-import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Logger,
+  UseFilters,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -18,8 +23,10 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
+import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { RbacActions } from '@prisma/client';
 import { MessagesService } from './messages.service';
+import { ReactionsService } from './reactions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
@@ -30,7 +37,9 @@ import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
+import { getSocketUserId } from '@/common/utils/socket.utils';
 
+@UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ORIGIN?.split(',') || true,
@@ -54,6 +63,7 @@ export class MessagesGateway
 
   constructor(
     private readonly messagesService: MessagesService,
+    private readonly reactionsService: ReactionsService,
     private readonly websocketService: WebsocketService,
     private readonly notificationsService: NotificationsService,
     private readonly moderationService: ModerationService,
@@ -81,8 +91,10 @@ export class MessagesGateway
   })
   async handleMessage(
     @MessageBody() payload: CreateMessageDto,
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
   ): Promise<string> {
+    const userId = getSocketUserId(client);
+
     if (!payload.channelId) {
       throw new WsException('channelId is required for channel messages');
     }
@@ -93,7 +105,7 @@ export class MessagesGateway
     );
     const timeoutStatus = await this.moderationService.isUserTimedOut(
       communityId,
-      client.handshake.user.id,
+      userId,
     );
     if (timeoutStatus.isTimedOut) {
       const remainingMs = timeoutStatus.expiresAt
@@ -107,7 +119,7 @@ export class MessagesGateway
 
     const message = await this.messagesService.create({
       ...payload,
-      authorId: client.handshake.user.id,
+      authorId: userId,
       sentAt: new Date(),
     });
 
@@ -143,8 +155,10 @@ export class MessagesGateway
   })
   async handleDirectMessageWithRBAC(
     @MessageBody() payload: CreateMessageDto,
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
   ): Promise<string> {
+    const userId = getSocketUserId(client);
+
     if (!payload.directMessageGroupId) {
       throw new WsException(
         'directMessageGroupId is required for direct messages',
@@ -153,7 +167,7 @@ export class MessagesGateway
 
     const message = await this.messagesService.create({
       ...payload,
-      authorId: client.handshake.user.id,
+      authorId: userId,
       sentAt: new Date(),
     });
 
@@ -189,12 +203,13 @@ export class MessagesGateway
   })
   async handleAddReaction(
     @MessageBody() payload: AddReactionDto,
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const result = await this.messagesService.addReaction(
+    const userId = getSocketUserId(client);
+    const result = await this.reactionsService.addReaction(
       payload.messageId,
       payload.emoji,
-      client.handshake.user.id,
+      userId,
     );
 
     // Broadcast to all users in the channel
@@ -217,12 +232,13 @@ export class MessagesGateway
   })
   async handleRemoveReaction(
     @MessageBody() payload: RemoveReactionDto,
-    @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const result = await this.messagesService.removeReaction(
+    const userId = getSocketUserId(client);
+    const result = await this.reactionsService.removeReaction(
       payload.messageId,
       payload.emoji,
-      client.handshake.user.id,
+      userId,
     );
 
     // Broadcast to all users in the channel

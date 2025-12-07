@@ -32,10 +32,12 @@ export const messagesApi = createApi({
           const { data } = await queryFulfilled;
           // Only dispatch to Redux slice if we actually got data
           if (data && data.messages) {
+            // channelId is the context ID for channel messages
+            const contextId = channelId;
             if (continuationToken) {
               dispatch(
                 appendMessages({
-                  channelId,
+                  contextId,
                   messages: data.messages,
                   continuationToken: data.continuationToken,
                 })
@@ -43,7 +45,7 @@ export const messagesApi = createApi({
             } else {
               dispatch(
                 setMessages({
-                  channelId,
+                  contextId,
                   messages: data.messages,
                   continuationToken: data.continuationToken,
                 })
@@ -87,9 +89,10 @@ export const messagesApi = createApi({
             };
           }
 
+          // channelId is the context ID for channel messages
           dispatch(
             updateMessage({
-              channelId,
+              contextId: channelId,
               message: enrichedMessage,
             })
           );
@@ -106,9 +109,10 @@ export const messagesApi = createApi({
       async onQueryStarted({ id, channelId }, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
+          // channelId is the context ID for channel messages
           dispatch(
             deleteMessage({
-              channelId,
+              contextId: channelId,
               id,
             })
           );
@@ -129,12 +133,12 @@ export const messagesApi = createApi({
       async onQueryStarted({ channelId: argChannelId }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedMessage } = await queryFulfilled;
-          // Use channelId from arg or from the response
-          const channelId = argChannelId || updatedMessage.channelId;
-          if (channelId) {
+          // Determine context ID from arg or response (could be channel or DM)
+          const contextId = argChannelId || updatedMessage.channelId || updatedMessage.directMessageGroupId;
+          if (contextId) {
             dispatch(
               updateMessage({
-                channelId,
+                contextId,
                 message: updatedMessage,
               })
             );
@@ -156,12 +160,12 @@ export const messagesApi = createApi({
       async onQueryStarted({ channelId: argChannelId }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedMessage } = await queryFulfilled;
-          // Use channelId from arg or from the response
-          const channelId = argChannelId || updatedMessage.channelId;
-          if (channelId) {
+          // Determine context ID from arg or response (could be channel or DM)
+          const contextId = argChannelId || updatedMessage.channelId || updatedMessage.directMessageGroupId;
+          if (contextId) {
             dispatch(
               updateMessage({
-                channelId,
+                contextId,
                 message: updatedMessage,
               })
             );
@@ -184,11 +188,12 @@ export const messagesApi = createApi({
       async onQueryStarted({ messageId: _messageId }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedMessage } = await queryFulfilled;
-          // Update message in Redux store if channelId is available
-          if (updatedMessage.channelId) {
+          // Determine context ID (could be channel or DM)
+          const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
+          if (contextId) {
             dispatch(
               updateMessage({
-                channelId: updatedMessage.channelId,
+                contextId,
                 message: updatedMessage,
               })
             );

@@ -13,8 +13,6 @@ import {
   ListItemText,
   ListItemIcon,
   Avatar,
-  Box,
-  IconButton,
 } from '@mui/material';
 import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 

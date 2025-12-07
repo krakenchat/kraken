@@ -2,21 +2,30 @@ import { Message } from "../../types/message.type";
 import { createSlice, PayloadAction, createSelector } from "@reduxjs/toolkit";
 import type { RootState } from "../../app/store";
 
-interface ChannelMessages {
+/**
+ * Container for messages in a conversation context.
+ * A "context" can be either a channel or a DM group.
+ */
+interface ConversationMessages {
   messages: Message[];
   continuationToken?: string;
 }
 
+/**
+ * Messages state organized by context ID.
+ * The contextId can be either a channelId or a directMessageGroupId.
+ */
 interface MessagesState {
-  byChannelId: {
-    [channelId: string]: ChannelMessages;
+  /** Messages indexed by context ID (channel or DM group) */
+  byContextId: {
+    [contextId: string]: ConversationMessages;
   };
-  // Index for O(1) message lookup: messageId -> channelId
+  /** Index for O(1) message lookup: messageId -> contextId */
   messageIndex: Record<string, string>;
 }
 
 const initialState: MessagesState = {
-  byChannelId: {},
+  byContextId: {},
   messageIndex: {},
 };
 
@@ -26,18 +35,22 @@ const messagesSlice = createSlice({
   name: "messagesSlice",
   initialState,
   reducers: {
+    /**
+     * Replace all messages for a context (used for initial loads)
+     * @param contextId - Channel ID or DM group ID
+     */
     setMessages(
       state,
       action: PayloadAction<{
-        channelId: string;
+        contextId: string;
         messages: Message[];
         continuationToken?: string;
       }>
     ) {
-      const { channelId, messages, continuationToken } = action.payload;
+      const { contextId, messages, continuationToken } = action.payload;
 
       // Remove old messages from index
-      const oldMessages = state.byChannelId[channelId]?.messages || [];
+      const oldMessages = state.byContextId[contextId]?.messages || [];
       oldMessages.forEach((msg) => {
         delete state.messageIndex[msg.id];
       });
@@ -45,25 +58,29 @@ const messagesSlice = createSlice({
       // Add new messages to index
       const slicedMessages = messages.slice(-MAX_MESSAGES);
       slicedMessages.forEach((msg) => {
-        state.messageIndex[msg.id] = channelId;
+        state.messageIndex[msg.id] = contextId;
       });
 
-      // Replace all messages for this channel (used for initial loads)
-      state.byChannelId[channelId] = {
+      // Replace all messages for this context
+      state.byContextId[contextId] = {
         messages: slicedMessages,
         continuationToken,
       };
     },
+    /**
+     * Append older messages (for pagination)
+     * @param contextId - Channel ID or DM group ID
+     */
     appendMessages(
       state,
       action: PayloadAction<{
-        channelId: string;
+        contextId: string;
         messages: Message[];
         continuationToken?: string;
       }>
     ) {
-      const { channelId, messages, continuationToken } = action.payload;
-      const existing = state.byChannelId[channelId]?.messages || [];
+      const { contextId, messages, continuationToken } = action.payload;
+      const existing = state.byContextId[contextId]?.messages || [];
 
       // Create a Set of existing message IDs for fast lookup
       const existingIds = new Set(existing.map((msg) => msg.id));
@@ -73,7 +90,7 @@ const messagesSlice = createSlice({
 
       // Add new messages to index
       newMessages.forEach((msg) => {
-        state.messageIndex[msg.id] = channelId;
+        state.messageIndex[msg.id] = contextId;
       });
 
       // Combine and slice
@@ -89,17 +106,21 @@ const messagesSlice = createSlice({
         });
       }
 
-      state.byChannelId[channelId] = {
+      state.byContextId[contextId] = {
         messages: combinedMessages,
         continuationToken,
       };
     },
+    /**
+     * Add a new message to the front (real-time messages)
+     * @param contextId - Channel ID or DM group ID
+     */
     prependMessage(
       state,
-      action: PayloadAction<{ channelId: string; message: Message }>
+      action: PayloadAction<{ contextId: string; message: Message }>
     ) {
-      const { channelId, message } = action.payload;
-      const existing = state.byChannelId[channelId]?.messages || [];
+      const { contextId, message } = action.payload;
+      const existing = state.byContextId[contextId]?.messages || [];
 
       // Check if message already exists
       const messageExists = existing.some((msg) => msg.id === message.id);
@@ -108,7 +129,7 @@ const messagesSlice = createSlice({
       }
 
       // Add new message to index
-      state.messageIndex[message.id] = channelId;
+      state.messageIndex[message.id] = contextId;
 
       // Combine and slice
       const combinedMessages = [message, ...existing].slice(0, MAX_MESSAGES);
@@ -123,76 +144,106 @@ const messagesSlice = createSlice({
         });
       }
 
-      state.byChannelId[channelId] = {
-        ...state.byChannelId[channelId],
+      state.byContextId[contextId] = {
+        ...state.byContextId[contextId],
         messages: combinedMessages,
       };
     },
+    /**
+     * Update an existing message (edits, reactions, etc.)
+     * @param contextId - Channel ID or DM group ID
+     */
     updateMessage(
       state,
-      action: PayloadAction<{ channelId: string; message: Message }>
+      action: PayloadAction<{ contextId: string; message: Message }>
     ) {
-      const { channelId, message } = action.payload;
-      const existing = state.byChannelId[channelId]?.messages || [];
-      state.byChannelId[channelId] = {
-        ...state.byChannelId[channelId],
+      const { contextId, message } = action.payload;
+      const existing = state.byContextId[contextId]?.messages || [];
+      state.byContextId[contextId] = {
+        ...state.byContextId[contextId],
         messages: existing.map((msg) =>
           msg.id === message.id ? message : msg
         ),
       };
     },
+    /**
+     * Remove a message
+     * @param contextId - Channel ID or DM group ID
+     */
     deleteMessage(
       state,
-      action: PayloadAction<{ channelId: string; id: string }>
+      action: PayloadAction<{ contextId: string; id: string }>
     ) {
-      const { channelId, id } = action.payload;
-      const existing = state.byChannelId[channelId]?.messages || [];
+      const { contextId, id } = action.payload;
+      const existing = state.byContextId[contextId]?.messages || [];
 
       // Remove from index
       delete state.messageIndex[id];
 
-      state.byChannelId[channelId] = {
-        ...state.byChannelId[channelId],
+      state.byContextId[contextId] = {
+        ...state.byContextId[contextId],
         messages: existing.filter((msg) => msg.id !== id),
       };
     },
-    clearMessages(state, action: PayloadAction<{ channelId: string }>) {
-      const { channelId } = action.payload;
+    /**
+     * Clear all messages for a context
+     * @param contextId - Channel ID or DM group ID
+     */
+    clearMessages(state, action: PayloadAction<{ contextId: string }>) {
+      const { contextId } = action.payload;
 
-      // Remove all messages for this channel from index
-      const messages = state.byChannelId[channelId]?.messages || [];
+      // Remove all messages for this context from index
+      const messages = state.byContextId[contextId]?.messages || [];
       messages.forEach((msg) => {
         delete state.messageIndex[msg.id];
       });
 
-      delete state.byChannelId[channelId];
+      delete state.byContextId[contextId];
     },
   },
 });
 
-// Memoized selector for messages by channelId
-export const makeSelectMessagesByChannel = () =>
+/**
+ * Memoized selector factory for messages by context ID.
+ * Works with both channel IDs and DM group IDs.
+ * @example
+ * const selectMessages = useMemo(() => makeSelectMessagesByContext(), []);
+ * const messages = useAppSelector((state) => selectMessages(state, contextId));
+ */
+export const makeSelectMessagesByContext = () =>
   createSelector(
     [
-      (state: RootState) => state.messages.byChannelId,
-      (_: RootState, channelId: string) => channelId,
+      (state: RootState) => state.messages.byContextId,
+      (_: RootState, contextId: string) => contextId,
     ],
-    (byChannelId, channelId) => byChannelId[channelId]?.messages || []
+    (byContextId, contextId) => byContextId[contextId]?.messages || []
   );
 
-// Memoized selector for continuation token by channelId
-export const makeSelectContinuationTokenByChannel = () =>
+/**
+ * Memoized selector factory for continuation token by context ID.
+ * Works with both channel IDs and DM group IDs.
+ */
+export const makeSelectContinuationTokenByContext = () =>
   createSelector(
     [
-      (state: RootState) => state.messages.byChannelId,
-      (_: RootState, channelId: string) => channelId,
+      (state: RootState) => state.messages.byContextId,
+      (_: RootState, contextId: string) => contextId,
     ],
-    (byChannelId, channelId) => byChannelId[channelId]?.continuationToken
+    (byContextId, contextId) => byContextId[contextId]?.continuationToken
   );
 
-// Selector for message index (O(1) message lookup)
+/**
+ * Selector for message index (O(1) message lookup).
+ * Returns a map of messageId -> contextId.
+ */
 export const selectMessageIndex = (state: RootState) =>
   state.messages.messageIndex;
+
+/**
+ * Selector for raw byContextId state (used by WebSocket hooks).
+ */
+export const selectMessagesByContextId = (state: RootState) =>
+  state.messages.byContextId;
 
 export const {
   setMessages,

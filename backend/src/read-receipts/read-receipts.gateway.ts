@@ -1,5 +1,11 @@
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Logger,
+  UseFilters,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -17,7 +23,9 @@ import { Server, Socket } from 'socket.io';
 import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 
+@UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ORIGIN?.split(',') || true,

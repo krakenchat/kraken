@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { InviteService } from './invite.service';
 import { DatabaseService } from '@/database/database.service';
 import {
@@ -131,16 +132,16 @@ describe('InviteService', () => {
         .mockResolvedValueOnce(null);
       mockDatabase.instanceInvite.create.mockResolvedValue(mockInvite);
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       await service.createInvite(creator);
 
       expect(mockDatabase.instanceInvite.findFirst).toHaveBeenCalledTimes(2);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('collision'),
       );
 
-      consoleWarnSpy.mockRestore();
+      loggerWarnSpy.mockRestore();
     });
 
     it('should generate 6-character code by default', async () => {
@@ -330,7 +331,7 @@ describe('InviteService', () => {
         },
       };
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       const result = await service.redeemInviteWithTx(
         mockTx as any,
@@ -339,12 +340,11 @@ describe('InviteService', () => {
       );
 
       expect(result).toBeNull();
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'Invalid invite code',
-        'nonexistent',
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid invite code'),
       );
 
-      consoleWarnSpy.mockRestore();
+      loggerWarnSpy.mockRestore();
     });
 
     it('should return null when invite is disabled', async () => {
@@ -358,7 +358,7 @@ describe('InviteService', () => {
         },
       };
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       const result = await service.redeemInviteWithTx(
         mockTx as any,
@@ -367,9 +367,9 @@ describe('InviteService', () => {
       );
 
       expect(result).toBeNull();
-      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(loggerWarnSpy).toHaveBeenCalled();
 
-      consoleWarnSpy.mockRestore();
+      loggerWarnSpy.mockRestore();
     });
 
     it('should return null when invite is expired', async () => {

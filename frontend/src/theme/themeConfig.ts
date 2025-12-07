@@ -1,5 +1,5 @@
 import { createTheme, Theme, alpha } from '@mui/material/styles';
-import type { ThemeMode, AccentColor, ThemeIntensity } from '../contexts/ThemeContext';
+import type { ThemeMode, AccentColor, ThemeIntensity } from './constants';
 
 // Accent color palettes
 const accentPalettes = {

@@ -197,59 +197,7 @@ export class MessagesService {
     );
   }
 
-  async addReaction(messageId: string, emoji: string, userId: string) {
-    try {
-      const message = await this.findOne(messageId);
-
-      // Find existing reaction for this emoji
-      const reactionIndex = message.reactions.findIndex(
-        (r) => r.emoji === emoji,
-      );
-
-      if (reactionIndex >= 0) {
-        // Add user to existing reaction if not already present
-        const reaction = message.reactions[reactionIndex];
-        if (!reaction.userIds.includes(userId)) {
-          reaction.userIds.push(userId);
-        }
-      } else {
-        // Create new reaction
-        message.reactions.push({
-          emoji,
-          userIds: [userId],
-        });
-      }
-
-      return await this.update(messageId, { reactions: message.reactions });
-    } catch (error) {
-      this.logger.error('Error adding reaction', error);
-      throw error;
-    }
-  }
-
-  async removeReaction(messageId: string, emoji: string, userId: string) {
-    try {
-      const message = await this.findOne(messageId);
-
-      const reactionIndex = message.reactions.findIndex(
-        (r) => r.emoji === emoji,
-      );
-      if (reactionIndex >= 0) {
-        const reaction = message.reactions[reactionIndex];
-        reaction.userIds = reaction.userIds.filter((id) => id !== userId);
-
-        // Remove reaction entirely if no users left
-        if (reaction.userIds.length === 0) {
-          message.reactions.splice(reactionIndex, 1);
-        }
-      }
-
-      return await this.update(messageId, { reactions: message.reactions });
-    } catch (error) {
-      this.logger.error('Error removing reaction', error);
-      throw error;
-    }
-  }
+  // Note: Reaction methods (addReaction, removeReaction) moved to ReactionsService
 
   async addAttachment(messageId: string, fileId?: string) {
     try {

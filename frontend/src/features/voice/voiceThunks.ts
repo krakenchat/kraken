@@ -220,7 +220,7 @@ export const leaveVoiceChannel = createAsyncThunk<
     logger.info('[Voice] Channel:', currentChannelId);
 
     try {
-      const channelId = currentChannelId;
+      const _channelId = currentChannelId;
 
       // Disconnect from LiveKit room
       // Note: Voice presence is now managed by LiveKit webhooks

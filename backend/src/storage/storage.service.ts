@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ReadStream } from 'fs';
 import { LocalStorageProvider } from './providers/local-storage.provider';
@@ -79,11 +79,15 @@ export class StorageService implements IStorageProvider {
 
       case StorageType.S3:
         // Future: return this.s3Provider;
-        throw new Error('S3 storage provider not yet implemented');
+        throw new NotImplementedException(
+          'S3 storage provider not yet implemented',
+        );
 
       case StorageType.AZURE_BLOB:
         // Future: return this.azureBlobProvider;
-        throw new Error('Azure Blob storage provider not yet implemented');
+        throw new NotImplementedException(
+          'Azure Blob storage provider not yet implemented',
+        );
 
       default:
         this.logger.warn(

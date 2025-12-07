@@ -125,7 +125,7 @@ describe('RoomsGateway', () => {
       );
     });
 
-    it('should handle disconnect when user is not authenticated', () => {
+    it('should NOT send USER_OFFLINE when user is not authenticated', () => {
       const client = {
         id: 'socket-unauthenticated',
         handshake: {},
@@ -133,10 +133,8 @@ describe('RoomsGateway', () => {
 
       gateway.handleDisconnect(client);
 
-      expect(websocketService.sendToAll).toHaveBeenCalledWith(
-        ServerEvents.USER_OFFLINE,
-        { userId: undefined },
-      );
+      // Should not send event for unauthenticated sockets
+      expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
   });
 

@@ -40,11 +40,11 @@ export const directMessagesApi = createApi({
       async onQueryStarted(dmGroupId, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          // Populate Redux store with DM messages, just like channel messages
+          // Populate Redux store with DM messages using dmGroupId as context ID
           if (data && data.messages) {
             dispatch(
               setMessages({
-                channelId: dmGroupId, // Use dmGroupId as channelId in the store
+                contextId: dmGroupId,
                 messages: data.messages,
                 continuationToken: data.continuationToken,
               })

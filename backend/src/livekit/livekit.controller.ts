@@ -10,10 +10,12 @@ import {
   Res,
   Query,
   Param,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
+import { ClipLibraryService } from './clip-library.service';
 import { CreateTokenDto } from './dto/create-token.dto';
 import { StartReplayBufferDto } from './dto/start-replay-buffer.dto';
 import {
@@ -37,9 +39,12 @@ import { AuthenticatedRequest } from '@/types';
 @Controller('livekit')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class LivekitController {
+  private readonly logger = new Logger(LivekitController.name);
+
   constructor(
     private readonly livekitService: LivekitService,
     private readonly livekitReplayService: LivekitReplayService,
+    private readonly clipLibraryService: ClipLibraryService,
     private readonly storageService: StorageService,
   ) {}
 
@@ -162,13 +167,13 @@ export class LivekitController {
         if (tempPath) {
           this.storageService.deleteFile(tempPath).catch((cleanupError) => {
             // Log but don't throw - file might already be deleted
-            console.error('Failed to cleanup temp file:', cleanupError);
+            this.logger.error('Failed to cleanup temp file:', cleanupError);
           });
         }
 
         // If there was an error streaming, log it
         if (err) {
-          console.error('Error streaming replay file:', err);
+          this.logger.error('Error streaming replay file:', err);
         }
       });
     } catch (error) {
@@ -177,7 +182,7 @@ export class LivekitController {
         try {
           await this.storageService.deleteFile(tempPath);
         } catch (cleanupError) {
-          console.error(
+          this.logger.error(
             'Failed to cleanup temp file after error:',
             cleanupError,
           );
@@ -236,7 +241,7 @@ export class LivekitController {
     res.setHeader('Cache-Control', 'max-age=86400'); // Segments are immutable
     res.sendFile(segmentPath, (err) => {
       if (err) {
-        console.error(`Error serving segment ${segmentFile}:`, err);
+        this.logger.error(`Error serving segment ${segmentFile}:`, err);
         if (!res.headersSent) {
           res.status(500).send('Error serving segment');
         }
@@ -264,7 +269,7 @@ export class LivekitController {
    */
   @Get('clips')
   async getMyClips(@Req() req: AuthenticatedRequest) {
-    return this.livekitReplayService.getUserClips(req.user.id);
+    return this.clipLibraryService.getUserClips(req.user.id);
   }
 
   /**
@@ -272,7 +277,7 @@ export class LivekitController {
    */
   @Get('clips/user/:userId')
   async getUserPublicClips(@Param('userId') userId: string) {
-    return this.livekitReplayService.getPublicClips(userId);
+    return this.clipLibraryService.getPublicClips(userId);
   }
 
   /**
@@ -284,7 +289,7 @@ export class LivekitController {
     @Body() dto: UpdateClipDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.livekitReplayService.updateClip(req.user.id, clipId, dto);
+    return this.clipLibraryService.updateClip(req.user.id, clipId, dto);
   }
 
   /**
@@ -295,7 +300,7 @@ export class LivekitController {
     @Param('clipId') clipId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    await this.livekitReplayService.deleteClip(req.user.id, clipId);
+    await this.clipLibraryService.deleteClip(req.user.id, clipId);
     return { success: true };
   }
 
@@ -308,6 +313,6 @@ export class LivekitController {
     @Body() dto: ShareClipDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.livekitReplayService.shareClip(req.user.id, clipId, dto);
+    return this.clipLibraryService.shareClip(req.user.id, clipId, dto);
   }
 }
