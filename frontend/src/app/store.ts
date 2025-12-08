@@ -18,6 +18,7 @@ import { notificationsApi } from "../features/notifications/notificationsApiSlic
 import { pushNotificationsApi } from "../features/push-notifications/pushNotificationsApiSlice";
 import { adminApi } from "../features/admin/adminApiSlice";
 import { moderationApi } from "../features/moderation/moderationApiSlice";
+import { appearanceApi } from "../features/appearance/appearanceSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
 import readReceiptsReducer from "../features/readReceipts/readReceiptsSlice";
@@ -45,6 +46,7 @@ export const store = configureStore({
     [pushNotificationsApi.reducerPath]: pushNotificationsApi.reducer,
     [adminApi.reducerPath]: adminApi.reducer,
     [moderationApi.reducerPath]: moderationApi.reducer,
+    [appearanceApi.reducerPath]: appearanceApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
     readReceipts: readReceiptsReducer,
@@ -71,7 +73,8 @@ export const store = configureStore({
       notificationsApi.middleware,
       pushNotificationsApi.middleware,
       adminApi.middleware,
-      moderationApi.middleware
+      moderationApi.middleware,
+      appearanceApi.middleware
     ),
 });
 

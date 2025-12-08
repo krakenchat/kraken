@@ -24,8 +24,6 @@ import {
   CheckCircle,
   Error as ErrorIcon,
   Palette,
-  DarkMode,
-  LightMode,
 } from '@mui/icons-material';
 import axios from 'axios';
 import NotificationSettings from '../components/Settings/NotificationSettings';
@@ -73,8 +71,6 @@ const AppearanceSettings: React.FC = () => {
               <Switch
                 checked={settings.mode === 'dark'}
                 onChange={toggleMode}
-                icon={<LightMode sx={{ fontSize: 20 }} />}
-                checkedIcon={<DarkMode sx={{ fontSize: 20 }} />}
               />
             }
             label={settings.mode === 'dark' ? 'Dark Mode' : 'Light Mode'}
@@ -136,6 +132,9 @@ const AppearanceSettings: React.FC = () => {
             onChange={handleIntensityChange}
             size="small"
           >
+            <ToggleButton value="minimal">
+              Minimal
+            </ToggleButton>
             <ToggleButton value="subtle">
               Subtle
             </ToggleButton>
@@ -144,9 +143,11 @@ const AppearanceSettings: React.FC = () => {
             </ToggleButton>
           </ToggleButtonGroup>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            {settings.intensity === 'subtle'
-              ? 'Neutral backgrounds with accent color highlights'
-              : 'Accent color permeates more of the interface'}
+            {settings.intensity === 'minimal'
+              ? 'Clean, neutral look with minimal accent color'
+              : settings.intensity === 'subtle'
+              ? 'Soft gradients and accent color highlights'
+              : 'Bold, eye-catching accent colors throughout'}
           </Typography>
         </Box>
       </CardContent>

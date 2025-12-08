@@ -16,7 +16,6 @@ import { useVoiceEvents } from "./hooks/useVoiceEvents";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
 import { useResponsive } from "./hooks/useResponsive";
-import { isElectron } from "./utils/platform";
 import type { User } from "./types/auth.type";
 import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from "./constants/layout";
 import { useNotifications } from "./hooks/useNotifications";
@@ -24,10 +23,9 @@ import NotificationBadge from "./components/Notifications/NotificationBadge";
 import NotificationCenter from "./components/Notifications/NotificationCenter";
 import { ReplayBufferProvider } from "./contexts/ReplayBufferContext";
 import { setTelemetryUser, clearTelemetryUser } from "./services/telemetry";
+import { useThemeSync } from "./hooks/useThemeSync";
 
-const settings = isElectron()
-  ? ["My Profile", "Settings", "Logout"]
-  : ["My Profile", "Logout"];
+const settings = ["My Profile", "Settings", "Logout"];
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();
@@ -50,6 +48,9 @@ const Layout: React.FC = () => {
     showDesktopNotifications: true,
     playSound: true,
   });
+
+  // Sync theme settings with server (server wins on initial load)
+  useThemeSync();
 
   // Set telemetry user context when profile loads
   useEffect(() => {
@@ -137,14 +138,13 @@ const Layout: React.FC = () => {
             <IconButton
               size="large"
               edge="start"
-              color="inherit"
               aria-label="menu"
               onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-              sx={{ mr: 2 }}
+              sx={{ mr: 2, color: "text.primary" }}
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6">Kraken</Typography>
+            <Typography variant="h6" sx={{ color: "text.primary" }}>Kraken</Typography>
           </div>
           <NavigationLinks
             isLoading={isLoading}
@@ -184,10 +184,11 @@ const Layout: React.FC = () => {
         sx={{
           position: "absolute",
           top: APPBAR_HEIGHT,
-          left: SIDEBAR_WIDTH,
+          left: isMenuExpanded ? 320 : SIDEBAR_WIDTH,
           right: 0,
           bottom: voiceState.isConnected ? VOICE_BAR_HEIGHT : 0,
           overflow: "auto",
+          transition: "left 0.3s cubic-bezier(0.4,0,0.2,1)",
         }}
       >
         <Box>

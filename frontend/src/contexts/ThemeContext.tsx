@@ -5,7 +5,7 @@
  * Types and constants are in ../theme/constants.ts to comply with React Fast Refresh.
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { generateTheme } from '../theme/themeConfig';
 import {
@@ -21,12 +21,18 @@ import {
 export type { ThemeMode, AccentColor, ThemeIntensity, ThemeSettings };
 export { accentColors } from '../theme/constants';
 
+// Callback type for server sync
+type OnSettingsChangeCallback = (settings: ThemeSettings) => void;
+
 interface ThemeContextType {
   settings: ThemeSettings;
   setMode: (mode: ThemeMode) => void;
   setAccentColor: (color: AccentColor) => void;
   setIntensity: (intensity: ThemeIntensity) => void;
   toggleMode: () => void;
+  // Server sync methods
+  applyServerSettings: (settings: ThemeSettings) => void;
+  registerOnChange: (callback: OnSettingsChangeCallback) => () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -62,30 +68,57 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [settings, setSettings] = useState<ThemeSettings>(loadSettings);
+  const onChangeCallbacksRef = useRef<Set<OnSettingsChangeCallback>>(new Set());
+  const isApplyingServerSettingsRef = useRef(false);
 
   // Save to localStorage whenever settings change
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
 
-  const setMode = (mode: ThemeMode) => {
+  // Notify callbacks when settings change (but not when applying server settings)
+  useEffect(() => {
+    if (!isApplyingServerSettingsRef.current) {
+      onChangeCallbacksRef.current.forEach((callback) => callback(settings));
+    }
+  }, [settings]);
+
+  const setMode = useCallback((mode: ThemeMode) => {
     setSettings((prev) => ({ ...prev, mode }));
-  };
+  }, []);
 
-  const setAccentColor = (accentColor: AccentColor) => {
+  const setAccentColor = useCallback((accentColor: AccentColor) => {
     setSettings((prev) => ({ ...prev, accentColor }));
-  };
+  }, []);
 
-  const setIntensity = (intensity: ThemeIntensity) => {
+  const setIntensity = useCallback((intensity: ThemeIntensity) => {
     setSettings((prev) => ({ ...prev, intensity }));
-  };
+  }, []);
 
-  const toggleMode = () => {
+  const toggleMode = useCallback(() => {
     setSettings((prev) => ({
       ...prev,
       mode: prev.mode === 'dark' ? 'light' : 'dark',
     }));
-  };
+  }, []);
+
+  // Apply settings from server (doesn't trigger onChange callbacks)
+  const applyServerSettings = useCallback((serverSettings: ThemeSettings) => {
+    isApplyingServerSettingsRef.current = true;
+    setSettings(serverSettings);
+    // Reset flag after state update
+    setTimeout(() => {
+      isApplyingServerSettingsRef.current = false;
+    }, 0);
+  }, []);
+
+  // Register a callback to be called when settings change
+  const registerOnChange = useCallback((callback: OnSettingsChangeCallback) => {
+    onChangeCallbacksRef.current.add(callback);
+    return () => {
+      onChangeCallbacksRef.current.delete(callback);
+    };
+  }, []);
 
   // Generate MUI theme based on current settings
   const theme = useMemo(
@@ -100,8 +133,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       setAccentColor,
       setIntensity,
       toggleMode,
+      applyServerSettings,
+      registerOnChange,
     }),
-    [settings]
+    [settings, setMode, setAccentColor, setIntensity, toggleMode, applyServerSettings, registerOnChange]
   );
 
   return (

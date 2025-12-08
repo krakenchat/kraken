@@ -182,8 +182,7 @@ const Sidebar = styled(Paper)(({ theme }) => ({
   flexDirection: "column",
   alignItems: "stretch",
   borderRadius: 0,
-  boxShadow: "none",
-  borderRight: `1px solid ${theme.palette.divider}`,
+  // Let theme control boxShadow for vibrant mode glow effects
   padding: theme.spacing(2, 0, 0, 0),
   overflowY: "auto",
   zIndex: 2,

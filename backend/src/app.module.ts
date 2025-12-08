@@ -38,6 +38,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { InstanceModule } from './instance/instance.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { AppearanceSettingsModule } from './appearance-settings/appearance-settings.module';
 
 @Module({
   imports: [
@@ -120,6 +121,7 @@ import { ModerationModule } from './moderation/moderation.module';
     FileModule,
     InstanceModule,
     ModerationModule,
+    AppearanceSettingsModule,
   ],
   controllers: [AppController],
   providers: [

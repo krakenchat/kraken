@@ -55,12 +55,40 @@ const accentPalettes = {
     lighter: '#5eead4',
     subtle: '#2dd4bf',
   },
+  blue: {
+    primary: '#3b82f6',
+    light: '#60a5fa',
+    dark: '#2563eb',
+    lighter: '#93c5fd',
+    subtle: '#60a5fa',
+  },
+  indigo: {
+    primary: '#6366f1',
+    light: '#818cf8',
+    dark: '#4f46e5',
+    lighter: '#a5b4fc',
+    subtle: '#818cf8',
+  },
   purple: {
     primary: '#8b5cf6',
     light: '#a78bfa',
     dark: '#7c3aed',
     lighter: '#c4b5fd',
     subtle: '#a78bfa',
+  },
+  rose: {
+    primary: '#f43f5e',
+    light: '#fb7185',
+    dark: '#e11d48',
+    lighter: '#fda4af',
+    subtle: '#fb7185',
+  },
+  red: {
+    primary: '#ef4444',
+    light: '#f87171',
+    dark: '#dc2626',
+    lighter: '#fca5a5',
+    subtle: '#f87171',
   },
   orange: {
     primary: '#f97316',
@@ -69,12 +97,40 @@ const accentPalettes = {
     lighter: '#fdba74',
     subtle: '#fb923c',
   },
-  blue: {
-    primary: '#3b82f6',
-    light: '#60a5fa',
-    dark: '#2563eb',
-    lighter: '#93c5fd',
-    subtle: '#60a5fa',
+  amber: {
+    primary: '#f59e0b',
+    light: '#fbbf24',
+    dark: '#d97706',
+    lighter: '#fcd34d',
+    subtle: '#fbbf24',
+  },
+  lime: {
+    primary: '#84cc16',
+    light: '#a3e635',
+    dark: '#65a30d',
+    lighter: '#bef264',
+    subtle: '#a3e635',
+  },
+  emerald: {
+    primary: '#10b981',
+    light: '#34d399',
+    dark: '#059669',
+    lighter: '#6ee7b7',
+    subtle: '#34d399',
+  },
+  cyan: {
+    primary: '#06b6d4',
+    light: '#22d3ee',
+    dark: '#0891b2',
+    lighter: '#67e8f9',
+    subtle: '#22d3ee',
+  },
+  slate: {
+    primary: '#64748b',
+    light: '#94a3b8',
+    dark: '#475569',
+    lighter: '#cbd5e1',
+    subtle: '#94a3b8',
   },
 };
 
@@ -112,7 +168,11 @@ export function generateTheme(
   const accent = accentPalettes[accentColor];
   const base = mode === 'dark' ? darkBase : lightBase;
   const isDark = mode === 'dark';
-  const isVibrant = intensity === 'vibrant';
+
+  // Intensity levels: minimal (0), subtle (1), vibrant (2)
+  const intensityLevel = intensity === 'minimal' ? 0 : intensity === 'subtle' ? 1 : 2;
+  const isSubtle = intensityLevel >= 1;
+  const isVibrant = intensityLevel >= 2;
 
   // Semantic colors that adapt to light/dark mode
   // Simplified to just status indicators and overlay levels
@@ -138,9 +198,16 @@ export function generateTheme(
       },
       background: {
         default: isVibrant && isDark
-          ? `linear-gradient(180deg, ${alpha(accent.dark, 0.15)} 0%, ${base.background.default} 100%)`
+          ? `linear-gradient(180deg, ${alpha(accent.dark, 0.25)} 0%, ${base.background.default} 100%)`
+          : isSubtle && isDark
+          ? `linear-gradient(180deg, ${alpha(accent.dark, 0.12)} 0%, ${base.background.default} 100%)`
           : base.background.default,
-        paper: base.background.paper,
+        // Tint paper background in vibrant/subtle modes
+        paper: isVibrant
+          ? blendColors(accent.primary, base.background.paper, isDark ? 0.2 : 0.22)
+          : isSubtle
+          ? blendColors(accent.primary, base.background.paper, isDark ? 0.1 : 0.08)
+          : base.background.paper,
       },
       text: base.text,
       semantic: semanticColors,
@@ -154,9 +221,12 @@ export function generateTheme(
         styleOverrides: {
           root: {
             backgroundImage: 'none',
-            backgroundColor: base.background.paper,
-            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.25 : 0.1)}`,
+            // Use palette background.paper (which is now tinted in vibrant/subtle modes)
+            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.4 : isSubtle ? 0.2 : 0.08)}`,
             ...(isVibrant && {
+              boxShadow: `0 0 20px ${alpha(accent.primary, 0.15)}, 0 0 0 1px ${alpha(accent.primary, 0.1)} inset`,
+            }),
+            ...(isSubtle && !isVibrant && {
               boxShadow: `0 0 0 1px ${alpha(accent.primary, 0.05)} inset`,
             }),
           },
@@ -168,18 +238,25 @@ export function generateTheme(
         styleOverrides: {
           root: {
             backgroundImage: 'none',
-            backgroundColor: base.background.paper,
-            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.3 : 0.08)}`,
+            // Use palette background.paper (tinted in vibrant/subtle modes)
+            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.5 : isSubtle ? 0.25 : 0.08)}`,
             transition: 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out, border-color 0.2s ease-in-out',
             ...(isVibrant && {
-              boxShadow: `0 2px 12px ${alpha(accent.primary, 0.12)}`,
+              boxShadow: `0 4px 20px ${alpha(accent.primary, 0.25)}, 0 0 30px ${alpha(accent.primary, 0.1)}`,
+            }),
+            ...(isSubtle && !isVibrant && {
+              boxShadow: `0 2px 12px ${alpha(accent.primary, 0.1)}`,
             }),
             '&:hover': {
               boxShadow: isDark
-                ? `0 4px 24px ${alpha(accent.primary, isVibrant ? 0.3 : 0.1)}`
-                : `0 4px 20px ${alpha(accent.primary, isVibrant ? 0.2 : 0.08)}`,
+                ? `0 8px 32px ${alpha(accent.primary, isVibrant ? 0.45 : isSubtle ? 0.25 : 0.1)}`
+                : `0 6px 24px ${alpha(accent.primary, isVibrant ? 0.35 : isSubtle ? 0.15 : 0.08)}`,
               ...(isVibrant && {
-                borderColor: alpha(accent.primary, 0.5),
+                borderColor: alpha(accent.primary, 0.7),
+                transform: 'translateY(-2px)',
+              }),
+              ...(isSubtle && !isVibrant && {
+                borderColor: alpha(accent.primary, 0.4),
               }),
             },
           },
@@ -191,22 +268,36 @@ export function generateTheme(
         styleOverrides: {
           contained: {
             background: isVibrant
+              ? `linear-gradient(135deg, ${accent.light} 0%, ${accent.primary} 50%, ${accent.dark} 100%)`
+              : isSubtle
               ? `linear-gradient(135deg, ${accent.primary} 0%, ${accent.light} 100%)`
               : accent.primary,
-            boxShadow: 'none',
+            boxShadow: isVibrant
+              ? `0 4px 15px ${alpha(accent.primary, 0.4)}, 0 0 20px ${alpha(accent.primary, 0.2)}`
+              : 'none',
             '&:hover': {
               background: isVibrant
+                ? `linear-gradient(135deg, ${accent.primary} 0%, ${accent.dark} 50%, ${blendColors(accent.dark, '#000000', 0.5)} 100%)`
+                : isSubtle
                 ? `linear-gradient(135deg, ${accent.dark} 0%, ${accent.primary} 100%)`
                 : accent.dark,
-              boxShadow: `0 2px 8px ${alpha(accent.primary, 0.4)}`,
+              boxShadow: isVibrant
+                ? `0 6px 20px ${alpha(accent.primary, 0.5)}, 0 0 30px ${alpha(accent.primary, 0.3)}`
+                : `0 2px 8px ${alpha(accent.primary, 0.4)}`,
             },
           },
           outlined: {
-            borderColor: alpha(accent.primary, 0.5),
+            borderColor: alpha(accent.primary, isVibrant ? 0.7 : isSubtle ? 0.5 : 0.3),
             color: accent.light,
+            ...(isVibrant && {
+              boxShadow: `0 0 10px ${alpha(accent.primary, 0.15)}`,
+            }),
             '&:hover': {
               borderColor: accent.primary,
-              backgroundColor: alpha(accent.primary, 0.08),
+              backgroundColor: alpha(accent.primary, isVibrant ? 0.15 : 0.08),
+              ...(isVibrant && {
+                boxShadow: `0 0 15px ${alpha(accent.primary, 0.25)}`,
+              }),
             },
           },
         },
@@ -218,15 +309,21 @@ export function generateTheme(
           root: {
             borderRadius: 8,
             marginBottom: 2,
-            transition: 'background-color 0.15s ease-in-out',
+            transition: 'background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out',
             '&:hover': {
-              backgroundColor: alpha(accent.primary, isVibrant ? 0.12 : 0.08),
+              backgroundColor: alpha(accent.primary, isVibrant ? 0.18 : isSubtle ? 0.12 : 0.06),
+              ...(isVibrant && {
+                boxShadow: `inset 0 0 15px ${alpha(accent.primary, 0.1)}`,
+              }),
             },
             '&.Mui-selected': {
-              backgroundColor: alpha(accent.primary, isVibrant ? 0.2 : 0.12),
-              borderLeft: `3px solid ${accent.primary}`,
+              backgroundColor: alpha(accent.primary, isVibrant ? 0.28 : isSubtle ? 0.18 : 0.1),
+              borderLeft: `${isVibrant ? 4 : 3}px solid ${accent.primary}`,
+              ...(isVibrant && {
+                boxShadow: `inset 0 0 20px ${alpha(accent.primary, 0.15)}, 0 0 10px ${alpha(accent.primary, 0.1)}`,
+              }),
               '&:hover': {
-                backgroundColor: alpha(accent.primary, isVibrant ? 0.25 : 0.16),
+                backgroundColor: alpha(accent.primary, isVibrant ? 0.35 : isSubtle ? 0.22 : 0.14),
               },
             },
           },
@@ -237,9 +334,16 @@ export function generateTheme(
       MuiChip: {
         styleOverrides: {
           root: {
-            backgroundColor: alpha(accent.primary, isVibrant ? 0.2 : 0.1),
+            backgroundColor: alpha(accent.primary, isVibrant ? 0.3 : isSubtle ? 0.18 : 0.1),
             color: accent.lighter,
-            border: isVibrant ? `1px solid ${alpha(accent.primary, 0.3)}` : 'none',
+            border: isVibrant
+              ? `1px solid ${alpha(accent.primary, 0.5)}`
+              : isSubtle
+              ? `1px solid ${alpha(accent.primary, 0.25)}`
+              : 'none',
+            ...(isVibrant && {
+              boxShadow: `0 0 8px ${alpha(accent.primary, 0.2)}`,
+            }),
           },
         },
       },
@@ -250,11 +354,17 @@ export function generateTheme(
           paper: {
             backgroundImage: 'none',
             backgroundColor: base.background.paper,
-            borderRight: `1px solid ${alpha(accent.primary, isVibrant ? 0.4 : 0.08)}`,
+            borderRight: `1px solid ${alpha(accent.primary, isVibrant ? 0.6 : isSubtle ? 0.3 : 0.08)}`,
             ...(isVibrant && {
               background: isDark
-                ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.paper, 0.4)} 0%, ${base.background.paper} 100%)`
-                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.25)} 0%, ${base.background.paper} 100%)`,
+                ? `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.5)} 0%, ${base.background.paper} 60%)`
+                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.35)} 0%, ${base.background.paper} 60%)`,
+              boxShadow: `4px 0 25px ${alpha(accent.primary, 0.15)}`,
+            }),
+            ...(isSubtle && !isVibrant && {
+              background: isDark
+                ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.paper, 0.3)} 0%, ${base.background.paper} 100%)`
+                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.2)} 0%, ${base.background.paper} 100%)`,
             }),
           },
         },
@@ -265,11 +375,17 @@ export function generateTheme(
         styleOverrides: {
           root: {
             backgroundColor: isDark ? '#151820' : '#ffffff',
-            borderBottom: `1px solid ${alpha(accent.primary, isVibrant ? 0.45 : 0.1)}`,
+            borderBottom: `1px solid ${alpha(accent.primary, isVibrant ? 0.6 : isSubtle ? 0.35 : 0.1)}`,
             ...(isVibrant && {
               background: isDark
-                ? `linear-gradient(90deg, #151820 0%, ${blendColors(accent.dark, '#151820', 0.45)} 100%)`
-                : `linear-gradient(90deg, #ffffff 0%, ${blendColors(accent.primary, '#ffffff', 0.25)} 100%)`,
+                ? `linear-gradient(90deg, ${blendColors(accent.dark, '#151820', 0.4)} 0%, ${blendColors(accent.primary, '#151820', 0.55)} 50%, ${blendColors(accent.dark, '#151820', 0.4)} 100%)`
+                : `linear-gradient(90deg, ${blendColors(accent.primary, '#ffffff', 0.3)} 0%, ${blendColors(accent.light, '#ffffff', 0.35)} 50%, ${blendColors(accent.primary, '#ffffff', 0.3)} 100%)`,
+              boxShadow: `0 4px 20px ${alpha(accent.primary, 0.2)}`,
+            }),
+            ...(isSubtle && !isVibrant && {
+              background: isDark
+                ? `linear-gradient(90deg, #151820 0%, ${blendColors(accent.dark, '#151820', 0.35)} 100%)`
+                : `linear-gradient(90deg, #ffffff 0%, ${blendColors(accent.primary, '#ffffff', 0.2)} 100%)`,
             }),
           },
         },
@@ -416,8 +532,14 @@ export function generateTheme(
             backgroundColor: base.background.default,
             ...(isVibrant && {
               background: isDark
-                ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.default, 0.2)} 0%, ${base.background.default} 500px)`
-                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.default, 0.15)} 0%, ${base.background.default} 500px)`,
+                ? `linear-gradient(180deg, ${blendColors(accent.primary, base.background.default, 0.35)} 0%, ${base.background.default} 600px)`
+                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.default, 0.25)} 0%, ${base.background.default} 600px)`,
+              backgroundAttachment: 'fixed',
+            }),
+            ...(isSubtle && !isVibrant && {
+              background: isDark
+                ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.default, 0.15)} 0%, ${base.background.default} 400px)`
+                : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.default, 0.1)} 0%, ${base.background.default} 400px)`,
               backgroundAttachment: 'fixed',
             }),
           },

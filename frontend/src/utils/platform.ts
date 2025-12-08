@@ -58,6 +58,14 @@ export const isMobile = (): boolean => {
 };
 
 /**
+ * Check if running on desktop browser (not Electron, not mobile)
+ * Used to differentiate desktop web from mobile web
+ */
+export const isDesktopBrowser = (): boolean => {
+  return isWeb() && !isMobile();
+};
+
+/**
  * Get current platform
  */
 export const getPlatform = (): Platform => {
@@ -123,6 +131,7 @@ export const platformUtils = {
   isElectron,
   isWeb,
   isMobile,
+  isDesktopBrowser,
   getPlatform,
   hasElectronFeature,
   getElectronAPI,

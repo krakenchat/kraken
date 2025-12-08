@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { isDesktopBrowser } from '../utils/platform';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -111,8 +112,12 @@ export function usePWAInstall(): PWAInstallState {
     localStorage.setItem('pwa-install-dismissed', Date.now().toString());
   }, []);
 
+  // Hide PWA install prompt on desktop browsers - we have Electron for that
+  // Only show on mobile (iOS/Android) where PWA provides a better experience
+  const isDesktop = isDesktopBrowser();
+
   return {
-    isInstallable: !isDismissed && !isInstalled && (!!installPrompt || isIOS),
+    isInstallable: !isDismissed && !isInstalled && !isDesktop && (!!installPrompt || isIOS),
     isInstalled,
     isIOS,
     install,
