@@ -16,6 +16,7 @@ import {
 } from "./pages/admin";
 import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
+import FriendsPage from "./pages/FriendsPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProfileEditPage from "./pages/ProfileEditPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -129,6 +130,7 @@ function App() {
               <Route path="/" element={<Layout />}>
                 <Route index element={<HomePage />} />
                 <Route path="direct-messages" element={<DirectMessagesPage />} />
+                <Route path="friends" element={<FriendsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
 
                 {/* Admin routes with dedicated layout */}

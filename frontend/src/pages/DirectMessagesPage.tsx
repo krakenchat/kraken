@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Box, Typography, useTheme, useMediaQuery, Paper, IconButton } from "@mui/material";
-import { Add as AddIcon } from "@mui/icons-material";
+import { Box, Typography, useTheme, useMediaQuery, Paper, IconButton, Tabs, Tab, Badge } from "@mui/material";
+import { Add as AddIcon, People as PeopleIcon, Chat as ChatIcon } from "@mui/icons-material";
 import DirectMessageList from "../components/DirectMessages/DirectMessageList";
 import DirectMessageContainer from "../components/DirectMessages/DirectMessageContainer";
 import { DMChatHeader } from "../components/DirectMessages/DMChatHeader";
+import { FriendsPanel } from "../components/Friends";
 import { useGetDmGroupQuery } from "../features/directMessages/directMessagesApiSlice";
+import { useGetPendingRequestsQuery } from "../features/friends/friendsApiSlice";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { styled } from "@mui/material/styles";
 import { DirectMessageGroup, DirectMessageGroupMember } from "../types/direct-message.type";
@@ -45,8 +47,17 @@ const DMHeader = styled(Box)(({ theme }) => ({
   alignItems: "center",
   justifyContent: "space-between",
   gap: theme.spacing(1.5),
-  padding: theme.spacing(0, 2, 2, 2),
+  padding: theme.spacing(0, 2, 1.5, 2),
+}));
+
+const SidebarTabs = styled(Tabs)(({ theme }) => ({
+  minHeight: 40,
   borderBottom: `1px solid ${theme.palette.divider}`,
+  '& .MuiTab-root': {
+    minHeight: 40,
+    textTransform: 'none',
+    fontWeight: 500,
+  },
 }));
 
 const Content = styled(Box)(() => ({
@@ -60,13 +71,26 @@ const Content = styled(Box)(() => ({
   height: "100%",
 }));
 
+type SidebarTab = "messages" | "friends";
+
 const DirectMessagesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDmGroupId, setSelectedDmGroupId] = useState<string | undefined>();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("messages");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { data: currentUser } = useProfileQuery();
+  const { data: pendingRequests } = useGetPendingRequestsQuery();
+
+  // Count of incoming friend requests for badge
+  const incomingRequestCount = pendingRequests?.received?.length || 0;
+
+  // Handle DM creation from Friends panel (switches to messages tab and selects the DM)
+  const handleSelectDmFromFriends = (dmGroupId: string) => {
+    setSidebarTab("messages");
+    setSelectedDmGroupId(dmGroupId);
+  };
 
   // Handle ?group=<id> query param for deep linking (e.g., from notifications)
   useEffect(() => {
@@ -117,18 +141,49 @@ const DirectMessagesPage: React.FC = () => {
           <>
             <DMHeader>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Direct Messages
+                {sidebarTab === "messages" ? "Direct Messages" : "Friends"}
               </Typography>
-              <IconButton onClick={() => setShowCreateDialog(true)} size="small">
-                <AddIcon />
-              </IconButton>
+              {sidebarTab === "messages" && (
+                <IconButton onClick={() => setShowCreateDialog(true)} size="small">
+                  <AddIcon />
+                </IconButton>
+              )}
             </DMHeader>
-            <DirectMessageList
-              selectedDmGroupId={selectedDmGroupId}
-              onSelectDmGroup={setSelectedDmGroupId}
-              showCreateDialog={showCreateDialog}
-              setShowCreateDialog={setShowCreateDialog}
-            />
+            <SidebarTabs
+              value={sidebarTab}
+              onChange={(_, newValue) => setSidebarTab(newValue)}
+              variant="fullWidth"
+            >
+              <Tab
+                icon={<ChatIcon fontSize="small" />}
+                iconPosition="start"
+                label="Messages"
+                value="messages"
+              />
+              <Tab
+                icon={
+                  <Badge badgeContent={incomingRequestCount} color="error">
+                    <PeopleIcon fontSize="small" />
+                  </Badge>
+                }
+                iconPosition="start"
+                label="Friends"
+                value="friends"
+              />
+            </SidebarTabs>
+            {sidebarTab === "messages" ? (
+              <DirectMessageList
+                selectedDmGroupId={selectedDmGroupId}
+                onSelectDmGroup={setSelectedDmGroupId}
+                showCreateDialog={showCreateDialog}
+                setShowCreateDialog={setShowCreateDialog}
+              />
+            ) : (
+              <FriendsPanel
+                onSelectDmGroup={handleSelectDmFromFriends}
+                compact
+              />
+            )}
           </>
         )}
       </Box>
@@ -141,18 +196,48 @@ const DirectMessagesPage: React.FC = () => {
       <Sidebar>
         <DMHeader>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Direct Messages
+            {sidebarTab === "messages" ? "Direct Messages" : "Friends"}
           </Typography>
-          <IconButton onClick={() => setShowCreateDialog(true)} size="small">
-            <AddIcon />
-          </IconButton>
+          {sidebarTab === "messages" && (
+            <IconButton onClick={() => setShowCreateDialog(true)} size="small">
+              <AddIcon />
+            </IconButton>
+          )}
         </DMHeader>
-        <DirectMessageList
-          selectedDmGroupId={selectedDmGroupId}
-          onSelectDmGroup={setSelectedDmGroupId}
-          showCreateDialog={showCreateDialog}
-          setShowCreateDialog={setShowCreateDialog}
-        />
+        <SidebarTabs
+          value={sidebarTab}
+          onChange={(_, newValue) => setSidebarTab(newValue)}
+          variant="fullWidth"
+        >
+          <Tab
+            icon={<ChatIcon fontSize="small" />}
+            iconPosition="start"
+            label="Messages"
+            value="messages"
+          />
+          <Tab
+            icon={
+              <Badge badgeContent={incomingRequestCount} color="error">
+                <PeopleIcon fontSize="small" />
+              </Badge>
+            }
+            iconPosition="start"
+            label="Friends"
+            value="friends"
+          />
+        </SidebarTabs>
+        {sidebarTab === "messages" ? (
+          <DirectMessageList
+            selectedDmGroupId={selectedDmGroupId}
+            onSelectDmGroup={setSelectedDmGroupId}
+            showCreateDialog={showCreateDialog}
+            setShowCreateDialog={setShowCreateDialog}
+          />
+        ) : (
+          <FriendsPanel
+            onSelectDmGroup={handleSelectDmFromFriends}
+          />
+        )}
       </Sidebar>
       <Content>
         {selectedDmGroupId ? (

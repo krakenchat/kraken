@@ -39,6 +39,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
 import { InstanceModule } from './instance/instance.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { AppearanceSettingsModule } from './appearance-settings/appearance-settings.module';
+import { FriendsModule } from './friends/friends.module';
 
 @Module({
   imports: [
@@ -122,6 +123,7 @@ import { AppearanceSettingsModule } from './appearance-settings/appearance-setti
     InstanceModule,
     ModerationModule,
     AppearanceSettingsModule,
+    FriendsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -9,14 +9,15 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Core Chat** | 13 | 1 | 1 | 15 | 100% |
 | **Voice & Video** | 10 | 1 | 4 | 15 | 80% |
 | **Community Management** | 10 | 0 | 3 | 13 | 92% |
-| **User Features** | 9 | 2 | 4 | 15 | 73% |
+| **User Features** | 10 | 1 | 4 | 15 | 80% |
 | **Moderation** | 8 | 1 | 6 | 15 | 67% |
-| **Social Features** | 5 | 1 | 8 | 14 | 43% |
+| **Social Features** | 6 | 0 | 8 | 14 | 50% |
 | **Mobile/Desktop** | 2 | 1 | 2 | 5 | 60% |
 
-**Overall Parity: ~80%** (up from ~78%)
+**Overall Parity: ~82%** (up from ~80%)
 
 ### 🎉 Recent Improvements
+- **Friend System**: Full friend requests, accept/decline/cancel, friends list with DM integration
 - **Slowmode**: Channel rate limiting with configurable delay
 - **Custom Status**: User-defined status messages
 - **User Bio**: Profile biography text
@@ -144,12 +145,12 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Direct Messages** | ✅ | ✅ | 1:1 and group DMs with file attachments |
 | **Custom Status** | ✅ | ✅ | User-defined status message |
 | **User Bio** | ✅ | ✅ | Profile biography text |
+| **Friend System** | ✅ | ✅ | Full friend requests, accept/decline/cancel, friends list |
 
 ### 🔧 Partially Implemented
 
 | Feature | Discord | Kraken | Status | Missing |
 |---------|---------|---------|---------|---------|
-| **Friend System** | ✅ | 🔧 | Schema Ready | Friend requests UI |
 | **User Settings** | ✅ | 🔧 | Basic | Comprehensive settings panel |
 
 ### ❌ Missing
@@ -208,12 +209,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Message Reactions** | ✅ | ✅ | Emoji reactions with picker and tooltips |
 | **Screen Share in DMs** | ✅ | ✅ | Screen sharing in DM voice calls |
 | **User Blocking** | ✅ | ✅ | Block/unblock users with API endpoints |
-
-### 🔧 Partially Implemented
-
-| Feature | Discord | Kraken | Status | Missing |
-|---------|---------|---------|---------|---------|
-| **Friend Requests** | ✅ | 🔧 | Schema Ready | Request system UI |
+| **Friend Requests** | ✅ | ✅ | Send, accept, decline, cancel requests |
 
 ### ❌ Missing
 
