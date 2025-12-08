@@ -12,10 +12,9 @@ interface ChannelListProps {
 interface CategoryHeaderProps {
   icon: React.ReactNode;
   label: string;
-  count: number;
 }
 
-const CategoryHeader: React.FC<CategoryHeaderProps> = ({ icon, label, count }) => {
+const CategoryHeader: React.FC<CategoryHeaderProps> = ({ icon, label }) => {
   const theme = useTheme();
 
   return (
@@ -48,19 +47,9 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({ icon, label, count }) =
           textTransform: "uppercase",
           letterSpacing: "0.05em",
           color: "text.secondary",
-          flex: 1,
         }}
       >
         {label}
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{
-          color: "text.disabled",
-          fontSize: "0.7rem",
-        }}
-      >
-        {count}
       </Typography>
     </Box>
   );
@@ -127,7 +116,6 @@ const ChannelList: React.FC<ChannelListProps> = ({ communityId }) => {
           <CategoryHeader
             icon={<TextIcon sx={{ fontSize: 16 }} />}
             label="Text Channels"
-            count={textChannels.length}
           />
           <List sx={{ padding: 0 }}>
             {textChannels.map((channel: Channel) => (
@@ -143,7 +131,6 @@ const ChannelList: React.FC<ChannelListProps> = ({ communityId }) => {
           <CategoryHeader
             icon={<VoiceIcon sx={{ fontSize: 16 }} />}
             label="Voice Channels"
-            count={voiceChannels.length}
           />
           <List sx={{ padding: 0 }}>
             {voiceChannels.map((channel: Channel) => (
