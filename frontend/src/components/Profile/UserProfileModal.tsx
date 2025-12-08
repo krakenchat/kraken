@@ -103,17 +103,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       maxWidth="xs"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2, overflow: "hidden" },
+        sx: { borderRadius: 2, overflow: "visible" },
       }}
     >
-      <BannerContainer>
+      <BannerContainer sx={{ borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
         {bannerUrl && <BannerImage src={bannerUrl} alt="Profile banner" />}
         <CloseButton size="small" onClick={onClose}>
           <CloseIcon fontSize="small" />
         </CloseButton>
       </BannerContainer>
 
-      <DialogContent sx={{ p: 0 }}>
+      <DialogContent sx={{ p: 0, overflow: "visible" }}>
         <ProfileContent>
           <AvatarContainer>
             {isLoading ? (
