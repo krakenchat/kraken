@@ -10,6 +10,7 @@ interface MemberData {
   displayName?: string | null;
   avatarUrl?: string | null;
   isOnline?: boolean;
+  status?: string | null;
 }
 
 interface MemberListContainerProps {
@@ -51,6 +52,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
           username: membership.user!.username,
           displayName: membership.user!.displayName,
           avatarUrl: membership.user!.avatarUrl,
+          status: membership.user!.status,
         }));
     } else {
       // DM context
@@ -60,6 +62,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
           username: member.user.username,
           displayName: member.user.displayName,
           avatarUrl: member.user.avatarUrl,
+          status: member.user.status,
         }));
     }
   }, [contextType, communityMembers, dmGroup]);

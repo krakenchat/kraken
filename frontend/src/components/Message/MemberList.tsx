@@ -6,6 +6,7 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
+  ListItemButton,
   Divider,
   Skeleton,
   Alert,
@@ -13,6 +14,7 @@ import {
 import { alpha, useTheme } from "@mui/material/styles";
 import UserAvatar from "../Common/UserAvatar";
 import { UserModerationMenu } from "../Moderation";
+import { useUserProfile } from "../../contexts/UserProfileContext";
 
 interface MemberData {
   id: string;
@@ -20,6 +22,7 @@ interface MemberData {
   displayName?: string | null;
   avatarUrl?: string | null;
   isOnline?: boolean;
+  status?: string | null;
 }
 
 interface MemberListProps {
@@ -57,6 +60,7 @@ const MemberList: React.FC<MemberListProps> = ({
   communityId,
 }) => {
   const theme = useTheme();
+  const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     anchorEl: null,
     member: null,
@@ -125,13 +129,13 @@ const MemberList: React.FC<MemberListProps> = ({
                 <MemberListSkeleton key={index} />
               ))
             : members.map((member) => (
-                <ListItem
+                <ListItemButton
                   key={member.id}
+                  onClick={() => openProfile(member.id)}
                   onContextMenu={(e) => handleContextMenu(e, member)}
                   sx={{
                     px: 2,
                     py: 0.5,
-                    cursor: communityId ? "context-menu" : "default",
                     "&:hover": {
                       backgroundColor: theme.palette.semantic.overlay.light,
                     },
@@ -155,25 +159,30 @@ const MemberList: React.FC<MemberListProps> = ({
                           lineHeight: 1.2,
                         }}
                       >
-                        {member.username}
+                        {member.displayName || member.username}
                       </Typography>
                     }
                     secondary={
-                      member.displayName && (
+                      member.status ? (
                         <Typography
                           variant="caption"
                           sx={{
                             color: "text.secondary",
-                            fontSize: "12px",
+                            fontSize: "11px",
                             lineHeight: 1.2,
+                            display: "block",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: 150,
                           }}
                         >
-                          {member.displayName}
+                          {member.status}
                         </Typography>
-                      )
+                      ) : null
                     }
                   />
-                </ListItem>
+                </ListItemButton>
               ))}
         </List>
 

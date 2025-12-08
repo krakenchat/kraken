@@ -49,6 +49,7 @@ const AvatarContainer = styled(Box)(() => ({
   position: "absolute",
   top: -40,
   left: 16,
+  zIndex: 1,
 }));
 
 const CloseButton = styled(IconButton)(({ theme }) => ({
