@@ -29,6 +29,11 @@ interface MessageContainerProps {
 
   // Search highlight
   highlightMessageId?: string;
+
+  // Thread handling
+  contextId?: string;
+  communityId?: string;
+  onOpenThread?: (message: Message) => void;
 }
 
 const MessageContainer: React.FC<MessageContainerProps> = ({
@@ -44,6 +49,9 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   showMemberList = true,
   emptyStateMessage = "No messages yet. Start the conversation!",
   highlightMessageId,
+  contextId,
+  communityId,
+  onOpenThread,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -215,6 +223,9 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
                   message={message}
                   isAuthor={message.authorId === authorId}
                   isSearchHighlight={isHighlighted}
+                  contextId={contextId}
+                  communityId={communityId}
+                  onOpenThread={onOpenThread}
                 />
               </div>
             );

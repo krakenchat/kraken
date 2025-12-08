@@ -292,6 +292,9 @@ export class ClipLibraryService {
       pinnedBy: null,
       deletedBy: null,
       deletedByReason: null,
+      parentMessageId: null,
+      replyCount: 0,
+      lastReplyAt: null,
     };
 
     const message = await this.messagesService.create(messagePayload);

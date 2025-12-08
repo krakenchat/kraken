@@ -78,4 +78,14 @@ export class CreateMessageDto implements Message {
 
   @Exclude()
   deletedByReason: string | null;
+
+  // Threading fields (excluded - set by threading system)
+  @Exclude()
+  parentMessageId: string | null;
+
+  @Exclude()
+  replyCount: number;
+
+  @Exclude()
+  lastReplyAt: Date | null;
 }

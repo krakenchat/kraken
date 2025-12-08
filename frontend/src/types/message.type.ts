@@ -44,4 +44,8 @@ export interface Message {
   pinned?: boolean;
   pinnedAt?: string;
   pinnedBy?: string;
+  // Threading fields
+  parentMessageId?: string;
+  replyCount?: number;
+  lastReplyAt?: string;
 }

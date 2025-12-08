@@ -13,6 +13,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import CancelIcon from "@mui/icons-material/Cancel";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { styled } from "@mui/material/styles";
 import { EmojiPicker } from "./EmojiPicker";
 
@@ -38,6 +39,7 @@ export interface MessageToolbarProps {
   canEdit: boolean;
   canDelete: boolean;
   canPin: boolean;
+  canThread: boolean;
   isPinned: boolean;
   stagedForDelete: boolean;
   onEdit: () => void;
@@ -47,12 +49,14 @@ export interface MessageToolbarProps {
   onEmojiSelect: (emoji: string) => void;
   onPin: () => void;
   onUnpin: () => void;
+  onReplyInThread: () => void;
 }
 
 export const MessageToolbar: React.FC<MessageToolbarProps> = ({
   canEdit,
   canDelete,
   canPin,
+  canThread,
   isPinned,
   stagedForDelete,
   onEdit,
@@ -62,6 +66,7 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
   onEmojiSelect,
   onPin,
   onUnpin,
+  onReplyInThread,
 }) => {
   return (
     <MessageTools
@@ -97,6 +102,13 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
       ) : (
         <>
           <EmojiPicker onEmojiSelect={onEmojiSelect} />
+          {canThread && (
+            <Tooltip title="Reply in thread">
+              <IconButton size="small" onClick={onReplyInThread}>
+                <ChatBubbleOutlineIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           {canPin && (
             <Tooltip title={isPinned ? "Unpin message" : "Pin message"}>
               <IconButton

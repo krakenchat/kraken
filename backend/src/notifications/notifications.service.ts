@@ -280,6 +280,7 @@ export class NotificationsService {
         channelId: dto.channelId,
         directMessageGroupId: dto.directMessageGroupId,
         authorId: dto.authorId,
+        parentMessageId: dto.parentMessageId,
       },
       include: {
         author: {
@@ -415,6 +416,8 @@ export class NotificationsService {
         return 'You have a new message';
       case NotificationType.CHANNEL_MESSAGE:
         return `${authorName} sent a message`;
+      case NotificationType.THREAD_REPLY:
+        return `${authorName} replied to a thread`;
       default:
         return 'You have a new notification';
     }
@@ -631,6 +634,83 @@ export class NotificationsService {
   ): Promise<void> {
     await this.databaseService.channelNotificationOverride.deleteMany({
       where: { userId, channelId },
+    });
+  }
+
+  /**
+   * Process thread reply notifications.
+   * Notifies all thread subscribers (excluding the reply author).
+   */
+  async processThreadReplyNotifications(
+    reply: Message,
+    parentMessageId: string,
+    authorId: string,
+  ): Promise<void> {
+    try {
+      // Get all thread subscribers except the reply author
+      const subscribers = await this.databaseService.threadSubscriber.findMany({
+        where: {
+          parentMessageId,
+          userId: { not: authorId },
+        },
+        select: { userId: true },
+      });
+
+      if (subscribers.length === 0) {
+        return;
+      }
+
+      // Create notifications for all subscribers
+      const notificationPromises = subscribers.map((subscriber) =>
+        this.createNotificationIfAllowedForThread(
+          subscriber.userId,
+          reply,
+          parentMessageId,
+        ),
+      );
+
+      await Promise.all(notificationPromises);
+
+      this.logger.debug(
+        `Created thread reply notifications for ${subscribers.length} subscribers`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error processing thread reply notifications for ${parentMessageId}`,
+        error,
+      );
+      // Don't throw - notification failures shouldn't break message sending
+    }
+  }
+
+  /**
+   * Create a thread reply notification if user's settings allow it
+   */
+  private async createNotificationIfAllowedForThread(
+    userId: string,
+    reply: Message,
+    parentMessageId: string,
+  ): Promise<Notification | null> {
+    // Check if user should be notified based on settings
+    const shouldNotify = await this.shouldNotify(
+      userId,
+      reply.channelId,
+      reply.directMessageGroupId,
+      NotificationType.THREAD_REPLY,
+    );
+
+    if (!shouldNotify) {
+      return null;
+    }
+
+    return this.createNotification({
+      userId,
+      type: NotificationType.THREAD_REPLY,
+      messageId: reply.id,
+      channelId: reply.channelId ?? undefined,
+      directMessageGroupId: reply.directMessageGroupId ?? undefined,
+      authorId: reply.authorId,
+      parentMessageId,
     });
   }
 }

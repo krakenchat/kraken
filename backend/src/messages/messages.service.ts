@@ -33,6 +33,10 @@ interface RawMongoMessage {
   pinnedBy?: { $oid: string } | null;
   deletedBy?: { $oid: string } | null;
   deletedByReason?: string | null;
+  // Threading fields
+  parentMessageId?: { $oid: string } | null;
+  replyCount?: number;
+  lastReplyAt?: { $date: string } | null;
 }
 
 @Injectable()
@@ -525,6 +529,10 @@ export class MessagesService {
       pinnedBy: msg.pinnedBy?.$oid ?? null,
       deletedBy: msg.deletedBy?.$oid ?? null,
       deletedByReason: msg.deletedByReason ?? null,
+      // Threading fields
+      parentMessageId: msg.parentMessageId?.$oid ?? null,
+      replyCount: msg.replyCount ?? 0,
+      lastReplyAt: msg.lastReplyAt ? new Date(msg.lastReplyAt.$date) : null,
     }));
   }
 

@@ -20,10 +20,12 @@ import { adminApi } from "../features/admin/adminApiSlice";
 import { moderationApi } from "../features/moderation/moderationApiSlice";
 import { appearanceApi } from "../features/appearance/appearanceSlice";
 import { friendsApi } from "../features/friends/friendsApiSlice";
+import { threadsApi } from "../features/threads/threadsApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
 import readReceiptsReducer from "../features/readReceipts/readReceiptsSlice";
 import notificationsReducer from "../features/notifications/notificationsSlice";
+import threadsReducer from "../features/threads/threadsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -49,10 +51,12 @@ export const store = configureStore({
     [moderationApi.reducerPath]: moderationApi.reducer,
     [appearanceApi.reducerPath]: appearanceApi.reducer,
     [friendsApi.reducerPath]: friendsApi.reducer,
+    [threadsApi.reducerPath]: threadsApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
     readReceipts: readReceiptsReducer,
     notifications: notificationsReducer,
+    threads: threadsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -77,7 +81,8 @@ export const store = configureStore({
       adminApi.middleware,
       moderationApi.middleware,
       appearanceApi.middleware,
-      friendsApi.middleware
+      friendsApi.middleware,
+      threadsApi.middleware
     ),
 });
 

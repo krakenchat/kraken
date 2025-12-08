@@ -54,6 +54,12 @@ export enum ServerEvents {
   MESSAGE_PINNED = 'messagePinned',
   MESSAGE_UNPINNED = 'messageUnpinned',
 
+  // Thread Events
+  NEW_THREAD_REPLY = 'newThreadReply',
+  UPDATE_THREAD_REPLY = 'updateThreadReply',
+  DELETE_THREAD_REPLY = 'deleteThreadReply',
+  THREAD_REPLY_COUNT_UPDATED = 'threadReplyCountUpdated',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',

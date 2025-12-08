@@ -25,4 +25,8 @@ export class CreateNotificationDto {
   @IsNotEmpty()
   @IsString()
   authorId: string;
+
+  @IsOptional()
+  @IsString()
+  parentMessageId?: string;
 }

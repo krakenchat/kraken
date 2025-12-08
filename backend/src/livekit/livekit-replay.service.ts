@@ -1043,6 +1043,9 @@ export class LivekitReplayService {
         pinnedBy: null,
         deletedBy: null,
         deletedByReason: null,
+        parentMessageId: null,
+        replyCount: 0,
+        lastReplyAt: null,
       };
 
       this.logger.log(`Creating message with file attachment: ${file.id}`);

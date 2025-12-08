@@ -27,6 +27,7 @@ export interface MessageContainerWrapperProps {
   placeholder?: string;
   emptyStateMessage?: string;
   highlightMessageId?: string;
+  onOpenThread?: (message: Message) => void;
 }
 
 const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
@@ -41,6 +42,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
   placeholder = "Type a message...",
   emptyStateMessage = "No messages yet. Start the conversation!",
   highlightMessageId,
+  onOpenThread,
 }) => {
   const { data: user } = useProfileQuery();
   const authorId = user?.id || "";
@@ -81,6 +83,9 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       memberListComponent={memberListComponent}
       emptyStateMessage={emptyStateMessage}
       highlightMessageId={highlightMessageId}
+      contextId={contextId}
+      communityId={communityId}
+      onOpenThread={onOpenThread}
     />
   );
 };

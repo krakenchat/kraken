@@ -35,4 +35,7 @@ export enum ClientEvents {
   VOICE_CHANNEL_LEAVE = 'voice_channel_leave',
   VOICE_STATE_UPDATE = 'voice_state_update',
   VOICE_PRESENCE_REFRESH = 'voice_presence_refresh',
+
+  // Threads
+  SEND_THREAD_REPLY = 'sendThreadReply',
 }

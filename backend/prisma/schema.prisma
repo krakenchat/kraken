@@ -32,13 +32,40 @@ model Message {
   deletedBy       String? @db.ObjectId // Who deleted the message (null if author)
   deletedByReason String? // Reason for mod deletion
 
+  // Threading fields
+  parentMessageId String?   @db.ObjectId // If set, this is a thread reply
+  replyCount      Int       @default(0) // Number of replies (only on parent messages)
+  lastReplyAt     DateTime? // When the last reply was added
+
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
   notifications      Notification[]
 
+  // Thread self-relation
+  parentMessage   Message?  @relation("ThreadReplies", fields: [parentMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  threadReplies   Message[] @relation("ThreadReplies")
+
+  // Thread subscribers
+  threadSubscribers ThreadSubscriber[] @relation("MessageThreadSubscribers")
+
   @@index([channelId, searchText])
   @@index([directMessageGroupId, searchText])
   @@index([channelId, pinned]) // For fetching pinned messages in a channel
+  @@index([parentMessageId]) // For fetching thread replies
+}
+
+model ThreadSubscriber {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  parentMessageId String   @db.ObjectId
+  subscribedAt    DateTime @default(now())
+
+  user          User    @relation("UserThreadSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+  parentMessage Message @relation("MessageThreadSubscribers", fields: [parentMessageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, parentMessageId])
+  @@index([parentMessageId]) // For fetching all subscribers of a thread
+  @@index([userId]) // For fetching all threads a user is subscribed to
 }
 
 model ReadReceipt {
@@ -68,6 +95,7 @@ model Notification {
   channelId            String?          @db.ObjectId
   directMessageGroupId String?          @db.ObjectId
   authorId             String           @db.ObjectId // Who triggered the notification
+  parentMessageId      String?          @db.ObjectId // For thread reply notifications
   read                 Boolean          @default(false)
   dismissed            Boolean          @default(false)
   createdAt            DateTime         @default(now())
@@ -184,6 +212,9 @@ model User {
 
   // Push notification subscriptions
   pushSubscriptions PushSubscription[] @relation("UserPushSubscriptions")
+
+  // Thread subscriptions
+  threadSubscriptions ThreadSubscriber[] @relation("UserThreadSubscriptions")
 }
 
 model RefreshToken {
@@ -597,6 +628,7 @@ enum NotificationType {
   SPECIAL_MENTION
   DIRECT_MESSAGE
   CHANNEL_MESSAGE
+  THREAD_REPLY
 }
 
 model PushSubscription {

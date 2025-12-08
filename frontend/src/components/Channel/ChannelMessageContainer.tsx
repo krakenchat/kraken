@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Box, Typography, Paper, IconButton, Tooltip, Badge, Drawer } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import PushPinIcon from "@mui/icons-material/PushPin";
@@ -6,7 +6,9 @@ import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
 import MessageSearch from "../Message/MessageSearch";
 import { PinnedMessagesPanel } from "../Moderation";
+import { ThreadPanel } from "../Thread";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
@@ -18,7 +20,9 @@ import { useGetPinnedMessagesQuery } from "../../features/moderation/moderationA
 import { useNotification } from "../../contexts/NotificationContext";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
+import { openThread, closeThread, selectOpenThreadId } from "../../features/threads/threadsSlice";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
+import type { Message } from "../../types/message.type";
 
 interface ChannelMessageContainerProps {
   channelId: string;
@@ -72,6 +76,21 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   // Pinned messages state
   const [pinnedPanelOpen, setPinnedPanelOpen] = useState(false);
   const { data: pinnedMessages = [] } = useGetPinnedMessagesQuery(channelId);
+
+  // Thread state
+  const dispatch = useDispatch();
+  const openThreadId = useSelector(selectOpenThreadId);
+  const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null);
+
+  const handleOpenThread = useCallback((message: Message) => {
+    setThreadParentMessage(message);
+    dispatch(openThread(message.id));
+  }, [dispatch]);
+
+  const handleCloseThread = useCallback(() => {
+    dispatch(closeThread());
+    setThreadParentMessage(null);
+  }, [dispatch]);
 
   // Fetch channel data for header
   const { data: channel } = useGetChannelByIdQuery(channelId);
@@ -238,6 +257,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
           placeholder="Type a message... Use @ for members, @here, @channel"
           emptyStateMessage="No messages yet. Start the conversation!"
           highlightMessageId={highlightMessageId || undefined}
+          onOpenThread={handleOpenThread}
         />
       </Box>
 
@@ -255,6 +275,24 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
           communityId={communityId || ""}
           onClose={() => setPinnedPanelOpen(false)}
         />
+      </Drawer>
+
+      {/* Thread Panel Drawer */}
+      <Drawer
+        anchor="right"
+        open={!!openThreadId && !!threadParentMessage}
+        onClose={handleCloseThread}
+        PaperProps={{
+          sx: { width: 400 },
+        }}
+      >
+        {threadParentMessage && (
+          <ThreadPanel
+            parentMessage={threadParentMessage}
+            channelId={channelId}
+            communityId={communityId}
+          />
+        )}
       </Drawer>
     </Box>
   );

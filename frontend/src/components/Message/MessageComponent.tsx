@@ -20,14 +20,26 @@ import { Container } from "./MessageComponentStyles";
 import { useMessageActions } from "./useMessageActions";
 import { isUserMentioned } from "./messageUtils";
 import UserAvatar from "../Common/UserAvatar";
+import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
 
 interface MessageProps {
   message: MessageType;
   isAuthor?: boolean;
   isSearchHighlight?: boolean;
+  contextId?: string;
+  communityId?: string;
+  isThreadParent?: boolean;
+  isThreadReply?: boolean;
+  onOpenThread?: (message: MessageType) => void;
 }
 
-function MessageComponentInner({ message, isSearchHighlight }: MessageProps) {
+function MessageComponentInner({
+  message,
+  isSearchHighlight,
+  isThreadParent,
+  isThreadReply,
+  onOpenThread,
+}: MessageProps) {
   const { data: author } = useGetUserByIdQuery(message.authorId);
   const { data: currentUser } = useProfileQuery();
 
@@ -41,6 +53,16 @@ function MessageComponentInner({ message, isSearchHighlight }: MessageProps) {
   });
 
   const isPinned = message.pinned === true;
+
+  // Thread logic: Can start a thread if not already a thread reply and handler is provided
+  const canThread = !isThreadReply && !isThreadParent && !!onOpenThread;
+  const hasReplies = (message.replyCount ?? 0) > 0;
+
+  const handleOpenThread = () => {
+    if (onOpenThread) {
+      onOpenThread(message);
+    }
+  };
 
   const {
     isEditing,
@@ -118,14 +140,23 @@ function MessageComponentInner({ message, isSearchHighlight }: MessageProps) {
               reactions={message.reactions}
               onReactionClick={handleReactionClick}
             />
+            {/* Show thread reply badge if message has replies and not in thread context */}
+            {hasReplies && !isThreadParent && !isThreadReply && (
+              <ThreadReplyBadge
+                replyCount={message.replyCount ?? 0}
+                lastReplyAt={message.lastReplyAt}
+                onClick={handleOpenThread}
+              />
+            )}
           </>
         )}
       </div>
-      {(canEdit || canDelete || canPin) && !isEditing && (
+      {(canEdit || canDelete || canPin || canThread) && !isEditing && (
         <MessageToolbar
           canEdit={canEdit}
           canDelete={canDelete}
           canPin={canPin}
+          canThread={canThread}
           isPinned={isPinned}
           stagedForDelete={stagedForDelete}
           onEdit={handleEditClick}
@@ -135,6 +166,7 @@ function MessageComponentInner({ message, isSearchHighlight }: MessageProps) {
           onEmojiSelect={handleEmojiSelect}
           onPin={handlePin}
           onUnpin={handleUnpin}
+          onReplyInThread={handleOpenThread}
         />
       )}
     </Container>
@@ -157,7 +189,11 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevMsg.authorId === nextMsg.authorId &&
     prevMsg.sentAt === nextMsg.sentAt &&
     prevMsg.pinned === nextMsg.pinned &&
+    prevMsg.replyCount === nextMsg.replyCount &&
+    prevMsg.lastReplyAt === nextMsg.lastReplyAt &&
     prevProps.isSearchHighlight === nextProps.isSearchHighlight &&
+    prevProps.isThreadParent === nextProps.isThreadParent &&
+    prevProps.isThreadReply === nextProps.isThreadReply &&
     // Deep compare reactions array
     prevMsg.reactions.length === nextMsg.reactions.length &&
     prevMsg.reactions.every((r, i) =>
