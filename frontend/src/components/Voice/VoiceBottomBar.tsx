@@ -37,6 +37,7 @@ import { useDeafenEffect } from "../../hooks/useDeafenEffect";
 import { useReplayBufferState } from "../../contexts/ReplayBufferContext";
 import { useVoiceParticipantCount } from "../../hooks/useVoiceParticipantCount";
 import { useDebugPanelShortcut } from "../../hooks/useDebugPanelShortcut";
+import { usePushToTalk } from "../../hooks/usePushToTalk";
 import { VoiceChannelUserList } from "./VoiceChannelUserList";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
 import { ScreenSourcePicker } from "./ScreenSourcePicker";
@@ -65,6 +66,7 @@ export const VoiceBottomBar: React.FC = () => {
 
   // Use extracted hooks for cleaner organization
   const { showDebugPanel } = useDebugPanelShortcut();
+  const { isActive: isPTTActive, isKeyHeld: isPTTKeyHeld, currentKeyDisplay: pttKeyDisplay } = usePushToTalk();
   const { participantCount } = useVoiceParticipantCount({
     channelId: state.currentChannelId,
     dmGroupId: state.currentDmGroupId,
@@ -237,27 +239,45 @@ export const VoiceBottomBar: React.FC = () => {
           {/* Voice Controls */}
           <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0.5 : 1 }}>
             {/* Microphone */}
-            <Tooltip title={!isMicrophoneEnabled ? "Unmute" : "Mute"} arrow={!isMobile}>
+            <Tooltip
+              title={
+                isPTTActive
+                  ? (isPTTKeyHeld ? "Transmitting..." : `Hold ${pttKeyDisplay} to talk`)
+                  : (!isMicrophoneEnabled ? "Unmute" : "Mute")
+              }
+              arrow={!isMobile}
+            >
               <IconButton
-                onClick={actions.toggleMute}
-                color={!isMicrophoneEnabled ? "error" : "default"}
+                onClick={isPTTActive ? undefined : actions.toggleMute}
+                color={!isMicrophoneEnabled && !isPTTKeyHeld ? "error" : "default"}
                 size={isMobile ? "medium" : "medium"}
                 sx={{
-                  backgroundColor: !isMicrophoneEnabled ? "error.main" : "transparent",
-                  color: !isMicrophoneEnabled ? "error.contrastText" : "text.primary",
+                  backgroundColor: isPTTKeyHeld
+                    ? theme.palette.semantic.status.positive
+                    : (!isMicrophoneEnabled ? "error.main" : "transparent"),
+                  color: isPTTKeyHeld
+                    ? theme.palette.semantic.status.positiveText
+                    : (!isMicrophoneEnabled ? "error.contrastText" : "text.primary"),
                   minWidth: isMobile ? 48 : "auto",
                   minHeight: isMobile ? 48 : "auto",
-                  border: isMicrophoneEnabled && isCurrentUserSpeaking ? `2px solid ${theme.palette.semantic.status.positive}` : "2px solid transparent",
-                  boxShadow: isMicrophoneEnabled && isCurrentUserSpeaking ? `0 0 8px ${theme.palette.semantic.status.positive}` : "none",
-                  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  border: (isMicrophoneEnabled && isCurrentUserSpeaking) || isPTTKeyHeld
+                    ? `2px solid ${theme.palette.semantic.status.positive}`
+                    : "2px solid transparent",
+                  boxShadow: (isMicrophoneEnabled && isCurrentUserSpeaking) || isPTTKeyHeld
+                    ? `0 0 8px ${theme.palette.semantic.status.positive}`
+                    : "none",
+                  transition: "all 0.2s ease",
+                  cursor: isPTTActive ? "default" : "pointer",
                   "&:hover": {
-                    backgroundColor: !isMicrophoneEnabled
-                      ? "error.dark"
-                      : "action.hover",
+                    backgroundColor: isPTTKeyHeld
+                      ? theme.palette.semantic.status.positive
+                      : (!isMicrophoneEnabled
+                        ? "error.dark"
+                        : "action.hover"),
                   },
                 }}
               >
-                {!isMicrophoneEnabled ? <MicOff /> : <Mic />}
+                {!isMicrophoneEnabled && !isPTTKeyHeld ? <MicOff /> : <Mic />}
               </IconButton>
             </Tooltip>
 

@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import NotificationSettings from '../components/Settings/NotificationSettings';
+import VoiceSettings from '../components/Settings/VoiceSettings';
 import {
   useTheme,
   accentColors,
@@ -296,6 +297,9 @@ const SettingsPage: React.FC = () => {
       <Box sx={{ mb: 3 }}>
         <NotificationSettings />
       </Box>
+
+      {/* Voice & Video Settings Section */}
+      <VoiceSettings />
 
       {/* Appearance Settings Section */}
       <AppearanceSettings />

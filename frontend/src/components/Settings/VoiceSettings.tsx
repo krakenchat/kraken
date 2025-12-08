@@ -1,0 +1,535 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Divider,
+  Box,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button,
+  Paper,
+  Alert,
+  Chip,
+  LinearProgress,
+  ToggleButton,
+  ToggleButtonGroup,
+  IconButton,
+} from '@mui/material';
+import {
+  Mic,
+  MicOff,
+  Videocam,
+  VideocamOff,
+  Refresh,
+  CheckCircle,
+  Error as ErrorIcon,
+  Keyboard,
+  VolumeUp,
+} from '@mui/icons-material';
+import { useDeviceSettings } from '../../hooks/useDeviceSettings';
+import { useVoiceSettings, VoiceInputMode } from '../../hooks/useVoiceSettings';
+
+const VoiceSettings: React.FC = () => {
+  const [testingAudio, setTestingAudio] = useState(false);
+  const [testingVideo, setTestingVideo] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [isRecordingKey, setIsRecordingKey] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const testStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  const {
+    audioInputDevices,
+    audioOutputDevices,
+    videoInputDevices,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    selectedVideoInputId,
+    setSelectedAudioInput,
+    setSelectedAudioOutput,
+    setSelectedVideoInput,
+    isLoading,
+    permissions,
+    requestPermissions,
+    enumerateDevices,
+    getAudioConstraints,
+    getVideoConstraints,
+  } = useDeviceSettings();
+
+  const {
+    inputMode,
+    pushToTalkKeyDisplay,
+    setInputMode,
+    setPushToTalkKey,
+  } = useVoiceSettings();
+
+  // Stop audio test
+  const stopAudioTest = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    if (testStreamRef.current && testingAudio) {
+      testStreamRef.current.getTracks().forEach(track => track.stop());
+      testStreamRef.current = null;
+    }
+
+    analyserRef.current = null;
+    setAudioLevel(0);
+    setTestingAudio(false);
+  }, [testingAudio]);
+
+  // Stop video test
+  const stopVideoTest = useCallback(() => {
+    if (testStreamRef.current) {
+      testStreamRef.current.getTracks().forEach(track => track.stop());
+      testStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setTestingVideo(false);
+  }, []);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      stopAudioTest();
+      stopVideoTest();
+    };
+  }, [stopAudioTest, stopVideoTest]);
+
+  // Handle input mode change
+  const handleInputModeChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    newMode: VoiceInputMode | null
+  ) => {
+    if (newMode) {
+      setInputMode(newMode);
+    }
+  };
+
+  // Test audio input
+  const testAudioInput = async () => {
+    if (testingAudio) {
+      stopAudioTest();
+      return;
+    }
+
+    setTestingAudio(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: getAudioConstraints(),
+        video: false,
+      });
+
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      microphone.connect(analyser);
+
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      testStreamRef.current = stream;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const updateLevel = () => {
+        if (!analyserRef.current) return;
+
+        analyser.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        const level = Math.min(100, (average / 255) * 100 * 2);
+        setAudioLevel(level);
+
+        animationFrameRef.current = requestAnimationFrame(updateLevel);
+      };
+
+      updateLevel();
+    } catch (error) {
+      console.error('Failed to test audio:', error);
+      setTestingAudio(false);
+    }
+  };
+
+  // Test video input
+  const testVideoInput = async () => {
+    if (testingVideo) {
+      stopVideoTest();
+      return;
+    }
+
+    setTestingVideo(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: getVideoConstraints(),
+      });
+
+      testStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (error) {
+      console.error('Failed to test video:', error);
+      setTestingVideo(false);
+    }
+  };
+
+  // Handle key recording for PTT
+  useEffect(() => {
+    if (!isRecordingKey) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Ignore modifier keys alone
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+        return;
+      }
+
+      setPushToTalkKey(event);
+      setIsRecordingKey(false);
+    };
+
+    const handleBlur = () => {
+      setIsRecordingKey(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isRecordingKey, setPushToTalkKey]);
+
+  const handleRefreshDevices = async () => {
+    await requestPermissions();
+    await enumerateDevices();
+  };
+
+  const getDeviceLabel = (device: MediaDeviceInfo) => {
+    if (!device.label || device.label === '') {
+      return `${device.kind} (${device.deviceId.slice(0, 8)}...)`;
+    }
+    return device.label;
+  };
+
+  return (
+    <Card sx={{ mb: 3 }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <VolumeUp /> Voice & Video
+          </Typography>
+          <IconButton onClick={handleRefreshDevices} disabled={isLoading} size="small">
+            <Refresh />
+          </IconButton>
+        </Box>
+        <Divider sx={{ mb: 3 }} />
+
+        {isLoading && <LinearProgress sx={{ mb: 2 }} />}
+
+        {/* Input Mode Section */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Input Mode
+          </Typography>
+          <ToggleButtonGroup
+            value={inputMode}
+            exclusive
+            onChange={handleInputModeChange}
+            size="small"
+          >
+            <ToggleButton value="voice_activity">
+              Voice Activity
+            </ToggleButton>
+            <ToggleButton value="push_to_talk">
+              Push to Talk
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            {inputMode === 'voice_activity'
+              ? 'Your microphone is always active when unmuted'
+              : 'Hold a key to transmit audio'}
+          </Typography>
+        </Box>
+
+        {/* Push to Talk Key (only shown when PTT mode is selected) */}
+        {inputMode === 'push_to_talk' && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Push to Talk Key
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Paper
+                sx={{
+                  px: 2,
+                  py: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  minWidth: 120,
+                  justifyContent: 'center',
+                  bgcolor: isRecordingKey ? 'primary.main' : 'background.default',
+                  color: isRecordingKey ? 'primary.contrastText' : 'text.primary',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Keyboard fontSize="small" />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {isRecordingKey ? 'Press a key...' : pushToTalkKeyDisplay}
+                </Typography>
+              </Paper>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setIsRecordingKey(!isRecordingKey)}
+              >
+                {isRecordingKey ? 'Cancel' : 'Change Key'}
+              </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              This key will activate your microphone while held
+            </Typography>
+          </Box>
+        )}
+
+        <Divider sx={{ my: 3 }} />
+
+        {/* Audio Input Device */}
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography variant="subtitle2">Microphone</Typography>
+            <Chip
+              size="small"
+              icon={permissions.microphone ? <CheckCircle /> : <ErrorIcon />}
+              label={permissions.microphone ? 'Granted' : 'Not Granted'}
+              color={permissions.microphone ? 'success' : 'error'}
+            />
+          </Box>
+          {!permissions.microphone && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Microphone permission is required.{' '}
+              <Button size="small" onClick={requestPermissions}>
+                Request Permission
+              </Button>
+            </Alert>
+          )}
+          <FormControl fullWidth size="small">
+            <InputLabel>Microphone</InputLabel>
+            <Select
+              value={selectedAudioInputId}
+              label="Microphone"
+              onChange={(e) => setSelectedAudioInput(e.target.value)}
+              disabled={!permissions.microphone || audioInputDevices.length === 0}
+            >
+              {audioInputDevices.length === 0 ? (
+                <MenuItem value="">No devices found</MenuItem>
+              ) : (
+                audioInputDevices.map((device) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {getDeviceLabel(device)}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+        </Box>
+
+        {/* Audio Output Device */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Speakers
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel>Speakers</InputLabel>
+            <Select
+              value={selectedAudioOutputId}
+              label="Speakers"
+              onChange={(e) => setSelectedAudioOutput(e.target.value)}
+              disabled={audioOutputDevices.length === 0}
+            >
+              {audioOutputDevices.length === 0 ? (
+                <MenuItem value="">No devices found</MenuItem>
+              ) : (
+                audioOutputDevices.map((device) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {getDeviceLabel(device)}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+        </Box>
+
+        {/* Microphone Test */}
+        <Paper sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="subtitle2">Test Microphone</Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={testingAudio ? <MicOff /> : <Mic />}
+              onClick={testAudioInput}
+              disabled={!permissions.microphone}
+            >
+              {testingAudio ? 'Stop' : 'Test'}
+            </Button>
+          </Box>
+          {testingAudio && (
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Microphone Level
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Math.round(audioLevel)}%
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={audioLevel}
+                sx={{
+                  height: 8,
+                  borderRadius: 1,
+                  backgroundColor: 'grey.300',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: audioLevel > 80 ? 'error.main' : audioLevel > 50 ? 'warning.main' : 'success.main',
+                  },
+                }}
+              />
+            </Box>
+          )}
+          {!testingAudio && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Click "Test" and speak to verify your microphone
+            </Typography>
+          )}
+        </Paper>
+
+        <Divider sx={{ my: 3 }} />
+
+        {/* Video Input Device */}
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography variant="subtitle2">Camera</Typography>
+            <Chip
+              size="small"
+              icon={permissions.camera ? <CheckCircle /> : <ErrorIcon />}
+              label={permissions.camera ? 'Granted' : 'Not Granted'}
+              color={permissions.camera ? 'success' : 'error'}
+            />
+          </Box>
+          {!permissions.camera && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Camera permission is required.{' '}
+              <Button size="small" onClick={requestPermissions}>
+                Request Permission
+              </Button>
+            </Alert>
+          )}
+          <FormControl fullWidth size="small">
+            <InputLabel>Camera</InputLabel>
+            <Select
+              value={selectedVideoInputId}
+              label="Camera"
+              onChange={(e) => {
+                setSelectedVideoInput(e.target.value);
+                if (testingVideo) {
+                  stopVideoTest();
+                }
+              }}
+              disabled={!permissions.camera || videoInputDevices.length === 0}
+            >
+              {videoInputDevices.length === 0 ? (
+                <MenuItem value="">No devices found</MenuItem>
+              ) : (
+                videoInputDevices.map((device) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {getDeviceLabel(device)}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+        </Box>
+
+        {/* Camera Test */}
+        <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="subtitle2">Test Camera</Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={testingVideo ? <VideocamOff /> : <Videocam />}
+              onClick={testVideoInput}
+              disabled={!permissions.camera}
+            >
+              {testingVideo ? 'Stop' : 'Test'}
+            </Button>
+          </Box>
+          <Box
+            sx={{
+              width: '100%',
+              height: 200,
+              backgroundColor: 'grey.200',
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            {testingVideo ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
+                <Videocam sx={{ fontSize: 48, mb: 1 }} />
+                <Typography variant="body2">
+                  Click "Test" to preview your camera
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default VoiceSettings;

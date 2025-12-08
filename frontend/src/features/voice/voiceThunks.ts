@@ -21,11 +21,19 @@ import { getCachedItem } from "../../utils/storage";
 
 // Storage key must match useDeviceSettings.ts
 const DEVICE_PREFERENCES_KEY = 'kraken_device_preferences';
+// Storage key must match useVoiceSettings.ts
+const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
 
 interface DevicePreferences {
   audioInputDeviceId: string;
   audioOutputDeviceId: string;
   videoInputDeviceId: string;
+}
+
+interface VoiceSettings {
+  inputMode: 'voice_activity' | 'push_to_talk';
+  pushToTalkKey: string;
+  pushToTalkKeyDisplay: string;
 }
 
 interface JoinVoiceChannelParams {
@@ -67,21 +75,38 @@ async function connectToLiveKitRoom(
     throw error;
   }
 
-  // Enable microphone by default when joining
-  // Audio state is read directly from LiveKit via useLocalMediaState() - no Redux dispatch needed
-  // Use a timeout to prevent hanging if mic permissions are pending (common on Edge)
-  logger.info('[Voice] Attempting to enable microphone...');
-  try {
-    const micPromise = room.localParticipant.setMicrophoneEnabled(true);
-    const timeoutPromise = new Promise<void>((_, reject) =>
-      setTimeout(() => reject(new Error('Microphone enable timeout (5s)')), 5000)
-    );
-    await Promise.race([micPromise, timeoutPromise]);
-    logger.info('[Voice] ✓ Microphone enabled successfully');
-  } catch (error) {
-    logger.warn('[Voice] ⚠ Failed to enable microphone (user will join muted):', error);
-    // Don't fail the whole join if mic fails, just log it
-    // User will appear muted but can manually unmute later
+  // Check voice settings for input mode (PTT vs Voice Activity)
+  const voiceSettings = getCachedItem<VoiceSettings>(VOICE_SETTINGS_KEY);
+  const isPushToTalk = voiceSettings?.inputMode === 'push_to_talk';
+
+  // Enable microphone based on input mode:
+  // - Voice Activity: Enable mic by default
+  // - Push to Talk: Keep mic disabled, PTT hook will control it
+  if (isPushToTalk) {
+    logger.info('[Voice] Push to Talk mode - microphone starts disabled');
+    // Ensure mic is disabled in PTT mode
+    try {
+      await room.localParticipant.setMicrophoneEnabled(false);
+    } catch {
+      // Ignore errors, mic might already be disabled
+    }
+  } else {
+    // Voice Activity mode - enable mic by default
+    // Audio state is read directly from LiveKit via useLocalMediaState() - no Redux dispatch needed
+    // Use a timeout to prevent hanging if mic permissions are pending (common on Edge)
+    logger.info('[Voice] Voice Activity mode - attempting to enable microphone...');
+    try {
+      const micPromise = room.localParticipant.setMicrophoneEnabled(true);
+      const timeoutPromise = new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('Microphone enable timeout (5s)')), 5000)
+      );
+      await Promise.race([micPromise, timeoutPromise]);
+      logger.info('[Voice] ✓ Microphone enabled successfully');
+    } catch (error) {
+      logger.warn('[Voice] ⚠ Failed to enable microphone (user will join muted):', error);
+      // Don't fail the whole join if mic fails, just log it
+      // User will appear muted but can manually unmute later
+    }
   }
 
   // Apply saved device preferences from localStorage

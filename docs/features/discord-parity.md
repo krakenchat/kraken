@@ -7,16 +7,18 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | Category | Implemented | Partial | Missing | Total | Parity % |
 |----------|-------------|---------|---------|-------|----------|
 | **Core Chat** | 13 | 1 | 1 | 15 | 100% |
-| **Voice & Video** | 10 | 1 | 4 | 15 | 80% |
+| **Voice & Video** | 11 | 1 | 3 | 15 | 87% |
 | **Community Management** | 10 | 0 | 3 | 13 | 92% |
 | **User Features** | 10 | 1 | 4 | 15 | 80% |
 | **Moderation** | 8 | 1 | 6 | 15 | 67% |
 | **Social Features** | 6 | 0 | 8 | 14 | 50% |
 | **Mobile/Desktop** | 2 | 1 | 2 | 5 | 60% |
 
-**Overall Parity: ~82%** (up from ~80%)
+**Overall Parity: ~84%** (up from ~82%)
 
 ### 🎉 Recent Improvements
+- **Push to Talk**: User-configurable PTT key with mode toggle (Voice Activity / Push to Talk)
+- **Voice Settings in SettingsPage**: Audio/video device settings accessible outside of voice calls
 - **Friend System**: Full friend requests, accept/decline/cancel, friends list with DM integration
 - **Slowmode**: Channel rate limiting with configurable delay
 - **Custom Status**: User-defined status messages
@@ -85,6 +87,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Voice Activity** | ✅ | ✅ | Real-time speaking indicators with LiveKit |
 | **Voice Recording** | ✅ | ✅ | Replay buffer with HLS egress |
 | **DM Voice/Video** | ✅ | ✅ | Voice and video calls in direct messages |
+| **Push to Talk** | ✅ | ✅ | User-configurable PTT key with VA/PTT mode toggle |
 
 ### 🔧 Partially Implemented
 
@@ -96,7 +99,6 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 | Feature | Discord | Kraken | Priority | Difficulty |
 |---------|---------|---------|-----------|-----------|
-| **Push to Talk** | ✅ | ❌ | High | Medium |
 | **Noise Suppression** | ✅ | ❌ | Medium | High |
 | **Voice Effects** | ✅ | ❌ | Low | High |
 | **Stage Channels** | ✅ | ❌ | Low | High |
@@ -254,7 +256,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ### Phase 1: Core Completion (High Priority)
 1. ~~**Message Search** - Text search across channels~~ ✅ DONE
-2. **Push to Talk** - Essential voice feature
+2. ~~**Push to Talk** - Essential voice feature~~ ✅ DONE
 3. ~~**Mobile Optimization** - Responsive design improvements~~ ✅ DONE
 4. ~~**Advanced Moderation** - Ban system, timeouts~~ ✅ DONE
 
@@ -300,7 +302,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 ## 🔍 Feature Gap Analysis
 
 ### Critical Gaps for Discord Parity
-1. **Push to Talk** - Expected voice feature
+1. ~~**Push to Talk** - Expected voice feature~~ ✅ DONE
 2. **Rich Text Formatting** - Bold, italic, code blocks, embeds
 3. **Message Threads** - Conversation organization in busy channels
 
