@@ -9,14 +9,19 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Core Chat** | 13 | 1 | 1 | 15 | 100% |
 | **Voice & Video** | 10 | 1 | 4 | 15 | 80% |
 | **Community Management** | 10 | 0 | 3 | 13 | 92% |
-| **User Features** | 7 | 2 | 6 | 15 | 60% |
-| **Moderation** | 7 | 1 | 7 | 15 | 60% |
-| **Social Features** | 4 | 1 | 9 | 14 | 36% |
+| **User Features** | 9 | 2 | 4 | 15 | 73% |
+| **Moderation** | 8 | 1 | 6 | 15 | 67% |
+| **Social Features** | 5 | 1 | 8 | 14 | 43% |
 | **Mobile/Desktop** | 2 | 1 | 2 | 5 | 60% |
 
-**Overall Parity: ~78%** (up from ~70%)
+**Overall Parity: ~80%** (up from ~78%)
 
 ### 🎉 Recent Improvements
+- **Slowmode**: Channel rate limiting with configurable delay
+- **Custom Status**: User-defined status messages
+- **User Bio**: Profile biography text
+- **User Blocking**: Block/unblock users system
+- **Theme System**: 12 accent colors with 3 intensity levels
 - **Message Search**: Full-text search across channels and community-wide
 - **Full Moderation Suite**: Ban, timeout, kick, message pinning with complete UI
 - **Moderation Logs**: Comprehensive audit logging for all moderation actions
@@ -137,6 +142,8 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Profile Banners** | ✅ | ✅ | UserBannerUpload component |
 | **Online Status** | ✅ | ✅ | Multi-connection presence tracking |
 | **Direct Messages** | ✅ | ✅ | 1:1 and group DMs with file attachments |
+| **Custom Status** | ✅ | ✅ | User-defined status message |
+| **User Bio** | ✅ | ✅ | Profile biography text |
 
 ### 🔧 Partially Implemented
 
@@ -149,9 +156,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 | Feature | Discord | Kraken | Priority | Difficulty |
 |---------|---------|---------|-----------|-----------|
-| **Custom Status** | ✅ | ❌ | Medium | Low |
 | **Rich Presence** | ✅ | ❌ | Low | High |
-| **User Bio** | ✅ | ❌ | Low | Low |
 | **Activity Status** | ✅ | ❌ | Medium | Medium |
 | **Badges/Achievements** | ✅ | ❌ | Low | Medium |
 | **Two-Factor Auth** | ✅ | ❌ | High | Medium |
@@ -171,6 +176,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Message Pinning** | ✅ | ✅ | Pin/unpin messages, PinnedMessagesPanel |
 | **Moderation Logs** | ✅ | ✅ | Comprehensive audit logging, ModerationLogsPanel |
 | **Mod Message Delete** | ✅ | ✅ | Delete any message as moderator |
+| **Slowmode** | ✅ | ✅ | Channel rate limiting (configurable seconds) |
 
 ### 🔧 Partially Implemented
 
@@ -182,7 +188,6 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 | Feature | Discord | Kraken | Priority | Difficulty |
 |---------|---------|---------|-----------|-----------|
-| **Slowmode** | ✅ | ❌ | Medium | Low |
 | **Announcement Channels** | ✅ | ❌ | Medium | Medium |
 | **Webhook Management** | ✅ | ❌ | Low | Medium |
 | **Bot Integration** | ✅ | ❌ | Medium | High |
@@ -202,6 +207,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Group DMs** | ✅ | ✅ | Full group messaging with file support |
 | **Message Reactions** | ✅ | ✅ | Emoji reactions with picker and tooltips |
 | **Screen Share in DMs** | ✅ | ✅ | Screen sharing in DM voice calls |
+| **User Blocking** | ✅ | ✅ | Block/unblock users with API endpoints |
 
 ### 🔧 Partially Implemented
 
@@ -221,7 +227,6 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Spotify Integration** | ✅ | ❌ | Low | Medium |
 | **Game Integration** | ✅ | ❌ | Low | High |
 | **Nitro Features** | ✅ | ❌ | Low | High |
-| **User Blocking** | ✅ | ❌ | Medium | Low |
 
 ---
 
@@ -258,7 +263,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 4. ~~**Advanced Moderation** - Ban system, timeouts~~ ✅ DONE
 
 ### Phase 2: Enhanced Features (Medium Priority)
-1. **Slowmode** - Rate limiting for channels
+1. ~~**Slowmode** - Rate limiting for channels~~ ✅
 2. **Voice Enhancements** - Better persistence, noise suppression
 3. **Rich Text** - Complete formatting, embeds, code blocks
 4. **User Experience** - Settings panels, customization
@@ -275,10 +280,11 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 ## 📈 Implementation Complexity Analysis
 
 ### Low Complexity (1-2 weeks)
-- Slowmode
-- User bio
-- Custom status
-- User blocking
+- ~~Slowmode~~ ✅
+- ~~User bio~~ ✅
+- ~~Custom status~~ ✅
+- ~~User blocking~~ ✅
+- Vanity URLs
 
 ### Medium Complexity (3-6 weeks)
 - Push to talk
@@ -306,7 +312,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 1. **Custom Emojis** - Community personalization
 2. **Bots/Integrations** - Extensibility
 3. **Activities** - Enhanced social interaction
-4. **Slowmode** - Rate limiting for active channels
+4. ~~**Slowmode** - Rate limiting for active channels~~ ✅
 
 ### Unique Opportunities
 1. **Open Source** - Community contributions
@@ -317,4 +323,4 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ---
 
-**Last Updated**: December 2024
+**Last Updated**: December 7, 2024
