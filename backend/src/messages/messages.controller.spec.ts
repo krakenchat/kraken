@@ -118,6 +118,9 @@ describe('MessagesController', () => {
         pinnedBy: null,
         deletedBy: null,
         deletedByReason: null,
+        parentMessageId: null,
+        replyCount: 0,
+        lastReplyAt: null,
       };
 
       const mockMessage = MessageFactory.build({
@@ -166,6 +169,9 @@ describe('MessagesController', () => {
         pinnedBy: null,
         deletedBy: null,
         deletedByReason: null,
+        parentMessageId: null,
+        replyCount: 0,
+        lastReplyAt: null,
       };
 
       const mockMessage = {};

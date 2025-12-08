@@ -22,6 +22,7 @@ describe('MessagesGateway', () => {
     update: jest.fn(),
     remove: jest.fn(),
     enrichMessageWithFileMetadata: jest.fn(),
+    checkSlowmode: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockReactionsService = {
