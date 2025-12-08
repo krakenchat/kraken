@@ -8,12 +8,14 @@ export interface CreateChannelDto {
   type: "TEXT" | "VOICE";
   communityId: string;
   isPrivate?: boolean;
+  slowmodeSeconds?: number;
 }
 
 export interface UpdateChannelDto {
   name?: string;
   description?: string;
   isPrivate?: boolean;
+  slowmodeSeconds?: number;
 }
 
 export const channelApi = createApi({

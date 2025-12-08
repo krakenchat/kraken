@@ -14,4 +14,14 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   banner?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  status?: string;
 }

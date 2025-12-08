@@ -7,6 +7,8 @@ import {
   IsBoolean,
   IsOptional,
   IsNumber,
+  Min,
+  Max,
 } from 'class-validator';
 
 export class CreateChannelDto implements Channel {
@@ -28,6 +30,12 @@ export class CreateChannelDto implements Channel {
   @IsNumber()
   @IsOptional()
   position: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(21600) // Max 6 hours
+  slowmodeSeconds: number;
 
   @Exclude()
   id: string;

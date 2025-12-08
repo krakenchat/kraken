@@ -16,6 +16,11 @@ export class AdminUserEntity implements User {
   lastSeen: Date | null;
   displayName: string | null;
 
+  // Profile fields
+  bio: string | null;
+  status: string | null;
+  statusUpdatedAt: Date | null;
+
   // Ban status (visible to admins)
   banned: boolean;
   bannedAt: Date | null;

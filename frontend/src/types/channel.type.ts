@@ -7,6 +7,7 @@ export interface Channel {
   description?: string;
   createdAt: string;
   position?: number;
+  slowmodeSeconds?: number;
 }
 
 export enum ChannelType {

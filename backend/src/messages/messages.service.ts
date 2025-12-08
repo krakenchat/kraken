@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { DatabaseService } from '@/database/database.service';
@@ -64,6 +69,49 @@ export class MessagesService {
         searchText,
       },
     });
+  }
+
+  /**
+   * Check if user is in slowmode for a channel.
+   * Throws ForbiddenException if user must wait.
+   * Returns immediately if no slowmode or cooldown has passed.
+   */
+  async checkSlowmode(channelId: string, userId: string): Promise<void> {
+    // Get channel with slowmode setting
+    const channel = await this.databaseService.channel.findUnique({
+      where: { id: channelId },
+      select: { slowmodeSeconds: true },
+    });
+
+    if (!channel || !channel.slowmodeSeconds || channel.slowmodeSeconds <= 0) {
+      return; // No slowmode enabled
+    }
+
+    // Find user's last message in this channel
+    const lastMessage = await this.databaseService.message.findFirst({
+      where: {
+        channelId,
+        authorId: userId,
+      },
+      orderBy: { sentAt: 'desc' },
+      select: { sentAt: true },
+    });
+
+    if (!lastMessage) {
+      return; // No previous messages, user can send
+    }
+
+    const timeSinceLastMessage =
+      (Date.now() - lastMessage.sentAt.getTime()) / 1000;
+    const remainingSeconds = Math.ceil(
+      channel.slowmodeSeconds - timeSinceLastMessage,
+    );
+
+    if (remainingSeconds > 0) {
+      throw new ForbiddenException(
+        `Slowmode is enabled. Please wait ${remainingSeconds} seconds before sending another message.`,
+      );
+    }
   }
 
   async findOne(id: string) {

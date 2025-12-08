@@ -11,6 +11,8 @@ export interface User {
   lastSeen: Date | null;
   displayName: string | null;
   role: string;
+  bio?: string | null;
+  status?: string | null;
 }
 
 export interface Register {

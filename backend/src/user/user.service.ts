@@ -247,6 +247,15 @@ export class UserService {
       updateData.bannerUrl = updateProfileDto.banner;
     }
 
+    if (updateProfileDto.bio !== undefined) {
+      updateData.bio = updateProfileDto.bio.trim() || null;
+    }
+
+    if (updateProfileDto.status !== undefined) {
+      updateData.status = updateProfileDto.status.trim() || null;
+      updateData.statusUpdatedAt = new Date();
+    }
+
     const updatedUser = await this.database.user.update({
       where: { id: userId },
       data: updateData,
@@ -440,5 +449,88 @@ export class UserService {
       return null;
     }
     return new AdminUserEntity(user);
+  }
+
+  // ============================================
+  // User Blocking Methods
+  // ============================================
+
+  /**
+   * Block a user
+   */
+  async blockUser(blockerId: string, blockedId: string): Promise<void> {
+    if (blockerId === blockedId) {
+      throw new ForbiddenException('Cannot block yourself');
+    }
+
+    const blockedUser = await this.findById(blockedId);
+    if (!blockedUser) {
+      throw new NotFoundException('User to block not found');
+    }
+
+    // Check if already blocked
+    const existingBlock = await this.database.userBlock.findUnique({
+      where: {
+        blockerId_blockedId: { blockerId, blockedId },
+      },
+    });
+
+    if (existingBlock) {
+      return; // Already blocked, no-op
+    }
+
+    await this.database.userBlock.create({
+      data: { blockerId, blockedId },
+    });
+  }
+
+  /**
+   * Unblock a user
+   */
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    await this.database.userBlock.deleteMany({
+      where: { blockerId, blockedId },
+    });
+  }
+
+  /**
+   * Get list of users blocked by a user
+   */
+  async getBlockedUsers(userId: string): Promise<UserEntity[]> {
+    const blocks = await this.database.userBlock.findMany({
+      where: { blockerId: userId },
+      include: { blocked: true },
+    });
+
+    return blocks.map((block) => new UserEntity(block.blocked));
+  }
+
+  /**
+   * Check if a user is blocked by another user
+   */
+  async isUserBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    const block = await this.database.userBlock.findUnique({
+      where: {
+        blockerId_blockedId: { blockerId, blockedId },
+      },
+    });
+
+    return !!block;
+  }
+
+  /**
+   * Check if either user has blocked the other (bidirectional check)
+   */
+  async areUsersBlocked(userA: string, userB: string): Promise<boolean> {
+    const block = await this.database.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: userA, blockedId: userB },
+          { blockerId: userB, blockedId: userA },
+        ],
+      },
+    });
+
+    return !!block;
   }
 }

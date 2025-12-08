@@ -139,6 +139,15 @@ model User {
   lastSeen       DateTime?
   displayName    String?
 
+  // Profile fields
+  bio             String? // User biography/about text (max 500 chars)
+  status          String? // Custom status message (max 128 chars)
+  statusUpdatedAt DateTime? // When status was last updated
+
+  // Blocking relations
+  blockedUsers  UserBlock[] @relation("BlockerUser")
+  blockedByUsers UserBlock[] @relation("BlockedUser")
+
   // Ban status
   banned     Boolean   @default(false)
   bannedAt   DateTime?
@@ -253,6 +262,7 @@ model Channel {
   createdAt             DateTime                      @default(now())
   type                  ChannelType                   @default(TEXT)
   position              Int                           @default(0)
+  slowmodeSeconds       Int                           @default(0) // 0 = disabled, >0 = seconds between messages
   Message               Message[]
   ChannelMembership     ChannelMembership[]           @relation("ChannelMembership")
   isPrivate             Boolean                       @default(false)
@@ -349,6 +359,19 @@ model Friendship {
   userB     User             @relation("FriendshipB", fields: [userBId], references: [id], onDelete: Cascade)
 
   @@unique([userAId, userBId])
+}
+
+model UserBlock {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  blockerId String   @db.ObjectId // User doing the blocking
+  blockedId String   @db.ObjectId // User being blocked
+  createdAt DateTime @default(now())
+  blocker   User     @relation("BlockerUser", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
 }
 
 model File {

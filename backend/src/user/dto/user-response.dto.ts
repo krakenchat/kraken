@@ -23,6 +23,13 @@ export class UserEntity implements User {
   lastSeen: Date | null;
   displayName: string | null;
 
+  // Profile fields
+  bio: string | null;
+  status: string | null;
+
+  @Exclude()
+  statusUpdatedAt: Date | null;
+
   // Ban status (excluded from public responses by default)
   @Exclude()
   banned: boolean;

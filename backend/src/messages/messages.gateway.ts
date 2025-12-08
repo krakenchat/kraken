@@ -117,6 +117,13 @@ export class MessagesGateway
       );
     }
 
+    // Check slowmode
+    try {
+      await this.messagesService.checkSlowmode(payload.channelId, userId);
+    } catch (error) {
+      throw new WsException(error.message);
+    }
+
     const message = await this.messagesService.create({
       ...payload,
       authorId: userId,

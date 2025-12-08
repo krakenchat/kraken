@@ -206,4 +206,58 @@ export class UserController {
     await this.userService.deleteUser(id, req.user.id);
     return { success: true };
   }
+
+  // ============================================
+  // User Blocking Endpoints
+  // ============================================
+
+  /**
+   * Block a user
+   */
+  @Post('block/:userId')
+  @UseGuards(JwtAuthGuard)
+  async blockUser(
+    @Req() req: AuthenticatedRequest,
+    @Param('userId') userId: string,
+  ): Promise<{ success: boolean }> {
+    await this.userService.blockUser(req.user.id, userId);
+    return { success: true };
+  }
+
+  /**
+   * Unblock a user
+   */
+  @Delete('block/:userId')
+  @UseGuards(JwtAuthGuard)
+  async unblockUser(
+    @Req() req: AuthenticatedRequest,
+    @Param('userId') userId: string,
+  ): Promise<{ success: boolean }> {
+    await this.userService.unblockUser(req.user.id, userId);
+    return { success: true };
+  }
+
+  /**
+   * Get list of blocked users
+   */
+  @Get('blocked')
+  @UseGuards(JwtAuthGuard)
+  async getBlockedUsers(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UserEntity[]> {
+    return this.userService.getBlockedUsers(req.user.id);
+  }
+
+  /**
+   * Check if a specific user is blocked
+   */
+  @Get('blocked/:userId')
+  @UseGuards(JwtAuthGuard)
+  async isUserBlocked(
+    @Req() req: AuthenticatedRequest,
+    @Param('userId') userId: string,
+  ): Promise<{ blocked: boolean }> {
+    const blocked = await this.userService.isUserBlocked(req.user.id, userId);
+    return { blocked };
+  }
 }

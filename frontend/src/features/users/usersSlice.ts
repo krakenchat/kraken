@@ -5,7 +5,7 @@ import { createAuthedBaseQuery } from "../createBaseQuery";
 export const usersApi = createApi({
   reducerPath: "usersApi",
   baseQuery: createAuthedBaseQuery("users"),
-  tagTypes: ["Profile", "User"],
+  tagTypes: ["Profile", "User", "BlockedUsers"],
   endpoints: (builder) => ({
     register: builder.query<User, Register>({
       query: (body) => ({
@@ -23,7 +23,13 @@ export const usersApi = createApi({
     }),
     updateProfile: builder.mutation<
       User,
-      { displayName?: string; avatar?: string; banner?: string }
+      {
+        displayName?: string;
+        avatar?: string;
+        banner?: string;
+        bio?: string;
+        status?: string;
+      }
     >({
       query: (body) => ({
         url: "/profile",
@@ -62,6 +68,29 @@ export const usersApi = createApi({
         },
       }),
     }),
+
+    // User Blocking Endpoints
+    blockUser: builder.mutation<{ success: boolean }, string>({
+      query: (userId) => ({
+        url: `/block/${userId}`,
+        method: "POST",
+      }),
+      invalidatesTags: ["BlockedUsers"],
+    }),
+    unblockUser: builder.mutation<{ success: boolean }, string>({
+      query: (userId) => ({
+        url: `/block/${userId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["BlockedUsers"],
+    }),
+    getBlockedUsers: builder.query<User[], void>({
+      query: () => "/blocked",
+      providesTags: ["BlockedUsers"],
+    }),
+    isUserBlocked: builder.query<{ blocked: boolean }, string>({
+      query: (userId) => `/blocked/${userId}`,
+    }),
   }),
 });
 
@@ -72,4 +101,8 @@ export const {
   useGetUserByIdQuery,
   useLazySearchUsersQuery,
   useGetAllUsersQuery,
+  useBlockUserMutation,
+  useUnblockUserMutation,
+  useGetBlockedUsersQuery,
+  useIsUserBlockedQuery,
 } = usersApi;
