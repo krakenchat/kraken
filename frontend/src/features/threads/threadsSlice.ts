@@ -9,6 +9,8 @@ interface ThreadReplies {
   replies: Message[];
   continuationToken?: string;
   isLoading: boolean;
+  /** Whether the initial fetch has completed (even if no replies) */
+  loaded: boolean;
 }
 
 /**
@@ -61,6 +63,7 @@ const threadsSlice = createSlice({
         state.byParentId[parentMessageId] = {
           replies: [],
           isLoading,
+          loaded: false,
         };
       } else {
         state.byParentId[parentMessageId].isLoading = isLoading;
@@ -83,6 +86,7 @@ const threadsSlice = createSlice({
         replies,
         continuationToken,
         isLoading: false,
+        loaded: true,
       };
     },
 
@@ -122,6 +126,7 @@ const threadsSlice = createSlice({
         state.byParentId[parentMessageId] = {
           replies: [reply],
           isLoading: false,
+          loaded: true,
         };
       } else {
         // Add to end since replies are sorted oldest to newest
@@ -230,4 +235,10 @@ export const selectIsSubscribed = (parentMessageId: string) =>
   createSelector(
     (state: RootState) => state.threads.subscriptions[parentMessageId],
     (isSubscribed) => isSubscribed || false
+  );
+
+export const selectThreadLoaded = (parentMessageId: string) =>
+  createSelector(
+    (state: RootState) => state.threads.byParentId[parentMessageId],
+    (thread) => thread?.loaded || false
   );

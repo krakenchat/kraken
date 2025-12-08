@@ -32,6 +32,7 @@ import {
   selectThreadLoading,
   selectThreadContinuationToken,
   selectIsSubscribed,
+  selectThreadLoaded,
   closeThread,
 } from "../../features/threads/threadsSlice";
 import { Message } from "../../types/message.type";
@@ -59,6 +60,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
 
   const replies = useSelector(selectThreadReplies(parentMessageId));
   const isLoading = useSelector(selectThreadLoading(parentMessageId));
+  const isLoaded = useSelector(selectThreadLoaded(parentMessageId));
   const continuationToken = useSelector(selectThreadContinuationToken(parentMessageId));
   const isSubscribed = useSelector(selectIsSubscribed(parentMessageId));
 
@@ -66,12 +68,12 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   const [subscribe] = useSubscribeToThreadMutation();
   const [unsubscribe] = useUnsubscribeFromThreadMutation();
 
-  // Load initial replies
+  // Load initial replies (only once per thread)
   useEffect(() => {
-    if (replies.length === 0 && !isLoading) {
+    if (!isLoaded && !isLoading) {
       fetchReplies({ parentMessageId });
     }
-  }, [parentMessageId, replies.length, isLoading, fetchReplies]);
+  }, [parentMessageId, isLoaded, isLoading, fetchReplies]);
 
   // Scroll to bottom when new replies come in
   useEffect(() => {
