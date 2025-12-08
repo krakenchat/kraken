@@ -121,7 +121,9 @@ export class MessagesGateway
     try {
       await this.messagesService.checkSlowmode(payload.channelId, userId);
     } catch (error) {
-      throw new WsException(error.message);
+      throw new WsException(
+        error instanceof Error ? error.message : 'Slowmode check failed',
+      );
     }
 
     const message = await this.messagesService.create({
