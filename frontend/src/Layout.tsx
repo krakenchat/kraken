@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useProfileQuery } from "./features/users/usersSlice";
 import { useLazyLogoutQuery } from "./features/auth/authSlice";
 import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
@@ -29,10 +29,14 @@ const settings = ["My Profile", "Settings", "Logout"];
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: userData, isLoading, isError } = useProfileQuery(undefined);
   const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
   const { state: voiceState } = useVoiceConnection();
   const { isMobile, isTablet } = useResponsive();
+
+  // Hide community toggle on admin pages for full-width admin layout
+  const isAdminPage = location.pathname.startsWith("/admin");
 
   // Send presence heartbeat to keep user marked as online
   usePresenceHeartbeat(userData !== undefined && !isLoading && !isError);
@@ -176,15 +180,17 @@ const Layout: React.FC = () => {
         open={notificationCenterOpen}
         onClose={() => setNotificationCenterOpen(false)}
       />
-      <CommunityToggle
-        isExpanded={isMenuExpanded}
-        appBarHeight={APPBAR_HEIGHT}
-      />
+      {!isAdminPage && (
+        <CommunityToggle
+          isExpanded={isMenuExpanded}
+          appBarHeight={APPBAR_HEIGHT}
+        />
+      )}
       <Box
         sx={{
           position: "absolute",
           top: APPBAR_HEIGHT,
-          left: isMenuExpanded ? 320 : SIDEBAR_WIDTH,
+          left: isAdminPage ? 0 : (isMenuExpanded ? 320 : SIDEBAR_WIDTH),
           right: 0,
           bottom: voiceState.isConnected ? VOICE_BAR_HEIGHT : 0,
           overflow: "auto",

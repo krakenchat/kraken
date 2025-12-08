@@ -354,7 +354,7 @@ export function generateTheme(
           paper: {
             backgroundImage: 'none',
             backgroundColor: base.background.paper,
-            borderRight: `1px solid ${alpha(accent.primary, isVibrant ? 0.6 : isSubtle ? 0.3 : 0.08)}`,
+            borderRight: 'none',
             ...(isVibrant && {
               background: isDark
                 ? `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.5)} 0%, ${base.background.paper} 60%)`
