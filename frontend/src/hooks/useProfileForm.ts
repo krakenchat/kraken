@@ -4,6 +4,8 @@ export interface ProfileFormData {
   displayName: string;
   avatar: File | null;
   banner: File | null;
+  bio: string;
+  status: string;
 }
 
 export interface ProfilePreviewUrls {
@@ -13,13 +15,21 @@ export interface ProfilePreviewUrls {
 
 export interface ProfileFormErrors {
   displayName?: string;
+  bio?: string;
+  status?: string;
 }
 
-export const useProfileForm = (initialDisplayName = "") => {
+export const useProfileForm = (
+  initialDisplayName = "",
+  initialBio = "",
+  initialStatus = ""
+) => {
   const [formData, setFormData] = useState<ProfileFormData>({
     displayName: initialDisplayName,
     avatar: null,
     banner: null,
+    bio: initialBio,
+    status: initialStatus,
   });
 
   const [previewUrls, setPreviewUrls] = useState<ProfilePreviewUrls>({
@@ -64,6 +74,14 @@ export const useProfileForm = (initialDisplayName = "") => {
       errors.displayName = "Display name is required";
     } else if (formData.displayName.trim().length > 32) {
       errors.displayName = "Display name must be 32 characters or less";
+    }
+
+    if (formData.bio.length > 500) {
+      errors.bio = "Bio must be 500 characters or less";
+    }
+
+    if (formData.status.length > 128) {
+      errors.status = "Status must be 128 characters or less";
     }
 
     setFormErrors(errors);

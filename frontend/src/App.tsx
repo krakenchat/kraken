@@ -26,6 +26,7 @@ import { RoomProvider } from "./contexts/RoomContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { AvatarCacheProvider } from "./contexts/AvatarCacheContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { UserProfileProvider } from "./contexts/UserProfileContext";
 import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApiSlice";
 import { CircularProgress, Box } from "@mui/material";
 import AutoUpdater from "./components/Electron/AutoUpdater";
@@ -119,6 +120,7 @@ function App() {
       <AvatarCacheProvider>
         <NotificationProvider>
           <RoomProvider>
+            <UserProfileProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/onboarding" element={<OnboardingPage />} />
@@ -151,6 +153,7 @@ function App() {
                 </Route>
               </Route>
             </Routes>
+            </UserProfileProvider>
           </RoomProvider>
         </NotificationProvider>
       </AvatarCacheProvider>

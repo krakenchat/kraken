@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Avatar, Typography, styled } from "@mui/material";
+import { Box, Avatar, Typography, Chip, styled } from "@mui/material";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 import type { User } from "../../types/auth.type";
 
@@ -68,9 +68,26 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user }) => {
           <Typography variant="h4" fontWeight={600} gutterBottom>
             {user.displayName || user.username}
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" color="text.secondary" gutterBottom>
             @{user.username}
           </Typography>
+          {user.status && (
+            <Chip
+              label={user.status}
+              size="small"
+              sx={{ mt: 1, mb: 2 }}
+            />
+          )}
+          {user.bio && (
+            <Box mt={2}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                About Me
+              </Typography>
+              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                {user.bio}
+              </Typography>
+            </Box>
+          )}
         </Box>
       </ProfileContent>
     </Box>

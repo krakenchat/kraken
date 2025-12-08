@@ -11,6 +11,8 @@ interface ProfileEditFormProps {
   onDisplayNameChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onAvatarChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onBannerChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onBioChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onStatusChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
@@ -20,6 +22,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
   onDisplayNameChange,
   onAvatarChange,
   onBannerChange,
+  onBioChange,
+  onStatusChange,
 }) => {
   return (
     <Box>
@@ -43,6 +47,30 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         helperText={formErrors.displayName || "Your display name (1-32 characters)"}
         margin="normal"
         required
+      />
+
+      <TextField
+        fullWidth
+        label="Status"
+        value={formData.status}
+        onChange={onStatusChange}
+        error={Boolean(formErrors.status)}
+        helperText={formErrors.status || "What are you up to? (max 128 characters)"}
+        margin="normal"
+        placeholder="Set a custom status..."
+      />
+
+      <TextField
+        fullWidth
+        label="About Me"
+        value={formData.bio}
+        onChange={onBioChange}
+        error={Boolean(formErrors.bio)}
+        helperText={formErrors.bio || `${formData.bio.length}/500 characters`}
+        margin="normal"
+        multiline
+        rows={4}
+        placeholder="Tell others about yourself..."
       />
     </Box>
   );

@@ -38,6 +38,8 @@ const ProfileEditPage: React.FC = () => {
         displayName: currentUser.displayName || currentUser.username,
         avatar: null,
         banner: null,
+        bio: currentUser.bio || "",
+        status: currentUser.status || "",
       });
       setPreviewUrls({
         avatar: currentUser.avatarUrl || null,
@@ -75,8 +77,16 @@ const ProfileEditPage: React.FC = () => {
       }
 
       // Update profile with file IDs (or existing values if no new upload)
-      const updateProfileDto: { displayName?: string; avatar?: string; banner?: string } = {
+      const updateProfileDto: {
+        displayName?: string;
+        avatar?: string;
+        banner?: string;
+        bio?: string;
+        status?: string;
+      } = {
         displayName: formData.displayName.trim(),
+        bio: formData.bio,
+        status: formData.status,
       };
 
       if (avatarFileId) {
@@ -153,6 +163,8 @@ const ProfileEditPage: React.FC = () => {
             onDisplayNameChange={handleInputChange("displayName")}
             onAvatarChange={handleInputChange("avatar")}
             onBannerChange={handleInputChange("banner")}
+            onBioChange={handleInputChange("bio")}
+            onStatusChange={handleInputChange("status")}
           />
 
           <Box mt={3} display="flex" gap={2}>

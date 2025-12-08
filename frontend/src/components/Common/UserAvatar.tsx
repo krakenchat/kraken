@@ -1,7 +1,8 @@
 import React from "react";
-import { Avatar, Skeleton, Box } from "@mui/material";
+import { Avatar, Skeleton, Box, ButtonBase } from "@mui/material";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 import UserStatusIndicator from "../Message/UserStatusIndicator";
+import { useUserProfile } from "../../contexts/UserProfileContext";
 
 type AvatarSize = "small" | "medium" | "large" | "xlarge";
 
@@ -14,6 +15,7 @@ const sizeMap: Record<AvatarSize, number> = {
 
 interface UserAvatarProps {
   user?: {
+    id?: string;
     avatarUrl?: string | null;
     username?: string;
     displayName?: string | null;
@@ -21,6 +23,7 @@ interface UserAvatarProps {
   size?: AvatarSize;
   showStatus?: boolean;
   isOnline?: boolean;
+  clickable?: boolean;
 }
 
 const UserAvatar: React.FC<UserAvatarProps> = ({
@@ -28,9 +31,11 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   size = "medium",
   showStatus = false,
   isOnline = false,
+  clickable = false,
 }) => {
   const avatarSize = sizeMap[size];
   const { blobUrl, isLoading } = useAuthenticatedImage(user?.avatarUrl);
+  const { openProfile } = useUserProfile();
 
   // Get initials from displayName or username
   const getInitials = () => {
@@ -38,6 +43,12 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
     const name = user.displayName || user.username;
     if (!name) return "?";
     return name.charAt(0).toUpperCase();
+  };
+
+  const handleClick = () => {
+    if (clickable && user?.id) {
+      openProfile(user.id);
+    }
   };
 
   if (isLoading) {
@@ -53,7 +64,14 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   const avatar = (
     <Avatar
       src={blobUrl || undefined}
-      sx={{ width: avatarSize, height: avatarSize }}
+      sx={{
+        width: avatarSize,
+        height: avatarSize,
+        cursor: clickable && user?.id ? "pointer" : "default",
+        transition: "opacity 0.2s",
+        "&:hover": clickable && user?.id ? { opacity: 0.8 } : {},
+      }}
+      onClick={handleClick}
     >
       {getInitials()}
     </Avatar>

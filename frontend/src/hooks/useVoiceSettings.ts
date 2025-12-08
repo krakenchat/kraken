@@ -13,8 +13,8 @@ const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
 
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   inputMode: 'voice_activity',
-  pushToTalkKey: 'Space',
-  pushToTalkKeyDisplay: 'Space',
+  pushToTalkKey: 'Backquote',
+  pushToTalkKeyDisplay: '`',
 };
 
 /**

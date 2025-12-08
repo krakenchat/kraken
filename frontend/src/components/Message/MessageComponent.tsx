@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import { Typography, Tooltip, Box } from "@mui/material";
+import { Typography, Tooltip, Box, Link } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import type { Message as MessageType } from "../../types/message.type";
 import { useGetUserByIdQuery, useProfileQuery } from "../../features/users/usersSlice";
@@ -21,6 +21,7 @@ import { useMessageActions } from "./useMessageActions";
 import { isUserMentioned } from "./messageUtils";
 import UserAvatar from "../Common/UserAvatar";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
+import { useUserProfile } from "../../contexts/UserProfileContext";
 
 interface MessageProps {
   message: MessageType;
@@ -42,6 +43,7 @@ function MessageComponentInner({
 }: MessageProps) {
   const { data: author } = useGetUserByIdQuery(message.authorId);
   const { data: currentUser } = useProfileQuery();
+  const { openProfile } = useUserProfile();
 
   // Check if this message mentions the current user
   const isMentioned = isUserMentioned(message, currentUser?.id);
@@ -92,13 +94,30 @@ function MessageComponentInner({
       isSearchHighlight={isSearchHighlight}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
-        <UserAvatar user={author} size="small" />
+        <UserAvatar
+          user={author ? { ...author, id: message.authorId } : null}
+          size="small"
+          clickable
+        />
       </div>
       <div style={{ flex: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => openProfile(message.authorId)}
+            sx={{
+              fontWeight: 700,
+              color: "text.primary",
+              textDecoration: "none",
+              cursor: "pointer",
+              "&:hover": {
+                textDecoration: "underline",
+              },
+            }}
+          >
             {author?.displayName || author?.username || message.authorId}
-          </Typography>
+          </Link>
           <Typography
             variant="caption"
             color="text.secondary"
