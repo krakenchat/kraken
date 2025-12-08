@@ -7,6 +7,7 @@ import { RolesModule } from '@/roles/roles.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
 import { AuthModule } from '@/auth/auth.module';
 import { NotificationsModule } from '@/notifications/notifications.module';
+import { UserModule } from '@/user/user.module';
 
 @Module({
   controllers: [ThreadsController],
@@ -17,6 +18,7 @@ import { NotificationsModule } from '@/notifications/notifications.module';
     WebsocketModule,
     AuthModule,
     NotificationsModule,
+    UserModule,
   ],
   exports: [ThreadsService],
 })
