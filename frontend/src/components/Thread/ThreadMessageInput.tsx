@@ -5,7 +5,7 @@
  * Uses WebSocket to send messages in real-time.
  */
 
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   Box,
   TextField,
@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { useTheme } from "@mui/material/styles";
-import { getSocket } from "../../utils/socket";
+import { SocketContext } from "../../utils/SocketContext";
 import { ClientEvents } from "../../types/client-events.enum";
 import { SpanType } from "../../types/message.type";
 
@@ -30,6 +30,7 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
   directMessageGroupId,
 }) => {
   const theme = useTheme();
+  const socket = useContext(SocketContext);
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
 
@@ -39,45 +40,38 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
 
     setIsSending(true);
 
-    try {
-      const socket = getSocket();
-
-      if (!socket?.connected) {
-        console.error("Socket not connected");
-        setIsSending(false);
-        return;
-      }
-
-      const payload = {
-        parentMessageId,
-        spans: [
-          {
-            type: SpanType.PLAINTEXT,
-            text: trimmedContent,
-            userId: null,
-            specialKind: null,
-            channelId: null,
-            communityId: null,
-            aliasId: null,
-          },
-        ],
-        attachments: [],
-        pendingAttachments: 0,
-      };
-
-      socket.emit(ClientEvents.SEND_THREAD_REPLY, payload, (response: string | { error: string }) => {
-        setIsSending(false);
-        if (typeof response === "string") {
-          // Success - response is the message ID
-          setContent("");
-        } else if (response?.error) {
-          console.error("Failed to send thread reply:", response.error);
-        }
-      });
-    } catch (error) {
-      console.error("Error sending thread reply:", error);
+    if (!socket?.connected) {
+      console.error("Socket not connected");
       setIsSending(false);
+      return;
     }
+
+    const payload = {
+      parentMessageId,
+      spans: [
+        {
+          type: SpanType.PLAINTEXT,
+          text: trimmedContent,
+          userId: null,
+          specialKind: null,
+          channelId: null,
+          communityId: null,
+          aliasId: null,
+        },
+      ],
+      attachments: [],
+      pendingAttachments: 0,
+    };
+
+    socket.emit(ClientEvents.SEND_THREAD_REPLY, payload, (response: string | { error: string }) => {
+      setIsSending(false);
+      if (typeof response === "string") {
+        // Success - response is the message ID
+        setContent("");
+      } else if (response?.error) {
+        console.error("Failed to send thread reply:", response.error);
+      }
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
