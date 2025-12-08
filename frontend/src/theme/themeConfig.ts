@@ -375,7 +375,6 @@ export function generateTheme(
         styleOverrides: {
           root: {
             backgroundColor: isDark ? '#151820' : '#ffffff',
-            borderBottom: `1px solid ${alpha(accent.primary, isVibrant ? 0.6 : isSubtle ? 0.35 : 0.1)}`,
             ...(isVibrant && {
               background: isDark
                 ? `linear-gradient(90deg, ${blendColors(accent.dark, '#151820', 0.4)} 0%, ${blendColors(accent.primary, '#151820', 0.55)} 50%, ${blendColors(accent.dark, '#151820', 0.4)} 100%)`
