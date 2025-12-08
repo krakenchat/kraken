@@ -187,7 +187,8 @@ export class MessagesController {
     // Emit WebSocket event
     const roomId = result.channelId || result.directMessageGroupId;
     if (roomId) {
-      const reaction = result.reactions.find(
+      const reactions = result.reactions as { emoji: string; userIds: string[] }[];
+      const reaction = reactions.find(
         (r) => r.emoji === addReactionDto.emoji,
       );
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
@@ -219,10 +220,11 @@ export class MessagesController {
     // Emit WebSocket event
     const roomId = result.channelId || result.directMessageGroupId;
     if (roomId) {
+      const reactions = result.reactions as { emoji: string; userIds: string[] }[];
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
         messageId: result.id,
         emoji: removeReactionDto.emoji,
-        reactions: result.reactions,
+        reactions: reactions,
       });
     }
 
