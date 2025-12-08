@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import { Box, Typography, ButtonBase } from "@mui/material";
+import { Typography, ButtonBase } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { formatDistanceToNow } from "date-fns";

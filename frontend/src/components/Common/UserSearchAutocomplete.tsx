@@ -116,7 +116,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
           })
         }
         renderOption={(props, user) => {
-          const { key, ...restProps } = props;
+          const { key: _key, ...restProps } = props;
           return (
             <Box component="li" key={user.id} {...restProps}>
               <UserAvatar user={user} size="small" />
@@ -164,7 +164,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
         />
       )}
       renderOption={(props, user) => {
-        const { key, ...restProps } = props;
+        const { key: _key, ...restProps } = props;
         return (
           <Box component="li" key={user.id} {...restProps}>
             <UserAvatar user={user} size="small" />

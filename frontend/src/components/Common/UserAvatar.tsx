@@ -1,5 +1,5 @@
 import React from "react";
-import { Avatar, Skeleton, Box, ButtonBase } from "@mui/material";
+import { Avatar, Skeleton, Box } from "@mui/material";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 import UserStatusIndicator from "../Message/UserStatusIndicator";
 import { useUserProfile } from "../../contexts/UserProfileContext";
