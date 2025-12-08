@@ -189,9 +189,11 @@ const Layout: React.FC = () => {
           bottom: voiceState.isConnected ? VOICE_BAR_HEIGHT : 0,
           overflow: "auto",
           transition: "left 0.3s cubic-bezier(0.4,0,0.2,1)",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <Box>
+        <Box sx={{ flex: 1, minHeight: "100%" }}>
           <Outlet />
         </Box>
       </Box>

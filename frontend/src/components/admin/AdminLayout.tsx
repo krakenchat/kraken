@@ -12,6 +12,7 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
+import { APPBAR_HEIGHT } from "../../constants/layout";
 import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
@@ -49,7 +50,7 @@ const AdminLayout: React.FC = () => {
   };
 
   return (
-    <Box sx={{ display: "flex", height: "100%" }}>
+    <Box sx={{ display: "flex", minHeight: `calc(100vh - ${APPBAR_HEIGHT}px)` }}>
       {/* Sidebar */}
       <Drawer
         variant="permanent"
@@ -60,7 +61,7 @@ const AdminLayout: React.FC = () => {
             width: DRAWER_WIDTH,
             boxSizing: "border-box",
             position: "relative",
-            height: "100%",
+            minHeight: `calc(100vh - ${APPBAR_HEIGHT}px)`,
             backgroundColor: theme.palette.background.paper,
           },
         }}
