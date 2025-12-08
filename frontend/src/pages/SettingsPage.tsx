@@ -136,8 +136,8 @@ const AppearanceSettings: React.FC = () => {
             <ToggleButton value="minimal">
               Minimal
             </ToggleButton>
-            <ToggleButton value="subtle">
-              Subtle
+            <ToggleButton value="balanced">
+              Balanced
             </ToggleButton>
             <ToggleButton value="vibrant">
               Vibrant
@@ -146,7 +146,7 @@ const AppearanceSettings: React.FC = () => {
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
             {settings.intensity === 'minimal'
               ? 'Clean, neutral look with minimal accent color'
-              : settings.intensity === 'subtle'
+              : settings.intensity === 'balanced'
               ? 'Soft gradients and accent color highlights'
               : 'Bold, eye-catching accent colors throughout'}
           </Typography>

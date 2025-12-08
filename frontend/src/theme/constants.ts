@@ -19,7 +19,7 @@ export type AccentColor =
   | 'cyan'
   | 'lime'
   | 'slate';
-export type ThemeIntensity = 'minimal' | 'subtle' | 'vibrant';
+export type ThemeIntensity = 'minimal' | 'balanced' | 'vibrant';
 
 export interface ThemeSettings {
   mode: ThemeMode;

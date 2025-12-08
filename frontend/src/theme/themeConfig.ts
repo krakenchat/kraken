@@ -169,9 +169,9 @@ export function generateTheme(
   const base = mode === 'dark' ? darkBase : lightBase;
   const isDark = mode === 'dark';
 
-  // Intensity levels: minimal (0), subtle (1), vibrant (2)
-  const intensityLevel = intensity === 'minimal' ? 0 : intensity === 'subtle' ? 1 : 2;
-  const isSubtle = intensityLevel >= 1;
+  // Intensity levels: minimal (0), balanced (1), vibrant (2)
+  const intensityLevel = intensity === 'minimal' ? 0 : intensity === 'balanced' ? 1 : 2;
+  const isBalanced = intensityLevel >= 1;
   const isVibrant = intensityLevel >= 2;
 
   // Semantic colors that adapt to light/dark mode
@@ -199,13 +199,13 @@ export function generateTheme(
       background: {
         default: isVibrant && isDark
           ? `linear-gradient(180deg, ${alpha(accent.dark, 0.25)} 0%, ${base.background.default} 100%)`
-          : isSubtle && isDark
+          : isBalanced && isDark
           ? `linear-gradient(180deg, ${alpha(accent.dark, 0.12)} 0%, ${base.background.default} 100%)`
           : base.background.default,
         // Tint paper background in vibrant/subtle modes
         paper: isVibrant
           ? blendColors(accent.primary, base.background.paper, isDark ? 0.2 : 0.22)
-          : isSubtle
+          : isBalanced
           ? blendColors(accent.primary, base.background.paper, isDark ? 0.1 : 0.08)
           : base.background.paper,
       },
@@ -222,11 +222,11 @@ export function generateTheme(
           root: {
             backgroundImage: 'none',
             // Use palette background.paper (which is now tinted in vibrant/subtle modes)
-            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.4 : isSubtle ? 0.2 : 0.08)}`,
+            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.4 : isBalanced ? 0.2 : 0.08)}`,
             ...(isVibrant && {
               boxShadow: `0 0 20px ${alpha(accent.primary, 0.15)}, 0 0 0 1px ${alpha(accent.primary, 0.1)} inset`,
             }),
-            ...(isSubtle && !isVibrant && {
+            ...(isBalanced && !isVibrant && {
               boxShadow: `0 0 0 1px ${alpha(accent.primary, 0.05)} inset`,
             }),
           },
@@ -239,23 +239,23 @@ export function generateTheme(
           root: {
             backgroundImage: 'none',
             // Use palette background.paper (tinted in vibrant/subtle modes)
-            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.5 : isSubtle ? 0.25 : 0.08)}`,
+            border: `1px solid ${alpha(accent.primary, isVibrant ? 0.5 : isBalanced ? 0.25 : 0.08)}`,
             transition: 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out, border-color 0.2s ease-in-out',
             ...(isVibrant && {
               boxShadow: `0 4px 20px ${alpha(accent.primary, 0.25)}, 0 0 30px ${alpha(accent.primary, 0.1)}`,
             }),
-            ...(isSubtle && !isVibrant && {
+            ...(isBalanced && !isVibrant && {
               boxShadow: `0 2px 12px ${alpha(accent.primary, 0.1)}`,
             }),
             '&:hover': {
               boxShadow: isDark
-                ? `0 8px 32px ${alpha(accent.primary, isVibrant ? 0.45 : isSubtle ? 0.25 : 0.1)}`
-                : `0 6px 24px ${alpha(accent.primary, isVibrant ? 0.35 : isSubtle ? 0.15 : 0.08)}`,
+                ? `0 8px 32px ${alpha(accent.primary, isVibrant ? 0.45 : isBalanced ? 0.25 : 0.1)}`
+                : `0 6px 24px ${alpha(accent.primary, isVibrant ? 0.35 : isBalanced ? 0.15 : 0.08)}`,
               ...(isVibrant && {
                 borderColor: alpha(accent.primary, 0.7),
                 transform: 'translateY(-2px)',
               }),
-              ...(isSubtle && !isVibrant && {
+              ...(isBalanced && !isVibrant && {
                 borderColor: alpha(accent.primary, 0.4),
               }),
             },
@@ -269,7 +269,7 @@ export function generateTheme(
           contained: {
             background: isVibrant
               ? `linear-gradient(135deg, ${accent.light} 0%, ${accent.primary} 50%, ${accent.dark} 100%)`
-              : isSubtle
+              : isBalanced
               ? `linear-gradient(135deg, ${accent.primary} 0%, ${accent.light} 100%)`
               : accent.primary,
             boxShadow: isVibrant
@@ -278,7 +278,7 @@ export function generateTheme(
             '&:hover': {
               background: isVibrant
                 ? `linear-gradient(135deg, ${accent.primary} 0%, ${accent.dark} 50%, ${blendColors(accent.dark, '#000000', 0.5)} 100%)`
-                : isSubtle
+                : isBalanced
                 ? `linear-gradient(135deg, ${accent.dark} 0%, ${accent.primary} 100%)`
                 : accent.dark,
               boxShadow: isVibrant
@@ -287,7 +287,7 @@ export function generateTheme(
             },
           },
           outlined: {
-            borderColor: alpha(accent.primary, isVibrant ? 0.7 : isSubtle ? 0.5 : 0.3),
+            borderColor: alpha(accent.primary, isVibrant ? 0.7 : isBalanced ? 0.5 : 0.3),
             color: accent.light,
             ...(isVibrant && {
               boxShadow: `0 0 10px ${alpha(accent.primary, 0.15)}`,
@@ -311,19 +311,19 @@ export function generateTheme(
             marginBottom: 2,
             transition: 'background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out',
             '&:hover': {
-              backgroundColor: alpha(accent.primary, isVibrant ? 0.18 : isSubtle ? 0.12 : 0.06),
+              backgroundColor: alpha(accent.primary, isVibrant ? 0.18 : isBalanced ? 0.12 : 0.06),
               ...(isVibrant && {
                 boxShadow: `inset 0 0 15px ${alpha(accent.primary, 0.1)}`,
               }),
             },
             '&.Mui-selected': {
-              backgroundColor: alpha(accent.primary, isVibrant ? 0.28 : isSubtle ? 0.18 : 0.1),
+              backgroundColor: alpha(accent.primary, isVibrant ? 0.28 : isBalanced ? 0.18 : 0.1),
               borderLeft: `${isVibrant ? 4 : 3}px solid ${accent.primary}`,
               ...(isVibrant && {
                 boxShadow: `inset 0 0 20px ${alpha(accent.primary, 0.15)}, 0 0 10px ${alpha(accent.primary, 0.1)}`,
               }),
               '&:hover': {
-                backgroundColor: alpha(accent.primary, isVibrant ? 0.35 : isSubtle ? 0.22 : 0.14),
+                backgroundColor: alpha(accent.primary, isVibrant ? 0.35 : isBalanced ? 0.22 : 0.14),
               },
             },
           },
@@ -334,11 +334,11 @@ export function generateTheme(
       MuiChip: {
         styleOverrides: {
           root: {
-            backgroundColor: alpha(accent.primary, isVibrant ? 0.3 : isSubtle ? 0.18 : 0.1),
+            backgroundColor: alpha(accent.primary, isVibrant ? 0.3 : isBalanced ? 0.18 : 0.1),
             color: accent.lighter,
             border: isVibrant
               ? `1px solid ${alpha(accent.primary, 0.5)}`
-              : isSubtle
+              : isBalanced
               ? `1px solid ${alpha(accent.primary, 0.25)}`
               : 'none',
             ...(isVibrant && {
@@ -361,7 +361,7 @@ export function generateTheme(
                 : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.35)} 0%, ${base.background.paper} 60%)`,
               boxShadow: `4px 0 25px ${alpha(accent.primary, 0.15)}`,
             }),
-            ...(isSubtle && !isVibrant && {
+            ...(isBalanced && !isVibrant && {
               background: isDark
                 ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.paper, 0.3)} 0%, ${base.background.paper} 100%)`
                 : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.paper, 0.2)} 0%, ${base.background.paper} 100%)`,
@@ -381,7 +381,7 @@ export function generateTheme(
                 : `linear-gradient(90deg, ${blendColors(accent.primary, '#ffffff', 0.3)} 0%, ${blendColors(accent.light, '#ffffff', 0.35)} 50%, ${blendColors(accent.primary, '#ffffff', 0.3)} 100%)`,
               boxShadow: `0 4px 20px ${alpha(accent.primary, 0.2)}`,
             }),
-            ...(isSubtle && !isVibrant && {
+            ...(isBalanced && !isVibrant && {
               background: isDark
                 ? `linear-gradient(90deg, #151820 0%, ${blendColors(accent.dark, '#151820', 0.35)} 100%)`
                 : `linear-gradient(90deg, #ffffff 0%, ${blendColors(accent.primary, '#ffffff', 0.2)} 100%)`,
@@ -535,7 +535,7 @@ export function generateTheme(
                 : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.default, 0.25)} 0%, ${base.background.default} 600px)`,
               backgroundAttachment: 'fixed',
             }),
-            ...(isSubtle && !isVibrant && {
+            ...(isBalanced && !isVibrant && {
               background: isDark
                 ? `linear-gradient(180deg, ${blendColors(accent.dark, base.background.default, 0.15)} 0%, ${base.background.default} 400px)`
                 : `linear-gradient(180deg, ${blendColors(accent.primary, base.background.default, 0.1)} 0%, ${base.background.default} 400px)`,
