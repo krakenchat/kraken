@@ -13,17 +13,16 @@ import {
   DialogActions,
   Button,
   TextField,
-  Chip,
-  Autocomplete,
   CircularProgress,
 } from "@mui/material";
 import {
   Group as GroupIcon,
 } from "@mui/icons-material";
 import { useGetUserDmGroupsQuery, useCreateDmGroupMutation } from "../../features/directMessages/directMessagesApiSlice";
-import { useGetAllUsersQuery, useProfileQuery } from "../../features/users/usersSlice";
+import { useProfileQuery } from "../../features/users/usersSlice";
 import { DirectMessageGroup } from "../../types/direct-message.type";
 import UserAvatar from "../Common/UserAvatar";
+import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
 import EmptyState from "../Common/EmptyState";
 
 interface DirectMessageListProps {
@@ -33,13 +32,6 @@ interface DirectMessageListProps {
   setShowCreateDialog: (show: boolean) => void;
 }
 
-interface User {
-  id: string;
-  username: string;
-  displayName?: string | null;
-  avatarUrl?: string | null;
-}
-
 const DirectMessageList: React.FC<DirectMessageListProps> = ({
   selectedDmGroupId,
   onSelectDmGroup,
@@ -47,12 +39,10 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
   setShowCreateDialog,
 }) => {
   const { data: dmGroups = [], isLoading } = useGetUserDmGroupsQuery();
-  const { data: usersData } = useGetAllUsersQuery({ limit: 100 });
-  const users = usersData?.users || [];
   const { data: currentUser } = useProfileQuery();
   const [createDmGroup, { isLoading: isCreating }] = useCreateDmGroupMutation();
-  
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+
+  const [selectedUsers, setSelectedUsers] = useState<UserOption[]>([]);
   const [groupName, setGroupName] = useState("");
 
   const handleCreateDM = async () => {
@@ -208,37 +198,15 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
         <DialogTitle>Start a Direct Message</DialogTitle>
         <DialogContent>
           <Box sx={{ mb: 2 }}>
-            <Autocomplete
+            <UserSearchAutocomplete
               multiple
-              options={users}
-              getOptionLabel={(user) => user.displayName || user.username}
               value={selectedUsers}
-              onChange={(_, newValue) => setSelectedUsers(newValue)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Select users"
-                  placeholder="Type to search users..."
-                  margin="normal"
-                />
-              )}
-              renderTags={(tagValue, getTagProps) =>
-                tagValue.map((user, index) => {
-                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                  const { key, ...chipProps } = getTagProps({ index });
-                  return (
-                    <Chip
-                      key={user.id}
-                      label={user.displayName || user.username}
-                      {...chipProps}
-                      avatar={<UserAvatar user={user} size="small" />}
-                    />
-                  );
-                })
-              }
+              onChange={(value) => setSelectedUsers(value as UserOption[])}
+              label="Select users"
+              placeholder="Type to search users..."
             />
           </Box>
-          
+
           {selectedUsers.length > 1 && (
             <TextField
               fullWidth
