@@ -180,11 +180,13 @@ export const useDeviceSettings = () => {
   }, []);
 
   // Get constraints for selected devices
+  // Use 'exact' when user explicitly selected a device to ensure browser uses it
+  // Use 'true' for default to let browser pick
   const getAudioConstraints = useCallback(() => {
     if (devicePreferences.audioInputDeviceId === DEFAULT_DEVICE_ID) {
       return true;
     }
-    return { deviceId: { ideal: devicePreferences.audioInputDeviceId } };
+    return { deviceId: { exact: devicePreferences.audioInputDeviceId } };
   }, [devicePreferences.audioInputDeviceId]);
 
   const getVideoConstraints = useCallback(() => {
@@ -196,7 +198,7 @@ export const useDeviceSettings = () => {
       };
     }
     return {
-      deviceId: { ideal: devicePreferences.videoInputDeviceId },
+      deviceId: { exact: devicePreferences.videoInputDeviceId },
       width: { ideal: 1280 },
       height: { ideal: 720 },
       frameRate: { ideal: 30 },

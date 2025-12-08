@@ -91,16 +91,32 @@ async function connectToLiveKitRoom(
     logger.info('[Voice] Applying saved device preferences:', savedPreferences);
 
     try {
-      // Apply saved audio input device if not 'default'
+      // Get available devices to validate saved preferences exist
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputDevices = devices.filter(d => d.kind === 'audioinput');
+      const audioOutputDevices = devices.filter(d => d.kind === 'audiooutput');
+
+      // Apply saved audio input device if not 'default' and device still exists
       if (savedPreferences.audioInputDeviceId && savedPreferences.audioInputDeviceId !== 'default') {
-        await room.switchActiveDevice('audioinput', savedPreferences.audioInputDeviceId);
-        logger.info('[Voice] ✓ Applied saved audio input device:', savedPreferences.audioInputDeviceId);
+        const deviceExists = audioInputDevices.some(d => d.deviceId === savedPreferences.audioInputDeviceId);
+        if (deviceExists) {
+          await room.switchActiveDevice('audioinput', savedPreferences.audioInputDeviceId);
+          logger.info('[Voice] ✓ Applied saved audio input device:', savedPreferences.audioInputDeviceId);
+        } else {
+          logger.warn('[Voice] ⚠ Saved audio input device not found, using default. Saved ID:', savedPreferences.audioInputDeviceId);
+          logger.info('[Voice] Available audio input devices:', audioInputDevices.map(d => ({ id: d.deviceId, label: d.label })));
+        }
       }
 
-      // Apply saved audio output device if not 'default'
+      // Apply saved audio output device if not 'default' and device still exists
       if (savedPreferences.audioOutputDeviceId && savedPreferences.audioOutputDeviceId !== 'default') {
-        await room.switchActiveDevice('audiooutput', savedPreferences.audioOutputDeviceId);
-        logger.info('[Voice] ✓ Applied saved audio output device:', savedPreferences.audioOutputDeviceId);
+        const deviceExists = audioOutputDevices.some(d => d.deviceId === savedPreferences.audioOutputDeviceId);
+        if (deviceExists) {
+          await room.switchActiveDevice('audiooutput', savedPreferences.audioOutputDeviceId);
+          logger.info('[Voice] ✓ Applied saved audio output device:', savedPreferences.audioOutputDeviceId);
+        } else {
+          logger.warn('[Voice] ⚠ Saved audio output device not found, using default. Saved ID:', savedPreferences.audioOutputDeviceId);
+        }
       }
 
       // Note: Video input is applied when camera is enabled, not at connection time
@@ -255,10 +271,11 @@ export const switchAudioInputDevice = createAsyncThunk<
   "voice/switchAudioInputDevice",
   async ({ deviceId, getRoom }, { dispatch, getState }) => {
     const state = getState();
-    const { currentChannelId } = state.voice;
+    const { currentChannelId, currentDmGroupId } = state.voice;
     const room = getRoom();
 
-    if (!room || !currentChannelId) return;
+    // Allow device switching for both channel and DM voice
+    if (!room || (!currentChannelId && !currentDmGroupId)) return;
 
     try {
       // Switch the microphone device
@@ -266,6 +283,7 @@ export const switchAudioInputDevice = createAsyncThunk<
 
       // Update Redux state
       dispatch(setSelectedAudioInputId(deviceId));
+      logger.info('[Voice] ✓ Switched audio input device:', deviceId);
     } catch (error) {
       logger.error("Failed to switch audio input device:", error);
       throw error;
@@ -281,10 +299,11 @@ export const switchAudioOutputDevice = createAsyncThunk<
   "voice/switchAudioOutputDevice",
   async ({ deviceId, getRoom }, { dispatch, getState }) => {
     const state = getState();
-    const { currentChannelId } = state.voice;
+    const { currentChannelId, currentDmGroupId } = state.voice;
     const room = getRoom();
 
-    if (!room || !currentChannelId) return;
+    // Allow device switching for both channel and DM voice
+    if (!room || (!currentChannelId && !currentDmGroupId)) return;
 
     try {
       // Switch the audio output device
@@ -292,6 +311,7 @@ export const switchAudioOutputDevice = createAsyncThunk<
 
       // Update Redux state
       dispatch(setSelectedAudioOutputId(deviceId));
+      logger.info('[Voice] ✓ Switched audio output device:', deviceId);
     } catch (error) {
       logger.error("Failed to switch audio output device:", error);
       throw error;
@@ -307,10 +327,11 @@ export const switchVideoInputDevice = createAsyncThunk<
   "voice/switchVideoInputDevice",
   async ({ deviceId, getRoom }, { dispatch, getState }) => {
     const state = getState();
-    const { currentChannelId } = state.voice;
+    const { currentChannelId, currentDmGroupId } = state.voice;
     const room = getRoom();
 
-    if (!room || !currentChannelId) return;
+    // Allow device switching for both channel and DM voice
+    if (!room || (!currentChannelId && !currentDmGroupId)) return;
 
     try {
       // Switch the video input device
@@ -634,23 +655,8 @@ export const toggleDeafenUnified = createAsyncThunk<
         }
       }
 
-      // Update server state (for non-connected users to query)
-      // Note: This will be removed in Phase 3 once webhooks fully replace REST
-      if (contextType === 'dm' && currentDmGroupId) {
-        await dispatch(
-          voicePresenceApi.endpoints.updateDmVoiceState.initiate({
-            dmGroupId: currentDmGroupId,
-            updates: { isDeafened: newDeafenedState },
-          })
-        ).unwrap();
-      } else if (contextType === 'channel' && currentChannelId) {
-        await dispatch(
-          voicePresenceApi.endpoints.updateVoiceState.initiate({
-            channelId: currentChannelId,
-            updates: { isDeafened: newDeafenedState },
-          })
-        ).unwrap();
-      }
+      // Note: Server-side voice state (isDeafened) is now managed by LiveKit webhooks
+      // via participant metadata. No REST API call needed here.
     } catch (error) {
       logger.error("Failed to toggle deafen:", error);
       // Revert local state on failure
