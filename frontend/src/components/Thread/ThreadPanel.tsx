@@ -37,6 +37,7 @@ import {
 import { Message } from "../../types/message.type";
 import MessageComponent from "../Message/MessageComponent";
 import ThreadMessageInput from "./ThreadMessageInput";
+import useThreadWebSocket from "../../hooks/useThreadWebSocket";
 
 interface ThreadPanelProps {
   parentMessage: Message;
@@ -54,6 +55,9 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   const theme = useTheme();
   const dispatch = useDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Listen for real-time thread updates
+  useThreadWebSocket();
 
   const parentMessageId = parentMessage.id;
 
