@@ -17,12 +17,16 @@ import { livekitApi } from "../livekit/livekitApiSlice";
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
 import { logger } from "../../utils/logger";
-import { getCachedItem } from "../../utils/storage";
+import { getCachedItem, setCachedItem, removeCachedItem } from "../../utils/storage";
 
 // Storage key must match useDeviceSettings.ts
 const DEVICE_PREFERENCES_KEY = 'kraken_device_preferences';
 // Storage key must match useVoiceSettings.ts
 const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
+// Storage key for voice connection recovery
+const VOICE_CONNECTION_KEY = 'kraken_voice_connection';
+// Connection state expires after 5 minutes (used for recovery on page refresh)
+const CONNECTION_EXPIRY_MS = 5 * 60 * 1000;
 
 interface DevicePreferences {
   audioInputDeviceId: string;
@@ -35,6 +39,54 @@ interface VoiceSettings {
   pushToTalkKey: string;
   pushToTalkKeyDisplay: string;
 }
+
+// Exported for use by useVoiceRecovery hook
+export interface SavedVoiceConnection {
+  contextType: 'channel' | 'dm';
+  channelId?: string;
+  channelName?: string;
+  communityId?: string;
+  isPrivate?: boolean;
+  createdAt?: string;
+  dmGroupId?: string;
+  dmGroupName?: string;
+  timestamp: number;
+}
+
+// Helper to save connection state for recovery
+function saveConnectionState(connection: Omit<SavedVoiceConnection, 'timestamp'>) {
+  const savedConnection: SavedVoiceConnection = {
+    ...connection,
+    timestamp: Date.now(),
+  };
+  setCachedItem(VOICE_CONNECTION_KEY, savedConnection);
+  logger.info('[Voice] Saved connection state for recovery:', savedConnection);
+}
+
+// Helper to clear saved connection state
+function clearConnectionState() {
+  removeCachedItem(VOICE_CONNECTION_KEY);
+  logger.info('[Voice] Cleared saved connection state');
+}
+
+// Exported helper to get saved connection (used by useVoiceRecovery)
+export function getSavedConnection(): SavedVoiceConnection | null {
+  const saved = getCachedItem<SavedVoiceConnection>(VOICE_CONNECTION_KEY);
+  if (!saved) return null;
+
+  // Check if connection has expired
+  const age = Date.now() - saved.timestamp;
+  if (age > CONNECTION_EXPIRY_MS) {
+    logger.info('[Voice] Saved connection expired (age:', age, 'ms)');
+    removeCachedItem(VOICE_CONNECTION_KEY);
+    return null;
+  }
+
+  return saved;
+}
+
+// Exported helper to clear connection (used by useVoiceRecovery on failure)
+export { clearConnectionState as clearSavedConnection };
 
 interface JoinVoiceChannelParams {
   channelId: string;
@@ -224,6 +276,16 @@ export const joinVoiceChannel = createAsyncThunk<
       // Note: Voice presence is now managed by LiveKit webhooks
       // The participant_joined webhook will update Redis when we connect
 
+      // Save connection state for recovery on page refresh
+      saveConnectionState({
+        contextType: 'channel',
+        channelId,
+        channelName,
+        communityId,
+        isPrivate,
+        createdAt,
+      });
+
       logger.info('[Voice] === Voice channel join complete ===');
     } catch (error) {
       logger.error("[Voice] ✗ Failed to join voice channel:", error);
@@ -274,6 +336,10 @@ export const leaveVoiceChannel = createAsyncThunk<
       setRoom(null);
 
       dispatch(setDisconnected());
+
+      // Clear saved connection state
+      clearConnectionState();
+
       logger.info('[Voice] === Voice channel leave complete ===');
     } catch (error) {
       logger.error('[Voice] ✗ Failed to leave voice channel:', error);
@@ -429,6 +495,13 @@ export const joinDmVoice = createAsyncThunk<
         voicePresenceApi.util.invalidateTags([{ type: "VoicePresence", id: `dm-${dmGroupId}` }])
       );
 
+      // Save connection state for recovery on page refresh
+      saveConnectionState({
+        contextType: 'dm',
+        dmGroupId,
+        dmGroupName,
+      });
+
       // WebSocket notification handled by backend (DM_VOICE_CALL_STARTED or DM_VOICE_USER_JOINED)
     } catch (error) {
       logger.error("Failed to join DM voice call:", error);
@@ -469,6 +542,9 @@ export const leaveDmVoice = createAsyncThunk<
       setRoom(null);
 
       dispatch(setDisconnected());
+
+      // Clear saved connection state
+      clearConnectionState();
     } catch (error) {
       const message =
         error instanceof Error

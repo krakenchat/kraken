@@ -9,7 +9,9 @@ import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
 import { VoiceBottomBar, AudioRenderer } from "./components/Voice";
+import { PersistentVideoOverlay } from "./components/Voice/PersistentVideoOverlay";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
+import { useVoiceRecovery } from "./hooks/useVoiceRecovery";
 import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import { useVoiceEvents } from "./hooks/useVoiceEvents";
@@ -51,6 +53,9 @@ const Layout: React.FC = () => {
 
   // Sync theme settings with server (server wins on initial load)
   useThemeSync();
+
+  // Attempt to recover voice connection after page refresh
+  useVoiceRecovery();
 
   // Set telemetry user context when profile loads
   useEffect(() => {
@@ -201,6 +206,7 @@ const Layout: React.FC = () => {
       {/* Voice Components */}
       <VoiceBottomBar />
       <AudioRenderer />
+      <PersistentVideoOverlay />
     </ReplayBufferProvider>
   );
 };

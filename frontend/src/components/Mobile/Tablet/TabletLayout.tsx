@@ -9,8 +9,10 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
+import { useVoiceRecovery } from '../../../hooks/useVoiceRecovery';
 import { VoiceBottomBar } from '../../Voice/VoiceBottomBar';
 import { AudioRenderer } from '../../Voice/AudioRenderer';
+import { PersistentVideoOverlay } from '../../Voice/PersistentVideoOverlay';
 import { MobileNavigationProvider, useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { MobileBottomNavigation } from '../Navigation/MobileBottomNavigation';
 import MobileCommunityDrawer from '../Navigation/MobileCommunityDrawer';
@@ -24,6 +26,9 @@ import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
 const TabletLayoutInner: React.FC = () => {
   const { state: voiceState } = useVoiceConnection();
   const { state } = useMobileNavigation();
+
+  // Attempt to recover voice connection after page refresh
+  useVoiceRecovery();
 
   const hasVoiceBar = voiceState.isConnected;
 
@@ -75,6 +80,9 @@ const TabletLayoutInner: React.FC = () => {
 
       {/* Audio renderer for remote participants */}
       <AudioRenderer />
+
+      {/* Floating video overlay */}
+      <PersistentVideoOverlay />
 
       {/* Bottom navigation - always visible */}
       <MobileBottomNavigation />

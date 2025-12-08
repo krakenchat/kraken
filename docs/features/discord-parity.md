@@ -7,7 +7,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | Category | Implemented | Partial | Missing | Total | Parity % |
 |----------|-------------|---------|---------|-------|----------|
 | **Core Chat** | 13 | 1 | 1 | 15 | 100% |
-| **Voice & Video** | 11 | 1 | 3 | 15 | 87% |
+| **Voice & Video** | 12 | 0 | 3 | 15 | 80% |
 | **Community Management** | 10 | 0 | 3 | 13 | 92% |
 | **User Features** | 10 | 1 | 4 | 15 | 80% |
 | **Moderation** | 8 | 1 | 6 | 15 | 67% |
@@ -17,6 +17,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 **Overall Parity: ~84%** (up from ~82%)
 
 ### 🎉 Recent Improvements
+- **Voice Persistence**: Stay connected across navigation with floating PiP overlay and page refresh recovery
 - **Push to Talk**: User-configurable PTT key with mode toggle (Voice Activity / Push to Talk)
 - **Voice Settings in SettingsPage**: Audio/video device settings accessible outside of voice calls
 - **Friend System**: Full friend requests, accept/decline/cancel, friends list with DM integration
@@ -88,12 +89,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Voice Recording** | ✅ | ✅ | Replay buffer with HLS egress |
 | **DM Voice/Video** | ✅ | ✅ | Voice and video calls in direct messages |
 | **Push to Talk** | ✅ | ✅ | User-configurable PTT key with VA/PTT mode toggle |
-
-### 🔧 Partially Implemented
-
-| Feature | Discord | Kraken | Status | Missing |
-|---------|---------|---------|---------|---------|
-| **Voice Persistence** | ✅ | 🔧 | Basic | Stay connected across navigation |
+| **Voice Persistence** | ✅ | ✅ | Stay connected across navigation, draggable PiP overlay, page refresh recovery |
 
 ### ❌ Missing
 
@@ -262,10 +258,11 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ### Phase 2: Enhanced Features (Medium Priority)
 1. ~~**Slowmode** - Rate limiting for channels~~ ✅
-2. **Voice Enhancements** - Better persistence, noise suppression
+2. ~~**Voice Persistence** - PiP overlay, refresh recovery~~ ✅
 3. **Rich Text** - Complete formatting, embeds, code blocks
 4. **User Experience** - Settings panels, customization
 5. **Message Threads** - Conversation threading
+6. **Noise Suppression** - Voice quality improvements
 
 ### Phase 3: Advanced Features (Lower Priority)
 1. **Native Mobile Applications** - React Native implementation

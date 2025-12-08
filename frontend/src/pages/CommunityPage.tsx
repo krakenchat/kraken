@@ -5,9 +5,8 @@ import { useGetChannelByIdQuery } from "../features/channel/channelApiSlice";
 import { Avatar, Box, Typography, Paper } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
-import { VoiceChannelUserList, VideoTiles } from "../components/Voice";
+import { VoiceChannelUserList } from "../components/Voice";
 import EditCommunityButton from "../components/Community/EditCommunityButton";
-import { ErrorBoundary } from "../components/ErrorBoundary";
 import { styled } from "@mui/material/styles";
 import { useCommunityJoin } from "../hooks/useCommunityJoin";
 import { ChannelType } from "../types/channel.type";
@@ -76,23 +75,6 @@ const DesktopCommunityPage: React.FC = () => {
       const isConnectedToThisChannel = voiceState.isConnected &&
         voiceState.currentChannelId === channelId;
 
-      if (isConnectedToThisChannel) {
-        return (
-          <Box
-            sx={{
-              height: '100%',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <ErrorBoundary>
-              <VideoTiles />
-            </ErrorBoundary>
-          </Box>
-        );
-      }
-
       return (
         <Box
           sx={{
@@ -108,9 +90,16 @@ const DesktopCommunityPage: React.FC = () => {
           <Typography variant="h4" textAlign="center">
             🔊 {channelData.name}
           </Typography>
-          <Typography variant="body1" color="text.secondary" textAlign="center">
-            Click on this voice channel in the sidebar to join and see video tiles.
-          </Typography>
+
+          {isConnectedToThisChannel ? (
+            <Typography variant="body1" color="success.main" textAlign="center">
+              Connected — Video tiles are in the floating overlay
+            </Typography>
+          ) : (
+            <Typography variant="body1" color="text.secondary" textAlign="center">
+              Click on this voice channel in the sidebar to join
+            </Typography>
+          )}
 
           <Box sx={{ maxWidth: 600, width: '100%' }}>
             <VoiceChannelUserList channel={channelData} />
