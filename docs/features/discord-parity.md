@@ -313,4 +313,115 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ---
 
-**Last Updated**: December 8, 2024
+## 🔧 Admin Panel / Instance Management
+
+### ❌ Missing
+
+| Feature | Priority | Difficulty | Description |
+|---------|----------|------------|-------------|
+| **User Storage Quotas** | High | Medium | Per-user file storage limits |
+| **Instance Storage Dashboard** | High | Medium | Total storage usage, breakdown by type |
+| **User Upload Limits** | High | Low | Max file size per user tier |
+| **Instance Analytics** | Medium | Medium | DAU, message counts, voice minutes |
+| **Rate Limiting Dashboard** | Low | Medium | View/configure API rate limits |
+| **Backup/Export Tools** | Low | High | Instance data backup/restore |
+| **Session Management** | Medium | Low | View/revoke active sessions |
+| **Instance Audit Logs** | Medium | Medium | Instance-wide security logs |
+
+---
+
+## 💎 Premium/Nitro-Style Features
+
+### ❌ Missing
+
+| Feature | Priority | Difficulty | Description |
+|---------|----------|------------|-------------|
+| **Tiered File Upload Limits** | Medium | Low | 8MB → 50MB → 500MB based on user tier |
+| **HD Video Quality Tiers** | Low | Low | LiveKit already supports, needs tier logic |
+| **Animated Avatars** | Low | Medium | GIF avatar support |
+| **Extended Message Length** | Low | Low | 4000 char limit for premium users |
+| **Custom Emoji Anywhere** | Low | High | Cross-server emoji usage |
+| **Per-Server Profiles** | Low | Medium | Different avatar/banner per server |
+| **Server Boosts** | Low | High | Collective server upgrades, unlock perks |
+| **Profile Badges** | Low | Medium | Achievement/subscription badges |
+
+---
+
+## 🎵 Soundboard System
+
+### ❌ Missing
+
+| Feature | Priority | Difficulty | Description |
+|---------|----------|------------|-------------|
+| **Server Soundboard** | Low | High | Play audio clips in voice channels |
+| **Custom Sound Upload** | Low | Medium | Upload MP3s (5s max, 512KB) |
+| **Sound Permissions** | Low | Medium | Create/Manage Expressions perms |
+| **Soundboard Favorites** | Low | Low | Pin frequently used sounds |
+
+---
+
+## 📢 Advanced Channel Types
+
+### ❌ Missing
+
+| Feature | Priority | Difficulty | Description |
+|---------|----------|------------|-------------|
+| **Forum Channels** | Medium | High | Reddit-style organized discussions with posts |
+| **Stage Channels** | Low | High | Audience/speaker voice events (up to 10k) |
+| **Announcement Channels** | Medium | Medium | Cross-server following/syndication |
+
+---
+
+## 🛡️ Advanced Moderation
+
+### ❌ Missing
+
+| Feature | Priority | Difficulty | Description |
+|---------|----------|------------|-------------|
+| **AutoMod Rules** | Medium | High | Word filters, spam detection, regex |
+| **Role Hierarchy** | Medium | Medium | Roles can only moderate lower roles |
+| **Server Lockdown** | Low | Medium | Emergency channel lock |
+| **Raid Protection** | Low | High | Auto-detect mass joins |
+| **Rules Screening** | Low | Medium | Require rule acceptance before chatting |
+
+---
+
+## 🤝 Social & Media Features
+
+### ❌ Missing
+
+| Feature | Priority | Difficulty | Description |
+|---------|----------|------------|-------------|
+| **Custom Emojis** | Medium | High | Server-specific emoji upload |
+| **Stickers** | Low | High | Animated stickers |
+| **GIF Integration** | Medium | Medium | Tenor/Giphy picker in composer |
+| **Link Previews/Embeds** | Medium | Medium | URL unfurling with metadata |
+| **Activities** | Low | Very High | Watch Together, embedded games |
+
+---
+
+## 🔐 Security Features
+
+### ❌ Missing
+
+| Feature | Priority | Difficulty | Description |
+|---------|----------|------------|-------------|
+| **Two-Factor Auth** | High | Medium | TOTP/Authenticator app |
+| **Backup Codes** | High | Low | Recovery codes for 2FA |
+| **Login Notifications** | Medium | Low | Email on new device login |
+
+---
+
+## 📋 Quick Win Features (Low Effort)
+
+These can be implemented quickly with high impact:
+
+1. **User Storage Quotas** - Add `storageUsed` field to User, check on upload
+2. **Extended Message Length** - Config flag for premium users
+3. **Session Management** - List/revoke refresh tokens
+4. **HD Video Tiers** - LiveKit already supports, add tier check
+5. **Instance Storage Dashboard** - Aggregate File table stats
+
+---
+
+**Last Updated**: December 2024
