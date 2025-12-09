@@ -56,6 +56,18 @@ These features were previously incomplete but are now fully implemented:
 - WebSocket broadcast of reorder events
 - Separate ordering within TEXT/VOICE types
 
+### Notifications System - ✅ 100% Complete
+- Full backend module with service, gateway, and controller
+- NotificationCenter drawer with CRUD operations
+- NotificationBadge with unread count
+- NotificationSettings UI (desktop, push, DND, sounds, channel defaults)
+- Per-channel notification override menu (ChannelNotificationMenu)
+- Push notifications for offline users (Web Push API)
+- Real-time WebSocket delivery
+- Auto-mark-as-read when navigating to channels/DMs
+- Mobile NotificationsScreen
+- Sound playback with test button
+
 ---
 
 ## 🚧 Features In Progress
@@ -87,33 +99,7 @@ frontend/src/components/Profile/ClipLibrary.tsx
 
 ---
 
-### 2. Notifications System
-
-**Status**: 🔧 **80% Complete**
-
-#### What's Implemented
-- **Backend Module**: `notifications/` with service and gateway
-- **Frontend Components**: `NotificationCenter.tsx`, `NotificationBadge.tsx`
-- **Read Receipts**: Integrated with message visibility
-- **WebSocket Events**: Real-time notification delivery
-
-#### What's Missing
-- Push notification support (browser/mobile)
-- Notification preferences UI
-- Notification categories (mentions, DMs, etc.)
-
-#### Key Files
-```
-backend/src/notifications/
-frontend/src/components/Notifications/NotificationCenter.tsx
-frontend/src/components/Notifications/NotificationBadge.tsx
-frontend/src/hooks/useNotifications.ts
-frontend/src/hooks/useAutoMarkNotificationsRead.ts
-```
-
----
-
-### 3. Voice Persistence
+### 2. Voice Persistence
 
 **Status**: 🔧 **75% Complete**
 
@@ -138,7 +124,7 @@ frontend/src/components/Voice/VoiceBottomBar.tsx
 
 ---
 
-### 4. Read Receipts
+### 3. Read Receipts
 
 **Status**: 🔧 **70% Complete**
 
@@ -164,7 +150,7 @@ frontend/src/hooks/useMessageVisibility.ts
 
 ## 🔬 Foundation Only - Needs Major Work
 
-### 5. Friend System
+### 4. Friend System
 
 **Status**: 🔧 **10% Complete - Schema Only**
 
@@ -180,7 +166,7 @@ frontend/src/hooks/useMessageVisibility.ts
 
 ---
 
-### 6. Alias/Mention Groups
+### 5. Alias/Mention Groups
 
 **Status**: 🔧 **10% Complete - Schema Only**
 
@@ -196,7 +182,7 @@ frontend/src/hooks/useMessageVisibility.ts
 
 ---
 
-### 7. Advanced Rich Text
+### 6. Advanced Rich Text
 
 **Status**: 🔧 **15% Complete - Span System Ready**
 
@@ -217,8 +203,7 @@ frontend/src/hooks/useMessageVisibility.ts
 
 ### High Impact, Low Effort (Do Next)
 1. **Read Receipt UI** (1 week) - Backend complete, needs visual indicators
-2. **Notification Preferences** (1 week) - System exists, needs settings UI
-3. **Voice Persistence** (1-2 weeks) - Stay connected across navigation
+2. **Voice Persistence** (1-2 weeks) - Stay connected across navigation
 
 ### High Impact, Medium Effort
 1. **Message Search** (2-3 weeks) - Essential for large communities
@@ -240,10 +225,9 @@ Focus on completing the in-progress features (85-70% complete) before starting n
 ### Recommended Order
 1. Finish Replay Buffer polish
 2. Add Read Receipt visual indicators
-3. Complete Notification preferences
-4. Implement Voice Persistence
-5. Then move to new features (Search, Push-to-Talk)
+3. Implement Voice Persistence
+4. Then move to new features (Rich Text, Friend System)
 
 ---
 
-**Last Updated**: December 2024
+**Last Updated**: December 8, 2024

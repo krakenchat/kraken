@@ -22,8 +22,13 @@ import {
   Divider,
   Alert,
   CircularProgress,
+  Select,
+  MenuItem,
+  InputLabel,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
-import { Notifications as NotificationsIcon } from '@mui/icons-material';
+import { Notifications as NotificationsIcon, PlayArrow as PlayArrowIcon } from '@mui/icons-material';
 import {
   useGetSettingsQuery,
   useUpdateSettingsMutation,
@@ -231,8 +236,38 @@ export const NotificationSettings: React.FC = () => {
               </Typography>
             </Box>
           }
-          sx={{ mb: 3, alignItems: 'flex-start' }}
+          sx={{ mb: 2, alignItems: 'flex-start' }}
         />
+
+        {/* Sound Type Selector - shown when sound is enabled */}
+        {formValues.playSound && (
+          <Box sx={{ ml: 4, mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel id="sound-type-label">Sound Type</InputLabel>
+              <Select
+                labelId="sound-type-label"
+                value={formValues.soundType}
+                label="Sound Type"
+                onChange={(e) => handleChange('soundType', e.target.value as 'default' | 'mention' | 'dm')}
+              >
+                <MenuItem value="default">Default</MenuItem>
+                <MenuItem value="mention">Mention</MenuItem>
+                <MenuItem value="dm">Direct Message</MenuItem>
+              </Select>
+            </FormControl>
+            <Tooltip title="Test notification sound">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  const audio = new Audio('/sounds/notification.mp3');
+                  audio.play().catch((e) => console.error('Failed to play sound:', e));
+                }}
+              >
+                <PlayArrowIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
 
         <Divider sx={{ my: 3 }} />
 
