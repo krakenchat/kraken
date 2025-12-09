@@ -321,7 +321,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 |---------|----------|------------|-------------|
 | **User Storage Quotas** | High | Medium | Per-user file storage limits |
 | **Instance Storage Dashboard** | High | Medium | Total storage usage, breakdown by type |
-| **User Upload Limits** | High | Low | Max file size per user tier |
+| **User Upload Limits** | High | Low | Configurable max file size per upload |
 | **Instance Analytics** | Medium | Medium | DAU, message counts, voice minutes |
 | **Rate Limiting Dashboard** | Low | Medium | View/configure API rate limits |
 | **Backup/Export Tools** | Low | High | Instance data backup/restore |
@@ -330,20 +330,21 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ---
 
-## 💎 Premium/Nitro-Style Features
+## 🚀 Enhanced User Features
+
+> **Note**: Unlike Discord, Kraken provides all features to every user - no premium tiers.
 
 ### ❌ Missing
 
 | Feature | Priority | Difficulty | Description |
 |---------|----------|------------|-------------|
-| **Tiered File Upload Limits** | Medium | Low | 8MB → 50MB → 500MB based on user tier |
-| **HD Video Quality Tiers** | Low | Low | LiveKit already supports, needs tier logic |
+| **Large File Uploads** | Medium | Low | Increase max file size (50MB-500MB) |
+| **HD Video Quality** | Low | Low | LiveKit already supports, expose quality settings |
 | **Animated Avatars** | Low | Medium | GIF avatar support |
-| **Extended Message Length** | Low | Low | 4000 char limit for premium users |
-| **Custom Emoji Anywhere** | Low | High | Cross-server emoji usage |
-| **Per-Server Profiles** | Low | Medium | Different avatar/banner per server |
-| **Server Boosts** | Low | High | Collective server upgrades, unlock perks |
-| **Profile Badges** | Low | Medium | Achievement/subscription badges |
+| **Extended Message Length** | Low | Low | 4000+ character messages |
+| **Custom Emoji Anywhere** | Low | High | Use community emojis across all servers |
+| **Per-Server Profiles** | Low | Medium | Different avatar/banner per community |
+| **Profile Badges** | Low | Medium | Achievement badges for activity/contributions |
 
 ---
 
@@ -417,9 +418,9 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 These can be implemented quickly with high impact:
 
 1. **User Storage Quotas** - Add `storageUsed` field to User, check on upload
-2. **Extended Message Length** - Config flag for premium users
+2. **Extended Message Length** - Increase character limit (instance config)
 3. **Session Management** - List/revoke refresh tokens
-4. **HD Video Tiers** - LiveKit already supports, add tier check
+4. **HD Video Settings** - Expose LiveKit quality settings in UI
 5. **Instance Storage Dashboard** - Aggregate File table stats
 
 ---
