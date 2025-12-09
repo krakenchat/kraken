@@ -95,27 +95,30 @@ These features were previously incomplete but are now fully implemented:
 - Works for both channel and DM voice connections
 - Minor: Cross-tab synchronization not implemented
 
+### Message Search - ✅ 100% Complete
+- Backend search endpoints for channels, DMs, and communities
+- Frontend MessageSearch component with results display
+- Uses searchText field for indexed full-text search
+- RBAC-protected search endpoints
+
+### Push to Talk - ✅ 100% Complete
+- usePushToTalk hook with configurable key binding
+- VoiceSettings UI for input mode selection
+- Proper handling of key repeat, blur events
+- Works with existing voice connection system
+
+### Friend System - ✅ 100% Complete
+- Full backend: FriendsController with send/accept/decline/cancel/remove
+- FriendsService with all CRUD operations
+- Frontend: FriendList, FriendRequestList, AddFriendDialog, FriendCard components
+- friendsApiSlice with RTK Query endpoints
+- Integration with DirectMessagesPage
+
 ---
 
 ## 🔬 Foundation Only - Needs Major Work
 
-### 1. Friend System
-
-**Status**: 🔧 **10% Complete - Schema Only**
-
-#### What's Implemented
-- **Database Schema**: `Friendship` model with status tracking
-- **Friendship States**: PENDING, ACCEPTED, BLOCKED
-
-#### What's Missing
-- Backend service and controller
-- Friend request sending/accepting/denying
-- Friend list UI
-- Integration with DM system
-
----
-
-### 2. Alias/Mention Groups
+### 1. Alias/Mention Groups
 
 **Status**: 🔧 **10% Complete - Schema Only**
 
@@ -131,7 +134,7 @@ These features were previously incomplete but are now fully implemented:
 
 ---
 
-### 3. Advanced Rich Text
+### 2. Advanced Rich Text
 
 **Status**: 🔧 **15% Complete - Span System Ready**
 
@@ -150,27 +153,22 @@ These features were previously incomplete but are now fully implemented:
 
 ## 📋 Priority Matrix
 
-### High Impact, Medium Effort (Do Next)
-1. **Message Search** - Essential for large communities
-2. **Push to Talk** - Expected voice feature
-
 ### Medium Impact, High Effort
-1. **Rich Text Editor** - Complex implementation
-2. **Friend System** - Full feature build
-3. **Advanced Moderation** - Ban system, timeouts
+1. **Rich Text Editor** - Complex WYSIWYG implementation
+2. **Advanced Moderation** - Ban system, timeouts (partially done)
 
 ### Lower Priority
-1. **Alias/Mention Groups** - Niche feature
-2. **Mobile Optimization** - Responsive design improvements
+1. **Alias/Mention Groups** - Niche feature, schema exists
+2. **Mobile Optimization** - General responsive improvements
 
 ---
 
 ## 🚀 Development Strategy
 
-### Recommended Order
-1. Message Search (high impact for growing communities)
-2. Push to Talk (common voice feature request)
-3. Friend System or Rich Text (depending on user demand)
+Most major features are complete! Remaining work:
+1. Rich Text Editor (if markdown/formatting needed)
+2. Polish existing features based on user feedback
+3. Mobile app considerations
 
 ---
 
