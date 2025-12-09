@@ -202,7 +202,8 @@ describe('AuthService', () => {
 
       await service.generateRefreshToken(
         userId,
-        mockTx as unknown as Parameters<typeof service.generateRefreshToken>[1],
+        undefined, // deviceInfo
+        mockTx as unknown as Parameters<typeof service.generateRefreshToken>[2],
       );
 
       expect(mockTx.refreshToken.create).toHaveBeenCalled();

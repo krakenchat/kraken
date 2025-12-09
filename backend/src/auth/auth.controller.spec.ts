@@ -82,6 +82,7 @@ describe('AuthController', () => {
       expect(authService.login).toHaveBeenCalledWith(mockUser);
       expect(authService.generateRefreshToken).toHaveBeenCalledWith(
         mockUser.id,
+        expect.objectContaining({ userAgent: 'Mozilla/5.0' }),
       );
       expect(mockRes.cookie).toHaveBeenCalledWith(
         'refresh_token',
@@ -131,6 +132,7 @@ describe('AuthController', () => {
 
       expect(authService.generateRefreshToken).toHaveBeenCalledWith(
         mockUser.id,
+        expect.any(Object),
       );
     });
   });
@@ -188,6 +190,7 @@ describe('AuthController', () => {
       );
       expect(authService.generateRefreshToken).toHaveBeenCalledWith(
         mockUser.id,
+        expect.objectContaining({ userAgent: 'Mozilla/5.0' }),
         mockDatabase,
       );
       expect(result).toEqual({ accessToken: mockAccessToken });

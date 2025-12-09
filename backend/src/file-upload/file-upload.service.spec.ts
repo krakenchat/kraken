@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FileUploadService } from './file-upload.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
+import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
 import { UnprocessableEntityException } from '@nestjs/common';
 import { ResourceType, FileType, StorageType } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -26,6 +27,12 @@ describe('FileUploadService', () => {
     deleteFile: jest.fn(),
     fileExists: jest.fn(),
     readFile: jest.fn(),
+  };
+
+  const mockStorageQuotaService = {
+    canUploadFile: jest.fn(),
+    incrementUserStorage: jest.fn(),
+    decrementUserStorage: jest.fn(),
   };
 
   const mockUser = {
@@ -59,6 +66,10 @@ describe('FileUploadService', () => {
           provide: StorageService,
           useValue: mockStorageService,
         },
+        {
+          provide: StorageQuotaService,
+          useValue: mockStorageQuotaService,
+        },
       ],
     }).compile();
 
@@ -71,6 +82,16 @@ describe('FileUploadService', () => {
     // Default mock implementations - use StorageService instead of direct fs calls
     mockStorageService.readFile.mockResolvedValue(Buffer.from('test'));
     mockStorageService.deleteFile.mockResolvedValue(undefined);
+
+    // Default quota check passes
+    mockStorageQuotaService.canUploadFile.mockResolvedValue({
+      canUpload: true,
+      currentUsedBytes: 0,
+      quotaBytes: 1000000000,
+      requestedBytes: 1024,
+      remainingBytes: 999998976,
+    });
+    mockStorageQuotaService.incrementUserStorage.mockResolvedValue(undefined);
 
     // Mock crypto
     const mockHash = {

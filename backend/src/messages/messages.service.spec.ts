@@ -271,7 +271,7 @@ describe('MessagesService', () => {
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: { channelId },
         orderBy: { sentAt: 'desc' },
-        take: 50,
+        take: 100, // limit * 2 to account for thread replies filtering
       });
     });
 
@@ -300,7 +300,7 @@ describe('MessagesService', () => {
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: { channelId },
         orderBy: { sentAt: 'desc' },
-        take: 50,
+        take: 100, // limit * 2 to account for thread replies filtering
         cursor: { id: continuationToken },
         skip: 1,
       });
@@ -365,7 +365,7 @@ describe('MessagesService', () => {
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: { directMessageGroupId: dmGroupId },
         orderBy: { sentAt: 'desc' },
-        take: 50,
+        take: 100, // limit * 2 to account for thread replies filtering
       });
     });
 
