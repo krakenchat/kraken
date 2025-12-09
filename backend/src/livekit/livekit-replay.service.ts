@@ -1029,7 +1029,6 @@ export class LivekitReplayService {
             text: `Replay clip - ${actualDurationSeconds}s (${sizeMB}MB)`,
             userId: null,
             specialKind: null,
-            channelId: null,
             communityId: null,
             aliasId: null,
           },

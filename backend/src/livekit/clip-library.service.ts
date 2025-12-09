@@ -278,7 +278,6 @@ export class ClipLibraryService {
           text: `Replay clip - ${clip.durationSeconds}s (${sizeMB}MB)`,
           userId: null,
           specialKind: null,
-          channelId: null,
           communityId: null,
           aliasId: null,
         },

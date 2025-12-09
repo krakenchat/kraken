@@ -312,15 +312,21 @@ export class MessagesService {
     continuationToken?: string,
   ) {
     const where = { [field]: value };
+    // Fetch more than needed to account for thread replies we'll filter out
     const query = {
       where,
       orderBy: { sentAt: 'desc' as const },
-      take: limit,
+      take: limit * 2, // Fetch extra to ensure we have enough after filtering
       ...(continuationToken
         ? { cursor: { id: continuationToken }, skip: 1 }
         : {}),
     };
-    const messages = await this.databaseService.message.findMany(query);
+    const allMessages = await this.databaseService.message.findMany(query);
+
+    // Filter out thread replies (messages with parentMessageId) - they only show in thread panel
+    const messages = allMessages
+      .filter((msg) => !msg.parentMessageId)
+      .slice(0, limit);
 
     // Collect all unique file IDs from all messages
     const allFileIds = new Set<string>();

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
-import { Message } from '@prisma/client';
+import { Message, $Enums } from '@prisma/client';
 
 /**
  * Service for managing message threads.
@@ -31,6 +31,30 @@ export class ThreadsService {
       .trim()
       .toLowerCase();
     return text.length > 0 ? text : undefined;
+  }
+
+  /**
+   * Sanitize spans to only include valid Prisma Span fields.
+   * This strips any extra fields that may be sent by the client.
+   */
+  private sanitizeSpans(
+    spans: {
+      type: $Enums.SpanType;
+      text?: string | null;
+      userId?: string | null;
+      specialKind?: string | null;
+      communityId?: string | null;
+      aliasId?: string | null;
+    }[],
+  ) {
+    return spans.map((span) => ({
+      type: span.type,
+      text: span.text ?? null,
+      userId: span.userId ?? null,
+      specialKind: span.specialKind ?? null,
+      communityId: span.communityId ?? null,
+      aliasId: span.aliasId ?? null,
+    }));
   }
 
   /**
@@ -67,21 +91,28 @@ export class ThreadsService {
     // Validate parent message exists and isn't a thread reply itself
     const parent = await this.getParentMessage(parentMessageId);
 
-    const searchText = this.flattenSpansToText(spans);
+    // Sanitize spans to only include valid Prisma fields
+    const sanitizedSpans = this.sanitizeSpans(spans);
+    const searchText = this.flattenSpansToText(sanitizedSpans);
 
     // Use transaction to ensure atomicity
     const result = await this.databaseService.$transaction(async (tx) => {
       // Create the reply message
       const reply = await tx.message.create({
         data: {
-          parentMessageId,
-          channelId: parent.channelId,
-          directMessageGroupId: parent.directMessageGroupId,
           authorId,
-          spans,
+          spans: sanitizedSpans,
           searchText,
           attachments: attachments || [],
           pendingAttachments: pendingAttachments || 0,
+          // Use relation connect syntax for Prisma
+          ...(parent.channelId && {
+            channel: { connect: { id: parent.channelId } },
+          }),
+          ...(parent.directMessageGroupId && {
+            directMessageGroup: { connect: { id: parent.directMessageGroupId } },
+          }),
+          parentMessage: { connect: { id: parentMessageId } },
         },
       });
 

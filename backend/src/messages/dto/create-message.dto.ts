@@ -43,7 +43,6 @@ export class CreateMessageDto implements Message {
     text: string | null;
     userId: string | null;
     specialKind: string | null;
-    channelId: string | null;
     communityId: string | null;
     aliasId: string | null;
   }[];

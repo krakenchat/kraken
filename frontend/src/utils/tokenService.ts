@@ -17,8 +17,6 @@ const listeners: Set<TokenRefreshListener> = new Set();
 
 // Mutex for preventing concurrent refresh attempts
 let refreshPromise: Promise<string | null> | null = null;
-let refreshAttempts = 0;
-const MAX_REFRESH_ATTEMPTS = 1;
 
 /**
  * Get the current access token
@@ -123,28 +121,15 @@ async function performRefresh(): Promise<string | null> {
  * @returns The new access token, or null if refresh failed
  */
 export async function refreshToken(): Promise<string | null> {
-  // If we've exceeded max attempts, don't try again
-  if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-    logger.dev("[TokenService] Max refresh attempts exceeded");
-    return null;
-  }
-
   // If a refresh is already in progress, wait for it
   if (refreshPromise) {
     logger.dev("[TokenService] Refresh already in progress, waiting...");
     return refreshPromise;
   }
 
-  // Start a new refresh
-  refreshAttempts++;
   logger.dev("[TokenService] Starting token refresh");
 
   refreshPromise = performRefresh()
-    .then((token) => {
-      // Reset attempts on success
-      refreshAttempts = 0;
-      return token;
-    })
     .catch((error) => {
       logger.error("[TokenService] Refresh failed:", error);
       return null;
@@ -154,14 +139,6 @@ export async function refreshToken(): Promise<string | null> {
     });
 
   return refreshPromise;
-}
-
-/**
- * Reset the refresh attempt counter
- * Call this when the user successfully authenticates
- */
-export function resetRefreshAttempts(): void {
-  refreshAttempts = 0;
 }
 
 /**
@@ -176,7 +153,6 @@ export function isRefreshing(): boolean {
  */
 export function redirectToLogin(): void {
   clearTokens();
-  resetRefreshAttempts();
   // Use hash for HashRouter compatibility (especially in Electron)
   if (window.location.hash !== "#/login") {
     window.location.hash = "#/login";

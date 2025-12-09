@@ -66,9 +66,11 @@ export async function getSocketSingleton(): Promise<
       logger.dev("[Socket] Token refreshed, updating socket auth");
       if (socketInstance) {
         socketInstance.auth = { token: `Bearer ${newToken}` };
-        // If socket is disconnected, the new auth will be used on reconnect
-        // If we need to reconnect immediately, we could call:
-        // socketInstance.disconnect().connect();
+        // Force reconnect with new token if disconnected
+        if (!socketInstance.connected) {
+          logger.dev("[Socket] Socket disconnected, reconnecting with new token");
+          socketInstance.connect();
+        }
       }
     });
 
