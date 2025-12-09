@@ -40,6 +40,13 @@ export class UserEntity implements User {
   @Exclude()
   bannedById: string | null;
 
+  // Storage quota (excluded from public responses)
+  @Exclude()
+  storageQuotaBytes: bigint;
+
+  @Exclude()
+  storageUsedBytes: bigint;
+
   constructor(partial: Partial<UserEntity>) {
     Object.assign(this, partial);
   }

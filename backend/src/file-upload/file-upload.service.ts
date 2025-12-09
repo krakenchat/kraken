@@ -1,6 +1,7 @@
 import {
   Injectable,
   UnprocessableEntityException,
+  PayloadTooLargeException,
   Logger,
 } from '@nestjs/common';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
@@ -8,6 +9,7 @@ import { DatabaseService } from '@/database/database.service';
 import { FileType, StorageType } from '@prisma/client';
 import { createHash } from 'crypto';
 import { StorageService } from '@/storage/storage.service';
+import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
 import { ResourceTypeFileValidator } from './validators';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
@@ -18,6 +20,7 @@ export class FileUploadService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly storageService: StorageService,
+    private readonly storageQuotaService: StorageQuotaService,
   ) {}
 
   async uploadFile(
@@ -26,6 +29,20 @@ export class FileUploadService {
     user: UserEntity,
   ) {
     try {
+      // Check storage quota before processing
+      const quotaCheck = await this.storageQuotaService.canUploadFile(
+        user.id,
+        file.size,
+      );
+
+      if (!quotaCheck.canUpload) {
+        // Delete file from disk before throwing error
+        await this.cleanupFile(file.path);
+        throw new PayloadTooLargeException(
+          quotaCheck.message || 'Storage quota exceeded',
+        );
+      }
+
       // Validate file using strategy pattern
       const validator = new ResourceTypeFileValidator({
         resourceType: createFileUploadDto.resourceType,
@@ -48,7 +65,7 @@ export class FileUploadService {
 
       // Create database record
       try {
-        return await this.databaseService.file.create({
+        const fileRecord = await this.databaseService.file.create({
           data: {
             ...createFileUploadDto,
             filename: file.originalname,
@@ -61,6 +78,11 @@ export class FileUploadService {
             storagePath: file.path,
           },
         });
+
+        // Increment user's storage usage
+        await this.storageQuotaService.incrementUserStorage(user.id, file.size);
+
+        return fileRecord;
       } catch (dbError) {
         // If DB insert fails, clean up the file
         await this.cleanupFile(file.path);
@@ -69,7 +91,10 @@ export class FileUploadService {
       }
     } catch (error) {
       // Ensure file is cleaned up on any error
-      if (error instanceof UnprocessableEntityException) {
+      if (
+        error instanceof UnprocessableEntityException ||
+        error instanceof PayloadTooLargeException
+      ) {
         throw error; // Already cleaned up and has proper message
       }
 

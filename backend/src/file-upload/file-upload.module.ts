@@ -5,6 +5,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@/database/database.module';
 import { StorageModule } from '@/storage/storage.module';
+import { StorageQuotaModule } from '@/storage-quota/storage-quota.module';
 
 @Module({
   controllers: [FileUploadController],
@@ -22,6 +23,7 @@ import { StorageModule } from '@/storage/storage.module';
     }),
     DatabaseModule,
     StorageModule,
+    StorageQuotaModule,
   ],
 })
 export class FileUploadModule {}

@@ -26,6 +26,10 @@ export class AdminUserEntity implements User {
   bannedAt: Date | null;
   bannedById: string | null;
 
+  // Storage quota (visible to admins)
+  storageQuotaBytes: bigint;
+  storageUsedBytes: bigint;
+
   @Exclude()
   hashedPassword: string;
 

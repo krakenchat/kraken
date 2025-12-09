@@ -7,6 +7,8 @@ import {
   CardContent,
   CircularProgress,
   Alert,
+  LinearProgress,
+  Divider,
 } from "@mui/material";
 import {
   People as PeopleIcon,
@@ -15,9 +17,35 @@ import {
   Message as MessagesIcon,
   Link as InvitesIcon,
   Block as BannedIcon,
+  Storage as StorageIcon,
+  Memory as MemoryIcon,
+  Computer as ComputerIcon,
+  Warning as WarningIcon,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
-import { useGetInstanceStatsQuery } from "../../features/admin/adminApiSlice";
+import {
+  useGetInstanceStatsQuery,
+  useGetInstanceStorageStatsQuery,
+} from "../../features/admin/adminApiSlice";
+
+// Helper to format bytes
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+};
+
+// Helper to format uptime
+const formatUptime = (seconds: number): string => {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
 
 interface StatCardProps {
   title: string;
@@ -81,6 +109,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
 const AdminDashboard: React.FC = () => {
   const theme = useTheme();
   const { data: stats, isLoading, error } = useGetInstanceStatsQuery();
+  const { data: storageStats, isLoading: storageLoading } = useGetInstanceStorageStatsQuery();
 
   if (isLoading) {
     return (
@@ -114,6 +143,7 @@ const AdminDashboard: React.FC = () => {
         Overview of your instance statistics
       </Typography>
 
+      {/* Instance Stats */}
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <StatCard
@@ -164,6 +194,219 @@ const AdminDashboard: React.FC = () => {
           />
         </Grid>
       </Grid>
+
+      {/* Storage & Server Stats */}
+      <Typography variant="h5" sx={{ mt: 5, mb: 3 }} fontWeight="bold">
+        Storage & Server
+      </Typography>
+
+      {storageLoading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : storageStats ? (
+        <Grid container spacing={3}>
+          {/* Storage Overview Card */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <StorageIcon color="primary" />
+                  <Typography variant="h6" fontWeight="bold">
+                    Storage Overview
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Used
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatBytes(storageStats.totalStorageUsedBytes)}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Files
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {storageStats.totalFileCount.toLocaleString()}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Avg per User
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatBytes(storageStats.averageStoragePerUserBytes)}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Default Quota
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatBytes(storageStats.defaultQuotaBytes)}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Max File Size
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatBytes(storageStats.maxFileSizeBytes)}
+                  </Typography>
+                </Box>
+
+                {/* Quota Health */}
+                {(storageStats.usersApproachingQuota > 0 || storageStats.usersOverQuota > 0) && (
+                  <Box sx={{ mt: 2, p: 1.5, bgcolor: "warning.main", borderRadius: 1, opacity: 0.15 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <WarningIcon color="warning" fontSize="small" />
+                      <Typography variant="body2">
+                        {storageStats.usersOverQuota > 0 && (
+                          <strong>{storageStats.usersOverQuota} users over 90% quota. </strong>
+                        )}
+                        {storageStats.usersApproachingQuota > 0 && (
+                          <span>{storageStats.usersApproachingQuota} users at 75-90%.</span>
+                        )}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Server Stats Card */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <ComputerIcon color="primary" />
+                  <Typography variant="h6" fontWeight="bold">
+                    Server Status
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+
+                {/* Memory */}
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Memory
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {formatBytes(storageStats.server.memoryUsedBytes)} / {formatBytes(storageStats.server.memoryTotalBytes)}
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={storageStats.server.memoryUsedPercent}
+                    sx={{ height: 6, borderRadius: 1 }}
+                    color={storageStats.server.memoryUsedPercent > 90 ? "error" : storageStats.server.memoryUsedPercent > 75 ? "warning" : "primary"}
+                  />
+                </Box>
+
+                {/* Disk */}
+                {storageStats.server.diskTotalBytes > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Disk
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {formatBytes(storageStats.server.diskUsedBytes)} / {formatBytes(storageStats.server.diskTotalBytes)}
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={storageStats.server.diskUsedPercent}
+                      sx={{ height: 6, borderRadius: 1 }}
+                      color={storageStats.server.diskUsedPercent > 90 ? "error" : storageStats.server.diskUsedPercent > 75 ? "warning" : "primary"}
+                    />
+                  </Box>
+                )}
+
+                {/* CPU & System Info */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    CPU
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {storageStats.server.cpuCores} cores
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Load Average
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {storageStats.server.loadAverage.map(l => l.toFixed(2)).join(", ")}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Uptime
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatUptime(storageStats.server.uptime)}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Platform
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {storageStats.server.platform} ({storageStats.server.hostname})
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Storage by Type Card */}
+          <Grid size={{ xs: 12 }}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <MemoryIcon color="primary" />
+                  <Typography variant="h6" fontWeight="bold">
+                    Storage by Type
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+
+                <Grid container spacing={2}>
+                  {storageStats.storageByType.map((item) => (
+                    <Grid size={{ xs: 6, sm: 4, md: 3 }} key={item.type}>
+                      <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1, textAlign: "center" }}>
+                        <Typography variant="h6" fontWeight="bold">
+                          {formatBytes(item.bytes)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.type.replace(/_/g, " ")}
+                        </Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          {item.count.toLocaleString()} files
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      ) : null}
     </Box>
   );
 };

@@ -41,6 +41,7 @@ import { ModerationModule } from './moderation/moderation.module';
 import { AppearanceSettingsModule } from './appearance-settings/appearance-settings.module';
 import { FriendsModule } from './friends/friends.module';
 import { ThreadsModule } from './threads/threads.module';
+import { StorageQuotaModule } from './storage-quota/storage-quota.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { ThreadsModule } from './threads/threads.module';
     AppearanceSettingsModule,
     FriendsModule,
     ThreadsModule,
+    StorageQuotaModule,
   ],
   controllers: [AppController],
   providers: [

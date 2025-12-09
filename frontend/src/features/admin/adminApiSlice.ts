@@ -83,10 +83,75 @@ export interface AdminCommunityFilters {
   search?: string;
 }
 
+// Types for storage management
+export interface UserStorageStats {
+  userId: string;
+  usedBytes: number;
+  quotaBytes: number;
+  percentUsed: number;
+  fileCount: number;
+}
+
+export interface StorageDistribution {
+  under25Percent: number;
+  under50Percent: number;
+  under75Percent: number;
+  under90Percent: number;
+  over90Percent: number;
+}
+
+export interface StorageByType {
+  type: string;
+  bytes: number;
+  count: number;
+}
+
+export interface ServerStats {
+  memoryTotalBytes: number;
+  memoryUsedBytes: number;
+  memoryFreeBytes: number;
+  memoryUsedPercent: number;
+  cpuCores: number;
+  cpuModel: string;
+  loadAverage: number[];
+  diskTotalBytes: number;
+  diskUsedBytes: number;
+  diskFreeBytes: number;
+  diskUsedPercent: number;
+  platform: string;
+  hostname: string;
+  uptime: number;
+}
+
+export interface InstanceStorageStats {
+  totalStorageUsedBytes: number;
+  totalFileCount: number;
+  totalUserCount: number;
+  averageStoragePerUserBytes: number;
+  userStorageDistribution: StorageDistribution;
+  storageByType: StorageByType[];
+  defaultQuotaBytes: number;
+  maxFileSizeBytes: number;
+  usersApproachingQuota: number;
+  usersOverQuota: number;
+  server: ServerStats;
+}
+
+export interface UsersStorageListResponse {
+  users: UserStorageStats[];
+  total: number;
+}
+
+export interface UsersStorageFilters {
+  skip?: number;
+  take?: number;
+  minPercentUsed?: number;
+}
+
 export const adminApi = createApi({
   reducerPath: "adminApi",
   baseQuery: createAuthedBaseQuery(""),
-  tagTypes: ["InstanceSettings", "InstanceStats", "AdminUsers", "AdminCommunities"],
+  tagTypes: ["InstanceSettings", "InstanceStats", "AdminUsers", "AdminCommunities", "StorageStats", "UserStorage"],
   endpoints: (builder) => ({
     // Instance Settings
     getInstanceSettings: builder.query<InstanceSettings, void>({
@@ -189,6 +254,57 @@ export const adminApi = createApi({
       }),
       invalidatesTags: ["AdminCommunities", "InstanceStats"],
     }),
+
+    // Storage Management
+    getInstanceStorageStats: builder.query<InstanceStorageStats, void>({
+      query: () => ({
+        url: "/storage/instance",
+        method: "GET",
+      }),
+      providesTags: ["StorageStats"],
+    }),
+    getUsersStorageList: builder.query<UsersStorageListResponse, UsersStorageFilters>({
+      query: (filters) => {
+        const params = new URLSearchParams();
+        if (filters.skip !== undefined) params.append("skip", filters.skip.toString());
+        if (filters.take !== undefined) params.append("take", filters.take.toString());
+        if (filters.minPercentUsed !== undefined) params.append("minPercentUsed", filters.minPercentUsed.toString());
+        return {
+          url: `/storage/users?${params.toString()}`,
+          method: "GET",
+        };
+      },
+      providesTags: ["UserStorage"],
+    }),
+    getUserStorageStats: builder.query<UserStorageStats, string>({
+      query: (userId) => ({
+        url: `/storage/users/${userId}`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, userId) => [{ type: "UserStorage", id: userId }],
+    }),
+    updateUserQuota: builder.mutation<UserStorageStats, { userId: string; quotaBytes: number }>({
+      query: ({ userId, quotaBytes }) => ({
+        url: `/storage/users/${userId}/quota`,
+        method: "PATCH",
+        body: { quotaBytes },
+      }),
+      invalidatesTags: ["UserStorage", "StorageStats"],
+    }),
+    recalculateUserStorage: builder.mutation<UserStorageStats, string>({
+      query: (userId) => ({
+        url: `/storage/users/${userId}/recalculate`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, userId) => [{ type: "UserStorage", id: userId }],
+    }),
+    getMyStorageStats: builder.query<UserStorageStats, void>({
+      query: () => ({
+        url: "/storage/my-usage",
+        method: "GET",
+      }),
+      providesTags: ["UserStorage"],
+    }),
   }),
 });
 
@@ -208,4 +324,11 @@ export const {
   useGetAdminCommunitiesQuery,
   useGetAdminCommunityQuery,
   useForceDeleteCommunityMutation,
+  // Storage Management
+  useGetInstanceStorageStatsQuery,
+  useGetUsersStorageListQuery,
+  useGetUserStorageStatsQuery,
+  useUpdateUserQuotaMutation,
+  useRecalculateUserStorageMutation,
+  useGetMyStorageStatsQuery,
 } = adminApi;

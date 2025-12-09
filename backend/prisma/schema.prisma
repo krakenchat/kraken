@@ -172,6 +172,10 @@ model User {
   status          String? // Custom status message (max 128 chars)
   statusUpdatedAt DateTime? // When status was last updated
 
+  // Storage quota (in bytes)
+  storageQuotaBytes BigInt @default(5368709120) // 5GB default
+  storageUsedBytes  BigInt @default(0) // Cached total usage
+
   // Blocking relations
   blockedUsers  UserBlock[] @relation("BlockerUser")
   blockedByUsers UserBlock[] @relation("BlockedUser")
@@ -247,6 +251,10 @@ model InstanceSettings {
   registrationMode RegistrationMode   @default(INVITE_ONLY)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+
+  // Storage settings
+  defaultStorageQuotaBytes BigInt @default(5368709120) // 5GB default for new users
+  maxFileSizeBytes         BigInt @default(52428800)   // 50MB max per file
 }
 
 enum RegistrationMode {
@@ -595,6 +603,7 @@ enum RbacActions {
   READ_INSTANCE_SETTINGS
   UPDATE_INSTANCE_SETTINGS
   READ_INSTANCE_STATS
+  MANAGE_USER_STORAGE // View/update user storage quotas
   BAN_USER
   // Community moderation
   KICK_USER
