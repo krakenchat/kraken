@@ -375,4 +375,74 @@ export class ReadReceiptsService {
 
     return readReceipt?.lastReadMessageId || null;
   }
+
+  /**
+   * Get all users who have read a specific message
+   * A message is considered "read" if the user's lastReadAt >= message.sentAt
+   */
+  async getMessageReaders(
+    messageId: string,
+    channelId?: string,
+    directMessageGroupId?: string,
+  ) {
+    if (
+      (!channelId && !directMessageGroupId) ||
+      (channelId && directMessageGroupId)
+    ) {
+      throw new BadRequestException(
+        'Must provide exactly one of channelId or directMessageGroupId',
+      );
+    }
+
+    // Get the message to know its timestamp
+    const message = await this.databaseService.message.findUnique({
+      where: { id: messageId },
+      select: { sentAt: true, channelId: true, directMessageGroupId: true },
+    });
+
+    if (!message) {
+      throw new BadRequestException('Message not found');
+    }
+
+    // Verify the message belongs to the specified context
+    if (
+      (channelId && message.channelId !== channelId) ||
+      (directMessageGroupId &&
+        message.directMessageGroupId !== directMessageGroupId)
+    ) {
+      throw new BadRequestException(
+        'Message does not belong to the specified channel or DM group',
+      );
+    }
+
+    // Find all read receipts where:
+    // 1. The receipt is for the same channel/DM
+    // 2. The lastReadAt is >= message.sentAt (meaning they've read past this message)
+    const readReceipts = await this.databaseService.readReceipt.findMany({
+      where: {
+        ...(channelId ? { channelId } : { directMessageGroupId }),
+        lastReadAt: { gte: message.sentAt },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    return readReceipts
+      .filter((r) => r.user !== null)
+      .map((r) => ({
+        userId: r.user!.id,
+        username: r.user!.username,
+        displayName: r.user!.displayName,
+        avatarUrl: r.user!.avatarUrl,
+        readAt: r.lastReadAt,
+      }));
+  }
 }

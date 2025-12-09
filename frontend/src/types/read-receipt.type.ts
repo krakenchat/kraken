@@ -27,3 +27,11 @@ export interface ReadReceiptUpdatedPayload {
   lastReadMessageId: string;
   lastReadAt: Date;
 }
+
+export interface MessageReader {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  readAt: Date;
+}

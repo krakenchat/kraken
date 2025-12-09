@@ -1,9 +1,16 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import MessageComponent from "./MessageComponent";
 import { Typography, Fab, useMediaQuery, useTheme } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
+import { UnreadMessageDivider } from "./UnreadMessageDivider";
 import type { Message } from "../../types/message.type";
+import { useMessageVisibility } from "../../hooks/useMessageVisibility";
+import { useAppSelector } from "../../app/hooks";
+import {
+  selectLastReadMessageId,
+  selectUnreadCount,
+} from "../../features/readReceipts/readReceiptsSlice";
 
 interface MessageContainerProps {
   // Data
@@ -34,6 +41,10 @@ interface MessageContainerProps {
   contextId?: string;
   communityId?: string;
   onOpenThread?: (message: Message) => void;
+
+  // Read receipts
+  channelId?: string;
+  directMessageGroupId?: string;
 }
 
 const MessageContainer: React.FC<MessageContainerProps> = ({
@@ -52,12 +63,39 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   contextId,
   communityId,
   onOpenThread,
+  channelId,
+  directMessageGroupId,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const channelRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+
+  // Auto-mark messages as read when they scroll into view
+  useMessageVisibility({
+    channelId,
+    directMessageGroupId,
+    messages,
+    containerRef: channelRef,
+    enabled: !isLoading && messages.length > 0,
+  });
+
+  // Read receipts - determine where to show unread divider
+  const contextKey = channelId || directMessageGroupId;
+  const lastReadMessageId = useAppSelector((state) =>
+    selectLastReadMessageId(state, contextKey)
+  );
+  const unreadCount = useAppSelector((state) =>
+    selectUnreadCount(state, contextKey)
+  );
+
+  // Find the index of the last read message
+  // Messages array is newest-first, so unread messages have lower indices
+  const lastReadIndex = useMemo(() => {
+    if (!lastReadMessageId) return -1;
+    return messages.findIndex((msg) => msg.id === lastReadMessageId);
+  }, [messages, lastReadMessageId]);
 
   // Scroll to highlighted message when it's available
   useEffect(() => {
@@ -208,26 +246,37 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         </div>
 
         {messages && messages.length > 0 ? (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const isHighlighted = highlightMessageId === message.id;
+            // Show divider before the last read message when there are unread messages
+            const showDividerBeforeThis =
+              lastReadIndex > 0 && index === lastReadIndex;
+
             return (
-              <div
-                // Add highlightMessageId to key to force re-mount and replay animation
+              <React.Fragment
                 key={isHighlighted ? `${message.id}-highlight` : message.id}
-                ref={(el) => {
-                  if (el) messageRefs.current.set(message.id, el);
-                  else messageRefs.current.delete(message.id);
-                }}
               >
-                <MessageComponent
-                  message={message}
-                  isAuthor={message.authorId === authorId}
-                  isSearchHighlight={isHighlighted}
-                  contextId={contextId}
-                  communityId={communityId}
-                  onOpenThread={onOpenThread}
-                />
-              </div>
+                {showDividerBeforeThis && (
+                  <UnreadMessageDivider unreadCount={unreadCount} />
+                )}
+                <div
+                  data-message-id={message.id}
+                  ref={(el) => {
+                    if (el) messageRefs.current.set(message.id, el);
+                    else messageRefs.current.delete(message.id);
+                  }}
+                >
+                  <MessageComponent
+                    message={message}
+                    isAuthor={message.authorId === authorId}
+                    isSearchHighlight={isHighlighted}
+                    contextId={contextId}
+                    communityId={communityId}
+                    onOpenThread={onOpenThread}
+                    contextType={directMessageGroupId ? "dm" : "channel"}
+                  />
+                </div>
+              </React.Fragment>
             );
           })
         ) : (

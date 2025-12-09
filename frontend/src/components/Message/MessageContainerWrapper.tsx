@@ -86,6 +86,8 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       contextId={contextId}
       communityId={communityId}
       onOpenThread={onOpenThread}
+      channelId={contextType === 'channel' ? contextId : undefined}
+      directMessageGroupId={contextType === 'dm' ? contextId : undefined}
     />
   );
 };

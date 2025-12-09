@@ -7,6 +7,7 @@ import {
   Req,
   Query,
   HttpCode,
+  Param,
 } from '@nestjs/common';
 import { ReadReceiptsService } from './read-receipts.service';
 import { MarkAsReadDto } from './dto/mark-as-read.dto';
@@ -78,5 +79,23 @@ export class ReadReceiptsController {
       );
 
     return { lastReadMessageId };
+  }
+
+  /**
+   * Get all users who have read a specific message
+   * GET /read-receipts/message/:messageId/readers?channelId=xxx or ?directMessageGroupId=xxx
+   */
+  @Get('message/:messageId/readers')
+  async getMessageReaders(
+    @Param('messageId', ParseObjectIdPipe) messageId: string,
+    @Query('channelId', ParseObjectIdPipe) channelId?: string,
+    @Query('directMessageGroupId', ParseObjectIdPipe)
+    directMessageGroupId?: string,
+  ) {
+    return this.readReceiptsService.getMessageReaders(
+      messageId,
+      channelId,
+      directMessageGroupId,
+    );
   }
 }

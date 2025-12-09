@@ -12,6 +12,7 @@ import {
   MessagePinnedPayload,
   MessageUnpinnedPayload,
   ThreadReplyCountUpdatedPayload,
+  ReadReceiptUpdatedPayload,
 } from "../types/websocket-payloads";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
@@ -21,6 +22,7 @@ import {
   selectMessageIndex,
   selectMessagesByContextId,
 } from "../features/messages/messagesSlice";
+import { markAsRead } from "../features/readReceipts/readReceiptsSlice";
 
 export function useChannelWebSocket(communityId: string | undefined) {
   const dispatch = useAppDispatch();
@@ -190,6 +192,21 @@ export function useChannelWebSocket(communityId: string | undefined) {
       }
     };
 
+    const handleReadReceiptUpdated = ({
+      channelId,
+      directMessageGroupId,
+      lastReadMessageId,
+    }: ReadReceiptUpdatedPayload) => {
+      // Update Redux state to sync read receipts across tabs/devices
+      dispatch(
+        markAsRead({
+          channelId: channelId || undefined,
+          directMessageGroupId: directMessageGroupId || undefined,
+          lastReadMessageId,
+        })
+      );
+    };
+
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
@@ -198,6 +215,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
     socket.on(ServerEvents.MESSAGE_PINNED, handleMessagePinned);
     socket.on(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
     socket.on(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
+    socket.on(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
 
     return () => {
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
@@ -208,6 +226,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.MESSAGE_PINNED, handleMessagePinned);
       socket.off(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
       socket.off(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
+      socket.off(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
     };
   }, [socket, communityId, dispatch]); // Using refs for latest state without re-triggering effect
 

@@ -4,6 +4,7 @@ import {
   UnreadCount,
   MarkAsReadPayload,
   ReadReceipt,
+  MessageReader,
 } from "../../types/read-receipt.type";
 import {
   setUnreadCounts,
@@ -110,6 +111,23 @@ export const readReceiptsApi = createApi({
         }
       },
     }),
+
+    // Get users who have read a specific message (for "seen by" tooltip)
+    getMessageReaders: builder.query<
+      MessageReader[],
+      { messageId: string; channelId?: string; directMessageGroupId?: string }
+    >({
+      query: ({ messageId, channelId, directMessageGroupId }) => {
+        const params = new URLSearchParams();
+        if (channelId) params.append("channelId", channelId);
+        if (directMessageGroupId)
+          params.append("directMessageGroupId", directMessageGroupId);
+        return {
+          url: `/message/${messageId}/readers?${params.toString()}`,
+          method: "GET",
+        };
+      },
+    }),
   }),
 });
 
@@ -121,4 +139,6 @@ export const {
   useGetLastReadMessageIdQuery,
   useLazyGetLastReadMessageIdQuery,
   useMarkAsReadMutation,
+  useGetMessageReadersQuery,
+  useLazyGetMessageReadersQuery,
 } = readReceiptsApi;

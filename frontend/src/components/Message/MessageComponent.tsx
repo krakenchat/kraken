@@ -22,6 +22,8 @@ import { isUserMentioned } from "./messageUtils";
 import UserAvatar from "../Common/UserAvatar";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
 import { useUserProfile } from "../../contexts/UserProfileContext";
+import { ReadStatusIndicator, ReadStatus } from "./ReadStatusIndicator";
+import { SeenByTooltip } from "./SeenByTooltip";
 
 interface MessageProps {
   message: MessageType;
@@ -32,14 +34,22 @@ interface MessageProps {
   isThreadParent?: boolean;
   isThreadReply?: boolean;
   onOpenThread?: (message: MessageType) => void;
+  /** Context type to determine if read receipts should be shown */
+  contextType?: "channel" | "dm";
+  /** Read status for DM messages (sent/delivered/read) */
+  readStatus?: ReadStatus;
 }
 
 function MessageComponentInner({
   message,
+  isAuthor,
   isSearchHighlight,
+  contextId,
   isThreadParent,
   isThreadReply,
   onOpenThread,
+  contextType,
+  readStatus = "sent",
 }: MessageProps) {
   const { data: author } = useGetUserByIdQuery(message.authorId);
   const { data: currentUser } = useProfileQuery();
@@ -121,10 +131,22 @@ function MessageComponentInner({
           <Typography
             variant="caption"
             color="text.secondary"
+            sx={{ display: "inline-flex", alignItems: "center" }}
           >
             {new Date(message.sentAt).toLocaleString()}
             {message.editedAt && (
               <span style={{ marginLeft: 4 }}>(edited)</span>
+            )}
+            {/* Show read status for own messages in DMs with "seen by" tooltip */}
+            {contextType === "dm" && isAuthor && contextId && (
+              <SeenByTooltip
+                messageId={message.id}
+                directMessageGroupId={contextId}
+              >
+                <span>
+                  <ReadStatusIndicator status={readStatus} showForDm={true} />
+                </span>
+              </SeenByTooltip>
             )}
           </Typography>
           {isPinned && (
@@ -213,6 +235,9 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevProps.isSearchHighlight === nextProps.isSearchHighlight &&
     prevProps.isThreadParent === nextProps.isThreadParent &&
     prevProps.isThreadReply === nextProps.isThreadReply &&
+    prevProps.isAuthor === nextProps.isAuthor &&
+    prevProps.contextType === nextProps.contextType &&
+    prevProps.readStatus === nextProps.readStatus &&
     // Deep compare reactions array
     prevMsg.reactions.length === nextMsg.reactions.length &&
     prevMsg.reactions.every((r, i) =>

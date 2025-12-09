@@ -67,6 +67,7 @@ export class ReadReceiptsGateway
   /**
    * Handle mark as read event from client
    * Updates the read receipt and notifies the user's other sessions
+   * Also broadcasts to the channel/DM room for real-time "seen by" updates
    */
   @SubscribeMessage(ClientEvents.MARK_AS_READ)
   async handleMarkAsRead(
@@ -75,6 +76,7 @@ export class ReadReceiptsGateway
   ): Promise<void> {
     try {
       const userId = client.handshake.user.id;
+      const user = client.handshake.user;
 
       // Mark messages as read
       const readReceipt = await this.readReceiptsService.markAsRead(
@@ -82,16 +84,32 @@ export class ReadReceiptsGateway
         payload,
       );
 
-      // Emit to all of the user's connected sessions (including this one)
-      // This ensures that if the user has the app open on multiple devices,
-      // all sessions stay in sync
-      const userRoom = `user:${userId}`;
-      this.server.to(userRoom).emit(ServerEvents.READ_RECEIPT_UPDATED, {
+      const receiptPayload = {
         channelId: readReceipt.channelId,
         directMessageGroupId: readReceipt.directMessageGroupId,
         lastReadMessageId: readReceipt.lastReadMessageId,
         lastReadAt: readReceipt.lastReadAt,
-      });
+      };
+
+      // Emit to all of the user's connected sessions (including this one)
+      // This ensures that if the user has the app open on multiple devices,
+      // all sessions stay in sync
+      const userRoom = `user:${userId}`;
+      this.server.to(userRoom).emit(ServerEvents.READ_RECEIPT_UPDATED, receiptPayload);
+
+      // Also emit to the channel/DM room so other users can see real-time "seen by" updates
+      // Only do this for DMs where "seen by" is shown (privacy-conscious approach)
+      if (readReceipt.directMessageGroupId) {
+        const dmRoom = `dm:${readReceipt.directMessageGroupId}`;
+        this.server.to(dmRoom).emit(ServerEvents.READ_RECEIPT_UPDATED, {
+          ...receiptPayload,
+          // Include user info so other clients can update "seen by" without refetching
+          userId,
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+        });
+      }
 
       this.logger.debug(
         `User ${userId} marked ${readReceipt.channelId || readReceipt.directMessageGroupId} as read`,

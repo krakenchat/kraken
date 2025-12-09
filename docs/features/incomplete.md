@@ -68,6 +68,15 @@ These features were previously incomplete but are now fully implemented:
 - Mobile NotificationsScreen
 - Sound playback with test button
 
+### Read Receipts System - ✅ 100% Complete
+- Discord-style "NEW MESSAGES" unread divider
+- Auto-mark messages as read via Intersection Observer
+- WebSocket sync across tabs/devices
+- Checkmark indicators (✓ sent, ✓✓ read) for DM messages
+- "Seen by" hover tooltip with lazy-loaded user list
+- Backend watermark-based tracking per channel/DM
+- Real-time broadcast to DM rooms for instant read status updates
+
 ---
 
 ## 🚧 Features In Progress
@@ -124,33 +133,9 @@ frontend/src/components/Voice/VoiceBottomBar.tsx
 
 ---
 
-### 3. Read Receipts
-
-**Status**: 🔧 **70% Complete**
-
-#### What's Implemented
-- **Backend Module**: `read-receipts/` with service and controller
-- **Frontend State**: `readReceiptsApiSlice.ts`, `readReceiptsSlice.ts`
-- **Message Visibility Hook**: `useMessageVisibility.ts`
-- **Auto-marking**: `useAutoMarkNotificationsRead.ts`
-
-#### What's Missing
-- Visual indicators (checkmarks, "seen by" list)
-- Per-message read status UI
-- Read receipt preferences
-
-#### Key Files
-```
-backend/src/read-receipts/
-frontend/src/features/readReceipts/
-frontend/src/hooks/useMessageVisibility.ts
-```
-
----
-
 ## 🔬 Foundation Only - Needs Major Work
 
-### 4. Friend System
+### 3. Friend System
 
 **Status**: 🔧 **10% Complete - Schema Only**
 
@@ -166,7 +151,7 @@ frontend/src/hooks/useMessageVisibility.ts
 
 ---
 
-### 5. Alias/Mention Groups
+### 4. Alias/Mention Groups
 
 **Status**: 🔧 **10% Complete - Schema Only**
 
@@ -182,7 +167,7 @@ frontend/src/hooks/useMessageVisibility.ts
 
 ---
 
-### 6. Advanced Rich Text
+### 5. Advanced Rich Text
 
 **Status**: 🔧 **15% Complete - Span System Ready**
 
@@ -202,8 +187,8 @@ frontend/src/hooks/useMessageVisibility.ts
 ## 📋 Priority Matrix
 
 ### High Impact, Low Effort (Do Next)
-1. **Read Receipt UI** (1 week) - Backend complete, needs visual indicators
-2. **Voice Persistence** (1-2 weeks) - Stay connected across navigation
+1. **Voice Persistence** - Stay connected across navigation
+2. **Replay Buffer Polish** - Edge case handling and mobile-friendly viewer
 
 ### High Impact, Medium Effort
 1. **Message Search** (2-3 weeks) - Essential for large communities
@@ -230,4 +215,4 @@ Focus on completing the in-progress features (85-70% complete) before starting n
 
 ---
 
-**Last Updated**: December 8, 2024
+**Last Updated**: December 9, 2024
