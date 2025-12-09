@@ -6,7 +6,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 | Category | Implemented | Partial | Missing | Total | Parity % |
 |----------|-------------|---------|---------|-------|----------|
-| **Core Chat** | 13 | 1 | 1 | 15 | 100% |
+| **Core Chat** | 14 | 1 | 0 | 15 | 100% |
 | **Voice & Video** | 12 | 0 | 3 | 15 | 80% |
 | **Community Management** | 10 | 0 | 3 | 13 | 92% |
 | **User Features** | 10 | 1 | 4 | 15 | 80% |
@@ -35,6 +35,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 - **Channel Reordering**: Drag-to-reorder channels in community settings
 - **Notifications System**: Real-time notification center with badges
 - **Read Receipts**: Message read tracking
+- **Message Threads**: Full threading with replies, real-time updates, subscription notifications
 
 ---
 
@@ -57,18 +58,13 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Message Editing** | ✅ | ✅ | Full inline editing with indicators |
 | **Channel Reordering** | ✅ | ✅ | Move up/down in community settings |
 | **Message Search** | ✅ | ✅ | Channel and community-wide search with UI |
+| **Message Threads** | ✅ | ✅ | Thread replies, real-time updates, subscription system |
 
 ### 🔧 Partially Implemented
 
 | Feature | Discord | Kraken | Status | Missing |
 |---------|---------|---------|---------|---------|
 | **Rich Text Formatting** | ✅ | 🔧 | Foundation | Bold, italic, code blocks, embeds |
-
-### ❌ Missing
-
-| Feature | Discord | Kraken | Priority | Difficulty |
-|---------|---------|---------|-----------|-----------|
-| **Message Threads** | ✅ | ❌ | Medium | High |
 
 ---
 
@@ -259,9 +255,9 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 ### Phase 2: Enhanced Features (Medium Priority)
 1. ~~**Slowmode** - Rate limiting for channels~~ ✅
 2. ~~**Voice Persistence** - PiP overlay, refresh recovery~~ ✅
-3. **Rich Text** - Complete formatting, embeds, code blocks
-4. **User Experience** - Settings panels, customization
-5. **Message Threads** - Conversation threading
+3. ~~**Message Threads** - Conversation threading~~ ✅
+4. **Rich Text** - Complete formatting, embeds, code blocks
+5. **User Experience** - Settings panels, customization
 6. **Noise Suppression** - Voice quality improvements
 
 ### Phase 3: Advanced Features (Lower Priority)
@@ -292,7 +288,6 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 - Auto-moderation
 - Rich presence
 - Voice effects
-- Message threads
 
 ---
 
@@ -300,8 +295,8 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ### Critical Gaps for Discord Parity
 1. ~~**Push to Talk** - Expected voice feature~~ ✅ DONE
-2. **Rich Text Formatting** - Bold, italic, code blocks, embeds
-3. **Message Threads** - Conversation organization in busy channels
+2. ~~**Message Threads** - Conversation organization in busy channels~~ ✅ DONE
+3. **Rich Text Formatting** - Bold, italic, code blocks, embeds
 
 ### Nice-to-Have Features
 1. **Custom Emojis** - Community personalization
@@ -318,4 +313,4 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ---
 
-**Last Updated**: December 7, 2024
+**Last Updated**: December 8, 2024
