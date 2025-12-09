@@ -11,6 +11,7 @@ import {
   ReactionRemovedPayload,
   MessagePinnedPayload,
   MessageUnpinnedPayload,
+  ThreadReplyCountUpdatedPayload,
 } from "../types/websocket-payloads";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
@@ -162,6 +163,33 @@ export function useChannelWebSocket(communityId: string | undefined) {
       }
     };
 
+    const handleThreadReplyCountUpdated = ({
+      parentMessageId,
+      replyCount,
+      lastReplyAt,
+    }: ThreadReplyCountUpdatedPayload) => {
+      // O(1) lookup using message index
+      const contextId = messageIndexRef.current[parentMessageId];
+      if (!contextId) return;
+
+      const currentMessages = messagesByContextIdRef.current;
+      const messages = currentMessages[contextId]?.messages || [];
+      const messageToUpdate = messages.find((msg) => msg.id === parentMessageId);
+
+      if (messageToUpdate) {
+        dispatch(
+          updateMessage({
+            contextId,
+            message: {
+              ...messageToUpdate,
+              replyCount,
+              lastReplyAt,
+            },
+          })
+        );
+      }
+    };
+
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
@@ -169,6 +197,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
     socket.on(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
     socket.on(ServerEvents.MESSAGE_PINNED, handleMessagePinned);
     socket.on(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
+    socket.on(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
 
     return () => {
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
@@ -178,6 +207,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
       socket.off(ServerEvents.MESSAGE_PINNED, handleMessagePinned);
       socket.off(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
+      socket.off(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
     };
   }, [socket, communityId, dispatch]); // Using refs for latest state without re-triggering effect
 

@@ -246,6 +246,12 @@ export interface MessageUnpinnedPayload {
   unpinnedBy: string;
 }
 
+export interface ThreadReplyCountUpdatedPayload {
+  parentMessageId: string;
+  replyCount: number;
+  lastReplyAt: string | null;
+}
+
 // =============================================================================
 // Server Events Payload Map
 // =============================================================================
@@ -314,6 +320,7 @@ export type ServerEventPayloads = {
   [ServerEvents.TIMEOUT_REMOVED]: TimeoutRemovedPayload;
   [ServerEvents.MESSAGE_PINNED]: MessagePinnedPayload;
   [ServerEvents.MESSAGE_UNPINNED]: MessageUnpinnedPayload;
+  [ServerEvents.THREAD_REPLY_COUNT_UPDATED]: ThreadReplyCountUpdatedPayload;
 
   // Acknowledgments & Errors
   [ServerEvents.ACK]: AckPayload;
