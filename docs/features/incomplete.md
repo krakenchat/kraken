@@ -87,38 +87,19 @@ These features were previously incomplete but are now fully implemented:
 - Clip sharing to channels or DMs
 - Public/private visibility toggle on profile
 
----
-
-## 🚧 Features In Progress
-
-### 1. Voice Persistence
-
-**Status**: 🔧 **75% Complete**
-
-#### What's Implemented
-- Voice connection via LiveKit
-- Device switching (audio input/output, video)
-- Discord-style mute/deafen behavior
-- Voice presence via LiveKit webhooks
-
-#### What's Missing
-- **Navigation Persistence**: Stay connected when changing pages
-- **Connection Recovery**: Automatic reconnection after disconnects
-- **Background Connection**: Keep voice active when app backgrounded
-
-#### Key Files
-```
-frontend/src/features/voice/voiceSlice.ts
-frontend/src/features/voice/voiceThunks.ts
-frontend/src/hooks/useVoiceConnection.ts
-frontend/src/components/Voice/VoiceBottomBar.tsx
-```
+### Voice Persistence - ✅ 95% Complete
+- RoomProvider wraps all routes for persistent LiveKit Room
+- VoiceBottomBar at Layout level (visible on all pages)
+- Page refresh recovery via localStorage (useVoiceRecovery hook)
+- Redux state management with non-serializable Room in Context
+- Works for both channel and DM voice connections
+- Minor: Cross-tab synchronization not implemented
 
 ---
 
 ## 🔬 Foundation Only - Needs Major Work
 
-### 3. Friend System
+### 1. Friend System
 
 **Status**: 🔧 **10% Complete - Schema Only**
 
@@ -134,7 +115,7 @@ frontend/src/components/Voice/VoiceBottomBar.tsx
 
 ---
 
-### 4. Alias/Mention Groups
+### 2. Alias/Mention Groups
 
 **Status**: 🔧 **10% Complete - Schema Only**
 
@@ -150,7 +131,7 @@ frontend/src/components/Voice/VoiceBottomBar.tsx
 
 ---
 
-### 5. Advanced Rich Text
+### 3. Advanced Rich Text
 
 **Status**: 🔧 **15% Complete - Span System Ready**
 
@@ -169,29 +150,27 @@ frontend/src/components/Voice/VoiceBottomBar.tsx
 
 ## 📋 Priority Matrix
 
-### High Impact, Low Effort (Do Next)
-1. **Voice Persistence** - Stay connected across navigation
-
-### High Impact, Medium Effort
+### High Impact, Medium Effort (Do Next)
 1. **Message Search** - Essential for large communities
 2. **Push to Talk** - Expected voice feature
-3. **Mobile Optimization** - Responsive design improvements
 
 ### Medium Impact, High Effort
 1. **Rich Text Editor** - Complex implementation
 2. **Friend System** - Full feature build
 3. **Advanced Moderation** - Ban system, timeouts
 
+### Lower Priority
+1. **Alias/Mention Groups** - Niche feature
+2. **Mobile Optimization** - Responsive design improvements
+
 ---
 
 ## 🚀 Development Strategy
 
-### Current Focus
-Complete Voice Persistence (75% done), then move to new features.
-
 ### Recommended Order
-1. Implement Voice Persistence
-2. Then move to new features (Message Search, Rich Text, Friend System)
+1. Message Search (high impact for growing communities)
+2. Push to Talk (common voice feature request)
+3. Friend System or Rich Text (depending on user demand)
 
 ---
 
