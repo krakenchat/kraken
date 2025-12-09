@@ -23,6 +23,7 @@ import {
   MenuItem,
   RadioGroup,
   Radio,
+  Skeleton,
 } from '@mui/material';
 import {
   Download,
@@ -84,15 +85,40 @@ const formatFileSize = (bytes: number) => {
   return `${mb.toFixed(1)} MB`;
 };
 
+// Skeleton card for loading state
+const ClipCardSkeleton: React.FC = memo(() => (
+  <Card>
+    <Skeleton variant="rectangular" height={150} animation="wave" />
+    <CardContent sx={{ pb: 1 }}>
+      <Skeleton variant="text" width="70%" height={24} />
+      <Box display="flex" gap={2} mt={1}>
+        <Skeleton variant="text" width={40} />
+        <Skeleton variant="text" width={50} />
+      </Box>
+      <Skeleton variant="text" width="60%" sx={{ mt: 0.5 }} />
+      <Box display="flex" alignItems="center" gap={1} mt={1}>
+        <Skeleton variant="circular" width={20} height={20} />
+        <Skeleton variant="text" width={80} />
+      </Box>
+    </CardContent>
+    <CardActions sx={{ pt: 0 }}>
+      <Skeleton variant="circular" width={28} height={28} />
+      <Skeleton variant="circular" width={28} height={28} />
+      <Skeleton variant="circular" width={28} height={28} />
+    </CardActions>
+  </Card>
+));
+
 // Video card component with native video playback via cookie auth
 const ClipCard: React.FC<{
   clip: ClipResponse;
   isOwnProfile: boolean;
+  isDownloading: boolean;
   onTogglePublic: (clipId: string, currentValue: boolean) => void;
   onDownload: (clip: ClipResponse) => void;
   onShare: (clipId: string) => void;
   onDelete: (clipId: string) => void;
-}> = memo(({ clip, isOwnProfile, onTogglePublic, onDownload, onShare, onDelete }) => {
+}> = memo(({ clip, isOwnProfile, isDownloading, onTogglePublic, onDownload, onShare, onDelete }) => {
 
   return (
     <Card>
@@ -157,10 +183,17 @@ const ClipCard: React.FC<{
         )}
       </CardContent>
       <CardActions sx={{ pt: 0 }}>
-        <Tooltip title="Download">
-          <IconButton size="small" onClick={() => onDownload(clip)} aria-label={`Download ${clip.filename}`}>
-            <Download fontSize="small" />
-          </IconButton>
+        <Tooltip title={isDownloading ? 'Downloading...' : 'Download'}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => onDownload(clip)}
+              disabled={isDownloading}
+              aria-label={`Download ${clip.filename}`}
+            >
+              {isDownloading ? <CircularProgress size={18} /> : <Download fontSize="small" />}
+            </IconButton>
+          </span>
         </Tooltip>
         {isOwnProfile && (
           <>
@@ -208,6 +241,14 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
   const [selectedChannelId, setSelectedChannelId] = useState('');
   const [selectedDmGroupId, setSelectedDmGroupId] = useState('');
 
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clipToDelete, setClipToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Download state tracking
+  const [downloadingClipId, setDownloadingClipId] = useState<string | null>(null);
+
   // Fetch communities, channels, and DMs for sharing
   const { data: communitiesData } = useMyCommunitiesQuery(undefined, {
     skip: !shareDialogOpen || shareDestination !== 'channel',
@@ -239,18 +280,34 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
     }
   }, [updateClip, showNotification]);
 
-  const handleDelete = useCallback(async (clipId: string) => {
-    if (!confirm('Are you sure you want to delete this clip? This cannot be undone.')) {
-      return;
-    }
+  const handleOpenDeleteDialog = useCallback((clipId: string) => {
+    setClipToDelete(clipId);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!clipToDelete) return;
+
+    setIsDeleting(true);
     try {
-      await deleteClip(clipId).unwrap();
+      await deleteClip(clipToDelete).unwrap();
       showNotification('Clip deleted', 'success');
+      setDeleteDialogOpen(false);
+      setClipToDelete(null);
     } catch (err) {
       console.error('Failed to delete clip:', err);
       showNotification(getErrorMessage(err, 'Failed to delete clip'), 'error');
+    } finally {
+      setIsDeleting(false);
     }
-  }, [deleteClip, showNotification]);
+  }, [clipToDelete, deleteClip, showNotification]);
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    if (!isDeleting) {
+      setDeleteDialogOpen(false);
+      setClipToDelete(null);
+    }
+  }, [isDeleting]);
 
   const handleDownload = useCallback(async (clip: ClipResponse) => {
     const token = getAuthToken();
@@ -259,6 +316,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
       return;
     }
 
+    setDownloadingClipId(clip.id);
     try {
       const response = await fetch(getApiUrl(clip.downloadUrl), {
         headers: { Authorization: `Bearer ${token}` },
@@ -282,6 +340,8 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
     } catch (err) {
       console.error('Failed to download clip:', err);
       showNotification(getErrorMessage(err, 'Failed to download clip'), 'error');
+    } finally {
+      setDownloadingClipId(null);
     }
   }, [showNotification]);
 
@@ -321,8 +381,18 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" py={4}>
-        <CircularProgress />
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          {isOwnProfile ? 'My Clip Library' : 'Public Clips'}
+        </Typography>
+        <Skeleton variant="text" width={200} sx={{ mb: 3 }} />
+        <Grid container spacing={2}>
+          {[1, 2, 3].map((i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}>
+              <ClipCardSkeleton />
+            </Grid>
+          ))}
+        </Grid>
       </Box>
     );
   }
@@ -365,10 +435,11 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
             <ClipCard
               clip={clip}
               isOwnProfile={isOwnProfile}
+              isDownloading={downloadingClipId === clip.id}
               onTogglePublic={handleTogglePublic}
               onDownload={handleDownload}
               onShare={handleOpenShareDialog}
-              onDelete={handleDelete}
+              onDelete={handleOpenDeleteDialog}
             />
           </Grid>
         ))}
@@ -443,6 +514,38 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
           <Button onClick={() => setShareDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleShare}>
             Share
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Clip</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this clip? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseDeleteDialog}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={16} /> : <Delete />}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

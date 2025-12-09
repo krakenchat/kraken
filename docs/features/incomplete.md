@@ -77,38 +77,21 @@ These features were previously incomplete but are now fully implemented:
 - Backend watermark-based tracking per channel/DM
 - Real-time broadcast to DM rooms for instant read status updates
 
+### Replay Buffer & Clip Saving - ✅ 100% Complete
+- LiveKit Track Composite Egress for HLS segment recording
+- FFmpeg processing with segment concatenation and custom trimming
+- Mobile-responsive TrimPreview with touch-friendly timeline
+- ClipLibrary with loading skeletons, download indicators, delete confirmation
+- Rate-limited capture endpoint (3/min, 15/hour)
+- HLS error handling with retry functionality
+- Clip sharing to channels or DMs
+- Public/private visibility toggle on profile
+
 ---
 
 ## 🚧 Features In Progress
 
-### 1. Replay Buffer & Clip Saving
-
-**Status**: 🔧 **85% Complete**
-
-#### What's Implemented
-- **LiveKit Egress**: HLS segment recording during screen share
-- **Backend Service**: `livekit-replay.service.ts` with FFmpeg processing
-- **TrimPreview Component**: Video trimming UI with seek controls
-- **ClipLibrary Component**: User's saved clips on profile page
-- **Database Model**: `EgressSession` and clip metadata storage
-
-#### What's Missing
-- Polish and edge case handling
-- Mobile-friendly clip viewer
-- Clip sharing/download improvements
-
-#### Key Files
-```
-backend/src/livekit/livekit-replay.service.ts
-backend/src/livekit/ffmpeg.service.ts
-frontend/src/components/Voice/TrimPreview.tsx
-frontend/src/components/Voice/CaptureReplayModal.tsx
-frontend/src/components/Profile/ClipLibrary.tsx
-```
-
----
-
-### 2. Voice Persistence
+### 1. Voice Persistence
 
 **Status**: 🔧 **75% Complete**
 
@@ -188,31 +171,28 @@ frontend/src/components/Voice/VoiceBottomBar.tsx
 
 ### High Impact, Low Effort (Do Next)
 1. **Voice Persistence** - Stay connected across navigation
-2. **Replay Buffer Polish** - Edge case handling and mobile-friendly viewer
 
 ### High Impact, Medium Effort
-1. **Message Search** (2-3 weeks) - Essential for large communities
-2. **Push to Talk** (1-2 weeks) - Expected voice feature
-3. **Mobile Optimization** (4-6 weeks) - Responsive design improvements
+1. **Message Search** - Essential for large communities
+2. **Push to Talk** - Expected voice feature
+3. **Mobile Optimization** - Responsive design improvements
 
 ### Medium Impact, High Effort
-1. **Rich Text Editor** (3-4 weeks) - Complex implementation
-2. **Friend System** (2-3 weeks) - Full feature build
-3. **Advanced Moderation** (3-4 weeks) - Ban system, timeouts
+1. **Rich Text Editor** - Complex implementation
+2. **Friend System** - Full feature build
+3. **Advanced Moderation** - Ban system, timeouts
 
 ---
 
 ## 🚀 Development Strategy
 
 ### Current Focus
-Focus on completing the in-progress features (85-70% complete) before starting new ones. This maximizes ROI on existing work.
+Complete Voice Persistence (75% done), then move to new features.
 
 ### Recommended Order
-1. Finish Replay Buffer polish
-2. Add Read Receipt visual indicators
-3. Implement Voice Persistence
-4. Then move to new features (Rich Text, Friend System)
+1. Implement Voice Persistence
+2. Then move to new features (Message Search, Rich Text, Friend System)
 
 ---
 
-**Last Updated**: December 9, 2024
+**Last Updated**: December 2024

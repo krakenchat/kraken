@@ -12,6 +12,7 @@ import {
   Param,
   Logger,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
@@ -251,8 +252,13 @@ export class LivekitController {
 
   /**
    * Capture a replay clip from the buffer and post to channel or DM
+   * Rate limited: 3 per minute, 15 per hour to prevent abuse
    */
   @Post('replay/capture')
+  @Throttle({
+    short: { limit: 3, ttl: 60000 },  // 3 per minute
+    long: { limit: 15, ttl: 3600000 }, // 15 per hour
+  })
   @RequiredActions(RbacActions.CAPTURE_REPLAY)
   @RbacResource({
     type: RbacResourceType.INSTANCE,

@@ -17,6 +17,8 @@ import {
   FormControl,
   InputLabel,
   Collapse,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { VideocamOutlined, Download, Send, VideoLibrary, ContentCut } from '@mui/icons-material';
 import { useCaptureReplayMutation } from '../../features/livekit/livekitApiSlice';
@@ -52,6 +54,9 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
   open,
   onClose,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const [selectedDuration, setSelectedDuration] = useState<1 | 2 | 5 | 10>(5);
   const [destination, setDestination] = useState<'library' | 'channel' | 'dm' | 'download'>('library');
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
@@ -185,10 +190,11 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
       onClose={onClose}
       maxWidth={useCustomTrim ? false : 'sm'}
       fullWidth={!useCustomTrim}
+      fullScreen={isMobile && useCustomTrim}
       PaperProps={{
         sx: {
           backgroundColor: 'background.paper',
-          ...(useCustomTrim && {
+          ...(useCustomTrim && !isMobile && {
             width: '90vw',
             maxWidth: '90vw',
             height: '90vh',
@@ -216,7 +222,12 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
             <ButtonGroup
               variant="outlined"
               fullWidth
-              sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, mb: 2 }}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+                gap: 1,
+                mb: 2,
+              }}
             >
               {DURATION_PRESETS.map((preset) => (
                 <Button
@@ -228,11 +239,11 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
                   }}
                   sx={{
                     flexDirection: 'column',
-                    py: 2,
+                    py: isMobile ? 1.5 : 2,
                     gridColumn: 'span 1',
                   }}
                 >
-                  <Typography variant="h6">{preset.label}</Typography>
+                  <Typography variant={isMobile ? 'body1' : 'h6'}>{preset.label}</Typography>
                   <Typography variant="caption" sx={{ mt: 0.5 }}>
                     ~{preset.estimatedSizeMB}MB
                   </Typography>

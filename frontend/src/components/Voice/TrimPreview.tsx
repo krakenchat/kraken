@@ -7,6 +7,9 @@ import {
   IconButton,
   Chip,
   Tooltip,
+  Button,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -31,11 +34,15 @@ const formatTime = (seconds: number): string => {
 };
 
 export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [loopEnabled, setLoopEnabled] = useState(false);
@@ -210,7 +217,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       setError('HLS playback is not supported in this browser');
       setIsLoading(false);
     }
-  }, [sessionInfo?.hasActiveSession, maxDuration]);
+  }, [sessionInfo?.hasActiveSession, maxDuration, retryKey]);
 
   // Handle video time update - constrain to selection
   // This effect depends on isLoading to ensure it runs AFTER HLS is initialized
@@ -330,6 +337,19 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
     }
   }, [isDragging, handleTimelineMouseMove, handleTimelineMouseUp]);
 
+  // Retry loading HLS after error
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setIsLoading(true);
+    // Destroy existing HLS instance if any
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    // Increment retry key to trigger useEffect re-run
+    setRetryKey((prev) => prev + 1);
+  }, []);
+
   // Click on timeline to seek
   const handleTimelineClick = (e: React.MouseEvent) => {
     if (!timelineRef.current || !videoRef.current || isDragging) return;
@@ -421,7 +441,15 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
           </Box>
         )}
         {error && (
-          <Alert severity="error" sx={{ m: 1 }}>
+          <Alert
+            severity="error"
+            sx={{ m: 1 }}
+            action={
+              <Button color="inherit" size="small" onClick={handleRetry}>
+                Retry
+              </Button>
+            }
+          >
             {error}
           </Alert>
         )}
@@ -429,9 +457,9 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
           ref={videoRef}
           style={{
             width: '100%',
-            height: 'calc(90vh - 350px)', // Dynamic height based on viewport
-            minHeight: '400px',
-            maxHeight: '70vh',
+            height: isMobile ? 'auto' : 'calc(90vh - 350px)', // Auto height on mobile
+            minHeight: isMobile ? '200px' : '400px',
+            maxHeight: isMobile ? '40vh' : '70vh',
             objectFit: 'contain',
             display: 'block',
           }}
@@ -507,7 +535,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
         onClick={handleTimelineClick}
         sx={{
           position: 'relative',
-          height: 80,
+          height: isMobile ? 100 : 80, // Taller on mobile for easier touch targets
           backgroundColor: 'grey.900',
           borderRadius: 2,
           cursor: 'pointer',
@@ -711,13 +739,15 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       <Box
         sx={{
           display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: isMobile ? 1.5 : 0,
           mt: 2,
           px: 1,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, order: isMobile ? 1 : 0 }}>
           <Box
             sx={{
               width: 8,
@@ -728,7 +758,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
             }}
           />
           <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-            {formatTime(startTime)}
+            Start: {formatTime(startTime)}
           </Typography>
         </Box>
         <Box
@@ -738,15 +768,16 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
             borderRadius: 2,
             backgroundColor: 'primary.main',
             color: 'primary.contrastText',
+            order: isMobile ? 0 : 1,
           }}
         >
           <Typography variant="body1" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
-            {formatTime(selectedDuration)}
+            Duration: {formatTime(selectedDuration)}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, order: 2 }}>
           <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-            {formatTime(endTime)}
+            End: {formatTime(endTime)}
           </Typography>
           <Box
             sx={{
