@@ -386,8 +386,8 @@ export class StorageQuotaService {
       const created = await this.db.instanceSettings.create({
         data: {
           name: 'Kraken',
-          defaultStorageQuotaBytes: BigInt(5368709120), // 5GB
-          maxFileSizeBytes: BigInt(52428800), // 50MB
+          defaultStorageQuotaBytes: BigInt(53687091200), // 50GB
+          maxFileSizeBytes: BigInt(524288000), // 500MB
         },
       });
       settings = {

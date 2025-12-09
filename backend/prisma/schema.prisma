@@ -173,7 +173,7 @@ model User {
   statusUpdatedAt DateTime? // When status was last updated
 
   // Storage quota (in bytes)
-  storageQuotaBytes BigInt @default(5368709120) // 5GB default
+  storageQuotaBytes BigInt @default(53687091200) // 50GB default
   storageUsedBytes  BigInt @default(0) // Cached total usage
 
   // Blocking relations
@@ -253,8 +253,8 @@ model InstanceSettings {
   updatedAt        DateTime           @updatedAt
 
   // Storage settings
-  defaultStorageQuotaBytes BigInt @default(5368709120) // 5GB default for new users
-  maxFileSizeBytes         BigInt @default(52428800)   // 50MB max per file
+  defaultStorageQuotaBytes BigInt @default(53687091200) // 50GB default for new users
+  maxFileSizeBytes         BigInt @default(524288000)   // 500MB max per file
 }
 
 enum RegistrationMode {
