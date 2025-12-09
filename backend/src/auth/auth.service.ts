@@ -9,6 +9,21 @@ import { Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ObjectId } from 'mongodb';
 
+export interface DeviceInfo {
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+export interface SessionInfo {
+  id: string;
+  deviceName: string;
+  ipAddress: string | null;
+  createdAt: Date;
+  lastUsedAt: Date;
+  expiresAt: Date;
+  isCurrent: boolean;
+}
+
 @Injectable()
 export class AuthService {
   private readonly jwtRefreshSecret: string | undefined;
@@ -71,7 +86,11 @@ export class AuthService {
     return [new UserEntity(user), payload.jti];
   }
 
-  async generateRefreshToken(userId: string, tx?: Prisma.TransactionClient) {
+  async generateRefreshToken(
+    userId: string,
+    deviceInfo?: DeviceInfo,
+    tx?: Prisma.TransactionClient,
+  ) {
     // generate a MongoDB ObjectId for the jti
     const jti = new ObjectId().toHexString();
     const refreshToken = this.jwtService.sign(
@@ -90,10 +109,56 @@ export class AuthService {
         userId,
         tokenHash: hashed,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        deviceName: deviceInfo?.userAgent
+          ? this.parseDeviceName(deviceInfo.userAgent)
+          : 'Unknown Device',
+        userAgent: deviceInfo?.userAgent,
+        ipAddress: deviceInfo?.ipAddress,
+        lastUsedAt: new Date(),
       },
     });
 
     return refreshToken;
+  }
+
+  /**
+   * Parse user agent string into a friendly device name
+   */
+  private parseDeviceName(userAgent: string): string {
+    const ua = userAgent.toLowerCase();
+
+    // Check for Electron app first
+    if (ua.includes('electron')) {
+      if (ua.includes('windows')) return 'Kraken Desktop (Windows)';
+      if (ua.includes('mac')) return 'Kraken Desktop (macOS)';
+      if (ua.includes('linux')) return 'Kraken Desktop (Linux)';
+      return 'Kraken Desktop';
+    }
+
+    // Check for mobile devices
+    if (ua.includes('iphone')) return 'Safari on iPhone';
+    if (ua.includes('ipad')) return 'Safari on iPad';
+    if (ua.includes('android')) {
+      if (ua.includes('chrome')) return 'Chrome on Android';
+      if (ua.includes('firefox')) return 'Firefox on Android';
+      return 'Browser on Android';
+    }
+
+    // Desktop browsers
+    let browser = 'Browser';
+    if (ua.includes('edg/')) browser = 'Edge';
+    else if (ua.includes('chrome')) browser = 'Chrome';
+    else if (ua.includes('firefox')) browser = 'Firefox';
+    else if (ua.includes('safari')) browser = 'Safari';
+    else if (ua.includes('opera') || ua.includes('opr')) browser = 'Opera';
+
+    let os = '';
+    if (ua.includes('windows')) os = 'Windows';
+    else if (ua.includes('mac os')) os = 'macOS';
+    else if (ua.includes('linux')) os = 'Linux';
+    else if (ua.includes('cros')) os = 'Chrome OS';
+
+    return os ? `${browser} on ${os}` : browser;
   }
 
   async removeRefreshToken(
@@ -159,5 +224,87 @@ export class AuthService {
     this.logger.log(
       `Cleaned up ${expiredTokens.count} expired refresh tokens from the database.`,
     );
+  }
+
+  /**
+   * Get all active sessions for a user
+   */
+  async getUserSessions(
+    userId: string,
+    currentTokenId?: string,
+  ): Promise<SessionInfo[]> {
+    const tokens = await this.databaseService.refreshToken.findMany({
+      where: {
+        userId,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { lastUsedAt: 'desc' },
+      select: {
+        id: true,
+        deviceName: true,
+        ipAddress: true,
+        createdAt: true,
+        lastUsedAt: true,
+        expiresAt: true,
+      },
+    });
+
+    return tokens.map((token) => ({
+      id: token.id,
+      deviceName: token.deviceName || 'Unknown Device',
+      ipAddress: token.ipAddress,
+      createdAt: token.createdAt,
+      lastUsedAt: token.lastUsedAt,
+      expiresAt: token.expiresAt,
+      isCurrent: token.id === currentTokenId,
+    }));
+  }
+
+  /**
+   * Revoke a specific session (delete refresh token)
+   */
+  async revokeSession(userId: string, sessionId: string): Promise<boolean> {
+    const result = await this.databaseService.refreshToken.deleteMany({
+      where: {
+        id: sessionId,
+        userId, // Ensure user can only revoke their own sessions
+      },
+    });
+
+    return result.count > 0;
+  }
+
+  /**
+   * Revoke all sessions except the current one
+   */
+  async revokeAllOtherSessions(
+    userId: string,
+    currentTokenId: string,
+  ): Promise<number> {
+    const result = await this.databaseService.refreshToken.deleteMany({
+      where: {
+        userId,
+        id: { not: currentTokenId },
+      },
+    });
+
+    return result.count;
+  }
+
+  /**
+   * Update session activity timestamp (call on token refresh)
+   */
+  async updateSessionActivity(
+    tokenId: string,
+    deviceInfo?: DeviceInfo,
+  ): Promise<void> {
+    await this.databaseService.refreshToken.update({
+      where: { id: tokenId },
+      data: {
+        lastUsedAt: new Date(),
+        // Update IP if changed
+        ...(deviceInfo?.ipAddress && { ipAddress: deviceInfo.ipAddress }),
+      },
+    });
   }
 }

@@ -17,6 +17,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 **Overall Parity: ~84%** (up from ~82%)
 
 ### 🎉 Recent Improvements
+- **Session Management**: View and revoke active sessions with device tracking
 - **Voice Persistence**: Stay connected across navigation with floating PiP overlay and page refresh recovery
 - **Push to Talk**: User-configurable PTT key with mode toggle (Voice Activity / Push to Talk)
 - **Voice Settings in SettingsPage**: Audio/video device settings accessible outside of voice calls
@@ -323,6 +324,7 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Instance Storage Dashboard** | Total usage, breakdown by type, server stats (memory, disk, CPU) |
 | **User Upload Limits** | Configurable max file size per upload (instance setting) |
 | **Server Hardware Stats** | Memory, disk, CPU, load average, uptime monitoring |
+| **Session Management** | View/revoke active sessions with device tracking in Settings |
 
 ### ❌ Missing
 
@@ -331,7 +333,6 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 | **Instance Analytics** | Medium | Medium | DAU, message counts, voice minutes |
 | **Rate Limiting Dashboard** | Low | Medium | View/configure API rate limits |
 | **Backup/Export Tools** | Low | High | Instance data backup/restore |
-| **Session Management** | Medium | Low | View/revoke active sessions |
 | **Instance Audit Logs** | Medium | Medium | Instance-wide security logs |
 
 ---
@@ -425,7 +426,7 @@ These can be implemented quickly with high impact:
 
 1. ~~**User Storage Quotas**~~ ✅ - Implemented with quota enforcement
 2. **Extended Message Length** - Increase character limit (instance config)
-3. **Session Management** - List/revoke refresh tokens
+3. ~~**Session Management**~~ ✅ - View/revoke sessions with device tracking
 4. **HD Video Settings** - Expose LiveKit quality settings in UI
 5. ~~**Instance Storage Dashboard**~~ ✅ - Implemented with server stats
 

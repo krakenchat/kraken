@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { authApi } from "../features/auth/authSlice";
+import { authApi, sessionApi } from "../features/auth/authSlice";
 import { usersApi } from "../features/users/usersSlice";
 import { communityApi } from "../features/community/communityApiSlice";
 import { channelApi } from "../features/channel/channelApiSlice";
@@ -52,6 +52,7 @@ export const store = configureStore({
     [appearanceApi.reducerPath]: appearanceApi.reducer,
     [friendsApi.reducerPath]: friendsApi.reducer,
     [threadsApi.reducerPath]: threadsApi.reducer,
+    [sessionApi.reducerPath]: sessionApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
     readReceipts: readReceiptsReducer,
@@ -82,7 +83,8 @@ export const store = configureStore({
       moderationApi.middleware,
       appearanceApi.middleware,
       friendsApi.middleware,
-      threadsApi.middleware
+      threadsApi.middleware,
+      sessionApi.middleware
     ),
 });
 

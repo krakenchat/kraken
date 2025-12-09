@@ -222,12 +222,20 @@ model User {
 }
 
 model RefreshToken {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  tokenHash String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  user      User     @relation(fields: [userId], references: [id])
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  tokenHash  String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  user       User     @relation(fields: [userId], references: [id])
+
+  // Session/device tracking
+  deviceName String?  // User-friendly name (e.g., "Chrome on Windows")
+  userAgent  String?  // Full user agent string
+  ipAddress  String?  // Client IP address
+  lastUsedAt DateTime @default(now()) // Last activity with this token
+
+  @@index([userId, lastUsedAt]) // For fetching user's sessions sorted by activity
 }
 
 model InstanceInvite {

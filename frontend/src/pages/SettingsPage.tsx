@@ -28,6 +28,7 @@ import {
 import axios from 'axios';
 import NotificationSettings from '../components/Settings/NotificationSettings';
 import VoiceSettings from '../components/Settings/VoiceSettings';
+import SessionsSettings from '../components/Settings/SessionsSettings';
 import {
   useTheme,
   accentColors,
@@ -303,6 +304,9 @@ const SettingsPage: React.FC = () => {
 
       {/* Appearance Settings Section */}
       <AppearanceSettings />
+
+      {/* Sessions Settings Section */}
+      <SessionsSettings />
 
       {/* Backend Configuration Section (Electron only) */}
       {isElectron && (

@@ -1,16 +1,21 @@
 import {
   Controller,
   Post,
+  Get,
+  Delete,
+  Param,
   UseGuards,
   HttpStatus,
   HttpCode,
   Req,
   Res,
   UnauthorizedException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { LocalAuthGuard } from './local-auth.guard';
-import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuthService, DeviceInfo } from './auth.service';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
@@ -26,6 +31,21 @@ export class AuthController {
     private readonly databaseService: DatabaseService,
   ) {}
 
+  /**
+   * Extract device info from request headers
+   */
+  private getDeviceInfo(req: Request): DeviceInfo {
+    const userAgent = req.headers['user-agent'] || '';
+    // Get IP address (handle proxies)
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipAddress =
+      (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]) ||
+      req.socket?.remoteAddress ||
+      '';
+
+    return { userAgent, ipAddress };
+  }
+
   @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -34,9 +54,11 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const deviceInfo = this.getDeviceInfo(req);
     const accessToken = this.authService.login(req.user);
     const refreshToken = await this.authService.generateRefreshToken(
       req.user.id,
+      deviceInfo,
     );
 
     // Always set cookies for web clients (access token for browser media, refresh for sessions)
@@ -82,6 +104,7 @@ export class AuthController {
     }
 
     const [user, jti] = await this.authService.verifyRefreshToken(refreshToken);
+    const deviceInfo = this.getDeviceInfo(req);
 
     // Do this in a tx so we don't have dangling refresh tokens or something weird
     const token = await this.databaseService.$transaction(async (tx) => {
@@ -98,8 +121,8 @@ export class AuthController {
 
       // Delete old token
       await this.authService.removeRefreshToken(jti, refreshToken, tx);
-      // Generate new token
-      return this.authService.generateRefreshToken(user.id, tx);
+      // Generate new token with device info
+      return this.authService.generateRefreshToken(user.id, deviceInfo, tx);
     });
 
     const newAccessToken = this.authService.login(user);
@@ -150,5 +173,79 @@ export class AuthController {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       path: '/',
     });
+  }
+
+  /**
+   * Get current token ID from request (for marking current session)
+   */
+  private async getCurrentTokenId(req: Request): Promise<string | undefined> {
+    const refreshToken = req.cookies[this.REFRESH_TOKEN_COOKIE_NAME] as
+      | string
+      | undefined;
+
+    if (!refreshToken) {
+      return undefined;
+    }
+
+    try {
+      const [, jti] = await this.authService.verifyRefreshToken(refreshToken);
+      return jti;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Get all active sessions for the current user
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('sessions')
+  async getSessions(@Req() req: AuthenticatedRequest) {
+    const currentTokenId = await this.getCurrentTokenId(req);
+    return this.authService.getUserSessions(req.user.id, currentTokenId);
+  }
+
+  /**
+   * Revoke a specific session
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('sessions/:sessionId')
+  async revokeSession(
+    @Req() req: AuthenticatedRequest,
+    @Param('sessionId') sessionId: string,
+  ) {
+    const revoked = await this.authService.revokeSession(
+      req.user.id,
+      sessionId,
+    );
+
+    if (!revoked) {
+      throw new NotFoundException('Session not found');
+    }
+
+    return { message: 'Session revoked successfully' };
+  }
+
+  /**
+   * Revoke all sessions except the current one
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('sessions')
+  async revokeAllOtherSessions(@Req() req: AuthenticatedRequest) {
+    const currentTokenId = await this.getCurrentTokenId(req);
+
+    if (!currentTokenId) {
+      throw new UnauthorizedException('Could not determine current session');
+    }
+
+    const count = await this.authService.revokeAllOtherSessions(
+      req.user.id,
+      currentTokenId,
+    );
+
+    return {
+      message: `Revoked ${count} session${count !== 1 ? 's' : ''}`,
+      revokedCount: count,
+    };
   }
 }
