@@ -315,13 +315,19 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 ## 🔧 Admin Panel / Instance Management
 
+### ✅ Implemented
+
+| Feature | Description |
+|---------|-------------|
+| **User Storage Quotas** | Per-user storage limits with enforcement on upload |
+| **Instance Storage Dashboard** | Total usage, breakdown by type, server stats (memory, disk, CPU) |
+| **User Upload Limits** | Configurable max file size per upload (instance setting) |
+| **Server Hardware Stats** | Memory, disk, CPU, load average, uptime monitoring |
+
 ### ❌ Missing
 
 | Feature | Priority | Difficulty | Description |
 |---------|----------|------------|-------------|
-| **User Storage Quotas** | High | Medium | Per-user file storage limits |
-| **Instance Storage Dashboard** | High | Medium | Total storage usage, breakdown by type |
-| **User Upload Limits** | High | Low | Configurable max file size per upload |
 | **Instance Analytics** | Medium | Medium | DAU, message counts, voice minutes |
 | **Rate Limiting Dashboard** | Low | Medium | View/configure API rate limits |
 | **Backup/Export Tools** | Low | High | Instance data backup/restore |
@@ -417,11 +423,11 @@ This document provides a comprehensive comparison between **Kraken** and **Disco
 
 These can be implemented quickly with high impact:
 
-1. **User Storage Quotas** - Add `storageUsed` field to User, check on upload
+1. ~~**User Storage Quotas**~~ ✅ - Implemented with quota enforcement
 2. **Extended Message Length** - Increase character limit (instance config)
 3. **Session Management** - List/revoke refresh tokens
 4. **HD Video Settings** - Expose LiveKit quality settings in UI
-5. **Instance Storage Dashboard** - Aggregate File table stats
+5. ~~**Instance Storage Dashboard**~~ ✅ - Implemented with server stats
 
 ---
 
