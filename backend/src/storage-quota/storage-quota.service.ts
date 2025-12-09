@@ -3,7 +3,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import { DatabaseService } from '@/database/database.service';
-import { ResourceType } from '@prisma/client';
 import {
   UserStorageStatsDto,
   InstanceStorageStatsDto,
@@ -250,7 +249,7 @@ export class StorageQuotaService {
   /**
    * Get server hardware statistics
    */
-  private async getServerStats(): Promise<ServerStatsDto> {
+  private getServerStats(): ServerStatsDto {
     // Memory stats
     const totalMem = os.totalmem();
     const freeMem = os.freemem();

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback } from "react";
-import { useSocketContext } from "../contexts/SocketContext";
+import { useEffect, useRef, useCallback, useContext } from "react";
+import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from "../types/client-events.enum";
 import { MarkAsReadPayload } from "../types/read-receipt.type";
 
@@ -22,7 +22,7 @@ export const useMessageVisibility = ({
   containerRef,
   enabled = true,
 }: UseMessageVisibilityProps) => {
-  const { socket } = useSocketContext();
+  const socket = useContext(SocketContext);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const visibleMessagesRef = useRef<Set<string>>(new Set());
   const lastMarkedMessageIdRef = useRef<string | null>(null);
