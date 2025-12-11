@@ -14,11 +14,30 @@ import {
   MenuItem,
   SelectChangeEvent,
   Snackbar,
+  Divider,
+  InputAdornment,
 } from "@mui/material";
 import {
   useGetInstanceSettingsQuery,
   useUpdateInstanceSettingsMutation,
 } from "../../features/admin/adminApiSlice";
+
+// Helper functions for byte conversion
+const bytesToGB = (bytes: number): number => {
+  return Number((bytes / (1024 * 1024 * 1024)).toFixed(2));
+};
+
+const gbToBytes = (gb: number): number => {
+  return Math.round(gb * 1024 * 1024 * 1024);
+};
+
+const bytesToMB = (bytes: number): number => {
+  return Number((bytes / (1024 * 1024)).toFixed(2));
+};
+
+const mbToBytes = (mb: number): number => {
+  return Math.round(mb * 1024 * 1024);
+};
 
 const AdminSettingsPage: React.FC = () => {
   const { data: settings, isLoading, error } = useGetInstanceSettingsQuery();
@@ -27,6 +46,8 @@ const AdminSettingsPage: React.FC = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [registrationMode, setRegistrationMode] = useState<"OPEN" | "INVITE_ONLY" | "CLOSED">("INVITE_ONLY");
+  const [defaultStorageQuotaGB, setDefaultStorageQuotaGB] = useState<number>(50);
+  const [maxFileSizeMB, setMaxFileSizeMB] = useState<number>(500);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -36,6 +57,8 @@ const AdminSettingsPage: React.FC = () => {
       setName(settings.name);
       setDescription(settings.description || "");
       setRegistrationMode(settings.registrationMode);
+      setDefaultStorageQuotaGB(bytesToGB(settings.defaultStorageQuotaBytes));
+      setMaxFileSizeMB(bytesToMB(settings.maxFileSizeBytes));
     }
   }, [settings]);
 
@@ -45,6 +68,8 @@ const AdminSettingsPage: React.FC = () => {
         name,
         description: description || undefined,
         registrationMode,
+        defaultStorageQuotaBytes: gbToBytes(defaultStorageQuotaGB),
+        maxFileSizeBytes: mbToBytes(maxFileSizeMB),
       }).unwrap();
       setSuccessMessage("Settings saved successfully");
     } catch (err) {
@@ -57,7 +82,9 @@ const AdminSettingsPage: React.FC = () => {
     settings &&
     (name !== settings.name ||
       description !== (settings.description || "") ||
-      registrationMode !== settings.registrationMode);
+      registrationMode !== settings.registrationMode ||
+      gbToBytes(defaultStorageQuotaGB) !== settings.defaultStorageQuotaBytes ||
+      mbToBytes(maxFileSizeMB) !== settings.maxFileSizeBytes);
 
   if (isLoading) {
     return (
@@ -136,6 +163,42 @@ const AdminSettingsPage: React.FC = () => {
                 </MenuItem>
               </Select>
             </FormControl>
+
+            <Divider sx={{ my: 2 }} />
+
+            <Typography variant="h6" gutterBottom>
+              Storage Settings
+            </Typography>
+
+            <TextField
+              label="Default Storage Quota"
+              type="number"
+              value={defaultStorageQuotaGB}
+              onChange={(e) => setDefaultStorageQuotaGB(Number(e.target.value))}
+              fullWidth
+              slotProps={{
+                input: {
+                  endAdornment: <InputAdornment position="end">GB</InputAdornment>,
+                },
+                htmlInput: { min: 0, step: 1 }
+              }}
+              helperText="Default storage quota for new users"
+            />
+
+            <TextField
+              label="Maximum File Size"
+              type="number"
+              value={maxFileSizeMB}
+              onChange={(e) => setMaxFileSizeMB(Number(e.target.value))}
+              fullWidth
+              slotProps={{
+                input: {
+                  endAdornment: <InputAdornment position="end">MB</InputAdornment>,
+                },
+                htmlInput: { min: 0, step: 1 }
+              }}
+              helperText="Maximum allowed file size for uploads"
+            />
 
             <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 2 }}>
               <Button

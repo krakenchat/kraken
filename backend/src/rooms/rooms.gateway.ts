@@ -83,7 +83,10 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
       userId: user.id,
     });
     // Cast is safe here as WsJwtAuthGuard ensures authentication
-    return this.roomsService.joinAll(client as AuthenticatedSocket, communityId);
+    return this.roomsService.joinAll(
+      client as AuthenticatedSocket,
+      communityId,
+    );
   }
 
   @SubscribeMessage(ClientEvents.JOIN_ROOM)
@@ -136,7 +139,10 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
       `User ${userId} leaving all rooms for community ${communityId}`,
     );
     // Cast is safe here as WsJwtAuthGuard ensures authentication
-    return this.roomsService.leaveAll(client as AuthenticatedSocket, communityId);
+    return this.roomsService.leaveAll(
+      client as AuthenticatedSocket,
+      communityId,
+    );
   }
 
   @SubscribeMessage(ClientEvents.LEAVE_DM_ROOM)

@@ -45,6 +45,12 @@ export class InstanceService {
         ...(dto.registrationMode !== undefined && {
           registrationMode: dto.registrationMode,
         }),
+        ...(dto.defaultStorageQuotaBytes !== undefined && {
+          defaultStorageQuotaBytes: BigInt(dto.defaultStorageQuotaBytes),
+        }),
+        ...(dto.maxFileSizeBytes !== undefined && {
+          maxFileSizeBytes: BigInt(dto.maxFileSizeBytes),
+        }),
       },
     });
   }

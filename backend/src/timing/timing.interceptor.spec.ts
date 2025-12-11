@@ -126,15 +126,13 @@ describe('TimingInterceptor', () => {
       } as any;
 
       await new Promise<void>((resolve) => {
-        interceptor
-          .intercept(mockExecutionContext, mockCallHandler)
-          .subscribe({
-            next: () => {
-              const logCall = loggerSpy.mock.calls[0][0];
-              expect(logCall).toContain(method);
-              resolve();
-            },
-          });
+        interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
+          next: () => {
+            const logCall = loggerSpy.mock.calls[0][0];
+            expect(logCall).toContain(method);
+            resolve();
+          },
+        });
       });
     }
   });

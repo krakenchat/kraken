@@ -13,6 +13,7 @@ import {
   AdminUsersPage,
   AdminCommunitiesPage,
   AdminSettingsPage,
+  AdminRolesPage,
 } from "./pages/admin";
 import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
@@ -141,6 +142,7 @@ function App() {
                   <Route path="users" element={<AdminUsersPage />} />
                   <Route path="communities" element={<AdminCommunitiesPage />} />
                   <Route path="invites" element={<AdminInvitePage />} />
+                  <Route path="roles" element={<AdminRolesPage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />
                 </Route>
                 <Route path="profile/edit" element={<ProfileEditPage />} />

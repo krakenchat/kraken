@@ -11,10 +11,11 @@ export class AppearanceSettingsService {
    * Get user appearance settings (creates default if missing)
    */
   async getUserSettings(userId: string): Promise<UserAppearanceSettings> {
-    let settings =
-      await this.databaseService.userAppearanceSettings.findUnique({
+    let settings = await this.databaseService.userAppearanceSettings.findUnique(
+      {
         where: { userId },
-      });
+      },
+    );
 
     if (!settings) {
       // Create default settings

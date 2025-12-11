@@ -225,9 +225,7 @@ export class FriendsService {
     });
 
     // Return the other user (not the requesting user)
-    return friendships.map((f) =>
-      f.userAId === userId ? f.userB : f.userA,
-    );
+    return friendships.map((f) => (f.userAId === userId ? f.userB : f.userA));
   }
 
   /**
@@ -268,7 +266,11 @@ export class FriendsService {
   async getFriendshipStatus(
     userA: string,
     userB: string,
-  ): Promise<{ status: FriendshipStatus | null; friendshipId: string | null; direction: 'sent' | 'received' | null }> {
+  ): Promise<{
+    status: FriendshipStatus | null;
+    friendshipId: string | null;
+    direction: 'sent' | 'received' | null;
+  }> {
     const friendship = await this.database.friendship.findFirst({
       where: {
         OR: [
@@ -288,7 +290,8 @@ export class FriendsService {
     return {
       status: friendship.status,
       friendshipId: friendship.id,
-      direction: friendship.status === FriendshipStatus.PENDING ? direction : null,
+      direction:
+        friendship.status === FriendshipStatus.PENDING ? direction : null,
     };
   }
 

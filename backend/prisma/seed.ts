@@ -1,6 +1,12 @@
 import { PrismaClient, RbacActions } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { DEFAULT_MEMBER_ROLE } from '../src/roles/default-roles.config';
+import {
+  DEFAULT_MEMBER_ROLE,
+  DEFAULT_INSTANCE_ADMIN_ROLE,
+  DEFAULT_COMMUNITY_CREATOR_ROLE,
+  DEFAULT_USER_MANAGER_ROLE,
+  DEFAULT_INVITE_MANAGER_ROLE,
+} from '../src/roles/default-roles.config';
 const prisma = new PrismaClient();
 async function main() {
   const admin = await prisma.user.upsert({
@@ -106,6 +112,65 @@ async function main() {
     },
   });
   console.log({ modRole });
+
+  // Create default instance-level roles
+  const instanceAdminRole = await prisma.role.upsert({
+    where: { name: DEFAULT_INSTANCE_ADMIN_ROLE.name },
+    update: {},
+    create: {
+      name: DEFAULT_INSTANCE_ADMIN_ROLE.name,
+      actions: DEFAULT_INSTANCE_ADMIN_ROLE.actions,
+    },
+  });
+  console.log({ instanceAdminRole });
+
+  const communityCreatorRole = await prisma.role.upsert({
+    where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name },
+    update: {},
+    create: {
+      name: DEFAULT_COMMUNITY_CREATOR_ROLE.name,
+      actions: DEFAULT_COMMUNITY_CREATOR_ROLE.actions,
+    },
+  });
+  console.log({ communityCreatorRole });
+
+  const userManagerRole = await prisma.role.upsert({
+    where: { name: DEFAULT_USER_MANAGER_ROLE.name },
+    update: {},
+    create: {
+      name: DEFAULT_USER_MANAGER_ROLE.name,
+      actions: DEFAULT_USER_MANAGER_ROLE.actions,
+    },
+  });
+  console.log({ userManagerRole });
+
+  const inviteManagerRole = await prisma.role.upsert({
+    where: { name: DEFAULT_INVITE_MANAGER_ROLE.name },
+    update: {},
+    create: {
+      name: DEFAULT_INVITE_MANAGER_ROLE.name,
+      actions: DEFAULT_INVITE_MANAGER_ROLE.actions,
+    },
+  });
+  console.log({ inviteManagerRole });
+
+  // Assign Instance Admin role to the admin user
+  const adminInstanceRole = await prisma.userRoles.upsert({
+    where: {
+      userId_communityId_roleId: {
+        userId: admin.id,
+        communityId: '', // Empty string for instance roles
+        roleId: instanceAdminRole.id,
+      },
+    },
+    create: {
+      userId: admin.id,
+      roleId: instanceAdminRole.id,
+      isInstanceRole: true,
+    },
+    update: {},
+  });
+  console.log({ adminInstanceRole });
 
   const community = await prisma.community.upsert({
     where: { name: 'default' },

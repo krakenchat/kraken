@@ -12,6 +12,8 @@ import {
   Req,
   Delete,
   DefaultValuePipe,
+  UseInterceptors,
+  ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -29,6 +31,7 @@ import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
 
 @Controller('users')
+@UseInterceptors(ClassSerializerInterceptor)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 

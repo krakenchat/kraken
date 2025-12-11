@@ -40,13 +40,19 @@ import {
   Delete as DeleteIcon,
   Star as OwnerIcon,
   Person as UserIcon,
+  Security as RolesIcon,
 } from "@mui/icons-material";
 import {
   useGetAdminUsersQuery,
   useUpdateUserRoleMutation,
   useSetBanStatusMutation,
   useDeleteUserMutation,
+  useGetInstanceRolesQuery,
+  useAssignInstanceRoleMutation,
+  useRemoveInstanceRoleMutation,
+  useGetInstanceRoleUsersQuery,
   AdminUser,
+  InstanceRole,
 } from "../../features/admin/adminApiSlice";
 import UserAvatar from "../../components/Common/UserAvatar";
 
@@ -61,6 +67,8 @@ const AdminUsersPage: React.FC = () => {
     action: "ban" | "unban" | "delete" | "promote" | "demote";
     user: AdminUser | null;
   }>({ open: false, action: "ban", user: null });
+  const [roleDialogUser, setRoleDialogUser] = useState<AdminUser | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const { data, isLoading, error, refetch } = useGetAdminUsersQuery({
     search: search || undefined,
@@ -69,9 +77,12 @@ const AdminUsersPage: React.FC = () => {
     limit: 100,
   });
 
+  const { data: instanceRoles } = useGetInstanceRolesQuery();
   const [updateRole] = useUpdateUserRoleMutation();
   const [setBanStatus] = useSetBanStatusMutation();
   const [deleteUser] = useDeleteUserMutation();
+  const [assignRole] = useAssignInstanceRoleMutation();
+  const [removeRole] = useRemoveInstanceRoleMutation();
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, user: AdminUser) => {
     setMenuAnchor(event.currentTarget);
@@ -138,6 +149,33 @@ const AdminUsersPage: React.FC = () => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Never";
     return new Date(dateString).toLocaleDateString();
+  };
+
+  // Instance role management handlers
+  const handleOpenRoleDialog = (user: AdminUser) => {
+    setRoleDialogUser(user);
+    setUserRoles([]); // Will be fetched when we have user roles endpoint
+    handleMenuClose();
+  };
+
+  const handleCloseRoleDialog = () => {
+    setRoleDialogUser(null);
+    setUserRoles([]);
+  };
+
+  const handleToggleRole = async (roleId: string, isAssigned: boolean) => {
+    if (!roleDialogUser) return;
+
+    try {
+      if (isAssigned) {
+        await removeRole({ roleId, userId: roleDialogUser.id }).unwrap();
+      } else {
+        await assignRole({ roleId, userId: roleDialogUser.id }).unwrap();
+      }
+      refetch();
+    } catch (error) {
+      console.error("Failed to update role:", error);
+    }
   };
 
   if (isLoading) {
@@ -303,6 +341,14 @@ const AdminUsersPage: React.FC = () => {
             <ListItemText>Demote to User</ListItemText>
           </MenuItem>
         )}
+        {selectedUser && (
+          <MenuItem onClick={() => handleOpenRoleDialog(selectedUser)}>
+            <ListItemIcon>
+              <RolesIcon fontSize="small" color="info" />
+            </ListItemIcon>
+            <ListItemText>Manage Instance Roles</ListItemText>
+          </MenuItem>
+        )}
         {selectedUser?.role !== "OWNER" && (
           <MenuItem onClick={() => handleAction("delete")}>
             <ListItemIcon>
@@ -341,6 +387,102 @@ const AdminUsersPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Instance Role Management Dialog */}
+      <Dialog open={!!roleDialogUser} onClose={handleCloseRoleDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Manage Instance Roles for{" "}
+          {roleDialogUser?.displayName || roleDialogUser?.username}
+        </DialogTitle>
+        <DialogContent>
+          {roleDialogUser?.role === "OWNER" && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This user is an instance Owner and automatically has all permissions.
+              Assigning additional roles will provide permissions if they are demoted.
+            </Alert>
+          )}
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Assign instance-level roles to grant administrative permissions.
+          </Typography>
+          {instanceRoles?.map((role) => (
+            <RoleAssignmentItem
+              key={role.id}
+              role={role}
+              userId={roleDialogUser?.id || ""}
+              onToggle={handleToggleRole}
+            />
+          ))}
+          {!instanceRoles?.length && (
+            <Typography variant="body2" color="text.secondary">
+              No instance roles available. Create roles in the Roles page first.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRoleDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+// Sub-component to handle individual role assignment with loading state
+const RoleAssignmentItem: React.FC<{
+  role: InstanceRole;
+  userId: string;
+  onToggle: (roleId: string, isAssigned: boolean) => Promise<void>;
+}> = ({ role, userId, onToggle }) => {
+  const { data: roleUsers, isLoading } = useGetInstanceRoleUsersQuery(role.id);
+  const [toggling, setToggling] = useState(false);
+
+  const isAssigned = roleUsers?.some((u) => u.userId === userId) || false;
+
+  const handleToggle = async () => {
+    setToggling(true);
+    try {
+      await onToggle(role.id, isAssigned);
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        p: 1.5,
+        mb: 1,
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 1,
+        "&:hover": { bgcolor: "action.hover" },
+      }}
+    >
+      <Box>
+        <Typography variant="body1" fontWeight="medium">
+          {role.name}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {role.actions.length} permission{role.actions.length !== 1 ? "s" : ""}
+        </Typography>
+      </Box>
+      <Button
+        variant={isAssigned ? "outlined" : "contained"}
+        color={isAssigned ? "error" : "primary"}
+        size="small"
+        disabled={isLoading || toggling}
+        onClick={handleToggle}
+      >
+        {toggling ? (
+          <CircularProgress size={20} />
+        ) : isAssigned ? (
+          "Remove"
+        ) : (
+          "Assign"
+        )}
+      </Button>
     </Box>
   );
 };

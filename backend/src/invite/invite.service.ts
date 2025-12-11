@@ -107,7 +107,15 @@ export class InviteService {
   async getInvites(user: UserEntity): Promise<InstanceInvite[]> {
     return this.database.instanceInvite.findMany({
       where: { createdById: user.id },
-      include: { createdBy: true },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -115,7 +123,15 @@ export class InviteService {
   async getInviteByCode(code: string): Promise<InstanceInvite | null> {
     return this.database.instanceInvite.findUnique({
       where: { code },
-      include: { createdBy: true },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
     });
   }
 

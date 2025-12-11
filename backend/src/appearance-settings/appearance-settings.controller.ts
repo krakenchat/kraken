@@ -1,4 +1,11 @@
-import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AppearanceSettingsService } from './appearance-settings.service';
 import { UpdateAppearanceSettingsDto } from './dto/update-appearance-settings.dto';

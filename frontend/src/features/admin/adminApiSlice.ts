@@ -9,12 +9,16 @@ export interface InstanceSettings {
   registrationMode: "OPEN" | "INVITE_ONLY" | "CLOSED";
   createdAt: string;
   updatedAt: string;
+  defaultStorageQuotaBytes: number;
+  maxFileSizeBytes: number;
 }
 
 export interface UpdateInstanceSettingsDto {
   name?: string;
   description?: string;
   registrationMode?: "OPEN" | "INVITE_ONLY" | "CLOSED";
+  defaultStorageQuotaBytes?: number;
+  maxFileSizeBytes?: number;
 }
 
 export interface InstanceStats {
@@ -148,10 +152,34 @@ export interface UsersStorageFilters {
   minPercentUsed?: number;
 }
 
+// Types for instance role management
+export interface InstanceRole {
+  id: string;
+  name: string;
+  actions: string[];
+  createdAt: string;
+}
+
+export interface InstanceRoleUser {
+  userId: string;
+  username: string;
+  displayName?: string;
+}
+
+export interface CreateInstanceRoleDto {
+  name: string;
+  actions: string[];
+}
+
+export interface UpdateInstanceRoleDto {
+  name?: string;
+  actions?: string[];
+}
+
 export const adminApi = createApi({
   reducerPath: "adminApi",
   baseQuery: createAuthedBaseQuery(""),
-  tagTypes: ["InstanceSettings", "InstanceStats", "AdminUsers", "AdminCommunities", "StorageStats", "UserStorage"],
+  tagTypes: ["InstanceSettings", "InstanceStats", "AdminUsers", "AdminCommunities", "StorageStats", "UserStorage", "InstanceRoles", "InstanceRoleUsers"],
   endpoints: (builder) => ({
     // Instance Settings
     getInstanceSettings: builder.query<InstanceSettings, void>({
@@ -305,6 +333,60 @@ export const adminApi = createApi({
       }),
       providesTags: ["UserStorage"],
     }),
+
+    // Instance Role Management
+    getInstanceRoles: builder.query<InstanceRole[], void>({
+      query: () => ({
+        url: "/roles/instance/all",
+        method: "GET",
+      }),
+      providesTags: ["InstanceRoles"],
+    }),
+    createInstanceRole: builder.mutation<InstanceRole, CreateInstanceRoleDto>({
+      query: (dto) => ({
+        url: "/roles/instance",
+        method: "POST",
+        body: dto,
+      }),
+      invalidatesTags: ["InstanceRoles"],
+    }),
+    updateInstanceRole: builder.mutation<InstanceRole, { roleId: string; data: UpdateInstanceRoleDto }>({
+      query: ({ roleId, data }) => ({
+        url: `/roles/instance/${roleId}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["InstanceRoles"],
+    }),
+    deleteInstanceRole: builder.mutation<void, string>({
+      query: (roleId) => ({
+        url: `/roles/instance/${roleId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["InstanceRoles"],
+    }),
+    assignInstanceRole: builder.mutation<void, { roleId: string; userId: string }>({
+      query: ({ roleId, userId }) => ({
+        url: `/roles/instance/${roleId}/assign`,
+        method: "POST",
+        body: { userId },
+      }),
+      invalidatesTags: ["InstanceRoles", "InstanceRoleUsers", "AdminUsers"],
+    }),
+    removeInstanceRole: builder.mutation<void, { roleId: string; userId: string }>({
+      query: ({ roleId, userId }) => ({
+        url: `/roles/instance/${roleId}/users/${userId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["InstanceRoles", "InstanceRoleUsers", "AdminUsers"],
+    }),
+    getInstanceRoleUsers: builder.query<InstanceRoleUser[], string>({
+      query: (roleId) => ({
+        url: `/roles/instance/${roleId}/users`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, roleId) => [{ type: "InstanceRoleUsers", id: roleId }],
+    }),
   }),
 });
 
@@ -331,4 +413,12 @@ export const {
   useUpdateUserQuotaMutation,
   useRecalculateUserStorageMutation,
   useGetMyStorageStatsQuery,
+  // Instance Role Management
+  useGetInstanceRolesQuery,
+  useCreateInstanceRoleMutation,
+  useUpdateInstanceRoleMutation,
+  useDeleteInstanceRoleMutation,
+  useAssignInstanceRoleMutation,
+  useRemoveInstanceRoleMutation,
+  useGetInstanceRoleUsersQuery,
 } = adminApi;

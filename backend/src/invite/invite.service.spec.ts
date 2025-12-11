@@ -132,7 +132,9 @@ describe('InviteService', () => {
         .mockResolvedValueOnce(null);
       mockDatabase.instanceInvite.create.mockResolvedValue(mockInvite);
 
-      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation();
 
       await service.createInvite(creator);
 
@@ -331,7 +333,9 @@ describe('InviteService', () => {
         },
       };
 
-      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation();
 
       const result = await service.redeemInviteWithTx(
         mockTx as any,
@@ -358,7 +362,9 @@ describe('InviteService', () => {
         },
       };
 
-      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation();
 
       const result = await service.redeemInviteWithTx(
         mockTx as any,
@@ -453,7 +459,15 @@ describe('InviteService', () => {
       expect(result).toEqual(mockInvites);
       expect(mockDatabase.instanceInvite.findMany).toHaveBeenCalledWith({
         where: { createdById: user.id },
-        include: { createdBy: true },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -494,7 +508,15 @@ describe('InviteService', () => {
       expect(result).toEqual(mockInvite);
       expect(mockDatabase.instanceInvite.findUnique).toHaveBeenCalledWith({
         where: { code: mockInvite.code },
-        include: { createdBy: true },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+            },
+          },
+        },
       });
     });
 

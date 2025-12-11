@@ -50,6 +50,9 @@ describe('OnboardingService', () => {
           useValue: {
             createDefaultCommunityRoles: jest.fn(),
             assignUserToCommunityRole: jest.fn(),
+            createDefaultInstanceRole: jest.fn().mockResolvedValue('mock-instance-admin-role-id'),
+            assignUserToInstanceRole: jest.fn(),
+            createDefaultCommunityCreatorRole: jest.fn().mockResolvedValue('mock-community-creator-role-id'),
           },
         },
       ],

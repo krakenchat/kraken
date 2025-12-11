@@ -34,10 +34,17 @@ const NavigationLinks: React.FC<NavigationLinksProps> = ({
   handleLogout,
   logoutLoading,
 }) => {
+  // Check if user is OWNER directly from userData prop (more reliable than async query)
+  const isOwner = userData?.role === "OWNER";
+
+  // Only check permissions if not already OWNER (saves an API call)
   const { hasPermissions: canViewInvites } = useUserPermissions({
     resourceType: "INSTANCE",
     actions: ["READ_INSTANCE_INVITE"],
   });
+
+  // Show admin link if user is OWNER or has explicit permission
+  const showAdmin = isOwner || canViewInvites;
 
   return (
     <>
@@ -53,7 +60,7 @@ const NavigationLinks: React.FC<NavigationLinksProps> = ({
         </>
       ) : (
         <>
-          {canViewInvites && <NavLink to="/admin">Admin</NavLink>}
+          {showAdmin && <NavLink to="/admin">Admin</NavLink>}
           <NavLink
             to="#"
             onClick={(e) => {

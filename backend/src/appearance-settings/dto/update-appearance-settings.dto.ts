@@ -6,7 +6,20 @@ export class UpdateAppearanceSettingsDto {
   themeMode?: string;
 
   @IsOptional()
-  @IsIn(['teal', 'blue', 'indigo', 'purple', 'rose', 'red', 'orange', 'amber', 'lime', 'emerald', 'cyan', 'slate'])
+  @IsIn([
+    'teal',
+    'blue',
+    'indigo',
+    'purple',
+    'rose',
+    'red',
+    'orange',
+    'amber',
+    'lime',
+    'emerald',
+    'cyan',
+    'slate',
+  ])
   accentColor?: string;
 
   @IsOptional()

@@ -110,7 +110,9 @@ export class ThreadsService {
             channel: { connect: { id: parent.channelId } },
           }),
           ...(parent.directMessageGroupId && {
-            directMessageGroup: { connect: { id: parent.directMessageGroupId } },
+            directMessageGroup: {
+              connect: { id: parent.directMessageGroupId },
+            },
           }),
           parentMessage: { connect: { id: parentMessageId } },
         },
@@ -252,9 +254,7 @@ export class ThreadsService {
       update: {},
     });
 
-    this.logger.debug(
-      `User ${userId} subscribed to thread ${parentMessageId}`,
-    );
+    this.logger.debug(`User ${userId} subscribed to thread ${parentMessageId}`);
   }
 
   /**

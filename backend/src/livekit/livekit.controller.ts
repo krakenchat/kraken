@@ -256,7 +256,7 @@ export class LivekitController {
    */
   @Post('replay/capture')
   @Throttle({
-    short: { limit: 3, ttl: 60000 },  // 3 per minute
+    short: { limit: 3, ttl: 60000 }, // 3 per minute
     long: { limit: 15, ttl: 3600000 }, // 15 per hour
   })
   @RequiredActions(RbacActions.CAPTURE_REPLAY)

@@ -28,7 +28,7 @@ export function useUserPermissions({
   actions,
 }: UseUserPermissionsOptions): UseUserPermissionsResult {
   // Get user profile to check if they're an OWNER (which bypasses all RBAC checks)
-  const { data: userProfile } = useProfileQuery(undefined);
+  const { data: userProfile, isLoading: isProfileLoading } = useProfileQuery(undefined);
   
   // Conditionally call the appropriate query based on resource type
   const { data: communityRoles, isLoading: isCommunityLoading } =
@@ -69,9 +69,13 @@ export function useUserPermissions({
 
   const hasPermissions = useMemo(() => {
     // OWNER users bypass all RBAC checks (same as backend logic)
+    // Check this first before any loading state checks
     if (userProfile?.role === "OWNER") {
       return true;
     }
+
+    // If profile is still loading and we don't have data yet, we don't know if user is OWNER
+    if (isProfileLoading && !userProfile) return false;
 
     if (!roles || isLoading) return false;
 
@@ -80,11 +84,14 @@ export function useUserPermissions({
 
     // Check if user has all required actions
     return actions.every((action) => allActions.includes(action));
-  }, [roles, actions, isLoading, userProfile]);
+  }, [roles, actions, isLoading, userProfile, isProfileLoading]);
+
+  // Include profile loading in overall loading state when profile isn't loaded yet
+  const overallLoading = isLoading || (isProfileLoading && !userProfile);
 
   return {
     hasPermissions,
-    isLoading,
+    isLoading: overallLoading,
     roles,
   };
 }

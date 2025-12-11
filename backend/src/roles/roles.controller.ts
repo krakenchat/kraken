@@ -198,4 +198,101 @@ export class RolesController {
   ) {
     return this.rolesService.getUsersForRole(roleId, communityId);
   }
+
+  // ===== INSTANCE ROLE MANAGEMENT ENDPOINTS =====
+
+  /**
+   * Get all instance-level roles
+   */
+  @Get('instance/all')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.READ_INSTANCE_SETTINGS)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async getInstanceRoles() {
+    return this.rolesService.getInstanceRoles();
+  }
+
+  /**
+   * Create a new instance role
+   */
+  @Post('instance')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async createInstanceRole(@Body() createRoleDto: CreateRoleDto) {
+    return this.rolesService.createInstanceRole(
+      createRoleDto.name,
+      createRoleDto.actions,
+    );
+  }
+
+  /**
+   * Update an instance role
+   */
+  @Put('instance/:roleId')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async updateInstanceRole(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Body() updateRoleDto: UpdateRoleDto,
+  ) {
+    return this.rolesService.updateInstanceRole(roleId, updateRoleDto);
+  }
+
+  /**
+   * Delete an instance role
+   */
+  @Delete('instance/:roleId')
+  @HttpCode(204)
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async deleteInstanceRole(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+  ): Promise<void> {
+    return this.rolesService.deleteInstanceRole(roleId);
+  }
+
+  /**
+   * Assign an instance role to a user
+   */
+  @Post('instance/:roleId/assign')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async assignInstanceRole(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Body() body: { userId: string },
+  ): Promise<void> {
+    return this.rolesService.assignUserToInstanceRole(body.userId, roleId);
+  }
+
+  /**
+   * Remove an instance role from a user
+   */
+  @Delete('instance/:roleId/users/:userId')
+  @HttpCode(204)
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async removeInstanceRole(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('userId', ParseObjectIdPipe) userId: string,
+  ): Promise<void> {
+    return this.rolesService.removeUserFromInstanceRole(userId, roleId);
+  }
+
+  /**
+   * Get users assigned to an instance role
+   */
+  @Get('instance/:roleId/users')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.READ_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  async getInstanceRoleUsers(
+    @Param('roleId', ParseObjectIdPipe) roleId: string,
+  ) {
+    return this.rolesService.getInstanceRoleUsers(roleId);
+  }
 }

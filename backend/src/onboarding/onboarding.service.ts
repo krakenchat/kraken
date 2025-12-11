@@ -217,7 +217,23 @@ export class OnboardingService {
         );
       }
 
-      // 3. Create a permanent instance invite for future users
+      // 3. Create default instance admin role and assign to OWNER
+      const instanceAdminRoleId =
+        await this.rolesService.createDefaultInstanceRole(tx);
+      await this.rolesService.assignUserToInstanceRole(
+        adminUser.id,
+        instanceAdminRoleId,
+        tx,
+      );
+      this.logger.log(
+        `Created default instance admin role and assigned to OWNER user`,
+      );
+
+      // 4. Create default Community Creator role (available for assignment to users)
+      await this.rolesService.createDefaultCommunityCreatorRole(tx);
+      this.logger.log(`Created default Community Creator role`);
+
+      // 5. Create a permanent instance invite for future users
       await tx.instanceInvite.create({
         data: {
           code: `welcome-${randomUUID().slice(0, 8)}`,

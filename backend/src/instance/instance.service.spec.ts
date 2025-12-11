@@ -139,6 +139,112 @@ describe('InstanceService', () => {
         },
       });
     });
+
+    it('should update defaultStorageQuotaBytes as BigInt', async () => {
+      const existingSettings = {
+        id: 'settings-1',
+        name: 'Existing Name',
+        description: null,
+        registrationMode: RegistrationMode.INVITE_ONLY,
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        maxFileSizeBytes: BigInt(524288000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const newQuota = 107374182400; // 100GB
+
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue(
+        existingSettings,
+      );
+      mockDatabase.instanceSettings.update.mockResolvedValue({
+        ...existingSettings,
+        defaultStorageQuotaBytes: BigInt(newQuota),
+      });
+
+      await service.updateSettings({
+        defaultStorageQuotaBytes: newQuota,
+      });
+
+      expect(mockDatabase.instanceSettings.update).toHaveBeenCalledWith({
+        where: { id: existingSettings.id },
+        data: {
+          defaultStorageQuotaBytes: BigInt(newQuota),
+        },
+      });
+    });
+
+    it('should update maxFileSizeBytes as BigInt', async () => {
+      const existingSettings = {
+        id: 'settings-1',
+        name: 'Existing Name',
+        description: null,
+        registrationMode: RegistrationMode.INVITE_ONLY,
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        maxFileSizeBytes: BigInt(524288000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const newMaxSize = 1073741824; // 1GB
+
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue(
+        existingSettings,
+      );
+      mockDatabase.instanceSettings.update.mockResolvedValue({
+        ...existingSettings,
+        maxFileSizeBytes: BigInt(newMaxSize),
+      });
+
+      await service.updateSettings({
+        maxFileSizeBytes: newMaxSize,
+      });
+
+      expect(mockDatabase.instanceSettings.update).toHaveBeenCalledWith({
+        where: { id: existingSettings.id },
+        data: {
+          maxFileSizeBytes: BigInt(newMaxSize),
+        },
+      });
+    });
+
+    it('should update both storage settings together', async () => {
+      const existingSettings = {
+        id: 'settings-1',
+        name: 'Existing Name',
+        description: null,
+        registrationMode: RegistrationMode.INVITE_ONLY,
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        maxFileSizeBytes: BigInt(524288000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const newQuota = 214748364800; // 200GB
+      const newMaxSize = 2147483648; // 2GB
+
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue(
+        existingSettings,
+      );
+      mockDatabase.instanceSettings.update.mockResolvedValue({
+        ...existingSettings,
+        defaultStorageQuotaBytes: BigInt(newQuota),
+        maxFileSizeBytes: BigInt(newMaxSize),
+      });
+
+      await service.updateSettings({
+        defaultStorageQuotaBytes: newQuota,
+        maxFileSizeBytes: newMaxSize,
+      });
+
+      expect(mockDatabase.instanceSettings.update).toHaveBeenCalledWith({
+        where: { id: existingSettings.id },
+        data: {
+          defaultStorageQuotaBytes: BigInt(newQuota),
+          maxFileSizeBytes: BigInt(newMaxSize),
+        },
+      });
+    });
   });
 
   describe('getStats', () => {

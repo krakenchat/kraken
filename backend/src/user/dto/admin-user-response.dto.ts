@@ -1,4 +1,4 @@
-import { Exclude } from 'class-transformer';
+import { Exclude, Transform } from 'class-transformer';
 import { $Enums, User } from '@prisma/client';
 
 /**
@@ -26,8 +26,11 @@ export class AdminUserEntity implements User {
   bannedAt: Date | null;
   bannedById: string | null;
 
-  // Storage quota (visible to admins)
+  // Storage quota (visible to admins) - Transform BigInt to Number for JSON serialization
+  @Transform(({ value }) => (value ? Number(value) : 0))
   storageQuotaBytes: bigint;
+
+  @Transform(({ value }) => (value ? Number(value) : 0))
   storageUsedBytes: bigint;
 
   @Exclude()

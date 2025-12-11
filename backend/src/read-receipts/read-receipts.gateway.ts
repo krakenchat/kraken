@@ -95,7 +95,9 @@ export class ReadReceiptsGateway
       // This ensures that if the user has the app open on multiple devices,
       // all sessions stay in sync
       const userRoom = `user:${userId}`;
-      this.server.to(userRoom).emit(ServerEvents.READ_RECEIPT_UPDATED, receiptPayload);
+      this.server
+        .to(userRoom)
+        .emit(ServerEvents.READ_RECEIPT_UPDATED, receiptPayload);
 
       // Also emit to the channel/DM room so other users can see real-time "seen by" updates
       // Only do this for DMs where "seen by" is shown (privacy-conscious approach)
