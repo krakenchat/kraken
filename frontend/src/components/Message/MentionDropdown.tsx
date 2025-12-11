@@ -45,7 +45,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
           minWidth: 280,
           maxWidth: 360,
           zIndex: 2000,
-          background: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.85)})`,
+          backgroundImage: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.85)})`,
           backdropFilter: 'blur(20px)',
           borderRadius: 3,
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
@@ -167,15 +167,15 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
               mb: 0.25,
               cursor: 'pointer',
               transition: 'all 0.15s ease-in-out',
-              background: index === selectedIndex
+              backgroundImage: index === selectedIndex
                 ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.main, 0.04)})`
-                : 'transparent',
+                : 'none',
               transform: index === selectedIndex ? 'translateX(2px)' : 'none',
               borderLeft: index === selectedIndex
                 ? `3px solid ${theme.palette.primary.main}`
                 : '3px solid transparent',
               '&:hover': {
-                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)}, ${alpha(theme.palette.primary.main, 0.03)})`,
+                backgroundImage: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)}, ${alpha(theme.palette.primary.main, 0.03)})`,
                 transform: 'translateX(1px)',
               },
               '&:active': {

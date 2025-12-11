@@ -192,7 +192,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
             bottom: 0,
             left: 0,
             right: 0,
-            background: `linear-gradient(transparent, ${alpha(theme.palette.background.paper, 0.85)})`,
+            backgroundImage: `linear-gradient(transparent, ${alpha(theme.palette.background.paper, 0.85)})`,
             p: 1,
             display: 'flex',
             alignItems: 'center',

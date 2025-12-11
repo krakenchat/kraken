@@ -126,7 +126,7 @@ const DesktopHomePage: React.FC = () => {
             width: "100%",
             maxWidth: 500,
             borderRadius: 2,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
             color: "white",
           }}
         >
@@ -213,7 +213,7 @@ const DesktopHomePage: React.FC = () => {
           <Box
             sx={{
               height: 80,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
             }}
           />
           <CardContent

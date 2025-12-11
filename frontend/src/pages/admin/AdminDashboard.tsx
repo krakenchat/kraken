@@ -74,7 +74,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
         left: 0,
         right: 0,
         height: 4,
-        background: `linear-gradient(90deg, ${color} 0%, ${color}88 100%)`,
+        backgroundImage: `linear-gradient(90deg, ${color} 0%, ${color}88 100%)`,
       }}
     />
     <CardContent sx={{ pt: 3 }}>
@@ -83,7 +83,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
           sx={{
             p: 1.5,
             borderRadius: 2,
-            background: `linear-gradient(135deg, ${color}25 0%, ${color}15 100%)`,
+            backgroundImage: `linear-gradient(135deg, ${color}25 0%, ${color}15 100%)`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
