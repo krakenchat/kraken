@@ -42,8 +42,9 @@ export class RolesService implements OnModuleInit {
       await this.ensureDefaultInstanceRolesExist();
     } catch (error) {
       // Log but don't fail startup - database might not be ready yet
+      const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `Could not ensure default instance roles exist: ${error.message}`,
+        `Could not ensure default instance roles exist: ${message}`,
       );
     }
   }
@@ -757,7 +758,9 @@ export class RolesService implements OnModuleInit {
    */
   async getInstanceRoles(): Promise<RoleDto[]> {
     // Get names of all default instance roles
-    const defaultInstanceRoleNames = getDefaultInstanceRoles().map((r) => r.name);
+    const defaultInstanceRoleNames = getDefaultInstanceRoles().map(
+      (r) => r.name,
+    );
 
     // Find roles that are either:
     // 1. Named as one of the default instance roles
@@ -1002,9 +1005,7 @@ export class RolesService implements OnModuleInit {
       where: { id: userRole.id },
     });
 
-    this.logger.log(
-      `Removed user ${userId} from instance role ${roleId}`,
-    );
+    this.logger.log(`Removed user ${userId} from instance role ${roleId}`);
   }
 
   /**
