@@ -14,6 +14,7 @@ import {
   AdminCommunitiesPage,
   AdminSettingsPage,
   AdminRolesPage,
+  AdminStoragePage,
 } from "./pages/admin";
 import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
@@ -143,6 +144,7 @@ function App() {
                   <Route path="communities" element={<AdminCommunitiesPage />} />
                   <Route path="invites" element={<AdminInvitePage />} />
                   <Route path="roles" element={<AdminRolesPage />} />
+                  <Route path="storage" element={<AdminStoragePage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />
                 </Route>
                 <Route path="profile/edit" element={<ProfileEditPage />} />

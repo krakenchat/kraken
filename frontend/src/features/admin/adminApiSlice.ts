@@ -90,6 +90,7 @@ export interface AdminCommunityFilters {
 // Types for storage management
 export interface UserStorageStats {
   userId: string;
+  username: string;
   usedBytes: number;
   quotaBytes: number;
   percentUsed: number;

@@ -5,6 +5,7 @@ import { IsNumber, IsOptional, Min, Max } from 'class-validator';
  */
 export class UserStorageStatsDto {
   userId: string;
+  username: string;
   usedBytes: number;
   quotaBytes: number;
   percentUsed: number;

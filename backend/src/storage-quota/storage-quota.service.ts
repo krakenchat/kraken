@@ -26,6 +26,7 @@ export class StorageQuotaService {
         where: { id: userId },
         select: {
           id: true,
+          username: true,
           storageQuotaBytes: true,
           storageUsedBytes: true,
         },
@@ -33,7 +34,7 @@ export class StorageQuotaService {
       this.db.file.aggregate({
         where: {
           uploadedById: userId,
-          deletedAt: null,
+          OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
         },
         _sum: { size: true },
         _count: true,
@@ -50,6 +51,7 @@ export class StorageQuotaService {
 
     return {
       userId,
+      username: user.username,
       usedBytes,
       quotaBytes,
       percentUsed: Math.round(percentUsed * 100) / 100,
@@ -167,7 +169,7 @@ export class StorageQuotaService {
     const fileStats = await this.db.file.aggregate({
       where: {
         uploadedById: userId,
-        deletedAt: null,
+        OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
       },
       _sum: { size: true },
       _count: true,
@@ -216,7 +218,7 @@ export class StorageQuotaService {
     ] = await Promise.all([
       this.getInstanceStorageSettings(),
       this.db.file.aggregate({
-        where: { deletedAt: null },
+        where: { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
         _sum: { size: true },
         _count: true,
       }),
@@ -307,7 +309,7 @@ export class StorageQuotaService {
   private async getStorageByType(): Promise<StorageByTypeDto[]> {
     const results = await this.db.file.groupBy({
       by: ['resourceType'],
-      where: { deletedAt: null },
+      where: { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
       _sum: { size: true },
       _count: true,
     });
@@ -451,7 +453,7 @@ export class StorageQuotaService {
         _count: {
           select: {
             File: {
-              where: { deletedAt: null },
+              where: { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
             },
           },
         },
@@ -466,6 +468,7 @@ export class StorageQuotaService {
 
       return {
         userId: u.id,
+        username: u.username,
         usedBytes,
         quotaBytes,
         percentUsed: Math.round(percentUsed * 100) / 100,

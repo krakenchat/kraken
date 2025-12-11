@@ -19,6 +19,7 @@ import {
   Groups as CommunitiesIcon,
   Link as InvitesIcon,
   Security as RolesIcon,
+  Storage as StorageIcon,
   Settings as SettingsIcon,
 } from "@mui/icons-material";
 
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { label: "Communities", path: "/admin/communities", icon: <CommunitiesIcon /> },
   { label: "Invites", path: "/admin/invites", icon: <InvitesIcon /> },
   { label: "Roles", path: "/admin/roles", icon: <RolesIcon /> },
+  { label: "Storage", path: "/admin/storage", icon: <StorageIcon /> },
   { label: "Settings", path: "/admin/settings", icon: <SettingsIcon /> },
 ];
 
