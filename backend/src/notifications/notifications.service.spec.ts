@@ -703,4 +703,104 @@ describe('NotificationsService', () => {
       });
     });
   });
+
+  // ============================================================================
+  // DEBUG METHODS
+  // ============================================================================
+
+  describe('createTestNotification', () => {
+    it('should create a test notification for the user', async () => {
+      const userId = 'user-1';
+      const type = NotificationType.DIRECT_MESSAGE;
+      const notification = NotificationFactory.build({
+        userId,
+        type,
+        authorId: userId,
+      });
+
+      mockDatabase.notification.create.mockResolvedValue({
+        ...notification,
+        author: { id: userId, username: 'test', displayName: null, avatarUrl: null },
+        message: null,
+      });
+
+      const result = await service.createTestNotification(userId, type);
+
+      expect(result).toBeDefined();
+      expect(mockDatabase.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId,
+            type,
+            authorId: userId,
+          }),
+        }),
+      );
+    });
+
+    it('should create test notification with USER_MENTION type', async () => {
+      const userId = 'user-1';
+      const type = NotificationType.USER_MENTION;
+      const notification = NotificationFactory.build({
+        userId,
+        type,
+        authorId: userId,
+      });
+
+      mockDatabase.notification.create.mockResolvedValue({
+        ...notification,
+        author: { id: userId, username: 'test', displayName: null, avatarUrl: null },
+        message: null,
+      });
+
+      const result = await service.createTestNotification(userId, type);
+
+      expect(result).toBeDefined();
+      expect(result.type).toBe(type);
+    });
+  });
+
+  describe('clearUserNotificationData', () => {
+    it('should delete all notification data for the user', async () => {
+      const userId = 'user-1';
+
+      mockDatabase.notification.deleteMany.mockResolvedValue({ count: 5 });
+      mockDatabase.userNotificationSettings.deleteMany.mockResolvedValue({ count: 1 });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 3 });
+
+      const result = await service.clearUserNotificationData(userId);
+
+      expect(result).toEqual({
+        notificationsDeleted: 5,
+        settingsDeleted: 1,
+        overridesDeleted: 3,
+      });
+
+      expect(mockDatabase.notification.deleteMany).toHaveBeenCalledWith({
+        where: { userId },
+      });
+      expect(mockDatabase.userNotificationSettings.deleteMany).toHaveBeenCalledWith({
+        where: { userId },
+      });
+      expect(mockDatabase.channelNotificationOverride.deleteMany).toHaveBeenCalledWith({
+        where: { userId },
+      });
+    });
+
+    it('should return zeros when no data exists', async () => {
+      const userId = 'user-1';
+
+      mockDatabase.notification.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.userNotificationSettings.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 0 });
+
+      const result = await service.clearUserNotificationData(userId);
+
+      expect(result).toEqual({
+        notificationsDeleted: 0,
+        settingsDeleted: 0,
+        overridesDeleted: 0,
+      });
+    });
+  });
 });

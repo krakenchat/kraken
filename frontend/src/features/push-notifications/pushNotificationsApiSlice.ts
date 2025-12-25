@@ -80,6 +80,23 @@ export const pushNotificationsApi = createApi({
       }),
       invalidatesTags: ['PushStatus'],
     }),
+
+    // ========================================================================
+    // DEBUG ENDPOINTS (Admin only)
+    // ========================================================================
+
+    /**
+     * DEBUG: Send a test push notification to current user
+     */
+    sendTestPush: builder.mutation<
+      { success: boolean; sent: number; failed: number; message: string },
+      void
+    >({
+      query: () => ({
+        url: '/debug/send-test',
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -89,4 +106,6 @@ export const {
   useGetPushStatusQuery,
   useSubscribePushMutation,
   useUnsubscribePushMutation,
+  // Debug endpoints
+  useSendTestPushMutation,
 } = pushNotificationsApi;

@@ -713,4 +713,56 @@ export class NotificationsService {
       parentMessageId,
     });
   }
+
+  // ============================================================================
+  // DEBUG METHODS (Admin only)
+  // ============================================================================
+
+  /**
+   * Create a test notification for debugging purposes.
+   * Bypasses normal message processing - creates a notification directly.
+   */
+  async createTestNotification(
+    userId: string,
+    type: NotificationType,
+  ): Promise<Notification> {
+    this.logger.debug(`Creating test notification for user ${userId}, type: ${type}`);
+
+    return this.createNotification({
+      userId,
+      type,
+      authorId: userId, // Self-notification for testing
+    });
+  }
+
+  /**
+   * Clear all notification data for a user (debug/testing only).
+   * Removes all notifications, settings, and channel overrides.
+   */
+  async clearUserNotificationData(userId: string): Promise<{
+    notificationsDeleted: number;
+    settingsDeleted: number;
+    overridesDeleted: number;
+  }> {
+    this.logger.debug(`Clearing all notification data for user ${userId}`);
+
+    const [notificationsResult, settingsResult, overridesResult] =
+      await Promise.all([
+        this.databaseService.notification.deleteMany({
+          where: { userId },
+        }),
+        this.databaseService.userNotificationSettings.deleteMany({
+          where: { userId },
+        }),
+        this.databaseService.channelNotificationOverride.deleteMany({
+          where: { userId },
+        }),
+      ]);
+
+    return {
+      notificationsDeleted: notificationsResult.count,
+      settingsDeleted: settingsResult.count,
+      overridesDeleted: overridesResult.count,
+    };
+  }
 }

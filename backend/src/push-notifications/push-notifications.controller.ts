@@ -8,12 +8,14 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  ForbiddenException,
   Req,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { PushNotificationsService } from './push-notifications.service';
 import { SubscribePushDto, UnsubscribePushDto } from './dto/subscribe.dto';
+import { InstanceRole } from '@prisma/client';
 
 @Controller('push')
 @UseGuards(JwtAuthGuard)
@@ -85,6 +87,50 @@ export class PushNotificationsController {
     return {
       enabled: this.pushNotificationsService.isEnabled(),
       subscriptionCount: subscriptions.length,
+    };
+  }
+
+  // ============================================================================
+  // DEBUG ENDPOINTS (Admin only)
+  // ============================================================================
+
+  /**
+   * DEBUG: Send a test push notification to the current user
+   * POST /push/debug/send-test
+   * Only available to OWNER users
+   */
+  @Post('debug/send-test')
+  @HttpCode(HttpStatus.OK)
+  async sendTestPush(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ success: boolean; sent: number; failed: number; message: string }> {
+    if (req.user.role !== InstanceRole.OWNER) {
+      throw new ForbiddenException('Debug endpoints are admin-only');
+    }
+
+    if (!this.pushNotificationsService.isEnabled()) {
+      throw new NotFoundException(
+        'Push notifications are not configured on this instance. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in .env',
+      );
+    }
+
+    const result = await this.pushNotificationsService.sendToUser(req.user.id, {
+      title: 'Test Push Notification',
+      body: 'This is a test push notification from the debug panel.',
+      tag: `debug-test-${Date.now()}`,
+      data: {
+        type: 'DEBUG',
+      },
+    });
+
+    return {
+      success: result.sent > 0,
+      sent: result.sent,
+      failed: result.failed,
+      message:
+        result.sent > 0
+          ? `Push notification sent to ${result.sent} device(s)`
+          : 'No active push subscriptions found',
     };
   }
 }

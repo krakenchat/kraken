@@ -16,6 +16,7 @@ import {
   AdminRolesPage,
   AdminStoragePage,
 } from "./pages/admin";
+import NotificationDebugPage from "./pages/debug/NotificationDebugPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DirectMessagesPage from "./pages/DirectMessagesPage";
 import FriendsPage from "./pages/FriendsPage";
@@ -147,6 +148,9 @@ function App() {
                   <Route path="storage" element={<AdminStoragePage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />
                 </Route>
+
+                {/* Debug routes (admin only - access check in component) */}
+                <Route path="debug/notifications" element={<NotificationDebugPage />} />
                 <Route path="profile/edit" element={<ProfileEditPage />} />
                 <Route path="profile/:userId" element={<ProfilePage />} />
                 <Route path="community/create" element={<CreateCommunityPage />} />

@@ -153,6 +153,64 @@ export const notificationsApi = createApi({
         { type: 'ChannelOverrides', id: channelId },
       ],
     }),
+
+    // ========================================================================
+    // DEBUG ENDPOINTS (Admin only)
+    // ========================================================================
+
+    /**
+     * DEBUG: Send a test notification to the current user
+     */
+    sendTestNotification: builder.mutation<
+      { success: boolean; notification: Notification; message: string },
+      { type: string }
+    >({
+      query: (data) => ({
+        url: '/debug/send-test',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Notifications'],
+    }),
+
+    /**
+     * DEBUG: Get all push subscriptions for current user
+     */
+    getDebugSubscriptions: builder.query<
+      {
+        subscriptions: Array<{
+          id: string;
+          endpoint: string;
+          userAgent?: string;
+          createdAt: string;
+        }>;
+        count: number;
+        pushEnabled: boolean;
+      },
+      void
+    >({
+      query: () => '/debug/subscriptions',
+    }),
+
+    /**
+     * DEBUG: Clear all notification settings for current user
+     */
+    clearDebugSettings: builder.mutation<
+      {
+        success: boolean;
+        notificationsDeleted: number;
+        settingsDeleted: number;
+        overridesDeleted: number;
+        message: string;
+      },
+      void
+    >({
+      query: () => ({
+        url: '/debug/clear-all',
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Notifications', 'NotificationSettings', 'ChannelOverrides'],
+    }),
   }),
 });
 
@@ -169,4 +227,9 @@ export const {
   useGetChannelOverrideQuery,
   useSetChannelOverrideMutation,
   useDeleteChannelOverrideMutation,
+  // Debug endpoints
+  useSendTestNotificationMutation,
+  useGetDebugSubscriptionsQuery,
+  useLazyGetDebugSubscriptionsQuery,
+  useClearDebugSettingsMutation,
 } = notificationsApi;
