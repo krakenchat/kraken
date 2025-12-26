@@ -1,11 +1,55 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import electron from "vite-plugin-electron";
+import renderer from "vite-plugin-electron-renderer";
+
+const isElectron = process.env.ELECTRON === "true";
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    // Only include electron plugins when running electron-dev
+    ...(isElectron
+      ? [
+          electron([
+            {
+              // Main process entry point
+              entry: "electron/main.ts",
+              onstart(args) {
+                // Notify user that Electron is starting
+                args.startup();
+              },
+              vite: {
+                build: {
+                  outDir: "electron/dist",
+                  rollupOptions: {
+                    external: ["electron", "electron-updater", "electron-audio-loopback"],
+                  },
+                },
+              },
+            },
+            {
+              // Preload script
+              entry: "electron/preload.ts",
+              onstart(args) {
+                // Reload renderer when preload changes
+                args.reload();
+              },
+              vite: {
+                build: {
+                  outDir: "electron/dist",
+                  rollupOptions: {
+                    external: ["electron"],
+                  },
+                },
+              },
+            },
+          ]),
+          renderer(),
+        ]
+      : []),
     VitePWA({
       registerType: "autoUpdate",
       // Use injectManifest for custom service worker with push notification handling
