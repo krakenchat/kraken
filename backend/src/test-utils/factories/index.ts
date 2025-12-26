@@ -28,3 +28,7 @@ export { ReadReceiptFactory } from './read-receipt.factory';
 export { NotificationFactory } from './notification.factory';
 export { UserNotificationSettingsFactory } from './user-notification-settings.factory';
 export { ChannelNotificationOverrideFactory } from './channel-notification-override.factory';
+export {
+  AliasGroupFactory,
+  AliasGroupMemberFactory,
+} from './alias-group.factory';

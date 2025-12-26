@@ -720,7 +720,12 @@ describe('NotificationsService', () => {
 
       mockDatabase.notification.create.mockResolvedValue({
         ...notification,
-        author: { id: userId, username: 'test', displayName: null, avatarUrl: null },
+        author: {
+          id: userId,
+          username: 'test',
+          displayName: null,
+          avatarUrl: null,
+        },
         message: null,
       });
 
@@ -749,7 +754,12 @@ describe('NotificationsService', () => {
 
       mockDatabase.notification.create.mockResolvedValue({
         ...notification,
-        author: { id: userId, username: 'test', displayName: null, avatarUrl: null },
+        author: {
+          id: userId,
+          username: 'test',
+          displayName: null,
+          avatarUrl: null,
+        },
         message: null,
       });
 
@@ -765,8 +775,12 @@ describe('NotificationsService', () => {
       const userId = 'user-1';
 
       mockDatabase.notification.deleteMany.mockResolvedValue({ count: 5 });
-      mockDatabase.userNotificationSettings.deleteMany.mockResolvedValue({ count: 1 });
-      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 3 });
+      mockDatabase.userNotificationSettings.deleteMany.mockResolvedValue({
+        count: 1,
+      });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({
+        count: 3,
+      });
 
       const result = await service.clearUserNotificationData(userId);
 
@@ -779,10 +793,14 @@ describe('NotificationsService', () => {
       expect(mockDatabase.notification.deleteMany).toHaveBeenCalledWith({
         where: { userId },
       });
-      expect(mockDatabase.userNotificationSettings.deleteMany).toHaveBeenCalledWith({
+      expect(
+        mockDatabase.userNotificationSettings.deleteMany,
+      ).toHaveBeenCalledWith({
         where: { userId },
       });
-      expect(mockDatabase.channelNotificationOverride.deleteMany).toHaveBeenCalledWith({
+      expect(
+        mockDatabase.channelNotificationOverride.deleteMany,
+      ).toHaveBeenCalledWith({
         where: { userId },
       });
     });
@@ -791,8 +809,12 @@ describe('NotificationsService', () => {
       const userId = 'user-1';
 
       mockDatabase.notification.deleteMany.mockResolvedValue({ count: 0 });
-      mockDatabase.userNotificationSettings.deleteMany.mockResolvedValue({ count: 0 });
-      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.userNotificationSettings.deleteMany.mockResolvedValue({
+        count: 0,
+      });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({
+        count: 0,
+      });
 
       const result = await service.clearUserNotificationData(userId);
 

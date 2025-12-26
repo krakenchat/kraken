@@ -1,7 +1,7 @@
-import { SpanType, MessageSpan } from "../types/message.type";
+import { SpanType, Span as MessageSpan } from "../types/message.type";
 
 export interface MentionMatch {
-  type: 'user' | 'special' | 'channel';
+  type: 'user' | 'special' | 'channel' | 'alias';
   start: number;
   end: number;
   text: string;
@@ -16,6 +16,11 @@ export interface UserMention {
 }
 
 export interface ChannelMention {
+  id: string;
+  name: string;
+}
+
+export interface AliasMention {
   id: string;
   name: string;
 }
@@ -77,7 +82,8 @@ export function findMentions(text: string): MentionMatch[] {
 export function parseMessageWithMentions(
   text: string,
   userMentions: UserMention[] = [],
-  channelMentions: ChannelMention[] = []
+  channelMentions: ChannelMention[] = [],
+  aliasMentions: AliasMention[] = []
 ): MessageSpan[] {
   const spans: MessageSpan[] = [];
   const mentions = findMentions(text);
@@ -98,22 +104,36 @@ export function parseMessageWithMentions(
 
     // Find resolved mention
     if (mention.type === 'user') {
-      const resolvedUser = userMentions.find(
-        user => user.username.toLowerCase() === mention.query.toLowerCase()
+      // First check if this is an alias group mention
+      const resolvedAlias = aliasMentions.find(
+        alias => alias.name.toLowerCase() === mention.query.toLowerCase()
       );
 
-      if (resolvedUser) {
+      if (resolvedAlias) {
         spans.push({
-          type: SpanType.USER_MENTION,
-          text: `@${resolvedUser.username}`,
-          userId: resolvedUser.id,
+          type: SpanType.ALIAS_MENTION,
+          text: `@${resolvedAlias.name}`,
+          aliasId: resolvedAlias.id,
         });
       } else {
-        // Unresolved mention becomes plaintext
-        spans.push({
-          type: SpanType.PLAINTEXT,
-          text: mention.text,
-        });
+        // Then check if it's a user mention
+        const resolvedUser = userMentions.find(
+          user => user.username.toLowerCase() === mention.query.toLowerCase()
+        );
+
+        if (resolvedUser) {
+          spans.push({
+            type: SpanType.USER_MENTION,
+            text: `@${resolvedUser.username}`,
+            userId: resolvedUser.id,
+          });
+        } else {
+          // Unresolved mention becomes plaintext
+          spans.push({
+            type: SpanType.PLAINTEXT,
+            text: mention.text,
+          });
+        }
       }
     } else if (mention.type === 'special') {
       // Special mentions (@here, @channel)
@@ -246,7 +266,7 @@ export function getCurrentMention(
 export function insertMention(
   text: string,
   cursorPosition: number,
-  mention: { type: 'user' | 'special' | 'channel'; username?: string; specialKind?: string; channelName?: string }
+  mention: { type: 'user' | 'special' | 'channel' | 'alias'; username?: string; specialKind?: string; channelName?: string; aliasName?: string }
 ): { newText: string; newCursorPosition: number } {
   const currentMention = getCurrentMention(text, cursorPosition);
 
@@ -257,6 +277,8 @@ export function insertMention(
       insertText = `@${mention.username} `;
     } else if (mention.type === 'special') {
       insertText = `@${mention.specialKind} `;
+    } else if (mention.type === 'alias') {
+      insertText = `@${mention.aliasName} `;
     } else {
       insertText = `#${mention.channelName} `;
     }
@@ -274,6 +296,8 @@ export function insertMention(
     insertText = `@${mention.username} `;
   } else if (mention.type === 'special') {
     insertText = `@${mention.specialKind} `;
+  } else if (mention.type === 'alias') {
+    insertText = `@${mention.aliasName} `;
   } else {
     insertText = `#${mention.channelName} `;
   }

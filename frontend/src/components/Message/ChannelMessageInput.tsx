@@ -22,7 +22,9 @@ import {
 import type {
   UserMention,
   ChannelMention,
+  AliasMention,
 } from "../../utils/mentionParser";
+import { useGetCommunityAliasGroupsQuery } from "../../features/alias-groups/aliasGroupsApiSlice";
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
 import { useNotification } from "../../contexts/NotificationContext";
@@ -81,6 +83,17 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
     cursorPosition,
   });
 
+  // Get alias groups for this community
+  const { data: aliasGroups = [] } = useGetCommunityAliasGroupsQuery(communityId, {
+    skip: !communityId,
+  });
+
+  // Convert alias groups to AliasMention format
+  const aliasMentions: AliasMention[] = aliasGroups.map(group => ({
+    id: group.id,
+    name: group.name,
+  }));
+
   useEffect(() => {
     setupCursorTracking(inputRef);
   }, [setupCursorTracking]);
@@ -97,6 +110,7 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
       type: selectedSuggestion.type,
       username: selectedSuggestion.type === "user" ? selectedSuggestion.displayName : undefined,
       specialKind: selectedSuggestion.type === "special" ? selectedSuggestion.displayName : undefined,
+      aliasName: selectedSuggestion.type === "alias" ? selectedSuggestion.displayName : undefined,
     };
 
     const result = insertMention(text, cursorPosition, mentionData);
@@ -123,7 +137,7 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
     setSending(true);
     try {
       const messageText = text.trim() || "";
-      let spans = parseMessageWithMentions(messageText, userMentions, channelMentions);
+      let spans = parseMessageWithMentions(messageText, userMentions, channelMentions, aliasMentions);
 
       // Backend requires at least one span, so add empty PLAINTEXT if needed
       if (spans.length === 0) {

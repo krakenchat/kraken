@@ -42,6 +42,7 @@ import { AppearanceSettingsModule } from './appearance-settings/appearance-setti
 import { FriendsModule } from './friends/friends.module';
 import { ThreadsModule } from './threads/threads.module';
 import { StorageQuotaModule } from './storage-quota/storage-quota.module';
+import { AliasGroupsModule } from './alias-groups/alias-groups.module';
 
 @Module({
   imports: [
@@ -128,6 +129,7 @@ import { StorageQuotaModule } from './storage-quota/storage-quota.module';
     FriendsModule,
     ThreadsModule,
     StorageQuotaModule,
+    AliasGroupsModule,
   ],
   controllers: [AppController],
   providers: [

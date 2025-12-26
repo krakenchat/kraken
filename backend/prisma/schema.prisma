@@ -219,6 +219,9 @@ model User {
 
   // Thread subscriptions
   threadSubscriptions ThreadSubscriber[] @relation("UserThreadSubscriptions")
+
+  // Alias group memberships
+  aliasGroupMemberships AliasGroupMember[]
 }
 
 model RefreshToken {
@@ -347,7 +350,10 @@ model AliasGroupMember {
   id           String      @id @default(auto()) @map("_id") @db.ObjectId
   aliasGroupId String      @db.ObjectId
   userId       String      @db.ObjectId
-  aliasGroup   AliasGroup? @relation(fields: [aliasGroupId], references: [id])
+  aliasGroup   AliasGroup? @relation(fields: [aliasGroupId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([aliasGroupId, userId])
 }
 
 model Role {

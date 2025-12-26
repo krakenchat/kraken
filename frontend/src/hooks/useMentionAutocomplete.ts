@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useGetAllCommunityMembersQuery } from '../features/membership/membershipApiSlice';
+import { useGetCommunityAliasGroupsQuery } from '../features/alias-groups/aliasGroupsApiSlice';
 import { getCurrentMention } from '../utils/mentionParser';
 
 export interface MentionSuggestion {
   id: string;
-  type: 'user' | 'special';
+  type: 'user' | 'special' | 'alias';
   displayName: string;
   subtitle?: string;
   avatar?: string;
+  memberCount?: number;
 }
 
 export interface MentionAutocompleteState {
@@ -15,7 +17,7 @@ export interface MentionAutocompleteState {
   suggestions: MentionSuggestion[];
   selectedIndex: number;
   query: string;
-  type: 'user' | 'special' | null;
+  type: 'user' | 'special' | 'alias' | null;
   isLoading: boolean;
 }
 
@@ -46,6 +48,13 @@ export function useMentionAutocomplete({
     skip: !communityId || communityId.trim() === '',
   });
 
+  // Get all alias groups for the community
+  const {
+    data: aliasGroups = [],
+    isLoading: isLoadingAliasGroups,
+  } = useGetCommunityAliasGroupsQuery(communityId, {
+    skip: !communityId || communityId.trim() === '',
+  });
 
   // Client-side filtering and processing
   const suggestions = useMemo((): MentionSuggestion[] => {
@@ -73,6 +82,41 @@ export function useMentionAutocomplete({
       }));
     
     results.push(...matchingSpecials);
+
+    // Add matching alias groups (mention groups)
+    const aliasMatches = aliasGroups
+      .filter(group =>
+        query === '' || group.name.toLowerCase().includes(query)
+      )
+      .sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+
+        if (query === '') return aName.localeCompare(bName);
+
+        // Priority: Exact match, then starts with, then alphabetical
+        const aExact = aName === query;
+        const bExact = bName === query;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        const aStarts = aName.startsWith(query);
+        const bStarts = bName.startsWith(query);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        return aName.localeCompare(bName);
+      })
+      .slice(0, 5) // Limit alias group results
+      .map(group => ({
+        id: group.id,
+        type: 'alias' as const,
+        displayName: group.name,
+        subtitle: `${group.memberCount} member${group.memberCount !== 1 ? 's' : ''}`,
+        memberCount: group.memberCount,
+      }));
+
+    results.push(...aliasMatches);
 
     // Add user mentions with smart filtering and ordering
     if (currentMention.type === 'user' || query !== '') {
@@ -130,7 +174,7 @@ export function useMentionAutocomplete({
     }
 
     return results.slice(0, 10); // Total limit of 10 results
-  }, [currentMention, allMembers]);
+  }, [currentMention, allMembers, aliasGroups]);
 
   // Update open state based on suggestions
   useEffect(() => {
@@ -153,11 +197,12 @@ export function useMentionAutocomplete({
     }
   }, [suggestions.length, selectedIndex]);
 
-  // Loading state - only show loading if we don't have any members cached yet
+  // Loading state - only show loading if we don't have any data cached yet
   const isLoading = useMemo(() => {
     if (!currentMention) return false;
-    return isLoadingMembers && allMembers.length === 0;
-  }, [currentMention, isLoadingMembers, allMembers.length]);
+    return (isLoadingMembers && allMembers.length === 0) ||
+           (isLoadingAliasGroups && aliasGroups.length === 0);
+  }, [currentMention, isLoadingMembers, allMembers.length, isLoadingAliasGroups, aliasGroups.length]);
 
   // Navigation functions
   const selectNext = useCallback(() => {

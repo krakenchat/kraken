@@ -6,6 +6,7 @@ export enum RbacResourceType {
   INSTANCE = 'INSTANCE',
   DM_GROUP = 'DM_GROUP',
   MESSAGE = 'MESSAGE',
+  ALIAS_GROUP = 'ALIAS_GROUP',
 }
 
 export enum ResourceIdSource {

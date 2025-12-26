@@ -453,7 +453,9 @@ export class StorageQuotaService {
         _count: {
           select: {
             File: {
-              where: { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
+              where: {
+                OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
+              },
             },
           },
         },

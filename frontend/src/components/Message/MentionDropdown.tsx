@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import {
   Notifications as NotificationIcon,
+  Group as GroupIcon,
 } from '@mui/icons-material';
 import { MentionSuggestion } from '../../hooks/useMentionAutocomplete';
 import UserAvatar from '../Common/UserAvatar';
@@ -136,7 +137,15 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
             letterSpacing: 0.5,
           }}
         >
-          {suggestions[0]?.type === 'user' ? 'Members' : 'Special Mentions'}
+          {(() => {
+            const types = new Set(suggestions.map(s => s.type));
+            if (types.size === 1) {
+              if (types.has('user')) return 'Members';
+              if (types.has('alias')) return 'Mention Groups';
+              return 'Special Mentions';
+            }
+            return 'Suggestions';
+          })()}
         </Typography>
       </Box>
 
@@ -208,6 +217,21 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
                     size="small"
                   />
                 </Box>
+              ) : suggestion.type === 'alias' ? (
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    bgcolor: alpha(theme.palette.warning.main, 0.1),
+                    color: 'warning.main',
+                    border: index === selectedIndex
+                      ? `2px solid ${alpha(theme.palette.warning.main, 0.5)}`
+                      : `2px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    transition: 'all 0.15s ease-in-out',
+                  }}
+                >
+                  <GroupIcon fontSize="small" />
+                </Avatar>
               ) : (
                 <Avatar
                   sx={{

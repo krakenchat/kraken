@@ -163,6 +163,19 @@ export class RolesService implements OnModuleInit {
         );
         return false;
       }
+    } else if (resourceType === RbacResourceType.ALIAS_GROUP) {
+      // Get the alias group to find its community
+      const aliasGroup = await this.database.aliasGroup.findUnique({
+        where: { id: resourceId },
+        select: { communityId: true },
+      });
+
+      if (!aliasGroup) {
+        this.logger.warn(`Alias group not found for RBAC check: ${resourceId}`);
+        return false;
+      }
+
+      communityId = aliasGroup.communityId;
     } else {
       this.logger.error(
         `Unknown resource type: ${resourceType} for resource: ${resourceId}`,

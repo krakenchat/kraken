@@ -27,6 +27,7 @@ import {
   ChannelManagement,
   PrivateChannelMembership,
   RoleManagement,
+  AliasGroupManagement,
 } from "../components/Community";
 import {
   BanListPanel,
@@ -242,7 +243,8 @@ const EditCommunityPage: React.FC = () => {
             <Tab label="Channels" {...a11yProps(2)} disabled={!canManageChannels} />
             <Tab label="Private Channels" {...a11yProps(3)} disabled={!canManageChannels} />
             <Tab label="Roles" {...a11yProps(4)} />
-            <Tab label="Moderation" {...a11yProps(5)} disabled={!canViewModeration} />
+            <Tab label="Mention Groups" {...a11yProps(5)} />
+            <Tab label="Moderation" {...a11yProps(6)} disabled={!canViewModeration} />
           </Tabs>
         </Box>
 
@@ -323,6 +325,10 @@ const EditCommunityPage: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={5}>
+          <AliasGroupManagement communityId={communityId!} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={6}>
           {canViewModeration ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>

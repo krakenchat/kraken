@@ -21,6 +21,7 @@ import { moderationApi } from "../features/moderation/moderationApiSlice";
 import { appearanceApi } from "../features/appearance/appearanceSlice";
 import { friendsApi } from "../features/friends/friendsApiSlice";
 import { threadsApi } from "../features/threads/threadsApiSlice";
+import { aliasGroupsApi } from "../features/alias-groups/aliasGroupsApiSlice";
 import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
 import readReceiptsReducer from "../features/readReceipts/readReceiptsSlice";
@@ -52,6 +53,7 @@ export const store = configureStore({
     [appearanceApi.reducerPath]: appearanceApi.reducer,
     [friendsApi.reducerPath]: friendsApi.reducer,
     [threadsApi.reducerPath]: threadsApi.reducer,
+    [aliasGroupsApi.reducerPath]: aliasGroupsApi.reducer,
     [sessionApi.reducerPath]: sessionApi.reducer,
     messages: messagesReducer,
     voice: voiceReducer,
@@ -84,6 +86,7 @@ export const store = configureStore({
       appearanceApi.middleware,
       friendsApi.middleware,
       threadsApi.middleware,
+      aliasGroupsApi.middleware,
       sessionApi.middleware
     ),
 });

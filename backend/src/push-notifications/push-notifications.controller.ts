@@ -101,9 +101,12 @@ export class PushNotificationsController {
    */
   @Post('debug/send-test')
   @HttpCode(HttpStatus.OK)
-  async sendTestPush(
-    @Req() req: AuthenticatedRequest,
-  ): Promise<{ success: boolean; sent: number; failed: number; message: string }> {
+  async sendTestPush(@Req() req: AuthenticatedRequest): Promise<{
+    success: boolean;
+    sent: number;
+    failed: number;
+    message: string;
+  }> {
     if (req.user.role !== InstanceRole.OWNER) {
       throw new ForbiddenException('Debug endpoints are admin-only');
     }

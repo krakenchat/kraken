@@ -61,6 +61,12 @@ export class NotificationsService {
           );
           users.forEach((userId) => mentionedUserIds.add(userId));
         }
+
+        // Handle alias group mentions
+        if (span.type === SpanType.ALIAS_MENTION && span.aliasId) {
+          const aliasMembers = await this.getAliasMentionUsers(span.aliasId);
+          aliasMembers.forEach((userId) => mentionedUserIds.add(userId));
+        }
       }
 
       // Remove the author from mentioned users (don't notify yourself)
@@ -90,6 +96,17 @@ export class NotificationsService {
       );
       // Don't throw - notification failures shouldn't break message sending
     }
+  }
+
+  /**
+   * Get users for alias group mentions
+   */
+  private async getAliasMentionUsers(aliasGroupId: string): Promise<string[]> {
+    const members = await this.databaseService.aliasGroupMember.findMany({
+      where: { aliasGroupId },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
   }
 
   /**
@@ -726,7 +743,9 @@ export class NotificationsService {
     userId: string,
     type: NotificationType,
   ): Promise<Notification> {
-    this.logger.debug(`Creating test notification for user ${userId}, type: ${type}`);
+    this.logger.debug(
+      `Creating test notification for user ${userId}, type: ${type}`,
+    );
 
     return this.createNotification({
       userId,
