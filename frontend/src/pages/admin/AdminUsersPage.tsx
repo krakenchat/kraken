@@ -68,7 +68,6 @@ const AdminUsersPage: React.FC = () => {
     user: AdminUser | null;
   }>({ open: false, action: "ban", user: null });
   const [roleDialogUser, setRoleDialogUser] = useState<AdminUser | null>(null);
-  const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const { data, isLoading, error, refetch } = useGetAdminUsersQuery({
     search: search || undefined,

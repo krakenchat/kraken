@@ -26,8 +26,8 @@ interface ThreadMessageInputProps {
 
 export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
   parentMessageId,
-  channelId,
-  directMessageGroupId,
+  channelId: _channelId,
+  directMessageGroupId: _directMessageGroupId,
 }) => {
   const theme = useTheme();
   const socket = useContext(SocketContext);

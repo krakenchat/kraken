@@ -126,7 +126,7 @@ const SessionSkeleton: React.FC = () => (
 const SessionsSettings: React.FC = () => {
   const { showNotification } = useNotification();
   const { data: sessions, isLoading, error, refetch } = useGetSessionsQuery();
-  const [revokeSession, { isLoading: isRevoking }] = useRevokeSessionMutation();
+  const [revokeSession] = useRevokeSessionMutation();
   const [revokeAllOther, { isLoading: isRevokingAll }] = useRevokeAllOtherSessionsMutation();
 
   const [revokingId, setRevokingId] = useState<string | null>(null);

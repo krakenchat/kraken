@@ -26,7 +26,7 @@ import {
 } from "@mui/material";
 import TimerIcon from "@mui/icons-material/Timer";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import {
   useGetTimeoutListQuery,
   useRemoveTimeoutMutation,

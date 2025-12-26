@@ -28,7 +28,7 @@ interface FriendRequestCardProps {
 const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
   request,
   type,
-  currentUserId,
+  currentUserId: _currentUserId,
   onAccept,
   onDecline,
   onCancel,

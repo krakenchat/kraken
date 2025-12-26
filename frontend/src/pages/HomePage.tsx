@@ -18,7 +18,7 @@ import {
   ContentCopy as CopyIcon,
   Settings as SettingsIcon,
 } from "@mui/icons-material";
-import { useTheme, alpha } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { Link } from "react-router-dom";
 import { useProfileQuery } from "../features/users/usersSlice";
 import { useUserPermissions } from "../features/roles/useUserPermissions";

@@ -723,7 +723,7 @@ export const toggleDeafenUnified = createAsyncThunk<
   "voice/toggleDeafenUnified",
   async ({ getRoom }, { dispatch, getState }) => {
     const state = getState();
-    const { isDeafened, contextType, currentChannelId, currentDmGroupId } = state.voice;
+    const { isDeafened, currentChannelId, currentDmGroupId } = state.voice;
 
     if (!currentChannelId && !currentDmGroupId) return;
 

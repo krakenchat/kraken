@@ -12,7 +12,6 @@ import {
   useRemoveFriendMutation,
 } from "../../features/friends/friendsApiSlice";
 import { useCreateDmGroupMutation } from "../../features/directMessages/directMessagesApiSlice";
-import { useProfileQuery } from "../../features/users/usersSlice";
 import FriendCard from "./FriendCard";
 import EmptyState from "../Common/EmptyState";
 
@@ -23,7 +22,6 @@ interface FriendListProps {
 const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
   const navigate = useNavigate();
   const { data: friends = [], isLoading, error } = useGetFriendsQuery();
-  const { data: currentUser } = useProfileQuery();
   const [removeFriend] = useRemoveFriendMutation();
   const [createDmGroup] = useCreateDmGroupMutation();
 

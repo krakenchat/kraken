@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   Box,
   List,
-  Typography,
   CircularProgress,
   Alert,
   Tabs,
@@ -24,7 +23,7 @@ interface FriendRequestListProps {
 }
 
 const FriendRequestList: React.FC<FriendRequestListProps> = ({
-  compact = false,
+  compact: _compact = false,
 }) => {
   const [tabValue, setTabValue] = useState<"received" | "sent">("received");
   const { data: requests, isLoading, error } = useGetPendingRequestsQuery();

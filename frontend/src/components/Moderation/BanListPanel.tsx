@@ -26,7 +26,7 @@ import {
 } from "@mui/material";
 import BlockIcon from "@mui/icons-material/Block";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import {
   useGetBanListQuery,
   useUnbanUserMutation,

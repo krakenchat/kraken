@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import CloseIcon from "@mui/icons-material/Close";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import {
   useGetPinnedMessagesQuery,
   useUnpinMessageMutation,

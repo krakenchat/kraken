@@ -2,14 +2,6 @@ import React, { useState } from "react";
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
   Chip,
   CircularProgress,
@@ -79,7 +71,6 @@ const AdminRolesPage: React.FC = () => {
   const [createRole] = useCreateInstanceRoleMutation();
   const [updateRole] = useUpdateInstanceRoleMutation();
   const [deleteRole] = useDeleteInstanceRoleMutation();
-  const [removeUserFromRole] = useRemoveInstanceRoleMutation();
 
   const [expandedRole, setExpandedRole] = useState<string | false>(false);
   const [roleFormOpen, setRoleFormOpen] = useState(false);
@@ -147,7 +138,7 @@ const AdminRolesPage: React.FC = () => {
       }
       closeDialog();
       refetch();
-    } catch (err) {
+    } catch {
       setSnackbar({
         open: true,
         message: `Failed to ${editingRole ? "update" : "create"} role`,
@@ -163,7 +154,7 @@ const AdminRolesPage: React.FC = () => {
       setSnackbar({ open: true, message: "Role deleted successfully", severity: "success" });
       setDeleteConfirm(null);
       refetch();
-    } catch (err) {
+    } catch {
       setSnackbar({ open: true, message: "Failed to delete role", severity: "error" });
     }
   };

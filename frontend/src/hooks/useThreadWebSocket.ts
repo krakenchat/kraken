@@ -21,12 +21,6 @@ interface NewThreadReplyPayload {
   parentMessageId: string;
 }
 
-interface ThreadReplyCountPayload {
-  parentMessageId: string;
-  replyCount: number;
-  lastReplyAt: string | null;
-}
-
 interface DeleteThreadReplyPayload {
   parentMessageId: string;
   replyId: string;
