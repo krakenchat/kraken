@@ -17,7 +17,7 @@ A production-ready Helm chart for deploying Kraken - a Discord-like voice and te
 This will deploy Kraken with bundled MongoDB and Redis:
 
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set ingress.hosts[0].host=kraken.local \
   --set livekit.url=wss://your-livekit-server.com \
   --set livekit.apiKey=YOUR_LIVEKIT_API_KEY \
@@ -29,7 +29,7 @@ helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
 ### Upgrade an Existing Release
 
 ```bash
-helm upgrade kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
   --reuse-values \
   --set backend.image.tag=v1.2.3
 ```
@@ -126,7 +126,7 @@ helm uninstall kraken
 Everything bundled, minimal configuration:
 
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set ingress.hosts[0].host=kraken.local \
   --set livekit.url=wss://livekit.example.com \
   --set livekit.apiKey=key \
@@ -170,7 +170,7 @@ spec:
 EOF
 
 # Install Kraken with TLS
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set ingress.hosts[0].host=kraken.yourdomain.com \
   --set ingress.tls.mode=cert-manager \
   --set ingress.tls.certManager.enabled=true \
@@ -189,7 +189,7 @@ helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
 Use your own managed MongoDB and Redis:
 
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set mongodb.bundled=false \
   --set mongodb.external.uri="mongodb://user:pass@mongo.example.com:27017/kraken?replicaSet=rs0" \
   --set redis.bundled=false \
@@ -215,7 +215,7 @@ kubectl create secret tls kraken-tls \
   --key=path/to/tls.key
 
 # Install with manual TLS
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set ingress.tls.mode=manual \
   --set ingress.tls.secretName=kraken-tls \
   --set ingress.hosts[0].host=kraken.yourdomain.com \
@@ -236,7 +236,7 @@ kubectl create secret generic kraken-secrets \
   --from-literal=JWT_REFRESH_SECRET="$(openssl rand -base64 32)" \
   --from-literal=LIVEKIT_API_SECRET="your-livekit-secret"
 
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set secrets.existingSecret=kraken-secrets \
   --set livekit.apiKey=$LIVEKIT_API_KEY
 ```
@@ -267,7 +267,7 @@ helm dependency update
 Update images with zero downtime:
 
 ```bash
-helm upgrade kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
   --reuse-values \
   --set backend.image.tag=v1.2.3 \
   --set frontend.image.tag=v1.2.3
@@ -370,7 +370,7 @@ kubectl run mongodb-restore --rm -i --tty --restart=Never \
 
 - **Issues**: https://github.com/user/kraken/issues
 - **Documentation**: https://github.com/user/kraken
-- **Chart Version**: Check with `helm show chart oci://ghcr.io/YOUR-USERNAME/charts/kraken`
+- **Chart Version**: Check with `helm show chart oci://ghcr.io/krakenchat/charts/kraken`
 
 ## License
 

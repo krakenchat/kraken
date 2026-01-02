@@ -1,5 +1,5 @@
 [![License: AGPL v3 + Commercial](https://img.shields.io/badge/license-AGPL%20v3%20%2F%20Commercial-blue)](LICENSE.md)
-[![Backend Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/Msoenn/kraken-chat/actions/workflows/backend-tests.yml)
+[![Backend Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/krakenchat/kraken/actions/workflows/backend-tests.yml)
 
 # Kraken Chat Backend — Developer Setup
 
@@ -150,7 +150,7 @@ Kraken can be deployed to production Kubernetes clusters using our official Helm
 ### Quick Installation
 
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set ingress.hosts[0].host=kraken.yourdomain.com \
   --set livekit.url=wss://your-livekit-server.com \
   --set livekit.apiKey=YOUR_KEY \
@@ -172,8 +172,8 @@ helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
 - **[Helm Chart README](./helm/kraken/README.md)** - Complete chart documentation
 - **[Kubernetes Deployment Guide](./docs/deployment/kubernetes.md)** - Step-by-step installation guide
 - **[Docker Images](#)** - Available on GitHub Container Registry (GHCR)
-  - `ghcr.io/YOUR-USERNAME/kraken-backend`
-  - `ghcr.io/YOUR-USERNAME/kraken-frontend`
+  - `ghcr.io/krakenchat/kraken-backend`
+  - `ghcr.io/krakenchat/kraken-frontend`
 
 ### Prerequisites
 

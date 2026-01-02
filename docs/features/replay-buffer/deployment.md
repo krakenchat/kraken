@@ -487,7 +487,7 @@ chmod 770 /var/lib/kraken/storage/replays
 ```bash
 # If using NFS, restrict to specific IPs
 # In /etc/exports on NFS server:
-/export/kraken/storage 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)
+/export/kraken/storage 10.0.0.0/24(rw,sync,no_subtree_check,no_root_squash)
 ```
 
 ### Quota Enforcement

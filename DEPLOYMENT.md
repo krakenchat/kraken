@@ -117,7 +117,7 @@ docker run -p 5173:5173 -e BACKEND_URL=http://localhost:3000 kraken-frontend:loc
 
 **Chart Location:**
 ```
-oci://ghcr.io/YOUR-USERNAME/charts/kraken
+oci://ghcr.io/krakenchat/charts/kraken
 ```
 
 ## ⎈ Helm Chart
@@ -156,7 +156,7 @@ oci://ghcr.io/YOUR-USERNAME/charts/kraken
 
 **Quick Start:**
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set ingress.hosts[0].host=kraken.local \
   --set livekit.url=wss://livekit.example.com \
   --set livekit.apiKey=key \
@@ -165,7 +165,7 @@ helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
 
 **Production:**
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --values production-values.yaml \
   --set secrets.jwtSecret="$(openssl rand -base64 32)" \
   --set secrets.jwtRefreshSecret="$(openssl rand -base64 32)"
@@ -173,7 +173,7 @@ helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
 
 **With External Database:**
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set mongodb.bundled=false \
   --set mongodb.external.uri="mongodb+srv://..." \
   --set redis.bundled=false \
@@ -220,7 +220,7 @@ kubectl create secret generic kraken-secrets \
 **When open-sourcing:**
 1. Make repository public on GitHub
 2. Manually make packages public:
-   - Go to `github.com/YOUR-USERNAME/kraken/pkgs/container/kraken-backend`
+   - Go to `github.com/krakenchat/kraken/pkgs/container/kraken-backend`
    - Settings → Change visibility → Public
    - Repeat for `kraken-frontend`
 
@@ -319,7 +319,7 @@ A: Verify ingress annotations for WebSocket support
 - All workflows use GitHub's `GITHUB_TOKEN` - no manual secrets needed
 - Images remain private until you explicitly make them public
 - Helm chart can be used immediately after pushing
-- Update `YOUR-USERNAME` placeholders with your actual GitHub username
+- Update `krakenchat` placeholders with your actual GitHub username
 - Chart version is independent of app version (can be different)
 
 ---

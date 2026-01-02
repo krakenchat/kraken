@@ -84,7 +84,7 @@ Create a `values.yaml` file with your custom configuration:
 # Image configuration (update with your registry)
 backend:
   image:
-    repository: ghcr.io/YOUR-USERNAME/kraken-backend
+    repository: ghcr.io/krakenchat/kraken-backend
     tag: "v1.0.0"
 
   # Enable autoscaling for production
@@ -95,7 +95,7 @@ backend:
 
 frontend:
   image:
-    repository: ghcr.io/YOUR-USERNAME/kraken-frontend
+    repository: ghcr.io/krakenchat/kraken-frontend
     tag: "v1.0.0"
 
   autoscaling:
@@ -183,7 +183,7 @@ echo "JWT_REFRESH_SECRET: $JWT_REFRESH_SECRET"
 **Option A: Install with values file**
 
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --values custom-values.yaml \
   --set secrets.jwtSecret="$JWT_SECRET" \
   --set secrets.jwtRefreshSecret="$JWT_REFRESH_SECRET" \
@@ -197,7 +197,7 @@ helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
 **Option B: Install with inline values**
 
 ```bash
-helm install kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set ingress.hosts[0].host=kraken.yourdomain.com \
   --set livekit.url=wss://livekit.yourdomain.com \
   --set livekit.apiKey=YOUR_KEY \
@@ -403,7 +403,7 @@ backend:
 ```
 
 ```bash
-helm upgrade kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
   --values custom-values.yaml \
   --reuse-values
 ```
@@ -549,7 +549,7 @@ kubectl logs -n cert-manager -l app=cert-manager
 
 ```bash
 # Update image tags
-helm upgrade kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
   --reuse-values \
   --set backend.image.tag=v1.1.0 \
   --set frontend.image.tag=v1.1.0 \
@@ -559,7 +559,7 @@ helm upgrade kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
 ### Update Chart Version
 
 ```bash
-helm upgrade kraken oci://ghcr.io/YOUR-USERNAME/charts/kraken \
+helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
   --version 0.2.0 \
   --reuse-values \
   --namespace kraken

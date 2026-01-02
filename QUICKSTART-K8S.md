@@ -201,8 +201,8 @@ kubectl delete namespace kraken
 
 ## Getting Help
 
-- **Issues**: https://github.com/YOUR-USERNAME/kraken/issues
-- **Discussions**: https://github.com/YOUR-USERNAME/kraken/discussions
+- **Issues**: https://github.com/krakenchat/kraken/issues
+- **Discussions**: https://github.com/krakenchat/kraken/discussions
 
 ---
 
