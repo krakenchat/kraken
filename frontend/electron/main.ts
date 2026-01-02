@@ -14,11 +14,14 @@ import path from 'node:path';
 // Initialize audio loopback for cross-platform system audio capture
 // This sets up Chromium feature flags for Linux/macOS audio loopback
 // Windows uses native WASAPI loopback which doesn't need special flags
-initMain();
-
-// Log the feature flags that were set
-console.log('Electron audio loopback initialized');
-console.log('Enable-features:', app.commandLine.getSwitchValue('enable-features'));
+// Skip on Windows to avoid potential interference with native loopback
+if (process.platform !== 'win32') {
+  initMain();
+  console.log('Electron audio loopback initialized for', process.platform);
+  console.log('Enable-features:', app.commandLine.getSwitchValue('enable-features'));
+} else {
+  console.log('Windows detected - using native WASAPI loopback (no feature flags needed)');
+}
 
 let mainWindow: BrowserWindow | null = null;
 
