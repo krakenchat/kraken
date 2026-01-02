@@ -235,49 +235,49 @@ jobs:
 
       - name: Download Windows installer
         if: needs.build-windows.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: windows-installer
           path: release-artifacts/
 
       - name: Download Windows blockmap
         if: needs.build-windows.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: windows-blockmap
           path: release-artifacts/
 
       - name: Download Windows update manifest
         if: needs.build-windows.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: windows-yml
           path: release-artifacts/
 
       - name: Download Linux AppImage
         if: needs.build-linux.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: linux-appimage
           path: release-artifacts/
 
       - name: Download Linux Debian package
         if: needs.build-linux.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: linux-deb
           path: release-artifacts/
 
       - name: Download Linux RPM package
         if: needs.build-linux.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: linux-rpm
           path: release-artifacts/
 
       - name: Download Linux update manifest
         if: needs.build-linux.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: linux-yml
           path: release-artifacts/
