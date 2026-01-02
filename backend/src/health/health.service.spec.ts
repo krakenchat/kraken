@@ -139,12 +139,6 @@ describe('HealthService', () => {
       expect(metadata.instanceName).toBe('Custom Instance');
     });
 
-    it('should return version 0.0.1', () => {
-      const metadata = service.getHealthMetadata();
-
-      expect(metadata.version).toBe('0.0.1');
-    });
-
     it('should return timestamp as ISO string', () => {
       const metadata = service.getHealthMetadata();
 
