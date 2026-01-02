@@ -271,10 +271,18 @@ app.whenReady().then(() => {
 
   // Handle screen sharing requests from LiveKit
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    console.log('=== Screen Share Request ===');
-    console.log('Platform:', process.platform);
-    console.log('Electron version:', process.versions.electron);
-    console.log('Chrome version:', process.versions.chrome);
+    // Helper to log to both main process and renderer DevTools
+    const log = (msg: string, ...args: unknown[]) => {
+      console.log(msg, ...args);
+      mainWindow?.webContents.executeJavaScript(
+        `console.log('[Electron Main]', ${JSON.stringify(msg)}, ${args.map(a => JSON.stringify(a)).join(', ')})`
+      );
+    };
+
+    log('=== Screen Share Request ===');
+    log('Platform:', process.platform);
+    log('Electron version:', process.versions.electron);
+    log('Chrome version:', process.versions.chrome);
 
     try {
       // Check if the renderer has pre-selected a sourceId and settings (from React UI)
@@ -286,8 +294,8 @@ app.whenReady().then(() => {
         'window.__screenShareSettings'
       );
 
-      console.log('Pre-selected source ID:', selectedSourceId);
-      console.log('Screen share settings:', JSON.stringify(settings, null, 2));
+      log('Pre-selected source ID:', selectedSourceId);
+      log('Screen share settings:', JSON.stringify(settings, null, 2));
 
       if (selectedSourceId) {
         // Clear the selected sourceId and settings
@@ -301,34 +309,36 @@ app.whenReady().then(() => {
           fetchWindowIcons: true
         });
 
-        console.log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
+        log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
 
         const selectedSource = sources.find(s => s.id === selectedSourceId);
 
         if (selectedSource) {
-          console.log('Selected source:', selectedSource.name, selectedSource.id);
+          log('Selected source:', selectedSource.name, selectedSource.id);
 
           // Use settings to determine audio configuration
           const enableAudio = settings?.enableAudio !== false; // Default to true if not specified
 
-          // DEBUG: Set to false to test video-only (remove this line after testing)
+          // DEBUG: Set to true to test video-only capture (bypasses audio loopback)
           const DEBUG_VIDEO_ONLY = false;
 
           const audioConfig = DEBUG_VIDEO_ONLY ? undefined : (enableAudio ? 'loopback' : undefined);
-          console.log('Audio config:', audioConfig);
-          console.log('Calling callback with:', { video: selectedSource.id, audio: audioConfig });
+          log('Audio enabled from settings:', enableAudio);
+          log('DEBUG_VIDEO_ONLY:', DEBUG_VIDEO_ONLY);
+          log('Final audio config:', audioConfig);
 
           callback({
             video: selectedSource,
             audio: audioConfig,
           });
+          log('Callback invoked successfully');
         } else {
-          console.error('Selected source not found:', selectedSourceId);
+          log('ERROR: Selected source not found:', selectedSourceId);
           callback({});
         }
       } else {
         // No source was pre-selected - fallback: auto-select the primary screen
-        console.log('No source pre-selected, auto-selecting primary screen');
+        log('No source pre-selected, auto-selecting primary screen');
 
         const sources = await desktopCapturer.getSources({
           types: ['screen', 'window'],
@@ -336,26 +346,27 @@ app.whenReady().then(() => {
           fetchWindowIcons: true
         });
 
-        console.log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
+        log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
 
         // Prefer a screen source over a window
         const primaryScreen = sources.find(s => s.id.startsWith('screen:')) || sources[0];
 
         if (primaryScreen) {
-          console.log('Auto-selected source:', primaryScreen.name, primaryScreen.id);
-          console.log('Audio config: loopback');
+          log('Auto-selected source:', primaryScreen.name, primaryScreen.id);
+          log('Audio config: loopback');
 
           callback({
             video: primaryScreen,
             audio: 'loopback',
           });
+          log('Callback invoked successfully');
         } else {
-          console.error('No screen sources available');
+          log('ERROR: No screen sources available');
           callback({});
         }
       }
     } catch (error) {
-      console.error('Failed to get screen source:', error);
+      log('ERROR: Failed to get screen source:', String(error));
       callback({});
     }
   });
