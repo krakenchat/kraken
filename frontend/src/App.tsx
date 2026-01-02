@@ -61,6 +61,7 @@ function App() {
     return (
       <ThemeProvider>
         <CssBaseline />
+        <AutoUpdater />
         <ConnectionWizard
           open={true}
           onComplete={() => {
@@ -103,6 +104,7 @@ function App() {
     return (
       <ThemeProvider>
         <CssBaseline />
+        <AutoUpdater />
         <OnboardingPage />
       </ThemeProvider>
     );
@@ -112,6 +114,7 @@ function App() {
     return (
       <ThemeProvider>
         <CssBaseline />
+        <AutoUpdater />
         <LoginPage />
       </ThemeProvider>
     );
