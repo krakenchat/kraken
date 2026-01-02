@@ -11,9 +11,9 @@ directories:
   output: release
 
 # Files to include in the build
+# electron-vite outputs to out/ directory
 files:
-  - dist/**/*
-  - electron/dist/**/*
+  - out/**/*
   - package.json
 
 # Auto-update configuration
