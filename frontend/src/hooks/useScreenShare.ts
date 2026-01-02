@@ -44,6 +44,7 @@ export const useScreenShare = (): UseScreenShareReturn => {
       setShowSourcePicker(true);
     } else {
       // Web: Let LiveKit use native browser picker
+      // In Electron, main process will auto-select primary screen as fallback
       await actions.toggleScreenShare();
     }
   }, [actions]);

@@ -29,6 +29,10 @@ export default defineConfig({
   },
   renderer: {
     root: ".",
+    define: {
+      // Inject build-time constant so renderer knows it's running in Electron
+      'import.meta.env.VITE_IS_ELECTRON': JSON.stringify('true'),
+    },
     build: {
       outDir: "out/renderer",
       rollupOptions: {

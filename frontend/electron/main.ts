@@ -308,9 +308,32 @@ app.whenReady().then(() => {
           callback({});
         }
       } else {
-        console.error('No source selected by user');
-        // No source was pre-selected, this shouldn't happen in normal flow
-        callback({});
+        // No source was pre-selected - this can happen if:
+        // 1. The React source picker wasn't shown (hasElectronFeature returned false)
+        // 2. There was a timing issue
+        // Fallback: auto-select the primary screen
+        console.log('No source pre-selected, auto-selecting primary screen');
+
+        const sources = await desktopCapturer.getSources({
+          types: ['screen', 'window'],
+          thumbnailSize: { width: 320, height: 240 },
+          fetchWindowIcons: true
+        });
+
+        // Prefer a screen source over a window
+        const primaryScreen = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+
+        if (primaryScreen) {
+          console.log(`Auto-selected source: ${primaryScreen.name}`);
+          callback({
+            video: primaryScreen,
+            audio: 'loopback',
+            enableLocalEcho: true
+          });
+        } else {
+          console.error('No screen sources available');
+          callback({});
+        }
       }
     } catch (error) {
       console.error('Failed to get screen source:', error);

@@ -38,16 +38,17 @@ export enum Platform {
 
 /**
  * Check if running in Electron environment
+ * Uses build-time constant VITE_IS_ELECTRON injected by electron.vite.config.ts
  */
 export const isElectron = (): boolean => {
-  return typeof window !== 'undefined' && window.electronAPI?.isElectron === true;
+  return import.meta.env.VITE_IS_ELECTRON === 'true';
 };
 
 /**
  * Check if running in web browser (not Electron)
  */
 export const isWeb = (): boolean => {
-  return typeof window !== 'undefined' && !window.electronAPI;
+  return typeof window !== 'undefined' && !isElectron();
 };
 
 /**

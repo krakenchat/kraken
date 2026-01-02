@@ -4,6 +4,7 @@
  */
 
 import { getActiveServer } from '../utils/serverStorage';
+import { isElectron } from '../utils/platform';
 
 /**
  * Get the base API URL from environment variables or fallback to default
@@ -17,28 +18,17 @@ export const getApiBaseUrl = (): string => {
     return envUrl;
   }
 
-  // Check for Electron or file:// protocol (production Electron loads from file://)
-  const isElectronEnv = typeof window !== 'undefined' &&
-    ((window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron ||
-     window.location.protocol === 'file:');
-
-  if (isElectronEnv) {
+  // Electron: use configured server
+  if (isElectron()) {
     const activeServer = getActiveServer();
     if (activeServer) {
       return `${activeServer.url}/api`;
     }
-    // No server configured in Electron - return empty to prevent file:// API calls
-    // The ConnectionWizard should handle this case
-    console.warn('[env] No server configured in Electron mode');
+    // No server configured - ConnectionWizard should handle this
     return '';
   }
 
-  // In browser development, use relative path (works with Vite proxy)
-  if (typeof window !== 'undefined' && window.location) {
-    return '/api';
-  }
-
-  // Final fallback
+  // Web: use relative path (works with Vite proxy)
   return '/api';
 };
 
@@ -54,27 +44,21 @@ export const getWebSocketUrl = (): string => {
     return envUrl;
   }
 
-  // Check for Electron or file:// protocol (production Electron loads from file://)
-  const isElectronEnv = typeof window !== 'undefined' &&
-    ((window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron ||
-     window.location.protocol === 'file:');
-
-  if (isElectronEnv) {
+  // Electron: use configured server
+  if (isElectron()) {
     const activeServer = getActiveServer();
     if (activeServer) {
       return activeServer.url;
     }
-    // No server configured in Electron - return empty to prevent file:// WebSocket calls
-    console.warn('[env] No server configured for WebSocket in Electron mode');
+    // No server configured - ConnectionWizard should handle this
     return '';
   }
 
-  // In browser development, try to use current host
+  // Web: use current origin
   if (typeof window !== 'undefined' && window.location) {
     return window.location.origin;
   }
 
-  // Final fallback
   return 'http://localhost:3000';
 };
 
