@@ -17,12 +17,20 @@ export const getApiBaseUrl = (): string => {
     return envUrl;
   }
 
-  // Check for Electron active server
-  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron) {
+  // Check for Electron or file:// protocol (production Electron loads from file://)
+  const isElectronEnv = typeof window !== 'undefined' &&
+    ((window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron ||
+     window.location.protocol === 'file:');
+
+  if (isElectronEnv) {
     const activeServer = getActiveServer();
     if (activeServer) {
       return `${activeServer.url}/api`;
     }
+    // No server configured in Electron - return empty to prevent file:// API calls
+    // The ConnectionWizard should handle this case
+    console.warn('[env] No server configured in Electron mode');
+    return '';
   }
 
   // In browser development, use relative path (works with Vite proxy)
@@ -46,12 +54,19 @@ export const getWebSocketUrl = (): string => {
     return envUrl;
   }
 
-  // Check for Electron active server
-  if (typeof window !== 'undefined' && (window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron) {
+  // Check for Electron or file:// protocol (production Electron loads from file://)
+  const isElectronEnv = typeof window !== 'undefined' &&
+    ((window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron ||
+     window.location.protocol === 'file:');
+
+  if (isElectronEnv) {
     const activeServer = getActiveServer();
     if (activeServer) {
       return activeServer.url;
     }
+    // No server configured in Electron - return empty to prevent file:// WebSocket calls
+    console.warn('[env] No server configured for WebSocket in Electron mode');
+    return '';
   }
 
   // In browser development, try to use current host
