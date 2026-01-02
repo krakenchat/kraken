@@ -165,7 +165,7 @@ jobs:
 
       - name: Build Linux packages (AppImage, deb, rpm)
         working-directory: frontend
-        run: npm run build:all && npx electron-builder --linux AppImage deb rpm
+        run: npm run build && npx electron-builder --linux AppImage deb rpm
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

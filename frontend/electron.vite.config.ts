@@ -75,7 +75,7 @@ export default defineConfig({
         },
         injectManifest: {
           // Increase limit for large bundles (default is 2MB)
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6MB
         },
         devOptions: {
           enabled: true, // Enable PWA in dev mode for testing
