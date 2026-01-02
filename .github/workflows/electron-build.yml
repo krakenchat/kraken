@@ -5,8 +5,18 @@ on:
     branches:
       - main
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*'           # Full release
+      - 'electron-v*.*.*'  # Electron-only release
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create GitHub Release'
+        type: boolean
+        default: false
+      version:
+        description: 'Version override (e.g., 1.0.1)'
+        type: string
+        required: false
 
 env:
   GITHUB_OWNER: ${{ github.repository_owner }}
@@ -62,6 +72,26 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: frontend
+        run: |
+          $tagName = "${{ github.ref_name }}"
+          # Remove prefix (v, electron-v, etc.)
+          $version = $tagName -replace '^(electron-)?v', ''
+          Write-Host "Setting version to: $version"
+          npm version $version --no-git-tag-version --allow-same-version
+        shell: pwsh
+
+      - name: Set version from input
+        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        working-directory: frontend
+        run: |
+          $version = "${{ inputs.version }}"
+          Write-Host "Setting version to: $version"
+          npm version $version --no-git-tag-version --allow-same-version
+        shell: pwsh
+
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
@@ -86,6 +116,13 @@ jobs:
           path: frontend/dist/Kraken Setup *.exe.blockmap
           retention-days: 7
 
+      - name: Upload Windows update manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-yml
+          path: frontend/dist/latest.yml
+          retention-days: 7
+
   build-linux:
     name: Build Linux Packages
     needs: quality-check
@@ -102,6 +139,25 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: frontend
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          # Remove prefix (v, electron-v, etc.)
+          VERSION="${TAG_NAME#electron-}"
+          VERSION="${VERSION#v}"
+          echo "Setting version to: $VERSION"
+          npm version $VERSION --no-git-tag-version --allow-same-version
+
+      - name: Set version from input
+        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        working-directory: frontend
+        run: |
+          VERSION="${{ inputs.version }}"
+          echo "Setting version to: $VERSION"
+          npm version $VERSION --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
         working-directory: frontend
@@ -145,13 +201,23 @@ jobs:
     name: Create GitHub Release
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Create release for version tags OR when manually requested
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Determine release tag
+        id: release-info
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v${{ inputs.version }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download Windows installer
         uses: actions/download-artifact@v4
@@ -163,6 +229,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: windows-blockmap
+          path: release-artifacts/
+
+      - name: Download Windows update manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-yml
           path: release-artifacts/
 
       - name: Download Linux AppImage
@@ -195,6 +267,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release-info.outputs.tag }}
           files: release-artifacts/*
           generate_release_notes: true
           draft: false

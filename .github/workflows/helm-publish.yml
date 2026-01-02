@@ -5,11 +5,17 @@ on:
     branches:
       - main
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*'       # Full release
+      - 'helm-v*.*.*'  # Helm-only release
     paths:
       - 'helm/**'
       - '.github/workflows/helm-publish.yml'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version override (e.g., 1.0.1)'
+        type: string
+        required: false
 
 env:
   REGISTRY: ghcr.io
@@ -27,6 +33,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+            # Remove prefix (v, helm-v, etc.)
+            VERSION="${TAG_NAME#helm-}"
+            VERSION="${VERSION#v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          elif [[ -n "${{ inputs.version }}" ]]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
@@ -41,6 +65,14 @@ jobs:
           # Update the home and sources URLs in Chart.yaml
           sed -i "s|home: .*|home: https://github.com/${{ github.repository }}|g" helm/${{ env.CHART_NAME }}/Chart.yaml
           sed -i "s|sources:.*|sources:\n  - https://github.com/${{ github.repository }}|g" helm/${{ env.CHART_NAME }}/Chart.yaml
+
+      - name: Set chart version from tag
+        if: steps.version.outputs.version != ''
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Setting Chart version to: $VERSION"
+          sed -i "s/^version:.*/version: $VERSION/" helm/${{ env.CHART_NAME }}/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" helm/${{ env.CHART_NAME }}/Chart.yaml
 
       - name: Package Helm chart
         run: |
@@ -67,14 +99,14 @@ jobs:
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           helm push "${CHART_PACKAGE}" oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts
 
-          echo "✅ Chart pushed to: oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts/${{ env.CHART_NAME }}:${CHART_VERSION}"
+          echo "Chart pushed to: oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts/${{ env.CHART_NAME }}:${CHART_VERSION}"
 
       - name: Generate summary
         run: |
           CHART_VERSION=${{ steps.chart_version.outputs.version }}
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          echo "## Helm Chart Published 📦" >> $GITHUB_STEP_SUMMARY
+          echo "## Helm Chart Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Chart:** \`${{ env.CHART_NAME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** \`${CHART_VERSION}\`" >> $GITHUB_STEP_SUMMARY
@@ -86,5 +118,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ github.ref_type }}" == "tag" ]; then
-            echo "🏷️ **Release Tag:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Release Tag:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           fi
