@@ -106,21 +106,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: frontend/release/Kraken Setup *.exe
+          path: frontend/dist/Kraken Setup *.exe
           retention-days: 7
 
       - name: Upload Windows blockmap
         uses: actions/upload-artifact@v4
         with:
           name: windows-blockmap
-          path: frontend/release/Kraken Setup *.exe.blockmap
+          path: frontend/dist/Kraken Setup *.exe.blockmap
           retention-days: 7
 
       - name: Upload Windows update manifest
         uses: actions/upload-artifact@v4
         with:
           name: windows-yml
-          path: frontend/release/latest.yml
+          path: frontend/dist/latest.yml
           retention-days: 7
 
   build-linux:
@@ -173,28 +173,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
-          path: frontend/release/Kraken-*.AppImage
+          path: frontend/dist/Kraken-*.AppImage
           retention-days: 7
 
       - name: Upload Linux Debian package
         uses: actions/upload-artifact@v4
         with:
           name: linux-deb
-          path: frontend/release/kraken_*_amd64.deb
+          path: frontend/dist/kraken_*_amd64.deb
           retention-days: 7
 
       - name: Upload Linux RPM package
         uses: actions/upload-artifact@v4
         with:
           name: linux-rpm
-          path: frontend/release/kraken-*.x86_64.rpm
+          path: frontend/dist/kraken-*.x86_64.rpm
           retention-days: 7
 
       - name: Upload Linux update manifest
         uses: actions/upload-artifact@v4
         with:
           name: linux-yml
-          path: frontend/release/latest-linux.yml
+          path: frontend/dist/latest-linux.yml
           retention-days: 7
 
   create-release:
