@@ -12,7 +12,13 @@ import path from 'node:path';
 // Note: __dirname and __filename are provided by electron-vite
 
 // Initialize audio loopback for cross-platform system audio capture
+// This sets up Chromium feature flags for Linux/macOS audio loopback
+// Windows uses native WASAPI loopback which doesn't need special flags
 initMain();
+
+// Log the feature flags that were set
+console.log('Electron audio loopback initialized');
+console.log('Enable-features:', app.commandLine.getSwitchValue('enable-features'));
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -298,10 +304,10 @@ app.whenReady().then(() => {
           const enableAudio = settings?.enableAudio !== false; // Default to true if not specified
 
           // electron-audio-loopback makes 'loopback' work cross-platform
+          // Note: enableLocalEcho is only valid when audio is a WebFrameMain, not 'loopback' string
           callback({
             video: selectedSource,
             audio: enableAudio ? 'loopback' : undefined,
-            enableLocalEcho: enableAudio
           });
         } else {
           console.error('Selected source not found:', selectedSourceId);
@@ -325,10 +331,10 @@ app.whenReady().then(() => {
 
         if (primaryScreen) {
           console.log(`Auto-selected source: ${primaryScreen.name}`);
+          // Note: enableLocalEcho is only valid when audio is a WebFrameMain, not 'loopback' string
           callback({
             video: primaryScreen,
             audio: 'loopback',
-            enableLocalEcho: true
           });
         } else {
           console.error('No screen sources available');
