@@ -320,7 +320,7 @@ app.whenReady().then(() => {
           const enableAudio = settings?.enableAudio !== false; // Default to true if not specified
 
           // DEBUG: Set to true to test video-only capture (bypasses audio loopback)
-          const DEBUG_VIDEO_ONLY = true;
+          const DEBUG_VIDEO_ONLY = false;
 
           const audioConfig = DEBUG_VIDEO_ONLY ? undefined : (enableAudio ? 'loopback' : undefined);
           log('Audio enabled from settings:', enableAudio);
