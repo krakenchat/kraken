@@ -24,6 +24,12 @@ export default defineConfig({
       outDir: "out/preload",
       lib: {
         entry: resolve(__dirname, "electron/preload.ts"),
+        formats: ['cjs'],  // Preload must be CommonJS for Electron sandbox
+      },
+      rollupOptions: {
+        output: {
+          entryFileNames: '[name].js',  // Output as .js not .mjs
+        },
       },
     },
   },

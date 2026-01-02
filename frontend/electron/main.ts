@@ -210,7 +210,7 @@ function createWindow() {
       // Security: enable context isolation
       contextIsolation: true,
       // Enable preload script
-      preload: path.join(__dirname, '../preload/preload.mjs'),
+      preload: path.join(__dirname, '../preload/preload.js'),
     },
     // Enable fullscreen for HTML5 video elements
     fullscreenable: true,
