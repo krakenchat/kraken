@@ -2,8 +2,6 @@ name: Build Electron Apps
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*.*.*'           # Full release
       - 'electron-v*.*.*'  # Electron-only release
