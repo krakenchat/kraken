@@ -271,7 +271,10 @@ app.whenReady().then(() => {
 
   // Handle screen sharing requests from LiveKit
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    console.log('Screen share requested via setDisplayMediaRequestHandler');
+    console.log('=== Screen Share Request ===');
+    console.log('Platform:', process.platform);
+    console.log('Electron version:', process.versions.electron);
+    console.log('Chrome version:', process.versions.chrome);
 
     try {
       // Check if the renderer has pre-selected a sourceId and settings (from React UI)
@@ -283,10 +286,10 @@ app.whenReady().then(() => {
         'window.__screenShareSettings'
       );
 
-      if (selectedSourceId) {
-        console.log(`Using pre-selected source ID: ${selectedSourceId}`);
-        console.log(`Screen share settings:`, settings);
+      console.log('Pre-selected source ID:', selectedSourceId);
+      console.log('Screen share settings:', JSON.stringify(settings, null, 2));
 
+      if (selectedSourceId) {
         // Clear the selected sourceId and settings
         mainWindow?.webContents.executeJavaScript('delete window.__selectedScreenSourceId');
         mainWindow?.webContents.executeJavaScript('delete window.__screenShareSettings');
@@ -298,29 +301,33 @@ app.whenReady().then(() => {
           fetchWindowIcons: true
         });
 
+        console.log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
+
         const selectedSource = sources.find(s => s.id === selectedSourceId);
 
         if (selectedSource) {
-          console.log(`Found source: ${selectedSource.name}`);
+          console.log('Selected source:', selectedSource.name, selectedSource.id);
 
           // Use settings to determine audio configuration
           const enableAudio = settings?.enableAudio !== false; // Default to true if not specified
 
-          // electron-audio-loopback makes 'loopback' work cross-platform
-          // Note: enableLocalEcho is only valid when audio is a WebFrameMain, not 'loopback' string
+          // DEBUG: Set to false to test video-only (remove this line after testing)
+          const DEBUG_VIDEO_ONLY = false;
+
+          const audioConfig = DEBUG_VIDEO_ONLY ? undefined : (enableAudio ? 'loopback' : undefined);
+          console.log('Audio config:', audioConfig);
+          console.log('Calling callback with:', { video: selectedSource.id, audio: audioConfig });
+
           callback({
             video: selectedSource,
-            audio: enableAudio ? 'loopback' : undefined,
+            audio: audioConfig,
           });
         } else {
           console.error('Selected source not found:', selectedSourceId);
           callback({});
         }
       } else {
-        // No source was pre-selected - this can happen if:
-        // 1. The React source picker wasn't shown (hasElectronFeature returned false)
-        // 2. There was a timing issue
-        // Fallback: auto-select the primary screen
+        // No source was pre-selected - fallback: auto-select the primary screen
         console.log('No source pre-selected, auto-selecting primary screen');
 
         const sources = await desktopCapturer.getSources({
@@ -329,12 +336,15 @@ app.whenReady().then(() => {
           fetchWindowIcons: true
         });
 
+        console.log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
+
         // Prefer a screen source over a window
         const primaryScreen = sources.find(s => s.id.startsWith('screen:')) || sources[0];
 
         if (primaryScreen) {
-          console.log(`Auto-selected source: ${primaryScreen.name}`);
-          // Note: enableLocalEcho is only valid when audio is a WebFrameMain, not 'loopback' string
+          console.log('Auto-selected source:', primaryScreen.name, primaryScreen.id);
+          console.log('Audio config: loopback');
+
           callback({
             video: primaryScreen,
             audio: 'loopback',
