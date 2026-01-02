@@ -27,8 +27,9 @@ ENV VITE_TELEMETRY_CLIENT_TOKEN=__VITE_TELEMETRY_CLIENT_TOKEN__
 ENV VITE_TELEMETRY_ORG_ID=__VITE_TELEMETRY_ORG_ID__
 ENV VITE_APP_VERSION=__VITE_APP_VERSION__
 
-# Build the application with Vite
-RUN npm run build
+# Build the web application with Vite (not electron-vite)
+# Uses vite.config.ts and outputs to dist/
+RUN npm run build:renderer
 
 # ============================================
 # Stage 2: Production with Nginx
