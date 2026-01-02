@@ -300,8 +300,8 @@ app.whenReady().then(() => {
           // electron-audio-loopback makes 'loopback' work cross-platform
           callback({
             video: selectedSource,
-            audio: enableAudio ? 'loopback' : undefined, // Conditionally include system audio
-            enableLocalEcho: enableAudio // Keep audio playing locally when enabled
+            audio: enableAudio ? 'loopback' : undefined,
+            enableLocalEcho: enableAudio
           });
         } else {
           console.error('Selected source not found:', selectedSourceId);

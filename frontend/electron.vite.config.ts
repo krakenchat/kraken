@@ -7,8 +7,9 @@ export default defineConfig({
   main: {
     plugins: [
       externalizeDepsPlugin({
-        // Don't externalize these - they need to be bundled for ESM compatibility
-        exclude: ["electron-updater", "electron-audio-loopback"],
+        // Don't externalize electron-updater - needs to be bundled for ESM compatibility
+        // electron-audio-loopback MUST be externalized - it's a native module with .node binaries
+        exclude: ["electron-updater"],
       }),
     ],
     build: {
