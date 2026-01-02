@@ -1,0 +1,17 @@
+# Default owners for everything in the repo
+* @krakenchat/maintainers
+
+# Backend
+/backend/ @krakenchat/maintainers
+
+# Frontend and Electron
+/frontend/ @krakenchat/maintainers
+
+# Infrastructure
+/helm/ @krakenchat/maintainers
+/.github/ @krakenchat/maintainers
+/docker-compose*.yml @krakenchat/maintainers
+
+# Documentation
+/docs/ @krakenchat/maintainers
+*.md @krakenchat/maintainers
