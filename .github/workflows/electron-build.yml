@@ -106,7 +106,7 @@ jobs:
 
       - name: Build Windows NSIS installer
         working-directory: frontend
-        run: npm run build && npx electron-builder --win --publish never
+        run: npm run build:all && npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -175,7 +175,7 @@ jobs:
 
       - name: Build Linux packages (AppImage, deb, rpm)
         working-directory: frontend
-        run: npm run build && npx electron-builder --linux AppImage deb rpm --publish never
+        run: npm run build:all && npx electron-builder --linux AppImage deb rpm --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
