@@ -8,8 +8,7 @@
 import { app, BrowserWindow, ipcMain, session, desktopCapturer, Notification } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
-import path from 'node:path';
-// Note: __dirname and __filename are provided by electron-vite
+import * as path from 'path';
 
 // Initialize audio loopback for cross-platform system audio capture
 // This sets up Chromium feature flags for Linux/macOS audio loopback
@@ -215,7 +214,7 @@ function createWindow() {
       // Security: enable context isolation
       contextIsolation: true,
       // Enable preload script
-      preload: path.join(__dirname, '../preload/preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
     },
     // Enable fullscreen for HTML5 video elements
     fullscreenable: true,
@@ -236,7 +235,7 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     // In production, load the built files directly
-    const indexPath = path.join(app.getAppPath(), 'out', 'renderer', 'index.html');
+    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
   }
 
