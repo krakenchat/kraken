@@ -2,7 +2,7 @@
   "name": "kraken",
   "productName": "Kraken",
   "description": "A Discord-like voice chat application",
-  "main": "out/main/main.js",
+  "main": "out/main/main.cjs",
   "private": true,
   "license": "AGPL-3.0-only",
   "version": "0.0.1",

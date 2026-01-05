@@ -19,7 +19,7 @@ export default defineConfig({
       },
       rollupOptions: {
         output: {
-          entryFileNames: '[name].js',
+          entryFileNames: '[name].cjs',  // .cjs extension for CommonJS with "type": "module"
         },
       },
     },
