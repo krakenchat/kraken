@@ -7,8 +7,7 @@ export default defineConfig({
   main: {
     plugins: [
       externalizeDepsPlugin({
-        // Don't externalize these - they need to be bundled for ESM compatibility
-        // This was the original working config from the electron-vite migration
+        // Don't externalize these - they need to be bundled
         exclude: ["electron-updater", "electron-audio-loopback"],
       }),
     ],
@@ -16,6 +15,12 @@ export default defineConfig({
       outDir: "out/main",
       lib: {
         entry: resolve(__dirname, "electron/main.ts"),
+        formats: ['cjs'],  // Use CommonJS like old tsc build
+      },
+      rollupOptions: {
+        output: {
+          entryFileNames: '[name].js',
+        },
       },
     },
   },
