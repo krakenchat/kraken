@@ -52,9 +52,8 @@ export default defineConfig({
       },
     }),
   ],
-  // Use absolute paths for PWA compatibility
-  // Electron builds use a separate process that handles paths differently
-  base: "/",
+  // Use relative paths for Electron file:// protocol compatibility
+  base: "./",
   server: {
     proxy: {
       "/api": {

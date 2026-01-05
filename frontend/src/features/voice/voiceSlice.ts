@@ -31,6 +31,9 @@ export interface VoiceState {
   // UI state
   showVideoTiles: boolean;
 
+  // Screen share audio warning (when audio capture fails but video continues)
+  screenShareAudioFailed: boolean;
+
   // Device preferences
   selectedAudioInputId: string | null;
   selectedAudioOutputId: string | null;
@@ -51,6 +54,7 @@ const initialState: VoiceState = {
   dmGroupName: null,
   isDeafened: false,
   showVideoTiles: false,
+  screenShareAudioFailed: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
   selectedVideoInputId: null,
@@ -128,6 +132,10 @@ const voiceSlice = createSlice({
     setShowVideoTiles: (state, action: PayloadAction<boolean>) => {
       state.showVideoTiles = action.payload;
     },
+
+    setScreenShareAudioFailed: (state, action: PayloadAction<boolean>) => {
+      state.screenShareAudioFailed = action.payload;
+    },
     
     // Device preference actions
     setSelectedAudioInputId: (state, action: PayloadAction<string | null>) => {
@@ -152,6 +160,7 @@ export const {
   setConnectionError,
   setDeafened,
   setShowVideoTiles,
+  setScreenShareAudioFailed,
   setSelectedAudioInputId,
   setSelectedAudioOutputId,
   setSelectedVideoInputId,

@@ -8,11 +8,15 @@
 import { app, BrowserWindow, ipcMain, session, desktopCapturer, Notification } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
-import path from 'node:path';
-// Note: __dirname and __filename are provided by electron-vite
+import * as path from 'path';
 
 // Initialize audio loopback for cross-platform system audio capture
+// This sets up Chromium feature flags for Linux/macOS audio loopback
+// Windows uses native WASAPI loopback - but initMain() must still be called
+// (it was working before electron-vite when initMain() was called unconditionally)
 initMain();
+console.log('Electron audio loopback initialized for', process.platform);
+console.log('Enable-features:', app.commandLine.getSwitchValue('enable-features'));
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -210,7 +214,7 @@ function createWindow() {
       // Security: enable context isolation
       contextIsolation: true,
       // Enable preload script
-      preload: path.join(__dirname, '../preload/preload.mjs'),
+      preload: path.join(__dirname, 'preload.cjs'),
     },
     // Enable fullscreen for HTML5 video elements
     fullscreenable: true,
@@ -231,7 +235,7 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     // In production, load the built files directly
-    const indexPath = path.join(app.getAppPath(), 'out', 'renderer', 'index.html');
+    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
   }
 
@@ -262,7 +266,18 @@ app.whenReady().then(() => {
 
   // Handle screen sharing requests from LiveKit
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    console.log('Screen share requested via setDisplayMediaRequestHandler');
+    // Helper to log to both main process and renderer DevTools
+    const log = (msg: string, ...args: unknown[]) => {
+      console.log(msg, ...args);
+      mainWindow?.webContents.executeJavaScript(
+        `console.log('[Electron Main]', ${JSON.stringify(msg)}, ${args.map(a => JSON.stringify(a)).join(', ')})`
+      );
+    };
+
+    log('=== Screen Share Request ===');
+    log('Platform:', process.platform);
+    log('Electron version:', process.versions.electron);
+    log('Chrome version:', process.versions.chrome);
 
     try {
       // Check if the renderer has pre-selected a sourceId and settings (from React UI)
@@ -274,10 +289,10 @@ app.whenReady().then(() => {
         'window.__screenShareSettings'
       );
 
-      if (selectedSourceId) {
-        console.log(`Using pre-selected source ID: ${selectedSourceId}`);
-        console.log(`Screen share settings:`, settings);
+      log('Pre-selected source ID:', selectedSourceId);
+      log('Screen share settings:', JSON.stringify(settings, null, 2));
 
+      if (selectedSourceId) {
         // Clear the selected sourceId and settings
         mainWindow?.webContents.executeJavaScript('delete window.__selectedScreenSourceId');
         mainWindow?.webContents.executeJavaScript('delete window.__screenShareSettings');
@@ -289,31 +304,64 @@ app.whenReady().then(() => {
           fetchWindowIcons: true
         });
 
+        log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
+
         const selectedSource = sources.find(s => s.id === selectedSourceId);
 
         if (selectedSource) {
-          console.log(`Found source: ${selectedSource.name}`);
+          log('Selected source:', selectedSource.name, selectedSource.id);
 
           // Use settings to determine audio configuration
           const enableAudio = settings?.enableAudio !== false; // Default to true if not specified
 
-          // electron-audio-loopback makes 'loopback' work cross-platform
+          // DEBUG: Set to true to test video-only capture (bypasses audio loopback)
+          const DEBUG_VIDEO_ONLY = false;
+
+          const audioConfig = DEBUG_VIDEO_ONLY ? undefined : (enableAudio ? 'loopback' : undefined);
+          log('Audio enabled from settings:', enableAudio);
+          log('DEBUG_VIDEO_ONLY:', DEBUG_VIDEO_ONLY);
+          log('Final audio config:', audioConfig);
+
           callback({
             video: selectedSource,
-            audio: enableAudio ? 'loopback' : undefined, // Conditionally include system audio
-            enableLocalEcho: enableAudio // Keep audio playing locally when enabled
+            audio: audioConfig,
           });
+          log('Callback invoked successfully');
         } else {
-          console.error('Selected source not found:', selectedSourceId);
+          log('ERROR: Selected source not found:', selectedSourceId);
           callback({});
         }
       } else {
-        console.error('No source selected by user');
-        // No source was pre-selected, this shouldn't happen in normal flow
-        callback({});
+        // No source was pre-selected - fallback: auto-select the primary screen
+        log('No source pre-selected, auto-selecting primary screen');
+
+        const sources = await desktopCapturer.getSources({
+          types: ['screen', 'window'],
+          thumbnailSize: { width: 320, height: 240 },
+          fetchWindowIcons: true
+        });
+
+        log('Available sources:', sources.map(s => ({ id: s.id, name: s.name })));
+
+        // Prefer a screen source over a window
+        const primaryScreen = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+
+        if (primaryScreen) {
+          log('Auto-selected source:', primaryScreen.name, primaryScreen.id);
+          log('Audio config: loopback');
+
+          callback({
+            video: primaryScreen,
+            audio: 'loopback',
+          });
+          log('Callback invoked successfully');
+        } else {
+          log('ERROR: No screen sources available');
+          callback({});
+        }
       }
     } catch (error) {
-      console.error('Failed to get screen source:', error);
+      log('ERROR: Failed to get screen source:', String(error));
       callback({});
     }
   });

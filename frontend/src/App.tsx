@@ -44,9 +44,7 @@ function App() {
   const token = localStorage.getItem("accessToken");
 
   // Check if running in Electron and needs server configuration
-  // Also check for file:// protocol as a fallback detection for Electron production builds
-  const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:';
-  const needsServerSetup = (isElectron() || isFileProtocol) && !hasServers();
+  const needsServerSetup = isElectron() && !hasServers();
   const [showWizard, setShowWizard] = useState(needsServerSetup);
 
   // Check if onboarding is needed - but only make the request if we're not already on the onboarding page
@@ -61,6 +59,7 @@ function App() {
     return (
       <ThemeProvider>
         <CssBaseline />
+        <AutoUpdater />
         <ConnectionWizard
           open={true}
           onComplete={() => {
@@ -103,6 +102,7 @@ function App() {
     return (
       <ThemeProvider>
         <CssBaseline />
+        <AutoUpdater />
         <OnboardingPage />
       </ThemeProvider>
     );
@@ -112,6 +112,7 @@ function App() {
     return (
       <ThemeProvider>
         <CssBaseline />
+        <AutoUpdater />
         <LoginPage />
       </ThemeProvider>
     );

@@ -38,6 +38,7 @@ export enum Platform {
 
 /**
  * Check if running in Electron environment
+ * Checks for electronAPI exposed by preload script
  */
 export const isElectron = (): boolean => {
   return typeof window !== 'undefined' && window.electronAPI?.isElectron === true;
@@ -47,7 +48,7 @@ export const isElectron = (): boolean => {
  * Check if running in web browser (not Electron)
  */
 export const isWeb = (): boolean => {
-  return typeof window !== 'undefined' && !window.electronAPI;
+  return typeof window !== 'undefined' && !isElectron();
 };
 
 /**

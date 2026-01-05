@@ -8,12 +8,15 @@
  * - In Web: Uses native browser getDisplayMedia picker
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import { useVoiceConnection } from './useVoiceConnection';
 import { useLocalMediaState } from './useLocalMediaState';
 import { hasElectronFeature } from '../utils/platform';
 import { ScreenShareSettings } from '../components/Voice/ScreenSourcePicker';
 import { setScreenShareConfig, clearScreenShareConfig } from '../utils/screenShareState';
+import { useNotification } from '../contexts/NotificationContext';
+import { RootState } from '../app/store';
 
 interface UseScreenShareReturn {
   isScreenSharing: boolean;
@@ -32,6 +35,24 @@ export const useScreenShare = (): UseScreenShareReturn => {
   const { actions } = useVoiceConnection();
   const { isScreenShareEnabled } = useLocalMediaState();
   const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const { showNotification } = useNotification();
+
+  // Track if audio capture failed (USB headset in exclusive mode, etc.)
+  const screenShareAudioFailed = useSelector(
+    (state: RootState) => state.voice.screenShareAudioFailed
+  );
+  const prevAudioFailedRef = useRef(false);
+
+  // Show notification when audio capture fails
+  useEffect(() => {
+    if (screenShareAudioFailed && !prevAudioFailedRef.current) {
+      showNotification(
+        'Screen audio capture failed. This may be due to your audio device settings. Sharing screen without audio.',
+        'warning'
+      );
+    }
+    prevAudioFailedRef.current = screenShareAudioFailed;
+  }, [screenShareAudioFailed, showNotification]);
 
   /**
    * Start screen sharing
@@ -44,6 +65,7 @@ export const useScreenShare = (): UseScreenShareReturn => {
       setShowSourcePicker(true);
     } else {
       // Web: Let LiveKit use native browser picker
+      // In Electron, main process will auto-select primary screen as fallback
       await actions.toggleScreenShare();
     }
   }, [actions]);

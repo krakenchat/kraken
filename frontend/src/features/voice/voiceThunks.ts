@@ -8,6 +8,7 @@ import {
   setDisconnected,
   setConnectionError,
   setDeafened,
+  setScreenShareAudioFailed,
   setSelectedAudioInputId,
   setSelectedAudioOutputId,
   setSelectedVideoInputId,
@@ -652,12 +653,15 @@ export const toggleCameraUnified = createAsyncThunk<
  * Unified screen share toggle for both channels and DMs
  * Replaces: toggleScreenShare, toggleDmScreenShare
  * Screen share state is read directly from LiveKit - no Redux dispatch needed
+ *
+ * Graceful audio degradation: If audio capture fails (common with USB headsets
+ * in exclusive mode), we retry with video-only and notify the user.
  */
 export const toggleScreenShareUnified = createAsyncThunk<
   void,
   { getRoom: () => Room | null },
   { state: RootState }
->("voice/toggleScreenShareUnified", async ({ getRoom }, { getState }) => {
+>("voice/toggleScreenShareUnified", async ({ getRoom }, { dispatch, getState }) => {
   const state = getState();
   const { currentChannelId, currentDmGroupId } = state.voice;
   const room = getRoom();
@@ -677,6 +681,11 @@ export const toggleScreenShareUnified = createAsyncThunk<
   const newState = !isCurrentlySharing;
   logger.info('[Voice] Toggling screen share:', isCurrentlySharing, '->', newState);
 
+  // Clear any previous audio failure state when starting a new screen share
+  if (newState) {
+    dispatch(setScreenShareAudioFailed(false));
+  }
+
   try {
     // Handle the actual LiveKit screen share
     if (newState) {
@@ -688,13 +697,43 @@ export const toggleScreenShareUnified = createAsyncThunk<
       const resolutionConfig = getResolutionConfig(settings.resolution, settings.fps);
       const audioConfig = getScreenShareAudioConfig(settings.enableAudio !== false);
 
-      await room.localParticipant.setScreenShareEnabled(true, {
-        audio: audioConfig,
-        resolution: resolutionConfig as { width: number; height: number; frameRate: number },
-        preferCurrentTab: false,
-      });
+      try {
+        await room.localParticipant.setScreenShareEnabled(true, {
+          audio: audioConfig,
+          resolution: resolutionConfig as { width: number; height: number; frameRate: number },
+          preferCurrentTab: false,
+        });
+        logger.info('[Voice] ✓ Screen share enabled with audio');
+      } catch (audioError) {
+        // Check if this is a NotReadableError (audio capture failed)
+        // This commonly happens with USB headsets in exclusive mode
+        const isAudioError = audioError instanceof Error && (
+          audioError.name === 'NotReadableError' ||
+          audioError.message.includes('Could not start audio source')
+        );
+
+        if (isAudioError && settings.enableAudio !== false) {
+          logger.warn('[Voice] ⚠ Audio capture failed, retrying without audio:', audioError);
+
+          // Retry without audio
+          await room.localParticipant.setScreenShareEnabled(true, {
+            audio: false,
+            resolution: resolutionConfig as { width: number; height: number; frameRate: number },
+            preferCurrentTab: false,
+          });
+
+          // Set flag so UI can show notification
+          dispatch(setScreenShareAudioFailed(true));
+          logger.info('[Voice] ✓ Screen share enabled without audio (fallback)');
+        } else {
+          // Not an audio error, or audio wasn't requested - rethrow
+          throw audioError;
+        }
+      }
     } else {
       await room.localParticipant.setScreenShareEnabled(false);
+      // Clear audio failure state when stopping
+      dispatch(setScreenShareAudioFailed(false));
     }
     logger.info('[Voice] ✓ Screen share toggled successfully');
     // Note: No Redux dispatch needed - components read from LiveKit via useLocalMediaState()

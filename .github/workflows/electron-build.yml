@@ -7,6 +7,14 @@ on:
       - 'electron-v*.*.*'  # Electron-only release
   workflow_dispatch:
     inputs:
+      platforms:
+        description: 'Platforms to build'
+        type: choice
+        options:
+          - all
+          - windows
+          - linux
+        default: 'all'
       create_release:
         description: 'Create GitHub Release'
         type: boolean
@@ -52,7 +60,9 @@ jobs:
     name: Build Windows Installer
     needs: quality-check
     runs-on: windows-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.platforms == 'all' || inputs.platforms == 'windows'))
 
     steps:
       - name: Checkout repository
@@ -96,7 +106,7 @@ jobs:
 
       - name: Build Windows NSIS installer
         working-directory: frontend
-        run: npm run build && npx electron-builder --win --publish never
+        run: npm run build:all && npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -125,7 +135,9 @@ jobs:
     name: Build Linux Packages
     needs: quality-check
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.platforms == 'all' || inputs.platforms == 'linux'))
 
     steps:
       - name: Checkout repository
@@ -163,7 +175,7 @@ jobs:
 
       - name: Build Linux packages (AppImage, deb, rpm)
         working-directory: frontend
-        run: npm run build && npx electron-builder --linux AppImage deb rpm --publish never
+        run: npm run build:all && npx electron-builder --linux AppImage deb rpm --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -197,10 +209,14 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [build-windows, build-linux]
+    needs: [quality-check, build-windows, build-linux]
     runs-on: ubuntu-latest
     # Create release for version tags OR when manually requested
-    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+    # Use always() to run even if some platform builds were skipped
+    if: |
+      always() &&
+      (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)) &&
+      (needs.build-windows.result == 'success' || needs.build-linux.result == 'success')
     permissions:
       contents: write
 
@@ -218,42 +234,49 @@ jobs:
           fi
 
       - name: Download Windows installer
+        if: needs.build-windows.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: windows-installer
           path: release-artifacts/
 
       - name: Download Windows blockmap
+        if: needs.build-windows.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: windows-blockmap
           path: release-artifacts/
 
       - name: Download Windows update manifest
+        if: needs.build-windows.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: windows-yml
           path: release-artifacts/
 
       - name: Download Linux AppImage
+        if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: linux-appimage
           path: release-artifacts/
 
       - name: Download Linux Debian package
+        if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: linux-deb
           path: release-artifacts/
 
       - name: Download Linux RPM package
+        if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: linux-rpm
           path: release-artifacts/
 
       - name: Download Linux update manifest
+        if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: linux-yml
@@ -270,14 +293,14 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build-windows, build-linux]
+    needs: [quality-check, build-windows, build-linux]
     if: always()
 
     steps:
@@ -288,12 +311,16 @@ jobs:
 
           if [ "${{ needs.build-windows.result }}" == "success" ]; then
             echo "✅ Windows NSIS installer built successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-windows.result }}" == "skipped" ]; then
+            echo "⏭️ Windows build skipped" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Windows build failed" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "${{ needs.build-linux.result }}" == "success" ]; then
             echo "✅ Linux packages built successfully (AppImage, deb, rpm)" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-linux.result }}" == "skipped" ]; then
+            echo "⏭️ Linux build skipped" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Linux build failed" >> $GITHUB_STEP_SUMMARY
           fi
