@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { RedisService } from '@/redis/redis.service';
+import { Injectable, Inject } from '@nestjs/common';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
+import Redis from 'ioredis';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 const ONLINE_USERS_SET = 'presence:online-users';
@@ -9,7 +10,7 @@ const DEFAULT_TTL_SECONDS = 60; // 1 minute, can be adjusted
 
 @Injectable()
 export class PresenceService {
-  constructor(private readonly redisService: RedisService) {}
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   /**
    * Register a new connection for a user.
@@ -20,33 +21,34 @@ export class PresenceService {
     connectionId: string,
     ttlSeconds: number = DEFAULT_TTL_SECONDS,
   ): Promise<boolean> {
-    const client = this.redisService.getClient();
     const connectionsKey = USER_CONNECTIONS_KEY_PREFIX + userId;
 
     // Add connection to user's connections set
-    await client.sadd(connectionsKey, connectionId);
+    await this.redis.sadd(connectionsKey, connectionId);
 
     // Set TTL on the connections set
-    await client.expire(connectionsKey, ttlSeconds);
+    await this.redis.expire(connectionsKey, ttlSeconds);
 
     // Get connection count
-    const connectionCount = await client.scard(connectionsKey);
+    const connectionCount = await this.redis.scard(connectionsKey);
 
     // If this is the first connection, mark user as online
     if (connectionCount === 1) {
-      await client.sadd(ONLINE_USERS_SET, userId);
-      await this.redisService.set(
+      await this.redis.sadd(ONLINE_USERS_SET, userId);
+      await this.redis.set(
         USER_PRESENCE_KEY_PREFIX + userId,
         '1',
+        'EX',
         ttlSeconds,
       );
       return true; // User went from offline to online
     }
 
     // Refresh user presence TTL
-    await this.redisService.set(
+    await this.redis.set(
       USER_PRESENCE_KEY_PREFIX + userId,
       '1',
+      'EX',
       ttlSeconds,
     );
     return false; // User was already online
@@ -60,20 +62,19 @@ export class PresenceService {
     userId: string,
     connectionId: string,
   ): Promise<boolean> {
-    const client = this.redisService.getClient();
     const connectionsKey = USER_CONNECTIONS_KEY_PREFIX + userId;
 
     // Remove connection from user's connections set
-    await client.srem(connectionsKey, connectionId);
+    await this.redis.srem(connectionsKey, connectionId);
 
     // Get remaining connection count
-    const connectionCount = await client.scard(connectionsKey);
+    const connectionCount = await this.redis.scard(connectionsKey);
 
     // If no connections remain, mark user as offline
     if (connectionCount === 0) {
-      await client.srem(ONLINE_USERS_SET, userId);
-      await this.redisService.del(USER_PRESENCE_KEY_PREFIX + userId);
-      await this.redisService.del(connectionsKey);
+      await this.redis.srem(ONLINE_USERS_SET, userId);
+      await this.redis.del(USER_PRESENCE_KEY_PREFIX + userId);
+      await this.redis.del(connectionsKey);
       return true; // User went from online to offline
     }
 
@@ -87,16 +88,16 @@ export class PresenceService {
     userId: string,
     ttlSeconds: number = DEFAULT_TTL_SECONDS,
   ): Promise<void> {
-    const client = this.redisService.getClient();
     const connectionsKey = USER_CONNECTIONS_KEY_PREFIX + userId;
 
     // Refresh TTL on connections set
-    await client.expire(connectionsKey, ttlSeconds);
+    await this.redis.expire(connectionsKey, ttlSeconds);
 
     // Refresh user presence TTL
-    await this.redisService.set(
+    await this.redis.set(
       USER_PRESENCE_KEY_PREFIX + userId,
       '1',
+      'EX',
       ttlSeconds,
     );
   }
@@ -110,11 +111,12 @@ export class PresenceService {
     ttlSeconds: number = DEFAULT_TTL_SECONDS,
   ): Promise<void> {
     // Add to online set
-    await this.redisService.getClient().sadd(ONLINE_USERS_SET, userId);
+    await this.redis.sadd(ONLINE_USERS_SET, userId);
     // Set/refresh TTL for user
-    await this.redisService.set(
+    await this.redis.set(
       USER_PRESENCE_KEY_PREFIX + userId,
       '1',
+      'EX',
       ttlSeconds,
     );
   }
@@ -124,19 +126,16 @@ export class PresenceService {
    * @deprecated Use removeConnection instead for proper multi-connection tracking
    */
   async setOffline(userId: string): Promise<void> {
-    const client = this.redisService.getClient();
-    await client.srem(ONLINE_USERS_SET, userId);
-    await this.redisService.del(USER_PRESENCE_KEY_PREFIX + userId);
-    await this.redisService.del(USER_CONNECTIONS_KEY_PREFIX + userId);
+    await this.redis.srem(ONLINE_USERS_SET, userId);
+    await this.redis.del(USER_PRESENCE_KEY_PREFIX + userId);
+    await this.redis.del(USER_CONNECTIONS_KEY_PREFIX + userId);
   }
 
   /**
    * Check if a user is online (TTL not expired).
    */
   async isOnline(userId: string): Promise<boolean> {
-    const exists = await this.redisService.get(
-      USER_PRESENCE_KEY_PREFIX + userId,
-    );
+    const exists = await this.redis.get(USER_PRESENCE_KEY_PREFIX + userId);
     return !!exists;
   }
 
@@ -144,7 +143,7 @@ export class PresenceService {
    * Get all currently online user IDs.
    */
   async getOnlineUsers(): Promise<string[]> {
-    return this.redisService.getClient().smembers(ONLINE_USERS_SET);
+    return this.redis.smembers(ONLINE_USERS_SET);
   }
 
   /**
@@ -155,19 +154,18 @@ export class PresenceService {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async cleanupExpired(): Promise<void> {
-    const client = this.redisService.getClient();
     const userIds = await this.getOnlineUsers();
 
     for (const userId of userIds) {
       // Check if user's presence key still exists
-      const presenceExists = await this.redisService.get(
+      const presenceExists = await this.redis.get(
         USER_PRESENCE_KEY_PREFIX + userId,
       );
 
       if (!presenceExists) {
         // Presence expired but user is still in set - clean up
-        await client.srem(ONLINE_USERS_SET, userId);
-        await this.redisService.del(USER_CONNECTIONS_KEY_PREFIX + userId);
+        await this.redis.srem(ONLINE_USERS_SET, userId);
+        await this.redis.del(USER_CONNECTIONS_KEY_PREFIX + userId);
       }
     }
   }

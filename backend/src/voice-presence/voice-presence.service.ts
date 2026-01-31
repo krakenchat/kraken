@@ -1,5 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { RedisService } from '@/redis/redis.service';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
+import Redis from 'ioredis';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { DatabaseService } from '@/database/database.service';
@@ -44,7 +45,7 @@ export class VoicePresenceService {
   private readonly VOICE_PRESENCE_TTL = 300; // 5 minutes
 
   constructor(
-    private readonly redisService: RedisService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly websocketService: WebsocketService,
     private readonly databaseService: DatabaseService,
     @Inject(forwardRef(() => LivekitReplayService))
@@ -62,7 +63,7 @@ export class VoicePresenceService {
       const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${userId}`;
 
       // Get user info before removing
-      const userDataStr = await this.redisService.get(userDataKey);
+      const userDataStr = await this.redis.get(userDataKey);
       if (!userDataStr) {
         this.logger.warn(
           `User ${userId} not found in voice channel ${channelId}`,
@@ -72,10 +73,8 @@ export class VoicePresenceService {
 
       const userData = JSON.parse(userDataStr) as VoicePresenceUser;
 
-      const client = this.redisService.getClient();
-
       // Use pipeline for atomic operations
-      const pipeline = client.pipeline();
+      const pipeline = this.redis.pipeline();
 
       // Remove user data
       pipeline.del(userDataKey);
@@ -133,10 +132,9 @@ export class VoicePresenceService {
   async getChannelPresence(channelId: string): Promise<VoicePresenceUser[]> {
     try {
       const channelMembersKey = `${this.VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX}:${channelId}:members`;
-      const client = this.redisService.getClient();
 
       // Get all user IDs in the channel (O(1) operation)
-      const userIds = await client.smembers(channelMembersKey);
+      const userIds = await this.redis.smembers(channelMembersKey);
 
       if (userIds.length === 0) {
         return [];
@@ -149,7 +147,7 @@ export class VoicePresenceService {
       );
 
       // Fetch all user data in one operation (O(m) where m is number of users)
-      const values = await client.mget(userDataKeys);
+      const values = await this.redis.mget(userDataKeys);
 
       const users: VoicePresenceUser[] = [];
 
@@ -168,7 +166,7 @@ export class VoicePresenceService {
           this.logger.debug(
             `Cleaning up expired presence for user ${userId} in channel ${channelId}`,
           );
-          await client.srem(channelMembersKey, userId);
+          await this.redis.srem(channelMembersKey, userId);
         }
       }
 
@@ -192,7 +190,7 @@ export class VoicePresenceService {
   async refreshPresence(channelId: string, userId: string): Promise<void> {
     try {
       const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
-      await this.redisService.expire(userDataKey, this.VOICE_PRESENCE_TTL);
+      await this.redis.expire(userDataKey, this.VOICE_PRESENCE_TTL);
     } catch (error) {
       this.logger.error(
         `Failed to refresh presence for user ${userId} in channel ${channelId}`,
@@ -304,14 +302,14 @@ export class VoicePresenceService {
   ): Promise<void> {
     // Check if user is already in the channel (duplicate webhook or reconnection)
     const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
-    const existingData = await this.redisService.get(userDataKey);
+    const existingData = await this.redis.get(userDataKey);
 
     if (existingData) {
       // User already in channel - just refresh TTL and maybe update metadata
       this.logger.debug(
         `User ${userId} already in channel ${channelId}, refreshing presence`,
       );
-      await this.redisService.expire(userDataKey, this.VOICE_PRESENCE_TTL);
+      await this.redis.expire(userDataKey, this.VOICE_PRESENCE_TTL);
 
       // Update metadata if provided (for isDeafened sync)
       if (metadata) {
@@ -320,9 +318,10 @@ export class VoicePresenceService {
           const parsedMeta = JSON.parse(metadata) as { isDeafened?: boolean };
           if (parsedMeta.isDeafened !== undefined) {
             userData.isDeafened = parsedMeta.isDeafened;
-            await this.redisService.set(
+            await this.redis.set(
               userDataKey,
               JSON.stringify(userData),
+              'EX',
               this.VOICE_PRESENCE_TTL,
             );
           }
@@ -369,10 +368,8 @@ export class VoicePresenceService {
     const channelMembersKey = `${this.VOICE_PRESENCE_CHANNEL_MEMBERS_PREFIX}:${channelId}:members`;
     const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${userId}`;
 
-    const client = this.redisService.getClient();
-
     // Use pipeline for atomic operations
-    const pipeline = client.pipeline();
+    const pipeline = this.redis.pipeline();
 
     // Store user data with TTL
     pipeline.set(
@@ -416,14 +413,14 @@ export class VoicePresenceService {
   ): Promise<void> {
     // Check if user is already in the DM call
     const userDataKey = `${this.DM_VOICE_PRESENCE_USER_DATA_PREFIX}:${dmGroupId}:${userId}`;
-    const existingData = await this.redisService.get(userDataKey);
+    const existingData = await this.redis.get(userDataKey);
 
     if (existingData) {
       // User already in DM call - refresh TTL
       this.logger.debug(
         `User ${userId} already in DM ${dmGroupId}, refreshing presence`,
       );
-      await this.redisService.expire(userDataKey, this.VOICE_PRESENCE_TTL);
+      await this.redis.expire(userDataKey, this.VOICE_PRESENCE_TTL);
       return;
     }
 
@@ -463,14 +460,12 @@ export class VoicePresenceService {
     const dmMembersKey = `${this.DM_VOICE_PRESENCE_MEMBERS_PREFIX}:${dmGroupId}:members`;
     const userDmsKey = `${this.DM_VOICE_PRESENCE_USER_DMS_PREFIX}:${userId}`;
 
-    const client = this.redisService.getClient();
-
     // Check if this is the first user joining
-    const existingMembers = await client.smembers(dmMembersKey);
+    const existingMembers = await this.redis.smembers(dmMembersKey);
     const isFirstUser = existingMembers.length === 0;
 
     // Use pipeline for atomic operations
-    const pipeline = client.pipeline();
+    const pipeline = this.redis.pipeline();
 
     // Store user data with TTL
     pipeline.set(
@@ -529,10 +524,9 @@ export class VoicePresenceService {
   async getUserVoiceChannels(userId: string): Promise<string[]> {
     try {
       const userChannelsKey = `${this.VOICE_PRESENCE_USER_CHANNELS_PREFIX}:${userId}`;
-      const client = this.redisService.getClient();
 
       // Get all channel IDs from the user's channels set (O(1) operation)
-      const channelIds = await client.smembers(userChannelsKey);
+      const channelIds = await this.redis.smembers(userChannelsKey);
 
       return channelIds;
     } catch (error) {
@@ -555,7 +549,7 @@ export class VoicePresenceService {
       const userDmsKey = `${this.DM_VOICE_PRESENCE_USER_DMS_PREFIX}:${userId}`;
 
       // Get user info before removing
-      const userDataStr = await this.redisService.get(userDataKey);
+      const userDataStr = await this.redis.get(userDataKey);
       if (!userDataStr) {
         this.logger.warn(
           `User ${userId} not found in DM voice call ${dmGroupId}`,
@@ -565,10 +559,8 @@ export class VoicePresenceService {
 
       const userData = JSON.parse(userDataStr) as VoicePresenceUser;
 
-      const client = this.redisService.getClient();
-
       // Use pipeline for atomic operations
-      const pipeline = client.pipeline();
+      const pipeline = this.redis.pipeline();
 
       // Remove user data
       pipeline.del(userDataKey);
@@ -608,10 +600,9 @@ export class VoicePresenceService {
   async getDmPresence(dmGroupId: string): Promise<VoicePresenceUser[]> {
     try {
       const dmMembersKey = `${this.DM_VOICE_PRESENCE_MEMBERS_PREFIX}:${dmGroupId}:members`;
-      const client = this.redisService.getClient();
 
       // Get all user IDs in the DM call (O(1) operation)
-      const userIds = await client.smembers(dmMembersKey);
+      const userIds = await this.redis.smembers(dmMembersKey);
 
       if (userIds.length === 0) {
         return [];
@@ -624,7 +615,7 @@ export class VoicePresenceService {
       );
 
       // Fetch all user data in one operation (O(m) where m is number of users)
-      const values = await client.mget(userDataKeys);
+      const values = await this.redis.mget(userDataKeys);
 
       const users: VoicePresenceUser[] = [];
 
@@ -643,7 +634,7 @@ export class VoicePresenceService {
           this.logger.debug(
             `Cleaning up expired presence for user ${userId} in DM ${dmGroupId}`,
           );
-          await client.srem(dmMembersKey, userId);
+          await this.redis.srem(dmMembersKey, userId);
         }
       }
 

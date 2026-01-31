@@ -17,7 +17,7 @@ import {
   createMockWebsocketService,
 } from '../mocks';
 import { DatabaseService } from '@/database/database.service';
-import { RedisService } from '@/redis/redis.service';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { WebsocketService } from '@/websocket/websocket.service';
 
 /**
@@ -66,7 +66,7 @@ export function createMockConfigService(config: Record<string, any> = {}) {
  */
 export const createCommonProviders = () => [
   { provide: DatabaseService, useValue: createMockDatabase() },
-  { provide: RedisService, useValue: createMockRedis() },
+  { provide: REDIS_CLIENT, useValue: createMockRedis() },
   { provide: WebsocketService, useValue: createMockWebsocketService() },
   { provide: JwtService, useValue: createMockJwtService() },
   { provide: ConfigService, useValue: createMockConfigService() },
