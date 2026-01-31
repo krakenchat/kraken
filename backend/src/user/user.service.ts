@@ -68,27 +68,27 @@ export class UserService {
         },
       });
 
-      const upatedInvite = await this.instanceInviteService.redeemInviteWithTx(
+      const updatedInvite = await this.instanceInviteService.redeemInviteWithTx(
         tx,
         invite.code,
         createdUser.id,
       );
 
-      if (!upatedInvite) {
+      if (!updatedInvite) {
         throw new NotFoundException('Failed to redeem invite.');
       }
 
       // Add user to default communities specified in the invite
-      if (upatedInvite.defaultCommunityId.length > 0) {
+      if (updatedInvite.defaultCommunityId.length > 0) {
         await tx.membership.createMany({
-          data: upatedInvite.defaultCommunityId.map((communityId) => ({
+          data: updatedInvite.defaultCommunityId.map((communityId) => ({
             userId: createdUser.id,
             communityId,
           })),
         });
 
         // Add user to general channel and assign Member role in each community
-        for (const communityId of upatedInvite.defaultCommunityId) {
+        for (const communityId of updatedInvite.defaultCommunityId) {
           try {
             // Add to general channel
             await this.channelsService.addUserToGeneralChannel(
@@ -160,9 +160,15 @@ export class UserService {
     username?: string,
     email?: string,
   ): Promise<void> {
+    const conditions: { username?: string; email?: string }[] = [];
+    if (username) conditions.push({ username });
+    if (email) conditions.push({ email });
+
+    if (conditions.length === 0) return;
+
     const existingUser = await this.database.user.findFirst({
       where: {
-        OR: [{ username }, { email }],
+        OR: conditions,
       },
     });
 
@@ -180,7 +186,9 @@ export class UserService {
       where: {},
       take: limit,
       orderBy: { username: 'asc' as const },
-      ...(continuationToken ? { cursor: { id: continuationToken } } : {}),
+      ...(continuationToken
+        ? { cursor: { id: continuationToken }, skip: 1 }
+        : {}),
     };
 
     const users = (await this.database.user.findMany(query)).map(

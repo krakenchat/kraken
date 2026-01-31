@@ -504,6 +504,7 @@ describe('UserService', () => {
         take: 50,
         orderBy: { username: 'asc' },
         cursor: { id: token },
+        skip: 1,
       });
     });
   });
