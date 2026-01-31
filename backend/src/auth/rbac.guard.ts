@@ -41,7 +41,7 @@ export class RbacGuard implements CanActivate {
 
     if (!user) return false;
     if (user.role === InstanceRole.OWNER) {
-      this.logger.log('User is an owner, skipping RBAC check');
+      this.logger.debug('User is an owner, skipping RBAC check');
       return true;
     }
 

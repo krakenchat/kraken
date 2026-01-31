@@ -296,20 +296,4 @@ export class AuthService {
     return result.count;
   }
 
-  /**
-   * Update session activity timestamp (call on token refresh)
-   */
-  async updateSessionActivity(
-    tokenId: string,
-    deviceInfo?: DeviceInfo,
-  ): Promise<void> {
-    await this.databaseService.refreshToken.update({
-      where: { id: tokenId },
-      data: {
-        lastUsedAt: new Date(),
-        // Update IP if changed
-        ...(deviceInfo?.ipAddress && { ipAddress: deviceInfo.ipAddress }),
-      },
-    });
-  }
 }

@@ -13,8 +13,8 @@ export enum ResourceIdSource {
   BODY = 'body',
   QUERY = 'query',
   PARAM = 'param',
-  PAYLOAD = 'payload', // Add this for WebSocket message payloads
-  TEXT_PAYLOAD = 'text_payload', // Add this for WebSocket message payloads
+  PAYLOAD = 'payload',
+  TEXT_PAYLOAD = 'text_payload',
 }
 
 export interface RbacResourceOptions {
