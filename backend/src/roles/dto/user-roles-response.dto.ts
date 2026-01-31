@@ -5,6 +5,7 @@ export class RoleDto {
   name: string;
   actions: RbacActions[];
   createdAt: Date;
+  isDefault: boolean;
 }
 
 export class UserRolesResponseDto {

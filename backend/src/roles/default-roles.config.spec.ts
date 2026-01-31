@@ -4,7 +4,6 @@ import {
   DEFAULT_MODERATOR_ROLE,
   DEFAULT_MEMBER_ROLE,
   getDefaultCommunityRoles,
-  getDefaultRoleByName,
 } from './default-roles.config';
 
 describe('Default Roles Config', () => {
@@ -33,8 +32,34 @@ describe('Default Roles Config', () => {
     it('should have invite management permissions', () => {
       expect(DEFAULT_ADMIN_ROLE.actions).toContain(RbacActions.CREATE_INVITE);
       expect(DEFAULT_ADMIN_ROLE.actions).toContain(RbacActions.DELETE_INVITE);
-      expect(DEFAULT_ADMIN_ROLE.actions).toContain(
+    });
+
+    it('should NOT have instance-level actions', () => {
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
+        RbacActions.READ_INSTANCE_SETTINGS,
+      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
+        RbacActions.UPDATE_INSTANCE_SETTINGS,
+      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
+        RbacActions.READ_INSTANCE_STATS,
+      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(RbacActions.BAN_USER);
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(RbacActions.READ_USER);
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
+        RbacActions.UPDATE_USER,
+      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
+        RbacActions.DELETE_USER,
+      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
         RbacActions.CREATE_INSTANCE_INVITE,
+      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
+        RbacActions.DELETE_INSTANCE_INVITE,
+      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
+        RbacActions.READ_INSTANCE_INVITE,
       );
     });
 
@@ -180,56 +205,6 @@ describe('Default Roles Config', () => {
 
       expect(roles1).toEqual(roles2);
       expect(roles1).not.toBe(roles2);
-    });
-  });
-
-  describe('getDefaultRoleByName', () => {
-    it('should return admin role by name', () => {
-      const role = getDefaultRoleByName('Community Admin');
-
-      expect(role).toBeDefined();
-      expect(role?.name).toBe('Community Admin');
-      expect(role).toEqual(DEFAULT_ADMIN_ROLE);
-    });
-
-    it('should return moderator role by name', () => {
-      const role = getDefaultRoleByName('Moderator');
-
-      expect(role).toBeDefined();
-      expect(role?.name).toBe('Moderator');
-      expect(role).toEqual(DEFAULT_MODERATOR_ROLE);
-    });
-
-    it('should return member role by name', () => {
-      const role = getDefaultRoleByName('Member');
-
-      expect(role).toBeDefined();
-      expect(role?.name).toBe('Member');
-      expect(role).toEqual(DEFAULT_MEMBER_ROLE);
-    });
-
-    it('should return undefined for non-existent role', () => {
-      const role = getDefaultRoleByName('NonExistentRole');
-
-      expect(role).toBeUndefined();
-    });
-
-    it('should be case-sensitive', () => {
-      const role = getDefaultRoleByName('community admin');
-
-      expect(role).toBeUndefined();
-    });
-
-    it('should handle empty string', () => {
-      const role = getDefaultRoleByName('');
-
-      expect(role).toBeUndefined();
-    });
-
-    it('should handle partial name match', () => {
-      const role = getDefaultRoleByName('Admin');
-
-      expect(role).toBeUndefined();
     });
   });
 

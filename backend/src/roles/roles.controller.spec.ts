@@ -208,17 +208,23 @@ describe('RolesController', () => {
 
   describe('updateRole', () => {
     it('should update an existing role', async () => {
+      const communityId = 'community-456';
       const roleId = 'role-789';
       const updateRoleDto = { name: 'Updated Moderator' };
       const updatedRole = { id: roleId, ...updateRoleDto };
 
       mockRolesService.updateRole.mockResolvedValue(updatedRole);
 
-      const result = await controller.updateRole(roleId, updateRoleDto as any);
+      const result = await controller.updateRole(
+        communityId,
+        roleId,
+        updateRoleDto as any,
+      );
 
       expect(result).toEqual(updatedRole);
       expect(mockRolesService.updateRole).toHaveBeenCalledWith(
         roleId,
+        communityId,
         updateRoleDto,
       );
     });
@@ -226,14 +232,18 @@ describe('RolesController', () => {
 
   describe('deleteRole', () => {
     it('should delete a role', async () => {
+      const communityId = 'community-456';
       const roleId = 'role-999';
 
       mockRolesService.deleteRole.mockResolvedValue(undefined);
 
-      const result = await controller.deleteRole(roleId);
+      const result = await controller.deleteRole(communityId, roleId);
 
       expect(result).toBeUndefined();
-      expect(mockRolesService.deleteRole).toHaveBeenCalledWith(roleId);
+      expect(mockRolesService.deleteRole).toHaveBeenCalledWith(
+        roleId,
+        communityId,
+      );
     });
   });
 
@@ -285,34 +295,19 @@ describe('RolesController', () => {
   });
 
   describe('getUsersForRole', () => {
-    it('should get all users for a role', async () => {
-      const roleId = 'role-777';
+    it('should get all users for a role in a community', async () => {
       const communityId = 'community-888';
+      const roleId = 'role-777';
       const expectedUsers = [{ id: 'user-1' }, { id: 'user-2' }];
 
       mockRolesService.getUsersForRole.mockResolvedValue(expectedUsers);
 
-      const result = await controller.getUsersForRole(roleId, communityId);
+      const result = await controller.getUsersForRole(communityId, roleId);
 
       expect(result).toEqual(expectedUsers);
       expect(mockRolesService.getUsersForRole).toHaveBeenCalledWith(
         roleId,
         communityId,
-      );
-    });
-
-    it('should get users for role without community filter', async () => {
-      const roleId = 'role-999';
-      const expectedUsers = [{ id: 'user-1' }];
-
-      mockRolesService.getUsersForRole.mockResolvedValue(expectedUsers);
-
-      const result = await controller.getUsersForRole(roleId);
-
-      expect(result).toEqual(expectedUsers);
-      expect(mockRolesService.getUsersForRole).toHaveBeenCalledWith(
-        roleId,
-        undefined,
       );
     });
   });

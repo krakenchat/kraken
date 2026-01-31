@@ -11,6 +11,8 @@ export class RoleFactory {
       id,
       name,
       actions: overrides.actions || [],
+      communityId: overrides.communityId ?? null,
+      isDefault: overrides.isDefault ?? false,
       createdAt: overrides.createdAt || new Date(),
       ...overrides,
     } as Role;
@@ -20,6 +22,7 @@ export class RoleFactory {
     return this.build({
       name: 'Admin',
       actions: Object.values(RbacActions),
+      isDefault: true,
       ...overrides,
     });
   }
@@ -33,6 +36,7 @@ export class RoleFactory {
         RbacActions.READ_CHANNEL,
         RbacActions.CREATE_MESSAGE,
       ],
+      isDefault: true,
       ...overrides,
     });
   }
@@ -46,6 +50,7 @@ export class RoleFactory {
         RbacActions.READ_CHANNEL,
         RbacActions.READ_COMMUNITY,
       ],
+      isDefault: true,
       ...overrides,
     });
   }

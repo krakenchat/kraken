@@ -222,6 +222,7 @@ export class RolesService implements OnModuleInit {
       name: ur.role.name,
       actions: ur.role.actions,
       createdAt: ur.role.createdAt,
+      isDefault: ur.role.isDefault,
     }));
 
     return {
@@ -270,6 +271,7 @@ export class RolesService implements OnModuleInit {
       name: ur.role.name,
       actions: ur.role.actions,
       createdAt: ur.role.createdAt,
+      isDefault: ur.role.isDefault,
     }));
 
     return {
@@ -296,6 +298,7 @@ export class RolesService implements OnModuleInit {
       name: ur.role.name,
       actions: ur.role.actions,
       createdAt: ur.role.createdAt,
+      isDefault: ur.role.isDefault,
     }));
 
     return {
@@ -322,7 +325,9 @@ export class RolesService implements OnModuleInit {
     for (const defaultRole of defaultRoles) {
       const role = await database.role.create({
         data: {
-          name: `${defaultRole.name} - ${communityId}`, // Make role names unique per community
+          name: defaultRole.name,
+          communityId,
+          isDefault: true,
           actions: defaultRole.actions,
         },
       });
@@ -361,11 +366,10 @@ export class RolesService implements OnModuleInit {
    * Gets the admin role for a specific community
    */
   async getCommunityAdminRole(communityId: string): Promise<RoleDto | null> {
-    const adminRoleName = `${DEFAULT_ADMIN_ROLE.name} - ${communityId}`;
-
     const role = await this.database.role.findFirst({
       where: {
-        name: adminRoleName,
+        name: DEFAULT_ADMIN_ROLE.name,
+        communityId,
       },
     });
 
@@ -376,6 +380,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 
@@ -385,11 +390,10 @@ export class RolesService implements OnModuleInit {
   async getCommunityModeratorRole(
     communityId: string,
   ): Promise<RoleDto | null> {
-    const modRoleName = `Moderator - ${communityId}`;
-
     const role = await this.database.role.findFirst({
       where: {
-        name: modRoleName,
+        name: 'Moderator',
+        communityId,
       },
     });
 
@@ -400,6 +404,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 
@@ -407,11 +412,10 @@ export class RolesService implements OnModuleInit {
    * Gets the member role for a specific community
    */
   async getCommunityMemberRole(communityId: string): Promise<RoleDto | null> {
-    const memberRoleName = `${DEFAULT_MEMBER_ROLE.name} - ${communityId}`;
-
     const role = await this.database.role.findFirst({
       where: {
-        name: memberRoleName,
+        name: DEFAULT_MEMBER_ROLE.name,
+        communityId,
       },
     });
 
@@ -422,6 +426,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 
@@ -436,7 +441,9 @@ export class RolesService implements OnModuleInit {
 
     const role = await database.role.create({
       data: {
-        name: `${DEFAULT_MEMBER_ROLE.name} - ${communityId}`,
+        name: DEFAULT_MEMBER_ROLE.name,
+        communityId,
+        isDefault: true,
         actions: DEFAULT_MEMBER_ROLE.actions,
       },
     });
@@ -450,23 +457,17 @@ export class RolesService implements OnModuleInit {
   async getCommunityRoles(
     communityId: string,
   ): Promise<CommunityRolesResponseDto> {
-    // Get all roles that match the community-specific pattern
     const roles = await this.database.role.findMany({
-      where: {
-        name: {
-          endsWith: ` - ${communityId}`,
-        },
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
+      where: { communityId },
+      orderBy: { createdAt: 'asc' },
     });
 
     const roleDtos: RoleDto[] = roles.map((role) => ({
       id: role.id,
-      name: role.name.replace(` - ${communityId}`, ''), // Remove community suffix for display
+      name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     }));
 
     return {
@@ -485,12 +486,11 @@ export class RolesService implements OnModuleInit {
   ): Promise<RoleDto> {
     const database = tx || this.database;
 
-    const roleNameWithCommunity = `${createRoleDto.name} - ${communityId}`;
-
     // Check if role with this name already exists for the community
-    const existingRole = await database.role.findUnique({
+    const existingRole = await database.role.findFirst({
       where: {
-        name: roleNameWithCommunity,
+        name: createRoleDto.name,
+        communityId,
       },
     });
 
@@ -514,7 +514,9 @@ export class RolesService implements OnModuleInit {
 
     const role = await database.role.create({
       data: {
-        name: roleNameWithCommunity,
+        name: createRoleDto.name,
+        communityId,
+        isDefault: false,
         actions: createRoleDto.actions,
       },
     });
@@ -525,9 +527,10 @@ export class RolesService implements OnModuleInit {
 
     return {
       id: role.id,
-      name: createRoleDto.name,
+      name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 
@@ -536,6 +539,7 @@ export class RolesService implements OnModuleInit {
    */
   async updateRole(
     roleId: string,
+    communityId: string,
     updateRoleDto: UpdateRoleDto,
     tx?: Prisma.TransactionClient,
   ): Promise<RoleDto> {
@@ -550,14 +554,16 @@ export class RolesService implements OnModuleInit {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
     }
 
-    // Check if this is a default role and prevent name changes (but allow permission changes)
-    const isDefaultRole =
-      existingRole.name.includes('Community Admin -') ||
-      existingRole.name.includes('Member -') ||
-      existingRole.name.includes('Moderator -');
+    // Verify the role belongs to this community
+    if (existingRole.communityId !== communityId) {
+      throw new NotFoundException(
+        `Role with ID ${roleId} not found in this community`,
+      );
+    }
 
+    // Check if this is a default role and prevent name changes (but allow permission changes)
     if (
-      isDefaultRole &&
+      existingRole.isDefault &&
       updateRoleDto.name &&
       updateRoleDto.name.trim() !== existingRole.name.trim()
     ) {
@@ -580,27 +586,23 @@ export class RolesService implements OnModuleInit {
       }
     }
 
-    // If name is being updated, preserve the community suffix
+    // If name is being updated, check for conflicts
     let newName = existingRole.name;
     if (updateRoleDto.name) {
-      const communityIdMatch = existingRole.name.match(/ - (.+)$/);
-      if (communityIdMatch) {
-        const communityId = communityIdMatch[1];
-        newName = `${updateRoleDto.name} - ${communityId}`;
+      newName = updateRoleDto.name;
 
-        // Check if new name conflicts
-        const conflictingRole = await database.role.findFirst({
-          where: {
-            name: newName,
-            id: { not: roleId },
-          },
-        });
+      const conflictingRole = await database.role.findFirst({
+        where: {
+          name: newName,
+          communityId: existingRole.communityId,
+          id: { not: roleId },
+        },
+      });
 
-        if (conflictingRole) {
-          throw new ConflictException(
-            `Role with name "${updateRoleDto.name}" already exists in this community`,
-          );
-        }
+      if (conflictingRole) {
+        throw new ConflictException(
+          `Role with name "${updateRoleDto.name}" already exists in this community`,
+        );
       }
     }
 
@@ -616,9 +618,10 @@ export class RolesService implements OnModuleInit {
 
     return {
       id: updatedRole.id,
-      name: updatedRole.name.replace(/ - .+$/, ''), // Remove community suffix
+      name: updatedRole.name,
       actions: updatedRole.actions,
       createdAt: updatedRole.createdAt,
+      isDefault: updatedRole.isDefault,
     };
   }
 
@@ -627,6 +630,7 @@ export class RolesService implements OnModuleInit {
    */
   async deleteRole(
     roleId: string,
+    communityId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const database = tx || this.database;
@@ -643,13 +647,15 @@ export class RolesService implements OnModuleInit {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
     }
 
-    // Prevent deleting default roles
-    const isDefaultRole =
-      existingRole.name.includes('Community Admin -') ||
-      existingRole.name.includes('Member -') ||
-      existingRole.name.includes('Moderator -');
+    // Verify the role belongs to this community
+    if (existingRole.communityId !== communityId) {
+      throw new NotFoundException(
+        `Role with ID ${roleId} not found in this community`,
+      );
+    }
 
-    if (isDefaultRole) {
+    // Prevent deleting default roles
+    if (existingRole.isDefault) {
       throw new BadRequestException('Cannot delete default roles.');
     }
 
@@ -745,7 +751,7 @@ export class RolesService implements OnModuleInit {
     const database = tx || this.database;
 
     const existingRole = await database.role.findFirst({
-      where: { name: DEFAULT_INSTANCE_ADMIN_ROLE.name },
+      where: { name: DEFAULT_INSTANCE_ADMIN_ROLE.name, communityId: null },
     });
 
     if (existingRole) {
@@ -759,6 +765,8 @@ export class RolesService implements OnModuleInit {
       data: {
         name: DEFAULT_INSTANCE_ADMIN_ROLE.name,
         actions: DEFAULT_INSTANCE_ADMIN_ROLE.actions,
+        communityId: null,
+        isDefault: true,
       },
     });
 
@@ -780,6 +788,7 @@ export class RolesService implements OnModuleInit {
     // 2. Have been assigned as instance roles (isInstanceRole=true in UserRoles)
     const roles = await this.database.role.findMany({
       where: {
+        communityId: null,
         OR: [
           { name: { in: defaultInstanceRoleNames } },
           { UserRoles: { some: { isInstanceRole: true } } },
@@ -793,6 +802,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     }));
   }
 
@@ -815,7 +825,7 @@ export class RolesService implements OnModuleInit {
 
     // Check if role with this name already exists
     const existingRole = await this.database.role.findFirst({
-      where: { name },
+      where: { name, communityId: null },
     });
 
     if (existingRole) {
@@ -826,6 +836,8 @@ export class RolesService implements OnModuleInit {
       data: {
         name,
         actions,
+        communityId: null,
+        isDefault: false,
       },
     });
 
@@ -836,6 +848,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 
@@ -910,6 +923,7 @@ export class RolesService implements OnModuleInit {
       name: updated.name,
       actions: updated.actions,
       createdAt: updated.createdAt,
+      isDefault: updated.isDefault,
     };
   }
 
@@ -1064,7 +1078,7 @@ export class RolesService implements OnModuleInit {
     const database = tx || this.database;
 
     const existingRole = await database.role.findFirst({
-      where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name },
+      where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name, communityId: null },
     });
 
     if (existingRole) {
@@ -1078,6 +1092,8 @@ export class RolesService implements OnModuleInit {
       data: {
         name: DEFAULT_COMMUNITY_CREATOR_ROLE.name,
         actions: DEFAULT_COMMUNITY_CREATOR_ROLE.actions,
+        communityId: null,
+        isDefault: true,
       },
     });
 
@@ -1090,7 +1106,7 @@ export class RolesService implements OnModuleInit {
    */
   async getCommunityCreatorRole(): Promise<RoleDto | null> {
     const role = await this.database.role.findFirst({
-      where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name },
+      where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name, communityId: null },
     });
 
     if (!role) return null;
@@ -1100,6 +1116,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 
@@ -1136,7 +1153,7 @@ export class RolesService implements OnModuleInit {
     roleConfig: DefaultRoleConfig,
   ): Promise<string> {
     const existingRole = await this.database.role.findFirst({
-      where: { name: roleConfig.name },
+      where: { name: roleConfig.name, communityId: null },
     });
 
     if (existingRole) {
@@ -1148,6 +1165,8 @@ export class RolesService implements OnModuleInit {
       data: {
         name: roleConfig.name,
         actions: roleConfig.actions,
+        communityId: null,
+        isDefault: true,
       },
     });
 
@@ -1160,7 +1179,7 @@ export class RolesService implements OnModuleInit {
    */
   async getUserManagerRole(): Promise<RoleDto | null> {
     const role = await this.database.role.findFirst({
-      where: { name: DEFAULT_USER_MANAGER_ROLE.name },
+      where: { name: DEFAULT_USER_MANAGER_ROLE.name, communityId: null },
     });
 
     if (!role) return null;
@@ -1170,6 +1189,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 
@@ -1178,7 +1198,7 @@ export class RolesService implements OnModuleInit {
    */
   async getInviteManagerRole(): Promise<RoleDto | null> {
     const role = await this.database.role.findFirst({
-      where: { name: DEFAULT_INVITE_MANAGER_ROLE.name },
+      where: { name: DEFAULT_INVITE_MANAGER_ROLE.name, communityId: null },
     });
 
     if (!role) return null;
@@ -1188,6 +1208,7 @@ export class RolesService implements OnModuleInit {
       name: role.name,
       actions: role.actions,
       createdAt: role.createdAt,
+      isDefault: role.isDefault,
     };
   }
 }
