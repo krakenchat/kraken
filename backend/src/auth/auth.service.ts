@@ -50,8 +50,13 @@ export class AuthService {
     const user = await this.userService.findByUsername(
       username.toLocaleLowerCase(),
     );
-    if (user && (await bcrypt.compare(pass, user.hashedPassword))) {
-      return new UserEntity(user);
+    if (user) {
+      if (await bcrypt.compare(pass, user.hashedPassword)) {
+        return new UserEntity(user);
+      }
+    } else {
+      // Always run bcrypt.compare to prevent timing-based user enumeration
+      await bcrypt.compare(pass, this.DUMMY_HASH);
     }
 
     return null;

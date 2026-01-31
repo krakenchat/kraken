@@ -119,6 +119,10 @@ export class RbacGuard implements CanActivate {
           return req.query?.[key] as string | undefined;
         case ResourceIdSource.PARAM:
           return req.params?.[key] as string | undefined;
+        case ResourceIdSource.PAYLOAD:
+        case ResourceIdSource.TEXT_PAYLOAD:
+          // PAYLOAD and TEXT_PAYLOAD are WebSocket-only sources
+          return undefined;
         default:
           return undefined;
       }
