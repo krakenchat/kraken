@@ -57,11 +57,11 @@ describe('ChannelMembershipService', () => {
         channelId: channel.id,
       });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.channel.findUnique.mockResolvedValue({
         ...channel,
         community,
       });
-      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
+      mockDatabase.user.findUnique.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(communityMembership);
       mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
       mockDatabase.channelMembership.create.mockResolvedValue(
@@ -99,11 +99,11 @@ describe('ChannelMembershipService', () => {
         addedBy: adder.id,
       });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.channel.findUnique.mockResolvedValue({
         ...channel,
         community,
       });
-      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
+      mockDatabase.user.findUnique.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(communityMembership);
       mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
       mockDatabase.channelMembership.create.mockResolvedValue(
@@ -131,7 +131,7 @@ describe('ChannelMembershipService', () => {
       });
       const createDto = { userId: user.id, channelId: channel.id };
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.channel.findUnique.mockResolvedValue({
         ...channel,
         community,
       });
@@ -155,15 +155,16 @@ describe('ChannelMembershipService', () => {
         channelId: channel.id,
       };
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.channel.findUnique.mockResolvedValue({
         ...channel,
         community,
       });
-      mockDatabase.user.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.create(createDto)).rejects.toThrow();
+      await expect(service.create(createDto)).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.create(createDto)).rejects.toThrow('User not found');
     });
 
     it('should throw ForbiddenException when user not community member', async () => {
@@ -175,11 +176,11 @@ describe('ChannelMembershipService', () => {
       });
       const createDto = { userId: user.id, channelId: channel.id };
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.channel.findUnique.mockResolvedValue({
         ...channel,
         community,
       });
-      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
+      mockDatabase.user.findUnique.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(null);
 
       await expect(service.create(createDto)).rejects.toThrow(
@@ -207,11 +208,11 @@ describe('ChannelMembershipService', () => {
         channelId: channel.id,
       });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.channel.findUnique.mockResolvedValue({
         ...channel,
         community,
       });
-      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
+      mockDatabase.user.findUnique.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(communityMembership);
       mockDatabase.channelMembership.findUnique.mockResolvedValue(
         existingChannelMembership,
@@ -225,67 +226,16 @@ describe('ChannelMembershipService', () => {
       );
     });
 
-    it('should handle P2002 (duplicate) error', async () => {
-      const user = UserFactory.build();
-      const community = CommunityFactory.build();
-      const channel = ChannelFactory.build({
-        isPrivate: true,
-        communityId: community.id,
-      });
-      const createDto = { userId: user.id, channelId: channel.id };
-      const communityMembership = MembershipFactory.build({
-        userId: user.id,
-        communityId: community.id,
-      });
+    it('should throw NotFoundException when channel not found', async () => {
+      const createDto = { userId: 'user-123', channelId: 'nonexistent' };
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
-        ...channel,
-        community,
-      });
-      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
-      mockDatabase.membership.findUnique.mockResolvedValue(communityMembership);
-      mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
-      mockDatabase.channelMembership.create.mockRejectedValue({
-        code: 'P2002',
-      });
-
-      await expect(service.create(createDto)).rejects.toThrow(
-        ConflictException,
-      );
-      await expect(service.create(createDto)).rejects.toThrow(
-        'User is already a member of this channel',
-      );
-    });
-
-    it('should handle P2025 (not found) error', async () => {
-      const user = UserFactory.build();
-      const community = CommunityFactory.build();
-      const channel = ChannelFactory.build({
-        isPrivate: true,
-        communityId: community.id,
-      });
-      const createDto = { userId: user.id, channelId: channel.id };
-      const communityMembership = MembershipFactory.build({
-        userId: user.id,
-        communityId: community.id,
-      });
-
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
-        ...channel,
-        community,
-      });
-      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
-      mockDatabase.membership.findUnique.mockResolvedValue(communityMembership);
-      mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
-      mockDatabase.channelMembership.create.mockRejectedValue({
-        code: 'P2025',
-      });
+      mockDatabase.channel.findUnique.mockResolvedValue(null);
 
       await expect(service.create(createDto)).rejects.toThrow(
         NotFoundException,
       );
       await expect(service.create(createDto)).rejects.toThrow(
-        'User or channel not found',
+        'Channel not found',
       );
     });
 
@@ -306,11 +256,11 @@ describe('ChannelMembershipService', () => {
         channelId: channel.id,
       });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.channel.findUnique.mockResolvedValue({
         ...channel,
         community,
       });
-      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
+      mockDatabase.user.findUnique.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(communityMembership);
       mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
       mockDatabase.channelMembership.create.mockResolvedValue(
@@ -353,7 +303,7 @@ describe('ChannelMembershipService', () => {
         },
       ];
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
       mockDatabase.channelMembership.findMany.mockResolvedValue(memberships);
 
       const result = await service.findAllForChannel(channel.id);
@@ -371,7 +321,7 @@ describe('ChannelMembershipService', () => {
     it('should throw ForbiddenException for public channel', async () => {
       const channel = ChannelFactory.build({ isPrivate: false });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
 
       await expect(service.findAllForChannel(channel.id)).rejects.toThrow(
         ForbiddenException,
@@ -384,7 +334,7 @@ describe('ChannelMembershipService', () => {
     it('should return empty array when no memberships exist', async () => {
       const channel = ChannelFactory.build({ isPrivate: true });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
       mockDatabase.channelMembership.findMany.mockResolvedValue([]);
 
       const result = await service.findAllForChannel(channel.id);
@@ -392,15 +342,14 @@ describe('ChannelMembershipService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should rethrow errors', async () => {
-      const channel = ChannelFactory.build({ isPrivate: true });
+    it('should throw NotFoundException when channel not found', async () => {
+      mockDatabase.channel.findUnique.mockResolvedValue(null);
 
-      mockDatabase.channel.findUniqueOrThrow.mockRejectedValue(
-        new Error('Database error'),
+      await expect(service.findAllForChannel('nonexistent')).rejects.toThrow(
+        NotFoundException,
       );
-
-      await expect(service.findAllForChannel(channel.id)).rejects.toThrow(
-        'Database error',
+      await expect(service.findAllForChannel('nonexistent')).rejects.toThrow(
+        'Channel not found',
       );
     });
   });
@@ -486,7 +435,7 @@ describe('ChannelMembershipService', () => {
         channel,
       };
 
-      mockDatabase.channelMembership.findUniqueOrThrow.mockResolvedValue(
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(
         membership,
       );
 
@@ -494,7 +443,7 @@ describe('ChannelMembershipService', () => {
 
       expect(result).toBeDefined();
       expect(
-        mockDatabase.channelMembership.findUniqueOrThrow,
+        mockDatabase.channelMembership.findUnique,
       ).toHaveBeenCalledWith({
         where: {
           userId_channelId: {
@@ -508,7 +457,7 @@ describe('ChannelMembershipService', () => {
       });
     });
 
-    it('should throw NotFoundException for public channel membership', async () => {
+    it('should throw ForbiddenException for public channel membership', async () => {
       const user = UserFactory.build();
       const channel = ChannelFactory.build({ isPrivate: false });
       const membership = {
@@ -519,16 +468,15 @@ describe('ChannelMembershipService', () => {
         channel,
       };
 
-      mockDatabase.channelMembership.findUniqueOrThrow.mockResolvedValue(
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(
         membership,
       );
 
-      // Note: The service throws ForbiddenException internally but catch block converts it to NotFoundException
       await expect(service.findOne(user.id, channel.id)).rejects.toThrow(
-        NotFoundException,
+        ForbiddenException,
       );
       await expect(service.findOne(user.id, channel.id)).rejects.toThrow(
-        'Channel membership not found',
+        'This endpoint is only for private channels',
       );
     });
 
@@ -536,9 +484,7 @@ describe('ChannelMembershipService', () => {
       const user = UserFactory.build();
       const channel = ChannelFactory.build();
 
-      mockDatabase.channelMembership.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne(user.id, channel.id)).rejects.toThrow(
         NotFoundException,
@@ -558,8 +504,8 @@ describe('ChannelMembershipService', () => {
         channelId: channel.id,
       });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
-      mockDatabase.channelMembership.findUniqueOrThrow.mockResolvedValue(
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(
         membership,
       );
       mockDatabase.channelMembership.delete.mockResolvedValue(membership);
@@ -580,7 +526,7 @@ describe('ChannelMembershipService', () => {
       const user = UserFactory.build();
       const channel = ChannelFactory.build({ isPrivate: false });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
 
       await expect(service.remove(user.id, channel.id)).rejects.toThrow(
         ForbiddenException,
@@ -594,29 +540,8 @@ describe('ChannelMembershipService', () => {
       const user = UserFactory.build();
       const channel = ChannelFactory.build({ isPrivate: true });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
-      mockDatabase.channelMembership.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
-
-      await expect(service.remove(user.id, channel.id)).rejects.toThrow();
-    });
-
-    it('should handle P2025 error', async () => {
-      const user = UserFactory.build();
-      const channel = ChannelFactory.build({ isPrivate: true });
-      const membership = ChannelMembershipFactory.build({
-        userId: user.id,
-        channelId: channel.id,
-      });
-
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
-      mockDatabase.channelMembership.findUniqueOrThrow.mockResolvedValue(
-        membership,
-      );
-      mockDatabase.channelMembership.delete.mockRejectedValue({
-        code: 'P2025',
-      });
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
 
       await expect(service.remove(user.id, channel.id)).rejects.toThrow(
         NotFoundException,
@@ -634,8 +559,8 @@ describe('ChannelMembershipService', () => {
         channelId: channel.id,
       });
 
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
-      mockDatabase.channelMembership.findUniqueOrThrow.mockResolvedValue(
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(
         membership,
       );
       mockDatabase.channelMembership.delete.mockResolvedValue(membership);
