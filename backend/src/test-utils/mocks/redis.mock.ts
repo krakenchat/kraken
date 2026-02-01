@@ -59,7 +59,6 @@ export function createMockRedis(): MockRedisClient {
   const setStore = new Map<string, Set<string>>();
 
   const createPipeline = () => {
-    const ops: jest.Mock[] = [];
     const pipeline = {
       set: jest.fn().mockReturnThis(),
       del: jest.fn().mockReturnThis(),
