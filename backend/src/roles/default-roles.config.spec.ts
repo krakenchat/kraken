@@ -46,12 +46,8 @@ describe('Default Roles Config', () => {
       );
       expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(RbacActions.BAN_USER);
       expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(RbacActions.READ_USER);
-      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
-        RbacActions.UPDATE_USER,
-      );
-      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
-        RbacActions.DELETE_USER,
-      );
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(RbacActions.UPDATE_USER);
+      expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(RbacActions.DELETE_USER);
       expect(DEFAULT_ADMIN_ROLE.actions).not.toContain(
         RbacActions.CREATE_INSTANCE_INVITE,
       );

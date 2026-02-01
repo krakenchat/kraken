@@ -59,7 +59,8 @@ export class StorageQuotaController {
   async getUsersStorageList(
     @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
     @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number,
-    @Query('minPercentUsed', new DefaultValuePipe(0), ParseIntPipe) minPercentUsed: number,
+    @Query('minPercentUsed', new DefaultValuePipe(0), ParseIntPipe)
+    minPercentUsed: number,
   ): Promise<{ users: UserStorageStatsDto[]; total: number }> {
     return this.storageQuotaService.getUsersStorageList({
       skip,

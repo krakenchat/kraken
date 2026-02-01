@@ -342,9 +342,7 @@ describe('PresenceService', () => {
         'presence:online-users',
         'user-2',
       );
-      expect(mockRedis.del).toHaveBeenCalledWith(
-        'presence:connections:user-2',
-      );
+      expect(mockRedis.del).toHaveBeenCalledWith('presence:connections:user-2');
       expect(mockRedis.srem).toHaveBeenCalledTimes(1);
     });
 
@@ -352,9 +350,7 @@ describe('PresenceService', () => {
       const onlineUsers = ['user-1', 'user-2'];
 
       mockRedis.smembers.mockResolvedValue(onlineUsers);
-      mockRedis.get
-        .mockResolvedValueOnce('1')
-        .mockResolvedValueOnce('1');
+      mockRedis.get.mockResolvedValueOnce('1').mockResolvedValueOnce('1');
 
       await service.cleanupExpired();
 

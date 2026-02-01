@@ -156,18 +156,17 @@ export class ChannelMembershipService {
     userId: string,
     channelId: string,
   ): Promise<ChannelMembershipResponseDto> {
-    const membership =
-      await this.databaseService.channelMembership.findUnique({
-        where: {
-          userId_channelId: {
-            userId,
-            channelId,
-          },
+    const membership = await this.databaseService.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId,
+          channelId,
         },
-        include: {
-          channel: true,
-        },
-      });
+      },
+      include: {
+        channel: true,
+      },
+    });
 
     if (!membership) {
       throw new NotFoundException('Channel membership not found');
@@ -200,15 +199,14 @@ export class ChannelMembershipService {
     }
 
     // Check if membership exists
-    const membership =
-      await this.databaseService.channelMembership.findUnique({
-        where: {
-          userId_channelId: {
-            userId,
-            channelId,
-          },
+    const membership = await this.databaseService.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId,
+          channelId,
         },
-      });
+      },
+    });
 
     if (!membership) {
       throw new NotFoundException('Channel membership not found');
@@ -224,9 +222,7 @@ export class ChannelMembershipService {
       },
     });
 
-    this.logger.log(
-      `Removed user ${userId} from private channel ${channelId}`,
-    );
+    this.logger.log(`Removed user ${userId} from private channel ${channelId}`);
   }
 
   // Helper method to check if user is member of private channel

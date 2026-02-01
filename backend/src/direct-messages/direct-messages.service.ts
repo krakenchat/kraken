@@ -178,34 +178,33 @@ export class DirectMessagesService {
       throw new ForbiddenException('You are not a member of this DM group');
     }
 
-    const dmGroup =
-      await this.databaseService.directMessageGroup.findUnique({
-        where: { id: groupId },
-        include: {
-          members: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  displayName: true,
-                  avatarUrl: true,
-                },
+    const dmGroup = await this.databaseService.directMessageGroup.findUnique({
+      where: { id: groupId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
               },
             },
           },
-          messages: {
-            take: 1,
-            orderBy: { sentAt: 'desc' },
-            select: {
-              id: true,
-              authorId: true,
-              spans: true,
-              sentAt: true,
-            },
+        },
+        messages: {
+          take: 1,
+          orderBy: { sentAt: 'desc' },
+          select: {
+            id: true,
+            authorId: true,
+            spans: true,
+            sentAt: true,
           },
         },
-      });
+      },
+    });
 
     if (!dmGroup) {
       throw new NotFoundException('DM group not found');
@@ -254,7 +253,7 @@ export class DirectMessagesService {
       }
     }
 
-    return await this.findDmGroup(groupId, userId);
+    return this.findDmGroup(groupId, userId);
   }
 
   async leaveDmGroup(groupId: string, userId: string): Promise<void> {

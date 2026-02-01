@@ -97,7 +97,7 @@ export class CommunityService {
   }
 
   async update(id: string, updateCommunityDto: UpdateCommunityDto) {
-    return await this.databaseService.$transaction(async (tx) => {
+    return this.databaseService.$transaction(async (tx) => {
       const currentCommunity = await tx.community.findUnique({
         where: { id },
       });

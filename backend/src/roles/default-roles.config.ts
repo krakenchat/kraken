@@ -316,4 +316,3 @@ export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
 export function getDefaultCommunityRoles(): DefaultRoleConfig[] {
   return [DEFAULT_ADMIN_ROLE, DEFAULT_MODERATOR_ROLE, DEFAULT_MEMBER_ROLE];
 }
-

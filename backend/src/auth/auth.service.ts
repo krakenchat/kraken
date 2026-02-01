@@ -295,5 +295,4 @@ export class AuthService {
 
     return result.count;
   }
-
 }

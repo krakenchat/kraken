@@ -874,9 +874,9 @@ describe('RolesService', () => {
         UserRoles: [{ id: 'user-role-1' }, { id: 'user-role-2' }],
       });
 
-      await expect(
-        service.deleteRole(role.id, communityId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.deleteRole(role.id, communityId)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

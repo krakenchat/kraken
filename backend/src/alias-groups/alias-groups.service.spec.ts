@@ -43,8 +43,14 @@ describe('AliasGroupsService', () => {
     it('should return all alias groups for a community with member counts', async () => {
       const community = CommunityFactory.build();
       const groups = [
-        { ...AliasGroupFactory.build({ communityId: community.id }), _count: { members: 3 } },
-        { ...AliasGroupFactory.build({ communityId: community.id }), _count: { members: 5 } },
+        {
+          ...AliasGroupFactory.build({ communityId: community.id }),
+          _count: { members: 3 },
+        },
+        {
+          ...AliasGroupFactory.build({ communityId: community.id }),
+          _count: { members: 5 },
+        },
       ];
 
       mockDatabase.aliasGroup.findMany.mockResolvedValue(groups);
@@ -79,7 +85,10 @@ describe('AliasGroupsService', () => {
         ...group,
         members: [
           {
-            ...AliasGroupMemberFactory.build({ aliasGroupId: group.id, userId: user.id }),
+            ...AliasGroupMemberFactory.build({
+              aliasGroupId: group.id,
+              userId: user.id,
+            }),
             user: {
               id: user.id,
               username: user.username,
@@ -111,13 +120,18 @@ describe('AliasGroupsService', () => {
   describe('createAliasGroup', () => {
     it('should create a new alias group without members', async () => {
       const community = CommunityFactory.build();
-      const group = AliasGroupFactory.build({ communityId: community.id, name: 'designers' });
+      const group = AliasGroupFactory.build({
+        communityId: community.id,
+        name: 'designers',
+      });
       const groupWithMembers = { ...group, members: [] };
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(null);
       mockDatabase.aliasGroup.create.mockResolvedValue(groupWithMembers);
 
-      const result = await service.createAliasGroup(community.id, { name: 'designers' });
+      const result = await service.createAliasGroup(community.id, {
+        name: 'designers',
+      });
 
       expect(result.name).toBe('designers');
       expect(result.memberCount).toBe(0);
@@ -128,18 +142,41 @@ describe('AliasGroupsService', () => {
       const community = CommunityFactory.build();
       const user1 = UserFactory.build();
       const user2 = UserFactory.build();
-      const group = AliasGroupFactory.build({ communityId: community.id, name: 'team' });
+      const group = AliasGroupFactory.build({
+        communityId: community.id,
+        name: 'team',
+      });
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(null);
       mockDatabase.membership.findMany.mockResolvedValue([
-        MembershipFactory.build({ communityId: community.id, userId: user1.id }),
-        MembershipFactory.build({ communityId: community.id, userId: user2.id }),
+        MembershipFactory.build({
+          communityId: community.id,
+          userId: user1.id,
+        }),
+        MembershipFactory.build({
+          communityId: community.id,
+          userId: user2.id,
+        }),
       ]);
       mockDatabase.aliasGroup.create.mockResolvedValue({
         ...group,
         members: [
-          { user: { id: user1.id, username: user1.username, displayName: null, avatarUrl: null } },
-          { user: { id: user2.id, username: user2.username, displayName: null, avatarUrl: null } },
+          {
+            user: {
+              id: user1.id,
+              username: user1.username,
+              displayName: null,
+              avatarUrl: null,
+            },
+          },
+          {
+            user: {
+              id: user2.id,
+              username: user2.username,
+              displayName: null,
+              avatarUrl: null,
+            },
+          },
         ],
       });
 
@@ -153,7 +190,10 @@ describe('AliasGroupsService', () => {
 
     it('should throw ConflictException when group name already exists', async () => {
       const community = CommunityFactory.build();
-      const existingGroup = AliasGroupFactory.build({ communityId: community.id, name: 'designers' });
+      const existingGroup = AliasGroupFactory.build({
+        communityId: community.id,
+        name: 'designers',
+      });
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(existingGroup);
 
@@ -187,7 +227,9 @@ describe('AliasGroupsService', () => {
         .mockResolvedValueOnce(null); // Second call for name conflict check
       mockDatabase.aliasGroup.update.mockResolvedValue(updatedGroup);
 
-      const result = await service.updateAliasGroup(group.id, { name: 'new-name' });
+      const result = await service.updateAliasGroup(group.id, {
+        name: 'new-name',
+      });
 
       expect(result.name).toBe('new-name');
     });
@@ -202,7 +244,10 @@ describe('AliasGroupsService', () => {
 
     it('should throw ConflictException when new name already exists', async () => {
       const group = AliasGroupFactory.build({ name: 'old-name' });
-      const existingGroup = AliasGroupFactory.build({ communityId: group.communityId, name: 'new-name' });
+      const existingGroup = AliasGroupFactory.build({
+        communityId: group.communityId,
+        name: 'new-name',
+      });
 
       mockDatabase.aliasGroup.findUnique
         .mockResolvedValueOnce(group)
@@ -248,11 +293,17 @@ describe('AliasGroupsService', () => {
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(group);
       mockDatabase.membership.findUnique.mockResolvedValue(
-        MembershipFactory.build({ communityId: group.communityId, userId: user.id }),
+        MembershipFactory.build({
+          communityId: group.communityId,
+          userId: user.id,
+        }),
       );
       mockDatabase.aliasGroupMember.findUnique.mockResolvedValue(null);
       mockDatabase.aliasGroupMember.create.mockResolvedValue(
-        AliasGroupMemberFactory.build({ aliasGroupId: group.id, userId: user.id }),
+        AliasGroupMemberFactory.build({
+          aliasGroupId: group.id,
+          userId: user.id,
+        }),
       );
 
       await service.addMember(group.id, user.id);
@@ -265,9 +316,9 @@ describe('AliasGroupsService', () => {
     it('should throw NotFoundException when group not found', async () => {
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(null);
 
-      await expect(service.addMember('non-existent-id', 'user-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.addMember('non-existent-id', 'user-id'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when user not in community', async () => {
@@ -287,10 +338,16 @@ describe('AliasGroupsService', () => {
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(group);
       mockDatabase.membership.findUnique.mockResolvedValue(
-        MembershipFactory.build({ communityId: group.communityId, userId: user.id }),
+        MembershipFactory.build({
+          communityId: group.communityId,
+          userId: user.id,
+        }),
       );
       mockDatabase.aliasGroupMember.findUnique.mockResolvedValue(
-        AliasGroupMemberFactory.build({ aliasGroupId: group.id, userId: user.id }),
+        AliasGroupMemberFactory.build({
+          aliasGroupId: group.id,
+          userId: user.id,
+        }),
       );
 
       await expect(service.addMember(group.id, user.id)).rejects.toThrow(
@@ -303,7 +360,10 @@ describe('AliasGroupsService', () => {
     it('should remove a member from the group', async () => {
       const group = AliasGroupFactory.build();
       const user = UserFactory.build();
-      const member = AliasGroupMemberFactory.build({ aliasGroupId: group.id, userId: user.id });
+      const member = AliasGroupMemberFactory.build({
+        aliasGroupId: group.id,
+        userId: user.id,
+      });
 
       mockDatabase.aliasGroupMember.findUnique.mockResolvedValue(member);
       mockDatabase.aliasGroupMember.delete.mockResolvedValue(member);
@@ -332,8 +392,14 @@ describe('AliasGroupsService', () => {
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(group);
       mockDatabase.membership.findMany.mockResolvedValue([
-        MembershipFactory.build({ communityId: group.communityId, userId: user1.id }),
-        MembershipFactory.build({ communityId: group.communityId, userId: user2.id }),
+        MembershipFactory.build({
+          communityId: group.communityId,
+          userId: user1.id,
+        }),
+        MembershipFactory.build({
+          communityId: group.communityId,
+          userId: user2.id,
+        }),
       ]);
       mockDatabase.$transaction.mockResolvedValue(undefined);
 
@@ -345,9 +411,9 @@ describe('AliasGroupsService', () => {
     it('should throw NotFoundException when group not found', async () => {
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(null);
 
-      await expect(service.updateMembers('non-existent-id', [])).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.updateMembers('non-existent-id', []),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException for invalid member IDs', async () => {
@@ -369,7 +435,10 @@ describe('AliasGroupsService', () => {
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(groupWithMembers);
 
-      const result = await service.getAliasGroupByName(group.communityId, 'designers');
+      const result = await service.getAliasGroupByName(
+        group.communityId,
+        'designers',
+      );
 
       expect(result?.name).toBe('designers');
     });
@@ -377,7 +446,10 @@ describe('AliasGroupsService', () => {
     it('should return null when group not found', async () => {
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(null);
 
-      const result = await service.getAliasGroupByName('community-id', 'non-existent');
+      const result = await service.getAliasGroupByName(
+        'community-id',
+        'non-existent',
+      );
 
       expect(result).toBeNull();
     });
@@ -405,7 +477,10 @@ describe('AliasGroupsService', () => {
 
       mockDatabase.aliasGroupMember.findFirst.mockResolvedValue(member);
 
-      const result = await service.isUserInAliasGroups('user-id', ['group-1', 'group-2']);
+      const result = await service.isUserInAliasGroups('user-id', [
+        'group-1',
+        'group-2',
+      ]);
 
       expect(result).toBe(true);
     });

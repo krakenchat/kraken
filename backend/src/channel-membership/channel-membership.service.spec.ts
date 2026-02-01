@@ -435,16 +435,12 @@ describe('ChannelMembershipService', () => {
         channel,
       };
 
-      mockDatabase.channelMembership.findUnique.mockResolvedValue(
-        membership,
-      );
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(membership);
 
       const result = await service.findOne(user.id, channel.id);
 
       expect(result).toBeDefined();
-      expect(
-        mockDatabase.channelMembership.findUnique,
-      ).toHaveBeenCalledWith({
+      expect(mockDatabase.channelMembership.findUnique).toHaveBeenCalledWith({
         where: {
           userId_channelId: {
             userId: user.id,
@@ -468,9 +464,7 @@ describe('ChannelMembershipService', () => {
         channel,
       };
 
-      mockDatabase.channelMembership.findUnique.mockResolvedValue(
-        membership,
-      );
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(membership);
 
       await expect(service.findOne(user.id, channel.id)).rejects.toThrow(
         ForbiddenException,
@@ -505,9 +499,7 @@ describe('ChannelMembershipService', () => {
       });
 
       mockDatabase.channel.findUnique.mockResolvedValue(channel);
-      mockDatabase.channelMembership.findUnique.mockResolvedValue(
-        membership,
-      );
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(membership);
       mockDatabase.channelMembership.delete.mockResolvedValue(membership);
 
       await service.remove(user.id, channel.id);
@@ -560,9 +552,7 @@ describe('ChannelMembershipService', () => {
       });
 
       mockDatabase.channel.findUnique.mockResolvedValue(channel);
-      mockDatabase.channelMembership.findUnique.mockResolvedValue(
-        membership,
-      );
+      mockDatabase.channelMembership.findUnique.mockResolvedValue(membership);
       mockDatabase.channelMembership.delete.mockResolvedValue(membership);
 
       const loggerLogSpy = jest

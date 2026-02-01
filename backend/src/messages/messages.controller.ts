@@ -115,11 +115,7 @@ export class MessagesController {
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
-    return this.messagesService.searchChannelMessages(
-      channelId,
-      query,
-      limit,
-    );
+    return this.messagesService.searchChannelMessages(channelId, query, limit);
   }
 
   @Get('search/group/:groupId')
@@ -134,11 +130,7 @@ export class MessagesController {
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
-    return this.messagesService.searchDirectMessages(
-      groupId,
-      query,
-      limit,
-    );
+    return this.messagesService.searchDirectMessages(groupId, query, limit);
   }
 
   @Get('search/community/:communityId')

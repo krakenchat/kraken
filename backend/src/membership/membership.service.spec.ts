@@ -669,9 +669,9 @@ describe('MembershipService', () => {
         new Error('Database error'),
       );
 
-      await expect(
-        service.isMember(user.id, community.id),
-      ).rejects.toThrow('Database error');
+      await expect(service.isMember(user.id, community.id)).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 

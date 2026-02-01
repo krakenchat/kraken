@@ -388,9 +388,7 @@ describe('DirectMessagesService', () => {
       mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue(
         membership,
       );
-      mockDatabase.directMessageGroup.findUnique.mockResolvedValue(
-        dmGroup,
-      );
+      mockDatabase.directMessageGroup.findUnique.mockResolvedValue(dmGroup);
 
       const result = await service.findDmGroup(groupId, user.id);
 

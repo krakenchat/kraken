@@ -101,7 +101,9 @@ export class UserController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  async getUserById(@Param('id', ParseObjectIdPipe) id: string): Promise<UserEntity> {
+  async getUserById(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<UserEntity> {
     const user = await this.userService.findById(id);
 
     if (!user) {
@@ -158,7 +160,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  async getUserByIdAdmin(@Param('id', ParseObjectIdPipe) id: string): Promise<AdminUserEntity> {
+  async getUserByIdAdmin(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<AdminUserEntity> {
     const user = await this.userService.findByIdAdmin(id);
     if (!user) {
       throw new NotFoundException('User not found');
