@@ -388,7 +388,7 @@ describe('DirectMessagesService', () => {
       mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue(
         membership,
       );
-      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue(
+      mockDatabase.directMessageGroup.findUnique.mockResolvedValue(
         dmGroup,
       );
 
@@ -424,35 +424,13 @@ describe('DirectMessagesService', () => {
         groupId,
         userId: user.id,
       });
-      mockDatabase.directMessageGroup.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.directMessageGroup.findUnique.mockResolvedValue(null);
 
       await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
         NotFoundException,
       );
       await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
         'DM group not found',
-      );
-    });
-
-    it('should rethrow ForbiddenException', async () => {
-      const user = UserFactory.build();
-      const groupId = 'dm-123';
-
-      mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue({
-        groupId,
-        userId: user.id,
-      });
-      mockDatabase.directMessageGroup.findUniqueOrThrow.mockRejectedValue(
-        new ForbiddenException('Custom forbidden'),
-      );
-
-      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
-        ForbiddenException,
-      );
-      await expect(service.findDmGroup(groupId, user.id)).rejects.toThrow(
-        'Custom forbidden',
       );
     });
   });
@@ -504,7 +482,7 @@ describe('DirectMessagesService', () => {
         groupId,
         userId: user.id,
       });
-      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue(
+      mockDatabase.directMessageGroup.findUnique.mockResolvedValue(
         updatedGroup,
       );
 
@@ -574,7 +552,7 @@ describe('DirectMessagesService', () => {
         groupId,
         userId: user.id,
       });
-      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.directMessageGroup.findUnique.mockResolvedValue({
         id: groupId,
         name: null,
         isGroup: true,
@@ -607,7 +585,7 @@ describe('DirectMessagesService', () => {
         groupId,
         userId: user.id,
       });
-      mockDatabase.directMessageGroup.findUniqueOrThrow.mockResolvedValue({
+      mockDatabase.directMessageGroup.findUnique.mockResolvedValue({
         id: groupId,
         name: 'Test Group',
         isGroup: true,
