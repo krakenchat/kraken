@@ -475,6 +475,7 @@ describe('RolesService', () => {
             name: role.name,
             actions: role.actions,
             createdAt: role.createdAt,
+            isDefault: role.isDefault,
           },
         ],
       });
@@ -546,7 +547,9 @@ describe('RolesService', () => {
     it('should create default roles and return admin role ID', async () => {
       const communityId = 'community-123';
       const adminRole = RoleFactory.build({
-        name: 'Community Admin - ' + communityId,
+        name: 'Community Admin',
+        communityId,
+        isDefault: true,
       });
 
       mockDatabase.role.create
@@ -559,6 +562,13 @@ describe('RolesService', () => {
 
       expect(adminRoleId).toBe(adminRole.id);
       expect(mockDatabase.role.create).toHaveBeenCalledTimes(3);
+      expect(mockDatabase.role.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'Community Admin',
+          communityId,
+          isDefault: true,
+        }),
+      });
     });
 
     it('should use transaction when provided', async () => {
@@ -599,7 +609,9 @@ describe('RolesService', () => {
     it('should return admin role for community', async () => {
       const communityId = 'community-123';
       const adminRole = RoleFactory.buildAdmin({
-        name: `Community Admin - ${communityId}`,
+        name: 'Community Admin',
+        communityId,
+        isDefault: true,
       });
 
       mockDatabase.role.findFirst.mockResolvedValue(adminRole);
@@ -607,7 +619,11 @@ describe('RolesService', () => {
       const result = await service.getCommunityAdminRole(communityId);
 
       expect(result).toBeTruthy();
-      expect(result?.name).toBe(adminRole.name);
+      expect(result?.name).toBe('Community Admin');
+      expect(result?.isDefault).toBe(true);
+      expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+        where: { name: 'Community Admin', communityId },
+      });
     });
 
     it('should return null when admin role not found', async () => {
@@ -627,11 +643,13 @@ describe('RolesService', () => {
         actions: [RbacActions.CREATE_MESSAGE, RbacActions.READ_MESSAGE],
       };
       const createdRole = RoleFactory.build({
-        name: `Custom Role - ${communityId}`,
+        name: 'Custom Role',
+        communityId,
+        isDefault: false,
         actions: createRoleDto.actions,
       });
 
-      mockDatabase.role.findUnique.mockResolvedValue(null);
+      mockDatabase.role.findFirst.mockResolvedValue(null);
       mockDatabase.role.create.mockResolvedValue(createdRole);
 
       const result = await service.createCommunityRole(
@@ -641,6 +659,18 @@ describe('RolesService', () => {
 
       expect(result.name).toBe('Custom Role');
       expect(result.actions).toEqual(createRoleDto.actions);
+      expect(result.isDefault).toBe(false);
+      expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+        where: { name: 'Custom Role', communityId },
+      });
+      expect(mockDatabase.role.create).toHaveBeenCalledWith({
+        data: {
+          name: 'Custom Role',
+          communityId,
+          isDefault: false,
+          actions: createRoleDto.actions,
+        },
+      });
     });
 
     it('should throw ConflictException when role name already exists', async () => {
@@ -650,7 +680,9 @@ describe('RolesService', () => {
         actions: [RbacActions.CREATE_MESSAGE],
       };
 
-      mockDatabase.role.findUnique.mockResolvedValue(RoleFactory.build());
+      mockDatabase.role.findFirst.mockResolvedValue(
+        RoleFactory.build({ communityId }),
+      );
 
       await expect(
         service.createCommunityRole(communityId, createRoleDto),
@@ -665,7 +697,7 @@ describe('RolesService', () => {
         actions: ['INVALID_ACTION' as any],
       };
 
-      mockDatabase.role.findUnique.mockResolvedValue(null);
+      mockDatabase.role.findFirst.mockResolvedValue(null);
 
       await expect(
         service.createCommunityRole(communityId, createRoleDto),
@@ -676,8 +708,12 @@ describe('RolesService', () => {
   describe('updateRole', () => {
     it('should update role actions', async () => {
       const roleId = 'role-123';
+      const communityId = 'community-123';
       const existingRole = RoleFactory.build({
-        name: 'Custom Role - community-123',
+        id: roleId,
+        name: 'Custom Role',
+        communityId,
+        isDefault: false,
       });
       const updateDto = {
         actions: [RbacActions.READ_MESSAGE, RbacActions.CREATE_MESSAGE],
@@ -687,34 +723,57 @@ describe('RolesService', () => {
       mockDatabase.role.findUnique.mockResolvedValue(existingRole);
       mockDatabase.role.update.mockResolvedValue(updatedRole);
 
-      const result = await service.updateRole(roleId, updateDto);
+      const result = await service.updateRole(roleId, communityId, updateDto);
 
       expect(result.actions).toEqual(updateDto.actions);
+      expect(result.isDefault).toBe(false);
     });
 
     it('should throw NotFoundException when role not found', async () => {
       mockDatabase.role.findUnique.mockResolvedValue(null);
 
-      await expect(service.updateRole('nonexistent', {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.updateRole('nonexistent', 'community-123', {}),
+      ).rejects.toThrow(NotFoundException);
     });
 
-    it('should prevent renaming default roles', async () => {
+    it('should throw NotFoundException when role belongs to different community', async () => {
       const existingRole = RoleFactory.build({
-        name: 'Community Admin - community-123',
+        name: 'Custom Role',
+        communityId: 'other-community',
+        isDefault: false,
       });
 
       mockDatabase.role.findUnique.mockResolvedValue(existingRole);
 
       await expect(
-        service.updateRole(existingRole.id, { name: 'New Name' }),
+        service.updateRole(existingRole.id, 'community-123', {}),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should prevent renaming default roles', async () => {
+      const communityId = 'community-123';
+      const existingRole = RoleFactory.build({
+        name: 'Community Admin',
+        communityId,
+        isDefault: true,
+      });
+
+      mockDatabase.role.findUnique.mockResolvedValue(existingRole);
+
+      await expect(
+        service.updateRole(existingRole.id, communityId, {
+          name: 'New Name',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should allow changing permissions of default roles', async () => {
+      const communityId = 'community-123';
       const existingRole = RoleFactory.build({
-        name: 'Member - community-123',
+        name: 'Member',
+        communityId,
+        isDefault: true,
       });
       const updateDto = { actions: [RbacActions.READ_MESSAGE] };
 
@@ -724,17 +783,26 @@ describe('RolesService', () => {
         actions: updateDto.actions,
       });
 
-      const result = await service.updateRole(existingRole.id, updateDto);
+      const result = await service.updateRole(
+        existingRole.id,
+        communityId,
+        updateDto,
+      );
 
       expect(result.actions).toEqual(updateDto.actions);
+      expect(result.isDefault).toBe(true);
     });
   });
 
   describe('deleteRole', () => {
     it('should delete custom role', async () => {
       const roleId = 'role-123';
+      const communityId = 'community-123';
       const customRole = RoleFactory.build({
-        name: 'Custom Role - community-123',
+        id: roleId,
+        name: 'Custom Role',
+        communityId,
+        isDefault: false,
       });
 
       mockDatabase.role.findUnique.mockResolvedValue({
@@ -743,7 +811,7 @@ describe('RolesService', () => {
       });
       mockDatabase.role.delete.mockResolvedValue(customRole);
 
-      await service.deleteRole(roleId);
+      await service.deleteRole(roleId, communityId);
 
       expect(mockDatabase.role.delete).toHaveBeenCalledWith({
         where: { id: roleId },
@@ -753,14 +821,34 @@ describe('RolesService', () => {
     it('should throw NotFoundException when role not found', async () => {
       mockDatabase.role.findUnique.mockResolvedValue(null);
 
-      await expect(service.deleteRole('nonexistent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.deleteRole('nonexistent', 'community-123'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when role belongs to different community', async () => {
+      const customRole = RoleFactory.build({
+        name: 'Custom Role',
+        communityId: 'other-community',
+        isDefault: false,
+      });
+
+      mockDatabase.role.findUnique.mockResolvedValue({
+        ...customRole,
+        UserRoles: [],
+      });
+
+      await expect(
+        service.deleteRole(customRole.id, 'community-123'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException for default roles', async () => {
+      const communityId = 'community-123';
       const defaultRole = RoleFactory.build({
-        name: 'Community Admin - community-123',
+        name: 'Community Admin',
+        communityId,
+        isDefault: true,
       });
 
       mockDatabase.role.findUnique.mockResolvedValue({
@@ -768,20 +856,25 @@ describe('RolesService', () => {
         UserRoles: [],
       });
 
-      await expect(service.deleteRole(defaultRole.id)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.deleteRole(defaultRole.id, communityId),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when role is assigned to users', async () => {
-      const role = RoleFactory.build({ name: 'Custom Role - community-123' });
+      const communityId = 'community-123';
+      const role = RoleFactory.build({
+        name: 'Custom Role',
+        communityId,
+        isDefault: false,
+      });
 
       mockDatabase.role.findUnique.mockResolvedValue({
         ...role,
         UserRoles: [{ id: 'user-role-1' }, { id: 'user-role-2' }],
       });
 
-      await expect(service.deleteRole(role.id)).rejects.toThrow(
+      await expect(service.deleteRole(role.id, communityId)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -843,7 +936,9 @@ describe('RolesService', () => {
     it('should return moderator role for community', async () => {
       const communityId = 'community-123';
       const modRole = RoleFactory.build({
-        name: `Moderator - ${communityId}`,
+        name: 'Moderator',
+        communityId,
+        isDefault: true,
         actions: [RbacActions.CREATE_MESSAGE, RbacActions.UPDATE_MESSAGE],
       });
 
@@ -852,9 +947,10 @@ describe('RolesService', () => {
       const result = await service.getCommunityModeratorRole(communityId);
 
       expect(result).toBeDefined();
-      expect(result?.name).toBe(`Moderator - ${communityId}`);
+      expect(result?.name).toBe('Moderator');
+      expect(result?.isDefault).toBe(true);
       expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
-        where: { name: `Moderator - ${communityId}` },
+        where: { name: 'Moderator', communityId },
       });
     });
 
@@ -871,7 +967,9 @@ describe('RolesService', () => {
     it('should return member role for community', async () => {
       const communityId = 'community-789';
       const memberRole = RoleFactory.build({
-        name: `Member - ${communityId}`,
+        name: 'Member',
+        communityId,
+        isDefault: true,
         actions: [RbacActions.READ_MESSAGE],
       });
 
@@ -880,7 +978,11 @@ describe('RolesService', () => {
       const result = await service.getCommunityMemberRole(communityId);
 
       expect(result).toBeDefined();
-      expect(result?.name).toBe(`Member - ${communityId}`);
+      expect(result?.name).toBe('Member');
+      expect(result?.isDefault).toBe(true);
+      expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+        where: { name: 'Member', communityId },
+      });
     });
 
     it('should return null when member role not found', async () => {
@@ -897,7 +999,9 @@ describe('RolesService', () => {
       const communityId = 'community-abc';
       const createdRole = RoleFactory.build({
         id: 'role-member-123',
-        name: `Member - ${communityId}`,
+        name: 'Member',
+        communityId,
+        isDefault: true,
       });
 
       mockDatabase.role.create.mockResolvedValue(createdRole);
@@ -907,7 +1011,9 @@ describe('RolesService', () => {
       expect(result).toBe('role-member-123');
       expect(mockDatabase.role.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          name: `Member - ${communityId}`,
+          name: 'Member',
+          communityId,
+          isDefault: true,
         }),
       });
     });
@@ -937,9 +1043,21 @@ describe('RolesService', () => {
     it('should return all roles for community', async () => {
       const communityId = 'community-123';
       const roles = [
-        RoleFactory.build({ name: `Admin - ${communityId}` }),
-        RoleFactory.build({ name: `Moderator - ${communityId}` }),
-        RoleFactory.build({ name: `Member - ${communityId}` }),
+        RoleFactory.build({
+          name: 'Community Admin',
+          communityId,
+          isDefault: true,
+        }),
+        RoleFactory.build({
+          name: 'Moderator',
+          communityId,
+          isDefault: true,
+        }),
+        RoleFactory.build({
+          name: 'Member',
+          communityId,
+          isDefault: true,
+        }),
       ];
 
       mockDatabase.role.findMany.mockResolvedValue(roles);
@@ -948,15 +1066,12 @@ describe('RolesService', () => {
 
       expect(result.communityId).toBe(communityId);
       expect(result.roles).toHaveLength(3);
-      expect(result.roles[0].name).toBe('Admin');
+      expect(result.roles[0].name).toBe('Community Admin');
       expect(result.roles[1].name).toBe('Moderator');
       expect(result.roles[2].name).toBe('Member');
+      expect(result.roles[0].isDefault).toBe(true);
       expect(mockDatabase.role.findMany).toHaveBeenCalledWith({
-        where: {
-          name: {
-            endsWith: ` - ${communityId}`,
-          },
-        },
+        where: { communityId },
         orderBy: {
           createdAt: 'asc',
         },
@@ -981,6 +1096,8 @@ describe('RolesService', () => {
         const createdRole = RoleFactory.build({
           id: 'instance-admin-role-id',
           name: 'Instance Admin',
+          communityId: null,
+          isDefault: true,
         });
 
         mockDatabase.role.findFirst.mockResolvedValue(null);
@@ -989,10 +1106,16 @@ describe('RolesService', () => {
         const result = await service.createDefaultInstanceRole();
 
         expect(result).toBe('instance-admin-role-id');
+        expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+          where: { name: 'Instance Admin', communityId: null },
+        });
         expect(mockDatabase.role.create).toHaveBeenCalledWith({
-          data: expect.objectContaining({
+          data: {
             name: 'Instance Admin',
-          }),
+            actions: expect.any(Array),
+            communityId: null,
+            isDefault: true,
+          },
         });
       });
 
@@ -1014,10 +1137,26 @@ describe('RolesService', () => {
     describe('getInstanceRoles', () => {
       it('should return all instance-level roles', async () => {
         const instanceRoles = [
-          RoleFactory.build({ name: 'Instance Admin' }),
-          RoleFactory.build({ name: 'Community Creator' }),
-          RoleFactory.build({ name: 'User Manager' }),
-          RoleFactory.build({ name: 'Invite Manager' }),
+          RoleFactory.build({
+            name: 'Instance Admin',
+            communityId: null,
+            isDefault: true,
+          }),
+          RoleFactory.build({
+            name: 'Community Creator',
+            communityId: null,
+            isDefault: true,
+          }),
+          RoleFactory.build({
+            name: 'User Manager',
+            communityId: null,
+            isDefault: true,
+          }),
+          RoleFactory.build({
+            name: 'Invite Manager',
+            communityId: null,
+            isDefault: true,
+          }),
         ];
 
         mockDatabase.role.findMany.mockResolvedValue(instanceRoles);
@@ -1026,8 +1165,10 @@ describe('RolesService', () => {
 
         expect(result).toHaveLength(4);
         expect(result[0].name).toBe('Instance Admin');
+        expect(result[0].isDefault).toBe(true);
         expect(mockDatabase.role.findMany).toHaveBeenCalledWith({
           where: {
+            communityId: null,
             OR: [
               {
                 name: {
@@ -1051,9 +1192,12 @@ describe('RolesService', () => {
       it('should create custom instance role with valid actions', async () => {
         const createdRole = RoleFactory.build({
           name: 'Custom Admin',
+          communityId: null,
+          isDefault: false,
           actions: [RbacActions.READ_USER, RbacActions.UPDATE_USER],
         });
 
+        mockDatabase.role.findFirst.mockResolvedValue(null);
         mockDatabase.role.create.mockResolvedValue(createdRole);
 
         const result = await service.createInstanceRole('Custom Admin', [
@@ -1062,7 +1206,16 @@ describe('RolesService', () => {
         ]);
 
         expect(result.name).toBe('Custom Admin');
+        expect(result.isDefault).toBe(false);
         expect(result.actions).toContain(RbacActions.READ_USER);
+        expect(mockDatabase.role.create).toHaveBeenCalledWith({
+          data: {
+            name: 'Custom Admin',
+            actions: [RbacActions.READ_USER, RbacActions.UPDATE_USER],
+            communityId: null,
+            isDefault: false,
+          },
+        });
       });
     });
 
@@ -1270,6 +1423,8 @@ describe('RolesService', () => {
         const createdRole = RoleFactory.build({
           id: 'community-creator-role-id',
           name: 'Community Creator',
+          communityId: null,
+          isDefault: true,
         });
 
         mockDatabase.role.findFirst.mockResolvedValue(null);
@@ -1278,10 +1433,16 @@ describe('RolesService', () => {
         const result = await service.createDefaultCommunityCreatorRole();
 
         expect(result).toBe('community-creator-role-id');
+        expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+          where: { name: 'Community Creator', communityId: null },
+        });
         expect(mockDatabase.role.create).toHaveBeenCalledWith({
-          data: expect.objectContaining({
+          data: {
             name: 'Community Creator',
-          }),
+            actions: expect.any(Array),
+            communityId: null,
+            isDefault: true,
+          },
         });
       });
 
@@ -1323,6 +1484,8 @@ describe('RolesService', () => {
       it('should return Community Creator role when it exists', async () => {
         const creatorRole = RoleFactory.build({
           name: 'Community Creator',
+          communityId: null,
+          isDefault: true,
           actions: [RbacActions.CREATE_COMMUNITY, RbacActions.READ_COMMUNITY],
         });
 
@@ -1332,9 +1495,10 @@ describe('RolesService', () => {
 
         expect(result).toBeDefined();
         expect(result?.name).toBe('Community Creator');
+        expect(result?.isDefault).toBe(true);
         expect(result?.actions).toContain(RbacActions.CREATE_COMMUNITY);
         expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
-          where: { name: 'Community Creator' },
+          where: { name: 'Community Creator', communityId: null },
         });
       });
 
@@ -1367,6 +1531,8 @@ describe('RolesService', () => {
       it('should return User Manager role when it exists', async () => {
         const userManagerRole = RoleFactory.build({
           name: 'User Manager',
+          communityId: null,
+          isDefault: true,
           actions: [RbacActions.READ_USER, RbacActions.UPDATE_USER],
         });
 
@@ -1376,9 +1542,10 @@ describe('RolesService', () => {
 
         expect(result).toBeDefined();
         expect(result?.name).toBe('User Manager');
+        expect(result?.isDefault).toBe(true);
         expect(result?.actions).toContain(RbacActions.READ_USER);
         expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
-          where: { name: 'User Manager' },
+          where: { name: 'User Manager', communityId: null },
         });
       });
 
@@ -1397,6 +1564,8 @@ describe('RolesService', () => {
       it('should return Invite Manager role when it exists', async () => {
         const inviteManagerRole = RoleFactory.build({
           name: 'Invite Manager',
+          communityId: null,
+          isDefault: true,
           actions: [
             RbacActions.READ_INSTANCE_INVITE,
             RbacActions.CREATE_INSTANCE_INVITE,
@@ -1409,9 +1578,10 @@ describe('RolesService', () => {
 
         expect(result).toBeDefined();
         expect(result?.name).toBe('Invite Manager');
+        expect(result?.isDefault).toBe(true);
         expect(result?.actions).toContain(RbacActions.READ_INSTANCE_INVITE);
         expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
-          where: { name: 'Invite Manager' },
+          where: { name: 'Invite Manager', communityId: null },
         });
       });
 
@@ -1430,7 +1600,9 @@ describe('RolesService', () => {
       it('should create all missing default instance roles', async () => {
         // All roles are missing
         mockDatabase.role.findFirst.mockResolvedValue(null);
-        mockDatabase.role.create.mockResolvedValue(RoleFactory.build());
+        mockDatabase.role.create.mockResolvedValue(
+          RoleFactory.build({ communityId: null, isDefault: true }),
+        );
 
         await service.ensureDefaultInstanceRolesExist();
 
@@ -1438,6 +1610,13 @@ describe('RolesService', () => {
         expect(mockDatabase.role.findFirst).toHaveBeenCalledTimes(4);
         // Should have created all 4 default instance roles
         expect(mockDatabase.role.create).toHaveBeenCalledTimes(4);
+        // Each create should include communityId: null and isDefault: true
+        expect(mockDatabase.role.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            communityId: null,
+            isDefault: true,
+          }),
+        });
       });
 
       it('should skip existing roles and only create missing ones', async () => {

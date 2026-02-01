@@ -21,6 +21,7 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
 import { AuthenticatedRequest } from '@/types';
 import { setAccessTokenCookie, clearAccessTokenCookie } from './cookie-helper';
+import { ParseObjectIdPipe } from 'nestjs-object-id';
 
 @Controller('auth')
 export class AuthController {
@@ -147,14 +148,21 @@ export class AuthController {
       | undefined;
 
     if (refreshToken) {
-      await this.databaseService.$transaction(async (tx) => {
-        const [user, jti] =
-          await this.authService.verifyRefreshToken(refreshToken);
+      try {
+        await this.databaseService.$transaction(async (tx) => {
+          const [user, jti] =
+            await this.authService.verifyRefreshToken(refreshToken);
 
-        if (user) {
-          await this.authService.removeRefreshToken(jti, refreshToken, tx);
-        }
-      });
+          if (user) {
+            await this.authService.removeRefreshToken(jti, refreshToken, tx);
+          }
+        });
+      } catch {
+        // Token may be expired or invalid — still clear the cookie
+        this.logger.debug(
+          'Failed to verify refresh token during logout, clearing cookie anyway',
+        );
+      }
 
       res.clearCookie(this.REFRESH_TOKEN_COOKIE_NAME);
     }
@@ -212,7 +220,7 @@ export class AuthController {
   @Delete('sessions/:sessionId')
   async revokeSession(
     @Req() req: AuthenticatedRequest,
-    @Param('sessionId') sessionId: string,
+    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
   ) {
     const revoked = await this.authService.revokeSession(
       req.user.id,

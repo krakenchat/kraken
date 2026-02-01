@@ -101,13 +101,18 @@ describe('AuthService', () => {
       );
     });
 
-    it('should return null when user is not found', async () => {
+    it('should return null when user is not found and still run bcrypt for timing parity', async () => {
       jest.spyOn(userService, 'findByUsername').mockResolvedValue(null);
+      mockBcrypt.compare.mockResolvedValue(false as never);
 
       const result = await service.validateUser('nonexistent', 'password');
 
       expect(result).toBeNull();
-      expect(bcrypt.compare).not.toHaveBeenCalled();
+      // bcrypt.compare must still be called against a dummy hash to prevent timing-based user enumeration
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'password',
+        expect.stringContaining('$2b$10$'),
+      );
     });
 
     it('should return null when password is incorrect', async () => {

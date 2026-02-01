@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   HttpCode,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ModerationService } from './moderation.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -310,13 +312,13 @@ export class ModerationController {
   })
   async getModerationLogs(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('action') action?: ModerationAction,
   ) {
     return this.moderationService.getModerationLogs(communityId, {
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
+      limit,
+      offset,
       action,
     });
   }

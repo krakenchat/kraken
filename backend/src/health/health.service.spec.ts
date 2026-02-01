@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HealthService } from './health.service';
-import { RedisService } from '@/redis/redis.service';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { createMockRedis } from '@/test-utils';
 
 describe('HealthService', () => {
@@ -14,7 +14,7 @@ describe('HealthService', () => {
       providers: [
         HealthService,
         {
-          provide: RedisService,
+          provide: REDIS_CLIENT,
           useValue: mockRedis,
         },
       ],

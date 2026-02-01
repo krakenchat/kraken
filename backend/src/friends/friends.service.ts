@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
+import { DatabaseService } from '@/database/database.service';
 import { Friendship, FriendshipStatus, User } from '@prisma/client';
 
 export interface FriendshipWithUsers extends Friendship {

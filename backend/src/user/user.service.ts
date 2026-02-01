@@ -68,27 +68,27 @@ export class UserService {
         },
       });
 
-      const upatedInvite = await this.instanceInviteService.redeemInviteWithTx(
+      const updatedInvite = await this.instanceInviteService.redeemInviteWithTx(
         tx,
         invite.code,
         createdUser.id,
       );
 
-      if (!upatedInvite) {
+      if (!updatedInvite) {
         throw new NotFoundException('Failed to redeem invite.');
       }
 
       // Add user to default communities specified in the invite
-      if (upatedInvite.defaultCommunityId.length > 0) {
+      if (updatedInvite.defaultCommunityId.length > 0) {
         await tx.membership.createMany({
-          data: upatedInvite.defaultCommunityId.map((communityId) => ({
+          data: updatedInvite.defaultCommunityId.map((communityId) => ({
             userId: createdUser.id,
             communityId,
           })),
         });
 
         // Add user to general channel and assign Member role in each community
-        for (const communityId of upatedInvite.defaultCommunityId) {
+        for (const communityId of updatedInvite.defaultCommunityId) {
           try {
             // Add to general channel
             await this.channelsService.addUserToGeneralChannel(
@@ -160,9 +160,15 @@ export class UserService {
     username?: string,
     email?: string,
   ): Promise<void> {
+    const conditions: { username?: string; email?: string }[] = [];
+    if (username) conditions.push({ username });
+    if (email) conditions.push({ email });
+
+    if (conditions.length === 0) return;
+
     const existingUser = await this.database.user.findFirst({
       where: {
-        OR: [{ username }, { email }],
+        OR: conditions,
       },
     });
 
@@ -180,7 +186,9 @@ export class UserService {
       where: {},
       take: limit,
       orderBy: { username: 'asc' as const },
-      ...(continuationToken ? { cursor: { id: continuationToken } } : {}),
+      ...(continuationToken
+        ? { cursor: { id: continuationToken }, skip: 1 }
+        : {}),
     };
 
     const users = (await this.database.user.findMany(query)).map(
@@ -200,7 +208,7 @@ export class UserService {
     const whereClause: Prisma.UserWhereInput = {
       OR: [
         { username: { contains: query, mode: 'insensitive' } },
-        { email: { contains: query, mode: 'insensitive' } },
+        { displayName: { contains: query, mode: 'insensitive' } },
       ],
     };
 
@@ -332,18 +340,6 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const actingUser = await this.findById(actingUserId);
-    if (!actingUser) {
-      throw new NotFoundException('Acting user not found');
-    }
-
-    // Only OWNER can change roles
-    if (actingUser.role !== InstanceRole.OWNER) {
-      throw new ForbiddenException(
-        'Only instance owners can change user roles',
-      );
-    }
-
     // Prevent demoting yourself if you're the last owner
     if (
       targetUserId === actingUserId &&
@@ -412,11 +408,6 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const actingUser = await this.findById(actingUserId);
-    if (!actingUser) {
-      throw new NotFoundException('Acting user not found');
-    }
-
     // Cannot delete yourself
     if (targetUserId === actingUserId) {
       throw new ForbiddenException(
@@ -424,12 +415,7 @@ export class UserService {
       );
     }
 
-    // Only OWNER can delete users
-    if (actingUser.role !== InstanceRole.OWNER) {
-      throw new ForbiddenException('Only instance owners can delete users');
-    }
-
-    // Cannot delete another OWNER
+    // Cannot delete an OWNER
     if (targetUser.role === InstanceRole.OWNER) {
       throw new ForbiddenException('Cannot delete an instance owner');
     }

@@ -66,12 +66,14 @@ describe('ModerationService', () => {
     name: 'Admin',
     actions: [] as any[],
     createdAt: new Date(),
+    isDefault: true,
   };
   const mockMemberRole = {
     id: '2',
     name: 'Member',
     actions: [] as any[],
     createdAt: new Date(),
+    isDefault: true,
   };
 
   const createMockUserRoles = (roles: (typeof mockAdminRole)[]) => ({

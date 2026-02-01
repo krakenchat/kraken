@@ -201,9 +201,6 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     // Invite management
     RbacActions.CREATE_INVITE,
     RbacActions.DELETE_INVITE,
-    RbacActions.CREATE_INSTANCE_INVITE,
-    RbacActions.DELETE_INSTANCE_INVITE,
-    RbacActions.READ_INSTANCE_INVITE,
 
     // Alias group management
     RbacActions.CREATE_ALIAS_GROUP,
@@ -217,15 +214,6 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     // Reaction management
     RbacActions.CREATE_REACTION,
     RbacActions.DELETE_REACTION,
-
-    // Instance administration (for instance admins)
-    RbacActions.READ_INSTANCE_SETTINGS,
-    RbacActions.UPDATE_INSTANCE_SETTINGS,
-    RbacActions.READ_INSTANCE_STATS,
-    RbacActions.BAN_USER,
-    RbacActions.READ_USER,
-    RbacActions.UPDATE_USER,
-    RbacActions.DELETE_USER,
 
     // Replay capture permission
     RbacActions.CAPTURE_REPLAY,
@@ -327,14 +315,4 @@ export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
  */
 export function getDefaultCommunityRoles(): DefaultRoleConfig[] {
   return [DEFAULT_ADMIN_ROLE, DEFAULT_MODERATOR_ROLE, DEFAULT_MEMBER_ROLE];
-}
-
-/**
- * Get a specific default role by name
- */
-export function getDefaultRoleByName(
-  name: string,
-): DefaultRoleConfig | undefined {
-  const roles = getDefaultCommunityRoles();
-  return roles.find((role) => role.name === name);
 }

@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Logger,
   NotFoundException,
   NotImplementedException,
   Param,
@@ -19,31 +18,24 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 
 @Controller('file')
 export class FileController {
-  private readonly logger = new Logger(FileController.name);
-
   constructor(private readonly fileService: FileService) {}
 
   @Get(':id/metadata')
   @UseGuards(JwtAuthGuard, FileAccessGuard)
   async getFileMetadata(@Param('id', ParseObjectIdPipe) id: string) {
-    try {
-      const file = await this.fileService.findOne(id);
-      if (!file) {
-        throw new NotFoundException('File not found');
-      }
-
-      // Return only metadata, not the file content
-      return {
-        id: file.id,
-        filename: file.filename,
-        mimeType: file.mimeType,
-        fileType: file.fileType,
-        size: file.size,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching file metadata:', error);
+    const file = await this.fileService.findOne(id);
+    if (!file) {
       throw new NotFoundException('File not found');
     }
+
+    // Return only metadata, not the file content
+    return {
+      id: file.id,
+      filename: file.filename,
+      mimeType: file.mimeType,
+      fileType: file.fileType,
+      size: file.size,
+    };
   }
 
   @Get(':id')
@@ -52,25 +44,24 @@ export class FileController {
     @Param('id', ParseObjectIdPipe) id: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    try {
-      const file = await this.fileService.findOne(id);
-      if (file?.storageType !== StorageType.LOCAL) {
-        throw new NotImplementedException(
-          'Only local file storage is supported at this time',
-        );
-      }
-
-      const stream = createReadStream(file.storagePath);
-
-      res.set({
-        'Content-Type': file.mimeType,
-        'Content-Disposition': `inline; filename="${file.filename}"`,
-      });
-
-      return new StreamableFile(stream);
-    } catch (error) {
-      this.logger.error('Error fetching file:', error);
+    const file = await this.fileService.findOne(id);
+    if (!file) {
       throw new NotFoundException('File not found');
     }
+
+    if (file.storageType !== StorageType.LOCAL) {
+      throw new NotImplementedException(
+        'Only local file storage is supported at this time',
+      );
+    }
+
+    const stream = createReadStream(file.storagePath);
+
+    res.set({
+      'Content-Type': file.mimeType,
+      'Content-Disposition': `inline; filename="${file.filename}"`,
+    });
+
+    return new StreamableFile(stream);
   }
 }

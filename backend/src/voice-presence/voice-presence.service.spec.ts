@@ -1,36 +1,31 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { VoicePresenceService } from './voice-presence.service';
-import { RedisService } from '@/redis/redis.service';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
 import { LivekitReplayService } from '@/livekit/livekit-replay.service';
-// UserFactory not currently used but may be needed for future tests
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
 describe('VoicePresenceService', () => {
   let service: VoicePresenceService;
-  let redisService: RedisService;
   let websocketService: WebsocketService;
-  // databaseService retrieved but used indirectly through mocks
 
-  const mockRedisClient = {
-    pipeline: jest.fn().mockReturnValue({
-      set: jest.fn().mockReturnThis(),
-      sadd: jest.fn().mockReturnThis(),
-      srem: jest.fn().mockReturnThis(),
-      del: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue([]),
-    }),
-    smembers: jest.fn(),
-    mget: jest.fn(),
-    srem: jest.fn(),
+  const mockPipeline = {
+    set: jest.fn().mockReturnThis(),
+    sadd: jest.fn().mockReturnThis(),
+    srem: jest.fn().mockReturnThis(),
+    del: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue([]),
   };
 
-  const mockRedisService = {
-    getClient: jest.fn(() => mockRedisClient),
+  const mockRedis = {
     get: jest.fn(),
     set: jest.fn(),
     expire: jest.fn(),
+    smembers: jest.fn(),
+    mget: jest.fn(),
+    srem: jest.fn(),
+    pipeline: jest.fn(() => mockPipeline),
   };
 
   const mockWebsocketService = {
@@ -52,8 +47,8 @@ describe('VoicePresenceService', () => {
       providers: [
         VoicePresenceService,
         {
-          provide: RedisService,
-          useValue: mockRedisService,
+          provide: REDIS_CLIENT,
+          useValue: mockRedis,
         },
         {
           provide: WebsocketService,
@@ -71,10 +66,7 @@ describe('VoicePresenceService', () => {
     }).compile();
 
     service = module.get<VoicePresenceService>(VoicePresenceService);
-    redisService = module.get<RedisService>(RedisService);
     websocketService = module.get<WebsocketService>(WebsocketService);
-    // databaseService retrieved for DI but accessed through mocks
-    module.get<DatabaseService>(DatabaseService);
   });
 
   afterEach(() => {
@@ -96,13 +88,11 @@ describe('VoicePresenceService', () => {
         isDeafened: false,
       };
 
-      jest
-        .spyOn(redisService, 'get')
-        .mockResolvedValue(JSON.stringify(userData));
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
 
       await service.leaveVoiceChannel(channelId, userId);
 
-      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      expect(mockRedis.pipeline).toHaveBeenCalled();
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         channelId,
         ServerEvents.VOICE_CHANNEL_USER_LEFT,
@@ -118,11 +108,11 @@ describe('VoicePresenceService', () => {
       const channelId = 'channel-123';
       const userId = 'nonexistent-user';
 
-      jest.spyOn(redisService, 'get').mockResolvedValue(null);
+      mockRedis.get.mockResolvedValue(null);
 
       await service.leaveVoiceChannel(channelId, userId);
 
-      expect(mockRedisClient.pipeline).not.toHaveBeenCalled();
+      expect(mockRedis.pipeline).not.toHaveBeenCalled();
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
 
@@ -136,19 +126,15 @@ describe('VoicePresenceService', () => {
         isDeafened: false,
       };
 
-      jest
-        .spyOn(redisService, 'get')
-        .mockResolvedValue(JSON.stringify(userData));
-
-      const pipelineMock = mockRedisClient.pipeline();
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
 
       await service.leaveVoiceChannel(channelId, userId);
 
-      expect(pipelineMock.del).toHaveBeenCalledWith(
+      expect(mockPipeline.del).toHaveBeenCalledWith(
         expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
       );
-      expect(pipelineMock.srem).toHaveBeenCalledTimes(2);
-      expect(pipelineMock.exec).toHaveBeenCalled();
+      expect(mockPipeline.srem).toHaveBeenCalledTimes(2);
+      expect(mockPipeline.exec).toHaveBeenCalled();
     });
   });
 
@@ -169,18 +155,18 @@ describe('VoicePresenceService', () => {
         isDeafened: false,
       };
 
-      mockRedisClient.smembers.mockResolvedValue(userIds);
-      mockRedisClient.mget.mockResolvedValue([
+      mockRedis.smembers.mockResolvedValue(userIds);
+      mockRedis.mget.mockResolvedValue([
         JSON.stringify(user1Data),
         JSON.stringify(user2Data),
       ]);
 
       const result = await service.getChannelPresence(channelId);
 
-      expect(mockRedisClient.smembers).toHaveBeenCalledWith(
+      expect(mockRedis.smembers).toHaveBeenCalledWith(
         expect.stringContaining(`voice_presence:channel:${channelId}:members`),
       );
-      expect(mockRedisClient.mget).toHaveBeenCalled();
+      expect(mockRedis.mget).toHaveBeenCalled();
       expect(result).toHaveLength(2);
       expect(result[0].id).toBe('user-1');
       expect(result[1].id).toBe('user-2');
@@ -189,20 +175,20 @@ describe('VoicePresenceService', () => {
     it('should return empty array when no users in channel', async () => {
       const channelId = 'empty-channel';
 
-      mockRedisClient.smembers.mockResolvedValue([]);
+      mockRedis.smembers.mockResolvedValue([]);
 
       const result = await service.getChannelPresence(channelId);
 
       expect(result).toEqual([]);
-      expect(mockRedisClient.mget).not.toHaveBeenCalled();
+      expect(mockRedis.mget).not.toHaveBeenCalled();
     });
 
     it('should clean up expired user data', async () => {
       const channelId = 'channel-456';
       const userIds = ['user-1', 'user-2'];
 
-      mockRedisClient.smembers.mockResolvedValue(userIds);
-      mockRedisClient.mget.mockResolvedValue([
+      mockRedis.smembers.mockResolvedValue(userIds);
+      mockRedis.mget.mockResolvedValue([
         JSON.stringify({
           id: 'user-1',
           username: 'user1',
@@ -216,7 +202,7 @@ describe('VoicePresenceService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('user-1');
-      expect(mockRedisClient.srem).toHaveBeenCalledWith(
+      expect(mockRedis.srem).toHaveBeenCalledWith(
         expect.stringContaining(`voice_presence:channel:${channelId}:members`),
         'user-2',
       );
@@ -229,8 +215,8 @@ describe('VoicePresenceService', () => {
       const earlierTime = new Date('2024-01-01T10:00:00Z');
       const middleTime = new Date('2024-01-01T11:00:00Z');
 
-      mockRedisClient.smembers.mockResolvedValue(userIds);
-      mockRedisClient.mget.mockResolvedValue([
+      mockRedis.smembers.mockResolvedValue(userIds);
+      mockRedis.mget.mockResolvedValue([
         JSON.stringify({
           id: 'user-1',
           username: 'user1',
@@ -264,11 +250,11 @@ describe('VoicePresenceService', () => {
       const channelId = 'channel-123';
       const userId = 'user-123';
 
-      jest.spyOn(redisService, 'expire').mockResolvedValue(1);
+      mockRedis.expire.mockResolvedValue(1);
 
       await service.refreshPresence(channelId, userId);
 
-      expect(redisService.expire).toHaveBeenCalledWith(
+      expect(mockRedis.expire).toHaveBeenCalledWith(
         expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
         300,
       );
@@ -278,9 +264,7 @@ describe('VoicePresenceService', () => {
       const channelId = 'channel-123';
       const userId = 'user-123';
 
-      jest
-        .spyOn(redisService, 'expire')
-        .mockRejectedValue(new Error('Redis error'));
+      mockRedis.expire.mockRejectedValue(new Error('Redis error'));
 
       await expect(
         service.refreshPresence(channelId, userId),
@@ -299,11 +283,11 @@ describe('VoicePresenceService', () => {
       const userId = 'user-123';
       const channelIds = ['channel-1', 'channel-2', 'channel-3'];
 
-      mockRedisClient.smembers.mockResolvedValue(channelIds);
+      mockRedis.smembers.mockResolvedValue(channelIds);
 
       const result = await service.getUserVoiceChannels(userId);
 
-      expect(mockRedisClient.smembers).toHaveBeenCalledWith(
+      expect(mockRedis.smembers).toHaveBeenCalledWith(
         expect.stringContaining(`voice_presence:user_channels:${userId}`),
       );
       expect(result).toEqual(channelIds);
@@ -312,7 +296,7 @@ describe('VoicePresenceService', () => {
     it('should return empty array when user not in any channels', async () => {
       const userId = 'user-456';
 
-      mockRedisClient.smembers.mockResolvedValue([]);
+      mockRedis.smembers.mockResolvedValue([]);
 
       const result = await service.getUserVoiceChannels(userId);
 
@@ -322,7 +306,7 @@ describe('VoicePresenceService', () => {
     it('should return empty array on error', async () => {
       const userId = 'user-789';
 
-      mockRedisClient.smembers.mockRejectedValue(new Error('Redis error'));
+      mockRedis.smembers.mockRejectedValue(new Error('Redis error'));
 
       const result = await service.getUserVoiceChannels(userId);
 
@@ -341,13 +325,11 @@ describe('VoicePresenceService', () => {
         isDeafened: false,
       };
 
-      jest
-        .spyOn(redisService, 'get')
-        .mockResolvedValue(JSON.stringify(userData));
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
 
       await service.leaveDmVoice(dmGroupId, userId);
 
-      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      expect(mockRedis.pipeline).toHaveBeenCalled();
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         dmGroupId,
         ServerEvents.DM_VOICE_USER_LEFT,
@@ -363,11 +345,11 @@ describe('VoicePresenceService', () => {
       const dmGroupId = 'dm-group-456';
       const userId = 'nonexistent-user';
 
-      jest.spyOn(redisService, 'get').mockResolvedValue(null);
+      mockRedis.get.mockResolvedValue(null);
 
       await service.leaveDmVoice(dmGroupId, userId);
 
-      expect(mockRedisClient.pipeline).not.toHaveBeenCalled();
+      expect(mockRedis.pipeline).not.toHaveBeenCalled();
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
   });
@@ -389,15 +371,15 @@ describe('VoicePresenceService', () => {
         isDeafened: false,
       };
 
-      mockRedisClient.smembers.mockResolvedValue(userIds);
-      mockRedisClient.mget.mockResolvedValue([
+      mockRedis.smembers.mockResolvedValue(userIds);
+      mockRedis.mget.mockResolvedValue([
         JSON.stringify(user1Data),
         JSON.stringify(user2Data),
       ]);
 
       const result = await service.getDmPresence(dmGroupId);
 
-      expect(mockRedisClient.smembers).toHaveBeenCalledWith(
+      expect(mockRedis.smembers).toHaveBeenCalledWith(
         expect.stringContaining(`dm_voice_presence:dm:${dmGroupId}:members`),
       );
       expect(result).toHaveLength(2);
@@ -408,20 +390,20 @@ describe('VoicePresenceService', () => {
     it('should return empty array when no users in DM call', async () => {
       const dmGroupId = 'empty-dm';
 
-      mockRedisClient.smembers.mockResolvedValue([]);
+      mockRedis.smembers.mockResolvedValue([]);
 
       const result = await service.getDmPresence(dmGroupId);
 
       expect(result).toEqual([]);
-      expect(mockRedisClient.mget).not.toHaveBeenCalled();
+      expect(mockRedis.mget).not.toHaveBeenCalled();
     });
 
     it('should clean up expired DM user data', async () => {
       const dmGroupId = 'dm-group-456';
       const userIds = ['user-1', 'user-2'];
 
-      mockRedisClient.smembers.mockResolvedValue(userIds);
-      mockRedisClient.mget.mockResolvedValue([
+      mockRedis.smembers.mockResolvedValue(userIds);
+      mockRedis.mget.mockResolvedValue([
         JSON.stringify({
           id: 'user-1',
           username: 'user1',
@@ -435,7 +417,7 @@ describe('VoicePresenceService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('user-1');
-      expect(mockRedisClient.srem).toHaveBeenCalledWith(
+      expect(mockRedis.srem).toHaveBeenCalledWith(
         expect.stringContaining(`dm_voice_presence:dm:${dmGroupId}:members`),
         'user-2',
       );

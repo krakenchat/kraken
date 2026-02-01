@@ -10,6 +10,8 @@ import {
   Req,
   ForbiddenException,
   Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { MembershipService } from './membership.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
@@ -68,33 +70,27 @@ export class MembershipController {
   searchCommunityMembers(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Query('query') query: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ): Promise<MembershipResponseDto[]> {
-    const limitNumber = limit ? parseInt(limit, 10) : 10;
     return this.membershipService.searchMembers(
       communityId,
       query || '',
-      limitNumber,
+      limit,
     );
   }
 
   @Get('/user/:userId')
-  @RequiredActions(RbacActions.READ_MEMBER)
   findAllForUser(
     @Param('userId', ParseObjectIdPipe) userId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<MembershipResponseDto[]> {
-    // Users can only view their own memberships unless they have additional permissions
     if (userId !== req.user.id) {
-      // Could add additional RBAC check here for viewing other users' memberships
-      // For now, only allow users to view their own memberships
       throw new ForbiddenException('Cannot view other users memberships');
     }
     return this.membershipService.findAllForUser(userId);
   }
 
   @Get('/my')
-  @RequiredActions(RbacActions.READ_MEMBER)
   findMyMemberships(
     @Req() req: AuthenticatedRequest,
   ): Promise<MembershipResponseDto[]> {

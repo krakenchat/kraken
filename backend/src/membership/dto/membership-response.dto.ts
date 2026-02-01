@@ -1,14 +1,27 @@
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { Membership, User } from '@prisma/client';
+import { Community, Membership, User } from '@prisma/client';
+
+export class CommunityInfoDto {
+  id: string;
+  name: string;
+  description: string | null;
+  avatar: string | null;
+}
 
 export class MembershipResponseDto {
   id: string;
   user?: UserEntity;
+  community?: CommunityInfoDto;
   userId: string;
   communityId: string;
   joinedAt: Date;
 
-  constructor(membership: Membership & { user?: User }) {
+  constructor(
+    membership: Membership & {
+      user?: User;
+      community?: Partial<Community>;
+    },
+  ) {
     this.id = membership.id;
     this.userId = membership.userId;
     this.communityId = membership.communityId;
@@ -16,6 +29,15 @@ export class MembershipResponseDto {
 
     if (membership.user) {
       this.user = new UserEntity(membership.user);
+    }
+
+    if (membership.community) {
+      this.community = {
+        id: membership.community.id!,
+        name: membership.community.name!,
+        description: membership.community.description ?? null,
+        avatar: membership.community.avatar ?? null,
+      };
     }
   }
 }

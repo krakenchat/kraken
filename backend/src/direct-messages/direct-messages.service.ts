@@ -16,30 +16,124 @@ export class DirectMessagesService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async findUserDmGroups(userId: string): Promise<DmGroupResponseDto[]> {
-    try {
-      // Step 1: Get user's DM group memberships (just group IDs)
-      const memberships =
-        await this.databaseService.directMessageGroupMember.findMany({
-          where: { userId },
-          select: { groupId: true },
-        });
+    // Step 1: Get user's DM group memberships (just group IDs)
+    const memberships =
+      await this.databaseService.directMessageGroupMember.findMany({
+        where: { userId },
+        select: { groupId: true },
+      });
 
-      if (memberships.length === 0) {
-        return [];
+    if (memberships.length === 0) {
+      return [];
+    }
+
+    const groupIds = memberships.map((m) => m.groupId);
+
+    // Step 2: Batch queries in parallel for better performance
+    const [groups, allMembers, lastMessages] = await Promise.all([
+      // Fetch all groups
+      this.databaseService.directMessageGroup.findMany({
+        where: { id: { in: groupIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      // Fetch all members for all groups with user data
+      this.databaseService.directMessageGroupMember.findMany({
+        where: { groupId: { in: groupIds } },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+      // Fetch last message for each group
+      // Use Message model (DM messages have directMessageGroupId set)
+      this.databaseService.message.findMany({
+        where: { directMessageGroupId: { in: groupIds } },
+        orderBy: { sentAt: 'desc' },
+        select: {
+          id: true,
+          authorId: true,
+          spans: true,
+          sentAt: true,
+          directMessageGroupId: true,
+        },
+      }),
+    ]);
+
+    // Step 3: Build lookup maps for efficient assembly
+    const membersByGroupId = new Map<string, typeof allMembers>();
+    for (const member of allMembers) {
+      const existing = membersByGroupId.get(member.groupId) || [];
+      existing.push(member);
+      membersByGroupId.set(member.groupId, existing);
+    }
+
+    // Get first (most recent) message per group
+    const lastMessageByGroupId = new Map<
+      string,
+      (typeof lastMessages)[0] | null
+    >();
+    for (const message of lastMessages) {
+      if (
+        message.directMessageGroupId &&
+        !lastMessageByGroupId.has(message.directMessageGroupId)
+      ) {
+        lastMessageByGroupId.set(message.directMessageGroupId, message);
       }
+    }
 
-      const groupIds = memberships.map((m) => m.groupId);
+    // Step 4: Assemble response
+    return groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      isGroup: group.isGroup,
+      createdAt: group.createdAt,
+      members: membersByGroupId.get(group.id) || [],
+      lastMessage: lastMessageByGroupId.get(group.id) || null,
+    }));
+  }
 
-      // Step 2: Batch queries in parallel for better performance
-      const [groups, allMembers, lastMessages] = await Promise.all([
-        // Fetch all groups
-        this.databaseService.directMessageGroup.findMany({
-          where: { id: { in: groupIds } },
-          orderBy: { createdAt: 'desc' },
-        }),
-        // Fetch all members for all groups with user data
-        this.databaseService.directMessageGroupMember.findMany({
-          where: { groupId: { in: groupIds } },
+  async createDmGroup(
+    createDmGroupDto: CreateDmGroupDto,
+    creatorId: string,
+  ): Promise<DmGroupResponseDto> {
+    // Include the creator in the user list if not already present
+    const allUserIds = Array.from(
+      new Set([creatorId, ...createDmGroupDto.userIds]),
+    );
+
+    // Determine if it's a group (more than 2 users) or 1:1 DM
+    const isGroup = createDmGroupDto.isGroup ?? allUserIds.length > 2;
+
+    // For 1:1 DMs, check if one already exists
+    if (!isGroup && allUserIds.length === 2) {
+      const existingDm = await this.findExisting1on1Dm(
+        allUserIds[0],
+        allUserIds[1],
+      );
+      if (existingDm) {
+        return this.formatDmGroupResponse(existingDm);
+      }
+    }
+
+    // Create the DM group
+    const dmGroup = await this.databaseService.directMessageGroup.create({
+      data: {
+        name: createDmGroupDto.name,
+        isGroup,
+        members: {
+          create: allUserIds.map((userId) => ({
+            userId,
+          })),
+        },
+      },
+      include: {
+        members: {
           include: {
             user: {
               select: {
@@ -50,182 +144,73 @@ export class DirectMessagesService {
               },
             },
           },
-        }),
-        // Fetch last message for each group
-        // Use Message model (DM messages have directMessageGroupId set)
-        this.databaseService.message.findMany({
-          where: { directMessageGroupId: { in: groupIds } },
+        },
+        messages: {
+          take: 1,
           orderBy: { sentAt: 'desc' },
           select: {
             id: true,
             authorId: true,
             spans: true,
             sentAt: true,
-            directMessageGroupId: true,
-          },
-        }),
-      ]);
-
-      // Step 3: Build lookup maps for efficient assembly
-      const membersByGroupId = new Map<string, typeof allMembers>();
-      for (const member of allMembers) {
-        const existing = membersByGroupId.get(member.groupId) || [];
-        existing.push(member);
-        membersByGroupId.set(member.groupId, existing);
-      }
-
-      // Get first (most recent) message per group
-      const lastMessageByGroupId = new Map<
-        string,
-        (typeof lastMessages)[0] | null
-      >();
-      for (const message of lastMessages) {
-        if (
-          message.directMessageGroupId &&
-          !lastMessageByGroupId.has(message.directMessageGroupId)
-        ) {
-          lastMessageByGroupId.set(message.directMessageGroupId, message);
-        }
-      }
-
-      // Step 4: Assemble response
-      return groups.map((group) => ({
-        id: group.id,
-        name: group.name,
-        isGroup: group.isGroup,
-        createdAt: group.createdAt,
-        members: membersByGroupId.get(group.id) || [],
-        lastMessage: lastMessageByGroupId.get(group.id) || null,
-      }));
-    } catch (error) {
-      this.logger.error('Error finding user DM groups', error);
-      throw error;
-    }
-  }
-
-  async createDmGroup(
-    createDmGroupDto: CreateDmGroupDto,
-    creatorId: string,
-  ): Promise<DmGroupResponseDto> {
-    try {
-      // Include the creator in the user list if not already present
-      const allUserIds = Array.from(
-        new Set([creatorId, ...createDmGroupDto.userIds]),
-      );
-
-      // Determine if it's a group (more than 2 users) or 1:1 DM
-      const isGroup = createDmGroupDto.isGroup ?? allUserIds.length > 2;
-
-      // For 1:1 DMs, check if one already exists
-      if (!isGroup && allUserIds.length === 2) {
-        const existingDm = await this.findExisting1on1Dm(
-          allUserIds[0],
-          allUserIds[1],
-        );
-        if (existingDm) {
-          return this.formatDmGroupResponse(existingDm);
-        }
-      }
-
-      // Create the DM group
-      const dmGroup = await this.databaseService.directMessageGroup.create({
-        data: {
-          name: createDmGroupDto.name,
-          isGroup,
-          members: {
-            create: allUserIds.map((userId) => ({
-              userId,
-            })),
           },
         },
-        include: {
-          members: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  displayName: true,
-                  avatarUrl: true,
-                },
-              },
-            },
-          },
-          messages: {
-            take: 1,
-            orderBy: { sentAt: 'desc' },
-            select: {
-              id: true,
-              authorId: true,
-              spans: true,
-              sentAt: true,
-            },
-          },
-        },
-      });
+      },
+    });
 
-      return this.formatDmGroupResponse(dmGroup);
-    } catch (error) {
-      this.logger.error('Error creating DM group', error);
-      throw error;
-    }
+    return this.formatDmGroupResponse(dmGroup);
   }
 
   async findDmGroup(
     groupId: string,
     userId: string,
   ): Promise<DmGroupResponseDto> {
-    try {
-      // Verify user is a member of this DM group
-      const membership =
-        await this.databaseService.directMessageGroupMember.findFirst({
-          where: {
-            groupId,
-            userId,
-          },
-        });
+    // Verify user is a member of this DM group
+    const membership =
+      await this.databaseService.directMessageGroupMember.findFirst({
+        where: {
+          groupId,
+          userId,
+        },
+      });
 
-      if (!membership) {
-        throw new ForbiddenException('You are not a member of this DM group');
-      }
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this DM group');
+    }
 
-      const dmGroup =
-        await this.databaseService.directMessageGroup.findUniqueOrThrow({
-          where: { id: groupId },
+    const dmGroup = await this.databaseService.directMessageGroup.findUnique({
+      where: { id: groupId },
+      include: {
+        members: {
           include: {
-            members: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                    displayName: true,
-                    avatarUrl: true,
-                  },
-                },
-              },
-            },
-            messages: {
-              take: 1,
-              orderBy: { sentAt: 'desc' },
+            user: {
               select: {
                 id: true,
-                authorId: true,
-                spans: true,
-                sentAt: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
               },
             },
           },
-        });
+        },
+        messages: {
+          take: 1,
+          orderBy: { sentAt: 'desc' },
+          select: {
+            id: true,
+            authorId: true,
+            spans: true,
+            sentAt: true,
+          },
+        },
+      },
+    });
 
-      return this.formatDmGroupResponse(dmGroup);
-    } catch (error) {
-      this.logger.error('Error finding DM group', error);
-      if (error instanceof ForbiddenException) {
-        throw error;
-      }
+    if (!dmGroup) {
       throw new NotFoundException('DM group not found');
     }
+
+    return this.formatDmGroupResponse(dmGroup);
   }
 
   async addMembers(
@@ -233,63 +218,53 @@ export class DirectMessagesService {
     addMembersDto: AddMembersDto,
     userId: string,
   ): Promise<DmGroupResponseDto> {
-    try {
-      // Verify user is a member and the group is a group chat (not 1:1 DM)
-      const dmGroup = await this.databaseService.directMessageGroup.findFirst({
-        where: { id: groupId },
-        include: {
-          members: {
-            where: { userId },
-          },
+    // Verify user is a member and the group is a group chat (not 1:1 DM)
+    const dmGroup = await this.databaseService.directMessageGroup.findFirst({
+      where: { id: groupId },
+      include: {
+        members: {
+          where: { userId },
         },
-      });
+      },
+    });
 
-      if (!dmGroup || dmGroup.members.length === 0) {
-        throw new ForbiddenException('You are not a member of this DM group');
-      }
-
-      if (!dmGroup.isGroup) {
-        throw new ForbiddenException('Cannot add members to a 1:1 DM');
-      }
-
-      // Add new members (check for duplicates manually to avoid errors)
-      for (const newUserId of addMembersDto.userIds) {
-        try {
-          await this.databaseService.directMessageGroupMember.create({
-            data: {
-              groupId,
-              userId: newUserId,
-            },
-          });
-        } catch {
-          // Ignore duplicate member errors
-          this.logger.warn(
-            `User ${newUserId} is already a member of group ${groupId}`,
-          );
-        }
-      }
-
-      return await this.findDmGroup(groupId, userId);
-    } catch (error) {
-      this.logger.error('Error adding members to DM group', error);
-      throw error;
+    if (!dmGroup || dmGroup.members.length === 0) {
+      throw new ForbiddenException('You are not a member of this DM group');
     }
+
+    if (!dmGroup.isGroup) {
+      throw new ForbiddenException('Cannot add members to a 1:1 DM');
+    }
+
+    // Add new members (check for duplicates manually to avoid errors)
+    for (const newUserId of addMembersDto.userIds) {
+      try {
+        await this.databaseService.directMessageGroupMember.create({
+          data: {
+            groupId,
+            userId: newUserId,
+          },
+        });
+      } catch {
+        // Ignore duplicate member errors
+        this.logger.warn(
+          `User ${newUserId} is already a member of group ${groupId}`,
+        );
+      }
+    }
+
+    return this.findDmGroup(groupId, userId);
   }
 
   async leaveDmGroup(groupId: string, userId: string): Promise<void> {
-    try {
-      await this.databaseService.directMessageGroupMember.delete({
-        where: {
-          groupId_userId: {
-            groupId,
-            userId,
-          },
+    await this.databaseService.directMessageGroupMember.delete({
+      where: {
+        groupId_userId: {
+          groupId,
+          userId,
         },
-      });
-    } catch (error) {
-      this.logger.error('Error leaving DM group', error);
-      throw error;
-    }
+      },
+    });
   }
 
   private async findExisting1on1Dm(userId1: string, userId2: string) {

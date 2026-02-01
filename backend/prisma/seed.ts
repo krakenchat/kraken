@@ -40,7 +40,7 @@ async function main() {
   console.log({ admin });
 
   const adminRole = await prisma.role.upsert({
-    where: { name: 'admin' },
+    where: { name_communityId: { name: 'admin', communityId: '' } },
     update: {},
     create: {
       name: 'admin',
@@ -83,7 +83,7 @@ async function main() {
   console.log({ adminRole });
 
   const modRole = await prisma.role.upsert({
-    where: { name: 'moderator' },
+    where: { name_communityId: { name: 'moderator', communityId: '' } },
     update: {},
     create: {
       name: 'moderator',
@@ -115,41 +115,65 @@ async function main() {
 
   // Create default instance-level roles
   const instanceAdminRole = await prisma.role.upsert({
-    where: { name: DEFAULT_INSTANCE_ADMIN_ROLE.name },
+    where: {
+      name_communityId: {
+        name: DEFAULT_INSTANCE_ADMIN_ROLE.name,
+        communityId: '',
+      },
+    },
     update: {},
     create: {
       name: DEFAULT_INSTANCE_ADMIN_ROLE.name,
       actions: DEFAULT_INSTANCE_ADMIN_ROLE.actions,
+      isDefault: true,
     },
   });
   console.log({ instanceAdminRole });
 
   const communityCreatorRole = await prisma.role.upsert({
-    where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name },
+    where: {
+      name_communityId: {
+        name: DEFAULT_COMMUNITY_CREATOR_ROLE.name,
+        communityId: '',
+      },
+    },
     update: {},
     create: {
       name: DEFAULT_COMMUNITY_CREATOR_ROLE.name,
       actions: DEFAULT_COMMUNITY_CREATOR_ROLE.actions,
+      isDefault: true,
     },
   });
   console.log({ communityCreatorRole });
 
   const userManagerRole = await prisma.role.upsert({
-    where: { name: DEFAULT_USER_MANAGER_ROLE.name },
+    where: {
+      name_communityId: {
+        name: DEFAULT_USER_MANAGER_ROLE.name,
+        communityId: '',
+      },
+    },
     update: {},
     create: {
       name: DEFAULT_USER_MANAGER_ROLE.name,
       actions: DEFAULT_USER_MANAGER_ROLE.actions,
+      isDefault: true,
     },
   });
   console.log({ userManagerRole });
 
   const inviteManagerRole = await prisma.role.upsert({
-    where: { name: DEFAULT_INVITE_MANAGER_ROLE.name },
+    where: {
+      name_communityId: {
+        name: DEFAULT_INVITE_MANAGER_ROLE.name,
+        communityId: '',
+      },
+    },
     update: {},
     create: {
       name: DEFAULT_INVITE_MANAGER_ROLE.name,
       actions: DEFAULT_INVITE_MANAGER_ROLE.actions,
+      isDefault: true,
     },
   });
   console.log({ inviteManagerRole });
@@ -184,10 +208,14 @@ async function main() {
 
   // Create community-specific roles
   const communityAdminRole = await prisma.role.upsert({
-    where: { name: `Community Admin - ${community.id}` },
+    where: {
+      name_communityId: { name: 'Community Admin', communityId: community.id },
+    },
     update: {},
     create: {
-      name: `Community Admin - ${community.id}`,
+      name: 'Community Admin',
+      communityId: community.id,
+      isDefault: true,
       actions: [
         RbacActions.UPDATE_COMMUNITY,
         RbacActions.DELETE_COMMUNITY,
@@ -225,10 +253,14 @@ async function main() {
   console.log({ communityAdminRole });
 
   const communityModeratorRole = await prisma.role.upsert({
-    where: { name: `Moderator - ${community.id}` },
+    where: {
+      name_communityId: { name: 'Moderator', communityId: community.id },
+    },
     update: {},
     create: {
-      name: `Moderator - ${community.id}`,
+      name: 'Moderator',
+      communityId: community.id,
+      isDefault: true,
       actions: [
         RbacActions.READ_COMMUNITY,
         RbacActions.READ_CHANNEL,
@@ -251,10 +283,17 @@ async function main() {
   console.log({ communityModeratorRole });
 
   const communityMemberRole = await prisma.role.upsert({
-    where: { name: `${DEFAULT_MEMBER_ROLE.name} - ${community.id}` },
+    where: {
+      name_communityId: {
+        name: DEFAULT_MEMBER_ROLE.name,
+        communityId: community.id,
+      },
+    },
     update: {},
     create: {
-      name: `${DEFAULT_MEMBER_ROLE.name} - ${community.id}`,
+      name: DEFAULT_MEMBER_ROLE.name,
+      communityId: community.id,
+      isDefault: true,
       actions: DEFAULT_MEMBER_ROLE.actions,
     },
   });

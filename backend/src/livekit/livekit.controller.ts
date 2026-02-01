@@ -26,15 +26,15 @@ import {
 } from './dto/capture-replay.dto';
 import { UpdateClipDto, ShareClipDto } from './dto/clip-library.dto';
 import { StorageService } from '@/storage/storage.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RbacGuard } from '../auth/rbac.guard';
-import { RequiredActions } from '../auth/rbac-action.decorator';
+import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { RbacGuard } from '@/auth/rbac.guard';
+import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import {
   RbacResource,
   RbacResourceType,
   ResourceIdSource,
-} from '../auth/rbac-resource.decorator';
+} from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
 
 @Controller('livekit')

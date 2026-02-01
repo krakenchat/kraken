@@ -1,32 +1,31 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
 import { NotificationType } from '@prisma/client';
+import { IsObjectId } from 'nestjs-object-id';
 
 export class CreateNotificationDto {
-  @IsNotEmpty()
-  @IsString()
+  @IsObjectId()
   userId: string;
 
   @IsNotEmpty()
   @IsEnum(NotificationType)
   type: NotificationType;
 
+  @IsObjectId()
   @IsOptional()
-  @IsString()
   messageId?: string;
 
+  @IsObjectId()
   @IsOptional()
-  @IsString()
   channelId?: string;
 
+  @IsObjectId()
   @IsOptional()
-  @IsString()
   directMessageGroupId?: string;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsObjectId()
   authorId: string;
 
+  @IsObjectId()
   @IsOptional()
-  @IsString()
   parentMessageId?: string;
 }

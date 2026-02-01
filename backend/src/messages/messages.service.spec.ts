@@ -76,23 +76,24 @@ describe('MessagesService', () => {
     it('should return a message by id', async () => {
       const message = MessageFactory.build();
 
-      mockDatabase.message.findUniqueOrThrow.mockResolvedValue(message);
+      mockDatabase.message.findUnique.mockResolvedValue(message);
 
       const result = await service.findOne(message.id);
 
       expect(result).toEqual(message);
-      expect(mockDatabase.message.findUniqueOrThrow).toHaveBeenCalledWith({
+      expect(mockDatabase.message.findUnique).toHaveBeenCalledWith({
         where: { id: message.id },
       });
     });
 
     it('should throw NotFoundException when message not found', async () => {
-      mockDatabase.message.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.message.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('nonexistent')).rejects.toThrow(
         NotFoundException,
+      );
+      await expect(service.findOne('nonexistent')).rejects.toThrow(
+        'Message not found',
       );
     });
   });

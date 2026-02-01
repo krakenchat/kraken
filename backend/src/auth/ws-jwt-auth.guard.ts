@@ -18,7 +18,7 @@ export class WsJwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    this.logger.log('WsJwtAuthGuard canActivate called');
+    this.logger.debug('WsJwtAuthGuard canActivate called');
 
     if (context.getType() !== 'ws') return true;
     const client = context.switchToWs().getClient<Socket>();

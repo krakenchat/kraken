@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OnboardingService } from './onboarding.service';
 import { DatabaseService } from '@/database/database.service';
-import { RedisService } from '@/redis/redis.service';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { RolesService } from '@/roles/roles.service';
 import { ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -42,7 +42,7 @@ describe('OnboardingService', () => {
           useValue: mockDatabase,
         },
         {
-          provide: RedisService,
+          provide: REDIS_CLIENT,
           useValue: mockRedis,
         },
         {
@@ -120,6 +120,7 @@ describe('OnboardingService', () => {
       expect(mockRedis.set).toHaveBeenCalledWith(
         'onboarding:setup-token',
         'mock-uuid-123',
+        'EX',
         900,
       );
     });

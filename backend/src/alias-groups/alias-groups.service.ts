@@ -77,7 +77,6 @@ export class AliasGroupsService {
     };
   }
 
-
   /**
    * Get all alias groups for a community with member counts
    */

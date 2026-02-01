@@ -200,20 +200,18 @@ describe('ChannelsService', () => {
   describe('findOne', () => {
     it('should return a channel by ID', async () => {
       const channel = ChannelFactory.build();
-      mockDatabase.channel.findUniqueOrThrow.mockResolvedValue(channel);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
 
       const result = await service.findOne(channel.id);
 
       expect(result).toEqual(channel);
-      expect(mockDatabase.channel.findUniqueOrThrow).toHaveBeenCalledWith({
+      expect(mockDatabase.channel.findUnique).toHaveBeenCalledWith({
         where: { id: channel.id },
       });
     });
 
     it('should throw NotFoundException when channel not found', async () => {
-      mockDatabase.channel.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.channel.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('nonexistent')).rejects.toThrow(
         NotFoundException,
@@ -272,18 +270,33 @@ describe('ChannelsService', () => {
   });
 
   describe('remove', () => {
-    it('should delete a channel', async () => {
-      const channelId = 'channel-123';
-      const deletedChannel = ChannelFactory.build({ id: channelId });
+    it('should cascade delete channel and related records', async () => {
+      const channel = ChannelFactory.build();
 
-      mockDatabase.channel.delete.mockResolvedValue(deletedChannel);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.message.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.channel.delete.mockResolvedValue(channel);
 
-      const result = await service.remove(channelId);
+      await service.remove(channel.id);
 
-      expect(result).toEqual(deletedChannel);
-      expect(mockDatabase.channel.delete).toHaveBeenCalledWith({
-        where: { id: channelId },
+      expect(mockDatabase.channelMembership.deleteMany).toHaveBeenCalledWith({
+        where: { channelId: channel.id },
       });
+      expect(mockDatabase.message.deleteMany).toHaveBeenCalledWith({
+        where: { channelId: channel.id },
+      });
+      expect(mockDatabase.channel.delete).toHaveBeenCalledWith({
+        where: { id: channel.id },
+      });
+    });
+
+    it('should throw NotFoundException when channel not found', async () => {
+      mockDatabase.channel.findUnique.mockResolvedValue(null);
+
+      await expect(service.remove('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

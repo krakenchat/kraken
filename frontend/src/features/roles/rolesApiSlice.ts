@@ -6,6 +6,7 @@ export interface RoleDto {
   id: string;
   name: string;
   actions: string[];
+  isDefault: boolean;
   createdAt: string;
 }
 
@@ -138,22 +139,26 @@ export const rolesApi = createApi({
     }),
 
     // Update a role
-    updateRole: builder.mutation<RoleDto, { roleId: string; data: UpdateRoleRequest }>({
-      query: ({ roleId, data }) => ({
-        url: `/${roleId}`,
+    updateRole: builder.mutation<RoleDto, { communityId: string; roleId: string; data: UpdateRoleRequest }>({
+      query: ({ communityId, roleId, data }) => ({
+        url: `/community/${communityId}/${roleId}`,
         method: "PUT",
         body: data,
       }),
-      invalidatesTags: ["CommunityRoles"],
+      invalidatesTags: (_result, _error, { communityId }) => [
+        { type: "CommunityRoles", id: communityId },
+      ],
     }),
 
     // Delete a role
-    deleteRole: builder.mutation<void, string>({
-      query: (roleId) => ({
-        url: `/${roleId}`,
+    deleteRole: builder.mutation<void, { communityId: string; roleId: string }>({
+      query: ({ communityId, roleId }) => ({
+        url: `/community/${communityId}/${roleId}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["CommunityRoles"],
+      invalidatesTags: (_result, _error, { communityId }) => [
+        { type: "CommunityRoles", id: communityId },
+      ],
     }),
 
     // ===== USER-ROLE ASSIGNMENT ENDPOINTS =====
@@ -192,10 +197,10 @@ export const rolesApi = createApi({
     // Get users assigned to a role
     getUsersForRole: builder.query<
       RoleUser[],
-      { roleId: string; communityId?: string }
+      { roleId: string; communityId: string }
     >({
-      query: ({ roleId, communityId }) => ({
-        url: `/${roleId}/users${communityId ? `?communityId=${communityId}` : ""}`,
+      query: ({ communityId, roleId }) => ({
+        url: `/community/${communityId}/${roleId}/users`,
         method: "GET",
       }),
       providesTags: (_result, _error, { roleId }) => [

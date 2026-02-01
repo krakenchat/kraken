@@ -84,14 +84,15 @@ export class ChannelsService {
   }
 
   async findOne(id: string) {
-    try {
-      return await this.databaseService.channel.findUniqueOrThrow({
-        where: { id },
-      });
-    } catch (error) {
-      this.logger.error('Error finding channel', error);
+    const channel = await this.databaseService.channel.findUnique({
+      where: { id },
+    });
+
+    if (!channel) {
       throw new NotFoundException('Channel not found');
     }
+
+    return channel;
   }
 
   async update(id: string, updateChannelDto: UpdateChannelDto) {
@@ -120,9 +121,27 @@ export class ChannelsService {
     }
   }
 
-  remove(id: string) {
-    return this.databaseService.channel.delete({
+  async remove(id: string) {
+    const channel = await this.databaseService.channel.findUnique({
       where: { id },
+    });
+
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    await this.databaseService.$transaction(async (tx) => {
+      await tx.channelMembership.deleteMany({
+        where: { channelId: id },
+      });
+
+      await tx.message.deleteMany({
+        where: { channelId: id },
+      });
+
+      await tx.channel.delete({
+        where: { id },
+      });
     });
   }
 
@@ -207,50 +226,35 @@ export class ChannelsService {
     }
   }
 
-  // Get mentionable channels for a user in a community
   async findMentionableChannels(communityId: string, userId: string) {
-    try {
-      // Get channels that are either:
-      // 1. Public channels in the community
-      // 2. Private channels where the user is a member
-      const channels = await this.databaseService.channel.findMany({
-        where: {
-          communityId,
-          OR: [
-            { isPrivate: false },
-            {
-              isPrivate: true,
-              ChannelMembership: {
-                some: {
-                  userId,
-                },
-              },
+    return this.databaseService.channel.findMany({
+      where: {
+        communityId,
+        OR: [
+          { isPrivate: false },
+          {
+            isPrivate: true,
+            ChannelMembership: {
+              some: { userId },
             },
-          ],
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      });
-
-      return channels;
-    } catch (error) {
-      this.logger.error(
-        `Error finding mentionable channels for user ${userId} in community ${communityId}`,
-        error,
-      );
-      throw error;
-    }
+          },
+        ],
+      },
+      orderBy: { name: 'asc' },
+    });
   }
 
   async moveChannelUp(channelId: string, communityId: string) {
     return this.databaseService.$transaction(async (prisma) => {
-      // First, normalize positions if needed (handles legacy channels with position 0)
       await this.normalizePositions(prisma, communityId);
 
-      const channel = await prisma.channel.findUniqueOrThrow({
+      const channel = await prisma.channel.findUnique({
         where: { id: channelId },
       });
+
+      if (!channel) {
+        throw new NotFoundException('Channel not found');
+      }
 
       // Find the channel above with the same type and lower position
       const channelAbove = await prisma.channel.findFirst({
@@ -292,12 +296,15 @@ export class ChannelsService {
 
   async moveChannelDown(channelId: string, communityId: string) {
     return this.databaseService.$transaction(async (prisma) => {
-      // First, normalize positions if needed (handles legacy channels with position 0)
       await this.normalizePositions(prisma, communityId);
 
-      const channel = await prisma.channel.findUniqueOrThrow({
+      const channel = await prisma.channel.findUnique({
         where: { id: channelId },
       });
+
+      if (!channel) {
+        throw new NotFoundException('Channel not found');
+      }
 
       // Find the channel below with the same type and higher position
       const channelBelow = await prisma.channel.findFirst({

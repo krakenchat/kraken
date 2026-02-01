@@ -36,6 +36,7 @@ export class CommunityController {
   @Post()
   @HttpCode(201)
   @RequiredActions(RbacActions.CREATE_COMMUNITY)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   create(
     @Body() createCommunityDto: CreateCommunityDto,
     @Req() req: AuthenticatedRequest,
@@ -45,6 +46,7 @@ export class CommunityController {
 
   @Get()
   @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   findAll() {
     return this.communityService.findAll();
   }

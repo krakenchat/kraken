@@ -85,60 +85,56 @@ export class CommunityService {
   }
 
   async findOne(id: string) {
-    // TODO: do we want to do it by user id?
-    try {
-      return await this.databaseService.community.findUniqueOrThrow({
-        where: { id },
-      });
-    } catch (error) {
-      this.logger.error(error);
+    const community = await this.databaseService.community.findUnique({
+      where: { id },
+    });
+
+    if (!community) {
       throw new NotFoundException('Community not found');
     }
+
+    return community;
   }
 
   async update(id: string, updateCommunityDto: UpdateCommunityDto) {
-    // TODO: error handling and stuff
-    try {
-      return await this.databaseService.$transaction(async (tx) => {
-        // Get the current community to check for old files
-        const currentCommunity = await tx.community.findUniqueOrThrow({
-          where: { id },
-        });
-
-        // Mark old avatar for deletion if being replaced
-        if (
-          updateCommunityDto.avatar &&
-          currentCommunity.avatar &&
-          updateCommunityDto.avatar !== currentCommunity.avatar
-        ) {
-          await tx.file.update({
-            where: { id: currentCommunity.avatar },
-            data: { deletedAt: new Date() },
-          });
-        }
-
-        // Mark old banner for deletion if being replaced
-        if (
-          updateCommunityDto.banner &&
-          currentCommunity.banner &&
-          updateCommunityDto.banner !== currentCommunity.banner
-        ) {
-          await tx.file.update({
-            where: { id: currentCommunity.banner },
-            data: { deletedAt: new Date() },
-          });
-        }
-
-        // Update the community
-        return tx.community.update({
-          where: { id },
-          data: updateCommunityDto,
-        });
+    return this.databaseService.$transaction(async (tx) => {
+      const currentCommunity = await tx.community.findUnique({
+        where: { id },
       });
-    } catch (error) {
-      this.logger.error(error);
-      throw new NotFoundException('Community not found');
-    }
+
+      if (!currentCommunity) {
+        throw new NotFoundException('Community not found');
+      }
+
+      // Mark old avatar for deletion if being replaced
+      if (
+        updateCommunityDto.avatar &&
+        currentCommunity.avatar &&
+        updateCommunityDto.avatar !== currentCommunity.avatar
+      ) {
+        await tx.file.update({
+          where: { id: currentCommunity.avatar },
+          data: { deletedAt: new Date() },
+        });
+      }
+
+      // Mark old banner for deletion if being replaced
+      if (
+        updateCommunityDto.banner &&
+        currentCommunity.banner &&
+        updateCommunityDto.banner !== currentCommunity.banner
+      ) {
+        await tx.file.update({
+          where: { id: currentCommunity.banner },
+          data: { deletedAt: new Date() },
+        });
+      }
+
+      return tx.community.update({
+        where: { id },
+        data: updateCommunityDto,
+      });
+    });
   }
 
   async addMemberToGeneralChannel(communityId: string, userId: string) {
@@ -154,16 +150,15 @@ export class CommunityService {
   }
 
   async remove(id: string) {
-    // TODO: do we force them to remove all users first?
-    try {
-      await this.databaseService.$transaction(async (tx) => {
-        await tx.membership.deleteMany({ where: { communityId: id } });
-        return tx.community.delete({ where: { id } });
-      });
-    } catch (error) {
-      this.logger.error(error);
+    const community = await this.databaseService.community.findUnique({
+      where: { id },
+    });
+
+    if (!community) {
       throw new NotFoundException('Community not found');
     }
+
+    await this.cascadeDeleteCommunity(id);
   }
 
   // ============================================
@@ -299,49 +294,37 @@ export class CommunityService {
       throw new NotFoundException('Community not found');
     }
 
-    try {
-      await this.databaseService.$transaction(async (tx) => {
-        // Delete all channel memberships for channels in this community
-        await tx.channelMembership.deleteMany({
-          where: {
-            channel: {
-              communityId: id,
-            },
-          },
-        });
+    await this.cascadeDeleteCommunity(id);
+  }
 
-        // Delete all messages in channels of this community
-        await tx.message.deleteMany({
-          where: {
-            channel: {
-              communityId: id,
-            },
-          },
-        });
-
-        // Delete all channels
-        await tx.channel.deleteMany({
-          where: { communityId: id },
-        });
-
-        // Delete all user roles for this community
-        await tx.userRoles.deleteMany({
-          where: { communityId: id },
-        });
-
-        // Delete all memberships
-        await tx.membership.deleteMany({
-          where: { communityId: id },
-        });
-
-        // Finally delete the community
-        await tx.community.delete({
-          where: { id },
-        });
+  /**
+   * Delete a community and all associated records in a transaction.
+   */
+  private async cascadeDeleteCommunity(id: string): Promise<void> {
+    await this.databaseService.$transaction(async (tx) => {
+      await tx.channelMembership.deleteMany({
+        where: { channel: { communityId: id } },
       });
-    } catch (error) {
-      this.logger.error('Error force removing community', error);
-      throw error;
-    }
+
+      await tx.message.deleteMany({
+        where: { channel: { communityId: id } },
+      });
+
+      await tx.channel.deleteMany({
+        where: { communityId: id },
+      });
+
+      await tx.userRoles.deleteMany({
+        where: { communityId: id },
+      });
+
+      await tx.membership.deleteMany({
+        where: { communityId: id },
+      });
+
+      await tx.community.delete({
+        where: { id },
+      });
+    });
   }
 }

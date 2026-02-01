@@ -3,7 +3,7 @@ import { FileController } from './file.controller';
 import { FileService } from './file.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, NotImplementedException } from '@nestjs/common';
 import { StorageType, FileType } from '@prisma/client';
 import { Response } from 'express';
 import * as fs from 'fs';
@@ -104,13 +104,13 @@ describe('FileController', () => {
       );
     });
 
-    it('should throw NotFoundException on service error', async () => {
+    it('should propagate service errors', async () => {
       const fileId = 'error-file';
 
       mockFileService.findOne.mockRejectedValue(new Error('Database error'));
 
       await expect(controller.getFileMetadata(fileId)).rejects.toThrow(
-        NotFoundException,
+        'Database error',
       );
     });
 
@@ -170,7 +170,7 @@ describe('FileController', () => {
       expect(result).toBeDefined();
     });
 
-    it('should throw NotFoundException for non-local storage', async () => {
+    it('should throw NotImplementedException for non-local storage', async () => {
       const fileId = 'file-s3';
       const mockFile = {
         id: fileId,
@@ -184,9 +184,8 @@ describe('FileController', () => {
 
       mockFileService.findOne.mockResolvedValue(mockFile);
 
-      // Controller catches NotImplementedException and converts to NotFoundException
       await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
-        NotFoundException,
+        NotImplementedException,
       );
     });
 
@@ -200,13 +199,13 @@ describe('FileController', () => {
       );
     });
 
-    it('should throw NotFoundException on service error', async () => {
+    it('should propagate service errors', async () => {
       const fileId = 'error-file';
 
       mockFileService.findOne.mockRejectedValue(new Error('Database error'));
 
       await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
-        NotFoundException,
+        'Database error',
       );
     });
 
