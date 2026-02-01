@@ -8,6 +8,8 @@ import {
   Query,
   UseGuards,
   Req,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { StorageQuotaService } from './storage-quota.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -55,14 +57,14 @@ export class StorageQuotaController {
   @RequiredActions(RbacActions.MANAGE_USER_STORAGE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async getUsersStorageList(
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
-    @Query('minPercentUsed') minPercentUsed?: string,
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
+    @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number,
+    @Query('minPercentUsed', new DefaultValuePipe(0), ParseIntPipe) minPercentUsed: number,
   ): Promise<{ users: UserStorageStatsDto[]; total: number }> {
     return this.storageQuotaService.getUsersStorageList({
-      skip: skip ? parseInt(skip, 10) : undefined,
-      take: take ? parseInt(take, 10) : undefined,
-      minPercentUsed: minPercentUsed ? parseInt(minPercentUsed, 10) : undefined,
+      skip,
+      take,
+      minPercentUsed: minPercentUsed || undefined,
     });
   }
 

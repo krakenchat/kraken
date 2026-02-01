@@ -9,6 +9,8 @@ import {
   UseGuards,
   HttpCode,
   Req,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ThreadsService } from './threads.service';
 import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
@@ -69,13 +71,12 @@ export class ThreadsController {
   })
   async getReplies(
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
     return this.threadsService.getThreadRepliesWithMetadata(
       parentMessageId,
-      parsedLimit,
+      limit,
       continuationToken,
     );
   }
