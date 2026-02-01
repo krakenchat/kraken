@@ -521,7 +521,7 @@ describe('UserService', () => {
         where: {
           OR: [
             { username: { contains: 'test', mode: 'insensitive' } },
-            { email: { contains: 'test', mode: 'insensitive' } },
+            { displayName: { contains: 'test', mode: 'insensitive' } },
           ],
         },
         take: 50,
@@ -540,7 +540,7 @@ describe('UserService', () => {
         where: {
           OR: [
             { username: { contains: 'test', mode: 'insensitive' } },
-            { email: { contains: 'test', mode: 'insensitive' } },
+            { displayName: { contains: 'test', mode: 'insensitive' } },
           ],
           NOT: {
             memberships: {

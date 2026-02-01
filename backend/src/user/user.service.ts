@@ -208,7 +208,7 @@ export class UserService {
     const whereClause: Prisma.UserWhereInput = {
       OR: [
         { username: { contains: query, mode: 'insensitive' } },
-        { email: { contains: query, mode: 'insensitive' } },
+        { displayName: { contains: query, mode: 'insensitive' } },
       ],
     };
 
@@ -340,18 +340,6 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const actingUser = await this.findById(actingUserId);
-    if (!actingUser) {
-      throw new NotFoundException('Acting user not found');
-    }
-
-    // Only OWNER can change roles
-    if (actingUser.role !== InstanceRole.OWNER) {
-      throw new ForbiddenException(
-        'Only instance owners can change user roles',
-      );
-    }
-
     // Prevent demoting yourself if you're the last owner
     if (
       targetUserId === actingUserId &&
@@ -420,11 +408,6 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const actingUser = await this.findById(actingUserId);
-    if (!actingUser) {
-      throw new NotFoundException('Acting user not found');
-    }
-
     // Cannot delete yourself
     if (targetUserId === actingUserId) {
       throw new ForbiddenException(
@@ -432,12 +415,7 @@ export class UserService {
       );
     }
 
-    // Only OWNER can delete users
-    if (actingUser.role !== InstanceRole.OWNER) {
-      throw new ForbiddenException('Only instance owners can delete users');
-    }
-
-    // Cannot delete another OWNER
+    // Cannot delete an OWNER
     if (targetUser.role === InstanceRole.OWNER) {
       throw new ForbiddenException('Cannot delete an instance owner');
     }
