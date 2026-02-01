@@ -108,6 +108,7 @@ describe('MembershipController', () => {
       const result = await controller.searchCommunityMembers(
         communityId,
         query,
+        10,
       );
 
       expect(service.searchMembers).toHaveBeenCalledWith(
@@ -121,11 +122,10 @@ describe('MembershipController', () => {
     it('should search with custom limit', async () => {
       const communityId = 'community-456';
       const query = 'test';
-      const limit = '25';
 
       jest.spyOn(service, 'searchMembers').mockResolvedValue([]);
 
-      await controller.searchCommunityMembers(communityId, query, limit);
+      await controller.searchCommunityMembers(communityId, query, 25);
 
       expect(service.searchMembers).toHaveBeenCalledWith(
         communityId,
@@ -139,7 +139,7 @@ describe('MembershipController', () => {
 
       jest.spyOn(service, 'searchMembers').mockResolvedValue([]);
 
-      await controller.searchCommunityMembers(communityId, '');
+      await controller.searchCommunityMembers(communityId, '', 10);
 
       expect(service.searchMembers).toHaveBeenCalledWith(communityId, '', 10);
     });
