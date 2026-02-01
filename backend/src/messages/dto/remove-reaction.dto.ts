@@ -1,8 +1,10 @@
 import { IsString, IsNotEmpty } from 'class-validator';
+import { IsObjectId } from 'nestjs-object-id';
 
 export class RemoveReactionDto {
-  @IsString()
   @IsNotEmpty()
+  @IsString()
+  @IsObjectId()
   messageId: string;
 
   @IsString()

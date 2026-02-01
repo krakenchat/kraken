@@ -119,14 +119,15 @@ export class MessagesService {
   }
 
   async findOne(id: string) {
-    try {
-      return await this.databaseService.message.findUniqueOrThrow({
-        where: { id },
-      });
-    } catch (error) {
-      this.logger.error('Error finding message', error);
+    const message = await this.databaseService.message.findUnique({
+      where: { id },
+    });
+
+    if (!message) {
       throw new NotFoundException('Message not found');
     }
+
+    return message;
   }
 
   async update(
@@ -134,87 +135,76 @@ export class MessagesService {
     updateMessageDto: UpdateMessageDto,
     originalAttachments?: string[],
   ) {
-    try {
-      // Wrap in transaction to ensure message update and file marking are atomic
-      return await this.databaseService.$transaction(
-        async (tx: Prisma.TransactionClient) => {
-          // If spans are being updated, recompute searchText
-          const dataToUpdate = { ...updateMessageDto };
-          if (updateMessageDto.spans) {
-            (dataToUpdate as Record<string, unknown>).searchText =
-              this.flattenSpansToText(updateMessageDto.spans);
+    // Wrap in transaction to ensure message update and file marking are atomic
+    return this.databaseService.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // If spans are being updated, recompute searchText
+        const dataToUpdate = { ...updateMessageDto };
+        if (updateMessageDto.spans) {
+          (dataToUpdate as Record<string, unknown>).searchText =
+            this.flattenSpansToText(updateMessageDto.spans);
+        }
+
+        // Update the message first
+        const updatedMessage = await tx.message.update({
+          where: { id },
+          data: dataToUpdate,
+        });
+
+        // If attachments are being updated and we have the original list, mark removed ones for deletion
+        if (
+          updateMessageDto.attachments &&
+          originalAttachments &&
+          Array.isArray(originalAttachments)
+        ) {
+          const newAttachments = updateMessageDto.attachments;
+          const removedAttachments = originalAttachments.filter(
+            (oldId) => !newAttachments.includes(oldId),
+          );
+
+          // Mark removed attachments for deletion within transaction
+          for (const fileId of removedAttachments) {
+            await this.fileService.markForDeletion(fileId, tx);
           }
 
-          // Update the message first
-          const updatedMessage = await tx.message.update({
-            where: { id },
-            data: dataToUpdate,
-          });
-
-          // If attachments are being updated and we have the original list, mark removed ones for deletion
-          if (
-            updateMessageDto.attachments &&
-            originalAttachments &&
-            Array.isArray(originalAttachments)
-          ) {
-            const newAttachments = updateMessageDto.attachments;
-            const removedAttachments = originalAttachments.filter(
-              (oldId) => !newAttachments.includes(oldId),
+          if (removedAttachments.length > 0) {
+            this.logger.debug(
+              `Marked ${removedAttachments.length} removed attachments for deletion`,
             );
-
-            // Mark removed attachments for deletion within transaction
-            for (const fileId of removedAttachments) {
-              await this.fileService.markForDeletion(fileId, tx);
-            }
-
-            if (removedAttachments.length > 0) {
-              this.logger.debug(
-                `Marked ${removedAttachments.length} removed attachments for deletion`,
-              );
-            }
           }
+        }
 
-          return updatedMessage;
-        },
-      );
-    } catch (error) {
-      this.logger.error('Error updating message', error);
-      throw error;
-    }
+        return updatedMessage;
+      },
+    );
   }
 
   async remove(id: string, attachments?: string[]) {
-    try {
-      // Wrap in transaction to ensure message delete and file marking are atomic
-      return await this.databaseService.$transaction(
-        async (tx: Prisma.TransactionClient) => {
-          // Delete the message first
-          const deletedMessage = await tx.message.delete({
-            where: { id },
-          });
+    // Wrap in transaction to ensure message delete and file marking are atomic
+    return this.databaseService.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // Delete the message first
+        const deletedMessage = await tx.message.delete({
+          where: { id },
+        });
 
-          // Mark all attachments for deletion after message is deleted
-          if (
-            attachments &&
-            Array.isArray(attachments) &&
-            attachments.length > 0
-          ) {
-            for (const fileId of attachments) {
-              await this.fileService.markForDeletion(fileId, tx);
-            }
-            this.logger.debug(
-              `Marked ${attachments.length} attachments for deletion`,
-            );
+        // Mark all attachments for deletion after message is deleted
+        if (
+          attachments &&
+          Array.isArray(attachments) &&
+          attachments.length > 0
+        ) {
+          for (const fileId of attachments) {
+            await this.fileService.markForDeletion(fileId, tx);
           }
+          this.logger.debug(
+            `Marked ${attachments.length} attachments for deletion`,
+          );
+        }
 
-          return deletedMessage;
-        },
-      );
-    } catch (error) {
-      this.logger.error('Error deleting message', error);
-      // probably 404
-      throw error;
-    }
+        return deletedMessage;
+      },
+    );
   }
 
   async findAllForChannel(
@@ -252,28 +242,21 @@ export class MessagesService {
   // Note: Reaction methods (addReaction, removeReaction) moved to ReactionsService
 
   async addAttachment(messageId: string, fileId?: string) {
-    try {
-      // If fileId is provided, add it to attachments array
-      // Always decrement pendingAttachments (handles both success and failure)
-      const updatedMessage = await this.databaseService.message.update({
-        where: { id: messageId },
-        data: {
-          ...(fileId && {
-            attachments: {
-              push: fileId,
-            },
-          }),
-          pendingAttachments: {
-            decrement: 1,
+    // If fileId is provided, add it to attachments array
+    // Always decrement pendingAttachments (handles both success and failure)
+    return this.databaseService.message.update({
+      where: { id: messageId },
+      data: {
+        ...(fileId && {
+          attachments: {
+            push: fileId,
           },
+        }),
+        pendingAttachments: {
+          decrement: 1,
         },
-      });
-
-      return updatedMessage;
-    } catch (error) {
-      this.logger.error('Error updating message attachments', error);
-      throw error;
-    }
+      },
+    });
   }
 
   async enrichMessageWithFileMetadata(message: Message) {

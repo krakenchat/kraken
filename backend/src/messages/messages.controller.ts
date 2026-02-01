@@ -10,6 +10,8 @@ import {
   HttpCode,
   Query,
   Req,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
@@ -72,14 +74,12 @@ export class MessagesController {
   })
   findAllForGroup(
     @Param('groupId', ParseObjectIdPipe) groupId: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ) {
-    // Parse limit to number, fallback to default if not provided
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
     return this.messagesService.findAllForDirectMessageGroup(
       groupId,
-      parsedLimit,
+      limit,
       continuationToken,
     );
   }
@@ -93,14 +93,12 @@ export class MessagesController {
   })
   findAllForChannel(
     @Param('channelId', ParseObjectIdPipe) channelId: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ) {
-    // Parse limit to number, fallback to default if not provided
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
     return this.messagesService.findAllForChannel(
       channelId,
-      parsedLimit,
+      limit,
       continuationToken,
     );
   }
@@ -115,13 +113,12 @@ export class MessagesController {
   searchChannelMessages(
     @Param('channelId', ParseObjectIdPipe) channelId: string,
     @Query('q') query: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
     return this.messagesService.searchChannelMessages(
       channelId,
       query,
-      parsedLimit,
+      limit,
     );
   }
 
@@ -135,13 +132,12 @@ export class MessagesController {
   searchDirectMessages(
     @Param('groupId', ParseObjectIdPipe) groupId: string,
     @Query('q') query: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
     return this.messagesService.searchDirectMessages(
       groupId,
       query,
-      parsedLimit,
+      limit,
     );
   }
 
@@ -156,14 +152,13 @@ export class MessagesController {
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Query('q') query: string,
     @Req() req: AuthenticatedRequest,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
     return this.messagesService.searchCommunityMessages(
       communityId,
       req.user.id,
       query,
-      parsedLimit,
+      limit,
     );
   }
 
