@@ -198,7 +198,7 @@ describe('MessagesController', () => {
         .spyOn(service, 'findAllForDirectMessageGroup')
         .mockResolvedValue(mockMessages as any);
 
-      const result = await controller.findAllForGroup(groupId);
+      const result = await controller.findAllForGroup(groupId, 50);
 
       expect(service.findAllForDirectMessageGroup).toHaveBeenCalledWith(
         groupId,
@@ -210,7 +210,7 @@ describe('MessagesController', () => {
 
     it('should use custom limit and continuation token', async () => {
       const groupId = 'group-123';
-      const limit = '25';
+      const limit = 25;
       const continuationToken = 'token-abc';
 
       jest
@@ -239,7 +239,7 @@ describe('MessagesController', () => {
         .spyOn(service, 'findAllForChannel')
         .mockResolvedValue(mockMessages as any);
 
-      const result = await controller.findAllForChannel(channelId);
+      const result = await controller.findAllForChannel(channelId, 50);
 
       expect(service.findAllForChannel).toHaveBeenCalledWith(
         channelId,
@@ -249,14 +249,14 @@ describe('MessagesController', () => {
       expect(result).toEqual(mockMessages);
     });
 
-    it('should parse limit string to number', async () => {
+    it('should use provided limit', async () => {
       const channelId = 'channel-123';
 
       jest
         .spyOn(service, 'findAllForChannel')
         .mockResolvedValue({ messages: [], continuationToken: undefined });
 
-      await controller.findAllForChannel(channelId, '100');
+      await controller.findAllForChannel(channelId, 100);
 
       expect(service.findAllForChannel).toHaveBeenCalledWith(
         channelId,

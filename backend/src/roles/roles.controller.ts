@@ -7,7 +7,6 @@ import {
   Param,
   Body,
   Req,
-  Query,
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
@@ -90,6 +89,7 @@ export class RolesController {
   @Get('user/:userId/instance')
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
   async getUserInstanceRoles(
     @Param('userId', ParseObjectIdPipe) userId: string,
   ): Promise<UserRolesResponseDto> {
@@ -127,24 +127,39 @@ export class RolesController {
     return this.rolesService.createCommunityRole(communityId, createRoleDto);
   }
 
-  @Put(':roleId')
+  // communityId is required in the route so the RbacGuard can resolve
+  // community-scoped permissions before the handler runs (roleId alone
+  // would require a DB lookup inside the guard to find the community).
+  @Put('community/:communityId/:roleId')
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.UPDATE_ROLE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
   async updateRole(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('roleId', ParseObjectIdPipe) roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
   ) {
-    return this.rolesService.updateRole(roleId, updateRoleDto);
+    return this.rolesService.updateRole(roleId, communityId, updateRoleDto);
   }
 
-  @Delete(':roleId')
+  @Delete('community/:communityId/:roleId')
   @HttpCode(204)
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.DELETE_ROLE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
   async deleteRole(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('roleId', ParseObjectIdPipe) roleId: string,
   ): Promise<void> {
-    return this.rolesService.deleteRole(roleId);
+    return this.rolesService.deleteRole(roleId, communityId);
   }
 
   // ===== USER-ROLE ASSIGNMENT ENDPOINTS =====
@@ -189,12 +204,17 @@ export class RolesController {
     );
   }
 
-  @Get(':roleId/users')
+  @Get('community/:communityId/:roleId/users')
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.READ_ROLE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
   async getUsersForRole(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('roleId', ParseObjectIdPipe) roleId: string,
-    @Query('communityId') communityId?: string,
   ) {
     return this.rolesService.getUsersForRole(roleId, communityId);
   }

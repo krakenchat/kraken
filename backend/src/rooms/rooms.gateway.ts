@@ -27,7 +27,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { WsLoggingExceptionFilter } from '../websocket/ws-exception.filter';
+import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import {
   getSocketUser,

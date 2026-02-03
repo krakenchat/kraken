@@ -1,17 +1,19 @@
 /**
- * RedisService Mock
+ * Redis Client Mock
  *
- * Provides a mock of RedisService for testing Redis-dependent code.
+ * Provides a mock ioredis client for testing Redis-dependent code.
  *
  * Usage:
  * ```typescript
+ * import { createMockRedis, REDIS_CLIENT } from '@/test-utils';
+ *
  * const mockRedis = createMockRedis();
  * mockRedis.get.mockResolvedValue(JSON.stringify({ userId: '123' }));
  *
  * const module = await Test.createTestingModule({
  *   providers: [
  *     VoicePresenceService,
- *     { provide: RedisService, useValue: mockRedis },
+ *     { provide: REDIS_CLIENT, useValue: mockRedis },
  *   ],
  * }).compile();
  * ```
@@ -19,9 +21,9 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { RedisService } from '@/redis/redis.service';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
 
-export type MockRedisService = {
+export type MockRedisClient = {
   get: jest.Mock;
   set: jest.Mock;
   del: jest.Mock;
@@ -36,28 +38,41 @@ export type MockRedisService = {
   hkeys: jest.Mock;
   sadd: jest.Mock;
   srem: jest.Mock;
+  scard: jest.Mock;
   smembers: jest.Mock;
   sismember: jest.Mock;
+  mget: jest.Mock;
   scan: jest.Mock;
   publish: jest.Mock;
   subscribe: jest.Mock;
   unsubscribe: jest.Mock;
   on: jest.Mock;
   removeListener: jest.Mock;
-  getClient: jest.Mock;
-  onModuleInit: jest.Mock;
-  onModuleDestroy: jest.Mock;
+  pipeline: jest.Mock;
+  quit: jest.Mock;
 };
 
-export function createMockRedis(): MockRedisService {
+export function createMockRedis(): MockRedisClient {
   // In-memory store for simulating Redis behavior
   const store = new Map<string, string>();
   const hashStore = new Map<string, Map<string, string>>();
   const setStore = new Map<string, Set<string>>();
 
+  const createPipeline = () => {
+    const pipeline = {
+      set: jest.fn().mockReturnThis(),
+      del: jest.fn().mockReturnThis(),
+      sadd: jest.fn().mockReturnThis(),
+      srem: jest.fn().mockReturnThis(),
+      expire: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue([]),
+    };
+    return pipeline;
+  };
+
   return {
     get: jest.fn((key: string) => Promise.resolve(store.get(key) || null)),
-    set: jest.fn((key: string, value: string, options?: any) => {
+    set: jest.fn((key: string, value: string, ...args: any[]) => {
       store.set(key, value);
       return Promise.resolve('OK');
     }),
@@ -122,6 +137,10 @@ export function createMockRedis(): MockRedisService {
       members.forEach((member) => set.delete(member));
       return Promise.resolve(members.length);
     }),
+    scard: jest.fn((key: string) => {
+      const set = setStore.get(key);
+      return Promise.resolve(set ? set.size : 0);
+    }),
     smembers: jest.fn((key: string) => {
       const set = setStore.get(key);
       return Promise.resolve(set ? Array.from(set) : []);
@@ -129,6 +148,12 @@ export function createMockRedis(): MockRedisService {
     sismember: jest.fn((key: string, member: string) => {
       const set = setStore.get(key);
       return Promise.resolve(set?.has(member) ? 1 : 0);
+    }),
+
+    // Multi-key operations
+    mget: jest.fn((...keys: (string | string[])[]) => {
+      const flatKeys = keys.flat();
+      return Promise.resolve(flatKeys.map((k) => store.get(k) || null));
     }),
 
     // Scanning
@@ -141,19 +166,18 @@ export function createMockRedis(): MockRedisService {
     on: jest.fn(() => {}),
     removeListener: jest.fn(() => {}),
 
-    // Utility
-    getClient: jest.fn(),
+    // Pipeline
+    pipeline: jest.fn(() => createPipeline()),
 
     // Lifecycle
-    onModuleInit: jest.fn(() => Promise.resolve()),
-    onModuleDestroy: jest.fn(() => Promise.resolve()),
-  } as unknown as MockRedisService;
+    quit: jest.fn(() => Promise.resolve()),
+  } as unknown as MockRedisClient;
 }
 
 /**
  * Helper to reset all mocks in a Redis mock instance
  */
-export function resetRedisMock(mockRedis: MockRedisService): void {
+export function resetRedisMock(mockRedis: MockRedisClient): void {
   Object.values(mockRedis).forEach((method) => {
     if (jest.isMockFunction(method)) {
       method.mockClear();
@@ -162,9 +186,9 @@ export function resetRedisMock(mockRedis: MockRedisService): void {
 }
 
 /**
- * Create a mock provider for RedisService
+ * Create a mock provider for REDIS_CLIENT
  */
-export const createRedisProvider = (mockRedis?: MockRedisService) => ({
-  provide: RedisService,
+export const createRedisProvider = (mockRedis?: MockRedisClient) => ({
+  provide: REDIS_CLIENT,
   useValue: mockRedis || createMockRedis(),
 });

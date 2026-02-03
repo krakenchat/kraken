@@ -29,6 +29,7 @@ import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { InstanceRole, RbacActions } from '@prisma/client';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
+import { ParseObjectIdPipe } from 'nestjs-object-id';
 
 @Controller('users')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -85,7 +86,7 @@ export class UserController {
   }
 
   @Get('search')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({
     type: RbacResourceType.INSTANCE,
@@ -100,7 +101,9 @@ export class UserController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  async getUserById(@Param('id') id: string): Promise<UserEntity> {
+  async getUserById(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<UserEntity> {
     const user = await this.userService.findById(id);
 
     if (!user) {
@@ -112,7 +115,7 @@ export class UserController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({
     type: RbacResourceType.INSTANCE,
@@ -157,7 +160,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  async getUserByIdAdmin(@Param('id') id: string): Promise<AdminUserEntity> {
+  async getUserByIdAdmin(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<AdminUserEntity> {
     const user = await this.userService.findByIdAdmin(id);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -174,7 +179,7 @@ export class UserController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async updateUserRole(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: UpdateUserRoleDto,
   ): Promise<AdminUserEntity> {
     return this.userService.updateUserRole(id, dto.role, req.user.id);
@@ -189,7 +194,7 @@ export class UserController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async setBanStatus(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: BanUserDto,
   ): Promise<AdminUserEntity> {
     return this.userService.setBanStatus(id, dto.banned, req.user.id);
@@ -204,7 +209,7 @@ export class UserController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async deleteUser(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<{ success: boolean }> {
     await this.userService.deleteUser(id, req.user.id);
     return { success: true };
@@ -221,7 +226,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   async blockUser(
     @Req() req: AuthenticatedRequest,
-    @Param('userId') userId: string,
+    @Param('userId', ParseObjectIdPipe) userId: string,
   ): Promise<{ success: boolean }> {
     await this.userService.blockUser(req.user.id, userId);
     return { success: true };
@@ -234,7 +239,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   async unblockUser(
     @Req() req: AuthenticatedRequest,
-    @Param('userId') userId: string,
+    @Param('userId', ParseObjectIdPipe) userId: string,
   ): Promise<{ success: boolean }> {
     await this.userService.unblockUser(req.user.id, userId);
     return { success: true };
@@ -258,7 +263,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   async isUserBlocked(
     @Req() req: AuthenticatedRequest,
-    @Param('userId') userId: string,
+    @Param('userId', ParseObjectIdPipe) userId: string,
   ): Promise<{ blocked: boolean }> {
     const blocked = await this.userService.isUserBlocked(req.user.id, userId);
     return { blocked };

@@ -1,15 +1,21 @@
-import { Community } from '@prisma/client';
-import { Exclude } from 'class-transformer';
+import { IsString, IsOptional, MaxLength, MinLength } from 'class-validator';
 
-export class CreateCommunityDto implements Community {
-  avatar: string | null;
-  banner: string | null;
-  description: string | null;
+export class CreateCommunityDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
   name: string;
 
-  @Exclude()
-  id: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string | null;
 
-  @Exclude()
-  createdAt: Date;
+  @IsOptional()
+  @IsString()
+  avatar?: string | null;
+
+  @IsOptional()
+  @IsString()
+  banner?: string | null;
 }

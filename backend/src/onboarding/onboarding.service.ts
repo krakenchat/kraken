@@ -1,6 +1,7 @@
-import { Injectable, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, Logger, Inject } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
-import { RedisService } from '@/redis/redis.service';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
+import Redis from 'ioredis';
 import { RolesService } from '@/roles/roles.service';
 import { InstanceRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -15,7 +16,7 @@ export class OnboardingService {
 
   constructor(
     private readonly database: DatabaseService,
-    private readonly redis: RedisService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly rolesService: RolesService,
   ) {}
 
@@ -69,6 +70,7 @@ export class OnboardingService {
     await this.redis.set(
       this.SETUP_TOKEN_KEY,
       setupToken,
+      'EX',
       this.SETUP_TOKEN_TTL,
     );
     this.logger.log(

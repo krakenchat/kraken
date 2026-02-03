@@ -225,20 +225,18 @@ describe('CommunityService', () => {
   describe('findOne', () => {
     it('should return a community by ID', async () => {
       const community = CommunityFactory.build();
-      mockDatabase.community.findUniqueOrThrow.mockResolvedValue(community);
+      mockDatabase.community.findUnique.mockResolvedValue(community);
 
       const result = await service.findOne(community.id);
 
       expect(result).toEqual(community);
-      expect(mockDatabase.community.findUniqueOrThrow).toHaveBeenCalledWith({
+      expect(mockDatabase.community.findUnique).toHaveBeenCalledWith({
         where: { id: community.id },
       });
     });
 
     it('should throw NotFoundException when community not found', async () => {
-      mockDatabase.community.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.community.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('nonexistent')).rejects.toThrow(
         NotFoundException,
@@ -258,7 +256,7 @@ describe('CommunityService', () => {
       };
       const updatedCommunity = { ...community, ...updateDto };
 
-      mockDatabase.community.findUniqueOrThrow.mockResolvedValue(community);
+      mockDatabase.community.findUnique.mockResolvedValue(community);
       mockDatabase.community.update.mockResolvedValue(updatedCommunity);
 
       const result = await service.update(community.id, updateDto);
@@ -276,7 +274,7 @@ describe('CommunityService', () => {
       const community = CommunityFactory.build({ avatar: oldAvatarId });
       const updateDto = { avatar: newAvatarId };
 
-      mockDatabase.community.findUniqueOrThrow.mockResolvedValue(community);
+      mockDatabase.community.findUnique.mockResolvedValue(community);
       mockDatabase.file.update.mockResolvedValue({ id: oldAvatarId });
       mockDatabase.community.update.mockResolvedValue({
         ...community,
@@ -297,7 +295,7 @@ describe('CommunityService', () => {
       const community = CommunityFactory.build({ banner: oldBannerId });
       const updateDto = { banner: newBannerId };
 
-      mockDatabase.community.findUniqueOrThrow.mockResolvedValue(community);
+      mockDatabase.community.findUnique.mockResolvedValue(community);
       mockDatabase.file.update.mockResolvedValue({ id: oldBannerId });
       mockDatabase.community.update.mockResolvedValue({
         ...community,
@@ -317,7 +315,7 @@ describe('CommunityService', () => {
       const community = CommunityFactory.build({ avatar: avatarId });
       const updateDto = { avatar: avatarId, name: 'New Name' };
 
-      mockDatabase.community.findUniqueOrThrow.mockResolvedValue(community);
+      mockDatabase.community.findUnique.mockResolvedValue(community);
       mockDatabase.community.update.mockResolvedValue({
         ...community,
         ...updateDto,
@@ -332,7 +330,7 @@ describe('CommunityService', () => {
       const community = CommunityFactory.build({ avatar: null, banner: null });
       const updateDto = { avatar: 'new-avatar-id', banner: 'new-banner-id' };
 
-      mockDatabase.community.findUniqueOrThrow.mockResolvedValue(community);
+      mockDatabase.community.findUnique.mockResolvedValue(community);
       mockDatabase.community.update.mockResolvedValue({
         ...community,
         ...updateDto,
@@ -345,9 +343,7 @@ describe('CommunityService', () => {
 
     it('should throw NotFoundException when community not found', async () => {
       const updateDto = { name: 'Updated Name' };
-      mockDatabase.community.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.community.findUnique.mockResolvedValue(null);
 
       await expect(service.update('nonexistent', updateDto)).rejects.toThrow(
         NotFoundException,
@@ -368,7 +364,7 @@ describe('CommunityService', () => {
       });
       const updateDto = { avatar: newAvatarId, banner: newBannerId };
 
-      mockDatabase.community.findUniqueOrThrow.mockResolvedValue(community);
+      mockDatabase.community.findUnique.mockResolvedValue(community);
       mockDatabase.file.update.mockResolvedValue({});
       mockDatabase.community.update.mockResolvedValue({
         ...community,
@@ -422,44 +418,40 @@ describe('CommunityService', () => {
   });
 
   describe('remove', () => {
-    it('should delete community and all memberships', async () => {
-      const communityId = 'community-123';
+    it('should cascade delete community and all related records', async () => {
+      const community = CommunityFactory.build();
 
+      mockDatabase.community.findUnique.mockResolvedValue(community);
+      mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.message.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.channel.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.userRoles.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.membership.deleteMany.mockResolvedValue({ count: 5 });
-      mockDatabase.community.delete.mockResolvedValue({ id: communityId });
+      mockDatabase.community.delete.mockResolvedValue(community);
 
-      await service.remove(communityId);
+      await service.remove(community.id);
 
+      expect(mockDatabase.channelMembership.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.message.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.channel.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.userRoles.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.membership.deleteMany).toHaveBeenCalledWith({
-        where: { communityId },
+        where: { communityId: community.id },
       });
       expect(mockDatabase.community.delete).toHaveBeenCalledWith({
-        where: { id: communityId },
+        where: { id: community.id },
       });
     });
 
     it('should throw NotFoundException when community not found', async () => {
-      const communityId = 'nonexistent';
+      mockDatabase.community.findUnique.mockResolvedValue(null);
 
-      mockDatabase.membership.deleteMany.mockResolvedValue({ count: 0 });
-      mockDatabase.community.delete.mockRejectedValue(new Error('Not found'));
-
-      await expect(service.remove(communityId)).rejects.toThrow(
+      await expect(service.remove('nonexistent')).rejects.toThrow(
         NotFoundException,
       );
-      await expect(service.remove(communityId)).rejects.toThrow(
+      await expect(service.remove('nonexistent')).rejects.toThrow(
         'Community not found',
       );
-    });
-
-    it('should delete community even if no memberships exist', async () => {
-      const communityId = 'community-123';
-
-      mockDatabase.membership.deleteMany.mockResolvedValue({ count: 0 });
-      mockDatabase.community.delete.mockResolvedValue({ id: communityId });
-
-      await expect(service.remove(communityId)).resolves.toBeUndefined();
-      expect(mockDatabase.community.delete).toHaveBeenCalled();
     });
   });
 });

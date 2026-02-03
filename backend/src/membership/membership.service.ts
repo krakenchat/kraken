@@ -155,74 +155,56 @@ export class MembershipService {
   async findAllForCommunity(
     communityId: string,
   ): Promise<MembershipResponseDto[]> {
-    try {
-      const memberships = await this.databaseService.membership.findMany({
-        where: { communityId },
-        include: {
-          user: true,
-        },
-      });
+    const memberships = await this.databaseService.membership.findMany({
+      where: { communityId },
+      include: {
+        user: true,
+      },
+    });
 
-      return memberships.map(
-        (membership) => new MembershipResponseDto(membership),
-      );
-    } catch (error) {
-      this.logger.error(
-        `Error finding memberships for community ${communityId}`,
-        error,
-      );
-      throw error;
-    }
+    return memberships.map(
+      (membership) => new MembershipResponseDto(membership),
+    );
   }
 
   async findAllForUser(userId: string): Promise<MembershipResponseDto[]> {
-    try {
-      const memberships = await this.databaseService.membership.findMany({
-        where: { userId },
-        include: {
-          community: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              avatar: true,
-            },
+    const memberships = await this.databaseService.membership.findMany({
+      where: { userId },
+      include: {
+        community: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            avatar: true,
           },
         },
-      });
+      },
+    });
 
-      return memberships.map(
-        (membership) => new MembershipResponseDto(membership),
-      );
-    } catch (error) {
-      this.logger.error(`Error finding memberships for user ${userId}`, error);
-      throw error;
-    }
+    return memberships.map(
+      (membership) => new MembershipResponseDto(membership),
+    );
   }
 
   async findOne(
     userId: string,
     communityId: string,
   ): Promise<MembershipResponseDto> {
-    try {
-      const membership =
-        await this.databaseService.membership.findUniqueOrThrow({
-          where: {
-            userId_communityId: {
-              userId,
-              communityId,
-            },
-          },
-        });
+    const membership = await this.databaseService.membership.findUnique({
+      where: {
+        userId_communityId: {
+          userId,
+          communityId,
+        },
+      },
+    });
 
-      return new MembershipResponseDto(membership);
-    } catch (error) {
-      this.logger.error(
-        `Error finding membership for user ${userId} in community ${communityId}`,
-        error,
-      );
+    if (!membership) {
       throw new NotFoundException('Membership not found');
     }
+
+    return new MembershipResponseDto(membership);
   }
 
   async remove(userId: string, communityId: string): Promise<void> {
@@ -283,75 +265,47 @@ export class MembershipService {
     }
   }
 
-  // Helper method to check if user is member of community
   async isMember(userId: string, communityId: string): Promise<boolean> {
-    try {
-      const membership = await this.databaseService.membership.findUnique({
-        where: {
-          userId_communityId: {
-            userId,
-            communityId,
-          },
+    const membership = await this.databaseService.membership.findUnique({
+      where: {
+        userId_communityId: {
+          userId,
+          communityId,
         },
-      });
+      },
+    });
 
-      return !!membership;
-    } catch (error) {
-      this.logger.error(
-        `Error checking membership for user ${userId} in community ${communityId}`,
-        error,
-      );
-      return false;
-    }
+    return !!membership;
   }
 
-  // Search members for mention autocomplete
   async searchMembers(
     communityId: string,
     query: string,
     limit: number = 10,
   ): Promise<MembershipResponseDto[]> {
-    try {
-      const memberships = await this.databaseService.membership.findMany({
-        where: {
-          communityId,
-          user: {
-            OR: [
-              {
-                username: {
-                  contains: query,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                displayName: {
-                  contains: query,
-                  mode: 'insensitive',
-                },
-              },
-            ],
-          },
+    const memberships = await this.databaseService.membership.findMany({
+      where: {
+        communityId,
+        user: {
+          OR: [
+            { username: { contains: query, mode: 'insensitive' } },
+            { displayName: { contains: query, mode: 'insensitive' } },
+          ],
         },
-        include: {
-          user: true,
+      },
+      include: {
+        user: true,
+      },
+      take: limit,
+      orderBy: {
+        user: {
+          username: 'asc',
         },
-        take: limit,
-        orderBy: {
-          user: {
-            username: 'asc',
-          },
-        },
-      });
+      },
+    });
 
-      return memberships.map(
-        (membership) => new MembershipResponseDto(membership),
-      );
-    } catch (error) {
-      this.logger.error(
-        `Error searching members in community ${communityId} with query "${query}"`,
-        error,
-      );
-      throw error;
-    }
+    return memberships.map(
+      (membership) => new MembershipResponseDto(membership),
+    );
   }
 }

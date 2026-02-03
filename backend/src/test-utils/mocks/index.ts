@@ -21,7 +21,7 @@ export {
   createMockRedis,
   resetRedisMock,
   createRedisProvider,
-  type MockRedisService,
+  type MockRedisClient,
 } from './redis.mock';
 
 export {

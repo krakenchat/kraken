@@ -4,8 +4,8 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
-import { UserEntity } from '../user/dto/user-response.dto';
+import { DatabaseService } from '@/database/database.service';
+import { UserEntity } from '@/user/dto/user-response.dto';
 import { InstanceInvite, Prisma } from '@prisma/client';
 
 @Injectable()
@@ -20,8 +20,6 @@ export class InviteService {
     validUntil?: Date,
     communityIds: string[] = [],
   ): Promise<InstanceInvite> {
-    // TODO: allow users to just create a code?
-
     // generate a short code for the invite
     let shortCode = this.generateInviteCode();
     // Check if the short code already exists
@@ -144,9 +142,8 @@ export class InviteService {
       throw new NotFoundException('Invite not found');
     }
 
-    // Only allow the creator or an admin to delete the invite
+    // Only allow the creator to delete the invite (admins bypass via RBAC)
     if (invite.createdById !== user.id) {
-      // TODO: Check if user has admin permissions
       throw new ForbiddenException('Unauthorized to delete this invite');
     }
 

@@ -50,8 +50,13 @@ export class AuthService {
     const user = await this.userService.findByUsername(
       username.toLocaleLowerCase(),
     );
-    if (user && (await bcrypt.compare(pass, user.hashedPassword))) {
-      return new UserEntity(user);
+    if (user) {
+      if (await bcrypt.compare(pass, user.hashedPassword)) {
+        return new UserEntity(user);
+      }
+    } else {
+      // Always run bcrypt.compare to prevent timing-based user enumeration
+      await bcrypt.compare(pass, this.DUMMY_HASH);
     }
 
     return null;
@@ -289,22 +294,5 @@ export class AuthService {
     });
 
     return result.count;
-  }
-
-  /**
-   * Update session activity timestamp (call on token refresh)
-   */
-  async updateSessionActivity(
-    tokenId: string,
-    deviceInfo?: DeviceInfo,
-  ): Promise<void> {
-    await this.databaseService.refreshToken.update({
-      where: { id: tokenId },
-      data: {
-        lastUsedAt: new Date(),
-        // Update IP if changed
-        ...(deviceInfo?.ipAddress && { ipAddress: deviceInfo.ipAddress }),
-      },
-    });
   }
 }

@@ -479,12 +479,12 @@ describe('MembershipService', () => {
         communityId: community.id,
       });
 
-      mockDatabase.membership.findUniqueOrThrow.mockResolvedValue(membership);
+      mockDatabase.membership.findUnique.mockResolvedValue(membership);
 
       const result = await service.findOne(user.id, community.id);
 
       expect(result).toBeDefined();
-      expect(mockDatabase.membership.findUniqueOrThrow).toHaveBeenCalledWith({
+      expect(mockDatabase.membership.findUnique).toHaveBeenCalledWith({
         where: {
           userId_communityId: {
             userId: user.id,
@@ -498,9 +498,7 @@ describe('MembershipService', () => {
       const user = UserFactory.build();
       const community = CommunityFactory.build();
 
-      mockDatabase.membership.findUniqueOrThrow.mockRejectedValue(
-        new Error('Not found'),
-      );
+      mockDatabase.membership.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne(user.id, community.id)).rejects.toThrow(
         NotFoundException,
@@ -663,7 +661,7 @@ describe('MembershipService', () => {
       expect(result).toBe(false);
     });
 
-    it('should return false on error', async () => {
+    it('should propagate database errors', async () => {
       const user = UserFactory.build();
       const community = CommunityFactory.build();
 
@@ -671,19 +669,9 @@ describe('MembershipService', () => {
         new Error('Database error'),
       );
 
-      const loggerErrorSpy = jest
-        .spyOn(service['logger'], 'error')
-        .mockImplementation();
-
-      const result = await service.isMember(user.id, community.id);
-
-      expect(result).toBe(false);
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Error checking membership'),
-        expect.any(Error),
+      await expect(service.isMember(user.id, community.id)).rejects.toThrow(
+        'Database error',
       );
-
-      loggerErrorSpy.mockRestore();
     });
   });
 

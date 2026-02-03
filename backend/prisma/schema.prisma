@@ -295,6 +295,7 @@ model Community {
   banner      String?
   description String?
   UserRoles   UserRoles[]
+  roles       Role[]
 
   // Moderation relations
   bans           CommunityBan[]     @relation("CommunityBans")
@@ -357,14 +358,17 @@ model AliasGroupMember {
 }
 
 model Role {
-  id        String        @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  actions   RbacActions[] @default([])
-  createdAt DateTime      @default(now())
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  communityId String?       @db.ObjectId
+  community   Community?    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  isDefault   Boolean       @default(false)
+  actions     RbacActions[] @default([])
+  createdAt   DateTime      @default(now())
 
   UserRoles UserRoles[]
 
-  @@unique([name])
+  @@unique([name, communityId])
 }
 
 model UserRoles {

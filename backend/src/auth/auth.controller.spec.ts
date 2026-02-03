@@ -348,7 +348,7 @@ describe('AuthController', () => {
       expect(mockDatabase.$transaction).toHaveBeenCalled();
     });
 
-    it('should throw error when token verification fails during logout', async () => {
+    it('should gracefully handle token verification failure during logout', async () => {
       const req = {
         ...mockReq,
         cookies: { refresh_token: 'invalid-token' },
@@ -358,9 +358,10 @@ describe('AuthController', () => {
         .spyOn(authService, 'verifyRefreshToken')
         .mockRejectedValue(new UnauthorizedException('Invalid token'));
 
-      await expect(controller.logout(req, mockRes)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      const result = await controller.logout(req, mockRes);
+
+      expect(result).toEqual({ message: 'Logged out successfully' });
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token');
     });
   });
 });

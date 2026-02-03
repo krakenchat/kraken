@@ -121,6 +121,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
     try {
       await updateRole({
+        communityId,
         roleId: editingRole.id,
         data,
       }).unwrap();
@@ -134,7 +135,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     if (!roleToDelete) return;
 
     try {
-      await deleteRole(roleToDelete.id).unwrap();
+      await deleteRole({ communityId, roleId: roleToDelete.id }).unwrap();
       setDeleteConfirmOpen(false);
       setRoleToDelete(null);
     } catch {
@@ -160,9 +161,6 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     setViewingRoleUsers(null);
   }, []);
 
-  const isDefaultRole = (roleName: string) => {
-    return ['Community Admin', 'Moderator', 'Member'].includes(roleName);
-  };
 
   if (!canReadRoles) {
     return (
@@ -277,10 +275,10 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={isDefaultRole(role.name) ? "Default" : "Custom"}
+                          label={role.isDefault ? "Default" : "Custom"}
                           size="small"
-                          color={isDefaultRole(role.name) ? "default" : "primary"}
-                          variant={isDefaultRole(role.name) ? "filled" : "outlined"}
+                          color={role.isDefault ? "default" : "primary"}
+                          variant={role.isDefault ? "filled" : "outlined"}
                         />
                       </TableCell>
                       <TableCell>
@@ -310,7 +308,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
                             </Tooltip>
                           )}
                           
-                          {canDeleteRoles && !isDefaultRole(role.name) && (
+                          {canDeleteRoles && !role.isDefault && (
                             <Tooltip title="Delete role">
                               <IconButton
                                 size="small"
