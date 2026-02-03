@@ -249,9 +249,11 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             }}
             itemContent={(index, message) => {
               const isHighlighted = highlightMessageId === message.id;
-              // Show divider before the last read message when there are unread messages
+              // Show divider after the last read message (before the first unread)
               const showDividerBeforeThis =
-                lastReadDisplayIndex > 0 && index === lastReadDisplayIndex;
+                unreadCount > 0 &&
+                lastReadDisplayIndex >= 0 &&
+                index === lastReadDisplayIndex + 1;
 
               return (
                 <div style={{ padding: "0 16px" }}>

@@ -30,11 +30,6 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileCountRef = useRef(0);
 
-  // Keep fileCountRef in sync with selectedFiles
-  useEffect(() => {
-    fileCountRef.current = selectedFiles.length;
-  }, [selectedFiles]);
-
   // Cleanup file previews on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
@@ -88,6 +83,8 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
         }
       });
 
+      // Update ref synchronously before React batches the state update
+      fileCountRef.current += fileArray.length;
       setSelectedFiles(prev => [...prev, ...fileArray]);
     }
     // Reset input so same file can be selected again
@@ -97,6 +94,7 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
   }, []);
 
   const handleRemoveFile = useCallback((index: number) => {
+    fileCountRef.current = Math.max(0, fileCountRef.current - 1);
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     setFilePreviews(prev => {
       const newPreviews = new Map(prev);
@@ -110,6 +108,7 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
   }, []);
 
   const clearFiles = useCallback(() => {
+    fileCountRef.current = 0;
     setSelectedFiles([]);
     setFilePreviews(new Map());
   }, []);
