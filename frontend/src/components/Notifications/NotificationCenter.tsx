@@ -32,6 +32,7 @@ import {
 } from '../../features/notifications/notificationsApiSlice';
 import { Notification, NotificationType } from '../../types/notification.type';
 import { formatDistanceToNow } from 'date-fns';
+import { logger } from '../../utils/logger';
 
 interface NotificationCenterProps {
   open: boolean;
@@ -64,7 +65,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     try {
       await markAsRead(notificationId).unwrap();
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      logger.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -72,7 +73,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     try {
       await markAllAsRead().unwrap();
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      logger.error('Failed to mark all as read:', error);
     }
   };
 
@@ -80,7 +81,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     try {
       await deleteNotification(notificationId).unwrap();
     } catch (error) {
-      console.error('Failed to delete notification:', error);
+      logger.error('Failed to delete notification:', error);
     }
   };
 

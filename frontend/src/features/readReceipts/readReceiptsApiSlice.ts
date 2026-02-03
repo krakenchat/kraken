@@ -1,4 +1,5 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
+import { logger } from "../../utils/logger";
 import { createAuthedBaseQuery } from "../createBaseQuery";
 import {
   UnreadCount,
@@ -28,7 +29,7 @@ export const readReceiptsApi = createApi({
           const { data } = await queryFulfilled;
           dispatch(setUnreadCounts(data));
         } catch (error) {
-          console.error("Failed to fetch unread counts:", error);
+          logger.error("Failed to fetch unread counts:", error);
         }
       },
     }),
@@ -107,7 +108,7 @@ export const readReceiptsApi = createApi({
         } catch (error) {
           // Rollback on error by inverting the update
           patchResult.undo();
-          console.error("Failed to mark as read, rolled back:", error);
+          logger.error("Failed to mark as read, rolled back:", error);
         }
       },
     }),

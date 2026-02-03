@@ -29,6 +29,7 @@ import {
   useDeleteChannelOverrideMutation,
   useGetSettingsQuery,
 } from '../../features/notifications/notificationsApiSlice';
+import { logger } from '../../utils/logger';
 
 interface ChannelNotificationMenuProps {
   channelId: string;
@@ -68,7 +69,7 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
       }
       handleClose();
     } catch (error) {
-      console.error('Failed to update notification level:', error);
+      logger.error('Failed to update notification level:', error);
     }
   };
 

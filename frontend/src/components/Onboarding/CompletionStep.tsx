@@ -21,6 +21,7 @@ import {
 import { OnboardingData } from './OnboardingWizard';
 import { useSetupInstanceMutation } from '../../features/onboarding/onboardingApiSlice';
 import { useLazyLoginQuery } from '../../features/auth/authSlice';
+import { logger } from '../../utils/logger';
 
 interface CompletionStepProps {
   data: OnboardingData;
@@ -73,7 +74,7 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
             onComplete();
           }, 2000);
         } catch (loginError) {
-          console.error('Auto-login failed:', loginError);
+          logger.error('Auto-login failed:', loginError);
           // Still complete but redirect to login page
           setTimeout(() => {
             onComplete();
@@ -81,7 +82,7 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
         }
       }
     } catch (err) {
-      console.error('Setup failed:', err);
+      logger.error('Setup failed:', err);
     }
   };
 

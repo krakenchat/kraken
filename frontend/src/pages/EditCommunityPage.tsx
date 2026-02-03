@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { logger } from "../utils/logger";
 import {
   Box,
   CircularProgress,
@@ -184,7 +185,7 @@ const EditCommunityPage: React.FC = () => {
 
       // Stay on the page after successful update
     } catch (err) {
-      console.error("Failed to update community:", err);
+      logger.error("Failed to update community:", err);
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { logger } from "../../utils/logger";
 import {
   Box,
   Typography,
@@ -124,7 +125,7 @@ const AdminUsersPage: React.FC = () => {
       }
       refetch();
     } catch (error) {
-      console.error("Failed to perform action:", error);
+      logger.error("Failed to perform action:", error);
     }
 
     setConfirmDialog({ open: false, action: "ban", user: null });
@@ -173,7 +174,7 @@ const AdminUsersPage: React.FC = () => {
       }
       refetch();
     } catch (error) {
-      console.error("Failed to update role:", error);
+      logger.error("Failed to update role:", error);
     }
   };
 

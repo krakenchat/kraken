@@ -24,6 +24,7 @@ import { DirectMessageGroup } from "../../types/direct-message.type";
 import UserAvatar from "../Common/UserAvatar";
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
 import EmptyState from "../Common/EmptyState";
+import { logger } from "../../utils/logger";
 
 interface DirectMessageListProps {
   selectedDmGroupId?: string;
@@ -61,7 +62,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
       setGroupName("");
       onSelectDmGroup(result.id);
     } catch (error) {
-      console.error("Failed to create DM group:", error);
+      logger.error("Failed to create DM group:", error);
     }
   };
 

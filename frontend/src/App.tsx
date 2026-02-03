@@ -1,43 +1,46 @@
+import React, { Suspense, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import Layout from "./Layout";
-import LoginPage from "./pages/LoginPage";
-import HomePage from "./pages/HomePage";
-import RegisterPage from "./pages/RegisterPage";
-import CreateCommunityPage from "./pages/CreateCommunityPage";
-import EditCommunityPage from "./pages/EditCommunityPage";
-import JoinInvitePage from "./pages/JoinInvitePage";
-import AdminInvitePage from "./pages/AdminInvitePage";
-import AdminLayout from "./components/admin/AdminLayout";
-import {
-  AdminDashboard,
-  AdminUsersPage,
-  AdminCommunitiesPage,
-  AdminSettingsPage,
-  AdminRolesPage,
-  AdminStoragePage,
-} from "./pages/admin";
-import NotificationDebugPage from "./pages/debug/NotificationDebugPage";
-import OnboardingPage from "./pages/OnboardingPage";
-import DirectMessagesPage from "./pages/DirectMessagesPage";
-import FriendsPage from "./pages/FriendsPage";
-import ProfilePage from "./pages/ProfilePage";
-import ProfileEditPage from "./pages/ProfileEditPage";
-import SettingsPage from "./pages/SettingsPage";
 import CssBaseline from "@mui/material/CssBaseline";
-import CommunityPage from "./pages/CommunityPage";
+import { CircularProgress, Box } from "@mui/material";
 import { RoomProvider } from "./contexts/RoomContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { AvatarCacheProvider } from "./contexts/AvatarCacheContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { UserProfileProvider } from "./contexts/UserProfileContext";
 import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApiSlice";
-import { CircularProgress, Box } from "@mui/material";
 import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
 import { PWAInstallPrompt } from "./components/PWA/PWAInstallPrompt";
 import { hasServers } from "./utils/serverStorage";
 import { isElectron } from "./utils/platform";
-import { useState } from "react";
+
+// Eager imports - first-paint routes
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import OnboardingPage from "./pages/OnboardingPage";
+
+// Lazy-loaded routes
+const HomePage = React.lazy(() => import("./pages/HomePage"));
+const CreateCommunityPage = React.lazy(() => import("./pages/CreateCommunityPage"));
+const EditCommunityPage = React.lazy(() => import("./pages/EditCommunityPage"));
+const JoinInvitePage = React.lazy(() => import("./pages/JoinInvitePage"));
+const AdminInvitePage = React.lazy(() => import("./pages/AdminInvitePage"));
+const AdminLayout = React.lazy(() => import("./components/admin/AdminLayout"));
+const AdminDashboard = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminDashboard })));
+const AdminUsersPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminUsersPage })));
+const AdminCommunitiesPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminCommunitiesPage })));
+const AdminSettingsPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminSettingsPage })));
+const AdminRolesPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminRolesPage })));
+const AdminStoragePage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminStoragePage })));
+const NotificationDebugPage = React.lazy(() => import("./pages/debug/NotificationDebugPage"));
+const DirectMessagesPage = React.lazy(() => import("./pages/DirectMessagesPage"));
+const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
+const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
+const ProfileEditPage = React.lazy(() => import("./pages/ProfileEditPage"));
+const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
+const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
+const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
 
 function App() {
   const location = useLocation();
@@ -127,6 +130,11 @@ function App() {
         <NotificationProvider>
           <RoomProvider>
             <UserProfileProvider>
+            <Suspense fallback={
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                <CircularProgress />
+              </Box>
+            }>
             <Routes>
               {/* Public routes */}
               <Route path="/onboarding" element={<OnboardingPage />} />
@@ -162,8 +170,10 @@ function App() {
                   <Route path="edit" element={<EditCommunityPage />} />
                   <Route path="channel/:channelId" element={<CommunityPage />} />
                 </Route>
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
+            </Suspense>
             </UserProfileProvider>
           </RoomProvider>
         </NotificationProvider>

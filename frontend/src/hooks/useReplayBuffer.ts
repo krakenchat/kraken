@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
+import { logger } from '../utils/logger';
 import { Track, LocalTrackPublication, RoomEvent } from 'livekit-client';
 import {
   useStartReplayBufferMutation,
@@ -56,7 +57,7 @@ export const useReplayBuffer = () => {
 
       // Prevent race conditions - use refs which are always current
       if (isActiveRef.current || isOperationPendingRef.current) {
-        console.log('[ReplayBuffer] Already active or operation pending, skipping');
+        logger.dev('[ReplayBuffer] Already active or operation pending, skipping');
         return;
       }
 
@@ -65,14 +66,14 @@ export const useReplayBuffer = () => {
       const audioTrackId = publication.audioTrack?.sid;
 
       if (!videoTrackId) {
-        console.warn('[ReplayBuffer] Screen share has no video track');
+        logger.warn('[ReplayBuffer] Screen share has no video track');
         return;
       }
 
       // Get participant identity for track resolution query
       const participantIdentity = room.localParticipant?.identity;
 
-      console.log('[ReplayBuffer] Screen share published, starting replay buffer', {
+      logger.dev('[ReplayBuffer] Screen share published, starting replay buffer', {
         channelId: currentVoiceChannel,
         roomName: room.name,
         videoTrackId,
@@ -95,9 +96,9 @@ export const useReplayBuffer = () => {
         isActiveRef.current = true;
         setIsReplayBufferActive(true);
         showNotification('Replay available', 'success');
-        console.log('[ReplayBuffer] Replay buffer started successfully');
+        logger.dev('[ReplayBuffer] Replay buffer started successfully');
       } catch (error) {
-        console.error('[ReplayBuffer] Failed to start replay buffer:', error);
+        logger.error('[ReplayBuffer] Failed to start replay buffer:', error);
         showNotification('Replay unavailable', 'error');
       } finally {
         isOperationPendingRef.current = false;
@@ -110,11 +111,11 @@ export const useReplayBuffer = () => {
 
       // Prevent race conditions - use refs which are always current
       if (!isActiveRef.current || isOperationPendingRef.current) {
-        console.log('[ReplayBuffer] Not active or operation pending, skipping');
+        logger.dev('[ReplayBuffer] Not active or operation pending, skipping');
         return;
       }
 
-      console.log('[ReplayBuffer] Screen share unpublished, stopping replay buffer');
+      logger.dev('[ReplayBuffer] Screen share unpublished, stopping replay buffer');
 
       // Mark operation as pending to prevent concurrent calls
       isOperationPendingRef.current = true;
@@ -123,9 +124,9 @@ export const useReplayBuffer = () => {
         await stopReplayBuffer().unwrap();
         isActiveRef.current = false;
         setIsReplayBufferActive(false);
-        console.log('[ReplayBuffer] Replay buffer stopped successfully');
+        logger.dev('[ReplayBuffer] Replay buffer stopped successfully');
       } catch (error) {
-        console.error('[ReplayBuffer] Failed to stop replay buffer:', error);
+        logger.error('[ReplayBuffer] Failed to stop replay buffer:', error);
       } finally {
         isOperationPendingRef.current = false;
       }
@@ -156,7 +157,7 @@ export const useReplayBuffer = () => {
       egressId: string;
       channelId: string;
     }) => {
-      console.log('[ReplayBuffer] Egress stopped by LiveKit:', data);
+      logger.dev('[ReplayBuffer] Egress stopped by LiveKit:', data);
       showNotification('Replay ended', 'info');
       isActiveRef.current = false;
       setIsReplayBufferActive(false);
@@ -168,7 +169,7 @@ export const useReplayBuffer = () => {
       channelId: string;
       error: string;
     }) => {
-      console.error('[ReplayBuffer] Egress failed:', data);
+      logger.error('[ReplayBuffer] Egress failed:', data);
       showNotification('Replay unavailable', 'error');
       isActiveRef.current = false;
       setIsReplayBufferActive(false);
@@ -188,12 +189,12 @@ export const useReplayBuffer = () => {
     return () => {
       // Use refs to check current state on unmount (not stale closure)
       if (isActiveRef.current && !isOperationPendingRef.current) {
-        console.log('[ReplayBuffer] Component unmounting, stopping replay buffer');
+        logger.dev('[ReplayBuffer] Component unmounting, stopping replay buffer');
         stopReplayBuffer().catch((error) => {
           // Ignore 404 errors - session may already be stopped
           const errorObj = error as { status?: number };
           if (errorObj?.status !== 404) {
-            console.error('[ReplayBuffer] Failed to stop on unmount:', error);
+            logger.error('[ReplayBuffer] Failed to stop on unmount:', error);
           }
         });
       }

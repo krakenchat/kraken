@@ -1,4 +1,5 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
+import { logger } from "../../utils/logger";
 import { createAuthedBaseQuery } from "../createBaseQuery";
 import {
   DirectMessageGroup,
@@ -51,7 +52,7 @@ export const directMessagesApi = createApi({
             );
           }
         } catch (error) {
-          console.error("Failed to fetch DM messages:", error);
+          logger.error("Failed to fetch DM messages:", error);
         }
       },
     }),

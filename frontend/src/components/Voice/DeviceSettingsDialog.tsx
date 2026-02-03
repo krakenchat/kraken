@@ -29,6 +29,7 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useDeviceSettings } from '../../hooks/useDeviceSettings';
+import { logger } from '../../utils/logger';
 
 interface DeviceSettingsDialogProps {
   open: boolean;
@@ -209,7 +210,7 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
       updateLevel();
 
     } catch (error) {
-      console.error('Failed to test audio:', error);
+      logger.error('Failed to test audio:', error);
       setTestingAudio(false);
     }
   };
@@ -233,7 +234,7 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
         videoRef.current.play();
       }
     } catch (error) {
-      console.error('Failed to test video:', error);
+      logger.error('Failed to test video:', error);
       setTestingVideo(false);
     }
   };

@@ -30,6 +30,7 @@ import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { useNavigate } from 'react-router-dom';
 import MobileAppBar from '../MobileAppBar';
+import { logger } from '../../../utils/logger';
 
 /**
  * Profile panel - Shows user profile and settings
@@ -57,7 +58,7 @@ export const MobileProfilePanel: React.FC = () => {
       await logout().unwrap();
       navigate('/login');
     } catch (error) {
-      console.error('Failed to logout:', error);
+      logger.error('Failed to logout:', error);
     }
   };
 

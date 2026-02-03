@@ -47,6 +47,7 @@ import { useGetUserDmGroupsQuery } from '../../features/directMessages/directMes
 import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
+import { logger } from '../../utils/logger';
 import EmptyState from '../Common/EmptyState';
 import type { Community } from '../../types/community.type';
 import type { Channel } from '../../types/channel.type';
@@ -275,7 +276,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
         'success'
       );
     } catch (err) {
-      console.error('Failed to update clip visibility:', err);
+      logger.error('Failed to update clip visibility:', err);
       showNotification(getErrorMessage(err, 'Failed to update clip visibility'), 'error');
     }
   }, [updateClip, showNotification]);
@@ -295,7 +296,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
       setDeleteDialogOpen(false);
       setClipToDelete(null);
     } catch (err) {
-      console.error('Failed to delete clip:', err);
+      logger.error('Failed to delete clip:', err);
       showNotification(getErrorMessage(err, 'Failed to delete clip'), 'error');
     } finally {
       setIsDeleting(false);
@@ -338,7 +339,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
         URL.revokeObjectURL(blobUrl);
       }
     } catch (err) {
-      console.error('Failed to download clip:', err);
+      logger.error('Failed to download clip:', err);
       showNotification(getErrorMessage(err, 'Failed to download clip'), 'error');
     } finally {
       setDownloadingClipId(null);
@@ -374,7 +375,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
       showNotification('Clip shared successfully', 'success');
       setShareDialogOpen(false);
     } catch (err) {
-      console.error('Failed to share clip:', err);
+      logger.error('Failed to share clip:', err);
       showNotification(getErrorMessage(err, 'Failed to share clip'), 'error');
     }
   };

@@ -39,6 +39,7 @@ import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { NotificationType, Notification } from '../../../types/notification.type';
 import MobileAppBar from '../MobileAppBar';
 import { formatDistanceToNow } from 'date-fns';
+import { logger } from '../../../utils/logger';
 
 /**
  * Get icon for notification type
@@ -221,7 +222,7 @@ export const NotificationsScreen: React.FC = () => {
     try {
       await markAsRead(notificationId).unwrap();
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      logger.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -229,7 +230,7 @@ export const NotificationsScreen: React.FC = () => {
     try {
       await dismissNotification(notificationId).unwrap();
     } catch (error) {
-      console.error('Failed to dismiss notification:', error);
+      logger.error('Failed to dismiss notification:', error);
     }
   };
 
@@ -237,7 +238,7 @@ export const NotificationsScreen: React.FC = () => {
     try {
       await markAllAsRead().unwrap();
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      logger.error('Failed to mark all as read:', error);
     }
   };
 
@@ -255,7 +256,7 @@ export const NotificationsScreen: React.FC = () => {
       // This is a limitation - we may need to enhance the notification API
       // For now, we could fetch the channel to get the community ID
       // Or we could add communityId to the notification payload
-      console.log('Navigate to channel:', notification.channelId);
+      logger.dev('Navigate to channel:', notification.channelId);
     }
   };
 

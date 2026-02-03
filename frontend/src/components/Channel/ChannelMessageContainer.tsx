@@ -22,6 +22,7 @@ import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import { openThread, closeThread, selectOpenThreadId } from "../../features/threads/threadsSlice";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
+import { logger } from "../../utils/logger";
 import type { Message } from "../../types/message.type";
 
 interface ChannelMessageContainerProps {
@@ -146,7 +147,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         });
       }
     } catch (error) {
-      console.error("Failed to upload files:", error);
+      logger.error("Failed to upload files:", error);
 
       // Show error notification to user
       const errorMessage = error instanceof Error

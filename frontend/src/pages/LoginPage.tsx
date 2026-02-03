@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { logger } from "../utils/logger";
 import {
   Box,
   Button,
@@ -31,7 +32,7 @@ const LoginPage: React.FC = () => {
 
       navigate("/");
     } catch (err) {
-      console.error("Login failed:", err);
+      logger.error("Login failed:", err);
     }
   };
 

@@ -8,6 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   useGetVapidPublicKeyQuery,
   useGetPushStatusQuery,
@@ -116,13 +117,13 @@ export function usePushNotifications(): UsePushNotificationsResult {
         try {
           await subscription.unsubscribe();
         } catch (cleanupErr) {
-          console.warn('[usePushNotifications] Failed to cleanup local subscription:', cleanupErr);
+          logger.warn('[usePushNotifications] Failed to cleanup local subscription:', cleanupErr);
         }
       }
 
       const message = err instanceof Error ? err.message : 'Failed to subscribe to push notifications';
       setError(message);
-      console.error('[usePushNotifications] Subscribe error:', err);
+      logger.error('[usePushNotifications] Subscribe error:', err);
       return false;
     } finally {
       setIsLoading(false);
@@ -151,7 +152,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
         await unsubscribePushMutation({ endpoint: subscription.endpoint }).unwrap();
       } catch (backendError) {
         // Continue even if backend fails - we'll clean up the local subscription
-        console.warn('[usePushNotifications] Backend unsubscribe failed:', backendError);
+        logger.warn('[usePushNotifications] Backend unsubscribe failed:', backendError);
       }
 
       // Unsubscribe locally
@@ -163,7 +164,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to unsubscribe from push notifications';
       setError(message);
-      console.error('[usePushNotifications] Unsubscribe error:', err);
+      logger.error('[usePushNotifications] Unsubscribe error:', err);
       return false;
     } finally {
       setIsLoading(false);

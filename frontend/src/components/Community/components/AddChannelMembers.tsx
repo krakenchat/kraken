@@ -13,6 +13,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { PersonAdd as PersonAddIcon } from "@mui/icons-material";
 import { useCreateChannelMembershipMutation } from "../../../features/membership";
+import { logger } from "../../../utils/logger";
 
 interface CommunityMember {
   id: string;
@@ -73,7 +74,7 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
         channelId,
       }).unwrap();
     } catch (error) {
-      console.error("Failed to add member to channel:", error);
+      logger.error("Failed to add member to channel:", error);
     }
   };
 

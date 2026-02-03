@@ -10,6 +10,7 @@ import { useNotification } from "../../contexts/NotificationContext";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import type { UserMention } from "../../utils/mentionParser";
+import { logger } from "../../utils/logger";
 
 interface DirectMessageContainerProps {
   dmGroupId: string;
@@ -71,7 +72,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
         });
       }
     } catch (error) {
-      console.error("Failed to upload files:", error);
+      logger.error("Failed to upload files:", error);
 
       // Show error notification to user
       const errorMessage = error instanceof Error

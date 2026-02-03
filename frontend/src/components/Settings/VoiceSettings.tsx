@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useDeviceSettings } from '../../hooks/useDeviceSettings';
 import { useVoiceSettings, VoiceInputMode } from '../../hooks/useVoiceSettings';
+import { logger } from '../../utils/logger';
 
 const VoiceSettings: React.FC = () => {
   const [testingAudio, setTestingAudio] = useState(false);
@@ -167,7 +168,7 @@ const VoiceSettings: React.FC = () => {
 
       updateLevel();
     } catch (error) {
-      console.error('Failed to test audio:', error);
+      logger.error('Failed to test audio:', error);
       setTestingAudio(false);
     }
   };
@@ -192,7 +193,7 @@ const VoiceSettings: React.FC = () => {
         videoRef.current.play();
       }
     } catch (error) {
-      console.error('Failed to test video:', error);
+      logger.error('Failed to test video:', error);
       setTestingVideo(false);
     }
   };

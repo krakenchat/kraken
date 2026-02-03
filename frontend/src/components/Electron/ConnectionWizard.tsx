@@ -14,6 +14,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { addServer } from '../../utils/serverStorage';
+import { logger } from '../../utils/logger';
 
 interface ConnectionWizardProps {
   open: boolean;
@@ -53,7 +54,7 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
 
       return response.ok;
     } catch (error) {
-      console.error('Connection test failed:', error);
+      logger.error('Connection test failed:', error);
       return false;
     }
   };

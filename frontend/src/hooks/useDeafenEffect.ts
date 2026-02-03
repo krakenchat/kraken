@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { logger } from '../utils/logger';
 import { useSelector } from 'react-redux';
 import { RootState } from '../app/store';
 import { useRoom } from './useRoom';
@@ -23,6 +24,7 @@ import { Track } from 'livekit-client';
 export const useDeafenEffect = () => {
   const { room } = useRoom();
   const isDeafened = useSelector((state: RootState) => state.voice.isDeafened);
+  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     if (!room) return;
@@ -42,18 +44,19 @@ export const useDeafenEffect = () => {
     if (isDeafened) {
       // Mute all remote audio (volume = 0)
       updateRemoteAudioVolume(0);
-      console.log('[Voice] Deafened: muted all remote audio tracks');
+      logger.dev('[Voice] Deafened: muted all remote audio tracks');
     } else {
       // Restore audio (volume = 1.0)
       updateRemoteAudioVolume(1.0);
-      console.log('[Voice] Undeafened: restored all remote audio tracks');
+      logger.dev('[Voice] Undeafened: restored all remote audio tracks');
     }
 
     // Handle new participants joining while deafened
     const handleParticipantConnected = () => {
       if (isDeafened) {
         // Mute new participant's audio immediately
-        setTimeout(() => updateRemoteAudioVolume(0), 100);
+        const t = setTimeout(() => updateRemoteAudioVolume(0), 100);
+        timeoutRefs.current.push(t);
       }
     };
 
@@ -61,7 +64,8 @@ export const useDeafenEffect = () => {
     const handleTrackSubscribed = () => {
       if (isDeafened) {
         // Mute newly subscribed tracks
-        setTimeout(() => updateRemoteAudioVolume(0), 100);
+        const t = setTimeout(() => updateRemoteAudioVolume(0), 100);
+        timeoutRefs.current.push(t);
       }
     };
 
@@ -72,6 +76,8 @@ export const useDeafenEffect = () => {
     return () => {
       room.off('participantConnected', handleParticipantConnected);
       room.off('trackSubscribed', handleTrackSubscribed);
+      timeoutRefs.current.forEach(clearTimeout);
+      timeoutRefs.current = [];
     };
   }, [room, isDeafened]);
 };

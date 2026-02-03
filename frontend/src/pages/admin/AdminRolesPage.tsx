@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { logger } from "../../utils/logger";
 import {
   Box,
   Typography,
@@ -388,7 +389,7 @@ const RoleUsers: React.FC<{ roleId: string; onRemoveUser: () => void }> = ({
       await removeUser({ roleId, userId }).unwrap();
       onRemoveUser();
     } catch (err) {
-      console.error("Failed to remove user from role:", err);
+      logger.error("Failed to remove user from role:", err);
     } finally {
       setRemoving(null);
     }

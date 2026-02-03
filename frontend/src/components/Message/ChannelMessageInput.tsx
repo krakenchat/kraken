@@ -69,7 +69,16 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
     handleRemoveFile,
     handleFileButtonClick,
     clearFiles,
+    validationError,
+    clearValidationError,
   } = useFileAttachments();
+
+  useEffect(() => {
+    if (validationError) {
+      showNotification(validationError, "error");
+      clearValidationError();
+    }
+  }, [validationError, showNotification, clearValidationError]);
 
   const {
     cursorPosition,

@@ -5,6 +5,8 @@
  * Supports Discord-like multi-server switching.
  */
 
+import { logger } from './logger';
+
 export interface Server {
   id: string;
   name: string;
@@ -28,7 +30,7 @@ export function getServers(): Server[] {
     }
     return JSON.parse(serversJson);
   } catch (error) {
-    console.error('Failed to load servers from localStorage:', error);
+    logger.error('Failed to load servers from localStorage:', error);
     return [];
   }
 }
@@ -69,7 +71,7 @@ function saveServers(servers: Server[]): void {
   try {
     localStorage.setItem(SERVERS_KEY, JSON.stringify(servers));
   } catch (error) {
-    console.error('Failed to save servers to localStorage:', error);
+    logger.error('Failed to save servers to localStorage:', error);
     throw error;
   }
 }

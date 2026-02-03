@@ -1,4 +1,4 @@
-import { useState, useCallback, ChangeEvent } from "react";
+import { useState, useCallback, useEffect, useRef, ChangeEvent } from "react";
 
 export interface ProfileFormData {
   displayName: string;
@@ -39,6 +39,15 @@ export const useProfileForm = (
 
   const [formErrors, setFormErrors] = useState<ProfileFormErrors>({});
 
+  const previewUrlRefs = useRef<ProfilePreviewUrls>({ avatar: null, banner: null });
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRefs.current.avatar) URL.revokeObjectURL(previewUrlRefs.current.avatar);
+      if (previewUrlRefs.current.banner) URL.revokeObjectURL(previewUrlRefs.current.banner);
+    };
+  }, []);
+
   const handleInputChange = useCallback(
     (field: keyof ProfileFormData) =>
       (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -50,8 +59,13 @@ export const useProfileForm = (
               [field]: file,
             }));
 
-            // Create preview URL for image files
+            // Revoke old preview URL to prevent memory leak
+            const oldUrl = previewUrlRefs.current[field as keyof ProfilePreviewUrls];
+            if (oldUrl) {
+              URL.revokeObjectURL(oldUrl);
+            }
             const objectUrl = URL.createObjectURL(file);
+            previewUrlRefs.current = { ...previewUrlRefs.current, [field]: objectUrl };
             setPreviewUrls((prev) => ({
               ...prev,
               [field]: objectUrl,

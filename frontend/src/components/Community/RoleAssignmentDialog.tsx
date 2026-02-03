@@ -21,6 +21,7 @@ import {
   useAssignRoleToUserMutation,
   useRemoveRoleFromUserMutation,
 } from "../../features/roles/rolesApiSlice";
+import { logger } from "../../utils/logger";
 
 interface RoleAssignmentDialogProps {
   open: boolean;
@@ -116,7 +117,7 @@ const RoleAssignmentDialog: React.FC<RoleAssignmentDialogProps> = ({
       onClose();
     } catch (error) {
       // Error handled by RTK Query
-      console.error("Failed to update user roles:", error);
+      logger.error("Failed to update user roles:", error);
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { logger } from "../utils/logger";
 import {
   Box,
   Button,
@@ -81,7 +82,7 @@ const JoinInvitePage: React.FC = () => {
       }
       navigate("/");
     } catch (err) {
-      console.error("Registration failed:", err);
+      logger.error("Registration failed:", err);
     }
   };
 

@@ -17,6 +17,7 @@ import {
 import { useProfileQuery } from "../../features/users/usersSlice";
 import FriendRequestCard from "./FriendRequestCard";
 import EmptyState from "../Common/EmptyState";
+import { logger } from "../../utils/logger";
 
 interface FriendRequestListProps {
   compact?: boolean;
@@ -37,7 +38,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
     try {
       await acceptRequest(friendshipId).unwrap();
     } catch (err) {
-      console.error("Failed to accept friend request:", err);
+      logger.error("Failed to accept friend request:", err);
     }
   };
 
@@ -45,7 +46,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
     try {
       await declineRequest(friendshipId).unwrap();
     } catch (err) {
-      console.error("Failed to decline friend request:", err);
+      logger.error("Failed to decline friend request:", err);
     }
   };
 
@@ -53,7 +54,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
     try {
       await cancelRequest(friendshipId).unwrap();
     } catch (err) {
-      console.error("Failed to cancel friend request:", err);
+      logger.error("Failed to cancel friend request:", err);
     }
   };
 

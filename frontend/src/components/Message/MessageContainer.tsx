@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import MessageComponent from "./MessageComponent";
 import { Typography, Fab, useMediaQuery, useTheme } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -68,16 +69,20 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const channelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+
+  // Messages are newest-first from the API; reverse for chronological display in Virtuoso
+  const displayMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   // Auto-mark messages as read when they scroll into view
   useMessageVisibility({
     channelId,
     directMessageGroupId,
     messages,
-    containerRef: channelRef,
+    containerRef: scrollContainerRef,
     enabled: !isLoading && messages.length > 0,
   });
 
@@ -90,60 +95,40 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     selectUnreadCount(state, contextKey)
   );
 
-  // Find the index of the last read message
-  // Messages array is newest-first, so unread messages have lower indices
-  const lastReadIndex = useMemo(() => {
+  // Find the index of the last read message in the display (chronological) array
+  const lastReadDisplayIndex = useMemo(() => {
     if (!lastReadMessageId) return -1;
-    return messages.findIndex((msg) => msg.id === lastReadMessageId);
-  }, [messages, lastReadMessageId]);
+    return displayMessages.findIndex((msg) => msg.id === lastReadMessageId);
+  }, [displayMessages, lastReadMessageId]);
 
   // Scroll to highlighted message when it's available
   useEffect(() => {
-    if (highlightMessageId && messages.length > 0) {
-      const messageEl = messageRefs.current.get(highlightMessageId);
-      if (messageEl) {
-        messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (highlightMessageId && displayMessages.length > 0) {
+      const idx = displayMessages.findIndex((m) => m.id === highlightMessageId);
+      if (idx >= 0) {
+        virtuosoRef.current?.scrollToIndex({
+          index: idx,
+          align: "center",
+          behavior: "smooth",
+        });
       }
     }
-  }, [highlightMessageId, messages]);
+  }, [highlightMessageId, displayMessages]);
 
   const scrollToBottom = useCallback(() => {
-    if (channelRef.current) {
-      channelRef.current.scrollTop = 0; // For column-reverse, 0 is the bottom
-      setShowJumpToBottom(false);
+    virtuosoRef.current?.scrollToIndex({
+      index: displayMessages.length - 1,
+      align: "end",
+      behavior: "smooth",
+    });
+  }, [displayMessages.length]);
+
+  // Load more when reaching the top of the list
+  const handleStartReached = useCallback(() => {
+    if (continuationToken && onLoadMore && !isLoadingMore) {
+      onLoadMore();
     }
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!channelRef.current || isLoadingMore) return;
-
-      const el = channelRef.current;
-
-      // For flex-direction: column-reverse, scrollTop will be 0 when at the "bottom"
-      const isAtBottom = Math.abs(el.scrollTop) < 50;
-      setShowJumpToBottom(!isAtBottom);
-
-      // Load more messages when scrolled to top (which is visually the "top" of old messages)
-      const isNearTop = Math.abs(el.scrollTop) >= el.scrollHeight - el.clientHeight - 100;
-      if (isNearTop && continuationToken && onLoadMore && !isLoadingMore) {
-        onLoadMore();
-      }
-    };
-
-    const scrollEl = channelRef.current;
-    if (scrollEl) {
-      scrollEl.addEventListener("scroll", handleScroll);
-      return () => scrollEl.removeEventListener("scroll", handleScroll);
-    }
-  }, [continuationToken, isLoadingMore, onLoadMore]);
-
-  // Auto-scroll when new messages arrive (if user is at bottom)
-  useEffect(() => {
-    if (!showJumpToBottom && messages.length > 0) {
-      scrollToBottom();
-    }
-  }, [messages.length, showJumpToBottom, scrollToBottom]);
+  }, [continuationToken, onLoadMore, isLoadingMore]);
 
   const skeletonCount = 10;
 
@@ -218,92 +203,113 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         style={{
           flex: 1,
           display: "flex",
-          flexDirection: "column-reverse",
+          flexDirection: "column",
           height: "100%",
           position: "relative",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column-reverse",
-            height: "100%",
-            overflowY: "auto",
-            overflowX: "hidden",
-            padding: "16px",
-          }}
-          ref={channelRef}
-        >
-        <div
-          style={{
-            position: "sticky",
-            bottom: 0,
-            background: "inherit",
-            zIndex: 2,
-          }}
-        >
-          {messageInput}
-        </div>
-
-        {messages && messages.length > 0 ? (
-          messages.map((message, index) => {
-            const isHighlighted = highlightMessageId === message.id;
-            // Show divider before the last read message when there are unread messages
-            const showDividerBeforeThis =
-              lastReadIndex > 0 && index === lastReadIndex;
-
-            return (
-              <React.Fragment
-                key={isHighlighted ? `${message.id}-highlight` : message.id}
-              >
-                {showDividerBeforeThis && (
-                  <UnreadMessageDivider unreadCount={unreadCount} />
-                )}
+        {displayMessages.length > 0 ? (
+          <Virtuoso
+            ref={virtuosoRef}
+            scrollerRef={(el) => {
+              if (el instanceof HTMLDivElement) {
+                (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+              }
+            }}
+            style={{ flex: 1 }}
+            data={displayMessages}
+            initialTopMostItemIndex={displayMessages.length - 1}
+            followOutput="smooth"
+            alignToBottom
+            atBottomStateChange={setAtBottom}
+            startReached={handleStartReached}
+            overscan={200}
+            components={{
+              Header: () =>
+                isLoadingMore ? (
+                  <div style={{ padding: "16px", textAlign: "center" }}>
+                    <MessageSkeleton />
+                    <MessageSkeleton />
+                    <MessageSkeleton />
+                  </div>
+                ) : null,
+              Footer: () => (
                 <div
-                  data-message-id={message.id}
-                  ref={(el) => {
-                    if (el) messageRefs.current.set(message.id, el);
-                    else messageRefs.current.delete(message.id);
+                  style={{
+                    position: "sticky",
+                    bottom: 0,
+                    background: "inherit",
+                    zIndex: 2,
+                    padding: "0 16px 16px",
                   }}
                 >
-                  <MessageComponent
-                    message={message}
-                    isAuthor={message.authorId === authorId}
-                    isSearchHighlight={isHighlighted}
-                    contextId={contextId}
-                    communityId={communityId}
-                    onOpenThread={onOpenThread}
-                    contextType={directMessageGroupId ? "dm" : "channel"}
-                  />
+                  {messageInput}
                 </div>
-              </React.Fragment>
-            );
-          })
+              ),
+            }}
+            itemContent={(index, message) => {
+              const isHighlighted = highlightMessageId === message.id;
+              // Show divider after the last read message (before the first unread)
+              const showDividerBeforeThis =
+                unreadCount > 0 &&
+                lastReadDisplayIndex >= 0 &&
+                index === lastReadDisplayIndex + 1;
+
+              return (
+                <div style={{ padding: "0 16px" }}>
+                  {showDividerBeforeThis && (
+                    <UnreadMessageDivider unreadCount={unreadCount} />
+                  )}
+                  <div
+                    data-message-id={message.id}
+                    ref={(el) => {
+                      if (el) messageRefs.current.set(message.id, el);
+                      else messageRefs.current.delete(message.id);
+                    }}
+                  >
+                    <MessageComponent
+                      message={message}
+                      isAuthor={message.authorId === authorId}
+                      isSearchHighlight={isHighlighted}
+                      contextId={contextId}
+                      communityId={communityId}
+                      onOpenThread={onOpenThread}
+                      contextType={directMessageGroupId ? "dm" : "channel"}
+                    />
+                  </div>
+                </div>
+              );
+            }}
+          />
         ) : (
           <div
             style={{
-              height: "100%",
+              flex: 1,
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "100%",
             }}
           >
-            <Typography color="text.secondary">
-              {emptyStateMessage}
-            </Typography>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Typography color="text.secondary">
+                {emptyStateMessage}
+              </Typography>
+            </div>
+            <div style={{ padding: "0 16px 16px" }}>
+              {messageInput}
+            </div>
           </div>
         )}
 
-        {isLoadingMore && (
-          <div style={{ padding: "16px", textAlign: "center" }}>
-            <MessageSkeleton />
-            <MessageSkeleton />
-            <MessageSkeleton />
-          </div>
-        )}
-      </div>
-
-        {showJumpToBottom && (
+        {!atBottom && (
           <Fab
             size="small"
             onClick={scrollToBottom}

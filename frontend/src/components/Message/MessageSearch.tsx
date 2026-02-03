@@ -23,6 +23,7 @@ import { Message } from "../../types/message.type";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useDebounce } from "../../hooks/useDebounce";
+import { logger } from "../../utils/logger";
 
 type SearchScope = "channel" | "community";
 
@@ -93,7 +94,7 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
         }
         setSelectedIndex(0);
       } catch (error) {
-        console.error("Search failed:", error);
+        logger.error("Search failed:", error);
         setResults([]);
       }
     };

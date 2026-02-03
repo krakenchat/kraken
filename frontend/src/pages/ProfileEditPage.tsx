@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { logger } from "../utils/logger";
 import {
   Box,
   Button,
@@ -102,7 +103,7 @@ const ProfileEditPage: React.FC = () => {
       // Navigate to profile page after successful update
       navigate(`/profile/${currentUser.id}`);
     } catch (err) {
-      console.error("Failed to update profile:", err);
+      logger.error("Failed to update profile:", err);
     }
   };
 

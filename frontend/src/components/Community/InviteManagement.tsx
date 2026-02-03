@@ -33,6 +33,7 @@ import {
 } from "../../features/invite/inviteApiSlice";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../../types/invite.type";
+import { logger } from "../../utils/logger";
 
 interface InviteManagementProps {
   communityId: string;
@@ -79,7 +80,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
       setCopiedInvite(code);
       setTimeout(() => setCopiedInvite(null), 2000);
     } catch (error) {
-      console.error("Failed to copy invite link:", error);
+      logger.error("Failed to copy invite link:", error);
     }
   };
 
@@ -96,7 +97,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
       setMaxUses(undefined);
       setValidUntil("");
     } catch (error) {
-      console.error("Failed to create invite:", error);
+      logger.error("Failed to create invite:", error);
     }
   };
 
@@ -111,7 +112,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
     try {
       await deleteInvite(inviteToDelete.code).unwrap();
     } catch (error) {
-      console.error("Failed to delete invite:", error);
+      logger.error("Failed to delete invite:", error);
     } finally {
       setConfirmDeleteOpen(false);
       setInviteToDelete(null);

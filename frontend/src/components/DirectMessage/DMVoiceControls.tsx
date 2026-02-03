@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Box, IconButton, Tooltip, CircularProgress } from "@mui/material";
 import { Phone, Videocam } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
+import { logger } from "../../utils/logger";
 
 interface DMVoiceControlsProps {
   dmGroupId: string;
@@ -38,7 +39,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
     try {
       await actions.joinDmVoice(dmGroupId, dmGroupName);
     } catch (error) {
-      console.error("Failed to join DM voice call:", error);
+      logger.error("Failed to join DM voice call:", error);
     } finally {
       setIsJoining(false);
     }
@@ -60,7 +61,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
       await actions.toggleVideo();
       actions.setShowVideoTiles(true);
     } catch (error) {
-      console.error("Failed to start DM video call:", error);
+      logger.error("Failed to start DM video call:", error);
     } finally {
       setIsJoining(false);
     }

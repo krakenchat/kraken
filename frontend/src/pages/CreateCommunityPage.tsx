@@ -1,4 +1,5 @@
 import React from "react";
+import { logger } from "../utils/logger";
 import { useNavigate } from "react-router-dom";
 import { useCreateCommunityMutation } from "../features/community/communityApiSlice";
 import { useCommunityForm } from "../hooks/useCommunityForm";
@@ -41,7 +42,7 @@ const CreateCommunityPage: React.FC = () => {
       // Navigate to the newly created community
       navigate(`/community/${result.id}`);
     } catch (err) {
-      console.error("Failed to create community:", err);
+      logger.error("Failed to create community:", err);
     }
   };
 

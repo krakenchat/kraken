@@ -19,6 +19,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { useRemoveChannelMembershipMutation } from "../../../features/membership";
+import { logger } from "../../../utils/logger";
 
 interface ChannelMember {
   id: string;
@@ -68,7 +69,7 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
         channelId 
       }).unwrap();
     } catch (error) {
-      console.error("Failed to remove member from channel:", error);
+      logger.error("Failed to remove member from channel:", error);
     } finally {
       setConfirmRemoveOpen(false);
       setUserToRemove(null);

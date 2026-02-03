@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '../utils/logger';
 
 interface PWAState {
   // Is the app running as installed PWA (standalone mode)?
@@ -126,7 +127,7 @@ export const usePWA = () => {
       }
       return false;
     } catch (e) {
-      console.error('Install prompt error:', e);
+      logger.error('Install prompt error:', e);
       return false;
     }
   }, []);

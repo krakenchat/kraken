@@ -70,7 +70,9 @@ export const useMessageVisibility = ({
     return latestMessageId;
   }, []); // No dependencies - uses refs
 
-  // Set up Intersection Observer
+  // Set up Intersection Observer + MutationObserver for virtualized lists
+  // The MutationObserver watches for dynamically added/removed message elements
+  // (e.g., from react-virtuoso) and keeps the IntersectionObserver in sync.
   useEffect(() => {
     if (!enabled) return;
 
@@ -104,19 +106,60 @@ export const useMessageVisibility = ({
       }
     };
 
-    // Create observer
+    // Create intersection observer
     observerRef.current = new IntersectionObserver(handleIntersection, {
       root: null, // viewport
       rootMargin: "0px",
       threshold: 0.5, // 50% of message must be visible
     });
 
-    // Observe all message elements, scoped to container if provided
+    // Helper to observe a single element if it has data-message-id
+    const observeElement = (el: Element) => {
+      if (el.hasAttribute("data-message-id")) {
+        observerRef.current?.observe(el);
+      }
+      // Also check children (virtuoso may add wrapper divs)
+      el.querySelectorAll("[data-message-id]").forEach((child) => {
+        observerRef.current?.observe(child);
+      });
+    };
+
+    // Observe all currently rendered message elements
     const root = containerRef?.current || document;
     const messageElements = root.querySelectorAll("[data-message-id]");
     messageElements.forEach((el) => {
       observerRef.current?.observe(el);
     });
+
+    // Watch for dynamically added/removed elements (virtualization)
+    let mutationObserver: MutationObserver | null = null;
+    const observeRoot = containerRef?.current || document.body;
+    mutationObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof Element) {
+            observeElement(node);
+          }
+        });
+        mutation.removedNodes.forEach((node) => {
+          if (node instanceof Element) {
+            const msgId = node.getAttribute("data-message-id");
+            if (msgId) {
+              visibleMessagesRef.current.delete(msgId);
+              observerRef.current?.unobserve(node);
+            }
+            node.querySelectorAll("[data-message-id]").forEach((child) => {
+              const childId = child.getAttribute("data-message-id");
+              if (childId) {
+                visibleMessagesRef.current.delete(childId);
+                observerRef.current?.unobserve(child);
+              }
+            });
+          }
+        });
+      }
+    });
+    mutationObserver.observe(observeRoot, { childList: true, subtree: true });
 
     // Capture ref value for cleanup to avoid stale reference
     const visibleMessages = visibleMessagesRef.current;
@@ -127,10 +170,11 @@ export const useMessageVisibility = ({
         observerRef.current.disconnect();
         observerRef.current = null;
       }
+      if (mutationObserver) {
+        mutationObserver.disconnect();
+      }
       visibleMessages.clear();
     };
-  // Note: messages.length removed from deps - we use messagesRef for current messages
-  // Re-running when messages change is unnecessary since observer watches DOM elements
   }, [enabled, containerRef, findLatestVisibleMessage, markAsRead]);
 
   return {
