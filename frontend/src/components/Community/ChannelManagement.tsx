@@ -40,6 +40,7 @@ import {
 } from "../../features/channel/channelApiSlice";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import type { Channel } from "../../types/channel.type";
+import { logger } from "../../utils/logger";
 
 interface ChannelManagementProps {
   communityId: string;
@@ -132,7 +133,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
         isPrivate: false,
       });
     } catch (error) {
-      console.error("Failed to create channel:", error);
+      logger.error("Failed to create channel:", error);
     }
   }, [formData, communityId, createChannel]);
 
@@ -169,7 +170,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
         isPrivate: false,
       });
     } catch (error) {
-      console.error("Failed to update channel:", error);
+      logger.error("Failed to update channel:", error);
     }
   }, [editingChannel, formData, updateChannel]);
 
@@ -184,7 +185,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
     try {
       await deleteChannel(channelToDelete.id).unwrap();
     } catch (error) {
-      console.error("Failed to delete channel:", error);
+      logger.error("Failed to delete channel:", error);
     } finally {
       setConfirmDeleteOpen(false);
       setChannelToDelete(null);
@@ -201,7 +202,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
       try {
         await moveUp({ channelId, communityId }).unwrap();
       } catch (error) {
-        console.error("Failed to move channel up:", error);
+        logger.error("Failed to move channel up:", error);
       }
     },
     [moveUp, communityId]
@@ -212,7 +213,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
       try {
         await moveDown({ channelId, communityId }).unwrap();
       } catch (error) {
-        console.error("Failed to move channel down:", error);
+        logger.error("Failed to move channel down:", error);
       }
     },
     [moveDown, communityId]

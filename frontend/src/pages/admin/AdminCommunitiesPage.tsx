@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { logger } from "../../utils/logger";
 import {
   Box,
   Typography,
@@ -62,7 +63,7 @@ const AdminCommunitiesPage: React.FC = () => {
       await forceDeleteCommunity(confirmDialog.community.id).unwrap();
       refetch();
     } catch (error) {
-      console.error("Failed to delete community:", error);
+      logger.error("Failed to delete community:", error);
     }
 
     setConfirmDialog({ open: false, community: null });

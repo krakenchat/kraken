@@ -36,6 +36,7 @@ import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import UserAvatar from "../Common/UserAvatar";
 import { format, isPast, differenceInSeconds } from "date-fns";
+import { logger } from "../../utils/logger";
 
 interface TimeoutListPanelProps {
   communityId: string;
@@ -150,7 +151,7 @@ const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
         dto: { reason },
       }).unwrap();
     } catch (err) {
-      console.error("Failed to remove timeout:", err);
+      logger.error("Failed to remove timeout:", err);
     }
   };
 

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import { logger } from '../utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from './useSocket';
 import { ServerEvents } from '../types/server-events.enum';
@@ -107,7 +108,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     if (audioRef.current && soundEnabledRef.current && playSound) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
-        console.error('[Notifications] Error playing sound:', error);
+        logger.error('[Notifications] Error playing sound:', error);
       });
     }
   }, [playSound]);
@@ -149,7 +150,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
    */
   const handleNewNotification = useCallback(
     async (payload: NewNotificationPayload) => {
-      console.log('[Notifications] New notification received:', payload);
+      logger.dev('[Notifications] New notification received:', payload);
 
       // Store notification for later lookup (e.g., Electron click events)
       notificationsRef.current.set(payload.notificationId, payload);
@@ -219,7 +220,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
    */
   const handleNotificationRead = useCallback(
     (payload: NotificationReadPayload) => {
-      console.log('[Notifications] Notification marked as read:', payload);
+      logger.dev('[Notifications] Notification marked as read:', payload);
 
       // Update notification state in Redux
       dispatch(markAsReadAction(payload.notificationId));
@@ -253,7 +254,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     if (!electronAPI?.onNotificationClick) return;
 
     const unsubscribe = electronAPI.onNotificationClick((notificationId: string) => {
-      console.log('[Notifications] Electron notification clicked:', notificationId);
+      logger.dev('[Notifications] Electron notification clicked:', notificationId);
       handleNotificationClicked(notificationId);
     });
 

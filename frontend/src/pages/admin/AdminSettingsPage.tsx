@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { logger } from "../../utils/logger";
 import {
   Box,
   Typography,
@@ -74,7 +75,7 @@ const AdminSettingsPage: React.FC = () => {
       setSuccessMessage("Settings saved successfully");
     } catch (err) {
       setErrorMessage("Failed to save settings");
-      console.error("Failed to save settings:", err);
+      logger.error("Failed to save settings:", err);
     }
   };
 

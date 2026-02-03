@@ -22,6 +22,7 @@ import Hls from 'hls.js';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
 import { useGetSessionInfoQuery } from '../../features/livekit/livekitApiSlice';
+import { logger } from '../../utils/logger';
 
 interface TrimPreviewProps {
   onRangeChange: (startSeconds: number, endSeconds: number) => void;
@@ -131,7 +132,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
         const seekToStart = () => {
           // Use the ref to get the current startTime value (set by first effect)
           const targetTime = startTimeRef.current;
-          console.log('HLS: Seeking to start time:', targetTime);
+          logger.dev('HLS: Seeking to start time:', targetTime);
           video.currentTime = targetTime;
           setCurrentTime(targetTime);
         };
@@ -149,10 +150,10 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       });
 
       hls.on(Hls.Events.ERROR, (_, data) => {
-        console.error('HLS Error:', data);
+        logger.error('HLS Error:', data);
         // Log fragment details for debugging demuxer issues
         if (data.frag) {
-          console.error('Fragment details:', {
+          logger.error('Fragment details:', {
             sn: data.frag.sn,
             url: data.frag.url,
             start: data.frag.start,
@@ -174,7 +175,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
 
       // Debug: Log when fragments are loaded successfully
       hls.on(Hls.Events.FRAG_LOADED, (_, data) => {
-        console.log('Fragment loaded:', {
+        logger.dev('Fragment loaded:', {
           sn: data.frag.sn,
           url: data.frag.url,
           size: data.frag.stats.total,
@@ -225,7 +226,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
     const video = videoRef.current;
     if (!video || isLoading) return; // Wait until HLS is loaded
 
-    console.log('Attaching timeupdate listener to video element');
+    logger.dev('Attaching timeupdate listener to video element');
 
     const handleTimeUpdate = () => {
       const time = video.currentTime;
@@ -237,7 +238,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       // Add small buffer (0.1s) to avoid race conditions with ref updates
       if (time >= endTimeRef.current - 0.1) {
         if (loopEnabledRef.current) {
-          console.log('Looping back to start:', startTimeRef.current);
+          logger.dev('Looping back to start:', startTimeRef.current);
           video.currentTime = startTimeRef.current;
         } else {
           video.pause();
@@ -248,7 +249,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     return () => {
-      console.log('Removing timeupdate listener');
+      logger.dev('Removing timeupdate listener');
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, [isLoading]); // Re-attach when loading completes
@@ -258,7 +259,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
     if (!videoRef.current || videoRef.current.readyState < 2) return;
     videoRef.current.currentTime = startTime;
     videoRef.current.play().catch((err) => {
-      console.error('Failed to play:', err);
+      logger.error('Failed to play:', err);
     });
     setIsPlaying(true);
   };
@@ -270,7 +271,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       setIsPlaying(false);
     } else {
       videoRef.current.play().catch((err) => {
-        console.error('Failed to play:', err);
+        logger.error('Failed to play:', err);
       });
       setIsPlaying(true);
     }

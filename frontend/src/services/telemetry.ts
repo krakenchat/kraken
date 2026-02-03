@@ -12,6 +12,7 @@
 
 import { openobserveRum } from '@openobserve/browser-rum';
 import { openobserveLogs } from '@openobserve/browser-logs';
+import { logger } from '../utils/logger';
 
 let initialized = false;
 
@@ -67,7 +68,7 @@ export function initTelemetry(): void {
     // Start session recording for replay functionality
     openobserveRum.startSessionReplayRecording();
   } catch (error) {
-    console.error('Failed to initialize telemetry:', error);
+    logger.error('Failed to initialize telemetry:', error);
   }
 }
 
@@ -89,7 +90,7 @@ export function setTelemetryUser(user: {
       email: user.email,
     });
   } catch (error) {
-    console.error('Failed to set telemetry user:', error);
+    logger.error('Failed to set telemetry user:', error);
   }
 }
 
@@ -103,7 +104,7 @@ export function clearTelemetryUser(): void {
   try {
     openobserveRum.clearUser();
   } catch (error) {
-    console.error('Failed to clear telemetry user:', error);
+    logger.error('Failed to clear telemetry user:', error);
   }
 }
 
@@ -127,7 +128,7 @@ export function trackError(
       ...context,
     });
   } catch (e) {
-    console.error('Failed to track error:', e);
+    logger.error('Failed to track error:', e);
   }
 }
 
@@ -150,7 +151,7 @@ export function trackNetworkError(
       type: 'network_error',
     });
   } catch (e) {
-    console.error('Failed to track network error:', e);
+    logger.error('Failed to track network error:', e);
   }
 }
 
@@ -167,6 +168,6 @@ export function addTelemetryContext(context: Record<string, unknown>): void {
       Object.values(context)[0]
     );
   } catch (error) {
-    console.error('Failed to add telemetry context:', error);
+    logger.error('Failed to add telemetry context:', error);
   }
 }

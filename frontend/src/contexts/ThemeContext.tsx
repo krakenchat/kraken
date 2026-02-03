@@ -6,6 +6,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
+import { logger } from '../utils/logger';
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { generateTheme } from '../theme/themeConfig';
 import {
@@ -49,7 +50,7 @@ function loadSettings(): ThemeSettings {
       };
     }
   } catch (e) {
-    console.warn('Failed to load theme settings:', e);
+    logger.warn('Failed to load theme settings:', e);
   }
   return defaultSettings;
 }
@@ -58,7 +59,7 @@ function saveSettings(settings: ThemeSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (e) {
-    console.warn('Failed to save theme settings:', e);
+    logger.warn('Failed to save theme settings:', e);
   }
 }
 

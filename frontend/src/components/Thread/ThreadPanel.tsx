@@ -38,6 +38,7 @@ import { Message } from "../../types/message.type";
 import MessageComponent from "../Message/MessageComponent";
 import ThreadMessageInput from "./ThreadMessageInput";
 import useThreadWebSocket from "../../hooks/useThreadWebSocket";
+import { logger } from "../../utils/logger";
 
 interface ThreadPanelProps {
   parentMessage: Message;
@@ -101,7 +102,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         await subscribe(parentMessageId).unwrap();
       }
     } catch (err) {
-      console.error("Failed to toggle subscription:", err);
+      logger.error("Failed to toggle subscription:", err);
     }
   };
 

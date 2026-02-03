@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { logger } from "../../utils/logger";
 import {
   Box,
   Typography,
@@ -92,7 +93,7 @@ const AdminStoragePage: React.FC = () => {
       await recalculateStorage(userId).unwrap();
       refetch();
     } catch (err) {
-      console.error("Failed to recalculate storage:", err);
+      logger.error("Failed to recalculate storage:", err);
     }
   };
 

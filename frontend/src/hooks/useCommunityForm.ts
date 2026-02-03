@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { CreateCommunityFormData } from "../types/create-community.type";
 
 interface FormErrors {
@@ -35,6 +35,15 @@ export const useCommunityForm = (props?: UseCommunityFormProps) => {
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
 
+  const previewUrlRefs = useRef<PreviewUrls>({ avatar: null, banner: null });
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRefs.current.avatar) URL.revokeObjectURL(previewUrlRefs.current.avatar);
+      if (previewUrlRefs.current.banner) URL.revokeObjectURL(previewUrlRefs.current.banner);
+    };
+  }, []);
+
   const handleInputChange =
     (field: keyof CreateCommunityFormData) =>
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,9 +56,20 @@ export const useCommunityForm = (props?: UseCommunityFormProps) => {
 
         // Create preview URL
         if (file) {
+          // Revoke old blob URL to prevent memory leak
+          const oldUrl = previewUrlRefs.current[field as keyof PreviewUrls];
+          if (oldUrl) {
+            URL.revokeObjectURL(oldUrl);
+          }
           const url = URL.createObjectURL(file);
+          previewUrlRefs.current = { ...previewUrlRefs.current, [field]: url };
           setPreviewUrls((prev: PreviewUrls) => ({ ...prev, [field]: url }));
         } else {
+          const oldUrl = previewUrlRefs.current[field as keyof PreviewUrls];
+          if (oldUrl) {
+            URL.revokeObjectURL(oldUrl);
+            previewUrlRefs.current = { ...previewUrlRefs.current, [field]: null };
+          }
           setPreviewUrls((prev: PreviewUrls) => ({ ...prev, [field]: null }));
         }
       } else {

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { logger } from "../utils/logger";
 import {
   Box,
   Button,
@@ -51,7 +52,7 @@ const RegisterPage: React.FC = () => {
       }
       navigate("/");
     } catch (err) {
-      console.error("Registration failed:", err);
+      logger.error("Registration failed:", err);
     }
   };
 

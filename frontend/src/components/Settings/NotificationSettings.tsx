@@ -36,6 +36,7 @@ import {
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { isElectron } from '../../utils/platform';
+import { logger } from '../../utils/logger';
 import type { UpdateNotificationSettingsDto } from '../../types/notification.type';
 
 export const NotificationSettings: React.FC = () => {
@@ -105,7 +106,7 @@ export const NotificationSettings: React.FC = () => {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      console.error('Failed to update notification settings:', error);
+      logger.error('Failed to update notification settings:', error);
     }
   };
 
@@ -260,7 +261,7 @@ export const NotificationSettings: React.FC = () => {
                 size="small"
                 onClick={() => {
                   const audio = new Audio('/sounds/notification.mp3');
-                  audio.play().catch((e) => console.error('Failed to play sound:', e));
+                  audio.play().catch((e) => logger.error('Failed to play sound:', e));
                 }}
               >
                 <PlayArrowIcon />

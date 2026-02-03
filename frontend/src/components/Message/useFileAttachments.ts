@@ -2,10 +2,11 @@
  * useFileAttachments Hook
  *
  * Shared file attachment logic for MessageInput components.
- * Handles file selection, image previews, and file removal.
+ * Handles file selection, image previews, file removal, and validation.
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { MAX_FILE_SIZE, MAX_FILES_PER_MESSAGE } from "../../constants/messages";
 
 export interface UseFileAttachmentsReturn {
   selectedFiles: File[];
@@ -15,6 +16,8 @@ export interface UseFileAttachmentsReturn {
   handleRemoveFile: (index: number) => void;
   handleFileButtonClick: () => void;
   clearFiles: () => void;
+  validationError: string | null;
+  clearValidationError: () => void;
 }
 
 /**
@@ -23,7 +26,14 @@ export interface UseFileAttachmentsReturn {
 export function useFileAttachments(): UseFileAttachmentsReturn {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [filePreviews, setFilePreviews] = useState<Map<number, string>>(new Map());
+  const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileCountRef = useRef(0);
+
+  // Keep fileCountRef in sync with selectedFiles
+  useEffect(() => {
+    fileCountRef.current = selectedFiles.length;
+  }, [selectedFiles]);
 
   // Cleanup file previews on unmount to prevent memory leaks
   useEffect(() => {
@@ -33,11 +43,37 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     };
   }, []);
 
+  const clearValidationError = useCallback(() => {
+    setValidationError(null);
+  }, []);
+
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const fileArray = Array.from(files);
-      const startIndex = selectedFiles.length;
+
+      // Validate file sizes
+      const oversizedFile = fileArray.find(file => file.size > MAX_FILE_SIZE);
+      if (oversizedFile) {
+        setValidationError(`File "${oversizedFile.name}" exceeds the 10MB size limit`);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+
+      // Validate total file count
+      const currentCount = fileCountRef.current;
+      if (currentCount + fileArray.length > MAX_FILES_PER_MESSAGE) {
+        setValidationError(`Maximum ${MAX_FILES_PER_MESSAGE} files per message`);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+
+      // Use ref for startIndex to avoid stale closure
+      const startIndex = fileCountRef.current;
 
       // Generate previews for image files
       fileArray.forEach((file, idx) => {
@@ -58,7 +94,7 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [selectedFiles.length]);
+  }, []);
 
   const handleRemoveFile = useCallback((index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -86,5 +122,7 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     handleRemoveFile,
     handleFileButtonClick,
     clearFiles,
+    validationError,
+    clearValidationError,
   };
 }

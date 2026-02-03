@@ -36,6 +36,7 @@ import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import UserAvatar from "../Common/UserAvatar";
 import { formatDistanceToNow, format, isPast } from "date-fns";
+import { logger } from "../../utils/logger";
 
 interface BanListPanelProps {
   communityId: string;
@@ -125,7 +126,7 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
         dto: { reason },
       }).unwrap();
     } catch (err) {
-      console.error("Failed to unban user:", err);
+      logger.error("Failed to unban user:", err);
     }
   };
 

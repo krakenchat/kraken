@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { logger } from '../utils/logger';
 import {
   supportsNotifications,
   getNotificationPermission,
@@ -28,7 +29,7 @@ export function useNotificationPermission() {
    */
   const requestPermission = useCallback(async () => {
     if (!isSupported) {
-      console.warn('[Notifications] Notifications not supported');
+      logger.warn('[Notifications] Notifications not supported');
       return 'denied' as NotificationPermission;
     }
 
@@ -43,7 +44,7 @@ export function useNotificationPermission() {
       setPermission(newPermission);
       return newPermission;
     } catch (error) {
-      console.error('[Notifications] Error requesting permission:', error);
+      logger.error('[Notifications] Error requesting permission:', error);
       return 'denied' as NotificationPermission;
     } finally {
       setIsRequesting(false);

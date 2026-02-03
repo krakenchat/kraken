@@ -1,4 +1,5 @@
 import { useContext, useCallback } from "react";
+import { logger } from "../utils/logger";
 import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from "../types/client-events.enum";
 import type { Message } from "../types/message.type";
@@ -44,14 +45,14 @@ export function useSendMessage(
       return new Promise((resolve) => {
         if (!socket) {
           const error = new SocketNotConnectedError();
-          console.error("[useSendMessage]", error.message);
+          logger.error("[useSendMessage]", error.message);
           resolve({ success: false, error });
           return;
         }
 
         if (!socket.connected) {
           const error = new SocketNotConnectedError();
-          console.error("[useSendMessage] Socket exists but is disconnected");
+          logger.error("[useSendMessage] Socket exists but is disconnected");
           resolve({ success: false, error });
           return;
         }

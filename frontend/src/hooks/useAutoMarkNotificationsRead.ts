@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { logger } from '../utils/logger';
 import { useAppSelector } from '../app/hooks';
 import {
   selectUnreadNotifications,
@@ -62,7 +63,7 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
 
     // Mark each notification as read
     if (notificationsToMark.length > 0) {
-      console.log(
+      logger.dev(
         `[Auto-mark] Marking ${notificationsToMark.length} notification(s) as read for ${contextType}:${contextId}`
       );
 
@@ -85,7 +86,7 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
           if (!isCancelled) {
             const failures = results.filter((r) => r.status === 'rejected');
             if (failures.length > 0) {
-              console.error(
+              logger.error(
                 `[Auto-mark] Failed to mark ${failures.length}/${notificationsToMark.length} notification(s) as read:`,
                 failures.map((f) => (f as PromiseRejectedResult).reason)
               );
@@ -94,7 +95,7 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
         } catch (error) {
           // Unexpected error in Promise.allSettled itself (should not happen)
           if (!isCancelled) {
-            console.error('[Auto-mark] Unexpected error marking notifications as read:', error);
+            logger.error('[Auto-mark] Unexpected error marking notifications as read:', error);
           }
         }
       })();

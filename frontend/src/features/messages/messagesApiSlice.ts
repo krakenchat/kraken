@@ -1,4 +1,5 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
+import { logger } from "../../utils/logger";
 import { createAuthedBaseQuery } from "../createBaseQuery";
 import { Message } from "../../types/message.type";
 import {
@@ -53,7 +54,7 @@ export const messagesApi = createApi({
             }
           }
         } catch (error) {
-          console.error("Failed to fetch messages:", error);
+          logger.error("Failed to fetch messages:", error);
         }
       },
     }),
@@ -97,7 +98,7 @@ export const messagesApi = createApi({
             })
           );
         } catch (error) {
-          console.error("Failed to update message:", error);
+          logger.error("Failed to update message:", error);
         }
       },
     }),
@@ -117,7 +118,7 @@ export const messagesApi = createApi({
             })
           );
         } catch (error) {
-          console.error("Failed to delete message:", error);
+          logger.error("Failed to delete message:", error);
         }
       },
     }),
@@ -144,7 +145,7 @@ export const messagesApi = createApi({
             );
           }
         } catch (error) {
-          console.error("Failed to add reaction:", error);
+          logger.error("Failed to add reaction:", error);
         }
       },
     }),
@@ -171,7 +172,7 @@ export const messagesApi = createApi({
             );
           }
         } catch (error) {
-          console.error("Failed to remove reaction:", error);
+          logger.error("Failed to remove reaction:", error);
         }
       },
     }),
@@ -199,7 +200,7 @@ export const messagesApi = createApi({
             );
           }
         } catch (error) {
-          console.error("Failed to add attachment:", error);
+          logger.error("Failed to add attachment:", error);
         }
       },
     }),

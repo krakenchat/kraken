@@ -1,4 +1,5 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
+import { logger } from "../../utils/logger";
 import { createAuthedBaseQuery } from "../createBaseQuery";
 import { Message, Span } from "../../types/message.type";
 import {
@@ -67,7 +68,7 @@ export const threadsApi = createApi({
             }
           }
         } catch (error) {
-          console.error("Failed to fetch thread replies:", error);
+          logger.error("Failed to fetch thread replies:", error);
           dispatch(setThreadLoading({ parentMessageId, isLoading: false }));
         }
       },
@@ -96,7 +97,7 @@ export const threadsApi = createApi({
             );
           }
         } catch (error) {
-          console.error("Failed to fetch thread metadata:", error);
+          logger.error("Failed to fetch thread metadata:", error);
         }
       },
     }),
@@ -140,7 +141,7 @@ export const threadsApi = createApi({
         } catch (error) {
           // Revert on error
           dispatch(setSubscription({ parentMessageId, isSubscribed: false }));
-          console.error("Failed to subscribe to thread:", error);
+          logger.error("Failed to subscribe to thread:", error);
         }
       },
       invalidatesTags: (_, __, parentMessageId) => [
@@ -164,7 +165,7 @@ export const threadsApi = createApi({
         } catch (error) {
           // Revert on error
           dispatch(setSubscription({ parentMessageId, isSubscribed: true }));
-          console.error("Failed to unsubscribe from thread:", error);
+          logger.error("Failed to unsubscribe from thread:", error);
         }
       },
       invalidatesTags: (_, __, parentMessageId) => [

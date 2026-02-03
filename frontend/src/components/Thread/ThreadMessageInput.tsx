@@ -17,6 +17,7 @@ import { useTheme } from "@mui/material/styles";
 import { SocketContext } from "../../utils/SocketContext";
 import { ClientEvents } from "../../types/client-events.enum";
 import { SpanType } from "../../types/message.type";
+import { logger } from "../../utils/logger";
 
 interface ThreadMessageInputProps {
   parentMessageId: string;
@@ -41,7 +42,7 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
     setIsSending(true);
 
     if (!socket?.connected) {
-      console.error("Socket not connected");
+      logger.error("Socket not connected");
       setIsSending(false);
       return;
     }
@@ -69,7 +70,7 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
         // Success - response is the message ID
         setContent("");
       } else if (response?.error) {
-        console.error("Failed to send thread reply:", response.error);
+        logger.error("Failed to send thread reply:", response.error);
       }
     });
   };

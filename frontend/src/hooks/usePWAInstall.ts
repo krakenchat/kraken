@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { logger } from '../utils/logger';
 import { isDesktopBrowser } from '../utils/platform';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -101,7 +102,7 @@ export function usePWAInstall(): PWAInstallState {
         return true;
       }
     } catch (error) {
-      console.error('PWA install failed:', error);
+      logger.error('PWA install failed:', error);
     }
 
     return false;

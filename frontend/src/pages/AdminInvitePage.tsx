@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { logger } from "../utils/logger";
 import {
   Container,
   Typography,
@@ -121,7 +122,7 @@ const AdminInvitePage: React.FC = () => {
       setCopiedInvite(code);
       setTimeout(() => setCopiedInvite(null), 2000);
     } catch (error) {
-      console.error("Failed to copy invite link:", error);
+      logger.error("Failed to copy invite link:", error);
     }
   };
 
@@ -143,7 +144,7 @@ const AdminInvitePage: React.FC = () => {
       setValidUntil("");
       setSelectedCommunities([]);
     } catch (error) {
-      console.error("Failed to create invite:", error);
+      logger.error("Failed to create invite:", error);
     }
   };
 
@@ -158,7 +159,7 @@ const AdminInvitePage: React.FC = () => {
     try {
       await deleteInvite(inviteToDelete.code).unwrap();
     } catch (error) {
-      console.error("Failed to delete invite:", error);
+      logger.error("Failed to delete invite:", error);
     } finally {
       setConfirmDeleteOpen(false);
       setInviteToDelete(null);

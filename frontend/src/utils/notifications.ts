@@ -6,6 +6,7 @@
  */
 
 import { isElectron, getElectronAPI, isSecureContext } from './platform';
+import { logger } from './logger';
 import { NotificationType } from '../types/notification.type';
 
 /**
@@ -52,7 +53,7 @@ export const getNotificationPermission = (): NotificationPermission => {
  */
 export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
   if (!supportsNotifications()) {
-    console.warn('[Notifications] Notifications not supported in this environment');
+    logger.warn('[Notifications] Notifications not supported in this environment');
     return 'denied';
   }
 
@@ -65,7 +66,7 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
     const permission = await Notification.requestPermission();
     return permission as NotificationPermission;
   } catch (error) {
-    console.error('[Notifications] Error requesting permission:', error);
+    logger.error('[Notifications] Error requesting permission:', error);
     return 'denied';
   }
 };
@@ -93,7 +94,7 @@ export const showNotification = async (
   const permission = getNotificationPermission();
 
   if (permission !== 'granted') {
-    console.warn('[Notifications] Permission not granted, cannot show notification');
+    logger.warn('[Notifications] Permission not granted, cannot show notification');
     return null;
   }
 
@@ -129,7 +130,7 @@ const showBrowserNotification = (
 
     return notification;
   } catch (error) {
-    console.error('[Notifications] Error showing browser notification:', error);
+    logger.error('[Notifications] Error showing browser notification:', error);
     return null;
   }
 };
@@ -143,7 +144,7 @@ const showElectronNotification = (
   const electronAPI = getElectronAPI();
 
   if (!electronAPI || typeof electronAPI.showNotification !== 'function') {
-    console.error('[Notifications] Electron notification API not available');
+    logger.error('[Notifications] Electron notification API not available');
     return null;
   }
 
@@ -161,7 +162,7 @@ const showElectronNotification = (
     // The click handler will be managed by Electron's IPC
     return null;
   } catch (error) {
-    console.error('[Notifications] Error showing Electron notification:', error);
+    logger.error('[Notifications] Error showing Electron notification:', error);
     return null;
   }
 };

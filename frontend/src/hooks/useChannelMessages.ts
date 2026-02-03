@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { logger } from "../utils/logger";
 import { useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
@@ -58,7 +59,7 @@ export const useChannelMessages = (channelId: string) => {
         limit: 25,
       }).unwrap();
     } catch (error) {
-      console.error("Failed to load more messages:", error);
+      logger.error("Failed to load more messages:", error);
     } finally {
       setIsLoadingMore(false);
     }

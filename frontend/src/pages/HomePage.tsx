@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { logger } from "../utils/logger";
 import {
   Box,
   Card,
@@ -87,7 +88,7 @@ const DesktopHomePage: React.FC = () => {
       await navigator.clipboard.writeText(inviteUrl);
       setSnackbarOpen(true);
     } catch (error) {
-      console.error("Failed to create invite:", error);
+      logger.error("Failed to create invite:", error);
     }
   };
 

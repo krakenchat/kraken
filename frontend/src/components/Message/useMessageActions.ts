@@ -5,7 +5,7 @@
  * Provides handlers and state management for message actions.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { Message as MessageType, FileMetadata, Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
 import { spansToText, parseMessageWithMentions } from "../../utils/mentionParser";
@@ -60,6 +60,15 @@ export function useMessageActions(
   const [editAttachments, setEditAttachments] = useState<FileMetadata[]>([]);
   const [stagedForDelete, setStagedForDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleEditClick = useCallback(() => {
     // Convert all spans (including mentions) to editable text
@@ -128,7 +137,7 @@ export function useMessageActions(
     setIsDeleting(true);
 
     // Wait for animation to complete before actually deleting
-    setTimeout(async () => {
+    deleteTimeoutRef.current = setTimeout(async () => {
       try {
         await deleteMessage({
           id: message.id,
@@ -139,6 +148,7 @@ export function useMessageActions(
         setIsDeleting(false);
         setStagedForDelete(false);
       }
+      deleteTimeoutRef.current = null;
     }, 300); // Match the animation duration
   }, [message.id, message.channelId, deleteMessage]);
 

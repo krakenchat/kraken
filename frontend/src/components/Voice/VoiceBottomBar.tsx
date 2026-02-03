@@ -45,6 +45,7 @@ import { VoiceDebugPanel } from "./VoiceDebugPanel";
 import { CaptureReplayModal } from "./CaptureReplayModal";
 import { ChannelType } from "../../types/channel.type";
 import { useResponsive } from "../../hooks/useResponsive";
+import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import { useProfileQuery } from "../../features/users/usersSlice";
@@ -115,7 +116,7 @@ export const VoiceBottomBar: React.FC = () => {
         await actions.switchVideoInputDevice(deviceId);
       }
     } catch (error) {
-      console.error(`Failed to switch ${type} device:`, error);
+      logger.error(`Failed to switch ${type} device:`, error);
     }
   }, [actions]);
 

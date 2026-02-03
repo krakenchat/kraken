@@ -14,6 +14,7 @@ import {
 import { useCreateDmGroupMutation } from "../../features/directMessages/directMessagesApiSlice";
 import FriendCard from "./FriendCard";
 import EmptyState from "../Common/EmptyState";
+import { logger } from "../../utils/logger";
 
 interface FriendListProps {
   onSelectDmGroup?: (dmGroupId: string) => void;
@@ -44,7 +45,7 @@ const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
         navigate(`/dm/${result.id}`);
       }
     } catch (err) {
-      console.error("Failed to create DM:", err);
+      logger.error("Failed to create DM:", err);
     }
   };
 
@@ -52,7 +53,7 @@ const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
     try {
       await removeFriend(friendshipId).unwrap();
     } catch (err) {
-      console.error("Failed to remove friend:", err);
+      logger.error("Failed to remove friend:", err);
     }
   };
 

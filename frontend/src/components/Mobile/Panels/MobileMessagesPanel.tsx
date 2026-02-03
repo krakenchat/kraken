@@ -38,6 +38,7 @@ import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { DirectMessageGroup } from '../../../types/direct-message.type';
 import MobileAppBar from '../MobileAppBar';
+import { logger } from '../../../utils/logger';
 
 interface User {
   id: string;
@@ -82,7 +83,7 @@ export const MobileMessagesPanel: React.FC = () => {
       setGroupName('');
       handleDmClick(result.id);
     } catch (error) {
-      console.error('Failed to create DM group:', error);
+      logger.error('Failed to create DM group:', error);
     }
   };
 

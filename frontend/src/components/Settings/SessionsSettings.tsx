@@ -36,6 +36,7 @@ import {
   SessionInfo,
 } from '../../features/auth/authSlice';
 import { useNotification } from '../../contexts/NotificationContext';
+import { logger } from '../../utils/logger';
 
 // Helper to determine device icon based on device name
 const getDeviceIcon = (deviceName: string) => {
@@ -138,7 +139,7 @@ const SessionsSettings: React.FC = () => {
       await revokeSession(sessionId).unwrap();
       showNotification('Session revoked', 'success');
     } catch (err) {
-      console.error('Failed to revoke session:', err);
+      logger.error('Failed to revoke session:', err);
       showNotification('Failed to revoke session', 'error');
     } finally {
       setRevokingId(null);
@@ -151,7 +152,7 @@ const SessionsSettings: React.FC = () => {
       showNotification(result.message, 'success');
       setConfirmDialogOpen(false);
     } catch (err) {
-      console.error('Failed to revoke sessions:', err);
+      logger.error('Failed to revoke sessions:', err);
       showNotification('Failed to revoke sessions', 'error');
     }
   };

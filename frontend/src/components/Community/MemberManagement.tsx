@@ -27,6 +27,7 @@ import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { useGetAllUsersQuery } from "../../features/users/usersSlice";
 import UserAvatar from "../Common/UserAvatar";
 import RoleAssignmentDialog from "./RoleAssignmentDialog";
+import { logger } from "../../utils/logger";
 
 interface MemberManagementProps {
   communityId: string;
@@ -84,7 +85,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
         communityId,
       }).unwrap();
     } catch (error) {
-      console.error("Failed to add member:", error);
+      logger.error("Failed to add member:", error);
     }
   };
 
@@ -99,7 +100,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
     try {
       await removeMembership({ userId: userToRemove.id, communityId }).unwrap();
     } catch (error) {
-      console.error("Failed to remove member:", error);
+      logger.error("Failed to remove member:", error);
     } finally {
       setConfirmRemoveOpen(false);
       setUserToRemove(null);

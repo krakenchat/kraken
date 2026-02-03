@@ -89,4 +89,4 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   return avatar;
 };
 
-export default UserAvatar;
+export default React.memo(UserAvatar);

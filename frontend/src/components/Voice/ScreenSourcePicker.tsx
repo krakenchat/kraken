@@ -22,6 +22,7 @@ import {
   Monitor,
   Window as WindowIcon,
 } from '@mui/icons-material';
+import { logger } from '../../utils/logger';
 
 // TypeScript types for screen share settings
 export type ResolutionPreset = 'native' | '4k' | '1440p' | '1080p' | '720p' | '480p';
@@ -67,7 +68,7 @@ const loadScreenShareSettings = (): ScreenShareSettings => {
       return JSON.parse(saved);
     }
   } catch (error) {
-    console.error('Failed to load screen share settings:', error);
+    logger.error('Failed to load screen share settings:', error);
   }
 
   // Default settings
@@ -83,7 +84,7 @@ const saveScreenShareSettings = (settings: ScreenShareSettings) => {
   try {
     localStorage.setItem(SCREEN_SHARE_SETTINGS_KEY, JSON.stringify(settings));
   } catch (error) {
-    console.error('Failed to save screen share settings:', error);
+    logger.error('Failed to save screen share settings:', error);
   }
 };
 
@@ -126,7 +127,7 @@ export const ScreenSourcePicker: React.FC<ScreenSourcePickerProps> = ({
 
         setSources(desktopSources);
       } catch (err) {
-        console.error('Failed to get desktop sources:', err);
+        logger.error('Failed to get desktop sources:', err);
         setError(err instanceof Error ? err.message : 'Failed to load available sources');
       } finally {
         setLoading(false);

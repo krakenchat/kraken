@@ -31,6 +31,7 @@ import { getAuthToken } from '../../utils/auth';
 import { TrimPreview } from './TrimPreview';
 import type { Channel } from '../../types/channel.type';
 import type { DirectMessageGroup } from '../../types/direct-message.type';
+import { logger } from '../../utils/logger';
 
 interface CaptureReplayModalProps {
   open: boolean;
@@ -146,7 +147,7 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
           showNotification('Replay clip downloaded successfully!', 'success');
           onClose();
         } catch (error) {
-          console.error('Failed to download replay:', error);
+          logger.error('Failed to download replay:', error);
           showNotification('Failed to download replay clip', 'error');
         } finally {
           setIsDownloading(false);
@@ -176,7 +177,7 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
 
       onClose();
     } catch (error: unknown) {
-      console.error('Failed to capture replay:', error);
+      logger.error('Failed to capture replay:', error);
       const errorMessage = (error as { data?: { message?: string } })?.data?.message || 'Failed to capture replay';
       showNotification(errorMessage, 'error');
     }

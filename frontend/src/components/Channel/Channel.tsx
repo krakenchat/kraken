@@ -15,6 +15,7 @@ import { VoiceChannelUserList } from "../Voice";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import type { ListItemProps } from "@mui/material/ListItem";
 import { useNotification } from "../../contexts/NotificationContext";
+import { logger } from "../../utils/logger";
 
 interface ChannelProps {
   channel: ChannelType;
@@ -93,7 +94,7 @@ export function Channel({ channel }: ChannelProps) {
           navigate(`/community/${communityId}/channel/${channel.id}`);
         }
       } catch (error) {
-        console.error("Failed to join voice channel:", error);
+        logger.error("Failed to join voice channel:", error);
         showNotification("Failed to join voice channel. Please try again.", "error");
       }
     }

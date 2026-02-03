@@ -24,6 +24,7 @@ import type {
 } from "../../utils/mentionParser";
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
+import { useNotification } from "../../contexts/NotificationContext";
 import type { Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
 
@@ -68,7 +69,18 @@ export const DmMessageInput: React.FC<DmMessageInputProps> = ({
     handleRemoveFile,
     handleFileButtonClick,
     clearFiles,
+    validationError,
+    clearValidationError,
   } = useFileAttachments();
+
+  const { showNotification } = useNotification();
+
+  useEffect(() => {
+    if (validationError) {
+      showNotification(validationError, "error");
+      clearValidationError();
+    }
+  }, [validationError, showNotification, clearValidationError]);
 
   const {
     cursorPosition,
@@ -280,6 +292,7 @@ export const DmMessageInput: React.FC<DmMessageInputProps> = ({
           onClick={handleSend}
           disabled={sending || ((!text || !text.trim()) && selectedFiles.length === 0)}
           size="small"
+          aria-label="Send message"
         >
           {sending ? <CircularProgress size={20} /> : <SendIcon />}
         </IconButton>
