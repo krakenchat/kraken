@@ -70,6 +70,38 @@ describe('MessagesService', () => {
         },
       });
     });
+
+    it('should exclude id field from Prisma create data', async () => {
+      const createDto = {
+        id: '',
+        channelId: 'channel-123',
+        authorId: 'user-123',
+        spans: [
+          {
+            type: SpanType.PLAINTEXT,
+            text: 'Replay clip',
+            userId: null,
+            specialKind: null,
+            channelId: null,
+            communityId: null,
+            aliasId: null,
+          },
+        ],
+        attachments: ['file-123'],
+        pendingAttachments: 0,
+      } as any;
+
+      mockDatabase.message.create.mockResolvedValue(
+        MessageFactory.build(createDto),
+      );
+
+      await service.create(createDto);
+
+      const callData = mockDatabase.message.create.mock.calls[0][0].data;
+      expect(callData).not.toHaveProperty('id');
+      expect(callData.channelId).toBe('channel-123');
+      expect(callData.searchText).toBe('replay clip');
+    });
   });
 
   describe('findOne', () => {

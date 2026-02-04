@@ -16,7 +16,7 @@ import {
   Videocam,
   VideocamOff,
   ScreenShare,
-  Fullscreen,
+  CropFree,
   GridView,
   ViewSidebar,
   PushPin,
@@ -307,7 +307,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
                 onToggleFullscreen();
               }}
             >
-              <Fullscreen fontSize="small" />
+              <CropFree fontSize="small" />
             </IconButton>
           )}
         </Box>
@@ -786,7 +786,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   },
                 }}
               >
-                <Fullscreen fontSize="small" />
+                <CropFree fontSize="small" />
               </IconButton>
             </Tooltip>
           </Box>

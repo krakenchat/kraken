@@ -67,9 +67,11 @@ export class MessagesService {
 
   async create(createMessageDto: CreateMessageDto) {
     const searchText = this.flattenSpansToText(createMessageDto.spans);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...data } = createMessageDto;
     return this.databaseService.message.create({
       data: {
-        ...createMessageDto,
+        ...data,
         searchText,
       },
     });
