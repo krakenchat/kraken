@@ -67,9 +67,10 @@ export class MessagesService {
 
   async create(createMessageDto: CreateMessageDto) {
     const searchText = this.flattenSpansToText(createMessageDto.spans);
+    const { id: _id, ...data } = createMessageDto;
     return this.databaseService.message.create({
       data: {
-        ...createMessageDto,
+        ...data,
         searchText,
       },
     });
