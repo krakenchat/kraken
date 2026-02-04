@@ -29,6 +29,7 @@ import {
   VolumeUp,
   FiberManualRecord,
   MovieCreation,
+  VideoCall,
 } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useScreenShare } from "../../hooks/useScreenShare";
@@ -119,6 +120,13 @@ export const VoiceBottomBar: React.FC = () => {
       logger.error(`Failed to switch ${type} device:`, error);
     }
   }, [actions]);
+
+  const handleToggleScreenShare = useCallback(() => {
+    if (!screenShare.isScreenSharing) {
+      actions.setShowVideoTiles(true);
+    }
+    screenShare.toggleScreenShare();
+  }, [screenShare, actions]);
 
   // Show bar if connected to either a channel or DM
   if (!state.isConnected || (!state.currentChannelId && !state.currentDmGroupId)) {
@@ -368,7 +376,7 @@ export const VoiceBottomBar: React.FC = () => {
                 }
               >
                 <IconButton
-                  onClick={screenShare.toggleScreenShare}
+                  onClick={handleToggleScreenShare}
                   color={screenShare.isScreenSharing ? "primary" : "default"}
                   size={isMobile ? "medium" : "medium"}
                   sx={{
@@ -412,6 +420,25 @@ export const VoiceBottomBar: React.FC = () => {
                   }}
                 >
                   <MovieCreation />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {/* Show Video Tiles - visible when tiles are hidden and video/screenshare is active */}
+            {!state.showVideoTiles && (isCameraEnabled || screenShare.isScreenSharing) && (
+              <Tooltip title="Show Video Tiles" arrow={!isMobile}>
+                <IconButton
+                  onClick={() => actions.setShowVideoTiles(true)}
+                  size={isMobile ? "medium" : "medium"}
+                  sx={{
+                    minWidth: isMobile ? 48 : "auto",
+                    minHeight: isMobile ? 48 : "auto",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
+                    },
+                  }}
+                >
+                  <VideoCall />
                 </IconButton>
               </Tooltip>
             )}
