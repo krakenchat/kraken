@@ -34,7 +34,7 @@ RUN npm run build:renderer
 # ============================================
 # Stage 2: Production with Nginx
 # ============================================
-FROM nginx:1.29-alpine AS production
+FROM nginx:1.29.5-alpine AS production
 
 # Build arguments for OCI labels and timestamp
 ARG GITHUB_REPOSITORY=user/kraken
