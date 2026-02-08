@@ -416,11 +416,28 @@ describe('FileUploadService', () => {
       mockDatabaseService.file.findUnique.mockResolvedValue({
         uploadedById: 'other-user',
         size: 2048,
+        deletedAt: null,
       });
 
       await expect(service.remove('file-123', userId)).rejects.toThrow(
         'You can only delete your own files',
       );
+    });
+
+    it('should throw NotFoundException if file is already soft-deleted', async () => {
+      mockDatabaseService.file.findUnique.mockResolvedValue({
+        uploadedById: userId,
+        size: 2048,
+        deletedAt: new Date(),
+      });
+
+      await expect(service.remove('file-123', userId)).rejects.toThrow(
+        'File not found',
+      );
+      expect(mockDatabaseService.file.update).not.toHaveBeenCalled();
+      expect(
+        mockStorageQuotaService.decrementUserStorage,
+      ).not.toHaveBeenCalled();
     });
 
     it('should decrement storage quota after soft deleting a file', async () => {

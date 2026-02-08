@@ -311,10 +311,13 @@ export class ReadReceiptsService {
         where: { channelId: { in: channelReceiptsWithoutTimestamp } },
         _count: { channelId: true },
       });
-      for (const count of counts) {
+      const countMap = new Map(
+        counts.map((c) => [c.channelId!, c._count.channelId]),
+      );
+      for (const channelId of channelReceiptsWithoutTimestamp) {
         unreadCounts.push({
-          channelId: count.channelId!,
-          unreadCount: count._count.channelId,
+          channelId,
+          unreadCount: countMap.get(channelId) ?? 0,
         });
       }
     }
@@ -371,10 +374,16 @@ export class ReadReceiptsService {
         where: { directMessageGroupId: { in: dmReceiptsWithoutTimestamp } },
         _count: { directMessageGroupId: true },
       });
-      for (const count of counts) {
+      const countMap = new Map(
+        counts.map((c) => [
+          c.directMessageGroupId!,
+          c._count.directMessageGroupId,
+        ]),
+      );
+      for (const dmGroupId of dmReceiptsWithoutTimestamp) {
         unreadCounts.push({
-          directMessageGroupId: count.directMessageGroupId!,
-          unreadCount: count._count.directMessageGroupId,
+          directMessageGroupId: dmGroupId,
+          unreadCount: countMap.get(dmGroupId) ?? 0,
         });
       }
     }

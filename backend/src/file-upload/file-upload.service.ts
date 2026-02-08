@@ -175,7 +175,7 @@ export class FileUploadService {
   async remove(id: string, userId: string) {
     const file = await this.databaseService.file.findUnique({
       where: { id },
-      select: { uploadedById: true, size: true },
+      select: { uploadedById: true, size: true, deletedAt: true },
     });
 
     if (!file) {
@@ -184,6 +184,10 @@ export class FileUploadService {
 
     if (file.uploadedById !== userId) {
       throw new ForbiddenException('You can only delete your own files');
+    }
+
+    if (file.deletedAt) {
+      throw new NotFoundException('File not found');
     }
 
     const result = await this.databaseService.file.update({

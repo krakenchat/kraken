@@ -43,7 +43,7 @@ import { getSocketUserId } from '@/common/utils/socket.utils';
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || true,
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
     credentials: true,
   },
   transports: ['websocket'],

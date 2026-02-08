@@ -1,8 +1,7 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { StorageService } from '@/storage/storage.service';
-import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -11,8 +10,6 @@ export class FileService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly storageService: StorageService,
-    @Inject(forwardRef(() => StorageQuotaService))
-    private readonly storageQuotaService: StorageQuotaService,
   ) {}
 
   findOne(id: string) {
@@ -52,14 +49,7 @@ export class FileService {
           // Delete file from local storage
           await this.cleanupFile(file.storagePath);
 
-          // Decrement user's storage usage before deleting record
-          if (file.uploadedById) {
-            await this.storageQuotaService.decrementUserStorage(
-              file.uploadedById,
-              file.size,
-            );
-          }
-
+          // Quota was already decremented at soft-delete time (in FileUploadService.remove)
           await this.databaseService.file.delete({
             where: { id: file.id },
           });

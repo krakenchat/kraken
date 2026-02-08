@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
@@ -15,25 +16,28 @@ interface RateLimitEntry {
 /**
  * WebSocket rate limiting guard.
  *
- * Tracks message counts per socket connection using a sliding window.
+ * Tracks message counts per socket connection using a fixed window.
  * The HTTP ThrottlerGuard doesn't apply to WebSocket gateways,
  * so this provides equivalent protection for WS events.
  *
  * Default: 30 events per 10 seconds per connection.
  */
 @Injectable()
-export class WsThrottleGuard implements CanActivate {
+export class WsThrottleGuard implements CanActivate, OnModuleDestroy {
   private readonly logger = new Logger(WsThrottleGuard.name);
   private readonly limits = new Map<string, RateLimitEntry>();
-  private readonly maxEventsPerWindow: number;
-  private readonly windowMs: number;
+  private readonly maxEventsPerWindow = 30;
+  private readonly windowMs = 10000;
+  private readonly cleanupInterval: NodeJS.Timeout;
 
-  constructor(maxEventsPerWindow = 30, windowMs = 10000) {
-    this.maxEventsPerWindow = maxEventsPerWindow;
-    this.windowMs = windowMs;
-
+  constructor() {
     // Periodically clean up stale entries (every 60s)
-    setInterval(() => this.cleanup(), 60000);
+    this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
+    this.cleanupInterval.unref();
+  }
+
+  onModuleDestroy(): void {
+    clearInterval(this.cleanupInterval);
   }
 
   canActivate(context: ExecutionContext): boolean {
