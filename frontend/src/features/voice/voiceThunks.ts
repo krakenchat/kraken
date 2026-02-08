@@ -18,6 +18,7 @@ import { livekitApi } from "../livekit/livekitApiSlice";
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
 import { logger } from "../../utils/logger";
+import { isElectron } from "../../utils/platform";
 import { getCachedItem, setCachedItem, removeCachedItem } from "../../utils/storage";
 
 // Storage key must match useDeviceSettings.ts
@@ -697,6 +698,43 @@ export const toggleScreenShareUnified = createAsyncThunk<
       const resolutionConfig = getResolutionConfig(settings.resolution, settings.fps);
       const audioConfig = getScreenShareAudioConfig(settings.enableAudio !== false);
 
+      // === Pre-attempt diagnostics ===
+      logger.info('[Voice] Screen share audio config passed to LiveKit:', JSON.stringify(audioConfig));
+      logger.info('[Voice] Screen share resolution config:', JSON.stringify(resolutionConfig));
+      logger.info('[Voice] Platform:', isElectron() ? 'electron' : 'web');
+
+      // Log audio device state before screen share attempt
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+        const audioInputs = devices.filter(d => d.kind === 'audioinput');
+        logger.info('[Voice] Audio output devices:', audioOutputs.map(d => ({
+          deviceId: d.deviceId.substring(0, 8) + '...',
+          label: d.label,
+          groupId: d.groupId.substring(0, 8) + '...',
+        })));
+        logger.info('[Voice] Audio input devices:', audioInputs.map(d => ({
+          deviceId: d.deviceId.substring(0, 8) + '...',
+          label: d.label,
+        })));
+      } catch (e) {
+        logger.warn('[Voice] Could not enumerate devices for diagnostics:', e);
+      }
+
+      // Log AudioContext state (reveals system sample rate)
+      try {
+        const ctx = new AudioContext();
+        logger.info('[Voice] AudioContext:', {
+          sampleRate: ctx.sampleRate,
+          state: ctx.state,
+          baseLatency: ctx.baseLatency,
+          outputLatency: ctx.outputLatency,
+        });
+        await ctx.close();
+      } catch (e) {
+        logger.warn('[Voice] Could not create AudioContext for diagnostics:', e);
+      }
+
       try {
         await room.localParticipant.setScreenShareEnabled(true, {
           audio: audioConfig,
@@ -705,6 +743,31 @@ export const toggleScreenShareUnified = createAsyncThunk<
         });
         logger.info('[Voice] ✓ Screen share enabled with audio');
       } catch (audioError) {
+        // === Detailed error diagnostics ===
+        if (audioError instanceof Error) {
+          logger.error('[Voice] Screen share audio error details:', {
+            name: audioError.name,
+            message: audioError.message,
+            stack: audioError.stack,
+            code: (audioError as DOMException).code,
+            constraint: (audioError as unknown as { constraint?: string }).constraint,
+          });
+        } else {
+          logger.error('[Voice] Screen share audio error (non-Error):', audioError);
+        }
+
+        // Log device state AFTER failure (did a device disappear?)
+        try {
+          const postDevices = await navigator.mediaDevices.enumerateDevices();
+          const postOutputs = postDevices.filter(d => d.kind === 'audiooutput');
+          logger.info('[Voice] Audio devices after failure:', postOutputs.map(d => ({
+            deviceId: d.deviceId.substring(0, 8) + '...',
+            label: d.label,
+          })));
+        } catch {
+          logger.warn('[Voice] Could not enumerate devices after failure');
+        }
+
         // Check if this is a NotReadableError (audio capture failed)
         // This commonly happens with USB headsets in exclusive mode
         const isAudioError = audioError instanceof Error && (
@@ -713,7 +776,7 @@ export const toggleScreenShareUnified = createAsyncThunk<
         );
 
         if (isAudioError && settings.enableAudio !== false) {
-          logger.warn('[Voice] ⚠ Audio capture failed, retrying without audio:', audioError);
+          logger.warn('[Voice] ⚠ Audio capture failed, retrying without audio');
 
           // Retry without audio
           await room.localParticipant.setScreenShareEnabled(true, {
