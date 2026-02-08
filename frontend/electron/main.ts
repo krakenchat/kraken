@@ -17,6 +17,11 @@ import * as path from 'path';
 initMain();
 console.log('Electron audio loopback initialized for', process.platform);
 console.log('Enable-features:', app.commandLine.getSwitchValue('enable-features'));
+console.log('Disable-features:', app.commandLine.getSwitchValue('disable-features'));
+console.log('Audio service flags:', {
+  hasAudioServiceOutOfProcess: app.commandLine.getSwitchValue('enable-features')?.includes('AudioServiceOutOfProcess'),
+  hasWebRtcAllow: app.commandLine.getSwitchValue('enable-features')?.includes('WebRtcAllow'),
+});
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -278,6 +283,10 @@ app.whenReady().then(() => {
     log('Platform:', process.platform);
     log('Electron version:', process.versions.electron);
     log('Chrome version:', process.versions.chrome);
+    log('Request videoRequested:', request.videoRequested);
+    log('Request audioRequested:', request.audioRequested);
+    log('Request securityOrigin:', request.securityOrigin);
+    log('Request frame:', request.frame ? 'present' : 'null');
 
     try {
       // Check if the renderer has pre-selected a sourceId and settings (from React UI)
@@ -321,12 +330,17 @@ app.whenReady().then(() => {
           log('Audio enabled from settings:', enableAudio);
           log('DEBUG_VIDEO_ONLY:', DEBUG_VIDEO_ONLY);
           log('Final audio config:', audioConfig);
+          log('Source type:', selectedSource.id.startsWith('screen:') ? 'screen' : 'window');
 
-          callback({
-            video: selectedSource,
-            audio: audioConfig,
-          });
-          log('Callback invoked successfully');
+          try {
+            callback({
+              video: selectedSource,
+              audio: audioConfig,
+            });
+            log('Callback invoked successfully');
+          } catch (callbackError) {
+            log('ERROR: Callback threw:', String(callbackError));
+          }
         } else {
           log('ERROR: Selected source not found:', selectedSourceId);
           callback({});
@@ -349,12 +363,17 @@ app.whenReady().then(() => {
         if (primaryScreen) {
           log('Auto-selected source:', primaryScreen.name, primaryScreen.id);
           log('Audio config: loopback');
+          log('Source type:', primaryScreen.id.startsWith('screen:') ? 'screen' : 'window');
 
-          callback({
-            video: primaryScreen,
-            audio: 'loopback',
-          });
-          log('Callback invoked successfully');
+          try {
+            callback({
+              video: primaryScreen,
+              audio: 'loopback',
+            });
+            log('Callback invoked successfully');
+          } catch (callbackError) {
+            log('ERROR: Callback threw:', String(callbackError));
+          }
         } else {
           log('ERROR: No screen sources available');
           callback({});
