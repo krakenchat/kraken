@@ -382,6 +382,7 @@ describe('MembershipService', () => {
         include: {
           user: true,
         },
+        take: 1000,
       });
     });
 

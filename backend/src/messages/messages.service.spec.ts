@@ -302,9 +302,9 @@ describe('MessagesService', () => {
 
       expect(result.messages).toHaveLength(3);
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
-        where: { channelId },
+        where: { channelId, parentMessageId: null },
         orderBy: { sentAt: 'desc' },
-        take: 100, // limit * 2 to account for thread replies filtering
+        take: 50, // fetch exactly limit, thread replies excluded via where clause
       });
     });
 
@@ -331,9 +331,9 @@ describe('MessagesService', () => {
       await service.findAllForChannel(channelId, 50, continuationToken);
 
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
-        where: { channelId },
+        where: { channelId, parentMessageId: null },
         orderBy: { sentAt: 'desc' },
-        take: 100, // limit * 2 to account for thread replies filtering
+        take: 50, // fetch exactly limit, thread replies excluded via where clause
         cursor: { id: continuationToken },
         skip: 1,
       });
@@ -396,9 +396,9 @@ describe('MessagesService', () => {
 
       expect(result.messages).toHaveLength(3);
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
-        where: { directMessageGroupId: dmGroupId },
+        where: { directMessageGroupId: dmGroupId, parentMessageId: null },
         orderBy: { sentAt: 'desc' },
-        take: 100, // limit * 2 to account for thread replies filtering
+        take: 50, // fetch exactly limit, thread replies excluded via where clause
       });
     });
 

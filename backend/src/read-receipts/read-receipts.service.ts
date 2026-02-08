@@ -282,64 +282,122 @@ export class ReadReceiptsService {
 
     // Process channels with read receipts
     const channelReceipts = readReceipts.filter((r) => r.channelId);
+    const channelReceiptsWithTimestamp: Array<{
+      channelId: string;
+      lastReadMessageId: string;
+      lastReadAt: Date;
+      lastReadAtDate: Date;
+    }> = [];
+    const channelReceiptsWithoutTimestamp: string[] = [];
+
     for (const receipt of channelReceipts) {
       const lastReadAt = lastReadMessageMap.get(receipt.lastReadMessageId);
-
-      if (!lastReadAt) {
-        // Last read message was deleted, count all messages
-        const count = await this.databaseService.message.count({
-          where: { channelId: receipt.channelId! },
-        });
-        unreadCounts.push({
+      if (lastReadAt) {
+        channelReceiptsWithTimestamp.push({
           channelId: receipt.channelId!,
-          unreadCount: count,
-        });
-      } else {
-        // Count messages after last read timestamp
-        const count = await this.databaseService.message.count({
-          where: {
-            channelId: receipt.channelId!,
-            sentAt: { gt: lastReadAt },
-          },
-        });
-        unreadCounts.push({
-          channelId: receipt.channelId!,
-          unreadCount: count,
           lastReadMessageId: receipt.lastReadMessageId,
           lastReadAt: receipt.lastReadAt,
+          lastReadAtDate: lastReadAt,
+        });
+      } else {
+        channelReceiptsWithoutTimestamp.push(receipt.channelId!);
+      }
+    }
+
+    // Batch: channels where last read message was deleted — count all messages
+    if (channelReceiptsWithoutTimestamp.length > 0) {
+      const counts = await this.databaseService.message.groupBy({
+        by: ['channelId'],
+        where: { channelId: { in: channelReceiptsWithoutTimestamp } },
+        _count: { channelId: true },
+      });
+      for (const count of counts) {
+        unreadCounts.push({
+          channelId: count.channelId!,
+          unreadCount: count._count.channelId,
         });
       }
     }
 
+    // Parallel: channels with valid timestamps — each has different sentAt threshold
+    if (channelReceiptsWithTimestamp.length > 0) {
+      const results = await Promise.all(
+        channelReceiptsWithTimestamp.map(async (receipt) => {
+          const count = await this.databaseService.message.count({
+            where: {
+              channelId: receipt.channelId,
+              sentAt: { gt: receipt.lastReadAtDate },
+            },
+          });
+          return {
+            channelId: receipt.channelId,
+            unreadCount: count,
+            lastReadMessageId: receipt.lastReadMessageId,
+            lastReadAt: receipt.lastReadAt,
+          };
+        }),
+      );
+      unreadCounts.push(...results);
+    }
+
     // Process DM groups with read receipts
     const dmReceipts = readReceipts.filter((r) => r.directMessageGroupId);
+    const dmReceiptsWithTimestamp: Array<{
+      directMessageGroupId: string;
+      lastReadMessageId: string;
+      lastReadAt: Date;
+      lastReadAtDate: Date;
+    }> = [];
+    const dmReceiptsWithoutTimestamp: string[] = [];
+
     for (const receipt of dmReceipts) {
       const lastReadAt = lastReadMessageMap.get(receipt.lastReadMessageId);
-
-      if (!lastReadAt) {
-        // Last read message was deleted, count all messages
-        const count = await this.databaseService.message.count({
-          where: { directMessageGroupId: receipt.directMessageGroupId! },
-        });
-        unreadCounts.push({
+      if (lastReadAt) {
+        dmReceiptsWithTimestamp.push({
           directMessageGroupId: receipt.directMessageGroupId!,
-          unreadCount: count,
-        });
-      } else {
-        // Count messages after last read timestamp
-        const count = await this.databaseService.message.count({
-          where: {
-            directMessageGroupId: receipt.directMessageGroupId!,
-            sentAt: { gt: lastReadAt },
-          },
-        });
-        unreadCounts.push({
-          directMessageGroupId: receipt.directMessageGroupId!,
-          unreadCount: count,
           lastReadMessageId: receipt.lastReadMessageId,
           lastReadAt: receipt.lastReadAt,
+          lastReadAtDate: lastReadAt,
+        });
+      } else {
+        dmReceiptsWithoutTimestamp.push(receipt.directMessageGroupId!);
+      }
+    }
+
+    // Batch: DM groups where last read message was deleted — count all messages
+    if (dmReceiptsWithoutTimestamp.length > 0) {
+      const counts = await this.databaseService.message.groupBy({
+        by: ['directMessageGroupId'],
+        where: { directMessageGroupId: { in: dmReceiptsWithoutTimestamp } },
+        _count: { directMessageGroupId: true },
+      });
+      for (const count of counts) {
+        unreadCounts.push({
+          directMessageGroupId: count.directMessageGroupId!,
+          unreadCount: count._count.directMessageGroupId,
         });
       }
+    }
+
+    // Parallel: DM groups with valid timestamps
+    if (dmReceiptsWithTimestamp.length > 0) {
+      const results = await Promise.all(
+        dmReceiptsWithTimestamp.map(async (receipt) => {
+          const count = await this.databaseService.message.count({
+            where: {
+              directMessageGroupId: receipt.directMessageGroupId,
+              sentAt: { gt: receipt.lastReadAtDate },
+            },
+          });
+          return {
+            directMessageGroupId: receipt.directMessageGroupId,
+            unreadCount: count,
+            lastReadMessageId: receipt.lastReadMessageId,
+            lastReadAt: receipt.lastReadAt,
+          };
+        }),
+      );
+      unreadCounts.push(...results);
     }
 
     return unreadCounts;

@@ -9,6 +9,7 @@ import { UpdateCommunityDto } from './dto/update-community.dto';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { RolesService } from '@/roles/roles.service';
+import { isPrismaError } from '@/common/utils/prisma.utils';
 
 @Injectable()
 export class CommunityService {
@@ -56,14 +57,7 @@ export class CommunityService {
         return community;
       });
     } catch (error) {
-      // Check if error is a Prisma error with a code property
-      if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        error.code === 'P2002'
-      ) {
+      if (isPrismaError(error, 'P2002')) {
         throw new ConflictException('Duplicate community name');
       }
       this.logger.error('Error creating community', error);
@@ -80,7 +74,7 @@ export class CommunityService {
 
       return communities.map((membership) => membership.community);
     } else {
-      return this.databaseService.community.findMany();
+      return this.databaseService.community.findMany({ take: 100 });
     }
   }
 
@@ -302,6 +296,32 @@ export class CommunityService {
    */
   private async cascadeDeleteCommunity(id: string): Promise<void> {
     await this.databaseService.$transaction(async (tx) => {
+      // Get all channel IDs for this community (needed for dependent record cleanup)
+      const channels = await tx.channel.findMany({
+        where: { communityId: id },
+        select: { id: true },
+      });
+      const channelIds = channels.map((c) => c.id);
+
+      // Delete records that depend on channels/messages
+      if (channelIds.length > 0) {
+        await tx.notification.deleteMany({
+          where: { channelId: { in: channelIds } },
+        });
+
+        await tx.channelNotificationOverride.deleteMany({
+          where: { channelId: { in: channelIds } },
+        });
+
+        await tx.readReceipt.deleteMany({
+          where: { channelId: { in: channelIds } },
+        });
+
+        await tx.threadSubscriber.deleteMany({
+          where: { parentMessage: { channelId: { in: channelIds } } },
+        });
+      }
+
       await tx.channelMembership.deleteMany({
         where: { channel: { communityId: id } },
       });
@@ -311,6 +331,31 @@ export class CommunityService {
       });
 
       await tx.channel.deleteMany({
+        where: { communityId: id },
+      });
+
+      // Delete community-level records
+      await tx.communityBan.deleteMany({
+        where: { communityId: id },
+      });
+
+      await tx.communityTimeout.deleteMany({
+        where: { communityId: id },
+      });
+
+      await tx.moderationLog.deleteMany({
+        where: { communityId: id },
+      });
+
+      await tx.aliasGroupMember.deleteMany({
+        where: { aliasGroup: { communityId: id } },
+      });
+
+      await tx.aliasGroup.deleteMany({
+        where: { communityId: id },
+      });
+
+      await tx.role.deleteMany({
         where: { communityId: id },
       });
 

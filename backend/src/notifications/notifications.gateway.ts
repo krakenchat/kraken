@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, UseGuards, UseFilters } from '@nestjs/common';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -9,12 +9,15 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { Notification } from '@prisma/client';
+import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 
 /**
  * Gateway for sending real-time notification events to clients
  * Note: This gateway is primarily used for emitting events, not receiving them
  * Notification creation happens in the MessagesGateway when messages are processed
  */
+@UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ORIGIN?.split(',') || true,
@@ -24,6 +27,7 @@ import { Notification } from '@prisma/client';
   pingTimeout: 60000,
   pingInterval: 25000,
 })
+@UseGuards(WsJwtAuthGuard)
 export class NotificationsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -38,11 +42,11 @@ export class NotificationsGateway
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected to NotificationsGateway: ${client.id}`);
+    this.logger.debug(`Client connected to NotificationsGateway: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(
+    this.logger.debug(
       `Client disconnected from NotificationsGateway: ${client.id}`,
     );
   }

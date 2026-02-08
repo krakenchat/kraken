@@ -3,7 +3,7 @@ import { LivekitWebhookController } from './livekit-webhook.controller';
 import { LivekitReplayService } from './livekit-replay.service';
 import { VoicePresenceService } from '../voice-presence/voice-presence.service';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { WebhookReceiver } from 'livekit-server-sdk';
 import {
   LiveKitWebhookDto,
@@ -132,10 +132,7 @@ describe('LivekitWebhookController', () => {
         ],
       }).compile();
 
-      expect(WebhookReceiver).toHaveBeenCalledWith(
-        'insecure-development-key',
-        'insecure-development-secret',
-      );
+      expect(WebhookReceiver).toHaveBeenCalledWith('unused', 'unused');
     });
   });
 
@@ -178,7 +175,7 @@ describe('LivekitWebhookController', () => {
         ).rejects.toThrow(BadRequestException);
         await expect(
           controller.handleWebhook(req as any, authorization, body),
-        ).rejects.toThrow('Webhook verification failed');
+        ).rejects.toThrow('Invalid webhook signature');
       });
 
       it('should throw BadRequestException when signature verification throws an error', async () => {
@@ -201,7 +198,7 @@ describe('LivekitWebhookController', () => {
         ).rejects.toThrow('Webhook verification failed');
       });
 
-      it('should skip signature verification when credentials are not configured', async () => {
+      it('should throw ForbiddenException when credentials are not configured', async () => {
         // Recreate controller without credentials
         mockConfigService.get.mockReturnValue(undefined);
 
@@ -233,15 +230,14 @@ describe('LivekitWebhookController', () => {
           LiveKitEgressStatus.COMPLETE,
         );
 
-        mockReplayService.handleEgressEnded.mockResolvedValue(undefined);
-
-        const result = await controllerWithoutCreds.handleWebhook(
-          req as any,
-          '',
-          body,
+        await expect(
+          controllerWithoutCreds.handleWebhook(req as any, '', body),
+        ).rejects.toThrow(ForbiddenException);
+        await expect(
+          controllerWithoutCreds.handleWebhook(req as any, '', body),
+        ).rejects.toThrow(
+          'Webhook verification not configured - LIVEKIT_API_KEY and LIVEKIT_API_SECRET required',
         );
-
-        expect(result).toEqual({ success: true });
         // Should not call receive when credentials are missing
         expect(webhookReceiverMock.receive).not.toHaveBeenCalled();
       });

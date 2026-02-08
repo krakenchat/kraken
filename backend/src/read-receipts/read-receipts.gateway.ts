@@ -23,6 +23,7 @@ import { Server, Socket } from 'socket.io';
 import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 
 @UseFilters(WsLoggingExceptionFilter)
@@ -38,7 +39,7 @@ import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
-@UseGuards(WsJwtAuthGuard)
+@UseGuards(WsThrottleGuard, WsJwtAuthGuard)
 export class ReadReceiptsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -55,11 +56,11 @@ export class ReadReceiptsGateway
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected to ReadReceiptsGateway: ${client.id}`);
+    this.logger.debug(`Client connected to ReadReceiptsGateway: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(
+    this.logger.debug(
       `Client disconnected from ReadReceiptsGateway: ${client.id}`,
     );
   }

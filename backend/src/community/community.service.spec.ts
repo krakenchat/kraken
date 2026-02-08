@@ -217,7 +217,7 @@ describe('CommunityService', () => {
       const result = await service.findAll();
 
       expect(result).toEqual(communities);
-      expect(mockDatabase.community.findMany).toHaveBeenCalledWith();
+      expect(mockDatabase.community.findMany).toHaveBeenCalledWith({ take: 100 });
       expect(mockDatabase.membership.findMany).not.toHaveBeenCalled();
     });
   });
@@ -422,18 +422,46 @@ describe('CommunityService', () => {
       const community = CommunityFactory.build();
 
       mockDatabase.community.findUnique.mockResolvedValue(community);
+      mockDatabase.channel.findMany.mockResolvedValue([
+        { id: 'ch-1' },
+        { id: 'ch-2' },
+      ]);
+      mockDatabase.notification.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.readReceipt.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.threadSubscriber.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.message.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channel.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.communityBan.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.communityTimeout.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.moderationLog.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.aliasGroupMember.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.aliasGroup.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.role.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.userRoles.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.membership.deleteMany.mockResolvedValue({ count: 5 });
       mockDatabase.community.delete.mockResolvedValue(community);
 
       await service.remove(community.id);
 
+      expect(mockDatabase.channel.findMany).toHaveBeenCalledWith({
+        where: { communityId: community.id },
+        select: { id: true },
+      });
+      expect(mockDatabase.notification.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.channelNotificationOverride.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.readReceipt.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.threadSubscriber.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.channelMembership.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.message.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.channel.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.communityBan.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.communityTimeout.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.moderationLog.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.aliasGroupMember.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.aliasGroup.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.role.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.userRoles.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.membership.deleteMany).toHaveBeenCalledWith({
         where: { communityId: community.id },

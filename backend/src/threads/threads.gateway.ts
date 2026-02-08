@@ -32,6 +32,7 @@ import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
 import { DatabaseService } from '@/database/database.service';
@@ -49,7 +50,7 @@ import { DatabaseService } from '@/database/database.service';
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
-@UseGuards(WsJwtAuthGuard, RbacGuard)
+@UseGuards(WsThrottleGuard, WsJwtAuthGuard, RbacGuard)
 export class ThreadsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -71,11 +72,11 @@ export class ThreadsGateway
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected to ThreadsGateway: ${client.id}`);
+    this.logger.debug(`Client connected to ThreadsGateway: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected from ThreadsGateway: ${client.id}`);
+    this.logger.debug(`Client disconnected from ThreadsGateway: ${client.id}`);
   }
 
   @SubscribeMessage(ClientEvents.SEND_THREAD_REPLY)

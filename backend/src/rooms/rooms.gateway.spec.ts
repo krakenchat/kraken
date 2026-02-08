@@ -3,10 +3,10 @@ import { RoomsGateway } from './rooms.gateway';
 import { RoomsService } from './rooms.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
 import { Socket, Server } from 'socket.io';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
 describe('RoomsGateway', () => {
   let gateway: RoomsGateway;
@@ -53,6 +53,8 @@ describe('RoomsGateway', () => {
         },
       ],
     })
+      .overrideGuard(WsThrottleGuard)
+      .useValue(mockGuard)
       .overrideGuard(WsJwtAuthGuard)
       .useValue(mockGuard)
       .overrideGuard(RbacGuard)
@@ -91,49 +93,23 @@ describe('RoomsGateway', () => {
   });
 
   describe('handleDisconnect', () => {
-    it('should send USER_OFFLINE event when client disconnects', () => {
+    it('should not emit any presence events (handled by PresenceGateway)', () => {
       const client = createMockSocket();
 
       gateway.handleDisconnect(client);
 
-      expect(websocketService.sendToAll).toHaveBeenCalledWith(
-        ServerEvents.USER_OFFLINE,
-        {
-          userId: mockUser.id,
-        },
-      );
+      // USER_ONLINE/USER_OFFLINE events are now handled by PresenceGateway
+      expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
 
-    it('should handle disconnect for different users', () => {
-      const user1 = UserFactory.build({ id: 'user-1' });
-      const user2 = UserFactory.build({ id: 'user-2' });
-
-      const client1 = createMockSocket(user1);
-      const client2 = createMockSocket(user2);
-
-      gateway.handleDisconnect(client1);
-      gateway.handleDisconnect(client2);
-
-      expect(websocketService.sendToAll).toHaveBeenCalledTimes(2);
-      expect(websocketService.sendToAll).toHaveBeenCalledWith(
-        ServerEvents.USER_OFFLINE,
-        { userId: 'user-1' },
-      );
-      expect(websocketService.sendToAll).toHaveBeenCalledWith(
-        ServerEvents.USER_OFFLINE,
-        { userId: 'user-2' },
-      );
-    });
-
-    it('should NOT send USER_OFFLINE when user is not authenticated', () => {
+    it('should handle disconnect for unauthenticated sockets without error', () => {
       const client = {
         id: 'socket-unauthenticated',
         handshake: {},
       } as Socket;
 
-      gateway.handleDisconnect(client);
-
-      // Should not send event for unauthenticated sockets
+      // Should not throw
+      expect(() => gateway.handleDisconnect(client)).not.toThrow();
       expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
   });
@@ -148,15 +124,9 @@ describe('RoomsGateway', () => {
       await gateway.joinAll(client, communityId);
 
       expect(roomsService.joinAll).toHaveBeenCalledWith(client, communityId);
-      expect(websocketService.sendToAll).toHaveBeenCalledWith(
-        ServerEvents.USER_ONLINE,
-        {
-          userId: mockUser.id,
-        },
-      );
     });
 
-    it('should send USER_ONLINE before joining rooms', async () => {
+    it('should not emit presence events (handled by PresenceGateway)', async () => {
       const communityId = 'community-456';
       const client = createMockSocket();
 
@@ -164,28 +134,8 @@ describe('RoomsGateway', () => {
 
       await gateway.joinAll(client, communityId);
 
-      // Verify order: sendToAll called before joinAll
-      const sendToAllOrder = (websocketService.sendToAll as jest.Mock).mock
-        .invocationCallOrder[0];
-      const joinAllOrder = (roomsService.joinAll as jest.Mock).mock
-        .invocationCallOrder[0];
-
-      expect(sendToAllOrder).toBeLessThan(joinAllOrder);
-    });
-
-    it('should use authenticated user from socket', async () => {
-      const customUser = UserFactory.build({ id: 'custom-user-id' });
-      const client = createMockSocket(customUser);
-      const communityId = 'community-789';
-
-      jest.spyOn(roomsService, 'joinAll').mockResolvedValue(undefined);
-
-      await gateway.joinAll(client, communityId);
-
-      expect(websocketService.sendToAll).toHaveBeenCalledWith(
-        ServerEvents.USER_ONLINE,
-        { userId: 'custom-user-id' },
-      );
+      // USER_ONLINE events are now handled by PresenceGateway
+      expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
 
     it('should handle different community IDs', async () => {

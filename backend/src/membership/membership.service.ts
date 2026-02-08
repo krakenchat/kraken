@@ -10,7 +10,7 @@ import { MembershipResponseDto } from './dto/membership-response.dto';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
-import type { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { isPrismaError } from '@/common/utils/prisma.utils';
 
 @Injectable()
 export class MembershipService {
@@ -137,14 +137,12 @@ export class MembershipService {
       }
       this.logger.error('Error creating membership', error);
 
-      // Handle Prisma errors
-      const prismaError = error as PrismaClientKnownRequestError;
-      if (prismaError.code === 'P2002') {
+      if (isPrismaError(error, 'P2002')) {
         throw new ConflictException(
           'User is already a member of this community',
         );
       }
-      if (prismaError.code === 'P2025') {
+      if (isPrismaError(error, 'P2025')) {
         throw new NotFoundException('User or community not found');
       }
 
@@ -160,6 +158,7 @@ export class MembershipService {
       include: {
         user: true,
       },
+      take: 1000,
     });
 
     return memberships.map(
@@ -256,8 +255,7 @@ export class MembershipService {
         error,
       );
 
-      const prismaError = error as PrismaClientKnownRequestError;
-      if (prismaError.code === 'P2025') {
+      if (isPrismaError(error, 'P2025')) {
         throw new NotFoundException('Membership not found');
       }
 

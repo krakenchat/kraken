@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CacheModule } from '@nestjs/cache-manager';
-import { createKeyv } from '@keyv/redis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
@@ -52,30 +50,6 @@ import { AliasGroupsModule } from './alias-groups/alias-groups.module';
     InviteModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    CacheModule.registerAsync({
-      useFactory: (configService: ConfigService) => {
-        const redisHost =
-          configService.get<string>('REDIS_HOST') || 'localhost';
-        const redisPort = configService.get<string>('REDIS_PORT') || '6379';
-        const redisPassword = configService.get<string>('REDIS_PASSWORD');
-        const redisDb = configService.get<string>('REDIS_DB') || '0';
-
-        let redisUrl = `redis://${redisHost}:${redisPort}`;
-        if (redisPassword) {
-          redisUrl = `redis://:${redisPassword}@${redisHost}:${redisPort}`;
-        }
-        if (redisDb !== '0') {
-          redisUrl += `/${redisDb}`;
-        }
-
-        return {
-          stores: [createKeyv(redisUrl)],
-          ttl: 60 * 1000, // 60 seconds in milliseconds
-        };
-      },
-      inject: [ConfigService],
-      isGlobal: true,
-    }),
     RolesModule,
     UserModule,
     CommunityModule,

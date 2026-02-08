@@ -8,6 +8,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
+import { flattenSpansToText } from '@/common/utils/text.utils';
 import { Message, Prisma } from '@prisma/client';
 
 /**
@@ -49,24 +50,16 @@ export class MessagesService {
   ) {}
 
   /**
-   * Flattens message spans into a single searchable text string.
-   * Extracts text from all spans and joins them with spaces.
-   * Returns lowercase for case-insensitive search compatibility with MongoDB.
+   * Escapes regex special characters in a string to prevent ReDoS
+   * and unintended pattern matching when used in MongoDB $regex.
    */
-  private flattenSpansToText(
-    spans: { text: string | null }[],
-  ): string | undefined {
-    const text = spans
-      .filter((span) => span.text)
-      .map((span) => span.text)
-      .join(' ')
-      .trim()
-      .toLowerCase(); // Store as lowercase for MongoDB case-insensitive search
-    return text.length > 0 ? text : undefined;
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+
   async create(createMessageDto: CreateMessageDto) {
-    const searchText = this.flattenSpansToText(createMessageDto.spans);
+    const searchText = flattenSpansToText(createMessageDto.spans);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, ...data } = createMessageDto;
     return this.databaseService.message.create({
@@ -144,7 +137,7 @@ export class MessagesService {
         const dataToUpdate = { ...updateMessageDto };
         if (updateMessageDto.spans) {
           (dataToUpdate as Record<string, unknown>).searchText =
-            this.flattenSpansToText(updateMessageDto.spans);
+            flattenSpansToText(updateMessageDto.spans);
         }
 
         // Update the message first
@@ -296,22 +289,19 @@ export class MessagesService {
     limit = 50,
     continuationToken?: string,
   ) {
-    const where = { [field]: value };
-    // Fetch more than needed to account for thread replies we'll filter out
+    const where = {
+      [field]: value,
+      parentMessageId: null, // Exclude thread replies - they only show in thread panel
+    };
     const query = {
       where,
       orderBy: { sentAt: 'desc' as const },
-      take: limit * 2, // Fetch extra to ensure we have enough after filtering
+      take: limit,
       ...(continuationToken
         ? { cursor: { id: continuationToken }, skip: 1 }
         : {}),
     };
-    const allMessages = await this.databaseService.message.findMany(query);
-
-    // Filter out thread replies (messages with parentMessageId) - they only show in thread panel
-    const messages = allMessages
-      .filter((msg) => !msg.parentMessageId)
-      .slice(0, limit);
+    const messages = await this.databaseService.message.findMany(query);
 
     // Collect all unique file IDs from all messages
     const allFileIds = new Set<string>();
@@ -359,7 +349,8 @@ export class MessagesService {
     }
 
     // Convert query to lowercase since searchText is stored lowercase
-    const lowerQuery = query.toLowerCase();
+    // Escape regex special characters to prevent ReDoS and unintended matching
+    const lowerQuery = this.escapeRegex(query.toLowerCase());
 
     this.logger.log(
       `Searching messages in channel ${channelId} for query: "${lowerQuery}"`,
@@ -405,7 +396,8 @@ export class MessagesService {
     }
 
     // Convert query to lowercase since searchText is stored lowercase
-    const lowerQuery = query.toLowerCase();
+    // Escape regex special characters to prevent ReDoS and unintended matching
+    const lowerQuery = this.escapeRegex(query.toLowerCase());
 
     // Use aggregateRaw for MongoDB regex search
     const messages = await this.databaseService.message.aggregateRaw({
@@ -443,7 +435,8 @@ export class MessagesService {
     }
 
     // Convert query to lowercase since searchText is stored lowercase
-    const lowerQuery = query.toLowerCase();
+    // Escape regex special characters to prevent ReDoS and unintended matching
+    const lowerQuery = this.escapeRegex(query.toLowerCase());
 
     // Get all channels the user has access to in this community
     const accessibleChannels = await this.databaseService.channel.findMany({

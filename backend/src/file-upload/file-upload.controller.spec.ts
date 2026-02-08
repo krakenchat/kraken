@@ -90,13 +90,17 @@ describe('FileUploadController', () => {
   describe('remove', () => {
     it('should remove a file', async () => {
       const fileId = 'file-456';
+      const mockReq = { user: { id: 'user-123' } } as any;
 
       mockFileUploadService.remove.mockResolvedValue({ deleted: true });
 
-      const result = await controller.remove(fileId);
+      const result = await controller.remove(fileId, mockReq);
 
       expect(result).toEqual({ deleted: true });
-      expect(mockFileUploadService.remove).toHaveBeenCalledWith(fileId);
+      expect(mockFileUploadService.remove).toHaveBeenCalledWith(
+        fileId,
+        'user-123',
+      );
     });
   });
 });

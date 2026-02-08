@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { InstanceInvite, Prisma } from '@prisma/client';
@@ -12,7 +13,7 @@ import { InstanceInvite, Prisma } from '@prisma/client';
 export class InviteService {
   private readonly logger = new Logger(InviteService.name);
 
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly databaseService: DatabaseService) {}
 
   async createInvite(
     creator: UserEntity,
@@ -24,7 +25,7 @@ export class InviteService {
     let shortCode = this.generateInviteCode();
     // Check if the short code already exists
     while (
-      await this.database.instanceInvite.findFirst({
+      await this.databaseService.instanceInvite.findFirst({
         where: { code: shortCode },
       })
     ) {
@@ -34,7 +35,7 @@ export class InviteService {
     }
 
     // Logic to create an invite for a user to join an instance
-    return this.database.instanceInvite.create({
+    return this.databaseService.instanceInvite.create({
       data: {
         code: shortCode,
         createdById: creator.id,
@@ -46,7 +47,7 @@ export class InviteService {
   }
 
   async validateInviteCode(inviteCode: string): Promise<InstanceInvite | null> {
-    const invite = await this.database.instanceInvite.findUnique({
+    const invite = await this.databaseService.instanceInvite.findUnique({
       where: { code: inviteCode },
     });
     if (!invite) return null;
@@ -103,7 +104,7 @@ export class InviteService {
   }
 
   async getInvites(user: UserEntity): Promise<InstanceInvite[]> {
-    return this.database.instanceInvite.findMany({
+    return this.databaseService.instanceInvite.findMany({
       where: { createdById: user.id },
       include: {
         createdBy: {
@@ -119,7 +120,7 @@ export class InviteService {
   }
 
   async getInviteByCode(code: string): Promise<InstanceInvite | null> {
-    return this.database.instanceInvite.findUnique({
+    return this.databaseService.instanceInvite.findUnique({
       where: { code },
       include: {
         createdBy: {
@@ -134,7 +135,7 @@ export class InviteService {
   }
 
   async deleteInvite(user: UserEntity, code: string): Promise<void> {
-    const invite = await this.database.instanceInvite.findUnique({
+    const invite = await this.databaseService.instanceInvite.findUnique({
       where: { code },
     });
 
@@ -147,18 +148,12 @@ export class InviteService {
       throw new ForbiddenException('Unauthorized to delete this invite');
     }
 
-    await this.database.instanceInvite.delete({
+    await this.databaseService.instanceInvite.delete({
       where: { code },
     });
   }
 
   private generateInviteCode(length: number = 6) {
-    const chars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    return randomBytes(length).toString('base64url').slice(0, length);
   }
 }

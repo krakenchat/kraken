@@ -57,9 +57,13 @@ export class FileController {
 
     const stream = createReadStream(file.storagePath);
 
+    // Sanitize filename for Content-Disposition header (RFC 5987)
+    const sanitizedFilename = file.filename.replace(/["\\\n\r]/g, '_');
+    const encodedFilename = encodeURIComponent(file.filename);
+
     res.set({
       'Content-Type': file.mimeType,
-      'Content-Disposition': `inline; filename="${file.filename}"`,
+      'Content-Disposition': `inline; filename="${sanitizedFilename}"; filename*=UTF-8''${encodedFilename}`,
     });
 
     return new StreamableFile(stream);

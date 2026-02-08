@@ -54,7 +54,7 @@ interface AliasGroupQueryResult {
 export class AliasGroupsService {
   private readonly logger = new Logger(AliasGroupsService.name);
 
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly databaseService: DatabaseService) {}
 
   /**
    * Helper to transform Prisma result to our interface
@@ -83,7 +83,7 @@ export class AliasGroupsService {
   async getCommunityAliasGroups(
     communityId: string,
   ): Promise<AliasGroupSummary[]> {
-    const groups = await this.database.aliasGroup.findMany({
+    const groups = await this.databaseService.aliasGroup.findMany({
       where: { communityId },
       include: {
         _count: {
@@ -105,7 +105,7 @@ export class AliasGroupsService {
    * Get a single alias group with full member details
    */
   async getAliasGroup(groupId: string): Promise<AliasGroupWithMembers> {
-    const group = await this.database.aliasGroup.findUnique({
+    const group = await this.databaseService.aliasGroup.findUnique({
       where: { id: groupId },
       include: {
         members: {
@@ -138,7 +138,7 @@ export class AliasGroupsService {
     dto: CreateAliasGroupDto,
   ): Promise<AliasGroupWithMembers> {
     // Check if group name already exists in this community
-    const existing = await this.database.aliasGroup.findUnique({
+    const existing = await this.databaseService.aliasGroup.findUnique({
       where: {
         communityId_name: {
           communityId,
@@ -155,7 +155,7 @@ export class AliasGroupsService {
 
     // Validate that all member IDs are valid community members
     if (dto.memberIds && dto.memberIds.length > 0) {
-      const validMembers = await this.database.membership.findMany({
+      const validMembers = await this.databaseService.membership.findMany({
         where: {
           communityId,
           userId: { in: dto.memberIds },
@@ -174,7 +174,7 @@ export class AliasGroupsService {
     }
 
     // Create the group with members
-    const group = await this.database.aliasGroup.create({
+    const group = await this.databaseService.aliasGroup.create({
       data: {
         name: dto.name,
         communityId,
@@ -216,7 +216,7 @@ export class AliasGroupsService {
     groupId: string,
     dto: UpdateAliasGroupDto,
   ): Promise<AliasGroupWithMembers> {
-    const group = await this.database.aliasGroup.findUnique({
+    const group = await this.databaseService.aliasGroup.findUnique({
       where: { id: groupId },
     });
 
@@ -226,7 +226,7 @@ export class AliasGroupsService {
 
     // Check if new name conflicts with existing group
     if (dto.name !== group.name) {
-      const existing = await this.database.aliasGroup.findUnique({
+      const existing = await this.databaseService.aliasGroup.findUnique({
         where: {
           communityId_name: {
             communityId: group.communityId,
@@ -242,7 +242,7 @@ export class AliasGroupsService {
       }
     }
 
-    const updated = await this.database.aliasGroup.update({
+    const updated = await this.databaseService.aliasGroup.update({
       where: { id: groupId },
       data: { name: dto.name },
       include: {
@@ -272,7 +272,7 @@ export class AliasGroupsService {
    * Delete an alias group and all its memberships
    */
   async deleteAliasGroup(groupId: string): Promise<void> {
-    const group = await this.database.aliasGroup.findUnique({
+    const group = await this.databaseService.aliasGroup.findUnique({
       where: { id: groupId },
     });
 
@@ -281,11 +281,11 @@ export class AliasGroupsService {
     }
 
     // Delete all members first (cascade should handle this, but be explicit)
-    await this.database.aliasGroupMember.deleteMany({
+    await this.databaseService.aliasGroupMember.deleteMany({
       where: { aliasGroupId: groupId },
     });
 
-    await this.database.aliasGroup.delete({
+    await this.databaseService.aliasGroup.delete({
       where: { id: groupId },
     });
 
@@ -298,7 +298,7 @@ export class AliasGroupsService {
    * Add a single member to an alias group
    */
   async addMember(groupId: string, userId: string): Promise<void> {
-    const group = await this.database.aliasGroup.findUnique({
+    const group = await this.databaseService.aliasGroup.findUnique({
       where: { id: groupId },
     });
 
@@ -307,7 +307,7 @@ export class AliasGroupsService {
     }
 
     // Verify user is a member of the community
-    const membership = await this.database.membership.findUnique({
+    const membership = await this.databaseService.membership.findUnique({
       where: {
         userId_communityId: {
           userId,
@@ -321,7 +321,7 @@ export class AliasGroupsService {
     }
 
     // Check if already a member
-    const existing = await this.database.aliasGroupMember.findUnique({
+    const existing = await this.databaseService.aliasGroupMember.findUnique({
       where: {
         aliasGroupId_userId: {
           aliasGroupId: groupId,
@@ -334,7 +334,7 @@ export class AliasGroupsService {
       throw new ConflictException('User is already a member of this group');
     }
 
-    await this.database.aliasGroupMember.create({
+    await this.databaseService.aliasGroupMember.create({
       data: {
         aliasGroupId: groupId,
         userId,
@@ -348,7 +348,7 @@ export class AliasGroupsService {
    * Remove a single member from an alias group
    */
   async removeMember(groupId: string, userId: string): Promise<void> {
-    const member = await this.database.aliasGroupMember.findUnique({
+    const member = await this.databaseService.aliasGroupMember.findUnique({
       where: {
         aliasGroupId_userId: {
           aliasGroupId: groupId,
@@ -361,7 +361,7 @@ export class AliasGroupsService {
       throw new NotFoundException('User is not a member of this group');
     }
 
-    await this.database.aliasGroupMember.delete({
+    await this.databaseService.aliasGroupMember.delete({
       where: { id: member.id },
     });
 
@@ -372,7 +372,7 @@ export class AliasGroupsService {
    * Replace all members of an alias group
    */
   async updateMembers(groupId: string, memberIds: string[]): Promise<void> {
-    const group = await this.database.aliasGroup.findUnique({
+    const group = await this.databaseService.aliasGroup.findUnique({
       where: { id: groupId },
     });
 
@@ -382,7 +382,7 @@ export class AliasGroupsService {
 
     // Validate all user IDs are community members
     if (memberIds.length > 0) {
-      const validMembers = await this.database.membership.findMany({
+      const validMembers = await this.databaseService.membership.findMany({
         where: {
           communityId: group.communityId,
           userId: { in: memberIds },
@@ -401,12 +401,12 @@ export class AliasGroupsService {
     }
 
     // Delete all existing members and create new ones
-    await this.database.$transaction([
-      this.database.aliasGroupMember.deleteMany({
+    await this.databaseService.$transaction([
+      this.databaseService.aliasGroupMember.deleteMany({
         where: { aliasGroupId: groupId },
       }),
       ...memberIds.map((userId) =>
-        this.database.aliasGroupMember.create({
+        this.databaseService.aliasGroupMember.create({
           data: {
             aliasGroupId: groupId,
             userId,
@@ -427,7 +427,7 @@ export class AliasGroupsService {
     communityId: string,
     name: string,
   ): Promise<AliasGroupWithMembers | null> {
-    const group = await this.database.aliasGroup.findUnique({
+    const group = await this.databaseService.aliasGroup.findUnique({
       where: {
         communityId_name: {
           communityId,
@@ -461,7 +461,7 @@ export class AliasGroupsService {
    * Get member IDs for an alias group (for notification resolution)
    */
   async getAliasGroupMemberIds(groupId: string): Promise<string[]> {
-    const members = await this.database.aliasGroupMember.findMany({
+    const members = await this.databaseService.aliasGroupMember.findMany({
       where: { aliasGroupId: groupId },
       select: { userId: true },
     });
@@ -478,7 +478,7 @@ export class AliasGroupsService {
   ): Promise<boolean> {
     if (aliasGroupIds.length === 0) return false;
 
-    const membership = await this.database.aliasGroupMember.findFirst({
+    const membership = await this.databaseService.aliasGroupMember.findFirst({
       where: {
         userId,
         aliasGroupId: { in: aliasGroupIds },
