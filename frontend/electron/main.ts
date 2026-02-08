@@ -340,6 +340,7 @@ app.whenReady().then(() => {
             log('Callback invoked successfully');
           } catch (callbackError) {
             log('ERROR: Callback threw:', String(callbackError));
+            callback({});
           }
         } else {
           log('ERROR: Selected source not found:', selectedSourceId);
@@ -373,6 +374,7 @@ app.whenReady().then(() => {
             log('Callback invoked successfully');
           } catch (callbackError) {
             log('ERROR: Callback threw:', String(callbackError));
+            callback({});
           }
         } else {
           log('ERROR: No screen sources available');

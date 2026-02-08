@@ -730,7 +730,7 @@ export const toggleScreenShareUnified = createAsyncThunk<
           baseLatency: ctx.baseLatency,
           outputLatency: ctx.outputLatency,
         });
-        ctx.close();
+        await ctx.close();
       } catch (e) {
         logger.warn('[Voice] Could not create AudioContext for diagnostics:', e);
       }
