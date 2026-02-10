@@ -25,6 +25,7 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { AuthenticatedRequest } from '@/types';
+import { Channel } from '@prisma/client';
 
 @Controller('channels')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -42,7 +43,7 @@ export class ChannelsController {
   create(
     @Body() createChannelDto: CreateChannelDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<Channel> {
     return this.channelsService.create(createChannelDto, req.user);
   }
 
@@ -55,7 +56,7 @@ export class ChannelsController {
   })
   findAllForCommunity(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-  ) {
+  ): Promise<Channel[]> {
     return this.channelsService.findAll(communityId);
   }
 
@@ -69,7 +70,7 @@ export class ChannelsController {
   getMentionableChannels(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<Channel[]> {
     return this.channelsService.findMentionableChannels(
       communityId,
       req.user.id,
@@ -83,7 +84,7 @@ export class ChannelsController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  findOne(@Param('id', ParseObjectIdPipe) id: string) {
+  findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<Channel> {
     return this.channelsService.findOne(id);
   }
 
@@ -97,7 +98,7 @@ export class ChannelsController {
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateChannelDto: UpdateChannelDto,
-  ) {
+  ): Promise<Channel> {
     return this.channelsService.update(id, updateChannelDto);
   }
 
@@ -109,7 +110,7 @@ export class ChannelsController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  remove(@Param('id', ParseObjectIdPipe) id: string) {
+  remove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
     return this.channelsService.remove(id);
   }
 
@@ -124,7 +125,7 @@ export class ChannelsController {
   moveUp(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() moveChannelDto: MoveChannelDto,
-  ) {
+  ): Promise<Channel[]> {
     return this.channelsService.moveChannelUp(id, moveChannelDto.communityId);
   }
 
@@ -139,7 +140,7 @@ export class ChannelsController {
   moveDown(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() moveChannelDto: MoveChannelDto,
-  ) {
+  ): Promise<Channel[]> {
     return this.channelsService.moveChannelDown(id, moveChannelDto.communityId);
   }
 }

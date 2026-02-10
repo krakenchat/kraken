@@ -22,6 +22,13 @@ import { DatabaseService } from '@/database/database.service';
 import { AuthenticatedRequest } from '@/types';
 import { setAccessTokenCookie, clearAccessTokenCookie } from './cookie-helper';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
+import {
+  LoginResponseDto,
+  LogoutResponseDto,
+  SessionInfoDto,
+  RevokeSessionResponseDto,
+  RevokeAllSessionsResponseDto,
+} from './dto/auth-response.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -54,7 +61,7 @@ export class AuthController {
   async login(
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<LoginResponseDto> {
     const deviceInfo = this.getDeviceInfo(req);
     const accessToken = this.authService.login(req.user);
     const refreshToken = await this.authService.generateRefreshToken(
@@ -84,7 +91,7 @@ export class AuthController {
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<LoginResponseDto> {
     // Check if this is an Electron client
     const userAgent = req.headers['user-agent'] || '';
     const isElectron = userAgent.includes('Electron');
@@ -142,7 +149,7 @@ export class AuthController {
 
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
   @Post('logout')
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<LogoutResponseDto> {
     const refreshToken = req.cookies[this.REFRESH_TOKEN_COOKIE_NAME] as
       | string
       | undefined;
@@ -208,7 +215,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('sessions')
-  async getSessions(@Req() req: AuthenticatedRequest) {
+  async getSessions(@Req() req: AuthenticatedRequest): Promise<SessionInfoDto[]> {
     const currentTokenId = await this.getCurrentTokenId(req);
     return this.authService.getUserSessions(req.user.id, currentTokenId);
   }
@@ -221,7 +228,7 @@ export class AuthController {
   async revokeSession(
     @Req() req: AuthenticatedRequest,
     @Param('sessionId', ParseObjectIdPipe) sessionId: string,
-  ) {
+  ): Promise<RevokeSessionResponseDto> {
     const revoked = await this.authService.revokeSession(
       req.user.id,
       sessionId,
@@ -239,7 +246,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Delete('sessions')
-  async revokeAllOtherSessions(@Req() req: AuthenticatedRequest) {
+  async revokeAllOtherSessions(@Req() req: AuthenticatedRequest): Promise<RevokeAllSessionsResponseDto> {
     const currentTokenId = await this.getCurrentTokenId(req);
 
     if (!currentTokenId) {

@@ -20,7 +20,8 @@ import { SendTestNotificationDto } from './dto/debug-notification.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { InstanceRole } from '@prisma/client';
+import { InstanceRole, Notification, UserNotificationSettings, ChannelNotificationOverride } from '@prisma/client';
+import { NotificationListResponseDto, UnreadCountResponseDto, DebugNotificationResponseDto, DebugSubscriptionsResponseDto, ClearNotificationDataResponseDto } from './dto/notification-response.dto';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 
 @Controller('notifications')
@@ -39,7 +40,7 @@ export class NotificationsController {
   async getNotifications(
     @Req() req: AuthenticatedRequest,
     @Query() query: NotificationQueryDto,
-  ) {
+  ): Promise<NotificationListResponseDto> {
     const notifications = await this.notificationsService.getUserNotifications(
       req.user.id,
       query,
@@ -61,7 +62,7 @@ export class NotificationsController {
    * GET /notifications/unread-count
    */
   @Get('unread-count')
-  async getUnreadCount(@Req() req: AuthenticatedRequest) {
+  async getUnreadCount(@Req() req: AuthenticatedRequest): Promise<UnreadCountResponseDto> {
     const count = await this.notificationsService.getUnreadCount(req.user.id);
     return { count };
   }
@@ -75,7 +76,7 @@ export class NotificationsController {
   async markAsRead(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) notificationId: string,
-  ) {
+  ): Promise<Notification> {
     return this.notificationsService.markAsRead(notificationId, req.user.id);
   }
 
@@ -85,7 +86,7 @@ export class NotificationsController {
    */
   @Post('read-all')
   @HttpCode(200)
-  async markAllAsRead(@Req() req: AuthenticatedRequest) {
+  async markAllAsRead(@Req() req: AuthenticatedRequest): Promise<{ count: number }> {
     return this.notificationsService.markAllAsRead(req.user.id);
   }
 
@@ -98,7 +99,7 @@ export class NotificationsController {
   async dismissNotification(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) notificationId: string,
-  ) {
+  ): Promise<Notification> {
     return this.notificationsService.dismissNotification(
       notificationId,
       req.user.id,
@@ -114,7 +115,7 @@ export class NotificationsController {
   async deleteNotification(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) notificationId: string,
-  ) {
+  ): Promise<void> {
     await this.notificationsService.deleteNotification(
       notificationId,
       req.user.id,
@@ -126,7 +127,7 @@ export class NotificationsController {
    * GET /notifications/settings
    */
   @Get('settings')
-  async getSettings(@Req() req: AuthenticatedRequest) {
+  async getSettings(@Req() req: AuthenticatedRequest): Promise<UserNotificationSettings> {
     return this.notificationsService.getUserSettings(req.user.id);
   }
 
@@ -138,7 +139,7 @@ export class NotificationsController {
   async updateSettings(
     @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateNotificationSettingsDto,
-  ) {
+  ): Promise<UserNotificationSettings> {
     return this.notificationsService.updateUserSettings(req.user.id, dto);
   }
 
@@ -150,7 +151,7 @@ export class NotificationsController {
   async getChannelOverride(
     @Req() req: AuthenticatedRequest,
     @Param('channelId', ParseObjectIdPipe) channelId: string,
-  ) {
+  ): Promise<ChannelNotificationOverride | null> {
     return this.notificationsService.getChannelOverride(req.user.id, channelId);
   }
 
@@ -163,7 +164,7 @@ export class NotificationsController {
     @Req() req: AuthenticatedRequest,
     @Param('channelId', ParseObjectIdPipe) channelId: string,
     @Body() dto: UpdateChannelOverrideDto,
-  ) {
+  ): Promise<ChannelNotificationOverride> {
     return this.notificationsService.setChannelOverride(
       req.user.id,
       channelId,
@@ -180,7 +181,7 @@ export class NotificationsController {
   async deleteChannelOverride(
     @Req() req: AuthenticatedRequest,
     @Param('channelId', ParseObjectIdPipe) channelId: string,
-  ) {
+  ): Promise<void> {
     await this.notificationsService.deleteChannelOverride(
       req.user.id,
       channelId,
@@ -210,7 +211,7 @@ export class NotificationsController {
   async sendTestNotification(
     @Req() req: AuthenticatedRequest,
     @Body() dto: SendTestNotificationDto,
-  ) {
+  ): Promise<DebugNotificationResponseDto> {
     this.assertOwner(req);
     const notification = await this.notificationsService.createTestNotification(
       req.user.id,
@@ -229,7 +230,7 @@ export class NotificationsController {
    * Only available to OWNER users
    */
   @Get('debug/subscriptions')
-  async getDebugSubscriptions(@Req() req: AuthenticatedRequest) {
+  async getDebugSubscriptions(@Req() req: AuthenticatedRequest): Promise<DebugSubscriptionsResponseDto> {
     this.assertOwner(req);
     const subscriptions =
       await this.pushNotificationsService.getUserSubscriptions(req.user.id);
@@ -247,7 +248,7 @@ export class NotificationsController {
    */
   @Delete('debug/clear-all')
   @HttpCode(200)
-  async clearDebugSettings(@Req() req: AuthenticatedRequest) {
+  async clearDebugSettings(@Req() req: AuthenticatedRequest): Promise<ClearNotificationDataResponseDto> {
     this.assertOwner(req);
     const result = await this.notificationsService.clearUserNotificationData(
       req.user.id,

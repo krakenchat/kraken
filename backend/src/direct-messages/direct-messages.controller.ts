@@ -22,6 +22,7 @@ import { CreateDmGroupDto } from './dto/create-dm-group.dto';
 import { AddMembersDto } from './dto/add-members.dto';
 import { DmGroupResponseDto } from './dto/dm-group-response.dto';
 import { MessagesService } from '@/messages/messages.service';
+import { PaginatedMessagesResponseDto } from '@/messages/dto/message-response.dto';
 
 @Controller('direct-messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -75,7 +76,7 @@ export class DirectMessagesController {
   async getDmMessages(
     @Param('id') id: string,
     @Req() req: { user: { id: string } },
-  ) {
+  ): Promise<PaginatedMessagesResponseDto> {
     // First verify user is a member of this DM group
     await this.directMessagesService.findDmGroup(id, req.user.id);
 

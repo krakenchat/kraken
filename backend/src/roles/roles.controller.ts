@@ -21,7 +21,8 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { UserRolesResponseDto } from './dto/user-roles-response.dto';
+import { UserRolesResponseDto, RoleDto } from './dto/user-roles-response.dto';
+import { RoleUserDto } from './dto/role-users-response.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
@@ -123,7 +124,7 @@ export class RolesController {
   async createCommunityRole(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Body() createRoleDto: CreateRoleDto,
-  ) {
+  ): Promise<RoleDto> {
     return this.rolesService.createCommunityRole(communityId, createRoleDto);
   }
 
@@ -142,7 +143,7 @@ export class RolesController {
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('roleId', ParseObjectIdPipe) roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
-  ) {
+  ): Promise<RoleDto> {
     return this.rolesService.updateRole(roleId, communityId, updateRoleDto);
   }
 
@@ -215,7 +216,7 @@ export class RolesController {
   async getUsersForRole(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('roleId', ParseObjectIdPipe) roleId: string,
-  ) {
+  ): Promise<RoleUserDto[]> {
     return this.rolesService.getUsersForRole(roleId, communityId);
   }
 
@@ -228,7 +229,7 @@ export class RolesController {
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.READ_INSTANCE_SETTINGS)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  async getInstanceRoles() {
+  async getInstanceRoles(): Promise<RoleDto[]> {
     return this.rolesService.getInstanceRoles();
   }
 
@@ -239,7 +240,7 @@ export class RolesController {
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  async createInstanceRole(@Body() createRoleDto: CreateRoleDto) {
+  async createInstanceRole(@Body() createRoleDto: CreateRoleDto): Promise<RoleDto> {
     return this.rolesService.createInstanceRole(
       createRoleDto.name,
       createRoleDto.actions,
@@ -256,7 +257,7 @@ export class RolesController {
   async updateInstanceRole(
     @Param('roleId', ParseObjectIdPipe) roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
-  ) {
+  ): Promise<RoleDto> {
     return this.rolesService.updateInstanceRole(roleId, updateRoleDto);
   }
 
@@ -312,7 +313,7 @@ export class RolesController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async getInstanceRoleUsers(
     @Param('roleId', ParseObjectIdPipe) roleId: string,
-  ) {
+  ): Promise<RoleUserDto[]> {
     return this.rolesService.getInstanceRoleUsers(roleId);
   }
 }

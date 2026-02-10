@@ -17,7 +17,7 @@ import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
-import { RbacActions } from '@prisma/client';
+import { RbacActions, Message } from '@prisma/client';
 import {
   RbacResource,
   RbacResourceType,
@@ -25,6 +25,7 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { AuthenticatedRequest } from '@/types';
+import { ThreadRepliesResponseDto, ThreadMetadataDto } from './dto/thread-response.dto';
 
 /**
  * Controller for thread operations.
@@ -51,7 +52,7 @@ export class ThreadsController {
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Body() body: Omit<CreateThreadReplyDto, 'parentMessageId'>,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<Message> {
     const dto: CreateThreadReplyDto = {
       ...body,
       parentMessageId,
@@ -73,7 +74,7 @@ export class ThreadsController {
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
-  ) {
+  ): Promise<ThreadRepliesResponseDto> {
     return this.threadsService.getThreadRepliesWithMetadata(
       parentMessageId,
       limit,
@@ -94,7 +95,7 @@ export class ThreadsController {
   async getMetadata(
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<ThreadMetadataDto> {
     return this.threadsService.getThreadMetadata(parentMessageId, req.user.id);
   }
 
@@ -112,7 +113,7 @@ export class ThreadsController {
   async subscribe(
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<void> {
     await this.threadsService.subscribeToThread(parentMessageId, req.user.id);
   }
 
@@ -130,7 +131,7 @@ export class ThreadsController {
   async unsubscribe(
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<void> {
     await this.threadsService.unsubscribeFromThread(
       parentMessageId,
       req.user.id,

@@ -19,6 +19,11 @@ import { CommunityService } from './community.service';
 import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
 import { CommunityResponseDto } from './dto/community-response.dto';
+import {
+  CommunityStatsDto,
+  CommunityStatsDetailDto,
+  CommunityStatsListResponseDto,
+} from './dto/community-stats-response.dto';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -44,21 +49,21 @@ export class CommunityController {
   create(
     @Body() createCommunityDto: CreateCommunityDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<CommunityResponseDto> {
     return this.communityService.create(createCommunityDto, req.user.id);
   }
 
   @Get()
   @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  findAll() {
+  findAll(): Promise<CommunityResponseDto[]> {
     return this.communityService.findAll();
   }
 
   @Get('/mine')
   @ApiOkResponse({ type: [CommunityResponseDto] })
   // No RBAC check needed - users can always see their own communities
-  findAllMine(@Req() req: AuthenticatedRequest) {
+  findAllMine(@Req() req: AuthenticatedRequest): Promise<CommunityResponseDto[]> {
     return this.communityService.findAll(req.user.id);
   }
 
@@ -69,7 +74,7 @@ export class CommunityController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  findOne(@Param('id', ParseObjectIdPipe) id: string) {
+  findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<CommunityResponseDto> {
     return this.communityService.findOne(id);
   }
 
@@ -83,7 +88,7 @@ export class CommunityController {
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateCommunityDto: UpdateCommunityDto,
-  ) {
+  ): Promise<CommunityResponseDto> {
     return this.communityService.update(id, updateCommunityDto);
   }
 
@@ -95,7 +100,7 @@ export class CommunityController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  remove(@Param('id', ParseObjectIdPipe) id: string) {
+  remove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
     return this.communityService.remove(id);
   }
 
@@ -113,7 +118,7 @@ export class CommunityController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
     @Query('search') search?: string,
-  ) {
+  ): Promise<CommunityStatsListResponseDto> {
     return this.communityService.findAllWithStats(
       limit,
       continuationToken,
@@ -127,7 +132,7 @@ export class CommunityController {
   @Get('admin/:id')
   @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  findOneWithStats(@Param('id', ParseObjectIdPipe) id: string) {
+  findOneWithStats(@Param('id', ParseObjectIdPipe) id: string): Promise<CommunityStatsDetailDto> {
     return this.communityService.findOneWithStats(id);
   }
 
@@ -138,7 +143,7 @@ export class CommunityController {
   @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_COMMUNITY)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  forceRemove(@Param('id', ParseObjectIdPipe) id: string) {
+  forceRemove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
     return this.communityService.forceRemove(id);
   }
 }

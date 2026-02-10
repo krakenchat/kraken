@@ -32,8 +32,10 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { AuthenticatedRequest } from '@/types';
+import { Message } from '@prisma/client';
+import { EnrichedMessageDto, PaginatedMessagesResponseDto } from './dto/message-response.dto';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -55,7 +57,7 @@ export class MessagesController {
   async create(
     @Req() req: AuthenticatedRequest,
     @Body() createMessageDto: CreateMessageDto,
-  ) {
+  ): Promise<EnrichedMessageDto> {
     const message = await this.messagesService.create({
       ...createMessageDto,
       authorId: req.user.id,
@@ -76,7 +78,7 @@ export class MessagesController {
     @Param('groupId', ParseObjectIdPipe) groupId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
-  ) {
+  ): Promise<PaginatedMessagesResponseDto> {
     return this.messagesService.findAllForDirectMessageGroup(
       groupId,
       limit,
@@ -95,7 +97,7 @@ export class MessagesController {
     @Param('channelId', ParseObjectIdPipe) channelId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
-  ) {
+  ): Promise<PaginatedMessagesResponseDto> {
     return this.messagesService.findAllForChannel(
       channelId,
       limit,
@@ -114,7 +116,7 @@ export class MessagesController {
     @Param('channelId', ParseObjectIdPipe) channelId: string,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
-  ) {
+  ): Promise<EnrichedMessageDto[]> {
     return this.messagesService.searchChannelMessages(channelId, query, limit);
   }
 
@@ -129,7 +131,7 @@ export class MessagesController {
     @Param('groupId', ParseObjectIdPipe) groupId: string,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
-  ) {
+  ): Promise<EnrichedMessageDto[]> {
     return this.messagesService.searchDirectMessages(groupId, query, limit);
   }
 
@@ -145,7 +147,7 @@ export class MessagesController {
     @Query('q') query: string,
     @Req() req: AuthenticatedRequest,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
-  ) {
+  ): Promise<EnrichedMessageDto[]> {
     return this.messagesService.searchCommunityMessages(
       communityId,
       req.user.id,
@@ -164,7 +166,7 @@ export class MessagesController {
   async addReaction(
     @Body() addReactionDto: AddReactionDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<Message> {
     const result = await this.reactionsService.addReaction(
       addReactionDto.messageId,
       addReactionDto.emoji,
@@ -198,7 +200,7 @@ export class MessagesController {
   async removeReaction(
     @Body() removeReactionDto: RemoveReactionDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<Message> {
     const result = await this.reactionsService.removeReaction(
       removeReactionDto.messageId,
       removeReactionDto.emoji,
@@ -227,7 +229,7 @@ export class MessagesController {
   async addAttachment(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() addAttachmentDto: AddAttachmentDto,
-  ) {
+  ): Promise<EnrichedMessageDto> {
     // First get the original message to know which room to notify
     const originalMessage = await this.messagesService.findOne(id);
 
@@ -261,7 +263,7 @@ export class MessagesController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  async findOne(@Param('id', ParseObjectIdPipe) id: string) {
+  async findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<EnrichedMessageDto> {
     const message = await this.messagesService.findOne(id);
     // Enrich with file metadata for consistent response shape
     return this.messagesService.enrichMessageWithFileMetadata(message);
@@ -272,7 +274,7 @@ export class MessagesController {
   async update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateMessageDto: UpdateMessageDto,
-  ) {
+  ): Promise<EnrichedMessageDto> {
     // First get the original message to know which channel to notify
     const originalMessage = await this.messagesService.findOne(id);
 
@@ -302,7 +304,7 @@ export class MessagesController {
   @HttpCode(204)
   @Delete(':id')
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
-  async remove(@Param('id', ParseObjectIdPipe) id: string) {
+  async remove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
     // First get the message to know which channel to notify
     const messageToDelete = await this.messagesService.findOne(id);
 
