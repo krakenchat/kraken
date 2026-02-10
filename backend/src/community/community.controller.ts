@@ -20,7 +20,6 @@ import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
 import { CommunityResponseDto } from './dto/community-response.dto';
 import {
-  CommunityStatsDto,
   CommunityStatsDetailDto,
   CommunityStatsListResponseDto,
 } from './dto/community-stats-response.dto';

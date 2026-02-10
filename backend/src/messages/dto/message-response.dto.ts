@@ -1,4 +1,4 @@
-import { FileType, Message } from '@prisma/client';
+import { FileType } from '@prisma/client';
 
 export class EnrichedAttachment {
   id: string;

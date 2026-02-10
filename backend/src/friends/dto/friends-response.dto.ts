@@ -1,4 +1,4 @@
-import { Friendship, FriendshipStatus, User } from '@prisma/client';
+import { FriendshipStatus, User } from '@prisma/client';
 
 export class FriendshipWithUsersDto {
   id: string;
