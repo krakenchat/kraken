@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
+import { flattenSpansToText } from '@/common/utils/text.utils';
 import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
 import { Message, $Enums } from '@prisma/client';
 
@@ -18,20 +19,6 @@ export class ThreadsService {
 
   constructor(private readonly databaseService: DatabaseService) {}
 
-  /**
-   * Flattens message spans into a single searchable text string.
-   */
-  private flattenSpansToText(
-    spans: { text?: string | null }[],
-  ): string | undefined {
-    const text = spans
-      .filter((span) => span.text)
-      .map((span) => span.text)
-      .join(' ')
-      .trim()
-      .toLowerCase();
-    return text.length > 0 ? text : undefined;
-  }
 
   /**
    * Sanitize spans to only include valid Prisma Span fields.
@@ -93,7 +80,7 @@ export class ThreadsService {
 
     // Sanitize spans to only include valid Prisma fields
     const sanitizedSpans = this.sanitizeSpans(spans);
-    const searchText = this.flattenSpansToText(sanitizedSpans);
+    const searchText = flattenSpansToText(sanitizedSpans);
 
     // Use transaction to ensure atomicity
     const result = await this.databaseService.$transaction(async (tx) => {

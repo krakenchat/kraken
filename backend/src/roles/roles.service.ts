@@ -31,7 +31,7 @@ import {
 export class RolesService implements OnModuleInit {
   private readonly logger = new Logger(RolesService.name);
 
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly databaseService: DatabaseService) {}
 
   /**
    * Called when the module is initialized.
@@ -60,7 +60,7 @@ export class RolesService implements OnModuleInit {
       resourceId === undefined ||
       resourceType === RbacResourceType.INSTANCE
     ) {
-      const userRoles = await this.database.userRoles.findMany({
+      const userRoles = await this.databaseService.userRoles.findMany({
         where: {
           userId,
           isInstanceRole: true,
@@ -82,7 +82,7 @@ export class RolesService implements OnModuleInit {
       communityId = resourceId!;
     } else if (resourceType === RbacResourceType.CHANNEL) {
       // Get the channel to find its community
-      const channel = await this.database.channel.findUnique({
+      const channel = await this.databaseService.channel.findUnique({
         where: { id: resourceId },
         select: { communityId: true },
       });
@@ -95,7 +95,7 @@ export class RolesService implements OnModuleInit {
       communityId = channel.communityId;
     } else if (resourceType === RbacResourceType.MESSAGE) {
       // Get the message to find its channel, then the channel's community
-      const message = await this.database.message.findUnique({
+      const message = await this.databaseService.message.findUnique({
         where: { id: resourceId },
         select: {
           channelId: true,
@@ -114,7 +114,7 @@ export class RolesService implements OnModuleInit {
       if (message.directMessageGroupId) {
         // This is a DM message - check if user is member of the DM group
         const dmMembership =
-          await this.database.directMessageGroupMember.findFirst({
+          await this.databaseService.directMessageGroupMember.findFirst({
             where: {
               userId,
               groupId: message.directMessageGroupId,
@@ -143,7 +143,7 @@ export class RolesService implements OnModuleInit {
     } else if (resourceType === RbacResourceType.DM_GROUP) {
       // For DM groups, check if the user is a member of the DM group
       const dmMembership =
-        await this.database.directMessageGroupMember.findFirst({
+        await this.databaseService.directMessageGroupMember.findFirst({
           where: {
             userId,
             groupId: resourceId,
@@ -165,7 +165,7 @@ export class RolesService implements OnModuleInit {
       }
     } else if (resourceType === RbacResourceType.ALIAS_GROUP) {
       // Get the alias group to find its community
-      const aliasGroup = await this.database.aliasGroup.findUnique({
+      const aliasGroup = await this.databaseService.aliasGroup.findUnique({
         where: { id: resourceId },
         select: { communityId: true },
       });
@@ -184,7 +184,7 @@ export class RolesService implements OnModuleInit {
     }
 
     // Check user roles in the resolved community
-    const userRoles = await this.database.userRoles.findMany({
+    const userRoles = await this.databaseService.userRoles.findMany({
       where: {
         userId,
         communityId,
@@ -206,7 +206,7 @@ export class RolesService implements OnModuleInit {
     userId: string,
     communityId: string,
   ): Promise<UserRolesResponseDto> {
-    const userRoles = await this.database.userRoles.findMany({
+    const userRoles = await this.databaseService.userRoles.findMany({
       where: {
         userId,
         communityId,
@@ -238,7 +238,7 @@ export class RolesService implements OnModuleInit {
     channelId: string,
   ): Promise<UserRolesResponseDto> {
     // First, get the channel to find its community
-    const channel = await this.database.channel.findUnique({
+    const channel = await this.databaseService.channel.findUnique({
       where: { id: channelId },
       select: { communityId: true },
     });
@@ -255,7 +255,7 @@ export class RolesService implements OnModuleInit {
 
     // For channels, we inherit roles from the community
     // In the future, you might want to add channel-specific roles
-    const userRoles = await this.database.userRoles.findMany({
+    const userRoles = await this.databaseService.userRoles.findMany({
       where: {
         userId,
         communityId: channel.communityId,
@@ -283,7 +283,7 @@ export class RolesService implements OnModuleInit {
   }
 
   async getUserInstanceRoles(userId: string): Promise<UserRolesResponseDto> {
-    const userRoles = await this.database.userRoles.findMany({
+    const userRoles = await this.databaseService.userRoles.findMany({
       where: {
         userId,
         isInstanceRole: true,
@@ -317,7 +317,7 @@ export class RolesService implements OnModuleInit {
     communityId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<string> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
     const defaultRoles = getDefaultCommunityRoles();
 
     let adminRoleId: string;
@@ -350,7 +350,7 @@ export class RolesService implements OnModuleInit {
     roleId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     await database.userRoles.create({
       data: {
@@ -366,7 +366,7 @@ export class RolesService implements OnModuleInit {
    * Gets the admin role for a specific community
    */
   async getCommunityAdminRole(communityId: string): Promise<RoleDto | null> {
-    const role = await this.database.role.findFirst({
+    const role = await this.databaseService.role.findFirst({
       where: {
         name: DEFAULT_ADMIN_ROLE.name,
         communityId,
@@ -390,7 +390,7 @@ export class RolesService implements OnModuleInit {
   async getCommunityModeratorRole(
     communityId: string,
   ): Promise<RoleDto | null> {
-    const role = await this.database.role.findFirst({
+    const role = await this.databaseService.role.findFirst({
       where: {
         name: 'Moderator',
         communityId,
@@ -412,7 +412,7 @@ export class RolesService implements OnModuleInit {
    * Gets the member role for a specific community
    */
   async getCommunityMemberRole(communityId: string): Promise<RoleDto | null> {
-    const role = await this.database.role.findFirst({
+    const role = await this.databaseService.role.findFirst({
       where: {
         name: DEFAULT_MEMBER_ROLE.name,
         communityId,
@@ -437,7 +437,7 @@ export class RolesService implements OnModuleInit {
     communityId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<string> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     const role = await database.role.create({
       data: {
@@ -457,7 +457,7 @@ export class RolesService implements OnModuleInit {
   async getCommunityRoles(
     communityId: string,
   ): Promise<CommunityRolesResponseDto> {
-    const roles = await this.database.role.findMany({
+    const roles = await this.databaseService.role.findMany({
       where: { communityId },
       orderBy: { createdAt: 'asc' },
     });
@@ -484,7 +484,7 @@ export class RolesService implements OnModuleInit {
     createRoleDto: CreateRoleDto,
     tx?: Prisma.TransactionClient,
   ): Promise<RoleDto> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     // Check if role with this name already exists for the community
     const existingRole = await database.role.findFirst({
@@ -543,7 +543,7 @@ export class RolesService implements OnModuleInit {
     updateRoleDto: UpdateRoleDto,
     tx?: Prisma.TransactionClient,
   ): Promise<RoleDto> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     // Check if role exists
     const existingRole = await database.role.findUnique({
@@ -633,7 +633,7 @@ export class RolesService implements OnModuleInit {
     communityId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     // Check if role exists
     const existingRole = await database.role.findUnique({
@@ -682,7 +682,7 @@ export class RolesService implements OnModuleInit {
     roleId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     // Find and delete the user role assignment
     const userRole = await database.userRoles.findFirst({
@@ -716,7 +716,7 @@ export class RolesService implements OnModuleInit {
   ): Promise<
     Array<{ userId: string; username: string; displayName?: string }>
   > {
-    const userRoles = await this.database.userRoles.findMany({
+    const userRoles = await this.databaseService.userRoles.findMany({
       where: {
         roleId,
         communityId,
@@ -748,7 +748,7 @@ export class RolesService implements OnModuleInit {
   async createDefaultInstanceRole(
     tx?: Prisma.TransactionClient,
   ): Promise<string> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     const existingRole = await database.role.findFirst({
       where: { name: DEFAULT_INSTANCE_ADMIN_ROLE.name, communityId: null },
@@ -786,7 +786,7 @@ export class RolesService implements OnModuleInit {
     // Find roles that are either:
     // 1. Named as one of the default instance roles
     // 2. Have been assigned as instance roles (isInstanceRole=true in UserRoles)
-    const roles = await this.database.role.findMany({
+    const roles = await this.databaseService.role.findMany({
       where: {
         communityId: null,
         OR: [
@@ -824,7 +824,7 @@ export class RolesService implements OnModuleInit {
     }
 
     // Check if role with this name already exists
-    const existingRole = await this.database.role.findFirst({
+    const existingRole = await this.databaseService.role.findFirst({
       where: { name, communityId: null },
     });
 
@@ -832,7 +832,7 @@ export class RolesService implements OnModuleInit {
       throw new ConflictException(`Role with name "${name}" already exists`);
     }
 
-    const role = await this.database.role.create({
+    const role = await this.databaseService.role.create({
       data: {
         name,
         actions,
@@ -859,7 +859,7 @@ export class RolesService implements OnModuleInit {
     roleId: string,
     dto: UpdateRoleDto,
   ): Promise<RoleDto> {
-    const role = await this.database.role.findUnique({
+    const role = await this.databaseService.role.findUnique({
       where: { id: roleId },
     });
 
@@ -894,7 +894,7 @@ export class RolesService implements OnModuleInit {
 
     // Check for name conflicts if renaming
     if (dto.name && dto.name !== role.name) {
-      const conflictingRole = await this.database.role.findFirst({
+      const conflictingRole = await this.databaseService.role.findFirst({
         where: {
           name: dto.name,
           id: { not: roleId },
@@ -908,7 +908,7 @@ export class RolesService implements OnModuleInit {
       }
     }
 
-    const updated = await this.database.role.update({
+    const updated = await this.databaseService.role.update({
       where: { id: roleId },
       data: {
         name: dto.name || role.name,
@@ -931,7 +931,7 @@ export class RolesService implements OnModuleInit {
    * Delete a custom instance role (cannot delete the default)
    */
   async deleteInstanceRole(roleId: string): Promise<void> {
-    const role = await this.database.role.findUnique({
+    const role = await this.databaseService.role.findUnique({
       where: { id: roleId },
       include: {
         UserRoles: {
@@ -956,7 +956,7 @@ export class RolesService implements OnModuleInit {
       );
     }
 
-    await this.database.role.delete({
+    await this.databaseService.role.delete({
       where: { id: roleId },
     });
 
@@ -971,7 +971,7 @@ export class RolesService implements OnModuleInit {
     roleId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     // Check role exists
     const role = await database.role.findUnique({
@@ -1016,7 +1016,7 @@ export class RolesService implements OnModuleInit {
     userId: string,
     roleId: string,
   ): Promise<void> {
-    const userRole = await this.database.userRoles.findFirst({
+    const userRole = await this.databaseService.userRoles.findFirst({
       where: {
         userId,
         roleId,
@@ -1028,7 +1028,7 @@ export class RolesService implements OnModuleInit {
       throw new NotFoundException('User role assignment not found');
     }
 
-    await this.database.userRoles.delete({
+    await this.databaseService.userRoles.delete({
       where: { id: userRole.id },
     });
 
@@ -1043,7 +1043,7 @@ export class RolesService implements OnModuleInit {
   ): Promise<
     Array<{ userId: string; username: string; displayName?: string }>
   > {
-    const userRoles = await this.database.userRoles.findMany({
+    const userRoles = await this.databaseService.userRoles.findMany({
       where: {
         roleId,
         isInstanceRole: true,
@@ -1075,7 +1075,7 @@ export class RolesService implements OnModuleInit {
   async createDefaultCommunityCreatorRole(
     tx?: Prisma.TransactionClient,
   ): Promise<string> {
-    const database = tx || this.database;
+    const database = tx || this.databaseService;
 
     const existingRole = await database.role.findFirst({
       where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name, communityId: null },
@@ -1105,7 +1105,7 @@ export class RolesService implements OnModuleInit {
    * Get the Community Creator role
    */
   async getCommunityCreatorRole(): Promise<RoleDto | null> {
-    const role = await this.database.role.findFirst({
+    const role = await this.databaseService.role.findFirst({
       where: { name: DEFAULT_COMMUNITY_CREATOR_ROLE.name, communityId: null },
     });
 
@@ -1152,7 +1152,7 @@ export class RolesService implements OnModuleInit {
   private async ensureInstanceRoleExists(
     roleConfig: DefaultRoleConfig,
   ): Promise<string> {
-    const existingRole = await this.database.role.findFirst({
+    const existingRole = await this.databaseService.role.findFirst({
       where: { name: roleConfig.name, communityId: null },
     });
 
@@ -1161,7 +1161,7 @@ export class RolesService implements OnModuleInit {
       return existingRole.id;
     }
 
-    const role = await this.database.role.create({
+    const role = await this.databaseService.role.create({
       data: {
         name: roleConfig.name,
         actions: roleConfig.actions,
@@ -1178,7 +1178,7 @@ export class RolesService implements OnModuleInit {
    * Get the User Manager role
    */
   async getUserManagerRole(): Promise<RoleDto | null> {
-    const role = await this.database.role.findFirst({
+    const role = await this.databaseService.role.findFirst({
       where: { name: DEFAULT_USER_MANAGER_ROLE.name, communityId: null },
     });
 
@@ -1197,7 +1197,7 @@ export class RolesService implements OnModuleInit {
    * Get the Invite Manager role
    */
   async getInviteManagerRole(): Promise<RoleDto | null> {
-    const role = await this.database.role.findFirst({
+    const role = await this.databaseService.role.findFirst({
       where: { name: DEFAULT_INVITE_MANAGER_ROLE.name, communityId: null },
     });
 

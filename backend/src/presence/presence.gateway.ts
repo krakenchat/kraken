@@ -23,12 +23,13 @@ import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || true,
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
     credentials: true,
   },
   transports: ['websocket'],
@@ -38,7 +39,7 @@ import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
-@UseGuards(WsJwtAuthGuard, RbacGuard)
+@UseGuards(WsThrottleGuard, WsJwtAuthGuard, RbacGuard)
 export class PresenceGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -58,7 +59,7 @@ export class PresenceGateway
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected to PresenceGateway: ${client.id}`);
+    this.logger.debug(`Client connected to PresenceGateway: ${client.id}`);
   }
   @SubscribeMessage(ClientEvents.PRESENCE_ONLINE)
   async handleMessage(
@@ -93,7 +94,7 @@ export class PresenceGateway
   async handleDisconnect(
     client: Socket & { handshake: { user: UserEntity } },
   ): Promise<void> {
-    this.logger.log(`Client disconnected from PresenceGateway: ${client.id}`);
+    this.logger.debug(`Client disconnected from PresenceGateway: ${client.id}`);
     if (client.handshake?.user?.id) {
       const userId = client.handshake.user.id;
       const connectionId = client.id;

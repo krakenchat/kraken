@@ -102,6 +102,7 @@ describe('ModerationService', () => {
         },
         userRoles: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
         membership: { delete: jest.fn().mockResolvedValue({}) },
+        moderationLog: { create: jest.fn().mockResolvedValue({}) },
       };
       mockDatabase.$transaction.mockImplementation((callback) =>
         callback(mockTx),
@@ -111,7 +112,7 @@ describe('ModerationService', () => {
 
       expect(mockTx.communityBan.upsert).toHaveBeenCalled();
       expect(mockTx.membership.delete).toHaveBeenCalled();
-      expect(mockDatabase.moderationLog.create).toHaveBeenCalledWith(
+      expect(mockTx.moderationLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             action: ModerationAction.BAN_USER,
@@ -161,6 +162,7 @@ describe('ModerationService', () => {
         },
         userRoles: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
         membership: { delete: jest.fn().mockResolvedValue({}) },
+        moderationLog: { create: jest.fn().mockResolvedValue({}) },
       };
       mockDatabase.$transaction.mockImplementation((callback) =>
         callback(mockTx),
@@ -282,6 +284,7 @@ describe('ModerationService', () => {
         },
         userRoles: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
         membership: { delete: jest.fn().mockResolvedValue({}) },
+        moderationLog: { create: jest.fn().mockResolvedValue({}) },
       };
       mockDatabase.$transaction.mockImplementation((callback) =>
         callback(mockTx),
@@ -295,7 +298,7 @@ describe('ModerationService', () => {
       );
 
       expect(mockTx.membership.delete).toHaveBeenCalled();
-      expect(mockDatabase.moderationLog.create).toHaveBeenCalledWith(
+      expect(mockTx.moderationLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             action: ModerationAction.KICK_USER,

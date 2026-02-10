@@ -162,16 +162,18 @@ export class ModerationService {
 
       // Remove user from community (kick)
       await this.removeMemberInternal(tx, userId, communityId);
-    });
 
-    // Log the action
-    await this.createModerationLog({
-      communityId,
-      moderatorId,
-      action: ModerationAction.BAN_USER,
-      targetUserId: userId,
-      reason,
-      metadata: { expiresAt: expiresAt?.toISOString() },
+      // Log the action within the transaction
+      await tx.moderationLog.create({
+        data: {
+          communityId,
+          moderatorId,
+          action: ModerationAction.BAN_USER,
+          targetUserId: userId,
+          reason,
+          metadata: { expiresAt: expiresAt?.toISOString() },
+        },
+      });
     });
 
     this.logger.log(
@@ -290,15 +292,17 @@ export class ModerationService {
 
     await this.databaseService.$transaction(async (tx) => {
       await this.removeMemberInternal(tx, userId, communityId);
-    });
 
-    // Log the action
-    await this.createModerationLog({
-      communityId,
-      moderatorId,
-      action: ModerationAction.KICK_USER,
-      targetUserId: userId,
-      reason,
+      // Log the action within the transaction
+      await tx.moderationLog.create({
+        data: {
+          communityId,
+          moderatorId,
+          action: ModerationAction.KICK_USER,
+          targetUserId: userId,
+          reason,
+        },
+      });
     });
 
     this.logger.log(

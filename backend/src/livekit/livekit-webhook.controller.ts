@@ -5,6 +5,7 @@ import {
   Headers,
   Logger,
   BadRequestException,
+  ForbiddenException,
   RawBodyRequest,
   Req,
   Inject,
@@ -35,6 +36,7 @@ import {
 export class LivekitWebhookController {
   private readonly logger = new Logger(LivekitWebhookController.name);
   private readonly webhookReceiver: WebhookReceiver;
+  private readonly webhookVerificationEnabled: boolean;
 
   constructor(
     private readonly configService: ConfigService,
@@ -45,17 +47,19 @@ export class LivekitWebhookController {
     const apiKey = this.configService.get<string>('LIVEKIT_API_KEY');
     const apiSecret = this.configService.get<string>('LIVEKIT_API_SECRET');
 
-    if (!apiKey || !apiSecret) {
+    this.webhookVerificationEnabled = !!(apiKey && apiSecret);
+
+    if (!this.webhookVerificationEnabled) {
       this.logger.warn(
-        'LIVEKIT_API_KEY or LIVEKIT_API_SECRET not set - webhook signature verification disabled',
+        'LIVEKIT_API_KEY or LIVEKIT_API_SECRET not set - webhooks will be rejected',
       );
     }
 
     // Initialize webhook receiver with API credentials for signature verification
     // Note: WebhookReceiver uses API secret to verify webhook signatures
     this.webhookReceiver = new WebhookReceiver(
-      apiKey || 'insecure-development-key',
-      apiSecret || 'insecure-development-secret',
+      apiKey || 'unused',
+      apiSecret || 'unused',
     );
   }
 
@@ -76,31 +80,39 @@ export class LivekitWebhookController {
   ) {
     this.logger.debug(`Received webhook event: ${body.event}`);
 
+    // Reject webhooks entirely when verification credentials are not configured
+    if (!this.webhookVerificationEnabled) {
+      throw new ForbiddenException(
+        'Webhook verification not configured - LIVEKIT_API_KEY and LIVEKIT_API_SECRET required',
+      );
+    }
+
     // Verify webhook signature using API credentials
-    const apiKey = this.configService.get<string>('LIVEKIT_API_KEY');
-    const apiSecret = this.configService.get<string>('LIVEKIT_API_SECRET');
+    try {
+      // Extract raw body for signature verification
+      const rawBody = req.rawBody?.toString('utf-8') || JSON.stringify(body);
 
-    if (apiKey && apiSecret) {
-      try {
-        // Extract raw body for signature verification
-        const rawBody = req.rawBody?.toString('utf-8') || JSON.stringify(body);
+      // Verify signature using LiveKit SDK
+      const verified = await this.webhookReceiver.receive(
+        rawBody,
+        authorization,
+      );
 
-        // Verify signature using LiveKit SDK
-        const verified = await this.webhookReceiver.receive(
-          rawBody,
-          authorization,
-        );
-
-        if (!verified) {
-          this.logger.warn('Invalid webhook signature');
-          throw new BadRequestException('Invalid webhook signature');
-        }
-      } catch (error) {
-        this.logger.error(
-          `Webhook signature verification failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        throw new BadRequestException('Webhook verification failed');
+      if (!verified) {
+        this.logger.warn('Invalid webhook signature');
+        throw new BadRequestException('Invalid webhook signature');
       }
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      this.logger.error(
+        `Webhook signature verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new BadRequestException('Webhook verification failed');
     }
 
     // Handle events by type

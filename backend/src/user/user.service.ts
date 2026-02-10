@@ -20,20 +20,20 @@ export class UserService {
   private readonly logger = new Logger(UserService.name);
 
   constructor(
-    private database: DatabaseService,
+    private readonly databaseService: DatabaseService,
     private instanceInviteService: InviteService,
     private channelsService: ChannelsService,
     private rolesService: RolesService,
   ) {}
 
   async findByUsername(username: string): Promise<User | null> {
-    return this.database.user.findUnique({
+    return this.databaseService.user.findUnique({
       where: { username },
     });
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.database.user.findUnique({
+    return this.databaseService.user.findUnique({
       where: { id },
     });
   }
@@ -50,12 +50,12 @@ export class UserService {
       throw new NotFoundException('No invite found for the provided code.');
     }
 
-    const userCount = await this.database.user.count();
+    const userCount = await this.databaseService.user.count();
     const role = userCount === 0 ? InstanceRole.OWNER : InstanceRole.USER;
     const verified = userCount === 0;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await this.database.$transaction(async (tx) => {
+    const user = await this.databaseService.$transaction(async (tx) => {
       const lowerName = username.toLowerCase();
       const createdUser = await tx.user.create({
         data: {
@@ -166,7 +166,7 @@ export class UserService {
 
     if (conditions.length === 0) return;
 
-    const existingUser = await this.database.user.findFirst({
+    const existingUser = await this.databaseService.user.findFirst({
       where: {
         OR: conditions,
       },
@@ -191,7 +191,7 @@ export class UserService {
         : {}),
     };
 
-    const users = (await this.database.user.findMany(query)).map(
+    const users = (await this.databaseService.user.findMany(query)).map(
       (u) => new UserEntity(u),
     );
     const nextToken =
@@ -223,7 +223,7 @@ export class UserService {
       };
     }
 
-    const users = await this.database.user.findMany({
+    const users = await this.databaseService.user.findMany({
       where: whereClause,
       take: limit,
       orderBy: { username: 'asc' },
@@ -264,7 +264,7 @@ export class UserService {
       updateData.statusUpdatedAt = new Date();
     }
 
-    const updatedUser = await this.database.user.update({
+    const updatedUser = await this.databaseService.user.update({
       where: { id: userId },
       data: updateData,
     });
@@ -315,7 +315,7 @@ export class UserService {
         : {}),
     };
 
-    const users = await this.database.user.findMany(query);
+    const users = await this.databaseService.user.findMany(query);
     const hasMore = users.length > limit;
     const resultUsers = hasMore ? users.slice(0, -1) : users;
 
@@ -346,7 +346,7 @@ export class UserService {
       targetUser.role === InstanceRole.OWNER &&
       newRole !== InstanceRole.OWNER
     ) {
-      const ownerCount = await this.database.user.count({
+      const ownerCount = await this.databaseService.user.count({
         where: { role: InstanceRole.OWNER },
       });
       if (ownerCount <= 1) {
@@ -356,7 +356,7 @@ export class UserService {
       }
     }
 
-    const updatedUser = await this.database.user.update({
+    const updatedUser = await this.databaseService.user.update({
       where: { id: targetUserId },
       data: { role: newRole },
     });
@@ -387,7 +387,7 @@ export class UserService {
       throw new ForbiddenException('Cannot ban an instance owner');
     }
 
-    const updatedUser = await this.database.user.update({
+    const updatedUser = await this.databaseService.user.update({
       where: { id: targetUserId },
       data: {
         banned,
@@ -421,7 +421,7 @@ export class UserService {
     }
 
     // Delete user and cascade will handle related records
-    await this.database.user.delete({
+    await this.databaseService.user.delete({
       where: { id: targetUserId },
     });
   }
@@ -455,7 +455,7 @@ export class UserService {
     }
 
     // Check if already blocked
-    const existingBlock = await this.database.userBlock.findUnique({
+    const existingBlock = await this.databaseService.userBlock.findUnique({
       where: {
         blockerId_blockedId: { blockerId, blockedId },
       },
@@ -465,7 +465,7 @@ export class UserService {
       return; // Already blocked, no-op
     }
 
-    await this.database.userBlock.create({
+    await this.databaseService.userBlock.create({
       data: { blockerId, blockedId },
     });
   }
@@ -474,7 +474,7 @@ export class UserService {
    * Unblock a user
    */
   async unblockUser(blockerId: string, blockedId: string): Promise<void> {
-    await this.database.userBlock.deleteMany({
+    await this.databaseService.userBlock.deleteMany({
       where: { blockerId, blockedId },
     });
   }
@@ -483,7 +483,7 @@ export class UserService {
    * Get list of users blocked by a user
    */
   async getBlockedUsers(userId: string): Promise<UserEntity[]> {
-    const blocks = await this.database.userBlock.findMany({
+    const blocks = await this.databaseService.userBlock.findMany({
       where: { blockerId: userId },
       include: { blocked: true },
     });
@@ -495,7 +495,7 @@ export class UserService {
    * Check if a user is blocked by another user
    */
   async isUserBlocked(blockerId: string, blockedId: string): Promise<boolean> {
-    const block = await this.database.userBlock.findUnique({
+    const block = await this.databaseService.userBlock.findUnique({
       where: {
         blockerId_blockedId: { blockerId, blockedId },
       },
@@ -508,7 +508,7 @@ export class UserService {
    * Check if either user has blocked the other (bidirectional check)
    */
   async areUsersBlocked(userA: string, userB: string): Promise<boolean> {
-    const block = await this.database.userBlock.findFirst({
+    const block = await this.databaseService.userBlock.findFirst({
       where: {
         OR: [
           { blockerId: userA, blockedId: userB },

@@ -383,13 +383,19 @@ describe('FileUploadService', () => {
   });
 
   describe('remove', () => {
-    it('should soft delete a file', async () => {
+    const userId = 'user-123';
+
+    it('should soft delete a file owned by the user', async () => {
       const fileId = 'file-123';
       const deletedFile = { id: fileId, deletedAt: new Date() };
 
+      mockDatabaseService.file.findUnique.mockResolvedValue({
+        uploadedById: userId,
+        size: 2048,
+      });
       mockDatabaseService.file.update.mockResolvedValue(deletedFile);
 
-      const result = await service.remove(fileId);
+      const result = await service.remove(fileId, userId);
 
       expect(result).toEqual(deletedFile);
       expect(mockDatabaseService.file.update).toHaveBeenCalledWith({
@@ -398,16 +404,97 @@ describe('FileUploadService', () => {
       });
     });
 
+    it('should throw NotFoundException if file does not exist', async () => {
+      mockDatabaseService.file.findUnique.mockResolvedValue(null);
+
+      await expect(service.remove('nonexistent', userId)).rejects.toThrow(
+        'File not found',
+      );
+    });
+
+    it('should throw ForbiddenException if user does not own the file', async () => {
+      mockDatabaseService.file.findUnique.mockResolvedValue({
+        uploadedById: 'other-user',
+        size: 2048,
+        deletedAt: null,
+      });
+
+      await expect(service.remove('file-123', userId)).rejects.toThrow(
+        'You can only delete your own files',
+      );
+    });
+
+    it('should throw NotFoundException if file is already soft-deleted', async () => {
+      mockDatabaseService.file.findUnique.mockResolvedValue({
+        uploadedById: userId,
+        size: 2048,
+        deletedAt: new Date(),
+      });
+
+      await expect(service.remove('file-123', userId)).rejects.toThrow(
+        'File not found',
+      );
+      expect(mockDatabaseService.file.update).not.toHaveBeenCalled();
+      expect(
+        mockStorageQuotaService.decrementUserStorage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should decrement storage quota after soft deleting a file', async () => {
+      const fileId = 'file-456';
+      const fileSize = 5120;
+
+      mockDatabaseService.file.findUnique.mockResolvedValue({
+        uploadedById: userId,
+        size: fileSize,
+      });
+      mockDatabaseService.file.update.mockResolvedValue({
+        id: fileId,
+        deletedAt: new Date(),
+      });
+      mockStorageQuotaService.decrementUserStorage.mockResolvedValue(undefined);
+
+      await service.remove(fileId, userId);
+
+      expect(mockStorageQuotaService.decrementUserStorage).toHaveBeenCalledWith(
+        userId,
+        fileSize,
+      );
+    });
+
+    it('should not decrement storage quota if file has no size', async () => {
+      const fileId = 'file-789';
+
+      mockDatabaseService.file.findUnique.mockResolvedValue({
+        uploadedById: userId,
+        size: 0,
+      });
+      mockDatabaseService.file.update.mockResolvedValue({
+        id: fileId,
+        deletedAt: new Date(),
+      });
+
+      await service.remove(fileId, userId);
+
+      expect(
+        mockStorageQuotaService.decrementUserStorage,
+      ).not.toHaveBeenCalled();
+    });
+
     it('should handle multiple file removals', async () => {
       const fileIds = ['file-1', 'file-2', 'file-3'];
 
       for (const fileId of fileIds) {
+        mockDatabaseService.file.findUnique.mockResolvedValue({
+          uploadedById: userId,
+          size: 1024,
+        });
         mockDatabaseService.file.update.mockResolvedValue({
           id: fileId,
           deletedAt: new Date(),
         });
 
-        await service.remove(fileId);
+        await service.remove(fileId, userId);
 
         expect(mockDatabaseService.file.update).toHaveBeenCalledWith({
           where: { id: fileId },

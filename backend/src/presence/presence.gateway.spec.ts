@@ -3,6 +3,7 @@ import { PresenceGateway } from './presence.gateway';
 import { PresenceService } from './presence.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 
@@ -40,6 +41,8 @@ describe('PresenceGateway', () => {
         },
       ],
     })
+      .overrideGuard(WsThrottleGuard)
+      .useValue(mockGuard)
       .overrideGuard(WsJwtAuthGuard)
       .useValue(mockGuard)
       .overrideGuard(RbacGuard)
@@ -77,7 +80,7 @@ describe('PresenceGateway', () => {
 
   describe('handleConnection', () => {
     it('should log client connection', () => {
-      const loggerSpy = jest.spyOn(gateway['logger'], 'log');
+      const loggerSpy = jest.spyOn(gateway['logger'], 'debug');
       const mockClient = { id: 'test-socket-id' } as any;
 
       gateway.handleConnection(mockClient);
@@ -88,7 +91,7 @@ describe('PresenceGateway', () => {
     });
 
     it('should handle multiple connections', () => {
-      const loggerSpy = jest.spyOn(gateway['logger'], 'log');
+      const loggerSpy = jest.spyOn(gateway['logger'], 'debug');
 
       gateway.handleConnection({ id: 'socket-1' } as any);
       gateway.handleConnection({ id: 'socket-2' } as any);

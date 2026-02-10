@@ -69,12 +69,17 @@ export class LivekitController {
   }
 
   @Post('dm-token')
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.DM_GROUP,
+    idKey: 'roomId',
+    source: ResourceIdSource.BODY,
+  })
   async generateDmToken(
     @Body() createTokenDto: CreateTokenDto,
     @Req() req: AuthenticatedRequest,
   ) {
     // Use the authenticated user's ID as the identity if not provided
-    // Note: DM membership is verified in the voice presence service when joining
     const tokenDto = {
       ...createTokenDto,
       identity: createTokenDto.identity || req.user.id,

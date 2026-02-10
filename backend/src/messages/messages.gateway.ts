@@ -35,6 +35,7 @@ import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
@@ -42,7 +43,7 @@ import { getSocketUserId } from '@/common/utils/socket.utils';
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || true,
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
     credentials: true,
   },
   transports: ['websocket'],
@@ -52,7 +53,7 @@ import { getSocketUserId } from '@/common/utils/socket.utils';
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
-@UseGuards(WsJwtAuthGuard, RbacGuard)
+@UseGuards(WsThrottleGuard, WsJwtAuthGuard, RbacGuard)
 export class MessagesGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -75,11 +76,11 @@ export class MessagesGateway
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected to MessagesGateway: ${client.id}`);
+    this.logger.debug(`Client connected to MessagesGateway: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected from MessagesGateway: ${client.id}`);
+    this.logger.debug(`Client disconnected from MessagesGateway: ${client.id}`);
   }
 
   @SubscribeMessage(ClientEvents.SEND_MESSAGE)

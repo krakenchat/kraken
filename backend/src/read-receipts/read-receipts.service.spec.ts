@@ -492,10 +492,12 @@ describe('ReadReceiptsService', () => {
       mockDatabase.membership.findMany.mockResolvedValue([membership]);
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
       mockDatabase.message.findMany.mockResolvedValue([]); // No last read message found
-      mockDatabase.message.groupBy
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
-      mockDatabase.message.count.mockResolvedValue(20);
+      // The channel HAS a read receipt, so channelsWithoutReceipt is empty.
+      // The Promise.all groupBy calls skip (empty arrays → Promise.resolve([])).
+      // The first actual groupBy call is for channelReceiptsWithoutTimestamp (deleted message).
+      mockDatabase.message.groupBy.mockResolvedValue([
+        { channelId, _count: { channelId: 20 } },
+      ]);
 
       const result = await service.getUnreadCounts(userId);
 

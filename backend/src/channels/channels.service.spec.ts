@@ -184,6 +184,7 @@ describe('ChannelsService', () => {
       expect(mockDatabase.channel.findMany).toHaveBeenCalledWith({
         where: { communityId },
         orderBy: [{ type: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }],
+        take: 500,
       });
     });
 
@@ -274,12 +275,28 @@ describe('ChannelsService', () => {
       const channel = ChannelFactory.build();
 
       mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      mockDatabase.notification.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.readReceipt.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.threadSubscriber.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.message.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channel.delete.mockResolvedValue(channel);
 
       await service.remove(channel.id);
 
+      expect(mockDatabase.notification.deleteMany).toHaveBeenCalledWith({
+        where: { channelId: channel.id },
+      });
+      expect(mockDatabase.channelNotificationOverride.deleteMany).toHaveBeenCalledWith({
+        where: { channelId: channel.id },
+      });
+      expect(mockDatabase.readReceipt.deleteMany).toHaveBeenCalledWith({
+        where: { channelId: channel.id },
+      });
+      expect(mockDatabase.threadSubscriber.deleteMany).toHaveBeenCalledWith({
+        where: { parentMessage: { channelId: channel.id } },
+      });
       expect(mockDatabase.channelMembership.deleteMany).toHaveBeenCalledWith({
         where: { channelId: channel.id },
       });

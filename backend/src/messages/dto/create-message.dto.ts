@@ -1,14 +1,6 @@
 import { $Enums, Message } from '@prisma/client';
 import { Exclude } from 'class-transformer';
-import {
-  IsString,
-  IsOptional,
-  IsArray,
-  IsDate,
-  IsInt,
-  Min,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsArray, IsInt, Min } from 'class-validator';
 import { ArrayMinLength } from '../../decorators/array-min-length.decorator';
 
 export class CreateMessageDto implements Message {
@@ -26,14 +18,10 @@ export class CreateMessageDto implements Message {
   authorId: string;
   sentAt: Date;
 
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
+  @Exclude()
   editedAt: Date | null;
 
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
+  @Exclude()
   deletedAt: Date | null;
 
   @IsArray()

@@ -4,6 +4,7 @@ import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { NotificationsService } from '@/notifications/notifications.service';
@@ -72,6 +73,8 @@ describe('MessagesGateway', () => {
         },
       ],
     })
+      .overrideGuard(WsThrottleGuard)
+      .useValue(mockGuard)
       .overrideGuard(WsJwtAuthGuard)
       .useValue(mockGuard)
       .overrideGuard(RbacGuard)
@@ -114,7 +117,7 @@ describe('MessagesGateway', () => {
 
   describe('handleConnection', () => {
     it('should log client connection', () => {
-      const loggerSpy = jest.spyOn(gateway['logger'], 'log');
+      const loggerSpy = jest.spyOn(gateway['logger'], 'debug');
       const mockClient = { id: 'test-socket-id' } as any;
 
       gateway.handleConnection(mockClient);
@@ -127,7 +130,7 @@ describe('MessagesGateway', () => {
 
   describe('handleDisconnect', () => {
     it('should log client disconnection', () => {
-      const loggerSpy = jest.spyOn(gateway['logger'], 'log');
+      const loggerSpy = jest.spyOn(gateway['logger'], 'debug');
       const mockClient = { id: 'disconnect-socket-id' } as any;
 
       gateway.handleDisconnect(mockClient);

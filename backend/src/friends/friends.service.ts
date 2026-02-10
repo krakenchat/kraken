@@ -19,7 +19,7 @@ export interface PendingRequests {
 
 @Injectable()
 export class FriendsService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly databaseService: DatabaseService) {}
 
   /**
    * Send a friend request to another user
@@ -35,7 +35,7 @@ export class FriendsService {
     }
 
     // Check if receiver exists
-    const receiver = await this.database.user.findUnique({
+    const receiver = await this.databaseService.user.findUnique({
       where: { id: receiverId },
     });
     if (!receiver) {
@@ -43,7 +43,7 @@ export class FriendsService {
     }
 
     // Check if either user has blocked the other
-    const blocked = await this.database.userBlock.findFirst({
+    const blocked = await this.databaseService.userBlock.findFirst({
       where: {
         OR: [
           { blockerId: senderId, blockedId: receiverId },
@@ -56,7 +56,7 @@ export class FriendsService {
     }
 
     // Check for existing friendship (in either direction)
-    const existing = await this.database.friendship.findFirst({
+    const existing = await this.databaseService.friendship.findFirst({
       where: {
         OR: [
           { userAId: senderId, userBId: receiverId },
@@ -72,7 +72,7 @@ export class FriendsService {
       if (existing.status === FriendshipStatus.PENDING) {
         // If they sent us a request, auto-accept it
         if (existing.userAId === receiverId) {
-          return this.database.friendship.update({
+          return this.databaseService.friendship.update({
             where: { id: existing.id },
             data: { status: FriendshipStatus.ACCEPTED },
           });
@@ -82,7 +82,7 @@ export class FriendsService {
     }
 
     // Create new friend request
-    return this.database.friendship.create({
+    return this.databaseService.friendship.create({
       data: {
         userAId: senderId,
         userBId: receiverId,
@@ -99,7 +99,7 @@ export class FriendsService {
     userId: string,
     friendshipId: string,
   ): Promise<Friendship> {
-    const friendship = await this.database.friendship.findUnique({
+    const friendship = await this.databaseService.friendship.findUnique({
       where: { id: friendshipId },
     });
 
@@ -116,7 +116,7 @@ export class FriendsService {
       throw new ConflictException('Friend request is not pending');
     }
 
-    return this.database.friendship.update({
+    return this.databaseService.friendship.update({
       where: { id: friendshipId },
       data: { status: FriendshipStatus.ACCEPTED },
     });
@@ -130,7 +130,7 @@ export class FriendsService {
     userId: string,
     friendshipId: string,
   ): Promise<void> {
-    const friendship = await this.database.friendship.findUnique({
+    const friendship = await this.databaseService.friendship.findUnique({
       where: { id: friendshipId },
     });
 
@@ -147,7 +147,7 @@ export class FriendsService {
       throw new ConflictException('Friend request is not pending');
     }
 
-    await this.database.friendship.delete({
+    await this.databaseService.friendship.delete({
       where: { id: friendshipId },
     });
   }
@@ -160,7 +160,7 @@ export class FriendsService {
     userId: string,
     friendshipId: string,
   ): Promise<void> {
-    const friendship = await this.database.friendship.findUnique({
+    const friendship = await this.databaseService.friendship.findUnique({
       where: { id: friendshipId },
     });
 
@@ -177,7 +177,7 @@ export class FriendsService {
       throw new ConflictException('Friend request is not pending');
     }
 
-    await this.database.friendship.delete({
+    await this.databaseService.friendship.delete({
       where: { id: friendshipId },
     });
   }
@@ -187,7 +187,7 @@ export class FriendsService {
    * Either user can remove the friendship
    */
   async removeFriend(userId: string, friendshipId: string): Promise<void> {
-    const friendship = await this.database.friendship.findUnique({
+    const friendship = await this.databaseService.friendship.findUnique({
       where: { id: friendshipId },
     });
 
@@ -204,7 +204,7 @@ export class FriendsService {
       throw new ConflictException('Not friends with this user');
     }
 
-    await this.database.friendship.delete({
+    await this.databaseService.friendship.delete({
       where: { id: friendshipId },
     });
   }
@@ -213,7 +213,7 @@ export class FriendsService {
    * Get all accepted friends for a user
    */
   async getFriends(userId: string): Promise<User[]> {
-    const friendships = await this.database.friendship.findMany({
+    const friendships = await this.databaseService.friendship.findMany({
       where: {
         status: FriendshipStatus.ACCEPTED,
         OR: [{ userAId: userId }, { userBId: userId }],
@@ -234,7 +234,7 @@ export class FriendsService {
   async getPendingRequests(userId: string): Promise<PendingRequests> {
     const [sent, received] = await Promise.all([
       // Requests I sent (I am userA)
-      this.database.friendship.findMany({
+      this.databaseService.friendship.findMany({
         where: {
           userAId: userId,
           status: FriendshipStatus.PENDING,
@@ -245,7 +245,7 @@ export class FriendsService {
         },
       }),
       // Requests I received (I am userB)
-      this.database.friendship.findMany({
+      this.databaseService.friendship.findMany({
         where: {
           userBId: userId,
           status: FriendshipStatus.PENDING,
@@ -271,7 +271,7 @@ export class FriendsService {
     friendshipId: string | null;
     direction: 'sent' | 'received' | null;
   }> {
-    const friendship = await this.database.friendship.findFirst({
+    const friendship = await this.databaseService.friendship.findFirst({
       where: {
         OR: [
           { userAId: userA, userBId: userB },
@@ -299,7 +299,7 @@ export class FriendsService {
    * Check if two users are friends
    */
   async areFriends(userA: string, userB: string): Promise<boolean> {
-    const friendship = await this.database.friendship.findFirst({
+    const friendship = await this.databaseService.friendship.findFirst({
       where: {
         status: FriendshipStatus.ACCEPTED,
         OR: [

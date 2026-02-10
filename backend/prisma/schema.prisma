@@ -13,7 +13,7 @@ model Message {
   id                   String     @id @default(auto()) @map("_id") @db.ObjectId
   channelId            String?    @db.ObjectId // Now optional, for DMs
   directMessageGroupId String?    @db.ObjectId // New, for DMs
-  authorId             String
+  authorId             String     @db.ObjectId
   spans                Span[]
   reactions            Reaction[]
   sentAt               DateTime   @default(now())
@@ -48,10 +48,14 @@ model Message {
   // Thread subscribers
   threadSubscribers ThreadSubscriber[] @relation("MessageThreadSubscribers")
 
+  @@index([channelId, sentAt]) // Primary message loading (cursor pagination)
+  @@index([channelId, authorId, sentAt]) // Slowmode check
   @@index([channelId, searchText])
+  @@index([directMessageGroupId, sentAt]) // DM message loading (cursor pagination)
   @@index([directMessageGroupId, searchText])
   @@index([channelId, pinned]) // For fetching pinned messages in a channel
   @@index([parentMessageId]) // For fetching thread replies
+  @@index([authorId]) // Author-based lookups
 }
 
 model ThreadSubscriber {
@@ -404,6 +408,7 @@ model DirectMessageGroupMember {
   joinedAt DateTime           @default(now())
 
   @@unique([groupId, userId])
+  @@index([userId]) // For loading DM groups by user
 }
 
 model Friendship {
@@ -416,6 +421,7 @@ model Friendship {
   userB     User             @relation("FriendshipB", fields: [userBId], references: [id], onDelete: Cascade)
 
   @@unique([userAId, userBId])
+  @@index([userBId]) // For OR-clause friend lookup
 }
 
 model UserBlock {

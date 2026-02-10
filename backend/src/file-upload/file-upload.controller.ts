@@ -48,7 +48,10 @@ export class FileUploadController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseObjectIdPipe) id: string) {
-    return this.fileUploadService.remove(id);
+  remove(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.fileUploadService.remove(id, req.user.id);
   }
 }

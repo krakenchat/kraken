@@ -6,6 +6,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { TimingInterceptor } from './timing/timing.interceptor';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
 
@@ -27,8 +28,22 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TimingInterceptor());
   app.setGlobalPrefix('api');
   app.use(cookieParser());
-  app.enableCors({ origin: true, credentials: true });
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // CSP can break frontend asset loading; configure per-deployment
+      crossOriginEmbedderPolicy: false, // Can break embedded media
+    }),
+  );
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
+    credentials: true,
+  });
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   await app.listen(process.env.PORT ?? 3000);

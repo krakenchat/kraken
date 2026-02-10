@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   EgressClient,
   RoomServiceClient,
@@ -33,6 +33,7 @@ import {
   CaptureReplayResponseDto,
 } from './dto/capture-replay.dto';
 import { createHash } from 'crypto';
+import { promises as fs } from 'fs';
 import * as path from 'path';
 
 @Injectable()
@@ -44,6 +45,8 @@ export class LivekitReplayService {
   private readonly egressOutputPath: string;
   private readonly clipsPath: string;
   private readonly cleanupAgeMinutes: number;
+  private readonly REMUX_CACHE_DIR = '/tmp/hls-remux-cache';
+  private readonly REMUX_CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
   constructor(
     private readonly configService: ConfigService,
@@ -746,6 +749,60 @@ export class LivekitReplayService {
   }
 
   /**
+   * Cleanup stale remux cache files
+   *
+   * Runs every 30 minutes to delete remuxed segment files older than 1 hour.
+   * These files are created by getRemuxedSegmentPath() at /tmp/hls-remux-cache/{userId}/
+   * and accumulate over time if not cleaned up.
+   */
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async cleanupRemuxCache(): Promise<void> {
+    try {
+      const exists = await fs
+        .access(this.REMUX_CACHE_DIR)
+        .then(() => true)
+        .catch(() => false);
+      if (!exists) return;
+
+      const userDirs = await fs.readdir(this.REMUX_CACHE_DIR);
+      const now = Date.now();
+      let cleaned = 0;
+
+      for (const userDir of userDirs) {
+        const userPath = path.join(this.REMUX_CACHE_DIR, userDir);
+        const stat = await fs.stat(userPath);
+        if (!stat.isDirectory()) continue;
+
+        const files = await fs.readdir(userPath);
+        for (const file of files) {
+          const filePath = path.join(userPath, file);
+          const fileStat = await fs.stat(filePath);
+          if (now - fileStat.mtimeMs > this.REMUX_CACHE_MAX_AGE_MS) {
+            await fs.unlink(filePath);
+            cleaned++;
+          }
+        }
+
+        // Remove empty user directories
+        const remaining = await fs.readdir(userPath);
+        if (remaining.length === 0) {
+          await fs.rmdir(userPath);
+        }
+      }
+
+      if (cleaned > 0) {
+        this.logger.log(
+          `Cleaned up ${cleaned} stale remux cache files`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Remux cache cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
    * Stream a replay clip directly to the client (download-only, no persistence)
    * Creates a temporary file that should be deleted by the controller after streaming
    *
@@ -1406,7 +1463,7 @@ export class LivekitReplayService {
     const originalPath = await this.getSegmentPath(userId, segmentFile);
 
     // Create a cache directory for remuxed segments
-    const cacheDir = `/tmp/hls-remux-cache/${userId}`;
+    const cacheDir = `${this.REMUX_CACHE_DIR}/${userId}`;
     await this.storageService.ensureDirectory(cacheDir);
 
     const remuxedPath = path.join(cacheDir, segmentFile);

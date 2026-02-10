@@ -18,7 +18,6 @@ import {
 } from '@nestjs/common';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
 import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
@@ -29,20 +28,27 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import {
   getSocketUser,
   getSocketUserId,
-  isAuthenticated,
   AuthenticatedSocket,
 } from '@/common/utils/socket.utils';
 
 @UseFilters(WsLoggingExceptionFilter)
-@WebSocketGateway()
+@WebSocketGateway({
+  cors: {
+    origin: process.env.CORS_ORIGIN?.split(',') || true,
+    credentials: true,
+  },
+  transports: ['websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+})
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) }),
 )
-@UseGuards(WsJwtAuthGuard, RbacGuard)
-@WebSocketGateway()
+@UseGuards(WsThrottleGuard, WsJwtAuthGuard, RbacGuard)
 export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
   private readonly logger = new Logger(RoomsGateway.name);
 
@@ -56,12 +62,9 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
-    if (isAuthenticated(client)) {
-      this.websocketService.sendToAll(ServerEvents.USER_OFFLINE, {
-        userId: client.handshake.user.id,
-      });
-    }
+    this.logger.debug(`Client disconnected: ${client.id}`);
+    // Note: USER_ONLINE/USER_OFFLINE events are handled by PresenceGateway
+    // with proper connection counting to avoid duplicate events
   }
 
   @SubscribeMessage(ClientEvents.JOIN_ALL)
@@ -75,13 +78,11 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     @MessageBody() communityId: string,
   ) {
     const user = getSocketUser(client);
-    this.logger.log(
+    this.logger.debug(
       `User ${user.id} joined all rooms with communityId ${communityId}`,
     );
 
-    this.websocketService.sendToAll(ServerEvents.USER_ONLINE, {
-      userId: user.id,
-    });
+    // Note: USER_ONLINE events are handled by PresenceGateway
     // Cast is safe here as WsJwtAuthGuard ensures authentication
     return this.roomsService.joinAll(
       client as AuthenticatedSocket,

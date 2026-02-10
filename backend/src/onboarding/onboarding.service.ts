@@ -15,7 +15,7 @@ export class OnboardingService {
   private readonly SETUP_TOKEN_TTL = 900; // 15 minutes
 
   constructor(
-    private readonly database: DatabaseService,
+    private readonly databaseService: DatabaseService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly rolesService: RolesService,
   ) {}
@@ -25,7 +25,7 @@ export class OnboardingService {
    * Returns true if there are no users AND no active instance invites
    */
   async needsSetup(): Promise<boolean> {
-    const userCount = await this.database.user.count();
+    const userCount = await this.databaseService.user.count();
 
     if (userCount > 0) {
       return false;
@@ -33,7 +33,7 @@ export class OnboardingService {
 
     // Also check if there are any active instance invites
     // If someone manually created invites, we shouldn't override that
-    const activeInvites = await this.database.instanceInvite.count({
+    const activeInvites = await this.databaseService.instanceInvite.count({
       where: {
         disabled: false,
       },
@@ -111,7 +111,7 @@ export class OnboardingService {
       throw new ConflictException('Instance setup is no longer needed');
     }
 
-    const result = await this.database.$transaction(async (tx) => {
+    const result = await this.databaseService.$transaction(async (tx) => {
       // 1. Create admin user
       const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
       const adminUser = await tx.user.create({
@@ -275,7 +275,7 @@ export class OnboardingService {
     setupToken?: string;
   }> {
     const needsSetup = await this.needsSetup();
-    const userCount = await this.database.user.count();
+    const userCount = await this.databaseService.user.count();
 
     const result = {
       needsSetup,

@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FileService } from './file.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
-import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
 
 describe('FileService', () => {
   let service: FileService;
@@ -22,10 +21,6 @@ describe('FileService', () => {
     fileExists: jest.fn(),
   };
 
-  const mockStorageQuotaService = {
-    decrementUserStorage: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -37,10 +32,6 @@ describe('FileService', () => {
         {
           provide: StorageService,
           useValue: mockStorageService,
-        },
-        {
-          provide: StorageQuotaService,
-          useValue: mockStorageQuotaService,
         },
       ],
     }).compile();

@@ -11,6 +11,7 @@ import { UserEntity } from '@/user/dto/user-response.dto';
 import { ChannelType, Prisma } from '@prisma/client';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { isPrismaError } from '@/common/utils/prisma.utils';
 
 @Injectable()
 export class ChannelsService {
@@ -52,13 +53,7 @@ export class ChannelsService {
       });
       return result;
     } catch (error) {
-      // Check if error is a Prisma error with a code property
-      if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        (error as { code: string }).code === 'P2002'
-      ) {
+      if (isPrismaError(error, 'P2002')) {
         this.logger.warn(
           'Channel already exists with the same name in this community',
         );
@@ -80,6 +75,7 @@ export class ChannelsService {
         { position: 'asc' },
         { createdAt: 'asc' }, // Tiebreaker for existing channels with position 0
       ],
+      take: 500,
     });
   }
 
@@ -102,13 +98,7 @@ export class ChannelsService {
         data: updateChannelDto,
       });
     } catch (error) {
-      // Check if error is a Prisma error with a code property
-      if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        (error as { code: string }).code === 'P2002'
-      ) {
+      if (isPrismaError(error, 'P2002')) {
         this.logger.warn(
           'Channel already exists with the same name in this community',
         );
@@ -131,6 +121,23 @@ export class ChannelsService {
     }
 
     await this.databaseService.$transaction(async (tx) => {
+      // Delete records that depend on channel messages
+      await tx.notification.deleteMany({
+        where: { channelId: id },
+      });
+
+      await tx.channelNotificationOverride.deleteMany({
+        where: { channelId: id },
+      });
+
+      await tx.readReceipt.deleteMany({
+        where: { channelId: id },
+      });
+
+      await tx.threadSubscriber.deleteMany({
+        where: { parentMessage: { channelId: id } },
+      });
+
       await tx.channelMembership.deleteMany({
         where: { channelId: id },
       });

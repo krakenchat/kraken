@@ -2,6 +2,8 @@ import {
   Injectable,
   UnprocessableEntityException,
   PayloadTooLargeException,
+  NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
@@ -170,10 +172,33 @@ export class FileUploadService {
     return FileType.OTHER;
   }
 
-  remove(id: string) {
-    return this.databaseService.file.update({
+  async remove(id: string, userId: string) {
+    const file = await this.databaseService.file.findUnique({
+      where: { id },
+      select: { uploadedById: true, size: true, deletedAt: true },
+    });
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (file.uploadedById !== userId) {
+      throw new ForbiddenException('You can only delete your own files');
+    }
+
+    if (file.deletedAt) {
+      throw new NotFoundException('File not found');
+    }
+
+    const result = await this.databaseService.file.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+
+    if (file.size) {
+      await this.storageQuotaService.decrementUserStorage(userId, file.size);
+    }
+
+    return result;
   }
 }

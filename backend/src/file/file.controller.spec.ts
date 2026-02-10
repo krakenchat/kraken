@@ -165,7 +165,7 @@ describe('FileController', () => {
       expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/download.pdf');
       expect(mockResponse.set).toHaveBeenCalledWith({
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline; filename="download.pdf"',
+        'Content-Disposition': `inline; filename="download.pdf"; filename*=UTF-8''download.pdf`,
       });
       expect(result).toBeDefined();
     });
@@ -259,7 +259,7 @@ describe('FileController', () => {
 
       expect(mockResponse.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          'Content-Disposition': 'inline; filename="my "special" file.pdf"',
+          'Content-Disposition': `inline; filename="my _special_ file.pdf"; filename*=UTF-8''my%20%22special%22%20file.pdf`,
         }),
       );
     });
