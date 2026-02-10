@@ -75,6 +75,5 @@ backend/coverage
 docker-compose.override.yml
 egress-output/
 
-# Generated API files
-backend/openapi.json
+# Generated API client (regenerated from openapi.json)
 frontend/src/api-client/

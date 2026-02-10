@@ -19,10 +19,16 @@ COPY shared/ ./shared/
 # Install dependencies
 RUN npm ci
 
+# Copy backend OpenAPI spec (needed for API client generation)
+COPY backend/openapi.json ./backend/openapi.json
+
 # Copy frontend source code
 COPY frontend/ ./frontend/
 
 WORKDIR /app/frontend
+
+# Generate typed API client from OpenAPI spec
+RUN npx openapi-ts
 
 # Build arguments for environment variables (injected at build time)
 ARG VITE_API_URL=/api
