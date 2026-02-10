@@ -15,7 +15,7 @@ import {
 import SendIcon from "@mui/icons-material/Send";
 import { useTheme } from "@mui/material/styles";
 import { SocketContext } from "../../utils/SocketContext";
-import { ClientEvents } from "../../types/client-events.enum";
+import { ClientEvents } from '@kraken/shared';
 import { SpanType } from "../../types/message.type";
 import { logger } from "../../utils/logger";
 

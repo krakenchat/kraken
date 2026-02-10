@@ -35,7 +35,10 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { AuthenticatedRequest } from '@/types';
 import { Message } from '@prisma/client';
-import { EnrichedMessageDto, PaginatedMessagesResponseDto } from './dto/message-response.dto';
+import {
+  EnrichedMessageDto,
+  PaginatedMessagesResponseDto,
+} from './dto/message-response.dto';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -263,7 +266,9 @@ export class MessagesController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  async findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<EnrichedMessageDto> {
+  async findOne(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<EnrichedMessageDto> {
     const message = await this.messagesService.findOne(id);
     // Enrich with file metadata for consistent response shape
     return this.messagesService.enrichMessageWithFileMetadata(message);

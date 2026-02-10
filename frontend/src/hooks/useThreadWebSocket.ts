@@ -8,7 +8,7 @@
 import { useEffect, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { SocketContext } from "../utils/SocketContext";
-import { ServerEvents } from "../types/server-events.enum";
+import { ServerEvents } from '@kraken/shared';
 import {
   addThreadReply,
   updateThreadReply,

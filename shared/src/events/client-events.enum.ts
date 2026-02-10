@@ -1,5 +1,3 @@
-// src/websocket/client-events.enum.ts
-
 /**
  * Events emitted by the client and handled by the server.
  */

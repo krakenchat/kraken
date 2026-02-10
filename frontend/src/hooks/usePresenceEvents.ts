@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useSocket } from "./useSocket";
-import { ServerEvents } from "../types/server-events.enum";
+import { ServerEvents } from '@kraken/shared';
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { presenceApi } from "../features/presence/presenceApiSlice";
 

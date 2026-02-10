@@ -30,6 +30,7 @@
     "generate:openapi": "nest build && node dist/src/generate-openapi.js"
   },
   "dependencies": {
+    "@kraken/shared": "*",
     "@nestjs/common": "^11.1.11",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -124,7 +125,9 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
+      "^@/(.*)$": "<rootDir>/$1",
+      "^@kraken/shared$": "<rootDir>/../../shared/src",
+      "^@kraken/shared/(.*)$": "<rootDir>/../../shared/src/$1"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!uuid)"

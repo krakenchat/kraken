@@ -1,9 +1,9 @@
 import { useSocket } from "./useSocket";
 import { useEffect, useRef } from "react";
 import { Message } from "../types/message.type";
-import { ServerEvents } from "../types/server-events.enum";
-import { ClientEvents } from "../types/client-events.enum";
 import {
+  ServerEvents,
+  ClientEvents,
   NewMessagePayload,
   UpdateMessagePayload,
   DeleteMessagePayload,
@@ -13,7 +13,7 @@ import {
   MessageUnpinnedPayload,
   ThreadReplyCountUpdatedPayload,
   ReadReceiptUpdatedPayload,
-} from "../types/websocket-payloads";
+} from "@kraken/shared";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
   prependMessage,

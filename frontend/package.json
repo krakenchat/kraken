@@ -51,6 +51,7 @@
     "generate:api": "openapi-ts"
   },
   "dependencies": {
+    "@kraken/shared": "*",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/roboto": "^5.2.9",

@@ -9,7 +9,7 @@ import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import {
   ModerationAction,
   Prisma,

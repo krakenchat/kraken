@@ -19,8 +19,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { PresenceService } from './presence.service';
-import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ClientEvents, ServerEvents } from '@kraken/shared';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';

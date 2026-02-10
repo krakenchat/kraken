@@ -20,8 +20,7 @@ import {
 import { ReadReceiptsService } from './read-receipts.service';
 import { MarkAsReadDto } from './dto/mark-as-read.dto';
 import { Server, Socket } from 'socket.io';
-import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ClientEvents, ServerEvents } from '@kraken/shared';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';

@@ -1,0 +1,13 @@
+{
+  "name": "kraken",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace=shared",
+    "prepare": "npm run build:shared"
+  }
+}

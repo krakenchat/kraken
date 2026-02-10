@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef } from "react";
 import { SocketContext } from "../utils/SocketContext";
-import { ClientEvents } from "../types/client-events.enum";
+import { ClientEvents } from '@kraken/shared';
 
 export function useCommunityJoin(communityId: string | undefined) {
   const socket = useContext(SocketContext);

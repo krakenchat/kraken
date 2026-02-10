@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/.git
+**/.env
+**/.env.*
+**/coverage
+**/playwright-report
+**/test-results
+egress-output

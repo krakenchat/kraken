@@ -20,7 +20,7 @@ import {
   useStopReplayBufferMutation,
 } from '../features/livekit/livekitApiSlice';
 import { useSocket } from './useSocket';
-import { ServerEvents } from '../types/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { useNotification } from '../contexts/NotificationContext';
 import { useVoiceConnection } from './useVoiceConnection';
 
