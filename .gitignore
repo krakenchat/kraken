@@ -73,3 +73,7 @@ backend/coverage
 # Docker Compose local overrides
 docker-compose.override.yml
 egress-output/
+
+# Generated API files
+backend/openapi.json
+frontend/src/api-client/

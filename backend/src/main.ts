@@ -5,6 +5,7 @@ import {
   ConsoleLogger,
   ValidationPipe,
 } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { TimingInterceptor } from './timing/timing.interceptor';
@@ -45,6 +46,17 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Kraken API')
+      .setDescription('Kraken Chat Application API')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api-docs', app, document);
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 }

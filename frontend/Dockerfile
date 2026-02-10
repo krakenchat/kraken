@@ -7,6 +7,8 @@ RUN npm install
 
 COPY . .
 
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
 EXPOSE 5173
 
 CMD ["npm", "run", "dev"]

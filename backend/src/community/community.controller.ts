@@ -13,10 +13,12 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { CommunityService } from './community.service';
 import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
+import { CommunityResponseDto } from './dto/community-response.dto';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -28,6 +30,8 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
 
+@ApiTags('Community')
+@ApiBearerAuth()
 @Controller('community')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class CommunityController {
@@ -52,6 +56,7 @@ export class CommunityController {
   }
 
   @Get('/mine')
+  @ApiOkResponse({ type: [CommunityResponseDto] })
   // No RBAC check needed - users can always see their own communities
   findAllMine(@Req() req: AuthenticatedRequest) {
     return this.communityService.findAll(req.user.id);

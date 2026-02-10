@@ -21,7 +21,6 @@ services:
   frontend:
     build:
       context: ./frontend
-    command: npm run dev
     ports:
       - "5173:5173"
     environment:
@@ -29,6 +28,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - ./backend:/spec:ro
     depends_on:
       - backend
       - redis
