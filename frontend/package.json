@@ -59,7 +59,7 @@
     "@openobserve/browser-logs": "^0.2.11",
     "@openobserve/browser-rum": "^0.2.11",
     "@reduxjs/toolkit": "^2.7.0",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "date-fns": "^4.1.0",
     "electron-audio-loopback": "^1.0.6",
     "electron-updater": "^6.3.9",
