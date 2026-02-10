@@ -142,7 +142,9 @@ export class LivekitController {
    * Stop replay buffer egress for current user
    */
   @Post('replay/stop')
-  async stopReplayBuffer(@Req() req: AuthenticatedRequest): Promise<StopReplayResponseDto> {
+  async stopReplayBuffer(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<StopReplayResponseDto> {
     return this.livekitReplayService.stopReplayBuffer(req.user.id);
   }
 
@@ -292,7 +294,9 @@ export class LivekitController {
    * Get current user's clip library
    */
   @Get('clips')
-  async getMyClips(@Req() req: AuthenticatedRequest): Promise<ClipResponseDto[]> {
+  async getMyClips(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ClipResponseDto[]> {
     return this.clipLibraryService.getUserClips(req.user.id);
   }
 
@@ -300,7 +304,9 @@ export class LivekitController {
    * Get public clips for a specific user (for profile viewing)
    */
   @Get('clips/user/:userId')
-  async getUserPublicClips(@Param('userId') userId: string): Promise<ClipResponseDto[]> {
+  async getUserPublicClips(
+    @Param('userId') userId: string,
+  ): Promise<ClipResponseDto[]> {
     return this.clipLibraryService.getPublicClips(userId);
   }
 

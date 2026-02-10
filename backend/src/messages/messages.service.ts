@@ -57,7 +57,6 @@ export class MessagesService {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-
   async create(createMessageDto: CreateMessageDto) {
     const searchText = flattenSpansToText(createMessageDto.spans);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

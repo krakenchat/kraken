@@ -30,7 +30,9 @@ export class OnboardingController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
-  async setupInstance(@Body() dto: SetupInstanceDto): Promise<SetupResponseDto> {
+  async setupInstance(
+    @Body() dto: SetupInstanceDto,
+  ): Promise<SetupResponseDto> {
     if (!dto.setupToken) {
       throw new BadRequestException('Setup token is required');
     }

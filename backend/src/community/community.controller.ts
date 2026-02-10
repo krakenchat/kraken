@@ -63,7 +63,9 @@ export class CommunityController {
   @Get('/mine')
   @ApiOkResponse({ type: [CommunityResponseDto] })
   // No RBAC check needed - users can always see their own communities
-  findAllMine(@Req() req: AuthenticatedRequest): Promise<CommunityResponseDto[]> {
+  findAllMine(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<CommunityResponseDto[]> {
     return this.communityService.findAll(req.user.id);
   }
 
@@ -74,7 +76,9 @@ export class CommunityController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<CommunityResponseDto> {
+  findOne(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<CommunityResponseDto> {
     return this.communityService.findOne(id);
   }
 
@@ -132,7 +136,9 @@ export class CommunityController {
   @Get('admin/:id')
   @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  findOneWithStats(@Param('id', ParseObjectIdPipe) id: string): Promise<CommunityStatsDetailDto> {
+  findOneWithStats(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<CommunityStatsDetailDto> {
     return this.communityService.findOneWithStats(id);
   }
 

@@ -240,7 +240,9 @@ export class RolesController {
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  async createInstanceRole(@Body() createRoleDto: CreateRoleDto): Promise<RoleDto> {
+  async createInstanceRole(
+    @Body() createRoleDto: CreateRoleDto,
+  ): Promise<RoleDto> {
     return this.rolesService.createInstanceRole(
       createRoleDto.name,
       createRoleDto.actions,

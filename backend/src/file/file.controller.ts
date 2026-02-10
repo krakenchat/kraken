@@ -23,7 +23,9 @@ export class FileController {
 
   @Get(':id/metadata')
   @UseGuards(JwtAuthGuard, FileAccessGuard)
-  async getFileMetadata(@Param('id', ParseObjectIdPipe) id: string): Promise<FileMetadataResponseDto> {
+  async getFileMetadata(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<FileMetadataResponseDto> {
     const file = await this.fileService.findOne(id);
     if (!file) {
       throw new NotFoundException('File not found');

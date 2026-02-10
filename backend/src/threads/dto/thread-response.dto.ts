@@ -1,7 +1,10 @@
 export class ThreadRepliesResponseDto {
   replies: any[];
   continuationToken?: string;
-  fileMetadata?: Record<string, { filename: string; mimeType: string; size: number }>;
+  fileMetadata?: Record<
+    string,
+    { filename: string; mimeType: string; size: number }
+  >;
 }
 
 export class ThreadMetadataDto {

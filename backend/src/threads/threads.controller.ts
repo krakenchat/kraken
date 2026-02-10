@@ -25,7 +25,10 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { AuthenticatedRequest } from '@/types';
-import { ThreadRepliesResponseDto, ThreadMetadataDto } from './dto/thread-response.dto';
+import {
+  ThreadRepliesResponseDto,
+  ThreadMetadataDto,
+} from './dto/thread-response.dto';
 
 /**
  * Controller for thread operations.

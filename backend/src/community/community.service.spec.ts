@@ -217,7 +217,9 @@ describe('CommunityService', () => {
       const result = await service.findAll();
 
       expect(result).toEqual(communities);
-      expect(mockDatabase.community.findMany).toHaveBeenCalledWith({ take: 100 });
+      expect(mockDatabase.community.findMany).toHaveBeenCalledWith({
+        take: 100,
+      });
       expect(mockDatabase.membership.findMany).not.toHaveBeenCalled();
     });
   });
@@ -427,7 +429,9 @@ describe('CommunityService', () => {
         { id: 'ch-2' },
       ]);
       mockDatabase.notification.deleteMany.mockResolvedValue({ count: 0 });
-      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({
+        count: 0,
+      });
       mockDatabase.readReceipt.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.threadSubscriber.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
@@ -450,7 +454,9 @@ describe('CommunityService', () => {
         select: { id: true },
       });
       expect(mockDatabase.notification.deleteMany).toHaveBeenCalled();
-      expect(mockDatabase.channelNotificationOverride.deleteMany).toHaveBeenCalled();
+      expect(
+        mockDatabase.channelNotificationOverride.deleteMany,
+      ).toHaveBeenCalled();
       expect(mockDatabase.readReceipt.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.threadSubscriber.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.channelMembership.deleteMany).toHaveBeenCalled();

@@ -11,7 +11,10 @@ import { FriendsService } from './friends.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { User, Friendship } from '@prisma/client';
-import { PendingRequestsDto, FriendshipStatusDto } from './dto/friends-response.dto';
+import {
+  PendingRequestsDto,
+  FriendshipStatusDto,
+} from './dto/friends-response.dto';
 
 @Controller('friends')
 @UseGuards(JwtAuthGuard)
@@ -30,7 +33,9 @@ export class FriendsController {
    * Get pending friend requests (sent and received)
    */
   @Get('requests')
-  async getPendingRequests(@Req() req: AuthenticatedRequest): Promise<PendingRequestsDto> {
+  async getPendingRequests(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<PendingRequestsDto> {
     return this.friendsService.getPendingRequests(req.user.id);
   }
 

@@ -19,7 +19,6 @@ export class ThreadsService {
 
   constructor(private readonly databaseService: DatabaseService) {}
 
-
   /**
    * Sanitize spans to only include valid Prisma Span fields.
    * This strips any extra fields that may be sent by the client.

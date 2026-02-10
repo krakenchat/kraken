@@ -20,8 +20,19 @@ import { SendTestNotificationDto } from './dto/debug-notification.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { InstanceRole, Notification, UserNotificationSettings, ChannelNotificationOverride } from '@prisma/client';
-import { NotificationListResponseDto, UnreadCountResponseDto, DebugNotificationResponseDto, DebugSubscriptionsResponseDto, ClearNotificationDataResponseDto } from './dto/notification-response.dto';
+import {
+  InstanceRole,
+  Notification,
+  UserNotificationSettings,
+  ChannelNotificationOverride,
+} from '@prisma/client';
+import {
+  NotificationListResponseDto,
+  UnreadCountResponseDto,
+  DebugNotificationResponseDto,
+  DebugSubscriptionsResponseDto,
+  ClearNotificationDataResponseDto,
+} from './dto/notification-response.dto';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 
 @Controller('notifications')
@@ -62,7 +73,9 @@ export class NotificationsController {
    * GET /notifications/unread-count
    */
   @Get('unread-count')
-  async getUnreadCount(@Req() req: AuthenticatedRequest): Promise<UnreadCountResponseDto> {
+  async getUnreadCount(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UnreadCountResponseDto> {
     const count = await this.notificationsService.getUnreadCount(req.user.id);
     return { count };
   }
@@ -86,7 +99,9 @@ export class NotificationsController {
    */
   @Post('read-all')
   @HttpCode(200)
-  async markAllAsRead(@Req() req: AuthenticatedRequest): Promise<{ count: number }> {
+  async markAllAsRead(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ count: number }> {
     return this.notificationsService.markAllAsRead(req.user.id);
   }
 
@@ -127,7 +142,9 @@ export class NotificationsController {
    * GET /notifications/settings
    */
   @Get('settings')
-  async getSettings(@Req() req: AuthenticatedRequest): Promise<UserNotificationSettings> {
+  async getSettings(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UserNotificationSettings> {
     return this.notificationsService.getUserSettings(req.user.id);
   }
 
@@ -230,7 +247,9 @@ export class NotificationsController {
    * Only available to OWNER users
    */
   @Get('debug/subscriptions')
-  async getDebugSubscriptions(@Req() req: AuthenticatedRequest): Promise<DebugSubscriptionsResponseDto> {
+  async getDebugSubscriptions(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<DebugSubscriptionsResponseDto> {
     this.assertOwner(req);
     const subscriptions =
       await this.pushNotificationsService.getUserSubscriptions(req.user.id);
@@ -248,7 +267,9 @@ export class NotificationsController {
    */
   @Delete('debug/clear-all')
   @HttpCode(200)
-  async clearDebugSettings(@Req() req: AuthenticatedRequest): Promise<ClearNotificationDataResponseDto> {
+  async clearDebugSettings(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ClearNotificationDataResponseDto> {
     this.assertOwner(req);
     const result = await this.notificationsService.clearUserNotificationData(
       req.user.id,

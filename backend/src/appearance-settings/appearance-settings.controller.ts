@@ -22,7 +22,9 @@ export class AppearanceSettingsController {
    * Get current user's appearance settings
    */
   @Get()
-  async getSettings(@Request() req: { user: { id: string } }): Promise<UserAppearanceSettings> {
+  async getSettings(
+    @Request() req: { user: { id: string } },
+  ): Promise<UserAppearanceSettings> {
     return this.appearanceSettingsService.getUserSettings(req.user.id);
   }
 

@@ -16,7 +16,12 @@ import { ModerationService } from './moderation.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
-import { RbacActions, ModerationAction, CommunityBan, CommunityTimeout } from '@prisma/client';
+import {
+  RbacActions,
+  ModerationAction,
+  CommunityBan,
+  CommunityTimeout,
+} from '@prisma/client';
 import {
   RbacResource,
   RbacResourceType,
@@ -34,7 +39,12 @@ import {
   UnpinMessageDto,
   DeleteMessageAsModDto,
 } from './dto';
-import { TimeoutStatusResponseDto, ModerationLogsResponseDto, SuccessMessageDto, PinnedMessageDto } from './dto/moderation-response.dto';
+import {
+  TimeoutStatusResponseDto,
+  ModerationLogsResponseDto,
+  SuccessMessageDto,
+  PinnedMessageDto,
+} from './dto/moderation-response.dto';
 
 @Controller('moderation')
 @UseGuards(JwtAuthGuard)

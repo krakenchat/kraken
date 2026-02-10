@@ -29,7 +29,9 @@ export class VoicePresenceController {
     idKey: 'channelId',
     source: ResourceIdSource.PARAM,
   })
-  async getChannelPresence(@Param('channelId') channelId: string): Promise<ChannelVoicePresenceResponseDto> {
+  async getChannelPresence(
+    @Param('channelId') channelId: string,
+  ): Promise<ChannelVoicePresenceResponseDto> {
     const users = await this.voicePresenceService.getChannelPresence(channelId);
     return {
       channelId,
@@ -64,7 +66,9 @@ export class DmVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get()
-  async getDmPresence(@Param('dmGroupId') dmGroupId: string): Promise<DmVoicePresenceResponseDto> {
+  async getDmPresence(
+    @Param('dmGroupId') dmGroupId: string,
+  ): Promise<DmVoicePresenceResponseDto> {
     const users = await this.voicePresenceService.getDmPresence(dmGroupId);
     return {
       dmGroupId,
@@ -80,7 +84,9 @@ export class UserVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get('me')
-  async getMyVoiceChannels(@Req() req: AuthenticatedRequest): Promise<UserVoiceChannelsResponseDto> {
+  async getMyVoiceChannels(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UserVoiceChannelsResponseDto> {
     const channels = await this.voicePresenceService.getUserVoiceChannels(
       req.user.id,
     );

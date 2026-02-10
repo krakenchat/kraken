@@ -1,4 +1,10 @@
-import { CommunityBan, CommunityTimeout, FileType, ModerationLog, Message } from '@prisma/client';
+import {
+  CommunityBan,
+  CommunityTimeout,
+  FileType,
+  ModerationLog,
+  Message,
+} from '@prisma/client';
 
 export class PinnedMessageAuthorDto {
   id: string;

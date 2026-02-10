@@ -15,7 +15,10 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { ReadReceipt } from '@prisma/client';
-import { UnreadCountDto, LastReadResponseDto } from './dto/read-receipts-response.dto';
+import {
+  UnreadCountDto,
+  LastReadResponseDto,
+} from './dto/read-receipts-response.dto';
 
 @Controller('read-receipts')
 @UseGuards(JwtAuthGuard)
@@ -40,7 +43,9 @@ export class ReadReceiptsController {
    * GET /read-receipts/unread-counts
    */
   @Get('unread-counts')
-  async getUnreadCounts(@Req() req: AuthenticatedRequest): Promise<UnreadCountDto[]> {
+  async getUnreadCounts(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UnreadCountDto[]> {
     return this.readReceiptsService.getUnreadCounts(req.user.id);
   }
 

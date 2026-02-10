@@ -149,7 +149,10 @@ export class AuthController {
 
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
   @Post('logout')
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<LogoutResponseDto> {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LogoutResponseDto> {
     const refreshToken = req.cookies[this.REFRESH_TOKEN_COOKIE_NAME] as
       | string
       | undefined;
@@ -215,7 +218,9 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('sessions')
-  async getSessions(@Req() req: AuthenticatedRequest): Promise<SessionInfoDto[]> {
+  async getSessions(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SessionInfoDto[]> {
     const currentTokenId = await this.getCurrentTokenId(req);
     return this.authService.getUserSessions(req.user.id, currentTokenId);
   }
@@ -246,7 +251,9 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Delete('sessions')
-  async revokeAllOtherSessions(@Req() req: AuthenticatedRequest): Promise<RevokeAllSessionsResponseDto> {
+  async revokeAllOtherSessions(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RevokeAllSessionsResponseDto> {
     const currentTokenId = await this.getCurrentTokenId(req);
 
     if (!currentTokenId) {
