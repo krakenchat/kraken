@@ -1,4 +1,18 @@
-import { FileType } from '@prisma/client';
+import { FileType, SpanType } from '@prisma/client';
+
+export class SpanDto {
+  type: SpanType;
+  text: string | null;
+  userId: string | null;
+  specialKind: string | null;
+  communityId: string | null;
+  aliasId: string | null;
+}
+
+export class ReactionDto {
+  emoji: string;
+  userIds: string[];
+}
 
 export class EnrichedAttachment {
   id: string;
@@ -13,10 +27,10 @@ export class EnrichedMessageDto {
   channelId: string | null;
   directMessageGroupId: string | null;
   authorId: string;
-  spans: any[];
+  spans: SpanDto[];
   attachments: EnrichedAttachment[];
   pendingAttachments: number | null;
-  reactions: any[];
+  reactions: ReactionDto[];
   replyCount: number;
   lastReplyAt: Date | null;
   pinned: boolean;
@@ -32,10 +46,10 @@ export class MessageDto {
   channelId: string | null;
   directMessageGroupId: string | null;
   authorId: string;
-  spans: any[];
+  spans: SpanDto[];
   attachments: string[];
   pendingAttachments: number | null;
-  reactions: any[];
+  reactions: ReactionDto[];
   replyCount: number;
   lastReplyAt: Date | null;
   pinned: boolean;

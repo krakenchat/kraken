@@ -233,6 +233,21 @@ export interface MessageUnpinnedPayload {
   unpinnedBy: string;
 }
 
+export interface NewThreadReplyPayload {
+  reply: Message;
+  parentMessageId: string;
+}
+
+export interface UpdateThreadReplyPayload {
+  reply: Message;
+  parentMessageId: string;
+}
+
+export interface DeleteThreadReplyPayload {
+  replyId: string;
+  parentMessageId: string;
+}
+
 export interface ThreadReplyCountUpdatedPayload {
   parentMessageId: string;
   replyCount: number;
@@ -293,6 +308,9 @@ export type ServerEventPayloads = {
   [ServerEvents.TIMEOUT_REMOVED]: TimeoutRemovedPayload;
   [ServerEvents.MESSAGE_PINNED]: MessagePinnedPayload;
   [ServerEvents.MESSAGE_UNPINNED]: MessageUnpinnedPayload;
+  [ServerEvents.NEW_THREAD_REPLY]: NewThreadReplyPayload;
+  [ServerEvents.UPDATE_THREAD_REPLY]: UpdateThreadReplyPayload;
+  [ServerEvents.DELETE_THREAD_REPLY]: DeleteThreadReplyPayload;
   [ServerEvents.THREAD_REPLY_COUNT_UPDATED]: ThreadReplyCountUpdatedPayload;
 
   // Acknowledgments & Errors

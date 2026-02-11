@@ -37,6 +37,10 @@ import {
   TimeoutRemovedPayload,
   MessagePinnedPayload,
   MessageUnpinnedPayload,
+  NewThreadReplyPayload,
+  UpdateThreadReplyPayload,
+  DeleteThreadReplyPayload,
+  ThreadReplyCountUpdatedPayload,
 } from '../payloads/websocket-payloads';
 
 /**
@@ -81,6 +85,12 @@ export type ServerToClientEvents = {
   // Replay Buffer (Screen Recording)
   [ServerEvents.REPLAY_BUFFER_STOPPED]: (data: ReplayBufferStoppedPayload) => void;
   [ServerEvents.REPLAY_BUFFER_FAILED]: (data: ReplayBufferFailedPayload) => void;
+
+  // Threads
+  [ServerEvents.NEW_THREAD_REPLY]: (data: NewThreadReplyPayload) => void;
+  [ServerEvents.UPDATE_THREAD_REPLY]: (data: UpdateThreadReplyPayload) => void;
+  [ServerEvents.DELETE_THREAD_REPLY]: (data: DeleteThreadReplyPayload) => void;
+  [ServerEvents.THREAD_REPLY_COUNT_UPDATED]: (data: ThreadReplyCountUpdatedPayload) => void;
 
   // Channel Management
   [ServerEvents.CHANNELS_REORDERED]: (data: ChannelsReorderedPayload) => void;
@@ -141,6 +151,17 @@ export type ClientToServerEvents = {
     directMessageGroupId?: string;
     lastReadMessageId: string;
   }) => void;
+
+  // Threads
+  [ClientEvents.SEND_THREAD_REPLY]: (
+    data: {
+      parentMessageId: string;
+      spans: Span[];
+      attachments?: string[];
+      pendingAttachments?: number;
+    },
+    callback?: (replyId: string) => void
+  ) => void;
 
   // Presence & Typing
   [ClientEvents.TYPING_START]: (data: {

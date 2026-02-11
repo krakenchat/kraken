@@ -1,4 +1,5 @@
 import { FileType, ModerationAction } from '@prisma/client';
+import { SpanDto, ReactionDto } from '@/messages/dto/message-response.dto';
 
 export class PinnedMessageAuthorDto {
   id: string;
@@ -20,8 +21,8 @@ export class PinnedMessageDto {
   channelId: string | null;
   directMessageGroupId: string | null;
   authorId: string;
-  spans: any[];
-  reactions: any[];
+  spans: SpanDto[];
+  reactions: ReactionDto[];
   sentAt: Date;
   editedAt: Date | null;
   deletedAt: Date | null;
@@ -67,7 +68,7 @@ export class ModerationLogDto {
   targetUserId: string | null;
   action: ModerationAction;
   reason: string | null;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   createdAt: Date;
 }
 

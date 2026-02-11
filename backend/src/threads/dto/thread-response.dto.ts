@@ -1,12 +1,14 @@
+import { SpanDto, ReactionDto } from '@/messages/dto/message-response.dto';
+
 export class ThreadReplyDto {
   id: string;
   channelId: string | null;
   directMessageGroupId: string | null;
   authorId: string;
-  spans: any[];
+  spans: SpanDto[];
   attachments: string[];
   pendingAttachments: number | null;
-  reactions: any[];
+  reactions: ReactionDto[];
   sentAt: Date;
   editedAt: Date | null;
   deletedAt: Date | null;
@@ -22,7 +24,7 @@ export class ThreadReplyDto {
 }
 
 export class ThreadRepliesResponseDto {
-  replies: any[];
+  replies: ThreadReplyDto[];
   continuationToken?: string;
   fileMetadata?: Record<
     string,

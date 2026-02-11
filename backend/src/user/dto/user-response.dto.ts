@@ -1,21 +1,26 @@
 import { $Enums, User } from '@prisma/client';
 import { Exclude } from 'class-transformer';
+import { ApiHideProperty } from '@nestjs/swagger';
 
 export class UserEntity implements User {
   id: string;
   username: string;
 
   @Exclude()
+  @ApiHideProperty()
   email: string | null;
 
   @Exclude()
+  @ApiHideProperty()
   verified: boolean;
   role: $Enums.InstanceRole;
 
   @Exclude()
+  @ApiHideProperty()
   createdAt: Date;
 
   @Exclude()
+  @ApiHideProperty()
   hashedPassword: string;
 
   avatarUrl: string | null;
@@ -28,23 +33,27 @@ export class UserEntity implements User {
   status: string | null;
 
   @Exclude()
+  @ApiHideProperty()
   statusUpdatedAt: Date | null;
 
-  // Ban status (excluded from public responses by default)
   @Exclude()
+  @ApiHideProperty()
   banned: boolean;
 
   @Exclude()
+  @ApiHideProperty()
   bannedAt: Date | null;
 
   @Exclude()
+  @ApiHideProperty()
   bannedById: string | null;
 
-  // Storage quota (excluded from public responses)
   @Exclude()
+  @ApiHideProperty()
   storageQuotaBytes: bigint;
 
   @Exclude()
+  @ApiHideProperty()
   storageUsedBytes: bigint;
 
   constructor(partial: Partial<UserEntity>) {

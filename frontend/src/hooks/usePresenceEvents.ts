@@ -1,15 +1,8 @@
 import { useEffect } from "react";
 import { useSocket } from "./useSocket";
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents, type UserPresenceInfo } from '@kraken/shared';
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { presenceApi } from "../features/presence/presenceApiSlice";
-
-interface UserPresencePayload {
-  userId: string;
-  username?: string;
-  displayName?: string | null;
-  avatarUrl?: string | null;
-}
 
 /**
  * Hook to listen for real-time presence events and update the presence cache
@@ -22,7 +15,7 @@ export const usePresenceEvents = () => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleUserOnline = (data: UserPresencePayload) => {
+    const handleUserOnline = (data: UserPresenceInfo) => {
       // Update presence cache for single user query
       dispatch(
         presenceApi.util.updateQueryData('getUserPresence', data.userId, (draft) => {
@@ -54,7 +47,7 @@ export const usePresenceEvents = () => {
       });
     };
 
-    const handleUserOffline = (data: UserPresencePayload) => {
+    const handleUserOffline = (data: UserPresenceInfo) => {
       // Update presence cache for single user query
       dispatch(
         presenceApi.util.updateQueryData('getUserPresence', data.userId, (draft) => {

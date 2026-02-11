@@ -4,7 +4,6 @@ export interface Channel {
   communityId: string;
   type: ChannelType;
   isPrivate: boolean;
-  description?: string;
   createdAt: string;
   position?: number;
   slowmodeSeconds?: number;
