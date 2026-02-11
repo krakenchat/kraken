@@ -68,7 +68,8 @@ COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./prisma
 RUN cp -rn ./backend_modules/* ./node_modules/ 2>/dev/null || true && rm -rf ./backend_modules
 
 # Rebuild bcrypt for Alpine's musl libc to prevent segfaults
-# Install build tools, rebuild bcrypt from source, then remove build tools
+# The cp -rn merge above doesn't recreate .bin symlinks, so we restore it
+RUN ln -sf ../@mapbox/node-pre-gyp/bin/node-pre-gyp node_modules/.bin/node-pre-gyp
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
     npm rebuild bcrypt --build-from-source && \
     apk del .build-deps
