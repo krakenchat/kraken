@@ -47,18 +47,22 @@
     "test:e2e:docker": "../scripts/run-e2e.sh",
     "test:e2e:docker:all": "../scripts/run-e2e.sh --all",
     "test:e2e:docker:ui": "../scripts/run-e2e.sh --ui",
-    "test:e2e:docker:clean": "../scripts/run-e2e.sh --clean"
+    "test:e2e:docker:clean": "../scripts/run-e2e.sh --clean",
+    "generate:api": "openapi-ts"
   },
   "dependencies": {
+    "@kraken/shared": "*",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/roboto": "^5.2.9",
+    "@hey-api/client-fetch": "^0.13.1",
     "@livekit/components-react": "^2.9.17",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
     "@openobserve/browser-logs": "^0.2.11",
     "@openobserve/browser-rum": "^0.2.11",
     "@reduxjs/toolkit": "^2.7.0",
+    "@tanstack/react-query": "^5.90.20",
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",
     "electron-audio-loopback": "^1.0.6",
@@ -75,6 +79,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
+    "@hey-api/openapi-ts": "^0.92.3",
     "@playwright/test": "^1.57.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",

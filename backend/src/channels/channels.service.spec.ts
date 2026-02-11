@@ -276,7 +276,9 @@ describe('ChannelsService', () => {
 
       mockDatabase.channel.findUnique.mockResolvedValue(channel);
       mockDatabase.notification.deleteMany.mockResolvedValue({ count: 0 });
-      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.channelNotificationOverride.deleteMany.mockResolvedValue({
+        count: 0,
+      });
       mockDatabase.readReceipt.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.threadSubscriber.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
@@ -288,7 +290,9 @@ describe('ChannelsService', () => {
       expect(mockDatabase.notification.deleteMany).toHaveBeenCalledWith({
         where: { channelId: channel.id },
       });
-      expect(mockDatabase.channelNotificationOverride.deleteMany).toHaveBeenCalledWith({
+      expect(
+        mockDatabase.channelNotificationOverride.deleteMany,
+      ).toHaveBeenCalledWith({
         where: { channelId: channel.id },
       });
       expect(mockDatabase.readReceipt.deleteMany).toHaveBeenCalledWith({

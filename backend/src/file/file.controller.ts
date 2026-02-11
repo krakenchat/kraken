@@ -15,6 +15,7 @@ import { createReadStream } from 'fs';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { FileMetadataResponseDto } from './dto/file-metadata-response.dto';
 
 @Controller('file')
 export class FileController {
@@ -22,7 +23,9 @@ export class FileController {
 
   @Get(':id/metadata')
   @UseGuards(JwtAuthGuard, FileAccessGuard)
-  async getFileMetadata(@Param('id', ParseObjectIdPipe) id: string) {
+  async getFileMetadata(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<FileMetadataResponseDto> {
     const file = await this.fileService.findOne(id);
     if (!file) {
       throw new NotFoundException('File not found');
@@ -43,7 +46,7 @@ export class FileController {
   async getFile(
     @Param('id', ParseObjectIdPipe) id: string,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<StreamableFile> {
     const file = await this.fileService.findOne(id);
     if (!file) {
       throw new NotFoundException('File not found');

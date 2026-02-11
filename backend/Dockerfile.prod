@@ -13,15 +13,22 @@ RUN apt-get update -y && \
 
 WORKDIR /app
 
-# Copy dependency files
-COPY package*.json ./
-COPY prisma ./prisma/
+# Copy root workspace config + shared and backend package files
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY backend/package.json ./backend/
+COPY backend/prisma ./backend/prisma
+
+# Copy shared source before install so the prepare script can build it
+COPY shared/ ./shared/
 
 # Install ALL dependencies (including dev dependencies for build)
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy backend source code
+COPY backend/ ./backend/
+
+WORKDIR /app/backend
 
 # Generate Prisma Client
 RUN npx prisma generate --schema=prisma/schema.prisma
@@ -51,13 +58,18 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 
 # Copy built application and production dependencies from builder
-COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/backend/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/package*.json ./
-COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nestjs:nodejs /app/backend/node_modules ./backend_modules
+COPY --from=builder --chown=nestjs:nodejs /app/backend/package*.json ./
+COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./prisma
+
+# Merge backend node_modules into top-level (for runtime module resolution)
+RUN cp -rn ./backend_modules/* ./node_modules/ 2>/dev/null || true && rm -rf ./backend_modules
 
 # Rebuild bcrypt for Alpine's musl libc to prevent segfaults
-# Install build tools, rebuild bcrypt from source, then remove build tools
+# The cp -rn merge above doesn't recreate .bin symlinks, so we restore it
+RUN ln -sf ../@mapbox/node-pre-gyp/bin/node-pre-gyp node_modules/.bin/node-pre-gyp
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
     npm rebuild bcrypt --build-from-source && \
     apk del .build-deps
@@ -82,4 +94,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]

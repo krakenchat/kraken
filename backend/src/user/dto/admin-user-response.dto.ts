@@ -1,5 +1,6 @@
 import { Exclude, Transform } from 'class-transformer';
 import { $Enums, User } from '@prisma/client';
+import { ApiHideProperty } from '@nestjs/swagger';
 
 /**
  * Admin-level user response that includes ban status and other sensitive fields
@@ -34,6 +35,7 @@ export class AdminUserEntity implements User {
   storageUsedBytes: bigint;
 
   @Exclude()
+  @ApiHideProperty()
   hashedPassword: string;
 
   constructor(partial: Partial<AdminUserEntity>) {

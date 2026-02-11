@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../app/store';
 import { useSocket } from './useSocket';
-import { ServerEvents } from '../types/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { VoicePresenceUser, voicePresenceApi } from '../features/voice-presence/voicePresenceApiSlice';
 import { logger } from '../utils/logger';
 

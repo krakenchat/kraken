@@ -7,7 +7,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { Notification } from '@prisma/client';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';

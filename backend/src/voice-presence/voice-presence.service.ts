@@ -2,7 +2,7 @@ import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import Redis from 'ioredis';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { DatabaseService } from '@/database/database.service';
 import { LivekitReplayService } from '@/livekit/livekit-replay.service';
 

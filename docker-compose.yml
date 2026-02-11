@@ -1,7 +1,8 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     command: npm run start:dev
     ports:
       - "3000:3000"
@@ -10,8 +11,12 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - ./backend:/app
+      - ./backend:/app/backend
+      - ./shared:/app/shared
       - /app/node_modules
+      - /app/backend/node_modules
+      - /app/shared/node_modules
+    working_dir: /app/backend
     depends_on:
       mongo:
         condition: service_healthy
@@ -20,15 +25,20 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-    command: npm run dev
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "5173:5173"
     environment:
       - NODE_ENV=development
     volumes:
-      - ./frontend:/app
+      - ./frontend:/app/frontend
+      - ./shared:/app/shared
       - /app/node_modules
+      - /app/frontend/node_modules
+      - /app/shared/node_modules
+      - ./backend:/spec:ro
+    working_dir: /app/frontend
     depends_on:
       - backend
       - redis

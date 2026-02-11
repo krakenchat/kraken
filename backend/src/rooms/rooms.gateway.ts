@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ClientEvents } from '@/websocket/events.enum/client-events.enum';
+import { ClientEvents } from '@kraken/shared';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import {

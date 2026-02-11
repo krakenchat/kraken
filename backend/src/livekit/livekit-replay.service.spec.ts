@@ -7,7 +7,7 @@ import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { FfmpegService } from './ffmpeg.service';
 import { MessagesService } from '@/messages/messages.service';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { EgressStatus } from 'livekit-server-sdk';
 
 // Mock livekit-server-sdk

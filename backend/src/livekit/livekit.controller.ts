@@ -23,8 +23,21 @@ import {
   CaptureReplayDto,
   StreamReplayDto,
   SessionInfoResponseDto,
+  CaptureReplayResponseDto,
 } from './dto/capture-replay.dto';
-import { UpdateClipDto, ShareClipDto } from './dto/clip-library.dto';
+import {
+  UpdateClipDto,
+  ShareClipDto,
+  ClipResponseDto,
+  ShareClipResponseDto,
+} from './dto/clip-library.dto';
+import { TokenResponseDto } from './dto/token-response.dto';
+import {
+  ConnectionInfoResponseDto,
+  LivekitHealthResponseDto,
+  StartReplayResponseDto,
+  StopReplayResponseDto,
+} from './dto/livekit-response.dto';
 import { StorageService } from '@/storage/storage.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
@@ -59,7 +72,7 @@ export class LivekitController {
   async generateToken(
     @Body() createTokenDto: CreateTokenDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<TokenResponseDto> {
     // Use the authenticated user's ID as the identity if not provided
     const tokenDto = {
       ...createTokenDto,
@@ -78,7 +91,7 @@ export class LivekitController {
   async generateDmToken(
     @Body() createTokenDto: CreateTokenDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<TokenResponseDto> {
     // Use the authenticated user's ID as the identity if not provided
     const tokenDto = {
       ...createTokenDto,
@@ -88,12 +101,12 @@ export class LivekitController {
   }
 
   @Get('connection-info')
-  getConnectionInfo() {
+  getConnectionInfo(): ConnectionInfoResponseDto {
     return this.livekitService.getConnectionInfo();
   }
 
   @Get('health')
-  validateConfiguration() {
+  validateConfiguration(): LivekitHealthResponseDto {
     const isValid = this.livekitService.validateConfiguration();
     return {
       status: isValid ? 'healthy' : 'unhealthy',
@@ -114,7 +127,7 @@ export class LivekitController {
   async startReplayBuffer(
     @Body() dto: StartReplayBufferDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<StartReplayResponseDto> {
     return this.livekitReplayService.startReplayBuffer({
       userId: req.user.id,
       channelId: dto.channelId,
@@ -129,7 +142,9 @@ export class LivekitController {
    * Stop replay buffer egress for current user
    */
   @Post('replay/stop')
-  async stopReplayBuffer(@Req() req: AuthenticatedRequest) {
+  async stopReplayBuffer(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<StopReplayResponseDto> {
     return this.livekitReplayService.stopReplayBuffer(req.user.id);
   }
 
@@ -146,7 +161,7 @@ export class LivekitController {
     @Query() query: StreamReplayDto,
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
-  ) {
+  ): Promise<void> {
     let tempPath: string | null = null;
 
     try {
@@ -216,7 +231,7 @@ export class LivekitController {
   async getPreviewPlaylist(
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
-  ) {
+  ): Promise<void> {
     const playlist = await this.livekitReplayService.getPlaylistContent(
       req.user.id,
     );
@@ -236,7 +251,7 @@ export class LivekitController {
     @Param('segmentFile') segmentFile: string,
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
-  ) {
+  ): Promise<void> {
     // Get remuxed segment path (with caching)
     const segmentPath = await this.livekitReplayService.getRemuxedSegmentPath(
       req.user.id,
@@ -271,7 +286,7 @@ export class LivekitController {
   async captureReplay(
     @Body() dto: CaptureReplayDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<CaptureReplayResponseDto> {
     return this.livekitReplayService.captureReplay(req.user.id, dto);
   }
 
@@ -279,7 +294,9 @@ export class LivekitController {
    * Get current user's clip library
    */
   @Get('clips')
-  async getMyClips(@Req() req: AuthenticatedRequest) {
+  async getMyClips(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ClipResponseDto[]> {
     return this.clipLibraryService.getUserClips(req.user.id);
   }
 
@@ -287,7 +304,9 @@ export class LivekitController {
    * Get public clips for a specific user (for profile viewing)
    */
   @Get('clips/user/:userId')
-  async getUserPublicClips(@Param('userId') userId: string) {
+  async getUserPublicClips(
+    @Param('userId') userId: string,
+  ): Promise<ClipResponseDto[]> {
     return this.clipLibraryService.getPublicClips(userId);
   }
 
@@ -299,7 +318,7 @@ export class LivekitController {
     @Param('clipId') clipId: string,
     @Body() dto: UpdateClipDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<ClipResponseDto> {
     return this.clipLibraryService.updateClip(req.user.id, clipId, dto);
   }
 
@@ -310,7 +329,7 @@ export class LivekitController {
   async deleteClip(
     @Param('clipId') clipId: string,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<{ success: boolean }> {
     await this.clipLibraryService.deleteClip(req.user.id, clipId);
     return { success: true };
   }
@@ -323,7 +342,7 @@ export class LivekitController {
     @Param('clipId') clipId: string,
     @Body() dto: ShareClipDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<ShareClipResponseDto> {
     return this.clipLibraryService.shareClip(req.user.id, clipId, dto);
   }
 }

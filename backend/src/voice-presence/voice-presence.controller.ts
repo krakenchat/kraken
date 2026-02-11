@@ -10,6 +10,12 @@ import {
   ResourceIdSource,
 } from '../auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
+import {
+  ChannelVoicePresenceResponseDto,
+  DmVoicePresenceResponseDto,
+  RefreshPresenceResponseDto,
+  UserVoiceChannelsResponseDto,
+} from './dto/voice-presence-response.dto';
 
 @Controller('channels/:channelId/voice-presence')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -23,7 +29,9 @@ export class VoicePresenceController {
     idKey: 'channelId',
     source: ResourceIdSource.PARAM,
   })
-  async getChannelPresence(@Param('channelId') channelId: string) {
+  async getChannelPresence(
+    @Param('channelId') channelId: string,
+  ): Promise<ChannelVoicePresenceResponseDto> {
     const users = await this.voicePresenceService.getChannelPresence(channelId);
     return {
       channelId,
@@ -42,7 +50,7 @@ export class VoicePresenceController {
   async refreshPresence(
     @Param('channelId') channelId: string,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<RefreshPresenceResponseDto> {
     await this.voicePresenceService.refreshPresence(channelId, req.user.id);
     return {
       success: true,
@@ -58,7 +66,9 @@ export class DmVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get()
-  async getDmPresence(@Param('dmGroupId') dmGroupId: string) {
+  async getDmPresence(
+    @Param('dmGroupId') dmGroupId: string,
+  ): Promise<DmVoicePresenceResponseDto> {
     const users = await this.voicePresenceService.getDmPresence(dmGroupId);
     return {
       dmGroupId,
@@ -74,7 +84,9 @@ export class UserVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get('me')
-  async getMyVoiceChannels(@Req() req: AuthenticatedRequest) {
+  async getMyVoiceChannels(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UserVoiceChannelsResponseDto> {
     const channels = await this.voicePresenceService.getUserVoiceChannels(
       req.user.id,
     );

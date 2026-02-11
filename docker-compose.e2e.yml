@@ -38,7 +38,8 @@ services:
   # Backend service for E2E tests
   backend-test:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     command: npm run start:dev
     ports:
       - "3001:3000"  # Different port to avoid conflicts
@@ -55,8 +56,12 @@ services:
       - LIVEKIT_API_KEY=e2e-test-api-key
       - LIVEKIT_API_SECRET=e2e-test-api-secret
     volumes:
-      - ./backend:/app
+      - ./backend:/app/backend
+      - ./shared:/app/shared
       - /app/node_modules
+      - /app/backend/node_modules
+      - /app/shared/node_modules
+    working_dir: /app/backend
     depends_on:
       mongo-test:
         condition: service_healthy
@@ -68,17 +73,24 @@ services:
   # Frontend service for E2E tests
   frontend-test:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: frontend/Dockerfile
     command: npm run dev -- --host 0.0.0.0
     ports:
       - "5174:5173"  # Different port to avoid conflicts
     environment:
       - NODE_ENV=test
     volumes:
-      - ./frontend:/app
+      - ./frontend:/app/frontend
+      - ./shared:/app/shared
       - /app/node_modules
+      - /app/frontend/node_modules
+      - /app/shared/node_modules
       # Override vite config for E2E (proxy to backend-test)
-      - ./frontend/vite.config.e2e.ts:/app/vite.config.ts:ro
+      - ./frontend/vite.config.e2e.ts:/app/frontend/vite.config.ts:ro
+      # Mount backend dir as /spec so docker-entrypoint.sh can generate API client
+      - ./backend:/spec:ro
+    working_dir: /app/frontend
     depends_on:
       - backend-test
     networks:

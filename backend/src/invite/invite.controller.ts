@@ -9,8 +9,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InviteService } from './invite.service';
-import { InstanceInvite, RbacActions } from '@prisma/client';
+import { RbacActions } from '@prisma/client';
 import { CreateInviteDto } from './dto/create-invite.dto';
+import { InviteResponseDto } from './dto/invite-response.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -28,7 +29,7 @@ export class InviteController {
   async createInvite(
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreateInviteDto,
-  ): Promise<InstanceInvite> {
+  ): Promise<InviteResponseDto> {
     return this.inviteService.createInvite(
       req.user,
       dto.maxUses,
@@ -43,14 +44,14 @@ export class InviteController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async getInvites(
     @Req() req: AuthenticatedRequest,
-  ): Promise<InstanceInvite[]> {
+  ): Promise<InviteResponseDto[]> {
     return this.inviteService.getInvites(req.user);
   }
 
   @Get('public/:code')
   async getPublicInvite(
     @Param('code') code: string,
-  ): Promise<InstanceInvite | null> {
+  ): Promise<InviteResponseDto | null> {
     return this.inviteService.getInviteByCode(code);
   }
 
@@ -58,7 +59,7 @@ export class InviteController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  async getInvite(@Param('code') code: string): Promise<InstanceInvite | null> {
+  async getInvite(@Param('code') code: string): Promise<InviteResponseDto | null> {
     return this.inviteService.getInviteByCode(code);
   }
 

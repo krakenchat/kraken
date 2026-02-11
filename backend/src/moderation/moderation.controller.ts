@@ -34,6 +34,14 @@ import {
   UnpinMessageDto,
   DeleteMessageAsModDto,
 } from './dto';
+import {
+  CommunityBanDto,
+  CommunityTimeoutDto,
+  TimeoutStatusResponseDto,
+  ModerationLogsResponseDto,
+  SuccessMessageDto,
+  PinnedMessageDto,
+} from './dto/moderation-response.dto';
 
 @Controller('moderation')
 @UseGuards(JwtAuthGuard)
@@ -58,7 +66,7 @@ export class ModerationController {
     @Param('userId', ParseObjectIdPipe) userId: string,
     @Body() dto: BanUserDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : undefined;
     await this.moderationService.banUser(
       communityId,
@@ -83,7 +91,7 @@ export class ModerationController {
     @Param('userId', ParseObjectIdPipe) userId: string,
     @Body() dto: UnbanUserDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     await this.moderationService.unbanUser(
       communityId,
       userId,
@@ -103,7 +111,7 @@ export class ModerationController {
   })
   async getBanList(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-  ) {
+  ): Promise<CommunityBanDto[]> {
     return this.moderationService.getBanList(communityId);
   }
 
@@ -125,7 +133,7 @@ export class ModerationController {
     @Param('userId', ParseObjectIdPipe) userId: string,
     @Body() dto: KickUserDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     await this.moderationService.kickUser(
       communityId,
       userId,
@@ -153,7 +161,7 @@ export class ModerationController {
     @Param('userId', ParseObjectIdPipe) userId: string,
     @Body() dto: TimeoutUserDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     await this.moderationService.timeoutUser(
       communityId,
       userId,
@@ -177,7 +185,7 @@ export class ModerationController {
     @Param('userId', ParseObjectIdPipe) userId: string,
     @Body() dto: RemoveTimeoutDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     await this.moderationService.removeTimeout(
       communityId,
       userId,
@@ -197,7 +205,7 @@ export class ModerationController {
   })
   async getTimeoutList(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-  ) {
+  ): Promise<CommunityTimeoutDto[]> {
     return this.moderationService.getTimeoutList(communityId);
   }
 
@@ -212,7 +220,7 @@ export class ModerationController {
   async getTimeoutStatus(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('userId', ParseObjectIdPipe) userId: string,
-  ) {
+  ): Promise<TimeoutStatusResponseDto> {
     return this.moderationService.isUserTimedOut(communityId, userId);
   }
 
@@ -233,7 +241,7 @@ export class ModerationController {
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Body() dto: PinMessageDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     await this.moderationService.pinMessage(messageId, req.user.id, dto.reason);
     return { success: true, message: 'Message pinned successfully' };
   }
@@ -250,7 +258,7 @@ export class ModerationController {
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Body() dto: UnpinMessageDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     await this.moderationService.unpinMessage(
       messageId,
       req.user.id,
@@ -269,7 +277,7 @@ export class ModerationController {
   })
   async getPinnedMessages(
     @Param('channelId', ParseObjectIdPipe) channelId: string,
-  ) {
+  ): Promise<PinnedMessageDto[]> {
     return this.moderationService.getPinnedMessages(channelId);
   }
 
@@ -289,7 +297,7 @@ export class ModerationController {
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Body() dto: DeleteMessageAsModDto,
     @Req() req: AuthenticatedRequest,
-  ) {
+  ): Promise<SuccessMessageDto> {
     await this.moderationService.deleteMessageAsMod(
       messageId,
       req.user.id,
@@ -315,7 +323,7 @@ export class ModerationController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('action') action?: ModerationAction,
-  ) {
+  ): Promise<ModerationLogsResponseDto> {
     return this.moderationService.getModerationLogs(communityId, {
       limit,
       offset,

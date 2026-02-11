@@ -6,7 +6,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
 

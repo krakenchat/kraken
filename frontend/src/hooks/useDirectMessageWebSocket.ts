@@ -1,14 +1,14 @@
 import { useSocket } from "./useSocket";
 import { useEffect, useRef } from "react";
-import { ServerEvents } from "../types/server-events.enum";
-import { ClientEvents } from "../types/client-events.enum";
 import {
+  ServerEvents,
+  ClientEvents,
   NewMessagePayload,
   UpdateMessagePayload,
   DeleteMessagePayload,
   ReactionAddedPayload,
   ReactionRemovedPayload,
-} from "../types/websocket-payloads";
+} from "@kraken/shared";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
   prependMessage,

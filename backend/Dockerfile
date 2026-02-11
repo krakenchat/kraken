@@ -6,14 +6,21 @@ RUN apt-get update -y && apt-get install -y openssl ffmpeg procps && rm -rf /var
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY prisma ./prisma
+# Copy root workspace config + shared and backend package.json for dependency install
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY backend/package.json ./backend/
+COPY backend/prisma ./backend/prisma
+
+# Copy shared source before install so the prepare script can build it
+COPY shared/ ./shared/
+
 RUN npm install
 
-COPY . .
+# Copy backend source
+COPY backend/ ./backend/
 
-# Install nodemon for development
-RUN npm install --save-dev nodemon
+WORKDIR /app/backend
 
 # Regenerate Prisma client to ensure it matches the latest schema
 RUN npx prisma generate --schema=prisma/schema.prisma

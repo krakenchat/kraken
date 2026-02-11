@@ -1,20 +1,13 @@
 /**
  * WebSocket Event Payload Types
  *
- * This file defines TypeScript interfaces for all WebSocket event payloads.
- * IMPORTANT: Keep payload shapes in sync with backend event emissions.
- *
- * @see backend/src/websocket/events.enum/server-events.enum.ts
- * @see backend/src/websocket/events.enum/client-events.enum.ts
+ * Shared payload type definitions for all WebSocket events.
  */
 
-import { Message, Reaction } from "./message.type";
-import { Channel } from "./channel.type";
-import { ServerEvents } from "./server-events.enum";
-import {
-  NewNotificationPayload,
-  NotificationReadPayload,
-} from "./notification.type";
+import { Message, Reaction } from '../types/message.types';
+import { Channel } from '../types/channel.types';
+import { NewNotificationPayload, NotificationReadPayload } from '../types/notification.types';
+import { ServerEvents } from '../events/server-events.enum';
 
 // Re-export notification payloads for convenience
 export type { NewNotificationPayload, NotificationReadPayload };
@@ -23,9 +16,6 @@ export type { NewNotificationPayload, NotificationReadPayload };
 // Common Types
 // =============================================================================
 
-/**
- * Basic user info included in presence and voice events
- */
 export interface UserPresenceInfo {
   userId: string;
   username?: string;
@@ -33,9 +23,6 @@ export interface UserPresenceInfo {
   avatarUrl?: string | null;
 }
 
-/**
- * User info for voice channel presence
- */
 export interface VoicePresenceUser {
   id: string;
   username: string;
@@ -246,6 +233,21 @@ export interface MessageUnpinnedPayload {
   unpinnedBy: string;
 }
 
+export interface NewThreadReplyPayload {
+  reply: Message;
+  parentMessageId: string;
+}
+
+export interface UpdateThreadReplyPayload {
+  reply: Message;
+  parentMessageId: string;
+}
+
+export interface DeleteThreadReplyPayload {
+  replyId: string;
+  parentMessageId: string;
+}
+
 export interface ThreadReplyCountUpdatedPayload {
   parentMessageId: string;
   replyCount: number;
@@ -256,20 +258,6 @@ export interface ThreadReplyCountUpdatedPayload {
 // Server Events Payload Map
 // =============================================================================
 
-/**
- * Maps ServerEvents to their corresponding payload types.
- * Use this for type-safe event handling.
- *
- * @example
- * ```typescript
- * function handleEvent<E extends ServerEvents>(
- *   event: E,
- *   payload: ServerEventPayloads[E]
- * ) {
- *   // payload is correctly typed based on event
- * }
- * ```
- */
 export type ServerEventPayloads = {
   // Messaging: Channels
   [ServerEvents.NEW_MESSAGE]: NewMessagePayload;
@@ -320,6 +308,9 @@ export type ServerEventPayloads = {
   [ServerEvents.TIMEOUT_REMOVED]: TimeoutRemovedPayload;
   [ServerEvents.MESSAGE_PINNED]: MessagePinnedPayload;
   [ServerEvents.MESSAGE_UNPINNED]: MessageUnpinnedPayload;
+  [ServerEvents.NEW_THREAD_REPLY]: NewThreadReplyPayload;
+  [ServerEvents.UPDATE_THREAD_REPLY]: UpdateThreadReplyPayload;
+  [ServerEvents.DELETE_THREAD_REPLY]: DeleteThreadReplyPayload;
   [ServerEvents.THREAD_REPLY_COUNT_UPDATED]: ThreadReplyCountUpdatedPayload;
 
   // Acknowledgments & Errors
@@ -327,18 +318,8 @@ export type ServerEventPayloads = {
   [ServerEvents.ERROR]: ErrorPayload;
 };
 
-// =============================================================================
-// Type Helper for Event Handlers
-// =============================================================================
-
-/**
- * Type-safe event handler signature
- */
-export type ServerEventHandler<E extends ServerEvents> = (
+export type ServerEventHandler<E extends keyof ServerEventPayloads> = (
   payload: ServerEventPayloads[E]
 ) => void;
 
-/**
- * Get payload type for a specific event
- */
-export type PayloadOf<E extends ServerEvents> = ServerEventPayloads[E];
+export type PayloadOf<E extends keyof ServerEventPayloads> = ServerEventPayloads[E];

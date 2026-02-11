@@ -1,7 +1,7 @@
 import { useContext, useCallback } from "react";
 import { logger } from "../utils/logger";
 import { SocketContext } from "../utils/SocketContext";
-import { ClientEvents } from "../types/client-events.enum";
+import { ClientEvents } from '@kraken/shared';
 import type { Message } from "../types/message.type";
 import {
   SocketNotConnectedError,

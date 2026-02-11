@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.git
+**/.env
+**/.env.*
+**/coverage
+**/playwright-report
+**/test-results
+egress-output

@@ -1,6 +1,3 @@
-import { Type } from 'class-transformer';
-import { InstanceInvite } from '@prisma/client';
-
 /**
  * Simplified user info for invite responses
  */
@@ -11,9 +8,9 @@ class InviteCreatorDto {
 }
 
 /**
- * Instance invite response DTO that handles nested user serialization
+ * Instance invite response DTO
  */
-export class InviteResponseDto implements InstanceInvite {
+export class InviteResponseDto {
   id: string;
   code: string;
   createdById: string | null;
@@ -24,11 +21,5 @@ export class InviteResponseDto implements InstanceInvite {
   createdAt: Date;
   usedByIds: string[];
   disabled: boolean;
-
-  @Type(() => InviteCreatorDto)
   createdBy?: InviteCreatorDto | null;
-
-  constructor(partial: Partial<InviteResponseDto>) {
-    Object.assign(this, partial);
-  }
 }

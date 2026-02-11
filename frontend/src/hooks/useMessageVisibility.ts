@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useContext } from "react";
 import { SocketContext } from "../utils/SocketContext";
-import { ClientEvents } from "../types/client-events.enum";
+import { ClientEvents } from '@kraken/shared';
 import { MarkAsReadPayload } from "../types/read-receipt.type";
 
 interface UseMessageVisibilityProps {

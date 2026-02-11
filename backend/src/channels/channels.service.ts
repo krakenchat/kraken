@@ -10,7 +10,7 @@ import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { ChannelType, Prisma } from '@prisma/client';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 
 @Injectable()

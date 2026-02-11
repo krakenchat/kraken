@@ -9,7 +9,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { logger } from '../utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from './useSocket';
-import { ServerEvents } from '../types/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import {
   NewNotificationPayload,
   NotificationReadPayload,

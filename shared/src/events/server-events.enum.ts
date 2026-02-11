@@ -1,5 +1,3 @@
-// src/websocket/server-events.enum.ts
-
 /**
  * Events emitted by the server and handled by the client.
  */
@@ -20,8 +18,8 @@ export enum ServerEvents {
   NEW_DM = 'newDirectMessage',
 
   // Mentions & Notifications
-  NEW_NOTIFICATION = 'newNotification', // New notification created
-  NOTIFICATION_READ = 'notificationRead', // Notification marked as read
+  NEW_NOTIFICATION = 'newNotification',
+  NOTIFICATION_READ = 'notificationRead',
 
   // Presence & Typing
   USER_ONLINE = 'userOnline',

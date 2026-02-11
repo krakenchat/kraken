@@ -2,6 +2,7 @@
 **/dist
 **/node_modules
 **/build
+**/*.tsbuildinfo
 
 # Logs
 logs
@@ -73,3 +74,14 @@ backend/coverage
 # Docker Compose local overrides
 docker-compose.override.yml
 egress-output/
+
+# Generated API client (regenerated from openapi.json)
+frontend/src/api-client/
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

@@ -26,9 +26,11 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:e2e": "ts-node prisma/seed-e2e.ts",
-    "migrate:instance-roles": "ts-node prisma/migrate-instance-roles.ts"
+    "migrate:instance-roles": "ts-node prisma/migrate-instance-roles.ts",
+    "generate:openapi": "nest build && node dist/src/generate-openapi.js"
   },
   "dependencies": {
+    "@kraken/shared": "*",
     "@nestjs/common": "^11.1.11",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -89,7 +91,6 @@
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
     "jest": "^29.7.0",
-    "openapi-typescript": "^7.6.1",
     "prettier": "^3.4.2",
     "prisma": "^6.6.0",
     "source-map-support": "^0.5.21",
@@ -124,7 +125,9 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
+      "^@/(.*)$": "<rootDir>/$1",
+      "^@kraken/shared$": "<rootDir>/../../shared/src",
+      "^@kraken/shared/(.*)$": "<rootDir>/../../shared/src/$1"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!uuid)"

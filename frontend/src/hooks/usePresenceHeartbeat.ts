@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useSocket } from "./useSocket";
-import { ClientEvents } from "../types/client-events.enum";
+import { ClientEvents } from '@kraken/shared';
 
 /**
  * Hook to send presence heartbeat every 30 seconds to keep user marked as online

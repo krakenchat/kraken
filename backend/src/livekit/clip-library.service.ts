@@ -4,7 +4,7 @@ import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { MessagesService } from '@/messages/messages.service';
 import { CreateMessageDto } from '@/messages/dto/create-message.dto';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 import { getErrorMessage } from '@/common/utils/error.utils';
 import {
   UpdateClipDto,

@@ -20,7 +20,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    "paths": {
+      "@kraken/shared": ["../shared/src"],
+      "@kraken/shared/*": ["../shared/src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../shared/src"]
 }

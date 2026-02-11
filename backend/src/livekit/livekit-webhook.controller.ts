@@ -77,7 +77,7 @@ export class LivekitWebhookController {
     @Req() req: RawBodyRequest<Request>,
     @Headers('authorization') authorization: string,
     @Body() body: LiveKitWebhookDto,
-  ) {
+  ): Promise<{ success: boolean }> {
     this.logger.debug(`Received webhook event: ${body.event}`);
 
     // Reject webhooks entirely when verification credentials are not configured

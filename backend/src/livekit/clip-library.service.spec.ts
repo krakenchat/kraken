@@ -5,7 +5,7 @@ import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { MessagesService } from '@/messages/messages.service';
 import { NotFoundException } from '@nestjs/common';
-import { ServerEvents } from '@/websocket/events.enum/server-events.enum';
+import { ServerEvents } from '@kraken/shared';
 
 describe('ClipLibraryService', () => {
   let service: ClipLibraryService;

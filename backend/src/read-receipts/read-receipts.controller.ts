@@ -14,6 +14,11 @@ import { MarkAsReadDto } from './dto/mark-as-read.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
+import {
+  ReadReceiptDto,
+  UnreadCountDto,
+  LastReadResponseDto,
+} from './dto/read-receipts-response.dto';
 
 @Controller('read-receipts')
 @UseGuards(JwtAuthGuard)
@@ -29,7 +34,7 @@ export class ReadReceiptsController {
   async markAsRead(
     @Req() req: AuthenticatedRequest,
     @Body() markAsReadDto: MarkAsReadDto,
-  ) {
+  ): Promise<ReadReceiptDto> {
     return this.readReceiptsService.markAsRead(req.user.id, markAsReadDto);
   }
 
@@ -38,7 +43,9 @@ export class ReadReceiptsController {
    * GET /read-receipts/unread-counts
    */
   @Get('unread-counts')
-  async getUnreadCounts(@Req() req: AuthenticatedRequest) {
+  async getUnreadCounts(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UnreadCountDto[]> {
     return this.readReceiptsService.getUnreadCounts(req.user.id);
   }
 
@@ -52,7 +59,7 @@ export class ReadReceiptsController {
     @Query('channelId', ParseObjectIdPipe) channelId?: string,
     @Query('directMessageGroupId', ParseObjectIdPipe)
     directMessageGroupId?: string,
-  ) {
+  ): Promise<UnreadCountDto> {
     return this.readReceiptsService.getUnreadCount(
       req.user.id,
       channelId,
@@ -70,7 +77,7 @@ export class ReadReceiptsController {
     @Query('channelId', ParseObjectIdPipe) channelId?: string,
     @Query('directMessageGroupId', ParseObjectIdPipe)
     directMessageGroupId?: string,
-  ) {
+  ): Promise<LastReadResponseDto> {
     const lastReadMessageId =
       await this.readReceiptsService.getLastReadMessageId(
         req.user.id,
@@ -91,7 +98,7 @@ export class ReadReceiptsController {
     @Query('channelId', ParseObjectIdPipe) channelId?: string,
     @Query('directMessageGroupId', ParseObjectIdPipe)
     directMessageGroupId?: string,
-  ) {
+  ): Promise<any[]> {
     return this.readReceiptsService.getMessageReaders(
       messageId,
       channelId,
