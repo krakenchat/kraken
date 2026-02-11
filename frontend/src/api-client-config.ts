@@ -21,6 +21,15 @@ export function configureApiClient() {
 
   client.interceptors.response.use(async (response, request) => {
     if (response.status === 401) {
+      // Don't intercept 401s from auth endpoints — those mean "bad credentials",
+      // not "expired token". The old RTK Query code used a separate base query
+      // without this interceptor for login/register/refresh.
+      const url = new URL(request.url, window.location.origin);
+      const isAuthEndpoint = url.pathname.startsWith('/api/auth/');
+      if (isAuthEndpoint) {
+        return response;
+      }
+
       const newToken = await refreshToken();
       if (newToken) {
         // Retry the original request with the new token
