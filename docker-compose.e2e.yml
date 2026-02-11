@@ -88,6 +88,8 @@ services:
       - /app/shared/node_modules
       # Override vite config for E2E (proxy to backend-test)
       - ./frontend/vite.config.e2e.ts:/app/frontend/vite.config.ts:ro
+      # Mount backend dir as /spec so docker-entrypoint.sh can generate API client
+      - ./backend:/spec:ro
     working_dir: /app/frontend
     depends_on:
       - backend-test

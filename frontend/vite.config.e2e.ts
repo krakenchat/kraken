@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import path from "path";
 
 /**
  * Vite configuration for E2E testing
@@ -55,6 +56,11 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    alias: {
+      "@kraken/shared": path.resolve(__dirname, "../shared/src"),
+    },
+  },
   base: "/",
   server: {
     host: "0.0.0.0",
