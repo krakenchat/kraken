@@ -25,6 +25,8 @@ import {
   NotificationDto,
   NotificationListResponseDto,
   UnreadCountResponseDto,
+  UserNotificationSettingsDto,
+  ChannelNotificationOverrideDto,
   DebugNotificationResponseDto,
   DebugSubscriptionsResponseDto,
   ClearNotificationDataResponseDto,
@@ -140,7 +142,7 @@ export class NotificationsController {
   @Get('settings')
   async getSettings(
     @Req() req: AuthenticatedRequest,
-  ): Promise<UserNotificationSettings> {
+  ): Promise<UserNotificationSettingsDto> {
     return this.notificationsService.getUserSettings(req.user.id);
   }
 
@@ -152,7 +154,7 @@ export class NotificationsController {
   async updateSettings(
     @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateNotificationSettingsDto,
-  ): Promise<UserNotificationSettings> {
+  ): Promise<UserNotificationSettingsDto> {
     return this.notificationsService.updateUserSettings(req.user.id, dto);
   }
 
@@ -164,7 +166,7 @@ export class NotificationsController {
   async getChannelOverride(
     @Req() req: AuthenticatedRequest,
     @Param('channelId', ParseObjectIdPipe) channelId: string,
-  ): Promise<ChannelNotificationOverride | null> {
+  ): Promise<ChannelNotificationOverrideDto | null> {
     return this.notificationsService.getChannelOverride(req.user.id, channelId);
   }
 
@@ -177,7 +179,7 @@ export class NotificationsController {
     @Req() req: AuthenticatedRequest,
     @Param('channelId', ParseObjectIdPipe) channelId: string,
     @Body() dto: UpdateChannelOverrideDto,
-  ): Promise<ChannelNotificationOverride> {
+  ): Promise<ChannelNotificationOverrideDto> {
     return this.notificationsService.setChannelOverride(
       req.user.id,
       channelId,

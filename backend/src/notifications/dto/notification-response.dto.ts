@@ -1,5 +1,29 @@
 import { NotificationType } from '@prisma/client';
 
+export class UserNotificationSettingsDto {
+  id: string;
+  userId: string;
+  desktopEnabled: boolean;
+  playSound: boolean;
+  soundType: string;
+  doNotDisturb: boolean;
+  dndStartTime: string | null;
+  dndEndTime: string | null;
+  defaultChannelLevel: string;
+  dmNotifications: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class ChannelNotificationOverrideDto {
+  id: string;
+  userId: string;
+  channelId: string;
+  level: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export class NotificationAuthorDto {
   id: string;
   username: string;
