@@ -13,7 +13,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import { ApiOkResponse, ApiCreatedResponse, ApiBody } from '@nestjs/swagger';
 import { LocalAuthGuard } from './local-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService, DeviceInfo } from './auth.service';
@@ -30,6 +30,7 @@ import {
   RevokeSessionResponseDto,
   RevokeAllSessionsResponseDto,
 } from './dto/auth-response.dto';
+import { LoginRequestDto, RefreshRequestDto } from './dto/auth-request.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -59,6 +60,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({ type: LoginRequestDto })
   @ApiOkResponse({ type: LoginResponseDto })
   async login(
     @Req() req: AuthenticatedRequest,
@@ -90,6 +92,7 @@ export class AuthController {
   @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({ type: RefreshRequestDto })
   @ApiOkResponse({ type: LoginResponseDto })
   async refresh(
     @Req() req: Request,
