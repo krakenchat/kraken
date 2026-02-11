@@ -90,8 +90,8 @@ jobs:
         with:
           context: .
           file: ./backend/Dockerfile.prod
-          # Only push on release tags or manual dispatch
-          push: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+          # Push on main branch, release tags, and manual dispatch (not PRs)
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
@@ -168,8 +168,8 @@ jobs:
         with:
           context: .
           file: ./frontend/Dockerfile.prod
-          # Only push on release tags or manual dispatch
-          push: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+          # Push on main branch, release tags, and manual dispatch (not PRs)
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
