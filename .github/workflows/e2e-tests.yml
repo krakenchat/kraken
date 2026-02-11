@@ -74,7 +74,20 @@ jobs:
 
       - name: Start frontend
         run: |
-          docker compose -f docker-compose.e2e.yml up -d frontend-test
+          docker compose -f docker-compose.e2e.yml up -d --no-recreate frontend-test
+          echo "Verifying backend is still healthy..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "Backend is healthy!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Backend lost after frontend start"
+              docker compose -f docker-compose.e2e.yml logs backend-test --tail=100
+              exit 1
+            fi
+            sleep 2
+          done
           echo "Waiting for frontend..."
           for i in {1..30}; do
             if curl -s http://localhost:5174 > /dev/null 2>&1; then
@@ -175,7 +188,20 @@ jobs:
 
       - name: Start frontend
         run: |
-          docker compose -f docker-compose.e2e.yml up -d frontend-test
+          docker compose -f docker-compose.e2e.yml up -d --no-recreate frontend-test
+          echo "Verifying backend is still healthy..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "Backend is healthy!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Backend lost after frontend start"
+              docker compose -f docker-compose.e2e.yml logs backend-test --tail=100
+              exit 1
+            fi
+            sleep 2
+          done
           for i in {1..30}; do
             if curl -s http://localhost:5174 > /dev/null 2>&1; then
               break
