@@ -40,12 +40,14 @@ import {
   Link as LinkIcon,
   FilterList as FilterIcon,
 } from "@mui/icons-material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetInvitesQuery,
-  useCreateInviteMutation,
-  useDeleteInviteMutation,
-} from "../features/invite/inviteApiSlice";
-import { useMyCommunitiesQuery } from "../features/community/communityApiSlice";
+  inviteControllerGetInvitesOptions,
+  inviteControllerCreateInviteMutation,
+  inviteControllerDeleteInviteMutation,
+  communityControllerFindAllMineOptions,
+} from "../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../types/invite.type";
 
@@ -67,20 +69,28 @@ const AdminInvitePage: React.FC = () => {
   const [validUntil, setValidUntil] = useState<string>("");
   const [selectedCommunities, setSelectedCommunities] = useState<string[]>([]);
 
+  const queryClient = useQueryClient();
+
   const {
     data: invites = [],
     isLoading: loadingInvites,
     error: invitesError,
     refetch,
-  } = useGetInvitesQuery();
+  } = useQuery(inviteControllerGetInvitesOptions());
 
   const {
     data: communities = [],
     isLoading: loadingCommunities,
-  } = useMyCommunitiesQuery();
+  } = useQuery(communityControllerFindAllMineOptions());
 
-  const [createInvite, { isLoading: creatingInvite }] = useCreateInviteMutation();
-  const [deleteInvite, { isLoading: deletingInvite }] = useDeleteInviteMutation();
+  const { mutateAsync: createInvite, isPending: creatingInvite } = useMutation({
+    ...inviteControllerCreateInviteMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+  });
+  const { mutateAsync: deleteInvite, isPending: deletingInvite } = useMutation({
+    ...inviteControllerDeleteInviteMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+  });
 
   const { hasPermissions: canCreateInvites } = useUserPermissions({
     resourceType: "INSTANCE",
@@ -134,7 +144,7 @@ const AdminInvitePage: React.FC = () => {
         validUntil: validUntil ? new Date(validUntil) : undefined,
       };
       
-      const newInvite = await createInvite(createInviteDto).unwrap();
+      const newInvite = await createInvite({ body: createInviteDto });
       
       // Auto-copy the new invite link
       await handleCopyInvite(newInvite.code);
@@ -157,7 +167,7 @@ const AdminInvitePage: React.FC = () => {
     if (!inviteToDelete) return;
 
     try {
-      await deleteInvite(inviteToDelete.code).unwrap();
+      await deleteInvite({ path: { code: inviteToDelete.code } });
     } catch (error) {
       logger.error("Failed to delete invite:", error);
     } finally {

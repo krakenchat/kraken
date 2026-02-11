@@ -21,7 +21,8 @@ import {
 import Hls from 'hls.js';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
-import { useGetSessionInfoQuery } from '../../features/livekit/livekitApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import { livekitControllerGetSessionInfoOptions } from '../../api-client/@tanstack/react-query.gen';
 import { logger } from '../../utils/logger';
 
 interface TrimPreviewProps {
@@ -73,8 +74,9 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
 
   // Fetch session info to get buffer duration
   // refetchOnMountOrArgChange ensures fresh data when component mounts
-  const { data: sessionInfo, isLoading: sessionLoading, refetch: _refetch } = useGetSessionInfoQuery(undefined, {
-    refetchOnMountOrArgChange: true,
+  const { data: sessionInfo, isLoading: sessionLoading } = useQuery({
+    ...livekitControllerGetSessionInfoOptions(),
+    staleTime: 0, // Always refetch on mount
   });
   const maxDuration = sessionInfo?.totalDurationSeconds || 0;
 

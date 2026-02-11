@@ -29,12 +29,14 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useGetSessionsQuery,
-  useRevokeSessionMutation,
-  useRevokeAllOtherSessionsMutation,
-  SessionInfo,
-} from '../../features/auth/authSlice';
+  authControllerGetSessionsOptions,
+  authControllerRevokeSessionMutation,
+  authControllerRevokeAllOtherSessionsMutation,
+} from '../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+import type { SessionInfoDto as SessionInfo } from '../../api-client/types.gen';
 import { useNotification } from '../../contexts/NotificationContext';
 import { logger } from '../../utils/logger';
 
@@ -126,9 +128,16 @@ const SessionSkeleton: React.FC = () => (
 
 const SessionsSettings: React.FC = () => {
   const { showNotification } = useNotification();
-  const { data: sessions, isLoading, error, refetch } = useGetSessionsQuery();
-  const [revokeSession] = useRevokeSessionMutation();
-  const [revokeAllOther, { isLoading: isRevokingAll }] = useRevokeAllOtherSessionsMutation();
+  const queryClient = useQueryClient();
+  const { data: sessions, isLoading, error, refetch } = useQuery(authControllerGetSessionsOptions());
+  const { mutateAsync: revokeSession } = useMutation({
+    ...authControllerRevokeSessionMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.sessions),
+  });
+  const { mutateAsync: revokeAllOther, isPending: isRevokingAll } = useMutation({
+    ...authControllerRevokeAllOtherSessionsMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.sessions),
+  });
 
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -136,7 +145,7 @@ const SessionsSettings: React.FC = () => {
   const handleRevokeSession = async (sessionId: string) => {
     setRevokingId(sessionId);
     try {
-      await revokeSession(sessionId).unwrap();
+      await revokeSession({ path: { sessionId } });
       showNotification('Session revoked', 'success');
     } catch (err) {
       logger.error('Failed to revoke session:', err);
@@ -148,7 +157,7 @@ const SessionsSettings: React.FC = () => {
 
   const handleRevokeAllOther = async () => {
     try {
-      const result = await revokeAllOther().unwrap();
+      const result = await revokeAllOther({});
       showNotification(result.message, 'success');
       setConfirmDialogOpen(false);
     } catch (err) {

@@ -33,17 +33,19 @@ import {
   PublicOff,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useGetMyClipsQuery,
-  useGetUserPublicClipsQuery,
-  useUpdateClipMutation,
-  useDeleteClipMutation,
-  useShareClipMutation,
-  ClipResponse,
-} from '../../features/livekit/livekitApiSlice';
-import { useMyCommunitiesQuery } from '../../features/community/communityApiSlice';
-import { useGetChannelsForCommunityQuery } from '../../features/channel/channelApiSlice';
-import { useGetUserDmGroupsQuery } from '../../features/directMessages/directMessagesApiSlice';
+  livekitControllerGetMyClipsOptions,
+  livekitControllerGetUserPublicClipsOptions,
+  livekitControllerUpdateClipMutation,
+  livekitControllerDeleteClipMutation,
+  livekitControllerShareClipMutation,
+  communityControllerFindAllMineOptions,
+  channelsControllerFindAllForCommunityOptions,
+  directMessagesControllerFindUserDmGroupsOptions,
+} from '../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+import type { ClipResponseDto as ClipResponse } from '../../api-client/types.gen';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
@@ -218,21 +220,31 @@ const ClipCard: React.FC<{
 export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }) => {
   const { showNotification } = useNotification();
 
+  const queryClient = useQueryClient();
+
   // Fetch clips based on whether viewing own or other's profile
-  const { data: ownClips, isLoading: ownLoading, error: ownError } = useGetMyClipsQuery(undefined, {
-    skip: !isOwnProfile,
+  const { data: ownClips, isLoading: ownLoading, error: ownError } = useQuery({
+    ...livekitControllerGetMyClipsOptions(),
+    enabled: isOwnProfile,
   });
-  const { data: publicClips, isLoading: publicLoading, error: publicError } = useGetUserPublicClipsQuery(userId, {
-    skip: isOwnProfile,
+  const { data: publicClips, isLoading: publicLoading, error: publicError } = useQuery({
+    ...livekitControllerGetUserPublicClipsOptions({ path: { userId } }),
+    enabled: !isOwnProfile,
   });
 
   const clips = isOwnProfile ? ownClips : publicClips;
   const isLoading = isOwnProfile ? ownLoading : publicLoading;
   const error = isOwnProfile ? ownError : publicError;
 
-  const [updateClip] = useUpdateClipMutation();
-  const [deleteClip] = useDeleteClipMutation();
-  const [shareClip] = useShareClipMutation();
+  const { mutateAsync: updateClip } = useMutation({
+    ...livekitControllerUpdateClipMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.clips),
+  });
+  const { mutateAsync: deleteClip } = useMutation({
+    ...livekitControllerDeleteClipMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.clips),
+  });
+  const { mutateAsync: shareClip } = useMutation(livekitControllerShareClipMutation());
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -251,14 +263,17 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
   const [downloadingClipId, setDownloadingClipId] = useState<string | null>(null);
 
   // Fetch communities, channels, and DMs for sharing
-  const { data: communitiesData } = useMyCommunitiesQuery(undefined, {
-    skip: !shareDialogOpen || shareDestination !== 'channel',
+  const { data: communitiesData } = useQuery({
+    ...communityControllerFindAllMineOptions(),
+    enabled: shareDialogOpen && shareDestination === 'channel',
   });
-  const { data: channelsData } = useGetChannelsForCommunityQuery(selectedCommunityId, {
-    skip: !selectedCommunityId || !shareDialogOpen || shareDestination !== 'channel',
+  const { data: channelsData } = useQuery({
+    ...channelsControllerFindAllForCommunityOptions({ path: { communityId: selectedCommunityId } }),
+    enabled: !!selectedCommunityId && shareDialogOpen && shareDestination === 'channel',
   });
-  const { data: dmsData } = useGetUserDmGroupsQuery(undefined, {
-    skip: !shareDialogOpen || shareDestination !== 'dm',
+  const { data: dmsData } = useQuery({
+    ...directMessagesControllerFindUserDmGroupsOptions(),
+    enabled: shareDialogOpen && shareDestination === 'dm',
   });
 
   const textChannels = channelsData?.filter((ch: Channel) => ch.type !== 'VOICE') || [];
@@ -270,7 +285,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
   const handleTogglePublic = useCallback(async (clipId: string, currentValue: boolean) => {
     try {
-      await updateClip({ clipId, data: { isPublic: !currentValue } }).unwrap();
+      await updateClip({ path: { clipId }, body: { isPublic: !currentValue } });
       showNotification(
         !currentValue ? 'Clip is now visible on your profile' : 'Clip is now private',
         'success'
@@ -291,7 +306,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
     setIsDeleting(true);
     try {
-      await deleteClip(clipToDelete).unwrap();
+      await deleteClip({ path: { clipId: clipToDelete } });
       showNotification('Clip deleted', 'success');
       setDeleteDialogOpen(false);
       setClipToDelete(null);
@@ -365,13 +380,13 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
     try {
       await shareClip({
-        clipId: selectedClipId,
-        data: {
+        path: { clipId: selectedClipId },
+        body: {
           destination: shareDestination,
           ...(shareDestination === 'channel' && { targetChannelId: selectedChannelId }),
           ...(shareDestination === 'dm' && { targetDirectMessageGroupId: selectedDmGroupId }),
         },
-      }).unwrap();
+      });
       showNotification('Clip shared successfully', 'success');
       setShareDialogOpen(false);
     } catch (err) {

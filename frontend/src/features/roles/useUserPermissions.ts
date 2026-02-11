@@ -1,11 +1,12 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  useGetMyRolesForCommunityQuery,
-  useGetMyRolesForChannelQuery,
-  useGetMyInstanceRolesQuery,
-} from "./rolesApiSlice";
+  rolesControllerGetMyRolesForCommunityOptions,
+  rolesControllerGetMyRolesForChannelOptions,
+  rolesControllerGetMyInstanceRolesOptions,
+  userControllerGetProfileOptions,
+} from "../../api-client/@tanstack/react-query.gen";
 import { UserRoles, ResourceType } from "../../types/roles.type";
-import { useProfileQuery } from "../users/usersSlice";
 
 export interface UseUserPermissionsOptions {
   resourceType: ResourceType;
@@ -28,32 +29,35 @@ export function useUserPermissions({
   actions,
 }: UseUserPermissionsOptions): UseUserPermissionsResult {
   // Get user profile to check if they're an OWNER (which bypasses all RBAC checks)
-  const { data: userProfile, isLoading: isProfileLoading } = useProfileQuery(undefined);
-  
+  const { data: userProfile, isLoading: isProfileLoading } = useQuery(userControllerGetProfileOptions());
+
   // Conditionally call the appropriate query based on resource type
   const { data: communityRoles, isLoading: isCommunityLoading } =
-    useGetMyRolesForCommunityQuery(resourceId!, {
-      skip: resourceType !== "COMMUNITY" || !resourceId,
+    useQuery({
+      ...rolesControllerGetMyRolesForCommunityOptions({ path: { communityId: resourceId! } }),
+      enabled: resourceType === "COMMUNITY" && !!resourceId,
     });
 
   const { data: channelRoles, isLoading: isChannelLoading } =
-    useGetMyRolesForChannelQuery(resourceId!, {
-      skip: resourceType !== "CHANNEL" || !resourceId,
+    useQuery({
+      ...rolesControllerGetMyRolesForChannelOptions({ path: { channelId: resourceId! } }),
+      enabled: resourceType === "CHANNEL" && !!resourceId,
     });
 
   const { data: instanceRoles, isLoading: isInstanceLoading } =
-    useGetMyInstanceRolesQuery(undefined, {
-      skip: resourceType !== "INSTANCE",
+    useQuery({
+      ...rolesControllerGetMyInstanceRolesOptions(),
+      enabled: resourceType === "INSTANCE",
     });
 
   const { roles, isLoading } = useMemo(() => {
     switch (resourceType) {
       case "COMMUNITY":
-        return { roles: communityRoles, isLoading: isCommunityLoading };
+        return { roles: communityRoles as UserRoles | undefined, isLoading: isCommunityLoading };
       case "CHANNEL":
-        return { roles: channelRoles, isLoading: isChannelLoading };
+        return { roles: channelRoles as UserRoles | undefined, isLoading: isChannelLoading };
       case "INSTANCE":
-        return { roles: instanceRoles, isLoading: isInstanceLoading };
+        return { roles: instanceRoles as UserRoles | undefined, isLoading: isInstanceLoading };
       default:
         return { roles: undefined, isLoading: false };
     }
@@ -100,21 +104,21 @@ export function useUserPermissions({
  * Hook to get the current user's roles for a specific community
  */
 export function useMyRolesForCommunity(communityId: string) {
-  return useGetMyRolesForCommunityQuery(communityId);
+  return useQuery(rolesControllerGetMyRolesForCommunityOptions({ path: { communityId } }));
 }
 
 /**
  * Hook to get the current user's roles for a specific channel
  */
 export function useMyRolesForChannel(channelId: string) {
-  return useGetMyRolesForChannelQuery(channelId);
+  return useQuery(rolesControllerGetMyRolesForChannelOptions({ path: { channelId } }));
 }
 
 /**
  * Hook to get the current user's instance roles
  */
 export function useMyInstanceRoles() {
-  return useGetMyInstanceRolesQuery();
+  return useQuery(rolesControllerGetMyInstanceRolesOptions());
 }
 
 /**

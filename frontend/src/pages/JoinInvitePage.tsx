@@ -13,9 +13,12 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/system";
 import { useParams, useNavigate } from "react-router-dom";
-import { useGetPublicInviteByCodeQuery } from "../features/invite/publicInviteApiSlice";
-import { useLazyRegisterQuery } from "../features/users/usersSlice";
-import { useLazyLoginQuery } from "../features/auth/authSlice";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import {
+  inviteControllerGetPublicInviteOptions,
+  userControllerRegisterMutation,
+  authControllerLoginMutation,
+} from "../api-client/@tanstack/react-query.gen";
 import { InstanceInvite } from "../types/invite.type";
 
 const FormContainer = styled(Box)({
@@ -50,12 +53,13 @@ const JoinInvitePage: React.FC = () => {
     data: invite,
     isLoading: loadingInvite,
     error: inviteError,
-  } = useGetPublicInviteByCodeQuery(inviteCode || "", {
-    skip: !inviteCode,
+  } = useQuery({
+    ...inviteControllerGetPublicInviteOptions({ path: { code: inviteCode || "" } }),
+    enabled: !!inviteCode,
   });
 
-  const [register, { isLoading: registering, error: registerError }] = useLazyRegisterQuery();
-  const [login, { isLoading: loggingIn }] = useLazyLoginQuery();
+  const { mutateAsync: register, isPending: registering, error: registerError } = useMutation(userControllerRegisterMutation());
+  const { mutateAsync: login, isPending: loggingIn } = useMutation(authControllerLoginMutation());
 
   useEffect(() => {
     if (!inviteCode) {
@@ -68,14 +72,9 @@ const JoinInvitePage: React.FC = () => {
     if (!inviteCode) return;
 
     try {
-      await register({ 
-        username, 
-        email, 
-        password, 
-        code: inviteCode 
-      }).unwrap();
-      
-      const response = await login({ username, password }).unwrap();
+      await register({ body: { username, email, password, code: inviteCode } });
+
+      const response = await login({ body: { username, password } });
       localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
       if (response.refreshToken) {
         localStorage.setItem('refreshToken', response.refreshToken);

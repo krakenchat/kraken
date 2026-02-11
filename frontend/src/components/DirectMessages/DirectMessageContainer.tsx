@@ -2,10 +2,13 @@ import React from "react";
 import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
 import { useDirectMessages } from "../../hooks/useDirectMessages";
-import { useGetDmGroupQuery } from "../../features/directMessages/directMessagesApiSlice";
-import { useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import { directMessagesControllerFindDmGroupOptions, userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import { useFileUpload } from "../../hooks/useFileUpload";
-import { useAddAttachmentMutation } from "../../features/messages/messagesApiSlice";
+import { useMutation } from "@tanstack/react-query";
+import { messagesControllerAddAttachmentMutation } from "../../api-client/@tanstack/react-query.gen";
+import { useDispatch } from "react-redux";
+import { updateMessage } from "../../features/messages/messagesSlice";
 import { useNotification } from "../../contexts/NotificationContext";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
@@ -19,16 +22,25 @@ interface DirectMessageContainerProps {
 const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   dmGroupId,
 }) => {
-  const { data: user } = useProfileQuery();
+  const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
 
+  const dispatch = useDispatch();
   const { uploadFile } = useFileUpload();
-  const [addAttachment] = useAddAttachmentMutation();
+  const { mutateAsync: addAttachment } = useMutation({
+    ...messagesControllerAddAttachmentMutation(),
+    onSuccess: (updatedMessage) => {
+      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
+      if (contextId) {
+        dispatch(updateMessage({ contextId, message: updatedMessage as import("../../types/message.type").Message }));
+      }
+    },
+  });
   const { showNotification } = useNotification();
   const pendingFilesRef = React.useRef<File[] | null>(null);
 
   // Get DM group info to get members for mentions
-  const { data: dmGroup } = useGetDmGroupQuery(dmGroupId);
+  const { data: dmGroup } = useQuery(directMessagesControllerFindDmGroupOptions({ path: { id: dmGroupId } }));
 
   // Auto-mark notifications as read when viewing this DM
   useAutoMarkNotificationsRead({
@@ -67,8 +79,8 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
       // Add each uploaded file to the message
       for (const uploadedFile of uploadedFiles) {
         await addAttachment({
-          messageId,
-          fileId: uploadedFile.id,
+          path: { id: messageId },
+          body: { fileId: uploadedFile.id },
         });
       }
     } catch (error) {
@@ -83,8 +95,8 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
       // Call addAttachment without fileId to decrement pendingAttachments
       for (let i = 0; i < files.length; i++) {
         await addAttachment({
-          messageId,
-          // No fileId means upload failed, just decrement counter
+          path: { id: messageId },
+          body: {},
         });
       }
     } finally {

@@ -13,8 +13,9 @@ import {
   setSelectedAudioOutputId,
   setSelectedVideoInputId,
 } from "./voiceSlice";
-import { voicePresenceApi } from "../voice-presence/voicePresenceApiSlice";
-import { livekitApi } from "../livekit/livekitApiSlice";
+import { livekitControllerGenerateToken, livekitControllerGenerateDmToken } from "../../api-client/sdk.gen";
+import { queryClient } from "../../main";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
 import { logger } from "../../utils/logger";
@@ -239,13 +240,10 @@ export const joinVoiceChannel = createAsyncThunk<
 
       // Generate LiveKit token
       logger.info('[Voice] Requesting LiveKit token...');
-      const tokenResponse = await dispatch(
-        livekitApi.endpoints.generateToken.initiate({
-          roomId: channelId,
-          identity: user.id,
-          name: user.displayName || user.username,
-        })
-      ).unwrap();
+      const { data: tokenResponse } = await livekitControllerGenerateToken({
+        body: { roomId: channelId, identity: user.id, name: user.displayName || user.username },
+        throwOnError: true,
+      });
       logger.info('[Voice] ✓ Got LiveKit token');
 
       // Note: Voice presence is now managed by LiveKit webhooks
@@ -271,9 +269,7 @@ export const joinVoiceChannel = createAsyncThunk<
       // Invalidate presence cache to ensure we fetch fresh data after joining
       // This fixes the issue where presence list is empty after page refresh + rejoin
       logger.info('[Voice] Invalidating presence cache...');
-      dispatch(
-        voicePresenceApi.util.invalidateTags([{ type: "VoicePresence", id: channelId }])
-      );
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
 
       // Note: Voice presence is now managed by LiveKit webhooks
       // The participant_joined webhook will update Redis when we connect
@@ -471,13 +467,10 @@ export const joinDmVoice = createAsyncThunk<
       dispatch(setConnecting(true));
 
       // Generate LiveKit token for DM
-      const tokenResponse = await dispatch(
-        livekitApi.endpoints.generateDmToken.initiate({
-          roomId: dmGroupId,
-          identity: user.id,
-          name: user.displayName || user.username,
-        })
-      ).unwrap();
+      const { data: tokenResponse } = await livekitControllerGenerateDmToken({
+        body: { roomId: dmGroupId, identity: user.id, name: user.displayName || user.username },
+        throwOnError: true,
+      });
 
       // Note: DM voice presence is now managed by LiveKit webhooks
       // When we connect to LiveKit, the participant_joined webhook will update Redis
@@ -493,9 +486,7 @@ export const joinDmVoice = createAsyncThunk<
       );
 
       // Invalidate presence cache to ensure we fetch fresh data after joining
-      dispatch(
-        voicePresenceApi.util.invalidateTags([{ type: "VoicePresence", id: `dm-${dmGroupId}` }])
-      );
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
 
       // Save connection state for recovery on page refresh
       saveConnectionState({

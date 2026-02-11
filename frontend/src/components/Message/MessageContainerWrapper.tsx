@@ -1,7 +1,8 @@
 import React from "react";
 import MessageContainer from "../Message/MessageContainer";
 import MessageInput from "./MessageInput";
-import { useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import { userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import type { Message, Span } from "../../types/message.type";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 
@@ -44,7 +45,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
   highlightMessageId,
   onOpenThread,
 }) => {
-  const { data: user } = useProfileQuery();
+  const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
   
   // Use the injected hook for messages

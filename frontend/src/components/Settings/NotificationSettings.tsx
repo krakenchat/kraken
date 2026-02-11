@@ -29,10 +29,12 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Notifications as NotificationsIcon, PlayArrow as PlayArrowIcon } from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useGetSettingsQuery,
-  useUpdateSettingsMutation,
-} from '../../features/notifications/notificationsApiSlice';
+  notificationsControllerGetSettingsOptions,
+  notificationsControllerUpdateSettingsMutation,
+} from '../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { isElectron } from '../../utils/platform';
@@ -40,8 +42,12 @@ import { logger } from '../../utils/logger';
 import type { UpdateNotificationSettingsDto } from '../../types/notification.type';
 
 export const NotificationSettings: React.FC = () => {
-  const { data: settings, isLoading, error } = useGetSettingsQuery();
-  const [updateSettings, { isLoading: isUpdating }] = useUpdateSettingsMutation();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading, error } = useQuery(notificationsControllerGetSettingsOptions());
+  const { mutateAsync: updateSettings, isPending: isUpdating } = useMutation({
+    ...notificationsControllerUpdateSettingsMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notificationSettings),
+  });
   const {
     isEnabled,
     isDenied,
@@ -102,7 +108,7 @@ export const NotificationSettings: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      await updateSettings(formValues).unwrap();
+      await updateSettings({ body: formValues });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {

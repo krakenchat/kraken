@@ -27,11 +27,13 @@ import {
 import BlockIcon from "@mui/icons-material/Block";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useTheme } from "@mui/material/styles";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetBanListQuery,
-  useUnbanUserMutation,
-  CommunityBan,
-} from "../../features/moderation/moderationApiSlice";
+  moderationControllerGetBanListOptions,
+  moderationControllerUnbanUserMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import type { CommunityBanDto as CommunityBan } from "../../api-client/types.gen";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import UserAvatar from "../Common/UserAvatar";
@@ -110,8 +112,12 @@ const UnbanDialog: React.FC<UnbanDialogProps> = ({
 
 const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
   const theme = useTheme();
-  const { data: bans, isLoading, error } = useGetBanListQuery(communityId);
-  const [unbanUser, { isLoading: isUnbanning }] = useUnbanUserMutation();
+  const queryClient = useQueryClient();
+  const { data: bans, isLoading, error } = useQuery(moderationControllerGetBanListOptions({ path: { communityId } }));
+  const { mutateAsync: unbanUser, isPending: isUnbanning } = useMutation({
+    ...moderationControllerUnbanUserMutation(),
+    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.banList, ...INVALIDATION_GROUPS.moderationLogs]),
+  });
   const [selectedBan, setSelectedBan] = useState<CommunityBan | null>(null);
 
   const canUnban = useCanPerformAction("COMMUNITY", communityId, RBAC_ACTIONS.UNBAN_USER);
@@ -121,10 +127,9 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
 
     try {
       await unbanUser({
-        communityId,
-        userId: selectedBan.userId,
-        dto: { reason },
-      }).unwrap();
+        path: { communityId, userId: selectedBan.userId },
+        body: { reason },
+      });
     } catch (err) {
       logger.error("Failed to unban user:", err);
     }

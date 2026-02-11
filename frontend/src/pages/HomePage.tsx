@@ -21,10 +21,14 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { Link } from "react-router-dom";
-import { useProfileQuery } from "../features/users/usersSlice";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
-import { useCreateInviteMutation } from "../features/invite/inviteApiSlice";
-import { useMyCommunitiesQuery } from "../features/community/communityApiSlice";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  inviteControllerCreateInviteMutation,
+  communityControllerFindAllMineOptions,
+  userControllerGetProfileOptions,
+} from "../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
 import { CreateInviteDto } from "../types/invite.type";
 import { useResponsive } from "../hooks/useResponsive";
 import { useAuthenticatedImage } from "../hooks/useAuthenticatedFile";
@@ -43,10 +47,13 @@ const HomePage: React.FC = () => {
 
 const DesktopHomePage: React.FC = () => {
   const theme = useTheme();
-  const { data, isLoading, isError } = useProfileQuery(undefined);
-  const { data: communities = [] } = useMyCommunitiesQuery();
-  const [createInvite, { isLoading: creatingInvite }] =
-    useCreateInviteMutation();
+  const { data, isLoading, isError } = useQuery(userControllerGetProfileOptions());
+  const queryClient = useQueryClient();
+  const { data: communities = [] } = useQuery(communityControllerFindAllMineOptions());
+  const { mutateAsync: createInvite, isPending: creatingInvite } = useMutation({
+    ...inviteControllerCreateInviteMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+  });
   const [lastCreatedInvite, setLastCreatedInvite] = useState<string | null>(
     null
   );
@@ -80,7 +87,7 @@ const DesktopHomePage: React.FC = () => {
         validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       };
 
-      const newInvite = await createInvite(createInviteDto).unwrap();
+      const newInvite = await createInvite({ body: createInviteDto });
       setLastCreatedInvite(newInvite.code);
 
       // Auto-copy the invite link

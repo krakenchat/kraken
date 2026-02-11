@@ -43,18 +43,19 @@ import {
   Person as UserIcon,
   Security as RolesIcon,
 } from "@mui/icons-material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetAdminUsersQuery,
-  useUpdateUserRoleMutation,
-  useSetBanStatusMutation,
-  useDeleteUserMutation,
-  useGetInstanceRolesQuery,
-  useAssignInstanceRoleMutation,
-  useRemoveInstanceRoleMutation,
-  useGetInstanceRoleUsersQuery,
-  AdminUser,
-  InstanceRole,
-} from "../../features/admin/adminApiSlice";
+  userControllerFindAllUsersAdminOptions,
+  userControllerUpdateUserRoleMutation,
+  userControllerSetBanStatusMutation,
+  userControllerDeleteUserMutation,
+  rolesControllerGetInstanceRolesOptions,
+  rolesControllerAssignInstanceRoleMutation,
+  rolesControllerRemoveInstanceRoleMutation,
+  rolesControllerGetInstanceRoleUsersOptions,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import type { AdminUserEntity as AdminUser, RoleDto as InstanceRole } from "../../api-client/types.gen";
 import UserAvatar from "../../components/Common/UserAvatar";
 
 const AdminUsersPage: React.FC = () => {
@@ -70,19 +71,38 @@ const AdminUsersPage: React.FC = () => {
   }>({ open: false, action: "ban", user: null });
   const [roleDialogUser, setRoleDialogUser] = useState<AdminUser | null>(null);
 
-  const { data, isLoading, error, refetch } = useGetAdminUsersQuery({
-    search: search || undefined,
-    banned: bannedFilter === "all" ? undefined : bannedFilter === "banned",
-    role: roleFilter === "all" ? undefined : (roleFilter as "OWNER" | "USER"),
-    limit: 100,
-  });
+  const queryClient = useQueryClient();
 
-  const { data: instanceRoles } = useGetInstanceRolesQuery();
-  const [updateRole] = useUpdateUserRoleMutation();
-  const [setBanStatus] = useSetBanStatusMutation();
-  const [deleteUser] = useDeleteUserMutation();
-  const [assignRole] = useAssignInstanceRoleMutation();
-  const [removeRole] = useRemoveInstanceRoleMutation();
+  const { data, isLoading, error, refetch } = useQuery(userControllerFindAllUsersAdminOptions({
+    query: {
+      search: search || undefined,
+      banned: bannedFilter === "all" ? undefined : bannedFilter === "banned",
+      role: roleFilter === "all" ? undefined : (roleFilter as "OWNER" | "USER"),
+      limit: 100,
+    },
+  }));
+
+  const { data: instanceRoles } = useQuery(rolesControllerGetInstanceRolesOptions());
+  const { mutateAsync: updateRole } = useMutation({
+    ...userControllerUpdateUserRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminUsers),
+  });
+  const { mutateAsync: setBanStatus } = useMutation({
+    ...userControllerSetBanStatusMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminUsers),
+  });
+  const { mutateAsync: deleteUser } = useMutation({
+    ...userControllerDeleteUserMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminUsers),
+  });
+  const { mutateAsync: assignRole } = useMutation({
+    ...rolesControllerAssignInstanceRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+  });
+  const { mutateAsync: removeRole } = useMutation({
+    ...rolesControllerRemoveInstanceRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+  });
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, user: AdminUser) => {
     setMenuAnchor(event.currentTarget);
@@ -108,19 +128,19 @@ const AdminUsersPage: React.FC = () => {
     try {
       switch (action) {
         case "ban":
-          await setBanStatus({ userId: user.id, banned: true }).unwrap();
+          await setBanStatus({ path: { userId: user.id }, body: { banned: true } });
           break;
         case "unban":
-          await setBanStatus({ userId: user.id, banned: false }).unwrap();
+          await setBanStatus({ path: { userId: user.id }, body: { banned: false } });
           break;
         case "delete":
-          await deleteUser(user.id).unwrap();
+          await deleteUser({ path: { id: user.id } });
           break;
         case "promote":
-          await updateRole({ userId: user.id, role: "OWNER" }).unwrap();
+          await updateRole({ path: { userId: user.id }, body: { role: "OWNER" } });
           break;
         case "demote":
-          await updateRole({ userId: user.id, role: "USER" }).unwrap();
+          await updateRole({ path: { userId: user.id }, body: { role: "USER" } });
           break;
       }
       refetch();
@@ -168,9 +188,9 @@ const AdminUsersPage: React.FC = () => {
 
     try {
       if (isAssigned) {
-        await removeRole({ roleId, userId: roleDialogUser.id }).unwrap();
+        await removeRole({ path: { roleId, userId: roleDialogUser.id } });
       } else {
-        await assignRole({ roleId, userId: roleDialogUser.id }).unwrap();
+        await assignRole({ path: { roleId }, body: { userId: roleDialogUser.id } });
       }
       refetch();
     } catch (error) {
@@ -432,7 +452,7 @@ const RoleAssignmentItem: React.FC<{
   userId: string;
   onToggle: (roleId: string, isAssigned: boolean) => Promise<void>;
 }> = ({ role, userId, onToggle }) => {
-  const { data: roleUsers, isLoading } = useGetInstanceRoleUsersQuery(role.id);
+  const { data: roleUsers, isLoading } = useQuery(rolesControllerGetInstanceRoleUsersOptions({ path: { roleId: role.id } }));
   const [toggling, setToggling] = useState(false);
 
   const isAssigned = roleUsers?.some((u) => u.userId === userId) || false;

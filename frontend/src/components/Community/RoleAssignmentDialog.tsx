@@ -15,12 +15,14 @@ import {
   Chip,
   Divider,
 } from "@mui/material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetCommunityRolesQuery,
-  useGetUserRolesForCommunityQuery,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
-} from "../../features/roles/rolesApiSlice";
+  rolesControllerGetCommunityRolesOptions,
+  rolesControllerGetUserRolesForCommunityOptions,
+  rolesControllerAssignRoleToUserMutation,
+  rolesControllerRemoveRoleFromUserMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { logger } from "../../utils/logger";
 
 interface RoleAssignmentDialogProps {
@@ -38,6 +40,7 @@ const RoleAssignmentDialog: React.FC<RoleAssignmentDialogProps> = ({
   userId,
   userName,
 }) => {
+  const queryClient = useQueryClient();
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
   const [originalRoles, setOriginalRoles] = useState<Set<string>>(new Set());
 
@@ -45,23 +48,34 @@ const RoleAssignmentDialog: React.FC<RoleAssignmentDialogProps> = ({
     data: communityRoles,
     isLoading: loadingRoles,
     error: rolesError,
-  } = useGetCommunityRolesQuery(communityId, {
-    skip: !open,
+  } = useQuery({
+    ...rolesControllerGetCommunityRolesOptions({ path: { communityId } }),
+    enabled: open,
   });
 
   const {
     data: userRoles,
     isLoading: loadingUserRoles,
     error: userRolesError,
-  } = useGetUserRolesForCommunityQuery(
-    { userId, communityId },
-    {
-      skip: !open,
-    }
-  );
+  } = useQuery({
+    ...rolesControllerGetUserRolesForCommunityOptions({ path: { userId, communityId } }),
+    enabled: open,
+  });
 
-  const [assignRole, { isLoading: assigning }] = useAssignRoleToUserMutation();
-  const [removeRole, { isLoading: removing }] = useRemoveRoleFromUserMutation();
+  const { mutateAsync: assignRole, isPending: assigning } = useMutation({
+    ...rolesControllerAssignRoleToUserMutation(),
+    onSuccess: () => {
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles);
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.userRoles);
+    },
+  });
+  const { mutateAsync: removeRole, isPending: removing } = useMutation({
+    ...rolesControllerRemoveRoleFromUserMutation(),
+    onSuccess: () => {
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles);
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.userRoles);
+    },
+  });
 
   // Update selected roles when user roles load
   useEffect(() => {
@@ -100,18 +114,16 @@ const RoleAssignmentDialog: React.FC<RoleAssignmentDialogProps> = ({
       // Add new roles
       for (const roleId of rolesToAdd) {
         await assignRole({
-          communityId,
-          data: { userId, roleId },
-        }).unwrap();
+          path: { communityId },
+          body: { userId, roleId },
+        });
       }
 
       // Remove old roles
       for (const roleId of rolesToRemove) {
         await removeRole({
-          communityId,
-          userId,
-          roleId,
-        }).unwrap();
+          path: { communityId, userId, roleId },
+        });
       }
 
       onClose();

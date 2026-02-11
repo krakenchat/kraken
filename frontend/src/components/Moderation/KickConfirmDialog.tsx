@@ -18,7 +18,9 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { useKickUserMutation } from "../../features/moderation/moderationApiSlice";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { moderationControllerKickUserMutation } from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 interface KickConfirmDialogProps {
   open: boolean;
@@ -38,18 +40,21 @@ const KickConfirmDialog: React.FC<KickConfirmDialogProps> = ({
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const [kickUser, { isLoading }] = useKickUserMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: kickUser, isPending: isLoading } = useMutation({
+    ...moderationControllerKickUserMutation(),
+    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.moderationLogs, ...INVALIDATION_GROUPS.membership]),
+  });
 
   const handleSubmit = async () => {
     setError(null);
     try {
       await kickUser({
-        communityId,
-        userId,
-        dto: {
+        path: { communityId, userId },
+        body: {
           reason: reason.trim() || undefined,
         },
-      }).unwrap();
+      });
 
       handleClose();
     } catch (err: unknown) {

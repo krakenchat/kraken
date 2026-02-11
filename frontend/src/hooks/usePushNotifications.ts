@@ -9,12 +9,13 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { logger } from '../utils/logger';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import {
-  useGetVapidPublicKeyQuery,
-  useGetPushStatusQuery,
-  useSubscribePushMutation,
-  useUnsubscribePushMutation,
-} from '../features/push-notifications/pushNotificationsApiSlice';
+  pushNotificationsControllerGetVapidPublicKeyOptions,
+  pushNotificationsControllerGetStatusOptions,
+  pushNotificationsControllerSubscribeMutation,
+  pushNotificationsControllerUnsubscribeMutation,
+} from '../api-client/@tanstack/react-query.gen';
 import {
   isPushSupported,
   hasNotificationPermission,
@@ -52,16 +53,18 @@ export function usePushNotifications(): UsePushNotificationsResult {
   const [error, setError] = useState<string | null>(null);
 
   // Query VAPID public key and push status from backend
-  const { data: vapidData, isLoading: isLoadingVapid } = useGetVapidPublicKeyQuery(undefined, {
-    skip: !isPushSupported(),
+  const { data: vapidData, isLoading: isLoadingVapid } = useQuery({
+    ...pushNotificationsControllerGetVapidPublicKeyOptions(),
+    enabled: isPushSupported(),
   });
-  const { data: _pushStatus, isLoading: isLoadingStatus, refetch: refetchStatus } = useGetPushStatusQuery(undefined, {
-    skip: !isPushSupported(),
+  const { data: _pushStatus, isLoading: isLoadingStatus, refetch: refetchStatus } = useQuery({
+    ...pushNotificationsControllerGetStatusOptions(),
+    enabled: isPushSupported(),
   });
 
   // Mutations for subscribing/unsubscribing
-  const [subscribePushMutation] = useSubscribePushMutation();
-  const [unsubscribePushMutation] = useUnsubscribePushMutation();
+  const { mutateAsync: subscribePushMutation } = useMutation(pushNotificationsControllerSubscribeMutation());
+  const { mutateAsync: unsubscribePushMutation } = useMutation(pushNotificationsControllerUnsubscribeMutation());
 
   const isSupported = isPushSupported();
   const isServerEnabled = vapidData?.enabled ?? false;
@@ -106,7 +109,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
       // Extract data and send to backend
       const subscriptionData = extractSubscriptionData(subscription);
-      await subscribePushMutation(subscriptionData).unwrap();
+      await subscribePushMutation({ body: subscriptionData });
 
       setIsSubscribed(true);
       refetchStatus();
@@ -149,7 +152,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
       // Unsubscribe from backend first
       try {
-        await unsubscribePushMutation({ endpoint: subscription.endpoint }).unwrap();
+        await unsubscribePushMutation({ body: { endpoint: subscription.endpoint } });
       } catch (backendError) {
         // Continue even if backend fails - we'll clean up the local subscription
         logger.warn('[usePushNotifications] Backend unsubscribe failed:', backendError);

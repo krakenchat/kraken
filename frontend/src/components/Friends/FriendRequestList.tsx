@@ -8,13 +8,15 @@ import {
   Tab,
   Badge,
 } from "@mui/material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetPendingRequestsQuery,
-  useAcceptFriendRequestMutation,
-  useDeclineFriendRequestMutation,
-  useCancelFriendRequestMutation,
-} from "../../features/friends/friendsApiSlice";
-import { useProfileQuery } from "../../features/users/usersSlice";
+  friendsControllerGetPendingRequestsOptions,
+  friendsControllerAcceptFriendRequestMutation,
+  friendsControllerDeclineFriendRequestMutation,
+  friendsControllerCancelFriendRequestMutation,
+  userControllerGetProfileOptions,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import FriendRequestCard from "./FriendRequestCard";
 import EmptyState from "../Common/EmptyState";
 import { logger } from "../../utils/logger";
@@ -27,16 +29,26 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
   compact: _compact = false,
 }) => {
   const [tabValue, setTabValue] = useState<"received" | "sent">("received");
-  const { data: requests, isLoading, error } = useGetPendingRequestsQuery();
-  const { data: currentUser } = useProfileQuery();
+  const queryClient = useQueryClient();
+  const { data: requests, isLoading, error } = useQuery(friendsControllerGetPendingRequestsOptions());
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
 
-  const [acceptRequest] = useAcceptFriendRequestMutation();
-  const [declineRequest] = useDeclineFriendRequestMutation();
-  const [cancelRequest] = useCancelFriendRequestMutation();
+  const { mutateAsync: acceptRequest } = useMutation({
+    ...friendsControllerAcceptFriendRequestMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+  });
+  const { mutateAsync: declineRequest } = useMutation({
+    ...friendsControllerDeclineFriendRequestMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+  });
+  const { mutateAsync: cancelRequest } = useMutation({
+    ...friendsControllerCancelFriendRequestMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+  });
 
   const handleAccept = async (friendshipId: string) => {
     try {
-      await acceptRequest(friendshipId).unwrap();
+      await acceptRequest({ path: { friendshipId } });
     } catch (err) {
       logger.error("Failed to accept friend request:", err);
     }
@@ -44,7 +56,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
 
   const handleDecline = async (friendshipId: string) => {
     try {
-      await declineRequest(friendshipId).unwrap();
+      await declineRequest({ path: { friendshipId } });
     } catch (err) {
       logger.error("Failed to decline friend request:", err);
     }
@@ -52,7 +64,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
 
   const handleCancel = async (friendshipId: string) => {
     try {
-      await cancelRequest(friendshipId).unwrap();
+      await cancelRequest({ path: { friendshipId } });
     } catch (err) {
       logger.error("Failed to cancel friend request:", err);
     }

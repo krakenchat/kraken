@@ -23,12 +23,14 @@ import {
   NotificationsPaused,
   Check,
 } from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useGetChannelOverrideQuery,
-  useSetChannelOverrideMutation,
-  useDeleteChannelOverrideMutation,
-  useGetSettingsQuery,
-} from '../../features/notifications/notificationsApiSlice';
+  notificationsControllerGetChannelOverrideOptions,
+  notificationsControllerSetChannelOverrideMutation,
+  notificationsControllerDeleteChannelOverrideMutation,
+  notificationsControllerGetSettingsOptions,
+} from '../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
 import { logger } from '../../utils/logger';
 
 interface ChannelNotificationMenuProps {
@@ -44,11 +46,22 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const queryClient = useQueryClient();
 
-  const { data: override, isLoading: overrideLoading } = useGetChannelOverrideQuery(channelId);
-  const { data: settings } = useGetSettingsQuery();
-  const [setOverride, { isLoading: isSettingOverride }] = useSetChannelOverrideMutation();
-  const [deleteOverride, { isLoading: isDeletingOverride }] = useDeleteChannelOverrideMutation();
+  const { data: override, isLoading: overrideLoading } = useQuery(
+    notificationsControllerGetChannelOverrideOptions({ path: { channelId } })
+  );
+  const { data: settings } = useQuery(notificationsControllerGetSettingsOptions());
+
+  const { mutateAsync: setOverride, isPending: isSettingOverride } = useMutation({
+    ...notificationsControllerSetChannelOverrideMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelOverrides),
+  });
+
+  const { mutateAsync: deleteOverride, isPending: isDeletingOverride } = useMutation({
+    ...notificationsControllerDeleteChannelOverrideMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelOverrides),
+  });
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -62,10 +75,10 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
     try {
       if (level === 'default') {
         // Remove override to use default settings
-        await deleteOverride(channelId).unwrap();
+        await deleteOverride({ path: { channelId } });
       } else {
         // Set specific override level
-        await setOverride({ channelId, level }).unwrap();
+        await setOverride({ path: { channelId }, body: { level } });
       }
       handleClose();
     } catch (error) {

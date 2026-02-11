@@ -11,7 +11,8 @@
 import React, { useEffect } from 'react';
 import { IconButton, Badge, Tooltip } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import { useGetUnreadCountQuery } from '../../features/notifications/notificationsApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import { notificationsControllerGetUnreadCountOptions } from '../../api-client/@tanstack/react-query.gen';
 import { useAppDispatch } from '../../app/hooks';
 import { setUnreadCount } from '../../features/notifications/notificationsSlice';
 
@@ -23,8 +24,9 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ onClick })
   const dispatch = useAppDispatch();
 
   // Fetch unread count from server, poll every 30 seconds
-  const { data } = useGetUnreadCountQuery(undefined, {
-    pollingInterval: 30000,
+  const { data } = useQuery({
+    ...notificationsControllerGetUnreadCountOptions(),
+    refetchInterval: 30_000,
   });
 
   const unreadCount = data?.count ?? 0;

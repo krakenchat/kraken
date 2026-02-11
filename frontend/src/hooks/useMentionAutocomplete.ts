@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useGetAllCommunityMembersQuery } from '../features/membership/membershipApiSlice';
-import { useGetCommunityAliasGroupsQuery } from '../features/alias-groups/aliasGroupsApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import {
+  membershipControllerFindAllForCommunityOptions,
+  aliasGroupsControllerGetCommunityAliasGroupsOptions,
+} from '../api-client/@tanstack/react-query.gen';
 import { getCurrentMention } from '../utils/mentionParser';
 
 export interface MentionSuggestion {
@@ -44,16 +47,18 @@ export function useMentionAutocomplete({
   const {
     data: allMembers = [],
     isLoading: isLoadingMembers,
-  } = useGetAllCommunityMembersQuery(communityId, {
-    skip: !communityId || communityId.trim() === '',
+  } = useQuery({
+    ...membershipControllerFindAllForCommunityOptions({ path: { communityId } }),
+    enabled: !!communityId && communityId.trim() !== '',
   });
 
   // Get all alias groups for the community
   const {
     data: aliasGroups = [],
     isLoading: isLoadingAliasGroups,
-  } = useGetCommunityAliasGroupsQuery(communityId, {
-    skip: !communityId || communityId.trim() === '',
+  } = useQuery({
+    ...aliasGroupsControllerGetCommunityAliasGroupsOptions({ path: { communityId } }),
+    enabled: !!communityId && communityId.trim() !== '',
   });
 
   // Client-side filtering and processing

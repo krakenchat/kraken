@@ -1,7 +1,9 @@
 import React from "react";
 import { logger } from "../utils/logger";
 import { useNavigate } from "react-router-dom";
-import { useCreateCommunityMutation } from "../features/community/communityApiSlice";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { communityControllerCreateMutation } from "../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
 import { useCommunityForm } from "../hooks/useCommunityForm";
 import {
   CommunityFormLayout,
@@ -10,7 +12,11 @@ import {
 
 const CreateCommunityPage: React.FC = () => {
   const navigate = useNavigate();
-  const [createCommunity, { isLoading, error }] = useCreateCommunityMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: createCommunity, isPending: isLoading, error } = useMutation({
+    ...communityControllerCreateMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.community),
+  });
   
   const {
     formData,
@@ -37,7 +43,7 @@ const CreateCommunityPage: React.FC = () => {
         banner: null, // TODO: Implement file upload
       };
 
-      const result = await createCommunity(createCommunityDto).unwrap();
+      const result = await createCommunity({ body: createCommunityDto });
 
       // Navigate to the newly created community
       navigate(`/community/${result.id}`);

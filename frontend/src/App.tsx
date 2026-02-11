@@ -8,7 +8,8 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { AvatarCacheProvider } from "./contexts/AvatarCacheContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { UserProfileProvider } from "./contexts/UserProfileContext";
-import { useGetOnboardingStatusQuery } from "./features/onboarding/onboardingApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { onboardingControllerGetStatusOptions } from "./api-client/@tanstack/react-query.gen";
 import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
 import { PWAInstallPrompt } from "./components/PWA/PWAInstallPrompt";
@@ -52,10 +53,10 @@ function App() {
 
   // Check if onboarding is needed - but only make the request if we're not already on the onboarding page
   const shouldCheckOnboarding = location.pathname !== "/onboarding";
-  const { data: onboardingStatus, isLoading: isCheckingOnboarding } = useGetOnboardingStatusQuery(
-    undefined,
-    { skip: !shouldCheckOnboarding || showWizard }
-  );
+  const { data: onboardingStatus, isLoading: isCheckingOnboarding } = useQuery({
+    ...onboardingControllerGetStatusOptions(),
+    enabled: shouldCheckOnboarding && !showWizard,
+  });
 
   // Show connection wizard for Electron if no servers configured
   if (showWizard) {

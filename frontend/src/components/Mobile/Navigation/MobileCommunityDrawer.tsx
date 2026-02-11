@@ -27,7 +27,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useMobileNavigation } from './MobileNavigationContext';
-import { useMyCommunitiesQuery } from '../../../features/community/communityApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import { communityControllerFindAllMineOptions } from '../../../api-client/@tanstack/react-query.gen';
 import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { MOBILE_CONSTANTS, TOUCH_TARGETS, MOBILE_ANIMATIONS } from '../../../utils/breakpoints';
 import type { Community } from '../../../types/community.type';
@@ -126,7 +127,7 @@ const CommunityListSkeleton: React.FC = () => (
 const MobileCommunityDrawer: React.FC = () => {
   const navigate = useNavigate();
   const { state, closeDrawer, navigateToChannels, navigateToDmList } = useMobileNavigation();
-  const { data: communities, isLoading } = useMyCommunitiesQuery();
+  const { data: communities, isLoading } = useQuery(communityControllerFindAllMineOptions());
 
   const handleCommunitySelect = (communityId: string) => {
     navigateToChannels(communityId);

@@ -19,7 +19,9 @@ import {
   ScreenShare,
   VolumeOff,
 } from "@mui/icons-material";
-import { useGetChannelPresenceQuery, VoicePresenceUser } from "../../features/voice-presence/voicePresenceApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { voicePresenceControllerGetChannelPresenceOptions } from "../../api-client/@tanstack/react-query.gen";
+import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 import { formatDistanceToNow } from "date-fns";
 import { Channel } from "../../types/channel.type";
 import { ChannelType } from "../../types/channel.type";
@@ -42,7 +44,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 }) => {
   const theme = useTheme();
   const { state: voiceState } = useVoiceConnection();
-  const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUser[]>([]);
+  const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUserDto[]>([]);
 
   // Check if we're connected to this specific channel
   const isConnectedToThisChannel = voiceState.currentChannelId === channel.id && voiceState.isConnected;
@@ -53,8 +55,9 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     data: backendPresence,
     isLoading: backendLoading,
     error: backendError,
-  } = useGetChannelPresenceQuery(channel.id, {
-    skip: channel.type !== ChannelType.VOICE || isConnectedToThisChannel,
+  } = useQuery({
+    ...voicePresenceControllerGetChannelPresenceOptions({ path: { channelId: channel.id } }),
+    enabled: channel.type === ChannelType.VOICE && !isConnectedToThisChannel,
   });
 
   // Hook for real-time speaking detection via LiveKit
@@ -70,7 +73,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     const room = voiceState.room;
 
     const updateParticipants = () => {
-      const participants: VoicePresenceUser[] = [];
+      const participants: VoicePresenceUserDto[] = [];
 
       // Add local participant
       const local = room.localParticipant;

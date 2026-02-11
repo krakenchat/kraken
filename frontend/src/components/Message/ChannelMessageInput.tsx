@@ -24,7 +24,8 @@ import type {
   ChannelMention,
   AliasMention,
 } from "../../utils/mentionParser";
-import { useGetCommunityAliasGroupsQuery } from "../../features/alias-groups/aliasGroupsApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { aliasGroupsControllerGetCommunityAliasGroupsOptions } from "../../api-client/@tanstack/react-query.gen";
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
 import { useNotification } from "../../contexts/NotificationContext";
@@ -93,8 +94,9 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
   });
 
   // Get alias groups for this community
-  const { data: aliasGroups = [] } = useGetCommunityAliasGroupsQuery(communityId, {
-    skip: !communityId,
+  const { data: aliasGroups = [] } = useQuery({
+    ...aliasGroupsControllerGetCommunityAliasGroupsOptions({ path: { communityId } }),
+    enabled: !!communityId,
   });
 
   // Convert alias groups to AliasMention format

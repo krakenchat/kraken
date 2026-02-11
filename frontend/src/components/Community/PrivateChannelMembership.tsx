@@ -6,10 +6,11 @@ import {
   Typography,
   Alert,
 } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import {
-  useGetMembersForChannelQuery,
-  useGetMembersForCommunityQuery,
-} from "../../features/membership";
+  channelMembershipControllerFindAllForChannelOptions,
+  membershipControllerFindAllForCommunityOptions,
+} from "../../api-client/@tanstack/react-query.gen";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import type { Channel } from "../../types/channel.type";
 import { ChannelMembersList } from "./components/ChannelMembersList";
@@ -35,15 +36,16 @@ const PrivateChannelMembership: React.FC<PrivateChannelMembershipProps> = ({
     data: channelMembers,
     isLoading: loadingChannelMembers,
     error: channelMembersError,
-  } = useGetMembersForChannelQuery(selectedChannelId, {
-    skip: !selectedChannelId,
+  } = useQuery({
+    ...channelMembershipControllerFindAllForChannelOptions({ path: { channelId: selectedChannelId || "" } }),
+    enabled: !!selectedChannelId,
   });
 
   const {
     data: communityMembers,
     isLoading: loadingCommunityMembers,
     error: communityMembersError,
-  } = useGetMembersForCommunityQuery(communityId);
+  } = useQuery(membershipControllerFindAllForCommunityOptions({ path: { communityId } }));
 
   const { hasPermissions: canCreateMembers } = useUserPermissions({
     resourceType: "CHANNEL",

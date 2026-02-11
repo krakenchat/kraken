@@ -26,11 +26,13 @@ import {
   ContentCopy as CopyIcon,
   Link as LinkIcon 
 } from "@mui/icons-material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetInvitesQuery,
-  useCreateInviteMutation,
-  useDeleteInviteMutation,
-} from "../../features/invite/inviteApiSlice";
+  inviteControllerGetInvitesOptions,
+  inviteControllerCreateInviteMutation,
+  inviteControllerDeleteInviteMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../../types/invite.type";
 import { logger } from "../../utils/logger";
@@ -50,14 +52,22 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
   const [maxUses, setMaxUses] = useState<number | undefined>(undefined);
   const [validUntil, setValidUntil] = useState<string>("");
 
+  const queryClient = useQueryClient();
+
   const {
     data: invites,
     isLoading: loadingInvites,
     error: invitesError,
-  } = useGetInvitesQuery();
+  } = useQuery(inviteControllerGetInvitesOptions());
 
-  const [createInvite, { isLoading: creatingInvite }] = useCreateInviteMutation();
-  const [deleteInvite, { isLoading: deletingInvite }] = useDeleteInviteMutation();
+  const { mutateAsync: createInvite, isPending: creatingInvite } = useMutation({
+    ...inviteControllerCreateInviteMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+  });
+  const { mutateAsync: deleteInvite, isPending: deletingInvite } = useMutation({
+    ...inviteControllerDeleteInviteMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+  });
 
   const { hasPermissions: canCreateInvites } = useUserPermissions({
     resourceType: "INSTANCE",
@@ -92,7 +102,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
         validUntil: validUntil ? new Date(validUntil) : undefined,
       };
       
-      await createInvite(createInviteDto).unwrap();
+      await createInvite({ body: createInviteDto });
       setCreateDialogOpen(false);
       setMaxUses(undefined);
       setValidUntil("");
@@ -110,7 +120,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
     if (!inviteToDelete) return;
 
     try {
-      await deleteInvite(inviteToDelete.code).unwrap();
+      await deleteInvite({ path: { code: inviteToDelete.code } });
     } catch (error) {
       logger.error("Failed to delete invite:", error);
     } finally {

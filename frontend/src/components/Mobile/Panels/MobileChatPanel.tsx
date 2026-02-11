@@ -23,8 +23,12 @@ import {
   Close as CloseIcon,
   PushPin as PushPinIcon,
 } from '@mui/icons-material';
-import { useGetChannelByIdQuery } from '../../../features/channel/channelApiSlice';
-import { useGetDmGroupQuery } from '../../../features/directMessages/directMessagesApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import {
+  channelsControllerFindOneOptions,
+  directMessagesControllerFindDmGroupOptions,
+  moderationControllerGetPinnedMessagesOptions,
+} from '../../../api-client/@tanstack/react-query.gen';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { ChannelType } from '../../../types/channel.type';
 import ChannelMessageContainer from '../../Channel/ChannelMessageContainer';
@@ -34,7 +38,6 @@ import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import MobileAppBar from '../MobileAppBar';
 import MemberListContainer from '../../Message/MemberListContainer';
-import { useGetPinnedMessagesQuery } from '../../../features/moderation/moderationApiSlice';
 import { PinnedMessagesPanel } from '../../Moderation';
 
 interface MobileChatPanelProps {
@@ -55,11 +58,13 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
   const { state: voiceState } = useVoiceConnection();
 
   // Fetch channel or DM data
-  const { data: channel } = useGetChannelByIdQuery(channelId || '', {
-    skip: !channelId,
+  const { data: channel } = useQuery({
+    ...channelsControllerFindOneOptions({ path: { id: channelId || '' } }),
+    enabled: !!channelId,
   });
-  const { data: dmGroup } = useGetDmGroupQuery(dmGroupId || '', {
-    skip: !dmGroupId,
+  const { data: dmGroup } = useQuery({
+    ...directMessagesControllerFindDmGroupOptions({ path: { id: dmGroupId || '' } }),
+    enabled: !!dmGroupId,
   });
 
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
@@ -67,8 +72,9 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
   const [showPinnedDrawer, setShowPinnedDrawer] = React.useState(false);
 
   // Fetch pinned messages count for badge
-  const { data: pinnedMessages = [] } = useGetPinnedMessagesQuery(channelId || '', {
-    skip: !channelId,
+  const { data: pinnedMessages = [] } = useQuery({
+    ...moderationControllerGetPinnedMessagesOptions({ path: { channelId: channelId || '' } }),
+    enabled: !!channelId,
   });
 
   const isVoiceChannel = channel?.type === ChannelType.VOICE;

@@ -11,12 +11,20 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessage } from "../../hooks/useSendMessage";
-import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
-import { useGetMentionableChannelsQuery, useGetChannelByIdQuery } from "../../features/channel/channelApiSlice";
-import { useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import {
+  membershipControllerFindAllForCommunityOptions,
+  channelsControllerGetMentionableChannelsOptions,
+  channelsControllerFindOneOptions,
+} from "../../api-client/@tanstack/react-query.gen";
+import {
+  userControllerGetProfileOptions,
+  moderationControllerGetPinnedMessagesOptions,
+  messagesControllerAddAttachmentMutation,
+} from "../../api-client/@tanstack/react-query.gen";
 import { useFileUpload } from "../../hooks/useFileUpload";
-import { useAddAttachmentMutation } from "../../features/messages/messagesApiSlice";
-import { useGetPinnedMessagesQuery } from "../../features/moderation/moderationApiSlice";
+import { useMutation } from "@tanstack/react-query";
+import { updateMessage } from "../../features/messages/messagesSlice";
 import { useNotification } from "../../contexts/NotificationContext";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
@@ -35,7 +43,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   channelId,
   hideHeader = false,
 }) => {
-  const { data: user } = useProfileQuery();
+  const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
 
   // Get communityId from context
@@ -60,8 +68,18 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     }
   }, [highlightMessageId, communityId, channelId, navigate]);
 
+  const dispatch = useDispatch();
+
   const { uploadFile } = useFileUpload();
-  const [addAttachment] = useAddAttachmentMutation();
+  const { mutateAsync: addAttachment } = useMutation({
+    ...messagesControllerAddAttachmentMutation(),
+    onSuccess: (updatedMessage) => {
+      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
+      if (contextId) {
+        dispatch(updateMessage({ contextId, message: updatedMessage as import("../../types/message.type").Message }));
+      }
+    },
+  });
   const { showNotification } = useNotification();
   const pendingFilesRef = React.useRef<File[] | null>(null);
 
@@ -76,10 +94,9 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 
   // Pinned messages state
   const [pinnedPanelOpen, setPinnedPanelOpen] = useState(false);
-  const { data: pinnedMessages = [] } = useGetPinnedMessagesQuery(channelId);
+  const { data: pinnedMessages = [] } = useQuery(moderationControllerGetPinnedMessagesOptions({ path: { channelId } }));
 
   // Thread state
-  const dispatch = useDispatch();
   const openThreadId = useSelector(selectOpenThreadId);
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null);
 
@@ -94,7 +111,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   }, [dispatch]);
 
   // Fetch channel data for header
-  const { data: channel } = useGetChannelByIdQuery(channelId);
+  const { data: channel } = useQuery(channelsControllerFindOneOptions({ path: { id: channelId } }));
 
   // Auto-mark notifications as read when viewing this channel
   useAutoMarkNotificationsRead({
@@ -103,8 +120,14 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   });
 
   // Fetch community members and channels for mention resolution
-  const { data: memberData = [] } = useGetMembersForCommunityQuery(communityId || "");
-  const { data: channelData = [] } = useGetMentionableChannelsQuery(communityId || "");
+  const { data: memberData = [] } = useQuery({
+    ...membershipControllerFindAllForCommunityOptions({ path: { communityId: communityId || "" } }),
+    enabled: !!communityId,
+  });
+  const { data: channelData = [] } = useQuery({
+    ...channelsControllerGetMentionableChannelsOptions({ path: { communityId: communityId || "" } }),
+    enabled: !!communityId,
+  });
 
   // Convert to mention format
   const userMentions: UserMention[] = React.useMemo(() =>
@@ -142,8 +165,8 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       // Add each uploaded file to the message
       for (const uploadedFile of uploadedFiles) {
         await addAttachment({
-          messageId,
-          fileId: uploadedFile.id,
+          path: { id: messageId },
+          body: { fileId: uploadedFile.id },
         });
       }
     } catch (error) {
@@ -158,8 +181,8 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       // Call addAttachment without fileId to decrement pendingAttachments
       for (let i = 0; i < files.length; i++) {
         await addAttachment({
-          messageId,
-          // No fileId means upload failed, just decrement counter
+          path: { id: messageId },
+          body: {},
         });
       }
     } finally {

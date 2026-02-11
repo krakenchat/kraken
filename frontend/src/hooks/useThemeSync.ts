@@ -8,16 +8,22 @@
 
 import { useEffect, useRef } from 'react';
 import { useTheme, type ThemeSettings } from '../contexts/ThemeContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useGetAppearanceSettingsQuery,
-  useUpdateAppearanceSettingsMutation,
-} from '../features/appearance/appearanceSlice';
+  appearanceSettingsControllerGetSettingsOptions,
+  appearanceSettingsControllerUpdateSettingsMutation,
+} from '../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
 import type { AccentColor, ThemeIntensity, ThemeMode } from '../theme/constants';
 
 export function useThemeSync() {
   const { applyServerSettings, registerOnChange } = useTheme();
-  const { data: serverSettings, isSuccess } = useGetAppearanceSettingsQuery();
-  const [updateSettings] = useUpdateAppearanceSettingsMutation();
+  const queryClient = useQueryClient();
+  const { data: serverSettings, isSuccess } = useQuery(appearanceSettingsControllerGetSettingsOptions());
+  const { mutate: updateSettings } = useMutation({
+    ...appearanceSettingsControllerUpdateSettingsMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.appearanceSettings),
+  });
   const hasAppliedServerSettings = useRef(false);
 
   // Apply server settings on initial load (server wins)
@@ -38,9 +44,11 @@ export function useThemeSync() {
       // Only sync if we've already applied server settings (avoid syncing on initial load)
       if (hasAppliedServerSettings.current) {
         updateSettings({
-          themeMode: settings.mode,
-          accentColor: settings.accentColor,
-          intensity: settings.intensity,
+          body: {
+            themeMode: settings.mode,
+            accentColor: settings.accentColor,
+            intensity: settings.intensity,
+          },
         });
       }
     });

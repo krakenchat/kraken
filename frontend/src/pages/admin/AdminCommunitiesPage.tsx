@@ -31,26 +31,31 @@ import {
   OpenInNew as OpenIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetAdminCommunitiesQuery,
-  useForceDeleteCommunityMutation,
-  AdminCommunity,
-} from "../../features/admin/adminApiSlice";
+  communityControllerFindAllWithStatsOptions,
+  communityControllerForceRemoveMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import type { CommunityStatsDetailDto as AdminCommunity } from "../../api-client/types.gen";
 
 const AdminCommunitiesPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     community: AdminCommunity | null;
   }>({ open: false, community: null });
 
-  const { data, isLoading, error, refetch } = useGetAdminCommunitiesQuery({
-    search: search || undefined,
-    limit: 100,
-  });
+  const { data, isLoading, error, refetch } = useQuery(communityControllerFindAllWithStatsOptions({
+    query: { search: search || undefined, limit: 100 } as { search: string; limit: number; continuationToken: string },
+  }));
 
-  const [forceDeleteCommunity] = useForceDeleteCommunityMutation();
+  const { mutateAsync: forceDeleteCommunity } = useMutation({
+    ...communityControllerForceRemoveMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminCommunities),
+  });
 
   const handleDelete = (community: AdminCommunity) => {
     setConfirmDialog({ open: true, community });
@@ -60,7 +65,7 @@ const AdminCommunitiesPage: React.FC = () => {
     if (!confirmDialog.community) return;
 
     try {
-      await forceDeleteCommunity(confirmDialog.community.id).unwrap();
+      await forceDeleteCommunity({ path: { id: confirmDialog.community.id } });
       refetch();
     } catch (error) {
       logger.error("Failed to delete community:", error);

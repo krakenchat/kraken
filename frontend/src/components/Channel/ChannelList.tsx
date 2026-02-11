@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { useGetChannelsForCommunityQuery } from "../../features/channel/channelApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { channelsControllerFindAllForCommunityOptions } from "../../api-client/@tanstack/react-query.gen";
 import { Channel as ChannelComponent } from "./Channel";
 import { List, Typography, Box, alpha, useTheme, Skeleton } from "@mui/material";
 import { Tag as TextIcon, VolumeUp as VoiceIcon } from "@mui/icons-material";
@@ -69,7 +70,7 @@ const ChannelList: React.FC<ChannelListProps> = ({ communityId }) => {
     data: channels,
     isLoading,
     error,
-  } = useGetChannelsForCommunityQuery(communityId);
+  } = useQuery(channelsControllerFindAllForCommunityOptions({ path: { communityId } }));
 
   // Separate and sort channels by type
   const { textChannels, voiceChannels } = useMemo(() => {

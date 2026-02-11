@@ -24,14 +24,20 @@ import {
   Cancel as CancelIcon,
   Search as SearchIcon,
 } from "@mui/icons-material";
-import { useGetMembersForCommunityQuery } from "../../features/membership";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { membershipControllerFindAllForCommunityOptions } from "../../api-client/@tanstack/react-query.gen";
 import {
-  useCreateAliasGroupMutation,
-  useUpdateAliasGroupMutation,
-  useGetAliasGroupQuery,
-  useUpdateAliasGroupMembersMutation,
-  AliasGroupSummary,
-} from "../../features/alias-groups/aliasGroupsApiSlice";
+  aliasGroupsControllerGetAliasGroupOptions,
+  aliasGroupsControllerCreateAliasGroupMutation,
+  aliasGroupsControllerUpdateAliasGroupMutation,
+  aliasGroupsControllerUpdateMembersMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+interface AliasGroupSummary {
+  id: string;
+  name: string;
+  memberCount: number;
+}
 import UserAvatar from "../Common/UserAvatar";
 
 interface AliasGroupEditorProps {
@@ -58,25 +64,34 @@ const AliasGroupEditor: React.FC<AliasGroupEditorProps> = ({
   const {
     data: members,
     isLoading: loadingMembers,
-  } = useGetMembersForCommunityQuery(communityId);
+  } = useQuery(membershipControllerFindAllForCommunityOptions({ path: { communityId } }));
+
+  const queryClient = useQueryClient();
 
   // Fetch full group details when editing to get current members
   const {
     data: groupDetails,
     isLoading: loadingGroupDetails,
-  } = useGetAliasGroupQuery(group?.id || "", {
-    skip: !group?.id,
+  } = useQuery({
+    ...aliasGroupsControllerGetAliasGroupOptions({ path: { groupId: group?.id || "" } }),
+    enabled: !!group?.id,
   });
 
   // Mutations
-  const [createGroup, { isLoading: creatingGroup, error: createError }] =
-    useCreateAliasGroupMutation();
+  const { mutateAsync: createGroup, isPending: creatingGroup, error: createError } = useMutation({
+    ...aliasGroupsControllerCreateAliasGroupMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+  });
 
-  const [updateGroup, { isLoading: updatingGroup, error: updateError }] =
-    useUpdateAliasGroupMutation();
+  const { mutateAsync: updateGroup, isPending: updatingGroup, error: updateError } = useMutation({
+    ...aliasGroupsControllerUpdateAliasGroupMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+  });
 
-  const [updateMembers, { isLoading: updatingMembers, error: membersError }] =
-    useUpdateAliasGroupMembersMutation();
+  const { mutateAsync: updateMembers, isPending: updatingMembers, error: membersError } = useMutation({
+    ...aliasGroupsControllerUpdateMembersMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+  });
 
   // Initialize selected members when editing
   useEffect(() => {
@@ -168,25 +183,25 @@ const AliasGroupEditor: React.FC<AliasGroupEditorProps> = ({
         // Update existing group - update name if changed, then update members
         if (name.trim() !== group.name) {
           await updateGroup({
-            groupId: group.id,
-            data: { name: name.trim() },
-          }).unwrap();
+            path: { groupId: group.id },
+            body: { name: name.trim() },
+          });
         }
 
         // Update members
         await updateMembers({
-          groupId: group.id,
-          data: { memberIds: Array.from(selectedMemberIds) },
-        }).unwrap();
+          path: { groupId: group.id },
+          body: { memberIds: Array.from(selectedMemberIds) },
+        });
       } else {
         // Create new group with members
         await createGroup({
-          communityId,
-          data: {
+          path: { communityId },
+          body: {
             name: name.trim(),
             memberIds: Array.from(selectedMemberIds),
           },
-        }).unwrap();
+        });
       }
 
       onComplete();

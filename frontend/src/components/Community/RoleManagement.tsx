@@ -31,14 +31,16 @@ import {
   Security as SecurityIcon,
 } from "@mui/icons-material";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetCommunityRolesQuery,
-  useCreateCommunityRoleMutation,
-  useUpdateRoleMutation,
-  useDeleteRoleMutation,
-  useGetUsersForRoleQuery,
-  RoleDto,
-} from "../../features/roles/rolesApiSlice";
+  rolesControllerGetCommunityRolesOptions,
+  rolesControllerCreateCommunityRoleMutation,
+  rolesControllerUpdateRoleMutation,
+  rolesControllerDeleteRoleMutation,
+  rolesControllerGetUsersForRoleOptions,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import type { RoleDto } from "../../api-client/types.gen";
 import RoleEditor from "./RoleEditor";
 import { ACTION_LABELS } from "../../constants/rbacActions";
 
@@ -77,39 +79,49 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     actions: ["DELETE_ROLE"],
   });
 
+  const queryClient = useQueryClient();
+
   const {
     data: communityRoles,
     isLoading: loadingRoles,
     error: rolesError,
-  } = useGetCommunityRolesQuery(communityId, {
-    skip: !canReadRoles,
+  } = useQuery({
+    ...rolesControllerGetCommunityRolesOptions({ path: { communityId } }),
+    enabled: canReadRoles,
   });
 
   const {
     data: roleUsers,
     isLoading: loadingRoleUsers,
-  } = useGetUsersForRoleQuery(
-    { roleId: viewingRoleUsers!, communityId },
-    { skip: !viewingRoleUsers }
-  );
+  } = useQuery({
+    ...rolesControllerGetUsersForRoleOptions({ path: { communityId, roleId: viewingRoleUsers! } }),
+    enabled: !!viewingRoleUsers,
+  });
 
-  const [createRole, { isLoading: creatingRoleLoading, error: createRoleError }] =
-    useCreateCommunityRoleMutation();
+  const { mutateAsync: createRole, isPending: creatingRoleLoading, error: createRoleError } = useMutation({
+    ...rolesControllerCreateCommunityRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
+  });
 
-  const [updateRole, { isLoading: updatingRoleLoading, error: updateRoleError }] =
-    useUpdateRoleMutation();
+  const { mutateAsync: updateRole, isPending: updatingRoleLoading, error: updateRoleError } = useMutation({
+    ...rolesControllerUpdateRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
+  });
 
-  const [deleteRole, { isLoading: deletingRoleLoading }] = useDeleteRoleMutation();
+  const { mutateAsync: deleteRole, isPending: deletingRoleLoading } = useMutation({
+    ...rolesControllerDeleteRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
+  });
 
   const handleCreateRole = useCallback(async (data: { name?: string; actions: string[] }) => {
     try {
       await createRole({
-        communityId,
-        data: {
+        path: { communityId },
+        body: {
           name: data.name!, // name is required for creating new roles
           actions: data.actions,
         },
-      }).unwrap();
+      });
       setCreatingRole(false);
     } catch {
       // Error handled by RTK Query
@@ -121,27 +133,26 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
     try {
       await updateRole({
-        communityId,
-        roleId: editingRole.id,
-        data,
-      }).unwrap();
+        path: { communityId, roleId: editingRole.id },
+        body: data,
+      });
       setEditingRole(null);
     } catch {
       // Error handled by RTK Query
     }
-  }, [editingRole, updateRole]);
+  }, [editingRole, updateRole, communityId]);
 
   const handleDeleteRole = useCallback(async () => {
     if (!roleToDelete) return;
 
     try {
-      await deleteRole({ communityId, roleId: roleToDelete.id }).unwrap();
+      await deleteRole({ path: { communityId, roleId: roleToDelete.id } });
       setDeleteConfirmOpen(false);
       setRoleToDelete(null);
     } catch {
-      // Error handled by RTK Query - will stay open to show error
+      // Error handled by mutation
     }
-  }, [roleToDelete, deleteRole]);
+  }, [roleToDelete, deleteRole, communityId]);
 
   const handleCancelEdit = useCallback(() => {
     setCreatingRole(false);

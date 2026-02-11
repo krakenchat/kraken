@@ -1,81 +1,75 @@
 import { useEffect } from "react";
 import { useSocket } from "./useSocket";
 import { ServerEvents, type UserPresenceInfo } from '@kraken/shared';
-import { useAppDispatch, useAppSelector } from "../app/hooks";
-import { presenceApi } from "../features/presence/presenceApiSlice";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  presenceControllerGetUserPresenceQueryKey,
+  presenceControllerGetBulkPresenceQueryKey,
+} from "../api-client/@tanstack/react-query.gen";
 
 /**
  * Hook to listen for real-time presence events and update the presence cache
  */
 export const usePresenceEvents = () => {
   const socket = useSocket();
-  const dispatch = useAppDispatch();
-  const presenceState = useAppSelector((state) => state.presenceApi);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!socket) return;
 
     const handleUserOnline = (data: UserPresenceInfo) => {
       // Update presence cache for single user query
-      dispatch(
-        presenceApi.util.updateQueryData('getUserPresence', data.userId, (draft) => {
-          draft.isOnline = true;
-        })
+      queryClient.setQueryData(
+        presenceControllerGetUserPresenceQueryKey({ path: { userId: data.userId } }),
+        (old: { isOnline: boolean } | undefined) => old ? { ...old, isOnline: true } : old
       );
 
       // Update presence cache for bulk queries
-      dispatch(
-        presenceApi.util.updateQueryData('getBulkPresence', undefined, (draft) => {
-          draft.presence[data.userId] = true;
-        })
+      queryClient.setQueryData(
+        presenceControllerGetBulkPresenceQueryKey(),
+        (old: { presence: Record<string, boolean> } | undefined) => {
+          if (!old) return old;
+          return { ...old, presence: { ...old.presence, [data.userId]: true } };
+        }
       );
 
-      // Update presence cache for multiple user queries that include this user
-      const presenceQueries = presenceState?.queries || {};
-      
-      Object.keys(presenceQueries).forEach((queryKey) => {
-        if (queryKey.startsWith('getMultipleUserPresence')) {
-          const queryData = presenceQueries[queryKey];
-          if (queryData?.data?.presence && Object.prototype.hasOwnProperty.call(queryData.data.presence, data.userId)) {
-            dispatch(
-              presenceApi.util.updateQueryData('getMultipleUserPresence', queryData.originalArgs, (draft) => {
-                draft.presence[data.userId] = true;
-              })
-            );
+      // Invalidate all multiple user presence queries that might contain this user
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          if (typeof key === 'object' && key !== null && '_id' in key) {
+            return (key as { _id: string })._id === 'presenceControllerGetMultipleUserPresence';
           }
-        }
+          return false;
+        },
       });
     };
 
     const handleUserOffline = (data: UserPresenceInfo) => {
       // Update presence cache for single user query
-      dispatch(
-        presenceApi.util.updateQueryData('getUserPresence', data.userId, (draft) => {
-          draft.isOnline = false;
-        })
+      queryClient.setQueryData(
+        presenceControllerGetUserPresenceQueryKey({ path: { userId: data.userId } }),
+        (old: { isOnline: boolean } | undefined) => old ? { ...old, isOnline: false } : old
       );
 
       // Update presence cache for bulk queries
-      dispatch(
-        presenceApi.util.updateQueryData('getBulkPresence', undefined, (draft) => {
-          draft.presence[data.userId] = false;
-        })
+      queryClient.setQueryData(
+        presenceControllerGetBulkPresenceQueryKey(),
+        (old: { presence: Record<string, boolean> } | undefined) => {
+          if (!old) return old;
+          return { ...old, presence: { ...old.presence, [data.userId]: false } };
+        }
       );
 
-      // Update presence cache for multiple user queries that include this user
-      const presenceQueries = presenceState?.queries || {};
-      
-      Object.keys(presenceQueries).forEach((queryKey) => {
-        if (queryKey.startsWith('getMultipleUserPresence')) {
-          const queryData = presenceQueries[queryKey];
-          if (queryData?.data?.presence && Object.prototype.hasOwnProperty.call(queryData.data.presence, data.userId)) {
-            dispatch(
-              presenceApi.util.updateQueryData('getMultipleUserPresence', queryData.originalArgs, (draft) => {
-                draft.presence[data.userId] = false;
-              })
-            );
+      // Invalidate all multiple user presence queries that might contain this user
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          if (typeof key === 'object' && key !== null && '_id' in key) {
+            return (key as { _id: string })._id === 'presenceControllerGetMultipleUserPresence';
           }
-        }
+          return false;
+        },
       });
     };
 
@@ -88,7 +82,7 @@ export const usePresenceEvents = () => {
       socket.off(ServerEvents.USER_ONLINE, handleUserOnline);
       socket.off(ServerEvents.USER_OFFLINE, handleUserOffline);
     };
-  }, [socket, dispatch, presenceState]);
+  }, [socket, queryClient]);
 
   return null; // This hook doesn't return any value
 };

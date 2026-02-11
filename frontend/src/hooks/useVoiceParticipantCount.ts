@@ -1,7 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import {
-  useGetChannelPresenceQuery,
-  useGetDmPresenceQuery,
-} from "../features/voice-presence/voicePresenceApiSlice";
+  voicePresenceControllerGetChannelPresenceOptions,
+  dmVoicePresenceControllerGetDmPresenceOptions,
+} from "../api-client/@tanstack/react-query.gen";
 
 type VoiceContextType = "channel" | "dm";
 
@@ -49,15 +50,17 @@ export function useVoiceParticipantCount({
   const {
     data: channelPresence,
     isLoading: isChannelLoading,
-  } = useGetChannelPresenceQuery(channelId ?? "", {
-    skip: !channelId || contextType !== "channel",
+  } = useQuery({
+    ...voicePresenceControllerGetChannelPresenceOptions({ path: { channelId: channelId ?? "" } }),
+    enabled: !!channelId && contextType === "channel",
   });
 
   const {
     data: dmPresence,
     isLoading: isDmLoading,
-  } = useGetDmPresenceQuery(dmGroupId ?? "", {
-    skip: !dmGroupId || contextType !== "dm",
+  } = useQuery({
+    ...dmVoicePresenceControllerGetDmPresenceOptions({ path: { dmGroupId: dmGroupId ?? "" } }),
+    enabled: !!dmGroupId && contextType === "dm",
   });
 
   const participantCount =

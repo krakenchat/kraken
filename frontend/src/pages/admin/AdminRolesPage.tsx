@@ -34,15 +34,17 @@ import {
   Person as PersonIcon,
   PersonRemove as PersonRemoveIcon,
 } from "@mui/icons-material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetInstanceRolesQuery,
-  useCreateInstanceRoleMutation,
-  useUpdateInstanceRoleMutation,
-  useDeleteInstanceRoleMutation,
-  useGetInstanceRoleUsersQuery,
-  useRemoveInstanceRoleMutation,
-  InstanceRole,
-} from "../../features/admin/adminApiSlice";
+  rolesControllerGetInstanceRolesOptions,
+  rolesControllerCreateInstanceRoleMutation,
+  rolesControllerUpdateInstanceRoleMutation,
+  rolesControllerDeleteInstanceRoleMutation,
+  rolesControllerGetInstanceRoleUsersOptions,
+  rolesControllerRemoveInstanceRoleMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import type { RoleDto as InstanceRole } from "../../api-client/types.gen";
 
 // All valid instance-level actions (must match backend)
 const INSTANCE_ACTIONS = [
@@ -68,10 +70,20 @@ interface RoleFormData {
 }
 
 const AdminRolesPage: React.FC = () => {
-  const { data: roles, isLoading, error, refetch } = useGetInstanceRolesQuery();
-  const [createRole] = useCreateInstanceRoleMutation();
-  const [updateRole] = useUpdateInstanceRoleMutation();
-  const [deleteRole] = useDeleteInstanceRoleMutation();
+  const queryClient = useQueryClient();
+  const { data: roles, isLoading, error, refetch } = useQuery(rolesControllerGetInstanceRolesOptions());
+  const { mutateAsync: createRole } = useMutation({
+    ...rolesControllerCreateInstanceRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+  });
+  const { mutateAsync: updateRole } = useMutation({
+    ...rolesControllerUpdateInstanceRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+  });
+  const { mutateAsync: deleteRole } = useMutation({
+    ...rolesControllerDeleteInstanceRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+  });
 
   const [expandedRole, setExpandedRole] = useState<string | false>(false);
   const [roleFormOpen, setRoleFormOpen] = useState(false);
@@ -129,12 +141,12 @@ const AdminRolesPage: React.FC = () => {
     try {
       if (editingRole) {
         await updateRole({
-          roleId: editingRole.id,
-          data: { name: formData.name, actions: formData.actions },
-        }).unwrap();
+          path: { roleId: editingRole.id },
+          body: { name: formData.name, actions: formData.actions },
+        });
         setSnackbar({ open: true, message: "Role updated successfully", severity: "success" });
       } else {
-        await createRole({ name: formData.name, actions: formData.actions }).unwrap();
+        await createRole({ body: { name: formData.name, actions: formData.actions } });
         setSnackbar({ open: true, message: "Role created successfully", severity: "success" });
       }
       closeDialog();
@@ -151,7 +163,7 @@ const AdminRolesPage: React.FC = () => {
   const handleDeleteRole = async () => {
     if (!deleteConfirm) return;
     try {
-      await deleteRole(deleteConfirm.id).unwrap();
+      await deleteRole({ path: { roleId: deleteConfirm.id } });
       setSnackbar({ open: true, message: "Role deleted successfully", severity: "success" });
       setDeleteConfirm(null);
       refetch();
@@ -379,14 +391,18 @@ const RoleUsers: React.FC<{ roleId: string; onRemoveUser: () => void }> = ({
   roleId,
   onRemoveUser,
 }) => {
-  const { data: users, isLoading } = useGetInstanceRoleUsersQuery(roleId);
-  const [removeUser] = useRemoveInstanceRoleMutation();
+  const queryClient = useQueryClient();
+  const { data: users, isLoading } = useQuery(rolesControllerGetInstanceRoleUsersOptions({ path: { roleId } }));
+  const { mutateAsync: removeUser } = useMutation({
+    ...rolesControllerRemoveInstanceRoleMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+  });
   const [removing, setRemoving] = useState<string | null>(null);
 
   const handleRemoveUser = async (userId: string) => {
     setRemoving(userId);
     try {
-      await removeUser({ roleId, userId }).unwrap();
+      await removeUser({ path: { roleId, userId } });
       onRemoveUser();
     } catch (err) {
       logger.error("Failed to remove user from role:", err);

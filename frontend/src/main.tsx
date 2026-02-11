@@ -17,7 +17,7 @@ initTelemetry();
 // Configure the generated API client (auth interceptors, base URL)
 configureApiClient();
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
   },

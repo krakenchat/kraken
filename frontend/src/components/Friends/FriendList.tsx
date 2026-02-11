@@ -7,11 +7,13 @@ import {
   Alert,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetFriendsQuery,
-  useRemoveFriendMutation,
-} from "../../features/friends/friendsApiSlice";
-import { useCreateDmGroupMutation } from "../../features/directMessages/directMessagesApiSlice";
+  friendsControllerGetFriendsOptions,
+  friendsControllerRemoveFriendMutation,
+  directMessagesControllerCreateDmGroupMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import FriendCard from "./FriendCard";
 import EmptyState from "../Common/EmptyState";
 import { logger } from "../../utils/logger";
@@ -22,9 +24,16 @@ interface FriendListProps {
 
 const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
   const navigate = useNavigate();
-  const { data: friends = [], isLoading, error } = useGetFriendsQuery();
-  const [removeFriend] = useRemoveFriendMutation();
-  const [createDmGroup] = useCreateDmGroupMutation();
+  const queryClient = useQueryClient();
+  const { data: friends = [], isLoading, error } = useQuery(friendsControllerGetFriendsOptions());
+  const { mutateAsync: removeFriend } = useMutation({
+    ...friendsControllerRemoveFriendMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+  });
+  const { mutateAsync: createDmGroup } = useMutation({
+    ...directMessagesControllerCreateDmGroupMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.directMessageGroup),
+  });
 
   // We need to track the friendship IDs with each friend
   // For now, we'll fetch the friendship status when needed
@@ -34,9 +43,8 @@ const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
     try {
       // Create or get existing DM with this user
       const result = await createDmGroup({
-        userIds: [userId],
-        isGroup: false,
-      }).unwrap();
+        body: { userIds: [userId], isGroup: false },
+      });
 
       if (onSelectDmGroup) {
         onSelectDmGroup(result.id);
@@ -51,7 +59,7 @@ const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
 
   const handleRemove = async (friendshipId: string) => {
     try {
-      await removeFriend(friendshipId).unwrap();
+      await removeFriend({ path: { friendshipId } });
     } catch (err) {
       logger.error("Failed to remove friend:", err);
     }

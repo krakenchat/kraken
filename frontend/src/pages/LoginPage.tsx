@@ -9,19 +9,20 @@ import {
   Alert,
 } from "@mui/material";
 import { LockOutlined } from "@mui/icons-material";
-import { useLazyLoginQuery } from "../features/auth/authSlice";
+import { useMutation } from "@tanstack/react-query";
+import { authControllerLoginMutation } from "../api-client/@tanstack/react-query.gen";
 import { useNavigate } from "react-router-dom";
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [login, { isLoading, error }] = useLazyLoginQuery();
+  const { mutateAsync: login, isPending: isLoading, error } = useMutation(authControllerLoginMutation());
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const response = await login({ username, password }).unwrap();
+      const response = await login({ body: { username, password } });
       // Store the access token in localStorage
       localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
 

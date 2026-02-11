@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Box, Typography, Tooltip, Avatar, CircularProgress } from "@mui/material";
-import { useLazyGetMessageReadersQuery } from "../../features/readReceipts/readReceiptsApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { readReceiptsControllerGetMessageReadersOptions } from "../../api-client/@tanstack/react-query.gen";
 import type { MessageReader } from "../../types/read-receipt.type";
 
 interface SeenByTooltipProps {
@@ -19,13 +20,21 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
   children,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [trigger, { data: readers, isLoading, isFetching }] =
-    useLazyGetMessageReadersQuery();
+  const [fetchEnabled, setFetchEnabled] = useState(false);
+
+  const { data: readersData, isLoading, isFetching } = useQuery({
+    ...readReceiptsControllerGetMessageReadersOptions({
+      path: { messageId },
+      query: { channelId: '', directMessageGroupId },
+    }),
+    enabled: fetchEnabled,
+  });
+  const readers = (readersData as MessageReader[] | undefined) ?? undefined;
 
   const handleOpen = () => {
     setIsOpen(true);
-    // Lazy fetch on first open
-    trigger({ messageId, directMessageGroupId });
+    // Enable fetch on first open
+    setFetchEnabled(true);
   };
 
   const handleClose = () => {

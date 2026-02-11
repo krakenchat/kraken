@@ -22,7 +22,9 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { useBanUserMutation } from "../../features/moderation/moderationApiSlice";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { moderationControllerBanUserMutation } from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 interface BanDialogProps {
   open: boolean;
@@ -52,7 +54,11 @@ const BanDialog: React.FC<BanDialogProps> = ({
   const [durationSeconds, setDurationSeconds] = useState(24 * 60 * 60); // Default 1 day
   const [error, setError] = useState<string | null>(null);
 
-  const [banUser, { isLoading }] = useBanUserMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: banUser, isPending: isLoading } = useMutation({
+    ...moderationControllerBanUserMutation(),
+    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.banList, ...INVALIDATION_GROUPS.moderationLogs, ...INVALIDATION_GROUPS.membership]),
+  });
 
   const handleSubmit = async () => {
     setError(null);
@@ -62,13 +68,12 @@ const BanDialog: React.FC<BanDialogProps> = ({
         : undefined;
 
       await banUser({
-        communityId,
-        userId,
-        dto: {
+        path: { communityId, userId },
+        body: {
           reason: reason.trim() || undefined,
           expiresAt,
         },
-      }).unwrap();
+      });
 
       handleClose();
     } catch (err: unknown) {

@@ -31,11 +31,11 @@ import TimerOffIcon from "@mui/icons-material/TimerOff";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import { alpha, useTheme } from "@mui/material/styles";
-import {
-  useGetModerationLogsQuery,
-  ModerationAction,
-  ModerationLog,
-} from "../../features/moderation/moderationApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { moderationControllerGetModerationLogsOptions } from "../../api-client/@tanstack/react-query.gen";
+import type { ModerationLogDto } from "../../api-client/types.gen";
+type ModerationAction = ModerationLogDto['action'];
+type ModerationLog = ModerationLogDto;
 import { format } from "date-fns";
 
 interface ModerationLogsPanelProps {
@@ -62,12 +62,14 @@ const ModerationLogsPanel: React.FC<ModerationLogsPanelProps> = ({ communityId }
   const [actionFilter, setActionFilter] = useState<ModerationAction | "">("");
   const theme = useTheme();
 
-  const { data, isLoading, error } = useGetModerationLogsQuery({
-    communityId,
-    limit: PAGE_SIZE,
-    offset: (page - 1) * PAGE_SIZE,
-    action: actionFilter || undefined,
-  });
+  const { data, isLoading, error } = useQuery(moderationControllerGetModerationLogsOptions({
+    path: { communityId },
+    query: {
+      limit: PAGE_SIZE,
+      offset: (page - 1) * PAGE_SIZE,
+      action: actionFilter || undefined,
+    },
+  }));
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0;
 

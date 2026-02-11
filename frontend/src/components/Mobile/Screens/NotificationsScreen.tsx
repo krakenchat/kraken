@@ -28,12 +28,14 @@ import {
   Chat as DmIcon,
   Tag as ChannelIcon,
 } from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useGetNotificationsQuery,
-  useMarkAsReadMutation,
-  useMarkAllAsReadMutation,
-  useDismissNotificationMutation,
-} from '../../../features/notifications/notificationsApiSlice';
+  notificationsControllerGetNotificationsOptions,
+  notificationsControllerMarkAsReadMutation,
+  notificationsControllerMarkAllAsReadMutation,
+  notificationsControllerDismissNotificationMutation,
+} from '../../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../../utils/queryInvalidation';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { NotificationType, Notification } from '../../../types/notification.type';
@@ -210,17 +212,33 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
  */
 export const NotificationsScreen: React.FC = () => {
   const { navigateToDmChat } = useMobileNavigation();
-  const { data, isLoading, refetch } = useGetNotificationsQuery({ limit: 50 });
-  const [markAsRead] = useMarkAsReadMutation();
-  const [markAllAsRead, { isLoading: isMarkingAllRead }] = useMarkAllAsReadMutation();
-  const [dismissNotification] = useDismissNotificationMutation();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, refetch } = useQuery(
+    notificationsControllerGetNotificationsOptions({ query: { limit: 50 } })
+  );
+
+  const { mutateAsync: markAsRead } = useMutation({
+    ...notificationsControllerMarkAsReadMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
+
+  const { mutateAsync: markAllAsRead, isPending: isMarkingAllRead } = useMutation({
+    ...notificationsControllerMarkAllAsReadMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
+
+  const { mutateAsync: dismissNotification } = useMutation({
+    ...notificationsControllerDismissNotificationMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
 
   const notifications = data?.notifications || [];
   const unreadCount = data?.unreadCount || 0;
 
   const handleMarkRead = async (notificationId: string) => {
     try {
-      await markAsRead(notificationId).unwrap();
+      await markAsRead({ path: { id: notificationId } });
     } catch (error) {
       logger.error('Failed to mark notification as read:', error);
     }
@@ -228,7 +246,7 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleDismiss = async (notificationId: string) => {
     try {
-      await dismissNotification(notificationId).unwrap();
+      await dismissNotification({ path: { id: notificationId } });
     } catch (error) {
       logger.error('Failed to dismiss notification:', error);
     }
@@ -236,7 +254,7 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllAsRead().unwrap();
+      await markAllAsRead({});
     } catch (error) {
       logger.error('Failed to mark all as read:', error);
     }

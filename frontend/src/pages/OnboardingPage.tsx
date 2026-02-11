@@ -2,11 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import OnboardingWizard from '../components/Onboarding/OnboardingWizard';
-import { useGetOnboardingStatusQuery } from '../features/onboarding/onboardingApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import { onboardingControllerGetStatusOptions } from '../api-client/@tanstack/react-query.gen';
 
 const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { data: status, error, isLoading } = useGetOnboardingStatusQuery();
+  const { data: status, error, isLoading } = useQuery(onboardingControllerGetStatusOptions());
 
   const handleComplete = () => {
     // Redirect to home page (user should be logged in automatically)
