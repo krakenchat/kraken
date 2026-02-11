@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import {
   SpanDto,
   ReactionDto,
@@ -57,14 +57,14 @@ export class FileMetadataEntryDto {
   size: number;
 }
 
+@ApiExtraModels(FileMetadataEntryDto)
 export class ThreadRepliesResponseDto {
   replies: EnrichedThreadReplyDto[];
   continuationToken?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: 'object',
-    additionalProperties: { type: 'object' },
-    nullable: true,
+    additionalProperties: { $ref: getSchemaPath(FileMetadataEntryDto) },
   })
   fileMetadata?: Record<string, FileMetadataEntryDto>;
 }
