@@ -36,8 +36,7 @@ RUN npx prisma generate --schema=prisma/schema.prisma
 # Build the application
 RUN npm run build
 
-# Prune dev dependencies - keep only production (run from workspace root)
-WORKDIR /app
+# Prune dev dependencies - keep only production
 RUN npm prune --production
 
 # ============================================
