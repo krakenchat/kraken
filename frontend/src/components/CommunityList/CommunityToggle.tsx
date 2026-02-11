@@ -1,5 +1,6 @@
 import React from "react";
-import { useMyCommunitiesQuery } from "../../features/community/communityApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { communityControllerFindAllMineOptions } from "../../api-client/@tanstack/react-query.gen";
 import Drawer from "@mui/material/Drawer";
 import Box from "@mui/material/Box";
 import { styled } from "@mui/system";
@@ -77,7 +78,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
   appBarHeight,
   isExpanded,
 }) => {
-  const { data: communities, isLoading, error } = useMyCommunitiesQuery();
+  const { data: communities, isLoading, error } = useQuery(communityControllerFindAllMineOptions());
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { communityId } = useParams();

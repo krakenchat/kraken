@@ -18,13 +18,15 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon } from "@mui/icons-material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetMembersForCommunityQuery,
-  useCreateMembershipMutation,
-  useRemoveMembershipMutation,
-} from "../../features/membership";
+  membershipControllerFindAllForCommunityOptions,
+  membershipControllerCreateMutation,
+  membershipControllerRemoveMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
-import { useGetAllUsersQuery } from "../../features/users/usersSlice";
+import { userControllerFindAllUsersOptions } from "../../api-client/@tanstack/react-query.gen";
 import UserAvatar from "../Common/UserAvatar";
 import RoleAssignmentDialog from "./RoleAssignmentDialog";
 import { logger } from "../../utils/logger";
@@ -41,22 +43,28 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
   const [roleAssignmentOpen, setRoleAssignmentOpen] = useState(false);
   const [userForRoleAssignment, setUserForRoleAssignment] = useState<{id: string, name: string} | null>(null);
 
+  const queryClient = useQueryClient();
+
   const {
     data: members,
     isLoading: loadingMembers,
     error: membersError,
-  } = useGetMembersForCommunityQuery(communityId);
+  } = useQuery(membershipControllerFindAllForCommunityOptions({ path: { communityId } }));
 
   const {
     data: usersData,
     isLoading: loadingUsers,
     error: usersError,
-  } = useGetAllUsersQuery({
-    limit: usersPerPage,
-  });
+  } = useQuery(userControllerFindAllUsersOptions({ query: { limit: usersPerPage } }));
 
-  const [createMembership, { isLoading: addingMember }] = useCreateMembershipMutation();
-  const [removeMembership, { isLoading: removingMember }] = useRemoveMembershipMutation();
+  const { mutateAsync: createMembership, isPending: addingMember } = useMutation({
+    ...membershipControllerCreateMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.membership),
+  });
+  const { mutateAsync: removeMembership, isPending: removingMember } = useMutation({
+    ...membershipControllerRemoveMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.membership),
+  });
 
   const { hasPermissions: canCreateMembers } = useUserPermissions({
     resourceType: "COMMUNITY",
@@ -81,9 +89,8 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
   const handleAddMember = async (userId: string) => {
     try {
       await createMembership({
-        userId,
-        communityId,
-      }).unwrap();
+        body: { userId, communityId },
+      });
     } catch (error) {
       logger.error("Failed to add member:", error);
     }
@@ -98,7 +105,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
     if (!userToRemove) return;
 
     try {
-      await removeMembership({ userId: userToRemove.id, communityId }).unwrap();
+      await removeMembership({ path: { userId: userToRemove.id, communityId } });
     } catch (error) {
       logger.error("Failed to remove member:", error);
     } finally {

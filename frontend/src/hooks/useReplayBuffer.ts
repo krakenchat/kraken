@@ -15,10 +15,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { logger } from '../utils/logger';
 import { Track, LocalTrackPublication, RoomEvent } from 'livekit-client';
+import { useMutation } from '@tanstack/react-query';
 import {
-  useStartReplayBufferMutation,
-  useStopReplayBufferMutation,
-} from '../features/livekit/livekitApiSlice';
+  livekitControllerStartReplayBufferMutation,
+  livekitControllerStopReplayBufferMutation,
+} from '../api-client/@tanstack/react-query.gen';
 import { useSocket } from './useSocket';
 import { ServerEvents } from '@kraken/shared';
 import { useNotification } from '../contexts/NotificationContext';
@@ -28,8 +29,8 @@ export const useReplayBuffer = () => {
   const { state } = useVoiceConnection();
   const room = state.room;
   const socket = useSocket();
-  const [startReplayBuffer] = useStartReplayBufferMutation();
-  const [stopReplayBuffer] = useStopReplayBufferMutation();
+  const { mutateAsync: startReplayBuffer } = useMutation(livekitControllerStartReplayBufferMutation());
+  const { mutateAsync: stopReplayBuffer } = useMutation(livekitControllerStopReplayBufferMutation());
   const { showNotification } = useNotification();
 
   // Get current voice channel from voice connection state
@@ -86,12 +87,14 @@ export const useReplayBuffer = () => {
 
       try {
         await startReplayBuffer({
-          channelId: currentVoiceChannel,
-          roomName: room.name,
-          videoTrackId,
-          audioTrackId: audioTrackId || '',
-          participantIdentity, // Pass identity for track resolution matching
-        }).unwrap();
+          body: {
+            channelId: currentVoiceChannel,
+            roomName: room.name,
+            videoTrackId,
+            audioTrackId: audioTrackId || '',
+            participantIdentity, // Pass identity for track resolution matching
+          },
+        });
 
         isActiveRef.current = true;
         setIsReplayBufferActive(true);
@@ -121,7 +124,7 @@ export const useReplayBuffer = () => {
       isOperationPendingRef.current = true;
 
       try {
-        await stopReplayBuffer().unwrap();
+        await stopReplayBuffer({});
         isActiveRef.current = false;
         setIsReplayBufferActive(false);
         logger.dev('[ReplayBuffer] Replay buffer stopped successfully');
@@ -190,7 +193,7 @@ export const useReplayBuffer = () => {
       // Use refs to check current state on unmount (not stale closure)
       if (isActiveRef.current && !isOperationPendingRef.current) {
         logger.dev('[ReplayBuffer] Component unmounting, stopping replay buffer');
-        stopReplayBuffer().catch((error) => {
+        stopReplayBuffer({}).catch((error) => {
           // Ignore 404 errors - session may already be stopped
           const errorObj = error as { status?: number };
           if (errorObj?.status !== 404) {

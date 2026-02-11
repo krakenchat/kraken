@@ -3,8 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../app/store";
 import { useSocket } from "./useSocket";
 import { useRoom } from "./useRoom";
-import { useProfileQuery } from "../features/users/usersSlice";
-import { useGetConnectionInfoQuery } from "../features/livekit/livekitApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { userControllerGetProfileOptions, livekitControllerGetConnectionInfoOptions } from "../api-client/@tanstack/react-query.gen";
 import { setShowVideoTiles } from "../features/voice/voiceSlice";
 import { logger } from "../utils/logger";
 import {
@@ -27,8 +27,8 @@ export const useVoiceConnection = () => {
   const socket = useSocket();
   const voiceState = useSelector((state: RootState) => state.voice);
   const { room, setRoom, getRoom } = useRoom();
-  const { data: user } = useProfileQuery();
-  const { data: connectionInfo } = useGetConnectionInfoQuery();
+  const { data: user } = useQuery(userControllerGetProfileOptions());
+  const { data: connectionInfo } = useQuery(livekitControllerGetConnectionInfoOptions());
 
   const handleJoinVoiceChannel = useCallback(
     async (

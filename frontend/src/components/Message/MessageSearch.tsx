@@ -15,10 +15,11 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  useLazySearchChannelMessagesQuery,
-  useLazySearchCommunityMessagesQuery,
-} from "../../features/messages/messagesApiSlice";
+  messagesControllerSearchChannelMessagesOptions,
+  messagesControllerSearchCommunityMessagesOptions,
+} from "../../api-client/@tanstack/react-query.gen";
 import { Message } from "../../types/message.type";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -52,13 +53,9 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
   const navigate = useNavigate();
 
   const debouncedQuery = useDebounce(query, 300);
+  const queryClient = useQueryClient();
 
-  const [searchChannel, { isLoading: isChannelLoading }] =
-    useLazySearchChannelMessagesQuery();
-  const [searchCommunity, { isLoading: isCommunityLoading }] =
-    useLazySearchCommunityMessagesQuery();
-
-  const isLoading = isChannelLoading || isCommunityLoading;
+  const [isLoading, setIsLoading] = useState(false);
   const isOpen = Boolean(anchorEl);
 
   // Focus input when popover opens
@@ -76,26 +73,31 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
         return;
       }
 
+      setIsLoading(true);
       try {
         if (scope === "channel") {
-          const { data } = await searchChannel({
-            channelId,
-            query: debouncedQuery,
-            limit: 20,
-          });
-          setResults(data || []);
+          const data = await queryClient.fetchQuery(
+            messagesControllerSearchChannelMessagesOptions({
+              path: { channelId },
+              query: { q: debouncedQuery, limit: 20 },
+            })
+          );
+          setResults((data as SearchResult[]) || []);
         } else {
-          const { data } = await searchCommunity({
-            communityId,
-            query: debouncedQuery,
-            limit: 20,
-          });
-          setResults(data || []);
+          const data = await queryClient.fetchQuery(
+            messagesControllerSearchCommunityMessagesOptions({
+              path: { communityId },
+              query: { q: debouncedQuery, limit: 20 },
+            })
+          );
+          setResults((data as SearchResult[]) || []);
         }
         setSelectedIndex(0);
       } catch (error) {
         logger.error("Search failed:", error);
         setResults([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -105,8 +107,7 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
     scope,
     channelId,
     communityId,
-    searchChannel,
-    searchCommunity,
+    queryClient,
   ]);
 
   const handleScopeChange = useCallback(

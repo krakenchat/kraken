@@ -21,12 +21,19 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOff";
 import { useDispatch, useSelector } from "react-redux";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useLazyGetThreadRepliesQuery,
-  useSubscribeToThreadMutation,
-  useUnsubscribeFromThreadMutation,
-} from "../../features/threads/threadsApiSlice";
+  threadsControllerGetRepliesOptions,
+  threadsControllerSubscribeMutation,
+  threadsControllerUnsubscribeMutation,
+  threadsControllerGetMetadataOptions,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import {
+  setThreadReplies,
+  appendThreadReplies,
+  setThreadLoading,
+  setSubscription,
   selectThreadReplies,
   selectThreadLoading,
   selectThreadContinuationToken,
@@ -62,22 +69,74 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
 
   const parentMessageId = parentMessage.id;
 
+  const queryClient = useQueryClient();
+
   const replies = useSelector(selectThreadReplies(parentMessageId));
   const isLoading = useSelector(selectThreadLoading(parentMessageId));
   const isLoaded = useSelector(selectThreadLoaded(parentMessageId));
   const continuationToken = useSelector(selectThreadContinuationToken(parentMessageId));
   const isSubscribed = useSelector(selectIsSubscribed(parentMessageId));
 
-  const [fetchReplies] = useLazyGetThreadRepliesQuery();
-  const [subscribe] = useSubscribeToThreadMutation();
-  const [unsubscribe] = useUnsubscribeFromThreadMutation();
+  const { mutateAsync: subscribe } = useMutation({
+    ...threadsControllerSubscribeMutation(),
+    onMutate: () => {
+      dispatch(setSubscription({ parentMessageId, isSubscribed: true }));
+    },
+    onError: () => {
+      dispatch(setSubscription({ parentMessageId, isSubscribed: false }));
+    },
+    onSettled: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.threadMetadata),
+  });
 
-  // Load initial replies (only once per thread)
+  const { mutateAsync: unsubscribe } = useMutation({
+    ...threadsControllerUnsubscribeMutation(),
+    onMutate: () => {
+      dispatch(setSubscription({ parentMessageId, isSubscribed: false }));
+    },
+    onError: () => {
+      dispatch(setSubscription({ parentMessageId, isSubscribed: true }));
+    },
+    onSettled: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.threadMetadata),
+  });
+
+  // Load initial replies and metadata (only once per thread)
   useEffect(() => {
     if (!isLoaded && !isLoading) {
-      fetchReplies({ parentMessageId });
+      dispatch(setThreadLoading({ parentMessageId, isLoading: true }));
+
+      (async () => {
+        try {
+          // Fetch replies
+          const data = await queryClient.fetchQuery(
+            threadsControllerGetRepliesOptions({
+              path: { parentMessageId },
+              query: { limit: 50, continuationToken: '' },
+            })
+          );
+          if (data && data.replies) {
+            dispatch(setThreadReplies({
+              parentMessageId,
+              replies: data.replies as Message[],
+              continuationToken: data.continuationToken,
+            }));
+          }
+
+          // Also fetch metadata for subscription status
+          const metadata = await queryClient.fetchQuery(
+            threadsControllerGetMetadataOptions({
+              path: { parentMessageId },
+            })
+          );
+          if (metadata) {
+            dispatch(setSubscription({ parentMessageId, isSubscribed: metadata.isSubscribed }));
+          }
+        } catch (error) {
+          logger.error("Failed to fetch thread replies:", error);
+          dispatch(setThreadLoading({ parentMessageId, isLoading: false }));
+        }
+      })();
     }
-  }, [parentMessageId, isLoaded, isLoading, fetchReplies]);
+  }, [parentMessageId, isLoaded, isLoading, queryClient, dispatch]);
 
   // Scroll to bottom when new replies come in
   useEffect(() => {
@@ -88,18 +147,36 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
     dispatch(closeThread());
   };
 
-  const handleLoadMore = useCallback(() => {
+  const handleLoadMore = useCallback(async () => {
     if (continuationToken && !isLoading) {
-      fetchReplies({ parentMessageId, continuationToken });
+      dispatch(setThreadLoading({ parentMessageId, isLoading: true }));
+      try {
+        const data = await queryClient.fetchQuery(
+          threadsControllerGetRepliesOptions({
+            path: { parentMessageId },
+            query: { limit: 50, continuationToken },
+          })
+        );
+        if (data && data.replies) {
+          dispatch(appendThreadReplies({
+            parentMessageId,
+            replies: data.replies as Message[],
+            continuationToken: data.continuationToken,
+          }));
+        }
+      } catch (error) {
+        logger.error("Failed to load more thread replies:", error);
+        dispatch(setThreadLoading({ parentMessageId, isLoading: false }));
+      }
     }
-  }, [continuationToken, isLoading, fetchReplies, parentMessageId]);
+  }, [continuationToken, isLoading, queryClient, parentMessageId, dispatch]);
 
   const handleToggleSubscription = async () => {
     try {
       if (isSubscribed) {
-        await unsubscribe(parentMessageId).unwrap();
+        await unsubscribe({ path: { parentMessageId } });
       } else {
-        await subscribe(parentMessageId).unwrap();
+        await subscribe({ path: { parentMessageId } });
       }
     } catch (err) {
       logger.error("Failed to toggle subscription:", err);

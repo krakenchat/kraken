@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useVoiceConnection } from './useVoiceConnection';
-import { useProfileQuery } from '../features/users/usersSlice';
-import { useGetConnectionInfoQuery } from '../features/livekit/livekitApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import { userControllerGetProfileOptions, livekitControllerGetConnectionInfoOptions } from '../api-client/@tanstack/react-query.gen';
 import { getSavedConnection, clearSavedConnection } from '../features/voice/voiceThunks';
 import { logger } from '../utils/logger';
 
@@ -15,8 +15,8 @@ import { logger } from '../utils/logger';
  */
 export function useVoiceRecovery() {
   const { state: voiceState, actions } = useVoiceConnection();
-  const { data: user, isLoading: userLoading } = useProfileQuery();
-  const { data: connectionInfo, isLoading: connectionLoading } = useGetConnectionInfoQuery();
+  const { data: user, isLoading: userLoading } = useQuery(userControllerGetProfileOptions());
+  const { data: connectionInfo, isLoading: connectionLoading } = useQuery(livekitControllerGetConnectionInfoOptions());
 
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);

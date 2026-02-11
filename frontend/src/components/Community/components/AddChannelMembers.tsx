@@ -12,7 +12,9 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { PersonAdd as PersonAddIcon } from "@mui/icons-material";
-import { useCreateChannelMembershipMutation } from "../../../features/membership";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { channelMembershipControllerCreateMutation } from "../../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../../utils/queryInvalidation";
 import { logger } from "../../../utils/logger";
 
 interface CommunityMember {
@@ -55,7 +57,11 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
   communityMembersError,
 }) => {
   const theme = useTheme();
-  const [createChannelMembership, { isLoading: isAdding }] = useCreateChannelMembershipMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: createChannelMembership, isPending: isAdding } = useMutation({
+    ...channelMembershipControllerCreateMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelMembership),
+  });
 
   const currentChannelMemberIds = useMemo(() => 
     new Set(channelMembers?.map(member => member.userId) || []),
@@ -70,9 +76,8 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
   const handleAddMember = async (userId: string) => {
     try {
       await createChannelMembership({
-        userId,
-        channelId,
-      }).unwrap();
+        body: { userId, channelId },
+      });
     } catch (error) {
       logger.error("Failed to add member to channel:", error);
     }

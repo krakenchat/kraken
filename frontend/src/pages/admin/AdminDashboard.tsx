@@ -23,10 +23,11 @@ import {
   Warning as WarningIcon,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
+import { useQuery } from "@tanstack/react-query";
 import {
-  useGetInstanceStatsQuery,
-  useGetInstanceStorageStatsQuery,
-} from "../../features/admin/adminApiSlice";
+  instanceControllerGetStatsOptions,
+  storageQuotaControllerGetInstanceStorageStatsOptions,
+} from "../../api-client/@tanstack/react-query.gen";
 
 // Helper to format bytes
 const formatBytes = (bytes: number): string => {
@@ -108,8 +109,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
 
 const AdminDashboard: React.FC = () => {
   const theme = useTheme();
-  const { data: stats, isLoading, error } = useGetInstanceStatsQuery();
-  const { data: storageStats, isLoading: storageLoading } = useGetInstanceStorageStatsQuery();
+  const { data: stats, isLoading, error } = useQuery(instanceControllerGetStatsOptions());
+  const { data: storageStats, isLoading: storageLoading } = useQuery(storageQuotaControllerGetInstanceStorageStatsOptions());
 
   if (isLoading) {
     return (

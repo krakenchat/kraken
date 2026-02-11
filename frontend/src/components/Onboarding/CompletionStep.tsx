@@ -19,8 +19,8 @@ import {
   Groups as GroupsIcon,
 } from '@mui/icons-material';
 import { OnboardingData } from './OnboardingWizard';
-import { useSetupInstanceMutation } from '../../features/onboarding/onboardingApiSlice';
-import { useLazyLoginQuery } from '../../features/auth/authSlice';
+import { useMutation } from '@tanstack/react-query';
+import { onboardingControllerSetupInstanceMutation, authControllerLoginMutation } from '../../api-client/@tanstack/react-query.gen';
 import { logger } from '../../utils/logger';
 
 interface CompletionStepProps {
@@ -36,22 +36,26 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
   onBack,
   onComplete,
 }) => {
-  const [setupInstance, { isLoading, error }] = useSetupInstanceMutation();
-  const [login] = useLazyLoginQuery();
+  const { mutateAsync: setupInstance, isPending: isLoading, error } = useMutation({
+    ...onboardingControllerSetupInstanceMutation(),
+  });
+  const { mutateAsync: login } = useMutation(authControllerLoginMutation());
   const [isCompleted, setIsCompleted] = useState(false);
 
   const handleSetup = async () => {
     try {
       const result = await setupInstance({
-        adminUsername: data.adminUsername,
-        adminPassword: data.adminPassword,
-        adminEmail: data.adminEmail || undefined,
-        instanceName: data.instanceName,
-        instanceDescription: data.instanceDescription || undefined,
-        defaultCommunityName: data.defaultCommunityName || undefined,
-        createDefaultCommunity: data.createDefaultCommunity,
-        setupToken: data.setupToken,
-      }).unwrap();
+        body: {
+          adminUsername: data.adminUsername,
+          adminPassword: data.adminPassword,
+          adminEmail: data.adminEmail || undefined,
+          instanceName: data.instanceName,
+          instanceDescription: data.instanceDescription || undefined,
+          defaultCommunityName: data.defaultCommunityName || undefined,
+          createDefaultCommunity: data.createDefaultCommunity,
+          setupToken: data.setupToken,
+        },
+      });
 
       if (result.success) {
         setIsCompleted(true);
@@ -59,9 +63,8 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
         // Automatically login with the admin credentials
         try {
           const response = await login({
-            username: data.adminUsername,
-            password: data.adminPassword
-          }).unwrap();
+            body: { username: data.adminUsername, password: data.adminPassword },
+          });
 
           // Store the tokens
           localStorage.setItem('accessToken', JSON.stringify(response.accessToken));

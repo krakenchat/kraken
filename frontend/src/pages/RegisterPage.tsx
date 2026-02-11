@@ -9,9 +9,9 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/system";
-import { useLazyRegisterQuery } from "../features/users/usersSlice";
 import { useNavigate } from "react-router-dom";
-import { useLazyLoginQuery } from "../features/auth/authSlice";
+import { useMutation } from "@tanstack/react-query";
+import { userControllerRegisterMutation, authControllerLoginMutation } from "../api-client/@tanstack/react-query.gen";
 
 const FormContainer = styled(Box)({
   display: "flex",
@@ -37,15 +37,15 @@ const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
-  const [register, { isLoading, error }] = useLazyRegisterQuery();
-  const [login, { isLoading: isLoginLoading }] = useLazyLoginQuery();
+  const { mutateAsync: register, isPending: isLoading, error } = useMutation(userControllerRegisterMutation());
+  const { mutateAsync: login, isPending: isLoginLoading } = useMutation(authControllerLoginMutation());
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await register({ username, email, password, code }).unwrap();
-      const response = await login({ username, password }).unwrap();
+      await register({ body: { username, email, password, code } });
+      const response = await login({ body: { username, password } });
       localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
       if (response.refreshToken) {
         localStorage.setItem('refreshToken', response.refreshToken);

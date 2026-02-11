@@ -30,14 +30,16 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
 } from "@mui/icons-material";
 import { ChannelType } from "../../types/channel.type";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetChannelsForCommunityQuery,
-  useCreateChannelMutation,
-  useUpdateChannelMutation,
-  useDeleteChannelMutation,
-  useMoveChannelUpMutation,
-  useMoveChannelDownMutation,
-} from "../../features/channel/channelApiSlice";
+  channelsControllerFindAllForCommunityOptions,
+  channelsControllerCreateMutation,
+  channelsControllerUpdateMutation,
+  channelsControllerRemoveMutation,
+  channelsControllerMoveUpMutation,
+  channelsControllerMoveDownMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import type { Channel } from "../../types/channel.type";
 import { logger } from "../../utils/logger";
@@ -66,17 +68,34 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
     isPrivate: false,
   });
 
+  const queryClient = useQueryClient();
+
   const {
     data: channels,
     isLoading: loadingChannels,
     error: channelsError,
-  } = useGetChannelsForCommunityQuery(communityId);
+  } = useQuery(channelsControllerFindAllForCommunityOptions({ path: { communityId } }));
 
-  const [createChannel, { isLoading: creatingChannel }] = useCreateChannelMutation();
-  const [updateChannel, { isLoading: updatingChannel }] = useUpdateChannelMutation();
-  const [deleteChannel, { isLoading: deletingChannel }] = useDeleteChannelMutation();
-  const [moveUp, { isLoading: movingUp }] = useMoveChannelUpMutation();
-  const [moveDown, { isLoading: movingDown }] = useMoveChannelDownMutation();
+  const { mutateAsync: createChannel, isPending: creatingChannel } = useMutation({
+    ...channelsControllerCreateMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+  });
+  const { mutateAsync: updateChannel, isPending: updatingChannel } = useMutation({
+    ...channelsControllerUpdateMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+  });
+  const { mutateAsync: deleteChannel, isPending: deletingChannel } = useMutation({
+    ...channelsControllerRemoveMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+  });
+  const { mutateAsync: moveUp, isPending: movingUp } = useMutation({
+    ...channelsControllerMoveUpMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+  });
+  const { mutateAsync: moveDown, isPending: movingDown } = useMutation({
+    ...channelsControllerMoveDownMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+  });
 
   // Sort channels by type (TEXT first) then by position
   const sortedChannels = React.useMemo(() => {
@@ -118,12 +137,14 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
 
     try {
       await createChannel({
-        name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
-        type: formData.type,
-        communityId,
-        isPrivate: formData.isPrivate,
-      }).unwrap();
+        body: {
+          name: formData.name.trim(),
+          description: formData.description.trim() || undefined,
+          type: formData.type,
+          communityId,
+          isPrivate: formData.isPrivate,
+        },
+      });
 
       setCreateDialogOpen(false);
       setFormData({
@@ -153,13 +174,13 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
 
     try {
       await updateChannel({
-        id: editingChannel.id,
-        data: {
+        path: { id: editingChannel.id },
+        body: {
           name: formData.name.trim(),
           description: formData.description.trim() || undefined,
           isPrivate: formData.isPrivate,
         },
-      }).unwrap();
+      });
 
       setEditDialogOpen(false);
       setEditingChannel(null);
@@ -183,7 +204,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
     if (!channelToDelete) return;
 
     try {
-      await deleteChannel(channelToDelete.id).unwrap();
+      await deleteChannel({ path: { id: channelToDelete.id } });
     } catch (error) {
       logger.error("Failed to delete channel:", error);
     } finally {
@@ -200,7 +221,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
   const handleMoveUp = useCallback(
     async (channelId: string) => {
       try {
-        await moveUp({ channelId, communityId }).unwrap();
+        await moveUp({ path: { id: channelId }, body: { communityId } });
       } catch (error) {
         logger.error("Failed to move channel up:", error);
       }
@@ -211,7 +232,7 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
   const handleMoveDown = useCallback(
     async (channelId: string) => {
       try {
-        await moveDown({ channelId, communityId }).unwrap();
+        await moveDown({ path: { id: channelId }, body: { communityId } });
       } catch (error) {
         logger.error("Failed to move channel down:", error);
       }

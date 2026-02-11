@@ -28,8 +28,11 @@ import {
   Settings as SettingsIcon,
   ExitToApp as LeaveIcon,
 } from '@mui/icons-material';
-import { useGetCommunityByIdQuery } from '../../../features/community/communityApiSlice';
-import { useGetChannelsForCommunityQuery } from '../../../features/channel/channelApiSlice';
+import { useQuery } from '@tanstack/react-query';
+import {
+  communityControllerFindOneOptions,
+  channelsControllerFindAllForCommunityOptions,
+} from '../../../api-client/@tanstack/react-query.gen';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { ChannelType } from '../../../types/channel.type';
 import { TOUCH_TARGETS } from '../../../utils/breakpoints';
@@ -50,8 +53,8 @@ export const MobileChannelsPanel: React.FC<MobileChannelsPanelProps> = ({
 }) => {
   const navigate = useNavigate();
   const { navigateToChat } = useMobileNavigation();
-  const { data: community } = useGetCommunityByIdQuery(communityId);
-  const { data: channels = [] } = useGetChannelsForCommunityQuery(communityId);
+  const { data: community } = useQuery(communityControllerFindOneOptions({ path: { id: communityId } }));
+  const { data: channels = [] } = useQuery(channelsControllerFindAllForCommunityOptions({ path: { communityId } }));
   const canEditCommunity = useCanPerformAction('COMMUNITY', communityId, 'UPDATE_COMMUNITY');
 
   const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(

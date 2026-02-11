@@ -18,7 +18,9 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon } from "@mui/icons-material";
-import { useRemoveChannelMembershipMutation } from "../../../features/membership";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { channelMembershipControllerRemoveMutation } from "../../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../../utils/queryInvalidation";
 import { logger } from "../../../utils/logger";
 
 interface ChannelMember {
@@ -53,7 +55,11 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [userToRemove, setUserToRemove] = useState<{id: string, name: string} | null>(null);
 
-  const [removeChannelMembership, { isLoading: isRemoving }] = useRemoveChannelMembershipMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: removeChannelMembership, isPending: isRemoving } = useMutation({
+    ...channelMembershipControllerRemoveMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelMembership),
+  });
 
   const handleRemoveMember = (userId: string, username: string) => {
     setUserToRemove({ id: userId, name: username });
@@ -64,10 +70,9 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
     if (!userToRemove) return;
 
     try {
-      await removeChannelMembership({ 
-        userId: userToRemove.id, 
-        channelId 
-      }).unwrap();
+      await removeChannelMembership({
+        path: { userId: userToRemove.id, channelId },
+      });
     } catch (error) {
       logger.error("Failed to remove member from channel:", error);
     } finally {

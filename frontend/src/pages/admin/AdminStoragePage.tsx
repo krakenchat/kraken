@@ -26,10 +26,12 @@ import {
   Refresh as RefreshIcon,
   FilterList as FilterIcon,
 } from "@mui/icons-material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetUsersStorageListQuery,
-  useRecalculateUserStorageMutation,
-} from "../../features/admin/adminApiSlice";
+  storageQuotaControllerGetUsersStorageListOptions,
+  storageQuotaControllerRecalculateUserStorageMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 // Helper to format bytes
 const formatBytes = (bytes: number): string => {
@@ -50,6 +52,7 @@ const getProgressColor = (percent: number): "error" | "warning" | "primary" => {
 type SortOrder = "asc" | "desc";
 
 const AdminStoragePage: React.FC = () => {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -62,8 +65,13 @@ const AdminStoragePage: React.FC = () => {
     minPercentUsed: minPercentFilter ? Number(minPercentFilter) : undefined,
   };
 
-  const { data, isLoading, error, refetch } = useGetUsersStorageListQuery(queryParams);
-  const [recalculateStorage, { isLoading: isRecalculating }] = useRecalculateUserStorageMutation();
+  const { data, isLoading, error, refetch } = useQuery(storageQuotaControllerGetUsersStorageListOptions({
+    query: queryParams as { skip: number; take: number; minPercentUsed: number },
+  }));
+  const { mutateAsync: recalculateStorage, isPending: isRecalculating } = useMutation({
+    ...storageQuotaControllerRecalculateUserStorageMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.userStorage),
+  });
 
   // Sort users client-side (backend sorts by percentUsed desc by default)
   const sortedUsers = React.useMemo(() => {
@@ -90,7 +98,7 @@ const AdminStoragePage: React.FC = () => {
 
   const handleRecalculate = async (userId: string) => {
     try {
-      await recalculateStorage(userId).unwrap();
+      await recalculateStorage({ path: { userId } });
       refetch();
     } catch (err) {
       logger.error("Failed to recalculate storage:", err);

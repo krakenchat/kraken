@@ -34,7 +34,8 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SendIcon from '@mui/icons-material/Send';
-import { useProfileQuery } from '../../features/users/usersSlice';
+import { useQuery } from '@tanstack/react-query';
+import { userControllerGetProfileOptions } from '../../api-client/@tanstack/react-query.gen';
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import {
@@ -43,12 +44,14 @@ import {
 } from '../../utils/notifications';
 import { NotificationType } from '../../types/notification.type';
 import { isElectron, getPlatform, Platform } from '../../utils/platform';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useSendTestNotificationMutation,
-  useLazyGetDebugSubscriptionsQuery,
-  useClearDebugSettingsMutation,
-} from '../../features/notifications/notificationsApiSlice';
-import { useSendTestPushMutation } from '../../features/push-notifications/pushNotificationsApiSlice';
+  notificationsControllerSendTestNotificationMutation,
+  notificationsControllerGetDebugSubscriptionsOptions,
+  notificationsControllerClearDebugSettingsMutation,
+} from '../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+import { pushNotificationsControllerSendTestPushMutation } from '../../api-client/@tanstack/react-query.gen';
 
 interface TestResult {
   timestamp: string;
@@ -57,7 +60,7 @@ interface TestResult {
 }
 
 const NotificationDebugPage: React.FC = () => {
-  const { data: profile, isLoading: isLoadingProfile } = useProfileQuery();
+  const { data: profile, isLoading: isLoadingProfile } = useQuery(userControllerGetProfileOptions());
   const [testResults, setTestResults] = useState<TestResult[]>([]);
 
   // Permission hooks
@@ -79,15 +82,30 @@ const NotificationDebugPage: React.FC = () => {
   } = usePushNotifications();
 
   // Debug API mutations
-  const [sendTestNotification, { isLoading: isSendingTest }] =
-    useSendTestNotificationMutation();
-  const [sendTestPush, { isLoading: isSendingPush }] = useSendTestPushMutation();
-  const [clearSettings, { isLoading: isClearing }] =
-    useClearDebugSettingsMutation();
-  const [
-    getDebugSubscriptions,
-    { data: subscriptionsData, isLoading: isLoadingSubscriptions },
-  ] = useLazyGetDebugSubscriptionsQuery();
+  const queryClient = useQueryClient();
+
+  const { mutateAsync: sendTestNotification, isPending: isSendingTest } = useMutation({
+    ...notificationsControllerSendTestNotificationMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
+
+  const { mutateAsync: sendTestPush, isPending: isSendingPush } = useMutation(pushNotificationsControllerSendTestPushMutation());
+
+  const { mutateAsync: clearSettings, isPending: isClearing } = useMutation({
+    ...notificationsControllerClearDebugSettingsMutation(),
+    onSuccess: () => invalidateByIds(queryClient, [
+      ...INVALIDATION_GROUPS.notifications,
+      ...INVALIDATION_GROUPS.notificationSettings,
+      ...INVALIDATION_GROUPS.channelOverrides,
+    ]),
+  });
+
+  const [subscriptionsData, setSubscriptionsData] = React.useState<{
+    subscriptions: Array<{ id: string; endpoint: string; userAgent?: string; createdAt: string }>;
+    count: number;
+    pushEnabled: boolean;
+  } | null>(null);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = React.useState(false);
 
   // Add a result to the log
   const addResult = useCallback((message: string, success: boolean = true) => {
@@ -148,7 +166,7 @@ const NotificationDebugPage: React.FC = () => {
 
   const handleTestServerNotification = async (type: NotificationType) => {
     try {
-      const result = await sendTestNotification({ type }).unwrap();
+      const result = await sendTestNotification({ body: { type } });
       addResult(`Server notification (${type}): ${result.message}`, result.success);
     } catch (error) {
       addResult(`Server notification (${type}) failed: ${error}`, false);
@@ -157,7 +175,7 @@ const NotificationDebugPage: React.FC = () => {
 
   const handleTestPush = async () => {
     try {
-      const result = await sendTestPush().unwrap();
+      const result = await sendTestPush({});
       addResult(
         `Push notification: ${result.message} (sent: ${result.sent}, failed: ${result.failed})`,
         result.success
@@ -185,7 +203,7 @@ const NotificationDebugPage: React.FC = () => {
 
   const handleClearSettings = async () => {
     try {
-      const result = await clearSettings().unwrap();
+      const result = await clearSettings({});
       addResult(
         `Cleared: ${result.notificationsDeleted} notifications, ${result.settingsDeleted} settings, ${result.overridesDeleted} overrides`,
         result.success
@@ -196,11 +214,17 @@ const NotificationDebugPage: React.FC = () => {
   };
 
   const handleRefreshSubscriptions = async () => {
+    setIsLoadingSubscriptions(true);
     try {
-      await getDebugSubscriptions().unwrap();
+      const data = await queryClient.fetchQuery(
+        notificationsControllerGetDebugSubscriptionsOptions()
+      );
+      setSubscriptionsData(data);
       addResult('Subscriptions refreshed');
     } catch (error) {
       addResult(`Failed to load subscriptions: ${error}`, false);
+    } finally {
+      setIsLoadingSubscriptions(false);
     }
   };
 

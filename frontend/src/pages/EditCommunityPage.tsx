@@ -13,11 +13,13 @@ import {
   Link,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetCommunityByIdQuery,
-  useUpdateCommunityMutation,
-} from "../features/community/communityApiSlice";
-import { useGetChannelsForCommunityQuery } from "../features/channel/channelApiSlice";
+  communityControllerFindOneOptions,
+  communityControllerUpdateMutation,
+  channelsControllerFindAllForCommunityOptions,
+} from "../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
 import { useCommunityForm } from "../hooks/useCommunityForm";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { useFileUpload } from "../hooks/useFileUpload";
@@ -76,20 +78,29 @@ const EditCommunityPage: React.FC = () => {
   const { communityId } = useParams<{ communityId: string }>();
   const [tabValue, setTabValue] = useState(0);
 
+  const queryClient = useQueryClient();
+
   const {
     data: community,
     isLoading: isLoadingCommunity,
     error: communityError,
-  } = useGetCommunityByIdQuery(communityId!);
+  } = useQuery({
+    ...communityControllerFindOneOptions({ path: { id: communityId! } }),
+    enabled: !!communityId,
+  });
 
   const {
     data: channels,
     isLoading: isLoadingChannels,
-  } = useGetChannelsForCommunityQuery(communityId!, {
-    skip: !communityId,
+  } = useQuery({
+    ...channelsControllerFindAllForCommunityOptions({ path: { communityId: communityId! } }),
+    enabled: !!communityId,
   });
 
-  const [updateCommunity, { isLoading, error }] = useUpdateCommunityMutation();
+  const { mutateAsync: updateCommunity, isPending: isLoading, error } = useMutation({
+    ...communityControllerUpdateMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.community),
+  });
   const { uploadFile, isUploading, error: uploadError } = useFileUpload();
 
   const { hasPermissions: canUpdateCommunity } = useUserPermissions({
@@ -179,9 +190,9 @@ const EditCommunityPage: React.FC = () => {
       };
 
       await updateCommunity({
-        id: communityId,
-        data: updateCommunityDto,
-      }).unwrap();
+        path: { id: communityId },
+        body: updateCommunityDto,
+      });
 
       // Stay on the page after successful update
     } catch (err) {

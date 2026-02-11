@@ -21,10 +21,14 @@ import {
   useTheme,
 } from '@mui/material';
 import { VideocamOutlined, Download, Send, VideoLibrary, ContentCut } from '@mui/icons-material';
-import { useCaptureReplayMutation } from '../../features/livekit/livekitApiSlice';
 import { useNotification } from '../../contexts/NotificationContext';
-import { useGetChannelsForCommunityQuery } from '../../features/channel/channelApiSlice';
-import { useGetUserDmGroupsQuery } from '../../features/directMessages/directMessagesApiSlice';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  channelsControllerFindAllForCommunityOptions,
+  livekitControllerCaptureReplayMutation,
+  directMessagesControllerFindUserDmGroupsOptions,
+} from '../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
 import { useParams } from 'react-router-dom';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken } from '../../utils/auth';
@@ -66,7 +70,11 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
   const [useCustomTrim, setUseCustomTrim] = useState(false);
   const [customRange, setCustomRange] = useState<{ start: number; end: number }>({ start: 0, end: 60 });
 
-  const [captureReplay, { isLoading }] = useCaptureReplayMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: captureReplay, isPending: isLoading } = useMutation({
+    ...livekitControllerCaptureReplayMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.clips),
+  });
 
   const handleCustomRangeChange = useCallback((start: number, end: number) => {
     setCustomRange({ start, end });
@@ -77,16 +85,16 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
   const { communityId } = useParams<{ communityId: string }>();
 
   // Fetch channels for the current community
-  const { data: channelsData } = useGetChannelsForCommunityQuery(
-    communityId || '',
-    { skip: !communityId || destination !== 'channel' }
-  );
+  const { data: channelsData } = useQuery({
+    ...channelsControllerFindAllForCommunityOptions({ path: { communityId: communityId || '' } }),
+    enabled: !!communityId && destination === 'channel',
+  });
 
   // Fetch DM conversations
-  const { data: dmsData } = useGetUserDmGroupsQuery(
-    undefined,
-    { skip: destination !== 'dm' }
-  );
+  const { data: dmsData } = useQuery({
+    ...directMessagesControllerFindUserDmGroupsOptions(),
+    enabled: destination === 'dm',
+  });
 
   // Filter to text channels only (no VOICE channels)
   const textChannels = channelsData?.filter((ch: Channel) => ch.type !== 'VOICE') || [];
@@ -171,7 +179,7 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
             ...(destination === 'dm' && { targetDirectMessageGroupId: selectedDmGroupId }),
           };
 
-      await captureReplay(captureRequest).unwrap();
+      await captureReplay({ body: captureRequest });
 
       showNotification('Recording saved', 'success');
 

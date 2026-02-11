@@ -6,19 +6,24 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import {
+  messagesControllerUpdateMutation,
+  messagesControllerRemoveMutation,
+  messagesControllerAddReactionMutation,
+  messagesControllerRemoveReactionMutation,
+} from "../../api-client/@tanstack/react-query.gen";
 import type { Message as MessageType, FileMetadata, Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
 import { spansToText, parseMessageWithMentions } from "../../utils/mentionParser";
 import {
-  useUpdateMessageMutation,
-  useDeleteMessageMutation,
-  useAddReactionMutation,
-  useRemoveReactionMutation,
-} from "../../features/messages/messagesApiSlice";
-import {
-  usePinMessageMutation,
-  useUnpinMessageMutation,
-} from "../../features/moderation/moderationApiSlice";
+  moderationControllerPinMessageMutation,
+  moderationControllerUnpinMessageMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import { useAppDispatch } from "../../app/hooks";
+import { updateMessage, deleteMessage as deleteMessageAction } from "../../features/messages/messagesSlice";
 import { logger } from "../../utils/logger";
 
 export interface UseMessageActionsReturn {
@@ -48,12 +53,72 @@ export function useMessageActions(
   message: MessageType,
   currentUserId: string | undefined
 ): UseMessageActionsReturn {
-  const [updateMessage] = useUpdateMessageMutation();
-  const [deleteMessage] = useDeleteMessageMutation();
-  const [addReaction] = useAddReactionMutation();
-  const [removeReaction] = useRemoveReactionMutation();
-  const [pinMessage] = usePinMessageMutation();
-  const [unpinMessage] = useUnpinMessageMutation();
+  const dispatch = useAppDispatch();
+
+  const { mutateAsync: updateMessageApi } = useMutation({
+    ...messagesControllerUpdateMutation(),
+    onSuccess: (updatedMessage) => {
+      const contextId = message.channelId || message.directMessageGroupId;
+      if (contextId) {
+        // If we have original attachments metadata, enrich the response
+        let enrichedMessage = updatedMessage;
+        if (message.attachments && Array.isArray(updatedMessage.attachments)) {
+          const attachmentMap = new Map(message.attachments.map((att: FileMetadata) => [att.id, att]));
+          enrichedMessage = {
+            ...updatedMessage,
+            attachments: updatedMessage.attachments
+              .map((idOrObj: string | FileMetadata) => {
+                if (typeof idOrObj === 'object' && idOrObj.id) return idOrObj;
+                if (typeof idOrObj === 'string') return attachmentMap.get(idOrObj);
+                return idOrObj;
+              })
+              .filter(Boolean) as MessageType['attachments'],
+          };
+        }
+        dispatch(updateMessage({ contextId, message: enrichedMessage as MessageType }));
+      }
+    },
+  });
+
+  const { mutateAsync: deleteMessageApi } = useMutation({
+    ...messagesControllerRemoveMutation(),
+    onSuccess: () => {
+      const contextId = message.channelId || message.directMessageGroupId;
+      if (contextId) {
+        dispatch(deleteMessageAction({ contextId, id: message.id }));
+      }
+    },
+  });
+
+  const { mutateAsync: addReactionApi } = useMutation({
+    ...messagesControllerAddReactionMutation(),
+    onSuccess: (updatedMessage) => {
+      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
+      if (contextId) {
+        dispatch(updateMessage({ contextId, message: updatedMessage as MessageType }));
+      }
+    },
+  });
+
+  const { mutateAsync: removeReactionApi } = useMutation({
+    ...messagesControllerRemoveReactionMutation(),
+    onSuccess: (updatedMessage) => {
+      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
+      if (contextId) {
+        dispatch(updateMessage({ contextId, message: updatedMessage as MessageType }));
+      }
+    },
+  });
+
+  const queryClient = useQueryClient();
+  const { mutateAsync: pinMessage } = useMutation({
+    ...moderationControllerPinMessageMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.pinnedMessages),
+  });
+  const { mutateAsync: unpinMessage } = useMutation({
+    ...moderationControllerUnpinMessageMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.pinnedMessages),
+  });
 
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
@@ -100,22 +165,20 @@ export function useMessageActions(
         parsedSpans = [{ type: SpanType.PLAINTEXT, text: editText || '' }];
       }
 
-      await updateMessage({
-        id: message.id,
-        channelId: message.channelId,
-        data: {
+      await updateMessageApi({
+        path: { id: message.id },
+        body: {
           spans: parsedSpans,
           attachments: editAttachments.map(att => att.id),
         },
-        originalAttachments: message.attachments,
-      }).unwrap();
+      });
       setIsEditing(false);
       setEditText("");
       setEditAttachments([]);
     } catch (error) {
       logger.error("Failed to update message:", error);
     }
-  }, [message, editText, editAttachments, updateMessage]);
+  }, [message, editText, editAttachments, updateMessageApi]);
 
   const handleEditCancel = useCallback(() => {
     setIsEditing(false);
@@ -132,17 +195,16 @@ export function useMessageActions(
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!message.channelId) return;
+    if (!message.channelId && !message.directMessageGroupId) return;
 
     setIsDeleting(true);
 
     // Wait for animation to complete before actually deleting
     deleteTimeoutRef.current = setTimeout(async () => {
       try {
-        await deleteMessage({
-          id: message.id,
-          channelId: message.channelId!,
-        }).unwrap();
+        await deleteMessageApi({
+          path: { id: message.id },
+        });
       } catch (error) {
         logger.error("Failed to delete message:", error);
         setIsDeleting(false);
@@ -150,7 +212,7 @@ export function useMessageActions(
       }
       deleteTimeoutRef.current = null;
     }, 300); // Match the animation duration
-  }, [message.id, message.channelId, deleteMessage]);
+  }, [message.id, message.channelId, message.directMessageGroupId, deleteMessageApi]);
 
   const handleCancelDelete = useCallback(() => {
     setStagedForDelete(false);
@@ -164,26 +226,26 @@ export function useMessageActions(
 
     try {
       if (userHasReacted) {
-        await removeReaction({ messageId: message.id, emoji });
+        await removeReactionApi({ body: { messageId: message.id, emoji } });
       } else {
-        await addReaction({ messageId: message.id, emoji });
+        await addReactionApi({ body: { messageId: message.id, emoji } });
       }
     } catch (error) {
       logger.error("Failed to update reaction:", error);
     }
-  }, [currentUserId, message.reactions, message.id, addReaction, removeReaction]);
+  }, [currentUserId, message.reactions, message.id, addReactionApi, removeReactionApi]);
 
   const handleEmojiSelect = useCallback(async (emoji: string) => {
     try {
-      await addReaction({ messageId: message.id, emoji });
+      await addReactionApi({ body: { messageId: message.id, emoji } });
     } catch (error) {
       logger.error("Failed to add reaction:", error);
     }
-  }, [message.id, addReaction]);
+  }, [message.id, addReactionApi]);
 
   const handlePin = useCallback(async () => {
     try {
-      await pinMessage({ messageId: message.id }).unwrap();
+      await pinMessage({ path: { messageId: message.id } });
     } catch (error) {
       logger.error("Failed to pin message:", error);
     }
@@ -191,7 +253,7 @@ export function useMessageActions(
 
   const handleUnpin = useCallback(async () => {
     try {
-      await unpinMessage({ messageId: message.id }).unwrap();
+      await unpinMessage({ path: { messageId: message.id } });
     } catch (error) {
       logger.error("Failed to unpin message:", error);
     }

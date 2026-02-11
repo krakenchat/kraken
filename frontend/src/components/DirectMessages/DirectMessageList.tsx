@@ -18,8 +18,13 @@ import {
 import {
   Group as GroupIcon,
 } from "@mui/icons-material";
-import { useGetUserDmGroupsQuery, useCreateDmGroupMutation } from "../../features/directMessages/directMessagesApiSlice";
-import { useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  directMessagesControllerFindUserDmGroupsOptions,
+  directMessagesControllerCreateDmGroupMutation,
+  userControllerGetProfileOptions,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { DirectMessageGroup } from "../../types/direct-message.type";
 import UserAvatar from "../Common/UserAvatar";
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
@@ -39,9 +44,13 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
   showCreateDialog,
   setShowCreateDialog,
 }) => {
-  const { data: dmGroups = [], isLoading } = useGetUserDmGroupsQuery();
-  const { data: currentUser } = useProfileQuery();
-  const [createDmGroup, { isLoading: isCreating }] = useCreateDmGroupMutation();
+  const queryClient = useQueryClient();
+  const { data: dmGroups = [], isLoading } = useQuery(directMessagesControllerFindUserDmGroupsOptions());
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
+  const { mutateAsync: createDmGroup, isPending: isCreating } = useMutation({
+    ...directMessagesControllerCreateDmGroupMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.directMessageGroup),
+  });
 
   const [selectedUsers, setSelectedUsers] = useState<UserOption[]>([]);
   const [groupName, setGroupName] = useState("");
@@ -52,10 +61,12 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
     try {
       const isGroup = selectedUsers.length > 1;
       const result = await createDmGroup({
-        userIds: selectedUsers.map(u => u.id),
-        name: isGroup ? groupName || undefined : undefined,
-        isGroup,
-      }).unwrap();
+        body: {
+          userIds: selectedUsers.map(u => u.id),
+          name: isGroup ? groupName || undefined : undefined,
+          isGroup,
+        },
+      });
 
       setShowCreateDialog(false);
       setSelectedUsers([]);

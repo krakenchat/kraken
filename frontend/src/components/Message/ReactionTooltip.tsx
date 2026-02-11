@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { useGetUserByIdQuery } from '../../features/users/usersSlice';
+import { useQuery } from '@tanstack/react-query';
+import { userControllerGetUserByIdOptions } from '../../api-client/@tanstack/react-query.gen';
 
 interface ReactionTooltipProps {
   userIds: string[];
@@ -9,7 +10,7 @@ interface ReactionTooltipProps {
 
 // Individual user name fetcher component
 const UserName: React.FC<{ userId: string }> = ({ userId }) => {
-  const { data: user, isLoading } = useGetUserByIdQuery(userId);
+  const { data: user, isLoading } = useQuery(userControllerGetUserByIdOptions({ path: { id: userId } }));
   
   if (isLoading) return <Typography variant="body2" sx={{ fontSize: '12px' }}>Loading...</Typography>;
   

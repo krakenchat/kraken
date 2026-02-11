@@ -18,10 +18,12 @@ import {
   Divider,
   InputAdornment,
 } from "@mui/material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetInstanceSettingsQuery,
-  useUpdateInstanceSettingsMutation,
-} from "../../features/admin/adminApiSlice";
+  instanceControllerGetSettingsOptions,
+  instanceControllerUpdateSettingsMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 // Helper functions for byte conversion
 const bytesToGB = (bytes: number): number => {
@@ -41,8 +43,12 @@ const mbToBytes = (mb: number): number => {
 };
 
 const AdminSettingsPage: React.FC = () => {
-  const { data: settings, isLoading, error } = useGetInstanceSettingsQuery();
-  const [updateSettings, { isLoading: isSaving }] = useUpdateInstanceSettingsMutation();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading, error } = useQuery(instanceControllerGetSettingsOptions());
+  const { mutateAsync: updateSettings, isPending: isSaving } = useMutation({
+    ...instanceControllerUpdateSettingsMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceSettings),
+  });
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -66,12 +72,14 @@ const AdminSettingsPage: React.FC = () => {
   const handleSave = async () => {
     try {
       await updateSettings({
-        name,
-        description: description || undefined,
-        registrationMode,
-        defaultStorageQuotaBytes: gbToBytes(defaultStorageQuotaGB),
-        maxFileSizeBytes: mbToBytes(maxFileSizeMB),
-      }).unwrap();
+        body: {
+          name,
+          description: description || undefined,
+          registrationMode,
+          defaultStorageQuotaBytes: gbToBytes(defaultStorageQuotaGB),
+          maxFileSizeBytes: mbToBytes(maxFileSizeMB),
+        },
+      });
       setSuccessMessage("Settings saved successfully");
     } catch (err) {
       setErrorMessage("Failed to save settings");

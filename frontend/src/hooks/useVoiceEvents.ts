@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../app/store';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSocket } from './useSocket';
 import { ServerEvents } from '@kraken/shared';
-import { VoicePresenceUser, voicePresenceApi } from '../features/voice-presence/voicePresenceApiSlice';
+import { voicePresenceControllerGetChannelPresenceQueryKey } from '../api-client/@tanstack/react-query.gen';
+import type { VoicePresenceUserDto, ChannelVoicePresenceResponseDto } from '../api-client/types.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
 import { logger } from '../utils/logger';
 
 export const useVoiceEvents = () => {
-  const dispatch = useDispatch<AppDispatch>();
+  const queryClient = useQueryClient();
   const socket = useSocket();
 
   useEffect(() => {
@@ -18,86 +19,69 @@ export const useVoiceEvents = () => {
 
     logger.dev('useVoiceEvents: Setting up global voice presence listeners');
 
-    const handleUserJoined = (data: { channelId: string; user: VoicePresenceUser }) => {
-      logger.dev('🎤 Voice user joined:', {
+    const handleUserJoined = (data: { channelId: string; user: VoicePresenceUserDto }) => {
+      logger.dev('Voice user joined:', {
         channelId: data.channelId,
         userId: data.user.id,
         username: data.user.username
       });
-      
-      // Try to update RTK Query cache - if it doesn't exist, invalidate the tag to refetch
-      try {
-        dispatch(
-          voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
-            const existingIndex = draft.users.findIndex(u => u.id === data.user.id);
-            if (existingIndex === -1) {
-              draft.users.push(data.user);
-              draft.count = draft.users.length;
-            }
-          })
-        );
-      } catch {
-        logger.dev('No cache found for channel, invalidating tag:', data.channelId);
-        // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
-        dispatch(
-          voicePresenceApi.util.invalidateTags([{ type: 'VoicePresence', id: data.channelId }])
-        );
-      }
 
-      // Note: We intentionally don't update Redux voice state here since it's channel-specific
-      // RTK Query cache updates above handle the global presence updates that all users need
+      const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
+      const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+
+      if (existing) {
+        queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
+          if (!draft) return draft;
+          const existingIndex = draft.users.findIndex(u => u.id === data.user.id);
+          if (existingIndex === -1) {
+            const newUsers = [...draft.users, data.user];
+            return { ...draft, users: newUsers, count: newUsers.length };
+          }
+          return draft;
+        });
+      } else {
+        // If cache doesn't exist, invalidate to trigger refetch when component loads
+        invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+      }
     };
 
     const handleUserLeft = (data: { channelId: string; userId: string }) => {
       logger.dev('Voice user left:', data);
-      
-      // Try to update RTK Query cache - if it doesn't exist, invalidate the tag to refetch
-      try {
-        dispatch(
-          voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
-            const index = draft.users.findIndex(u => u.id === data.userId);
-            if (index !== -1) {
-              draft.users.splice(index, 1);
-              draft.count = draft.users.length;
-            }
-          })
-        );
-      } catch {
-        logger.dev('No cache found for channel, invalidating tag:', data.channelId);
-        // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
-        dispatch(
-          voicePresenceApi.util.invalidateTags([{ type: 'VoicePresence', id: data.channelId }])
-        );
-      }
 
-      // Note: We intentionally don't update Redux voice state here since it's channel-specific
-      // RTK Query cache updates above handle the global presence updates that all users need
+      const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
+      const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+
+      if (existing) {
+        queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
+          if (!draft) return draft;
+          const newUsers = draft.users.filter(u => u.id !== data.userId);
+          return { ...draft, users: newUsers, count: newUsers.length };
+        });
+      } else {
+        invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+      }
     };
 
-    const handleUserUpdated = (data: { channelId: string; user: VoicePresenceUser }) => {
+    const handleUserUpdated = (data: { channelId: string; user: VoicePresenceUserDto }) => {
       logger.dev('Voice user updated:', data);
-      
-      // Try to update RTK Query cache - if it doesn't exist, invalidate the tag to refetch
-      try {
-        dispatch(
-          voicePresenceApi.util.updateQueryData('getChannelPresence', data.channelId, (draft) => {
-            const index = draft.users.findIndex(u => u.id === data.user.id);
-            if (index !== -1) {
-              // IMPORTANT: Replace the entire user object to preserve all fields
-              draft.users[index] = data.user;
-            }
-          })
-        );
-      } catch {
-        logger.dev('No cache found for channel, invalidating tag:', data.channelId);
-        // If cache doesn't exist, invalidate the tag to trigger refetch when component loads
-        dispatch(
-          voicePresenceApi.util.invalidateTags([{ type: 'VoicePresence', id: data.channelId }])
-        );
-      }
 
-      // Note: We intentionally don't update Redux voice state here since it's channel-specific
-      // RTK Query cache updates above handle the global presence updates that all users need
+      const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
+      const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+
+      if (existing) {
+        queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
+          if (!draft) return draft;
+          const index = draft.users.findIndex(u => u.id === data.user.id);
+          if (index !== -1) {
+            const newUsers = [...draft.users];
+            newUsers[index] = data.user;
+            return { ...draft, users: newUsers };
+          }
+          return draft;
+        });
+      } else {
+        invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+      }
     };
 
     socket.on(ServerEvents.VOICE_CHANNEL_USER_JOINED, handleUserJoined);
@@ -109,5 +93,5 @@ export const useVoiceEvents = () => {
       socket.off(ServerEvents.VOICE_CHANNEL_USER_LEFT, handleUserLeft);
       socket.off(ServerEvents.VOICE_CHANNEL_USER_UPDATED, handleUserUpdated);
     };
-  }, [socket, dispatch]); // Removed currentChannelId to prevent listener recreation
+  }, [socket, queryClient]);
 };

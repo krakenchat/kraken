@@ -14,7 +14,8 @@ import {
   Box,
   Typography,
 } from "@mui/material";
-import { useGetAllUsersQuery, useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import { userControllerFindAllUsersOptions, userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import UserAvatar from "./UserAvatar";
 
 export interface UserOption {
@@ -56,8 +57,8 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
   disabled = false,
   autoFocus = false,
 }) => {
-  const { data: usersData, isLoading } = useGetAllUsersQuery({ limit: 100 });
-  const { data: currentUser } = useProfileQuery();
+  const { data: usersData, isLoading } = useQuery(userControllerFindAllUsersOptions({ query: { limit: 100 } }));
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
 
   const users = usersData?.users || [];
 

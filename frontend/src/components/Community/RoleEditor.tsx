@@ -23,7 +23,7 @@ import {
   Cancel as CancelIcon,
 } from "@mui/icons-material";
 import { PERMISSION_GROUPS, ACTION_LABELS, RbacAction } from "../../constants/rbacActions";
-import { RoleDto } from "../../features/roles/rolesApiSlice";
+import type { RoleDto } from "../../api-client/types.gen";
 
 interface RoleEditorProps {
   role?: RoleDto; // undefined for creating new role

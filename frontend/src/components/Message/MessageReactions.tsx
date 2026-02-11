@@ -2,7 +2,8 @@ import React from 'react';
 import { Box, Chip } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { Reaction } from '../../types/message.type';
-import { useProfileQuery } from '../../features/users/usersSlice';
+import { useQuery } from '@tanstack/react-query';
+import { userControllerGetProfileOptions } from '../../api-client/@tanstack/react-query.gen';
 import { ReactionTooltip } from './ReactionTooltip';
 
 interface MessageReactionsProps {
@@ -70,7 +71,7 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
   reactions, 
   onReactionClick 
 }) => {
-  const { data: currentUser } = useProfileQuery();
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
 
   if (reactions.length === 0) return null;
 

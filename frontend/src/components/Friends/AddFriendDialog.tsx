@@ -9,7 +9,9 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { useSendFriendRequestMutation } from "../../features/friends/friendsApiSlice";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { friendsControllerSendFriendRequestMutation } from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
 
 interface AddFriendDialogProps {
@@ -19,8 +21,11 @@ interface AddFriendDialogProps {
 
 const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
   const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
-  const [sendFriendRequest, { isLoading: isSending }] =
-    useSendFriendRequestMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: sendFriendRequest, isPending: isSending } = useMutation({
+    ...friendsControllerSendFriendRequestMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+  });
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +34,7 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
 
     try {
       setError(null);
-      await sendFriendRequest(selectedUser.id).unwrap();
+      await sendFriendRequest({ path: { userId: selectedUser.id } });
       setSuccess(true);
       setSelectedUser(null);
     } catch (err: unknown) {

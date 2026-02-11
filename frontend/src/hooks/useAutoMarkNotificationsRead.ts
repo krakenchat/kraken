@@ -6,12 +6,14 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { notificationsControllerMarkAsReadMutation } from '../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
 import { logger } from '../utils/logger';
 import { useAppSelector } from '../app/hooks';
 import {
   selectUnreadNotifications,
 } from '../features/notifications/notificationsSlice';
-import { useMarkAsReadMutation } from '../features/notifications/notificationsApiSlice';
 
 interface UseAutoMarkNotificationsReadOptions {
   /**
@@ -36,8 +38,17 @@ interface UseAutoMarkNotificationsReadOptions {
 export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsReadOptions) {
   const { contextType, contextId, enabled = true } = options;
 
+  const queryClient = useQueryClient();
   const unreadNotifications = useAppSelector(selectUnreadNotifications);
-  const [markAsRead] = useMarkAsReadMutation();
+
+  const { mutateAsync: markAsRead } = useMutation({
+    ...notificationsControllerMarkAsReadMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
+
+  // Wrap in useCallback to stabilize for useEffect deps
+  const markAsReadRef = useRef(markAsRead);
+  markAsReadRef.current = markAsRead;
 
   // Track the last processed contextId to avoid re-processing on notification changes
   const lastProcessedContextRef = useRef<string | null>(null);
@@ -78,7 +89,7 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
         try {
           const results = await Promise.allSettled(
             notificationsToMark.map((notification) =>
-              markAsRead(notification.id).unwrap()
+              markAsReadRef.current({ path: { id: notification.id } })
             )
           );
 
@@ -108,7 +119,7 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
       // Update ref even if no notifications to mark
       lastProcessedContextRef.current = contextId;
     }
-  }, [contextType, contextId, enabled, unreadNotifications, markAsRead]);
+  }, [contextType, contextId, enabled, unreadNotifications]);
 }
 
 export default useAutoMarkNotificationsRead;

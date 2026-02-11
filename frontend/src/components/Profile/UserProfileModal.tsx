@@ -22,7 +22,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChatIcon from "@mui/icons-material/Chat";
 import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "react-router-dom";
-import { useGetUserByIdQuery, useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import { userControllerGetUserByIdOptions, userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 
 const BannerContainer = styled(Box)(({ theme }) => ({
@@ -75,9 +76,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
 }) => {
   const navigate = useNavigate();
-  const { data: currentUser } = useProfileQuery();
-  const { data: user, isLoading } = useGetUserByIdQuery(userId!, {
-    skip: !userId || !open,
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
+  const { data: user, isLoading } = useQuery({
+    ...userControllerGetUserByIdOptions({ path: { id: userId! } }),
+    enabled: !!userId && open,
   });
 
   const { blobUrl: bannerUrl } = useAuthenticatedImage(user?.bannerUrl || null);

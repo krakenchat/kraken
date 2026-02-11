@@ -30,11 +30,17 @@ import {
   Group as GroupIcon,
 } from "@mui/icons-material";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetCommunityAliasGroupsQuery,
-  useDeleteAliasGroupMutation,
-  AliasGroupSummary,
-} from "../../features/alias-groups/aliasGroupsApiSlice";
+  aliasGroupsControllerGetCommunityAliasGroupsOptions,
+  aliasGroupsControllerDeleteAliasGroupMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+interface AliasGroupSummary {
+  id: string;
+  name: string;
+  memberCount: number;
+}
 import AliasGroupEditor from "./AliasGroupEditor";
 
 interface AliasGroupManagementProps {
@@ -71,24 +77,28 @@ const AliasGroupManagement: React.FC<AliasGroupManagementProps> = ({ communityId
     actions: ["DELETE_ALIAS_GROUP"],
   });
 
+  const queryClient = useQueryClient();
   const {
     data: aliasGroups,
     isLoading: loadingGroups,
     error: groupsError,
-  } = useGetCommunityAliasGroupsQuery(communityId, {
-    skip: !canReadGroups,
+  } = useQuery({
+    ...aliasGroupsControllerGetCommunityAliasGroupsOptions({ path: { communityId } }),
+    enabled: canReadGroups,
   });
 
-  const [deleteGroup, { isLoading: deletingGroupLoading }] = useDeleteAliasGroupMutation();
+  const { mutateAsync: deleteGroup, isPending: deletingGroupLoading } = useMutation({
+    ...aliasGroupsControllerDeleteAliasGroupMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+  });
 
   const handleDeleteGroup = useCallback(async () => {
     if (!groupToDelete) return;
 
     try {
       await deleteGroup({
-        groupId: groupToDelete.id,
-        communityId
-      }).unwrap();
+        path: { communityId, groupId: groupToDelete.id },
+      });
       setDeleteConfirmOpen(false);
       setGroupToDelete(null);
     } catch {

@@ -1,8 +1,11 @@
 import React from "react";
 import MemberList from "./MemberList";
-import { useGetMembersForCommunityQuery } from "../../features/membership/membershipApiSlice";
-import { useGetDmGroupQuery } from "../../features/directMessages/directMessagesApiSlice";
-import { useGetMultipleUserPresenceQuery } from "../../features/presence/presenceApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import {
+  membershipControllerFindAllForCommunityOptions,
+  presenceControllerGetMultipleUserPresenceOptions,
+} from "../../api-client/@tanstack/react-query.gen";
+import { directMessagesControllerFindDmGroupOptions } from "../../api-client/@tanstack/react-query.gen";
 
 interface MemberData {
   id: string;
@@ -29,8 +32,9 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     data: communityMembers,
     isLoading: isCommunityLoading,
     error: communityError,
-  } = useGetMembersForCommunityQuery(communityId || "", {
-    skip: contextType !== "channel" || !communityId,
+  } = useQuery({
+    ...membershipControllerFindAllForCommunityOptions({ path: { communityId: communityId || "" } }),
+    enabled: contextType === "channel" && !!communityId,
   });
 
   // For DM context, fetch DM group members
@@ -38,8 +42,9 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     data: dmGroup,
     isLoading: isDmLoading,
     error: dmError,
-  } = useGetDmGroupQuery(contextId, {
-    skip: contextType !== "dm",
+  } = useQuery({
+    ...directMessagesControllerFindDmGroupOptions({ path: { id: contextId } }),
+    enabled: contextType === "dm",
   });
 
   // Get base member data first
@@ -78,8 +83,10 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     data: presenceData,
     isLoading: isPresenceLoading,
     error: presenceError,
-  } = useGetMultipleUserPresenceQuery(userIds, {
-    skip: userIds.length === 0,
+  } = useQuery({
+    ...presenceControllerGetMultipleUserPresenceOptions({ path: { userIds: userIds.join(',') } }),
+    enabled: userIds.length > 0,
+    staleTime: 60_000,
   });
 
   // Transform and normalize member data with presence

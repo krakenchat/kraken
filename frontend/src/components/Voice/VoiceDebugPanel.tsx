@@ -3,7 +3,8 @@ import { Box, Paper, Typography, Chip, Divider } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useRoom } from '../../hooks/useRoom';
 import { useSpeakingDetection } from '../../hooks/useSpeakingDetection';
-import { useProfileQuery } from '../../features/users/usersSlice';
+import { useQuery } from '@tanstack/react-query';
+import { userControllerGetProfileOptions } from '../../api-client/@tanstack/react-query.gen';
 
 /**
  * Debug panel to help diagnose voice and speaking detection issues
@@ -17,7 +18,7 @@ export const VoiceDebugPanel: React.FC = () => {
   const theme = useTheme();
   const { room } = useRoom();
   const { speakingMap, isSpeaking } = useSpeakingDetection();
-  const { data: currentUser } = useProfileQuery();
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const [audioLevel, setAudioLevel] = useState(0);
 
   const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;

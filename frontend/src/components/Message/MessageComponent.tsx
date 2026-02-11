@@ -9,7 +9,8 @@ import React from "react";
 import { Typography, Tooltip, Box, Link } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import type { Message as MessageType } from "../../types/message.type";
-import { useGetUserByIdQuery, useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import { userControllerGetUserByIdOptions, userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import { useMessagePermissions } from "../../hooks/useMessagePermissions";
 import { MessageReactions } from "./MessageReactions";
 import { MessageAttachments } from "./MessageAttachments";
@@ -51,8 +52,8 @@ function MessageComponentInner({
   contextType,
   readStatus = "sent",
 }: MessageProps) {
-  const { data: author } = useGetUserByIdQuery(message.authorId);
-  const { data: currentUser } = useProfileQuery();
+  const { data: author } = useQuery(userControllerGetUserByIdOptions({ path: { id: message.authorId } }));
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const { openProfile } = useUserProfile();
 
   // Check if this message mentions the current user

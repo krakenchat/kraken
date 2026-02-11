@@ -24,12 +24,14 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  useGetNotificationsQuery,
-  useMarkAsReadMutation,
-  useMarkAllAsReadMutation,
-  useDeleteNotificationMutation,
-} from '../../features/notifications/notificationsApiSlice';
+  notificationsControllerGetNotificationsOptions,
+  notificationsControllerMarkAsReadMutation,
+  notificationsControllerMarkAllAsReadMutation,
+  notificationsControllerDeleteNotificationMutation,
+} from '../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
 import { Notification, NotificationType } from '../../types/notification.type';
 import { formatDistanceToNow } from 'date-fns';
 import { logger } from '../../utils/logger';
@@ -43,16 +45,31 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   open,
   onClose,
 }) => {
+  const queryClient = useQueryClient();
+
   const {
     data: notificationsData,
     isLoading,
     error,
     refetch,
-  } = useGetNotificationsQuery({ limit: 50, unreadOnly: false });
+  } = useQuery({
+    ...notificationsControllerGetNotificationsOptions({ query: { limit: 50, unreadOnly: false } }),
+  });
 
-  const [markAsRead] = useMarkAsReadMutation();
-  const [markAllAsRead] = useMarkAllAsReadMutation();
-  const [deleteNotification] = useDeleteNotificationMutation();
+  const { mutateAsync: markAsRead } = useMutation({
+    ...notificationsControllerMarkAsReadMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
+
+  const { mutateAsync: markAllAsRead } = useMutation({
+    ...notificationsControllerMarkAllAsReadMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
+
+  const { mutateAsync: deleteNotification } = useMutation({
+    ...notificationsControllerDeleteNotificationMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+  });
 
   // Refetch notifications when drawer opens
   useEffect(() => {
@@ -63,7 +80,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await markAsRead(notificationId).unwrap();
+      await markAsRead({ path: { id: notificationId } });
     } catch (error) {
       logger.error('Failed to mark notification as read:', error);
     }
@@ -71,7 +88,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const handleMarkAllAsRead = async () => {
     try {
-      await markAllAsRead().unwrap();
+      await markAllAsRead({});
     } catch (error) {
       logger.error('Failed to mark all as read:', error);
     }
@@ -79,7 +96,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const handleDelete = async (notificationId: string) => {
     try {
-      await deleteNotification(notificationId).unwrap();
+      await deleteNotification({ path: { id: notificationId } });
     } catch (error) {
       logger.error('Failed to delete notification:', error);
     }

@@ -24,8 +24,8 @@ import {
   Logout as LogoutIcon,
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
-import { useProfileQuery } from '../../../features/users/usersSlice';
-import { useLazyLogoutQuery } from '../../../features/auth/authSlice';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { userControllerGetProfileOptions, authControllerLogoutMutation } from '../../../api-client/@tanstack/react-query.gen';
 import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { useNavigate } from 'react-router-dom';
@@ -38,8 +38,8 @@ import { logger } from '../../../utils/logger';
  */
 export const MobileProfilePanel: React.FC = () => {
   const navigate = useNavigate();
-  const { data: userData } = useProfileQuery();
-  const [logout] = useLazyLogoutQuery();
+  const { data: userData } = useQuery(userControllerGetProfileOptions());
+  const { mutateAsync: logout } = useMutation(authControllerLogoutMutation());
 
   // Load authenticated images
   const { blobUrl: avatarUrl } = useAuthenticatedImage(userData?.avatarUrl);
@@ -55,7 +55,7 @@ export const MobileProfilePanel: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await logout().unwrap();
+      await logout({});
       navigate('/login');
     } catch (error) {
       logger.error('Failed to logout:', error);

@@ -6,9 +6,12 @@ import DirectMessageList from "../components/DirectMessages/DirectMessageList";
 import DirectMessageContainer from "../components/DirectMessages/DirectMessageContainer";
 import { DMChatHeader } from "../components/DirectMessages/DMChatHeader";
 import { FriendsPanel } from "../components/Friends";
-import { useGetDmGroupQuery } from "../features/directMessages/directMessagesApiSlice";
-import { useGetPendingRequestsQuery } from "../features/friends/friendsApiSlice";
-import { useProfileQuery } from "../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import {
+  directMessagesControllerFindDmGroupOptions,
+  friendsControllerGetPendingRequestsOptions,
+  userControllerGetProfileOptions,
+} from "../api-client/@tanstack/react-query.gen";
 import { styled } from "@mui/material/styles";
 import { DirectMessageGroup, DirectMessageGroupMember } from "../types/direct-message.type";
 
@@ -80,8 +83,8 @@ const DirectMessagesPage: React.FC = () => {
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("messages");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { data: currentUser } = useProfileQuery();
-  const { data: pendingRequests } = useGetPendingRequestsQuery();
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
+  const { data: pendingRequests } = useQuery(friendsControllerGetPendingRequestsOptions());
 
   // Count of incoming friend requests for badge
   const incomingRequestCount = pendingRequests?.received?.length || 0;
@@ -103,8 +106,9 @@ const DirectMessagesPage: React.FC = () => {
     }
   }, [searchParams, selectedDmGroupId, setSearchParams]);
 
-  const { data: selectedDmGroup } = useGetDmGroupQuery(selectedDmGroupId!, {
-    skip: !selectedDmGroupId,
+  const { data: selectedDmGroup } = useQuery({
+    ...directMessagesControllerFindDmGroupOptions({ path: { id: selectedDmGroupId! } }),
+    enabled: !!selectedDmGroupId,
   });
 
   const getDmDisplayName = (dmGroup: DirectMessageGroup): string => {

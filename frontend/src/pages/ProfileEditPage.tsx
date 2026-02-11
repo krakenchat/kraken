@@ -11,15 +11,21 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
-import { useProfileQuery, useUpdateProfileMutation } from "../features/users/usersSlice";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { userControllerGetProfileOptions, userControllerUpdateProfileMutation } from "../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
 import { useFileUpload } from "../hooks/useFileUpload";
 import { useProfileForm } from "../hooks/useProfileForm";
 import { ProfileEditForm } from "../components/Profile";
 
 const ProfileEditPage: React.FC = () => {
   const navigate = useNavigate();
-  const { data: currentUser, isLoading: isLoadingProfile } = useProfileQuery();
-  const [updateProfile, { isLoading: isUpdating, error: updateError }] = useUpdateProfileMutation();
+  const queryClient = useQueryClient();
+  const { data: currentUser, isLoading: isLoadingProfile } = useQuery(userControllerGetProfileOptions());
+  const { mutateAsync: updateProfile, isPending: isUpdating, error: updateError } = useMutation({
+    ...userControllerUpdateProfileMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.profile),
+  });
   const { uploadFile, isUploading, error: uploadError } = useFileUpload();
 
   const {
@@ -98,7 +104,7 @@ const ProfileEditPage: React.FC = () => {
         updateProfileDto.banner = bannerFileId;
       }
 
-      await updateProfile(updateProfileDto).unwrap();
+      await updateProfile({ body: updateProfileDto });
 
       // Navigate to profile page after successful update
       navigate(`/profile/${currentUser.id}`);

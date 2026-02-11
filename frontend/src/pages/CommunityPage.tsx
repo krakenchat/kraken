@@ -1,7 +1,10 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { useGetCommunityByIdQuery } from "../features/community/communityApiSlice";
-import { useGetChannelByIdQuery } from "../features/channel/channelApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import {
+  communityControllerFindOneOptions,
+  channelsControllerFindOneOptions,
+} from "../api-client/@tanstack/react-query.gen";
 import { Avatar, Box, Typography, Paper } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
@@ -34,11 +37,13 @@ const DesktopCommunityPage: React.FC = () => {
     communityId: string;
     channelId: string;
   }>();
-  const { data, error, isLoading } = useGetCommunityByIdQuery(communityId!, {
-    skip: !communityId,
+  const { data, error, isLoading } = useQuery({
+    ...communityControllerFindOneOptions({ path: { id: communityId! } }),
+    enabled: !!communityId,
   });
-  const { data: channelData } = useGetChannelByIdQuery(channelId!, {
-    skip: !channelId,
+  const { data: channelData } = useQuery({
+    ...channelsControllerFindOneOptions({ path: { id: channelId! } }),
+    enabled: !!channelId,
   });
   const { state: voiceState } = useVoiceConnection();
   const { blobUrl: communityAvatarUrl } = useAuthenticatedImage(data?.avatar);

@@ -21,11 +21,13 @@ import {
 import PushPinIcon from "@mui/icons-material/PushPin";
 import CloseIcon from "@mui/icons-material/Close";
 import { useTheme } from "@mui/material/styles";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetPinnedMessagesQuery,
-  useUnpinMessageMutation,
-  PinnedMessage,
-} from "../../features/moderation/moderationApiSlice";
+  moderationControllerGetPinnedMessagesOptions,
+  moderationControllerUnpinMessageMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import type { PinnedMessageDto as PinnedMessage } from "../../api-client/types.gen";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import UserAvatar from "../Common/UserAvatar";
@@ -46,14 +48,18 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
   onClose,
 }) => {
   const theme = useTheme();
-  const { data: pinnedMessages, isLoading, error } = useGetPinnedMessagesQuery(channelId);
-  const [unpinMessage] = useUnpinMessageMutation();
+  const queryClient = useQueryClient();
+  const { data: pinnedMessages, isLoading, error } = useQuery(moderationControllerGetPinnedMessagesOptions({ path: { channelId } }));
+  const { mutateAsync: unpinMessage } = useMutation({
+    ...moderationControllerUnpinMessageMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.pinnedMessages),
+  });
 
   const canUnpin = useCanPerformAction("COMMUNITY", communityId, RBAC_ACTIONS.UNPIN_MESSAGE);
 
   const handleUnpin = async (messageId: string) => {
     try {
-      await unpinMessage({ messageId }).unwrap();
+      await unpinMessage({ path: { messageId } });
     } catch (err) {
       logger.error("Failed to unpin message:", err);
     }

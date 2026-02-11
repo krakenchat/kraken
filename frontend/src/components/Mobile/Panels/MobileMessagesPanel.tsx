@@ -31,8 +31,14 @@ import {
   Group as GroupIcon,
   Person as PersonIconAvatar,
 } from '@mui/icons-material';
-import { useGetUserDmGroupsQuery, useCreateDmGroupMutation } from '../../../features/directMessages/directMessagesApiSlice';
-import { useGetAllUsersQuery, useProfileQuery } from '../../../features/users/usersSlice';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  directMessagesControllerFindUserDmGroupsOptions,
+  directMessagesControllerCreateDmGroupMutation,
+  userControllerFindAllUsersOptions,
+  userControllerGetProfileOptions,
+} from '../../../api-client/@tanstack/react-query.gen';
+import { invalidateByIds, INVALIDATION_GROUPS } from '../../../utils/queryInvalidation';
 import UserAvatar from '../../Common/UserAvatar';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
@@ -53,11 +59,15 @@ interface User {
  */
 export const MobileMessagesPanel: React.FC = () => {
   const { navigateToDmChat } = useMobileNavigation();
-  const { data: dmGroups = [], isLoading } = useGetUserDmGroupsQuery();
-  const { data: usersData } = useGetAllUsersQuery({ limit: 100 });
+  const queryClient = useQueryClient();
+  const { data: dmGroups = [], isLoading } = useQuery(directMessagesControllerFindUserDmGroupsOptions());
+  const { data: usersData } = useQuery(userControllerFindAllUsersOptions({ query: { limit: 100 } }));
   const users = usersData?.users || [];
-  const { data: currentUser } = useProfileQuery();
-  const [createDmGroup, { isLoading: isCreating }] = useCreateDmGroupMutation();
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
+  const { mutateAsync: createDmGroup, isPending: isCreating } = useMutation({
+    ...directMessagesControllerCreateDmGroupMutation(),
+    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.directMessageGroup),
+  });
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
@@ -73,10 +83,12 @@ export const MobileMessagesPanel: React.FC = () => {
     try {
       const isGroup = selectedUsers.length > 1;
       const result = await createDmGroup({
-        userIds: selectedUsers.map((u) => u.id),
-        name: isGroup ? groupName || undefined : undefined,
-        isGroup,
-      }).unwrap();
+        body: {
+          userIds: selectedUsers.map((u) => u.id),
+          name: isGroup ? groupName || undefined : undefined,
+          isGroup,
+        },
+      });
 
       setShowCreateDialog(false);
       setSelectedUsers([]);

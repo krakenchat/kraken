@@ -2,8 +2,8 @@ import React, { useEffect } from "react";
 import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Outlet, useNavigate } from "react-router-dom";
-import { useProfileQuery } from "./features/users/usersSlice";
-import { useLazyLogoutQuery } from "./features/auth/authSlice";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { userControllerGetProfileOptions, authControllerLogoutMutation } from "./api-client/@tanstack/react-query.gen";
 import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
 import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
@@ -31,8 +31,8 @@ const settings = ["My Profile", "Settings", "Logout"];
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();
-  const { data: userData, isLoading, isError } = useProfileQuery(undefined);
-  const [logout, { isLoading: logoutLoading }] = useLazyLogoutQuery();
+  const { data: userData, isLoading, isError } = useQuery(userControllerGetProfileOptions());
+  const { mutateAsync: logout, isPending: logoutLoading } = useMutation(authControllerLogoutMutation());
   const { state: voiceState } = useVoiceConnection();
   const { isMobile, isTablet } = useResponsive();
 
@@ -94,7 +94,7 @@ const Layout: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await logout(null, false).unwrap();
+    await logout({});
     localStorage.removeItem("accessToken");
     clearTelemetryUser();
     navigate("/login");

@@ -27,11 +27,13 @@ import {
 import TimerIcon from "@mui/icons-material/Timer";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useTheme } from "@mui/material/styles";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetTimeoutListQuery,
-  useRemoveTimeoutMutation,
-  CommunityTimeout,
-} from "../../features/moderation/moderationApiSlice";
+  moderationControllerGetTimeoutListOptions,
+  moderationControllerRemoveTimeoutMutation,
+} from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+import type { CommunityTimeoutDto as CommunityTimeout } from "../../api-client/types.gen";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import UserAvatar from "../Common/UserAvatar";
@@ -126,8 +128,12 @@ const formatTimeRemaining = (expiresAt: string): string => {
 
 const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
   const theme = useTheme();
-  const { data: timeouts, isLoading, error } = useGetTimeoutListQuery(communityId);
-  const [removeTimeout, { isLoading: isRemoving }] = useRemoveTimeoutMutation();
+  const queryClient = useQueryClient();
+  const { data: timeouts, isLoading, error } = useQuery(moderationControllerGetTimeoutListOptions({ path: { communityId } }));
+  const { mutateAsync: removeTimeout, isPending: isRemoving } = useMutation({
+    ...moderationControllerRemoveTimeoutMutation(),
+    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.timeoutList, ...INVALIDATION_GROUPS.moderationLogs]),
+  });
   const [selectedTimeout, setSelectedTimeout] = useState<CommunityTimeout | null>(null);
   const [, setTick] = useState(0);
 
@@ -146,10 +152,9 @@ const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
 
     try {
       await removeTimeout({
-        communityId,
-        userId: selectedTimeout.userId,
-        dto: { reason },
-      }).unwrap();
+        path: { communityId, userId: selectedTimeout.userId },
+        body: { reason },
+      });
     } catch (err) {
       logger.error("Failed to remove timeout:", err);
     }

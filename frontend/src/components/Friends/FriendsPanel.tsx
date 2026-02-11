@@ -8,10 +8,11 @@ import {
   Typography,
 } from "@mui/material";
 import { PersonAdd as AddIcon } from "@mui/icons-material";
+import { useQuery } from "@tanstack/react-query";
 import {
-  useGetFriendsQuery,
-  useGetPendingRequestsQuery,
-} from "../../features/friends/friendsApiSlice";
+  friendsControllerGetFriendsOptions,
+  friendsControllerGetPendingRequestsOptions,
+} from "../../api-client/@tanstack/react-query.gen";
 import FriendList from "./FriendList";
 import FriendRequestList from "./FriendRequestList";
 import AddFriendDialog from "./AddFriendDialog";
@@ -28,8 +29,8 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
   const [tabValue, setTabValue] = useState<"all" | "pending">("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
 
-  const { data: friends } = useGetFriendsQuery();
-  const { data: requests } = useGetPendingRequestsQuery();
+  const { data: friends } = useQuery(friendsControllerGetFriendsOptions());
+  const { data: requests } = useQuery(friendsControllerGetPendingRequestsOptions());
 
   const friendsCount = friends?.length || 0;
   const pendingCount = (requests?.received.length || 0) + (requests?.sent.length || 0);

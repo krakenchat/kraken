@@ -22,7 +22,9 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { useTimeoutUserMutation } from "../../features/moderation/moderationApiSlice";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { moderationControllerTimeoutUserMutation } from "../../api-client/@tanstack/react-query.gen";
+import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 interface TimeoutDialogProps {
   open: boolean;
@@ -52,19 +54,22 @@ const TimeoutDialog: React.FC<TimeoutDialogProps> = ({
   const [durationSeconds, setDurationSeconds] = useState(10 * 60); // Default 10 minutes
   const [error, setError] = useState<string | null>(null);
 
-  const [timeoutUser, { isLoading }] = useTimeoutUserMutation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: timeoutUser, isPending: isLoading } = useMutation({
+    ...moderationControllerTimeoutUserMutation(),
+    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.timeoutList, ...INVALIDATION_GROUPS.moderationLogs]),
+  });
 
   const handleSubmit = async () => {
     setError(null);
     try {
       await timeoutUser({
-        communityId,
-        userId,
-        dto: {
+        path: { communityId, userId },
+        body: {
           durationSeconds,
           reason: reason.trim() || undefined,
         },
-      }).unwrap();
+      });
 
       handleClose();
     } catch (err: unknown) {

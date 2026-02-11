@@ -49,7 +49,8 @@ import { useResponsive } from "../../hooks/useResponsive";
 import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
-import { useProfileQuery } from "../../features/users/usersSlice";
+import { useQuery } from "@tanstack/react-query";
+import { userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 
 export const VoiceBottomBar: React.FC = () => {
   const theme = useTheme();
@@ -57,7 +58,7 @@ export const VoiceBottomBar: React.FC = () => {
   const screenShare = useScreenShare();
   const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
   const { isMobile } = useResponsive();
-  const { data: currentUser } = useProfileQuery();
+  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const { isSpeaking } = useSpeakingDetection();
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(
     null

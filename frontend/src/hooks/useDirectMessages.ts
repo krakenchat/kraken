@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
-import { useGetDmMessagesQuery } from "../features/directMessages/directMessagesApiSlice";
+import { useQuery } from "@tanstack/react-query";
+import { directMessagesControllerGetDmMessagesOptions } from "../api-client/@tanstack/react-query.gen";
 import {
   makeSelectMessagesByContext,
   makeSelectContinuationTokenByContext,
@@ -16,7 +17,7 @@ export const useDirectMessages = (dmGroupId: string) => {
   const { joinDmGroup, leaveDmGroup } = useDirectMessageWebSocket();
 
   // Initial data fetch - this will populate Redux store via onQueryStarted
-  const { error, isLoading } = useGetDmMessagesQuery(dmGroupId);
+  const { error, isLoading } = useQuery(directMessagesControllerGetDmMessagesOptions({ path: { id: dmGroupId } }));
 
   // Memoized selectors for this DM group (contextId = dmGroupId)
   const selectMessages = React.useMemo(
