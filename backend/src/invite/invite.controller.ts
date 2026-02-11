@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   Req,
@@ -64,11 +65,14 @@ export class InviteController {
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   @ApiOkResponse({ type: InviteResponseDto })
-  async getInvite(@Param('code') code: string): Promise<InviteResponseDto | null> {
+  async getInvite(
+    @Param('code') code: string,
+  ): Promise<InviteResponseDto | null> {
     return this.inviteService.getInviteByCode(code);
   }
 
   @Delete(':code')
+  @HttpCode(204)
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.DELETE_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })

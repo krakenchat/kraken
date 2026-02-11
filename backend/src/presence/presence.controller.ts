@@ -1,16 +1,12 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { PresenceService } from './presence.service';
-
-interface UserPresenceResponse {
-  userId: string;
-  isOnline: boolean;
-}
-
-interface BulkPresenceResponse {
-  presence: Record<string, boolean>;
-}
+import {
+  UserPresenceResponseDto,
+  BulkPresenceResponseDto,
+} from './dto/presence-response.dto';
 
 @Controller('presence')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -18,9 +14,10 @@ export class PresenceController {
   constructor(private readonly presenceService: PresenceService) {}
 
   @Get('user/:userId')
+  @ApiOkResponse({ type: UserPresenceResponseDto })
   async getUserPresence(
     @Param('userId') userId: string,
-  ): Promise<UserPresenceResponse> {
+  ): Promise<UserPresenceResponseDto> {
     const isOnline = await this.presenceService.isOnline(userId);
     return {
       userId,
@@ -29,7 +26,8 @@ export class PresenceController {
   }
 
   @Get('users/bulk')
-  async getBulkPresence(): Promise<BulkPresenceResponse> {
+  @ApiOkResponse({ type: BulkPresenceResponseDto })
+  async getBulkPresence(): Promise<BulkPresenceResponseDto> {
     const onlineUsers = await this.presenceService.getOnlineUsers();
     const presence: Record<string, boolean> = {};
 
@@ -42,9 +40,10 @@ export class PresenceController {
   }
 
   @Get('users/:userIds')
+  @ApiOkResponse({ type: BulkPresenceResponseDto })
   async getMultipleUserPresence(
     @Param('userIds') userIds: string,
-  ): Promise<BulkPresenceResponse> {
+  ): Promise<BulkPresenceResponseDto> {
     const userIdArray = userIds.split(',');
     const presence: Record<string, boolean> = {};
 

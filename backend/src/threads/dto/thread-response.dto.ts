@@ -1,3 +1,4 @@
+import { ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import {
   SpanDto,
   ReactionDto,
@@ -50,13 +51,22 @@ export class EnrichedThreadReplyDto {
   deletedByReason: string | null;
 }
 
+export class FileMetadataEntryDto {
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
+@ApiExtraModels(FileMetadataEntryDto)
 export class ThreadRepliesResponseDto {
   replies: EnrichedThreadReplyDto[];
   continuationToken?: string;
-  fileMetadata?: Record<
-    string,
-    { filename: string; mimeType: string; size: number }
-  >;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { $ref: getSchemaPath(FileMetadataEntryDto) },
+  })
+  fileMetadata?: Record<string, FileMetadataEntryDto>;
 }
 
 export class ThreadMetadataDto {

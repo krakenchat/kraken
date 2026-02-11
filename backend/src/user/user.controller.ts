@@ -243,6 +243,7 @@ export class UserController {
    */
   @Post('block/:userId')
   @UseGuards(JwtAuthGuard)
+  @ApiCreatedResponse({ type: SuccessResponseDto })
   async blockUser(
     @Req() req: AuthenticatedRequest,
     @Param('userId', ParseObjectIdPipe) userId: string,
