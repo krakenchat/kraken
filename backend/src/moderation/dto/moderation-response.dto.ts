@@ -1,5 +1,12 @@
 import { FileType, ModerationAction, Prisma } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  FileTypeValues,
+  ModerationActionValues,
+} from '@/common/enums/swagger-enums';
 import { SpanDto, ReactionDto } from '@/messages/dto/message-response.dto';
+
+export { SuccessMessageDto } from '@/common/dto/common-response.dto';
 
 export class PinnedMessageAuthorDto {
   id: string;
@@ -12,6 +19,7 @@ export class PinnedMessageAttachmentDto {
   id: string;
   filename: string;
   mimeType: string;
+  @ApiProperty({ enum: FileTypeValues })
   fileType: FileType;
   size: number;
 }
@@ -66,8 +74,10 @@ export class ModerationLogDto {
   communityId: string;
   moderatorId: string;
   targetUserId: string | null;
+  @ApiProperty({ enum: ModerationActionValues })
   action: ModerationAction;
   reason: string | null;
+  @ApiProperty({ type: 'object', nullable: true, additionalProperties: true })
   metadata: Prisma.JsonValue | null;
   createdAt: Date;
 }
@@ -82,7 +92,3 @@ export class ModerationLogsResponseDto {
   total: number;
 }
 
-export class SuccessMessageDto {
-  success: boolean;
-  message: string;
-}

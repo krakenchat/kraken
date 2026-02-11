@@ -12,6 +12,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { ModerationService } from './moderation.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
@@ -61,6 +62,7 @@ export class ModerationController {
     source: ResourceIdSource.PARAM,
   })
   @HttpCode(200)
+  @ApiOkResponse({ type: SuccessMessageDto })
   async banUser(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('userId', ParseObjectIdPipe) userId: string,
@@ -86,6 +88,7 @@ export class ModerationController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: SuccessMessageDto })
   async unbanUser(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('userId', ParseObjectIdPipe) userId: string,
@@ -109,6 +112,7 @@ export class ModerationController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: [CommunityBanDto] })
   async getBanList(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
   ): Promise<CommunityBanDto[]> {
@@ -128,6 +132,7 @@ export class ModerationController {
     source: ResourceIdSource.PARAM,
   })
   @HttpCode(200)
+  @ApiOkResponse({ type: SuccessMessageDto })
   async kickUser(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('userId', ParseObjectIdPipe) userId: string,
@@ -156,6 +161,7 @@ export class ModerationController {
     source: ResourceIdSource.PARAM,
   })
   @HttpCode(200)
+  @ApiOkResponse({ type: SuccessMessageDto })
   async timeoutUser(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('userId', ParseObjectIdPipe) userId: string,
@@ -180,6 +186,7 @@ export class ModerationController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: SuccessMessageDto })
   async removeTimeout(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('userId', ParseObjectIdPipe) userId: string,
@@ -203,6 +210,7 @@ export class ModerationController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: [CommunityTimeoutDto] })
   async getTimeoutList(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
   ): Promise<CommunityTimeoutDto[]> {
@@ -217,6 +225,7 @@ export class ModerationController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: TimeoutStatusResponseDto })
   async getTimeoutStatus(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Param('userId', ParseObjectIdPipe) userId: string,
@@ -237,6 +246,7 @@ export class ModerationController {
     source: ResourceIdSource.PARAM,
   })
   @HttpCode(200)
+  @ApiOkResponse({ type: SuccessMessageDto })
   async pinMessage(
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Body() dto: PinMessageDto,
@@ -254,6 +264,7 @@ export class ModerationController {
     idKey: 'messageId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: SuccessMessageDto })
   async unpinMessage(
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Body() dto: UnpinMessageDto,
@@ -275,6 +286,7 @@ export class ModerationController {
     idKey: 'channelId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: [PinnedMessageDto] })
   async getPinnedMessages(
     @Param('channelId', ParseObjectIdPipe) channelId: string,
   ): Promise<PinnedMessageDto[]> {
@@ -293,6 +305,7 @@ export class ModerationController {
     idKey: 'messageId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: SuccessMessageDto })
   async deleteMessageAsMod(
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Body() dto: DeleteMessageAsModDto,
@@ -318,6 +331,7 @@ export class ModerationController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: ModerationLogsResponseDto })
   async getModerationLogs(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,

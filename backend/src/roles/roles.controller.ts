@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
@@ -206,6 +207,7 @@ export class RolesController {
   }
 
   @Get('community/:communityId/:roleId/users')
+  @ApiOkResponse({ type: [RoleUserDto] })
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.READ_ROLE)
   @RbacResource({
@@ -310,6 +312,7 @@ export class RolesController {
    * Get users assigned to an instance role
    */
   @Get('instance/:roleId/users')
+  @ApiOkResponse({ type: [RoleUserDto] })
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })

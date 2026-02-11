@@ -10,6 +10,7 @@ import {
   HttpCode,
   Req,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
@@ -40,6 +41,7 @@ export class ChannelsController {
     idKey: 'communityId',
     source: ResourceIdSource.BODY,
   })
+  @ApiCreatedResponse({ type: ChannelDto })
   create(
     @Body() createChannelDto: CreateChannelDto,
     @Req() req: AuthenticatedRequest,
@@ -54,6 +56,7 @@ export class ChannelsController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: [ChannelDto] })
   findAllForCommunity(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
   ): Promise<ChannelDto[]> {
@@ -67,6 +70,7 @@ export class ChannelsController {
     idKey: 'communityId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: [ChannelDto] })
   getMentionableChannels(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
     @Req() req: AuthenticatedRequest,
@@ -84,6 +88,7 @@ export class ChannelsController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: ChannelDto })
   findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<ChannelDto> {
     return this.channelsService.findOne(id);
   }
@@ -95,6 +100,7 @@ export class ChannelsController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: ChannelDto })
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateChannelDto: UpdateChannelDto,
@@ -122,6 +128,7 @@ export class ChannelsController {
     idKey: 'communityId',
     source: ResourceIdSource.BODY,
   })
+  @ApiOkResponse({ type: [ChannelDto] })
   moveUp(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() moveChannelDto: MoveChannelDto,
@@ -137,6 +144,7 @@ export class ChannelsController {
     idKey: 'communityId',
     source: ResourceIdSource.BODY,
   })
+  @ApiOkResponse({ type: [ChannelDto] })
   moveDown(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() moveChannelDto: MoveChannelDto,

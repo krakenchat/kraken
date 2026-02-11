@@ -1,6 +1,8 @@
 import { $Enums, User } from '@prisma/client';
 import { Exclude } from 'class-transformer';
-import { ApiHideProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { InstanceRoleValues } from '@/common/enums/swagger-enums';
+import { AdminUserEntity } from './admin-user-response.dto';
 
 export class UserEntity implements User {
   id: string;
@@ -13,6 +15,7 @@ export class UserEntity implements User {
   @Exclude()
   @ApiHideProperty()
   verified: boolean;
+  @ApiProperty({ enum: InstanceRoleValues })
   role: $Enums.InstanceRole;
 
   @Exclude()
@@ -59,4 +62,24 @@ export class UserEntity implements User {
   constructor(partial: Partial<UserEntity>) {
     Object.assign(this, partial);
   }
+}
+
+export class UserListResponseDto {
+  @ApiProperty({ type: [UserEntity] })
+  users: UserEntity[];
+
+  @ApiProperty({ required: false })
+  continuationToken?: string;
+}
+
+export class AdminUserListResponseDto {
+  @ApiProperty({ type: () => [AdminUserEntity] })
+  users: AdminUserEntity[];
+
+  @ApiProperty({ required: false })
+  continuationToken?: string;
+}
+
+export class BlockedStatusResponseDto {
+  blocked: boolean;
 }

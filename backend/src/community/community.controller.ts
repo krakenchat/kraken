@@ -13,7 +13,12 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { CommunityService } from './community.service';
 import { CreateCommunityDto } from './dto/create-community.dto';
@@ -45,6 +50,7 @@ export class CommunityController {
   @HttpCode(201)
   @RequiredActions(RbacActions.CREATE_COMMUNITY)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiCreatedResponse({ type: CommunityResponseDto })
   create(
     @Body() createCommunityDto: CreateCommunityDto,
     @Req() req: AuthenticatedRequest,
@@ -55,6 +61,7 @@ export class CommunityController {
   @Get()
   @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: [CommunityResponseDto] })
   findAll(): Promise<CommunityResponseDto[]> {
     return this.communityService.findAll();
   }
@@ -75,6 +82,7 @@ export class CommunityController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: CommunityResponseDto })
   findOne(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<CommunityResponseDto> {
@@ -88,6 +96,7 @@ export class CommunityController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: CommunityResponseDto })
   update(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateCommunityDto: UpdateCommunityDto,
@@ -117,6 +126,7 @@ export class CommunityController {
   @Get('admin/list')
   @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: CommunityStatsListResponseDto })
   findAllWithStats(
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
@@ -135,6 +145,7 @@ export class CommunityController {
   @Get('admin/:id')
   @RequiredActions(RbacActions.READ_ALL_COMMUNITIES)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: CommunityStatsDetailDto })
   findOneWithStats(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<CommunityStatsDetailDto> {

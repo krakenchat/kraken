@@ -12,6 +12,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
+import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import { FileUploadService } from './file-upload.service';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -28,6 +29,7 @@ export class FileUploadController {
 
   @Post()
   @UseInterceptors(FileInterceptor('file'))
+  @ApiCreatedResponse({ type: FileUploadResponseDto })
   uploadFile(
     @UploadedFile(
       new ParseFilePipe({
@@ -49,6 +51,7 @@ export class FileUploadController {
   }
 
   @Delete(':id')
+  @ApiOkResponse({ type: FileUploadResponseDto })
   remove(
     @Param('id', ParseObjectIdPipe) id: string,
     @Req() req: AuthenticatedRequest,

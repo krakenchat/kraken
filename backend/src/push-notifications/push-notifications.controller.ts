@@ -11,10 +11,17 @@ import {
   ForbiddenException,
   Req,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
+import { SuccessMessageDto } from '@/common/dto/common-response.dto';
 import { PushNotificationsService } from './push-notifications.service';
 import { SubscribePushDto, UnsubscribePushDto } from './dto/subscribe.dto';
+import {
+  VapidPublicKeyResponseDto,
+  PushStatusResponseDto,
+  TestPushResponseDto,
+} from './dto/push-notifications-response.dto';
 import { InstanceRole } from '@prisma/client';
 
 @Controller('push')
@@ -29,7 +36,8 @@ export class PushNotificationsController {
    * Returns null if push notifications are not configured
    */
   @Get('vapid-public-key')
-  getVapidPublicKey(): { publicKey: string | null; enabled: boolean } {
+  @ApiOkResponse({ type: VapidPublicKeyResponseDto })
+  getVapidPublicKey(): VapidPublicKeyResponseDto {
     const publicKey = this.pushNotificationsService.getVapidPublicKey();
     return {
       publicKey,
@@ -42,10 +50,11 @@ export class PushNotificationsController {
    */
   @Post('subscribe')
   @HttpCode(HttpStatus.CREATED)
+  @ApiCreatedResponse({ type: SuccessMessageDto })
   async subscribe(
     @Req() req: AuthenticatedRequest,
     @Body() dto: SubscribePushDto,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<SuccessMessageDto> {
     if (!this.pushNotificationsService.isEnabled()) {
       throw new NotFoundException(
         'Push notifications are not configured on this instance',
@@ -64,10 +73,11 @@ export class PushNotificationsController {
    */
   @Delete('unsubscribe')
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SuccessMessageDto })
   async unsubscribe(
     @Req() req: AuthenticatedRequest,
     @Body() dto: UnsubscribePushDto,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<SuccessMessageDto> {
     await this.pushNotificationsService.unsubscribe(req.user.id, dto.endpoint);
     return {
       success: true,
@@ -79,9 +89,10 @@ export class PushNotificationsController {
    * Get current push subscription status
    */
   @Get('status')
+  @ApiOkResponse({ type: PushStatusResponseDto })
   async getStatus(
     @Req() req: AuthenticatedRequest,
-  ): Promise<{ enabled: boolean; subscriptionCount: number }> {
+  ): Promise<PushStatusResponseDto> {
     const subscriptions =
       await this.pushNotificationsService.getUserSubscriptions(req.user.id);
     return {
@@ -101,12 +112,10 @@ export class PushNotificationsController {
    */
   @Post('debug/send-test')
   @HttpCode(HttpStatus.OK)
-  async sendTestPush(@Req() req: AuthenticatedRequest): Promise<{
-    success: boolean;
-    sent: number;
-    failed: number;
-    message: string;
-  }> {
+  @ApiOkResponse({ type: TestPushResponseDto })
+  async sendTestPush(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<TestPushResponseDto> {
     if (req.user.role !== InstanceRole.OWNER) {
       throw new ForbiddenException('Debug endpoints are admin-only');
     }

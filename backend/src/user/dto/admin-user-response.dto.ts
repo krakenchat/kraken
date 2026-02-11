@@ -1,6 +1,7 @@
 import { Exclude, Transform } from 'class-transformer';
 import { $Enums, User } from '@prisma/client';
-import { ApiHideProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { InstanceRoleValues } from '@/common/enums/swagger-enums';
 
 /**
  * Admin-level user response that includes ban status and other sensitive fields
@@ -10,6 +11,7 @@ export class AdminUserEntity implements User {
   username: string;
   email: string | null;
   verified: boolean;
+  @ApiProperty({ enum: InstanceRoleValues })
   role: $Enums.InstanceRole;
   createdAt: Date;
   avatarUrl: string | null;

@@ -15,9 +15,15 @@ import {
   UseInterceptors,
   ClassSerializerInterceptor,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UserEntity } from './dto/user-response.dto';
+import {
+  UserEntity,
+  UserListResponseDto,
+  AdminUserListResponseDto,
+  BlockedStatusResponseDto,
+} from './dto/user-response.dto';
 import { AdminUserEntity } from './dto/admin-user-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
@@ -30,6 +36,7 @@ import { InstanceRole, RbacActions } from '@prisma/client';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
+import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 
 @Controller('users')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -38,6 +45,7 @@ export class UserController {
 
   @Post()
   @Public()
+  @ApiCreatedResponse({ type: UserEntity })
   async register(@Body() dto: CreateUserDto): Promise<UserEntity> {
     const user = new UserEntity(
       await this.userService.createUser(
@@ -53,6 +61,7 @@ export class UserController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: UserEntity })
   async getProfile(@Req() req: AuthenticatedRequest): Promise<UserEntity> {
     const profile = await this.userService.findById(req.user.id);
     if (!profile) {
@@ -65,6 +74,7 @@ export class UserController {
 
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: UserEntity })
   async updateProfile(
     @Req() req: AuthenticatedRequest,
     @Body() updateProfileDto: UpdateProfileDto,
@@ -74,6 +84,7 @@ export class UserController {
 
   @Get('username/:name')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: UserEntity })
   async getUserByName(@Param('name') username: string): Promise<UserEntity> {
     const user = await this.userService.findByUsername(username);
 
@@ -91,6 +102,7 @@ export class UserController {
   @RbacResource({
     type: RbacResourceType.INSTANCE,
   })
+  @ApiOkResponse({ type: [UserEntity] })
   searchUsers(
     @Query('q') query: string,
     @Query('communityId') communityId?: string,
@@ -101,6 +113,7 @@ export class UserController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: UserEntity })
   async getUserById(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<UserEntity> {
@@ -120,10 +133,11 @@ export class UserController {
   @RbacResource({
     type: RbacResourceType.INSTANCE,
   })
+  @ApiOkResponse({ type: UserListResponseDto })
   findAllUsers(
     @Query('limit', ParseIntPipe) limit?: number,
     @Query('continuationToken') continuationToken?: string,
-  ): Promise<{ users: UserEntity[]; continuationToken?: string }> {
+  ): Promise<UserListResponseDto> {
     return this.userService.findAll(limit, continuationToken);
   }
 
@@ -138,13 +152,14 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: AdminUserListResponseDto })
   async findAllUsersAdmin(
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
     @Query('banned', new DefaultValuePipe(undefined)) banned?: string,
     @Query('role') role?: InstanceRole,
     @Query('search') search?: string,
-  ): Promise<{ users: AdminUserEntity[]; continuationToken?: string }> {
+  ): Promise<AdminUserListResponseDto> {
     const filters = {
       banned: banned === 'true' ? true : banned === 'false' ? false : undefined,
       role,
@@ -160,6 +175,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: AdminUserEntity })
   async getUserByIdAdmin(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<AdminUserEntity> {
@@ -177,6 +193,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.UPDATE_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: AdminUserEntity })
   async updateUserRole(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) id: string,
@@ -192,6 +209,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.BAN_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: AdminUserEntity })
   async setBanStatus(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) id: string,
@@ -207,6 +225,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.DELETE_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: SuccessResponseDto })
   async deleteUser(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) id: string,
@@ -237,6 +256,7 @@ export class UserController {
    */
   @Delete('block/:userId')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: SuccessResponseDto })
   async unblockUser(
     @Req() req: AuthenticatedRequest,
     @Param('userId', ParseObjectIdPipe) userId: string,
@@ -250,6 +270,7 @@ export class UserController {
    */
   @Get('blocked')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: [UserEntity] })
   async getBlockedUsers(
     @Req() req: AuthenticatedRequest,
   ): Promise<UserEntity[]> {
@@ -261,10 +282,11 @@ export class UserController {
    */
   @Get('blocked/:userId')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: BlockedStatusResponseDto })
   async isUserBlocked(
     @Req() req: AuthenticatedRequest,
     @Param('userId', ParseObjectIdPipe) userId: string,
-  ): Promise<{ blocked: boolean }> {
+  ): Promise<BlockedStatusResponseDto> {
     const blocked = await this.userService.isUserBlocked(req.user.id, userId);
     return { blocked };
   }

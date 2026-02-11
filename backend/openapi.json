@@ -32,7 +32,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/LoginResponseDto"
                 }
               }
             }
@@ -53,7 +53,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/LoginResponseDto"
                 }
               }
             }
@@ -70,7 +70,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -90,7 +97,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/SessionInfoDto"
                   }
                 }
               }
@@ -107,7 +114,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeAllSessionsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Revoke all sessions except the current one",
@@ -131,7 +145,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeSessionResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Revoke a specific session",
@@ -192,7 +213,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -406,7 +434,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserListResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -458,7 +493,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Delete a user account (admin action)",
@@ -585,7 +627,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Unblock a user",
@@ -634,7 +683,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockedStatusResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Check if a specific user is blocked",
@@ -659,7 +715,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -671,7 +734,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InviteResponseDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -698,7 +771,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/InviteResponseDto"
                 }
               }
             }
@@ -728,7 +801,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/InviteResponseDto"
                 }
               }
             }
@@ -1187,7 +1260,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleUserDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1385,7 +1468,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleUserDto"
+                  }
+                }
+              }
+            }
           }
         },
         "summary": "Get users assigned to an instance role",
@@ -1410,7 +1503,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1433,7 +1533,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1456,7 +1566,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1479,7 +1599,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1510,7 +1637,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1564,7 +1698,17 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1597,7 +1741,17 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1611,7 +1765,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1635,7 +1796,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1652,7 +1820,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CommunityResponseDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1709,7 +1887,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1745,7 +1930,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1815,7 +2007,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityStatsListResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1843,7 +2042,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityStatsDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1900,7 +2106,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrichedMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1939,7 +2152,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedMessagesResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1978,7 +2198,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedMessagesResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2017,7 +2244,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnrichedMessageDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2056,7 +2293,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnrichedMessageDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2095,7 +2342,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnrichedMessageDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2119,7 +2376,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2141,7 +2405,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2174,7 +2445,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrichedMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2197,7 +2475,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrichedMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2228,7 +2513,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrichedMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2272,7 +2564,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileMetadataResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2809,7 +3108,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get notifications for current user with pagination\nGET /notifications?unreadOnly=true&limit=50&offset=0",
@@ -2824,7 +3130,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get unread notification count\nGET /notifications/unread-count",
@@ -2848,7 +3161,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDto"
+                }
+              }
+            }
           }
         },
         "summary": "Mark a notification as read\nPOST /notifications/:id/read",
@@ -2863,7 +3183,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Mark all notifications as read\nPOST /notifications/read-all",
@@ -2887,7 +3214,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDto"
+                }
+              }
+            }
           }
         },
         "summary": "Dismiss a notification\nPOST /notifications/:id/dismiss",
@@ -2926,7 +3260,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserNotificationSettingsDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get user notification settings\nGET /notifications/settings",
@@ -2949,7 +3290,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserNotificationSettingsDto"
+                }
+              }
+            }
           }
         },
         "summary": "Update user notification settings\nPUT /notifications/settings",
@@ -2977,7 +3325,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/ChannelNotificationOverrideDto"
                 }
               }
             }
@@ -3012,7 +3360,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelNotificationOverrideDto"
+                }
+              }
+            }
           }
         },
         "summary": "Set channel notification override\nPUT /notifications/channels/:channelId/override",
@@ -3059,7 +3414,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugNotificationResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "DEBUG: Send a test notification to the current user\nPOST /notifications/debug/send-test\nOnly available to OWNER users",
@@ -3074,7 +3436,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugSubscriptionsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "DEBUG: Get all push subscriptions for current user\nGET /notifications/debug/subscriptions\nOnly available to OWNER users",
@@ -3089,7 +3458,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearNotificationDataResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "DEBUG: Clear all notification settings for current user\nDELETE /notifications/debug/clear-all\nOnly available to OWNER users",
@@ -3104,7 +3480,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VapidPublicKeyResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get the VAPID public key for client subscription\nReturns null if push notifications are not configured",
@@ -3129,7 +3512,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "summary": "Subscribe to push notifications",
@@ -3154,7 +3544,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "summary": "Unsubscribe from push notifications",
@@ -3169,7 +3566,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushStatusResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get current push subscription status",
@@ -3184,7 +3588,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestPushResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3306,7 +3717,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3345,7 +3763,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3368,7 +3793,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CommunityBanDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3409,7 +3844,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3450,7 +3892,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3489,7 +3938,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3512,7 +3968,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CommunityTimeoutDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3543,7 +4009,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeoutStatusResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3576,7 +4049,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3607,7 +4087,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3630,7 +4117,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PinnedMessageDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3663,7 +4160,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3710,7 +4214,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationLogsResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3734,7 +4245,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadReceiptDto"
+                }
+              }
+            }
           }
         },
         "summary": "Mark messages as read up to a specific message\nPOST /read-receipts/mark-read",
@@ -3755,7 +4273,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/UnreadCountDto"
                   }
                 }
               }
@@ -3795,7 +4313,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/UnreadCountDto"
                 }
               }
             }
@@ -3830,7 +4348,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastReadResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get the last read message ID for a specific channel or DM group\nGET /read-receipts/last-read?channelId=xxx or ?directMessageGroupId=xxx",
@@ -3870,7 +4395,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
           }
         },
         "summary": "Get all users who have read a specific message\nGET /read-receipts/message/:messageId/readers?channelId=xxx or ?directMessageGroupId=xxx",
@@ -3947,7 +4482,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionInfoResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3961,7 +4503,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivekitHealthResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3985,7 +4534,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartReplayResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Start replay buffer egress for screen share",
@@ -4000,7 +4556,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopReplayResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Stop replay buffer egress for current user",
@@ -4019,7 +4582,15 @@
             "in": "query",
             "description": "Duration preset in minutes\nUser selects from: 1, 2, 5, or 10 minutes",
             "schema": {
-              "$ref": "#/components/schemas/Object"
+              "minimum": 1,
+              "maximum": 10,
+              "type": "number",
+              "enum": [
+                1,
+                2,
+                5,
+                10
+              ]
             }
           }
         ],
@@ -4240,7 +4811,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Delete a clip from user's library",
@@ -4339,7 +4917,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVoicePresenceResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4362,7 +4947,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4376,7 +4968,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserVoiceChannelsResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4399,7 +4998,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DmVoicePresenceResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4444,7 +5050,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4550,7 +5163,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedMessagesResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4637,7 +5257,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4660,7 +5287,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4743,7 +5377,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStorageListResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get users list with storage usage (admin only, for storage management page)",
@@ -4838,6 +5479,16 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStorageStatsDto"
+                }
+              }
+            }
+          },
           "201": {
             "description": "",
             "content": {
@@ -4871,7 +5522,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Update instance storage settings (admin only)",
@@ -4886,7 +5544,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSettingsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get instance settings (public - needed for registration mode)",
@@ -4953,7 +5618,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceStatsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get instance statistics (admin only)",
@@ -4968,7 +5640,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppearanceSettingsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get current user's appearance settings",
@@ -4991,7 +5670,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppearanceSettingsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Update current user's appearance settings",
@@ -5006,7 +5692,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FriendUserDto"
+                  }
+                }
+              }
+            }
           }
         },
         "summary": "Get all friends for the current user",
@@ -5025,7 +5721,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PendingRequestsDto"
                 }
               }
             }
@@ -5052,7 +5748,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendshipStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get friendship status with a specific user",
@@ -5076,7 +5779,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendshipDto"
+                }
+              }
+            }
           }
         },
         "summary": "Send a friend request to a user",
@@ -5100,7 +5810,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendshipDto"
+                }
+              }
+            }
           }
         },
         "summary": "Accept a friend request",
@@ -5124,7 +5841,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Decline a friend request",
@@ -5148,7 +5872,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Cancel a sent friend request",
@@ -5172,7 +5903,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Remove a friend (unfriend)",
@@ -5196,7 +5934,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadReplyDto"
+                }
+              }
+            }
           }
         },
         "summary": "Create a reply in a thread.\nPermission check: Uses message resource type to verify access to parent message context.",
@@ -5234,7 +5979,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadRepliesResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get paginated replies for a thread.",
@@ -5258,7 +6010,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadMetadataDto"
+                }
+              }
+            }
           }
         },
         "summary": "Get thread metadata (reply count, subscription status).",
@@ -5594,6 +6353,96 @@
       }
     },
     "schemas": {
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      },
+      "LogoutResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "SessionInfoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "deviceName": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "deviceName",
+          "ipAddress",
+          "createdAt",
+          "lastUsedAt",
+          "expiresAt",
+          "isCurrent"
+        ]
+      },
+      "RevokeSessionResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "RevokeAllSessionsResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "revokedCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "message",
+          "revokedCount"
+        ]
+      },
       "CreateUserDto": {
         "type": "object",
         "properties": {
@@ -5624,27 +6473,17 @@
       "UserEntity": {
         "type": "object",
         "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "USER"
+            ]
+          },
           "id": {
             "type": "string"
           },
           "username": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "nullable": true
-          },
-          "verified": {
-            "type": "boolean"
-          },
-          "role": {
-            "type": "object"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "hashedPassword": {
             "type": "string"
           },
           "avatarUrl": {
@@ -5671,53 +6510,18 @@
           "status": {
             "type": "string",
             "nullable": true
-          },
-          "statusUpdatedAt": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true
-          },
-          "banned": {
-            "type": "boolean"
-          },
-          "bannedAt": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true
-          },
-          "bannedById": {
-            "type": "string",
-            "nullable": true
-          },
-          "storageQuotaBytes": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "storageUsedBytes": {
-            "format": "int64",
-            "type": "integer"
           }
         },
         "required": [
+          "role",
           "id",
           "username",
-          "email",
-          "verified",
-          "role",
-          "createdAt",
-          "hashedPassword",
           "avatarUrl",
           "bannerUrl",
           "lastSeen",
           "displayName",
           "bio",
-          "status",
-          "statusUpdatedAt",
-          "banned",
-          "bannedAt",
-          "bannedById",
-          "storageQuotaBytes",
-          "storageUsedBytes"
+          "status"
         ]
       },
       "UpdateProfileDto": {
@@ -5744,9 +6548,33 @@
           }
         }
       },
+      "UserListResponseDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserEntity"
+            }
+          },
+          "continuationToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "users"
+        ]
+      },
       "AdminUserEntity": {
         "type": "object",
         "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "USER"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -5759,9 +6587,6 @@
           },
           "verified": {
             "type": "boolean"
-          },
-          "role": {
-            "type": "object"
           },
           "createdAt": {
             "format": "date-time",
@@ -5816,17 +6641,14 @@
           "storageUsedBytes": {
             "format": "int64",
             "type": "integer"
-          },
-          "hashedPassword": {
-            "type": "string"
           }
         },
         "required": [
+          "role",
           "id",
           "username",
           "email",
           "verified",
-          "role",
           "createdAt",
           "avatarUrl",
           "bannerUrl",
@@ -5839,15 +6661,35 @@
           "bannedAt",
           "bannedById",
           "storageQuotaBytes",
-          "storageUsedBytes",
-          "hashedPassword"
+          "storageUsedBytes"
+        ]
+      },
+      "AdminUserListResponseDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminUserEntity"
+            }
+          },
+          "continuationToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "users"
         ]
       },
       "UpdateUserRoleDto": {
         "type": "object",
         "properties": {
           "role": {
-            "type": "object"
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "USER"
+            ]
           }
         },
         "required": [
@@ -5864,6 +6706,28 @@
             "type": "string"
           }
         }
+      },
+      "SuccessResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "BlockedStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "blocked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "blocked"
+        ]
       },
       "CreateInviteDto": {
         "type": "object",
@@ -5887,20 +6751,164 @@
           "communityIds"
         ]
       },
-      "RoleDto": {
+      "InviteCreatorDto": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string"
           },
-          "name": {
+          "username": {
             "type": "string"
           },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName"
+        ]
+      },
+      "InviteResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultCommunityId": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maxUses": {
+            "type": "number",
+            "nullable": true
+          },
+          "uses": {
+            "type": "number"
+          },
+          "validUntil": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedByIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteCreatorDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "createdById",
+          "defaultCommunityId",
+          "maxUses",
+          "uses",
+          "validUntil",
+          "createdAt",
+          "usedByIds",
+          "disabled"
+        ]
+      },
+      "RoleDto": {
+        "type": "object",
+        "properties": {
           "actions": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string",
+              "enum": [
+                "DELETE_MESSAGE",
+                "DELETE_CHANNEL",
+                "DELETE_COMMUNITY",
+                "DELETE_INVITE",
+                "DELETE_USER",
+                "DELETE_ROLE",
+                "DELETE_ALIAS_GROUP",
+                "DELETE_ALIAS_GROUP_MEMBER",
+                "DELETE_INSTANCE_INVITE",
+                "DELETE_MEMBER",
+                "DELETE_REACTION",
+                "CREATE_MESSAGE",
+                "CREATE_CHANNEL",
+                "CREATE_COMMUNITY",
+                "CREATE_INVITE",
+                "CREATE_USER",
+                "CREATE_ROLE",
+                "CREATE_ALIAS_GROUP",
+                "CREATE_ALIAS_GROUP_MEMBER",
+                "CREATE_INSTANCE_INVITE",
+                "CREATE_MEMBER",
+                "CREATE_REACTION",
+                "JOIN_CHANNEL",
+                "READ_MESSAGE",
+                "READ_CHANNEL",
+                "READ_COMMUNITY",
+                "READ_ALL_COMMUNITIES",
+                "READ_USER",
+                "READ_ROLE",
+                "READ_ALIAS_GROUP",
+                "READ_ALIAS_GROUP_MEMBER",
+                "READ_INSTANCE_INVITE",
+                "READ_MEMBER",
+                "UPDATE_COMMUNITY",
+                "UPDATE_CHANNEL",
+                "UPDATE_MESSAGE",
+                "UPDATE_USER",
+                "UPDATE_ROLE",
+                "UPDATE_ALIAS_GROUP",
+                "UPDATE_ALIAS_GROUP_MEMBER",
+                "UPDATE_INSTANCE_INVITE",
+                "UPDATE_MEMBER",
+                "CAPTURE_REPLAY",
+                "READ_INSTANCE_SETTINGS",
+                "UPDATE_INSTANCE_SETTINGS",
+                "READ_INSTANCE_STATS",
+                "MANAGE_USER_STORAGE",
+                "BAN_USER",
+                "KICK_USER",
+                "TIMEOUT_USER",
+                "UNBAN_USER",
+                "PIN_MESSAGE",
+                "UNPIN_MESSAGE",
+                "DELETE_ANY_MESSAGE",
+                "VIEW_BAN_LIST",
+                "VIEW_MODERATION_LOGS"
+              ]
             }
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
           },
           "createdAt": {
             "format": "date-time",
@@ -5911,9 +6919,9 @@
           }
         },
         "required": [
+          "actions",
           "id",
           "name",
-          "actions",
           "createdAt",
           "isDefault"
         ]
@@ -5921,15 +6929,21 @@
       "UserRolesResponseDto": {
         "type": "object",
         "properties": {
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "COMMUNITY",
+              "CHANNEL",
+              "INSTANCE"
+            ],
+            "nullable": true
+          },
           "userId": {
             "type": "string"
           },
           "resourceId": {
             "type": "string",
             "nullable": true
-          },
-          "resourceType": {
-            "type": "object"
           },
           "roles": {
             "type": "array",
@@ -5939,9 +6953,9 @@
           }
         },
         "required": [
+          "resourceType",
           "userId",
           "resourceId",
-          "resourceType",
           "roles"
         ]
       },
@@ -5966,26 +6980,154 @@
       "CreateRoleDto": {
         "type": "object",
         "properties": {
+          "actions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "DELETE_MESSAGE",
+                "DELETE_CHANNEL",
+                "DELETE_COMMUNITY",
+                "DELETE_INVITE",
+                "DELETE_USER",
+                "DELETE_ROLE",
+                "DELETE_ALIAS_GROUP",
+                "DELETE_ALIAS_GROUP_MEMBER",
+                "DELETE_INSTANCE_INVITE",
+                "DELETE_MEMBER",
+                "DELETE_REACTION",
+                "CREATE_MESSAGE",
+                "CREATE_CHANNEL",
+                "CREATE_COMMUNITY",
+                "CREATE_INVITE",
+                "CREATE_USER",
+                "CREATE_ROLE",
+                "CREATE_ALIAS_GROUP",
+                "CREATE_ALIAS_GROUP_MEMBER",
+                "CREATE_INSTANCE_INVITE",
+                "CREATE_MEMBER",
+                "CREATE_REACTION",
+                "JOIN_CHANNEL",
+                "READ_MESSAGE",
+                "READ_CHANNEL",
+                "READ_COMMUNITY",
+                "READ_ALL_COMMUNITIES",
+                "READ_USER",
+                "READ_ROLE",
+                "READ_ALIAS_GROUP",
+                "READ_ALIAS_GROUP_MEMBER",
+                "READ_INSTANCE_INVITE",
+                "READ_MEMBER",
+                "UPDATE_COMMUNITY",
+                "UPDATE_CHANNEL",
+                "UPDATE_MESSAGE",
+                "UPDATE_USER",
+                "UPDATE_ROLE",
+                "UPDATE_ALIAS_GROUP",
+                "UPDATE_ALIAS_GROUP_MEMBER",
+                "UPDATE_INSTANCE_INVITE",
+                "UPDATE_MEMBER",
+                "CAPTURE_REPLAY",
+                "READ_INSTANCE_SETTINGS",
+                "UPDATE_INSTANCE_SETTINGS",
+                "READ_INSTANCE_STATS",
+                "MANAGE_USER_STORAGE",
+                "BAN_USER",
+                "KICK_USER",
+                "TIMEOUT_USER",
+                "UNBAN_USER",
+                "PIN_MESSAGE",
+                "UNPIN_MESSAGE",
+                "DELETE_ANY_MESSAGE",
+                "VIEW_BAN_LIST",
+                "VIEW_MODERATION_LOGS"
+              ]
+            }
+          },
           "name": {
             "type": "string",
             "maxLength": 50
-          },
-          "actions": {
-            "minItems": 1,
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
           }
         },
         "required": [
-          "name",
-          "actions"
+          "actions",
+          "name"
         ]
       },
       "UpdateRoleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "actions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "DELETE_MESSAGE",
+                "DELETE_CHANNEL",
+                "DELETE_COMMUNITY",
+                "DELETE_INVITE",
+                "DELETE_USER",
+                "DELETE_ROLE",
+                "DELETE_ALIAS_GROUP",
+                "DELETE_ALIAS_GROUP_MEMBER",
+                "DELETE_INSTANCE_INVITE",
+                "DELETE_MEMBER",
+                "DELETE_REACTION",
+                "CREATE_MESSAGE",
+                "CREATE_CHANNEL",
+                "CREATE_COMMUNITY",
+                "CREATE_INVITE",
+                "CREATE_USER",
+                "CREATE_ROLE",
+                "CREATE_ALIAS_GROUP",
+                "CREATE_ALIAS_GROUP_MEMBER",
+                "CREATE_INSTANCE_INVITE",
+                "CREATE_MEMBER",
+                "CREATE_REACTION",
+                "JOIN_CHANNEL",
+                "READ_MESSAGE",
+                "READ_CHANNEL",
+                "READ_COMMUNITY",
+                "READ_ALL_COMMUNITIES",
+                "READ_USER",
+                "READ_ROLE",
+                "READ_ALIAS_GROUP",
+                "READ_ALIAS_GROUP_MEMBER",
+                "READ_INSTANCE_INVITE",
+                "READ_MEMBER",
+                "UPDATE_COMMUNITY",
+                "UPDATE_CHANNEL",
+                "UPDATE_MESSAGE",
+                "UPDATE_USER",
+                "UPDATE_ROLE",
+                "UPDATE_ALIAS_GROUP",
+                "UPDATE_ALIAS_GROUP_MEMBER",
+                "UPDATE_INSTANCE_INVITE",
+                "UPDATE_MEMBER",
+                "CAPTURE_REPLAY",
+                "READ_INSTANCE_SETTINGS",
+                "UPDATE_INSTANCE_SETTINGS",
+                "READ_INSTANCE_STATS",
+                "MANAGE_USER_STORAGE",
+                "BAN_USER",
+                "KICK_USER",
+                "TIMEOUT_USER",
+                "UNBAN_USER",
+                "PIN_MESSAGE",
+                "UNPIN_MESSAGE",
+                "DELETE_ANY_MESSAGE",
+                "VIEW_BAN_LIST",
+                "VIEW_MODERATION_LOGS"
+              ]
+            }
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 50
+          }
+        }
       },
       "AssignRoleDto": {
         "type": "object",
@@ -6002,9 +7144,34 @@
           "roleId"
         ]
       },
+      "RoleUserDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "username"
+        ]
+      },
       "CreateChannelDto": {
         "type": "object",
         "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "VOICE"
+            ]
+          },
           "isPrivate": {
             "type": "boolean"
           },
@@ -6013,9 +7180,6 @@
           },
           "communityId": {
             "type": "string"
-          },
-          "type": {
-            "type": "object"
           },
           "position": {
             "type": "number"
@@ -6034,19 +7198,70 @@
           }
         },
         "required": [
+          "type",
           "isPrivate",
           "name",
           "communityId",
-          "type",
           "position",
           "slowmodeSeconds",
           "id",
           "createdAt"
         ]
       },
+      "ChannelDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "VOICE"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          },
+          "slowmodeSeconds": {
+            "type": "number"
+          },
+          "isPrivate": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "name",
+          "communityId",
+          "createdAt",
+          "position",
+          "slowmodeSeconds",
+          "isPrivate"
+        ]
+      },
       "UpdateChannelDto": {
         "type": "object",
         "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "VOICE"
+            ]
+          },
           "isPrivate": {
             "type": "boolean"
           },
@@ -6055,9 +7270,6 @@
           },
           "communityId": {
             "type": "string"
-          },
-          "type": {
-            "type": "object"
           },
           "position": {
             "type": "number"
@@ -6085,6 +7297,29 @@
         },
         "required": [
           "communityId"
+        ]
+      },
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "instanceName": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "instanceName",
+          "version",
+          "timestamp"
         ]
       },
       "CreateCommunityDto": {
@@ -6150,11 +7385,186 @@
       },
       "UpdateCommunityDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          },
+          "banner": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CommunityStatsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          },
+          "banner": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
+          },
+          "channelCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "avatar",
+          "banner",
+          "createdAt",
+          "memberCount",
+          "channelCount"
+        ]
+      },
+      "CommunityStatsListResponseDto": {
+        "type": "object",
+        "properties": {
+          "communities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityStatsDto"
+            }
+          },
+          "continuationToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "communities"
+        ]
+      },
+      "CommunityStatsDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          },
+          "banner": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
+          },
+          "channelCount": {
+            "type": "number"
+          },
+          "messageCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "avatar",
+          "banner",
+          "createdAt",
+          "memberCount",
+          "channelCount",
+          "messageCount"
+        ]
+      },
+      "CreateMessageSpanDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "PLAINTEXT",
+              "USER_MENTION",
+              "SPECIAL_MENTION",
+              "COMMUNITY_MENTION",
+              "ALIAS_MENTION"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialKind": {
+            "type": "string",
+            "nullable": true
+          },
+          "communityId": {
+            "type": "string",
+            "nullable": true
+          },
+          "aliasId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "type",
+          "text",
+          "userId",
+          "specialKind",
+          "communityId",
+          "aliasId"
+        ]
       },
       "CreateMessageDto": {
         "type": "object",
         "properties": {
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateMessageSpanDto"
+            }
+          },
           "id": {
             "type": "string"
           },
@@ -6182,45 +7592,6 @@
             "format": "date-time",
             "type": "string",
             "nullable": true
-          },
-          "spans": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "object"
-                },
-                "text": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "userId": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "specialKind": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "communityId": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "aliasId": {
-                  "type": "string",
-                  "nullable": true
-                }
-              },
-              "required": [
-                "type",
-                "text",
-                "userId",
-                "specialKind",
-                "communityId",
-                "aliasId"
-              ]
-            }
           },
           "attachments": {
             "type": "array",
@@ -6292,6 +7663,7 @@
           }
         },
         "required": [
+          "spans",
           "id",
           "channelId",
           "directMessageGroupId",
@@ -6299,7 +7671,6 @@
           "sentAt",
           "editedAt",
           "deletedAt",
-          "spans",
           "attachments",
           "pendingAttachments",
           "searchText",
@@ -6312,6 +7683,211 @@
           "parentMessageId",
           "replyCount",
           "lastReplyAt"
+        ]
+      },
+      "SpanDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "PLAINTEXT",
+              "USER_MENTION",
+              "SPECIAL_MENTION",
+              "COMMUNITY_MENTION",
+              "ALIAS_MENTION"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialKind": {
+            "type": "string",
+            "nullable": true
+          },
+          "communityId": {
+            "type": "string",
+            "nullable": true
+          },
+          "aliasId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "type",
+          "text",
+          "userId",
+          "specialKind",
+          "communityId",
+          "aliasId"
+        ]
+      },
+      "EnrichedAttachment": {
+        "type": "object",
+        "properties": {
+          "fileType": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "AUDIO",
+              "DOCUMENT",
+              "OTHER"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "fileType",
+          "id",
+          "filename",
+          "mimeType",
+          "size"
+        ]
+      },
+      "ReactionDto": {
+        "type": "object",
+        "properties": {
+          "emoji": {
+            "type": "string"
+          },
+          "userIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "emoji",
+          "userIds"
+        ]
+      },
+      "EnrichedMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnrichedAttachment"
+            }
+          },
+          "pendingAttachments": {
+            "type": "number",
+            "nullable": true
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReactionDto"
+            }
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "lastReplyAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "pinnedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinnedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "directMessageGroupId",
+          "authorId",
+          "spans",
+          "attachments",
+          "pendingAttachments",
+          "reactions",
+          "replyCount",
+          "lastReplyAt",
+          "pinned",
+          "pinnedAt",
+          "pinnedBy",
+          "sentAt",
+          "editedAt",
+          "deletedAt"
+        ]
+      },
+      "PaginatedMessagesResponseDto": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnrichedMessageDto"
+            }
+          },
+          "continuationToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "messages"
         ]
       },
       "AddReactionDto": {
@@ -6327,6 +7903,119 @@
         "required": [
           "messageId",
           "emoji"
+        ]
+      },
+      "MessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pendingAttachments": {
+            "type": "number",
+            "nullable": true
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReactionDto"
+            }
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "lastReplyAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "pinnedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinnedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "searchText": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedByReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentMessageId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "directMessageGroupId",
+          "authorId",
+          "spans",
+          "attachments",
+          "pendingAttachments",
+          "reactions",
+          "replyCount",
+          "lastReplyAt",
+          "pinned",
+          "pinnedAt",
+          "pinnedBy",
+          "sentAt",
+          "editedAt",
+          "deletedAt",
+          "searchText",
+          "deletedBy",
+          "deletedByReason",
+          "parentMessageId"
         ]
       },
       "RemoveReactionDto": {
@@ -6354,7 +8043,144 @@
       },
       "UpdateMessageDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateMessageSpanDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pendingAttachments": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0
+          },
+          "searchText": {
+            "type": "string",
+            "nullable": true
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "emoji": {
+                  "type": "string"
+                },
+                "userIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "emoji",
+                "userIds"
+              ]
+            }
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "pinnedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinnedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedByReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentMessageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "lastReplyAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "FileMetadataResponseDto": {
+        "type": "object",
+        "properties": {
+          "fileType": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "AUDIO",
+              "DOCUMENT",
+              "OTHER"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "fileType",
+          "id",
+          "filename",
+          "mimeType",
+          "size"
+        ]
       },
       "CreateMembershipDto": {
         "type": "object",
@@ -6474,6 +8300,212 @@
           "joinedAt"
         ]
       },
+      "NotificationAuthorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "avatarUrl"
+        ]
+      },
+      "NotificationMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "content"
+        ]
+      },
+      "NotificationDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "USER_MENTION",
+              "SPECIAL_MENTION",
+              "DIRECT_MESSAGE",
+              "CHANNEL_MESSAGE",
+              "THREAD_REPLY"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "parentMessageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "dismissed": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/NotificationAuthorDto"
+          },
+          "message": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationMessageDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "userId",
+          "messageId",
+          "channelId",
+          "directMessageGroupId",
+          "authorId",
+          "parentMessageId",
+          "read",
+          "dismissed",
+          "createdAt"
+        ]
+      },
+      "NotificationListResponseDto": {
+        "type": "object",
+        "properties": {
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "unreadCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "notifications",
+          "total",
+          "unreadCount"
+        ]
+      },
+      "UnreadCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "UserNotificationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "desktopEnabled": {
+            "type": "boolean"
+          },
+          "playSound": {
+            "type": "boolean"
+          },
+          "soundType": {
+            "type": "string"
+          },
+          "doNotDisturb": {
+            "type": "boolean"
+          },
+          "dndStartTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "dndEndTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultChannelLevel": {
+            "type": "string"
+          },
+          "dmNotifications": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "desktopEnabled",
+          "playSound",
+          "soundType",
+          "doNotDisturb",
+          "dndStartTime",
+          "dndEndTime",
+          "defaultChannelLevel",
+          "dmNotifications",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "UpdateNotificationSettingsDto": {
         "type": "object",
         "properties": {
@@ -6515,6 +8547,39 @@
           }
         }
       },
+      "ChannelNotificationOverrideDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "channelId",
+          "level",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "UpdateChannelOverrideDto": {
         "type": "object",
         "properties": {
@@ -6535,7 +8600,14 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": "object"
+            "type": "string",
+            "enum": [
+              "USER_MENTION",
+              "SPECIAL_MENTION",
+              "DIRECT_MESSAGE",
+              "CHANNEL_MESSAGE",
+              "THREAD_REPLY"
+            ]
           },
           "customMessage": {
             "type": "string"
@@ -6543,6 +8615,106 @@
         },
         "required": [
           "type"
+        ]
+      },
+      "DebugNotificationResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "notification": {
+            "$ref": "#/components/schemas/NotificationDto"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "notification",
+          "message"
+        ]
+      },
+      "DebugPushSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "createdAt"
+        ]
+      },
+      "DebugSubscriptionsResponseDto": {
+        "type": "object",
+        "properties": {
+          "subscriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DebugPushSubscriptionDto"
+            }
+          },
+          "count": {
+            "type": "number"
+          },
+          "pushEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "subscriptions",
+          "count",
+          "pushEnabled"
+        ]
+      },
+      "ClearNotificationDataResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "notificationsDeleted": {
+            "type": "number"
+          },
+          "settingsDeleted": {
+            "type": "number"
+          },
+          "overridesDeleted": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "notificationsDeleted",
+          "settingsDeleted",
+          "overridesDeleted",
+          "message"
+        ]
+      },
+      "VapidPublicKeyResponseDto": {
+        "type": "object",
+        "properties": {
+          "publicKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "publicKey",
+          "enabled"
         ]
       },
       "PushSubscriptionKeys": {
@@ -6578,6 +8750,21 @@
           "keys"
         ]
       },
+      "SuccessMessageDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ]
+      },
       "UnsubscribePushDto": {
         "type": "object",
         "properties": {
@@ -6589,6 +8776,44 @@
           "endpoint"
         ]
       },
+      "PushStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "subscriptionCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "subscriptionCount"
+        ]
+      },
+      "TestPushResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "sent": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "sent",
+          "failed",
+          "message"
+        ]
+      },
       "UnbanUserDto": {
         "type": "object",
         "properties": {
@@ -6596,6 +8821,49 @@
             "type": "string"
           }
         }
+      },
+      "CommunityBanDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "moderatorId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "communityId",
+          "userId",
+          "moderatorId",
+          "reason",
+          "createdAt",
+          "expiresAt",
+          "active"
+        ]
       },
       "KickUserDto": {
         "type": "object",
@@ -6629,6 +8897,59 @@
           }
         }
       },
+      "CommunityTimeoutDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "moderatorId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "communityId",
+          "userId",
+          "moderatorId",
+          "reason",
+          "createdAt",
+          "expiresAt"
+        ]
+      },
+      "TimeoutStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "isTimedOut": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "isTimedOut"
+        ]
+      },
       "PinMessageDto": {
         "type": "object",
         "properties": {
@@ -6645,6 +8966,187 @@
           }
         }
       },
+      "PinnedMessageAuthorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "avatarUrl"
+        ]
+      },
+      "PinnedMessageAttachmentDto": {
+        "type": "object",
+        "properties": {
+          "fileType": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "AUDIO",
+              "DOCUMENT",
+              "OTHER"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "fileType",
+          "id",
+          "filename",
+          "mimeType",
+          "size"
+        ]
+      },
+      "PinnedMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReactionDto"
+            }
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "pinnedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinnedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "lastReplyAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "searchText": {
+            "type": "string",
+            "nullable": true
+          },
+          "pendingAttachments": {
+            "type": "number",
+            "nullable": true
+          },
+          "deletedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedByReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentMessageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "author": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PinnedMessageAuthorDto"
+              }
+            ]
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinnedMessageAttachmentDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "directMessageGroupId",
+          "authorId",
+          "spans",
+          "reactions",
+          "sentAt",
+          "editedAt",
+          "deletedAt",
+          "pinned",
+          "pinnedAt",
+          "pinnedBy",
+          "replyCount",
+          "lastReplyAt",
+          "searchText",
+          "pendingAttachments",
+          "deletedBy",
+          "deletedByReason",
+          "parentMessageId",
+          "author",
+          "attachments"
+        ]
+      },
       "DeleteMessageAsModDto": {
         "type": "object",
         "properties": {
@@ -6652,6 +9154,78 @@
             "type": "string"
           }
         }
+      },
+      "ModerationLogDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "BAN_USER",
+              "UNBAN_USER",
+              "KICK_USER",
+              "TIMEOUT_USER",
+              "REMOVE_TIMEOUT",
+              "DELETE_MESSAGE",
+              "PIN_MESSAGE",
+              "UNPIN_MESSAGE"
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "moderatorId": {
+            "type": "string"
+          },
+          "targetUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "metadata",
+          "id",
+          "communityId",
+          "moderatorId",
+          "targetUserId",
+          "reason",
+          "createdAt"
+        ]
+      },
+      "ModerationLogsResponseDto": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModerationLogDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "logs",
+          "total"
+        ]
       },
       "MarkAsReadDto": {
         "type": "object",
@@ -6664,6 +9238,76 @@
           },
           "directMessageGroupId": {
             "type": "string"
+          }
+        },
+        "required": [
+          "lastReadMessageId"
+        ]
+      },
+      "ReadReceiptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastReadMessageId": {
+            "type": "string"
+          },
+          "lastReadAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "channelId",
+          "directMessageGroupId",
+          "lastReadMessageId",
+          "lastReadAt"
+        ]
+      },
+      "UnreadCountDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "directMessageGroupId": {
+            "type": "string"
+          },
+          "unreadCount": {
+            "type": "number"
+          },
+          "lastReadMessageId": {
+            "type": "string"
+          },
+          "lastReadAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unreadCount"
+        ]
+      },
+      "LastReadResponseDto": {
+        "type": "object",
+        "properties": {
+          "lastReadMessageId": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -6718,6 +9362,29 @@
           "roomId"
         ]
       },
+      "ConnectionInfoResponseDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "LivekitHealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "configured"
+        ]
+      },
       "StartReplayBufferDto": {
         "type": "object",
         "properties": {
@@ -6745,9 +9412,43 @@
           "audioTrackId"
         ]
       },
-      "Object": {
+      "StartReplayResponseDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "egressId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "egressId",
+          "status"
+        ]
+      },
+      "StopReplayResponseDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "egressId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "egressId",
+          "status"
+        ]
       },
       "SessionInfoResponseDto": {
         "type": "object",
@@ -6787,8 +9488,23 @@
         "type": "object",
         "properties": {
           "durationMinutes": {
-            "type": "object",
-            "description": "Duration preset in minutes (optional if using custom range)\nUser selects from: 1, 2, 5, or 10 minutes"
+            "type": "number",
+            "description": "Duration preset in minutes (optional if using custom range)\nUser selects from: 1, 2, 5, or 10 minutes",
+            "enum": [
+              1,
+              2,
+              5,
+              10
+            ]
+          },
+          "destination": {
+            "type": "string",
+            "description": "Where to save/post the clip\n- 'library': Save to user's clip library only\n- 'dm': Save to library and send to specified DM group\n- 'channel': Save to library and post to specified channel",
+            "enum": [
+              "library",
+              "dm",
+              "channel"
+            ]
           },
           "startSeconds": {
             "type": "number",
@@ -6799,10 +9515,6 @@
             "type": "number",
             "description": "Custom clip end time in seconds from buffer start\nRequired if using custom range (no durationMinutes)",
             "minimum": 1
-          },
-          "destination": {
-            "type": "object",
-            "description": "Where to save/post the clip\n- 'library': Save to user's clip library only\n- 'dm': Save to library and send to specified DM group\n- 'channel': Save to library and post to specified channel"
           },
           "targetChannelId": {
             "type": "string",
@@ -6916,8 +9628,12 @@
         "type": "object",
         "properties": {
           "destination": {
-            "type": "object",
-            "description": "Where to share the clip\n- 'channel': Post to specified channel\n- 'dm': Send to specified DM group"
+            "type": "string",
+            "description": "Where to share the clip\n- 'channel': Post to specified channel\n- 'dm': Send to specified DM group",
+            "enum": [
+              "channel",
+              "dm"
+            ]
           },
           "targetChannelId": {
             "type": "string",
@@ -6935,20 +9651,24 @@
       "ShareClipResponseDto": {
         "type": "object",
         "properties": {
+          "destination": {
+            "type": "string",
+            "enum": [
+              "channel",
+              "dm"
+            ]
+          },
           "messageId": {
             "type": "string"
           },
           "clipId": {
             "type": "string"
-          },
-          "destination": {
-            "type": "object"
           }
         },
         "required": [
+          "destination",
           "messageId",
-          "clipId",
-          "destination"
+          "clipId"
         ]
       },
       "LiveKitRoomInfo": {
@@ -7064,6 +9784,117 @@
           "event"
         ]
       },
+      "VoicePresenceUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isDeafened": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "joinedAt",
+          "isDeafened"
+        ]
+      },
+      "ChannelVoicePresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoicePresenceUserDto"
+            }
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "channelId",
+          "users",
+          "count"
+        ]
+      },
+      "RefreshPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "channelId"
+        ]
+      },
+      "UserVoiceChannelsResponseDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "voiceChannels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "userId",
+          "voiceChannels"
+        ]
+      },
+      "DmVoicePresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "dmGroupId": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoicePresenceUserDto"
+            }
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dmGroupId",
+          "users",
+          "count"
+        ]
+      },
       "OnboardingStatusDto": {
         "type": "object",
         "properties": {
@@ -7124,9 +9955,119 @@
           "setupToken"
         ]
       },
+      "SetupResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "adminUserId": {
+            "type": "string"
+          },
+          "defaultCommunityId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "adminUserId"
+        ]
+      },
+      "DmGroupMemberUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username"
+        ]
+      },
+      "DmGroupMemberDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/DmGroupMemberUserDto"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "joinedAt",
+          "user"
+        ]
+      },
+      "DmGroupLastMessageDto": {
+        "type": "object",
+        "properties": {
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spans",
+          "id",
+          "authorId",
+          "sentAt"
+        ]
+      },
       "DmGroupResponseDto": {
         "type": "object",
         "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DmGroupMemberDto"
+            }
+          },
+          "lastMessage": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DmGroupLastMessageDto"
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -7140,84 +10081,13 @@
           "createdAt": {
             "format": "date-time",
             "type": "string"
-          },
-          "members": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string"
-                },
-                "userId": {
-                  "type": "string"
-                },
-                "joinedAt": {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                "user": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "username": {
-                      "type": "string"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "avatarUrl": {
-                      "type": "string",
-                      "nullable": true
-                    }
-                  },
-                  "selfRequired": true
-                }
-              },
-              "required": [
-                "id",
-                "userId",
-                "joinedAt",
-                "user"
-              ]
-            }
-          },
-          "lastMessage": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "authorId": {
-                "type": "string"
-              },
-              "spans": {
-                "type": "array",
-                "items": {
-                  "type": "object"
-                }
-              },
-              "sentAt": {
-                "format": "date-time",
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "authorId",
-              "spans",
-              "sentAt"
-            ]
           }
         },
         "required": [
+          "members",
           "id",
           "isGroup",
-          "createdAt",
-          "members"
+          "createdAt"
         ]
       },
       "CreateDmGroupDto": {
@@ -7258,7 +10128,16 @@
         "type": "object",
         "properties": {
           "resourceType": {
-            "type": "object"
+            "type": "string",
+            "enum": [
+              "USER_AVATAR",
+              "USER_BANNER",
+              "COMMUNITY_BANNER",
+              "COMMUNITY_AVATAR",
+              "MESSAGE_ATTACHMENT",
+              "CUSTOM_EMOJI",
+              "REPLAY_CLIP"
+            ]
           },
           "resourceId": {
             "type": "string",
@@ -7267,6 +10146,91 @@
         },
         "required": [
           "resourceType"
+        ]
+      },
+      "FileUploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "fileType": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "AUDIO",
+              "DOCUMENT",
+              "OTHER"
+            ]
+          },
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "USER_AVATAR",
+              "USER_BANNER",
+              "COMMUNITY_BANNER",
+              "COMMUNITY_AVATAR",
+              "MESSAGE_ATTACHMENT",
+              "CUSTOM_EMOJI",
+              "REPLAY_CLIP"
+            ]
+          },
+          "storageType": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "S3",
+              "AZURE_BLOB"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "uploadedById": {
+            "type": "string",
+            "nullable": true
+          },
+          "uploadedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "resourceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "storagePath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileType",
+          "resourceType",
+          "storageType",
+          "id",
+          "filename",
+          "mimeType",
+          "size",
+          "checksum",
+          "uploadedById",
+          "uploadedAt",
+          "deletedAt",
+          "resourceId",
+          "storagePath"
         ]
       },
       "UserStorageStatsDto": {
@@ -7466,6 +10430,24 @@
           "server"
         ]
       },
+      "UserStorageListResponseDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserStorageStatsDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "users",
+          "total"
+        ]
+      },
       "UpdateUserQuotaDto": {
         "type": "object",
         "properties": {
@@ -7492,9 +10474,33 @@
           }
         }
       },
+      "PublicSettingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "registrationMode": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "INVITE_ONLY",
+              "CLOSED"
+            ]
+          }
+        },
+        "required": [
+          "registrationMode"
+        ]
+      },
       "InstanceSettingsResponseDto": {
         "type": "object",
         "properties": {
+          "registrationMode": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "INVITE_ONLY",
+              "CLOSED"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -7504,9 +10510,6 @@
           "description": {
             "type": "string",
             "nullable": true
-          },
-          "registrationMode": {
-            "type": "object"
           },
           "createdAt": {
             "format": "date-time",
@@ -7526,10 +10529,10 @@
           }
         },
         "required": [
+          "registrationMode",
           "id",
           "name",
           "description",
-          "registrationMode",
           "createdAt",
           "updatedAt",
           "defaultStorageQuotaBytes",
@@ -7539,6 +10542,14 @@
       "UpdateInstanceSettingsDto": {
         "type": "object",
         "properties": {
+          "registrationMode": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "INVITE_ONLY",
+              "CLOSED"
+            ]
+          },
           "name": {
             "type": "string",
             "maxLength": 100
@@ -7546,9 +10557,6 @@
           "description": {
             "type": "string",
             "maxLength": 500
-          },
-          "registrationMode": {
-            "type": "object"
           },
           "defaultStorageQuotaBytes": {
             "type": "number",
@@ -7561,6 +10569,74 @@
             "minimum": 0
           }
         }
+      },
+      "InstanceStatsResponseDto": {
+        "type": "object",
+        "properties": {
+          "totalUsers": {
+            "type": "number"
+          },
+          "totalCommunities": {
+            "type": "number"
+          },
+          "totalChannels": {
+            "type": "number"
+          },
+          "totalMessages": {
+            "type": "number"
+          },
+          "activeInvites": {
+            "type": "number"
+          },
+          "bannedUsers": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalUsers",
+          "totalCommunities",
+          "totalChannels",
+          "totalMessages",
+          "activeInvites",
+          "bannedUsers"
+        ]
+      },
+      "AppearanceSettingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "themeMode": {
+            "type": "string"
+          },
+          "accentColor": {
+            "type": "string"
+          },
+          "intensity": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "themeMode",
+          "accentColor",
+          "intensity",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "UpdateAppearanceSettingsDto": {
         "type": "object",
@@ -7598,6 +10674,481 @@
             ]
           }
         }
+      },
+      "FriendUserDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "USER"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "bannerUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastSeen": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusUpdatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "banned": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "role",
+          "id",
+          "username",
+          "email",
+          "verified",
+          "createdAt",
+          "avatarUrl",
+          "bannerUrl",
+          "lastSeen",
+          "displayName",
+          "bio",
+          "status",
+          "statusUpdatedAt",
+          "banned"
+        ]
+      },
+      "FriendshipWithUsersDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "BLOCKED"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "userAId": {
+            "type": "string"
+          },
+          "userBId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "userA": {
+            "$ref": "#/components/schemas/FriendUserDto"
+          },
+          "userB": {
+            "$ref": "#/components/schemas/FriendUserDto"
+          }
+        },
+        "required": [
+          "status",
+          "id",
+          "userAId",
+          "userBId",
+          "createdAt",
+          "userA",
+          "userB"
+        ]
+      },
+      "PendingRequestsDto": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FriendshipWithUsersDto"
+            }
+          },
+          "received": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FriendshipWithUsersDto"
+            }
+          }
+        },
+        "required": [
+          "sent",
+          "received"
+        ]
+      },
+      "FriendshipStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "BLOCKED"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "sent",
+              "received"
+            ],
+            "nullable": true
+          },
+          "friendshipId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status",
+          "direction",
+          "friendshipId"
+        ]
+      },
+      "FriendshipDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "BLOCKED"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "userAId": {
+            "type": "string"
+          },
+          "userBId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "id",
+          "userAId",
+          "userBId",
+          "createdAt"
+        ]
+      },
+      "ThreadReplyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pendingAttachments": {
+            "type": "number",
+            "nullable": true
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReactionDto"
+            }
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "pinnedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinnedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "lastReplyAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "parentMessageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "searchText": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedByReason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "directMessageGroupId",
+          "authorId",
+          "spans",
+          "attachments",
+          "pendingAttachments",
+          "reactions",
+          "sentAt",
+          "editedAt",
+          "deletedAt",
+          "pinned",
+          "pinnedAt",
+          "pinnedBy",
+          "replyCount",
+          "lastReplyAt",
+          "parentMessageId",
+          "searchText",
+          "deletedBy",
+          "deletedByReason"
+        ]
+      },
+      "EnrichedThreadReplyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnrichedAttachment"
+            }
+          },
+          "pendingAttachments": {
+            "type": "number",
+            "nullable": true
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReactionDto"
+            }
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "pinnedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "pinnedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "lastReplyAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "parentMessageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "searchText": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "deletedByReason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "directMessageGroupId",
+          "authorId",
+          "spans",
+          "attachments",
+          "pendingAttachments",
+          "reactions",
+          "sentAt",
+          "editedAt",
+          "deletedAt",
+          "pinned",
+          "pinnedAt",
+          "pinnedBy",
+          "replyCount",
+          "lastReplyAt",
+          "parentMessageId",
+          "searchText",
+          "deletedBy",
+          "deletedByReason"
+        ]
+      },
+      "ThreadRepliesResponseDto": {
+        "type": "object",
+        "properties": {
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnrichedThreadReplyDto"
+            }
+          },
+          "continuationToken": {
+            "type": "string"
+          },
+          "fileMetadata": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "replies"
+        ]
+      },
+      "ThreadMetadataDto": {
+        "type": "object",
+        "properties": {
+          "parentMessageId": {
+            "type": "string"
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "lastReplyAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "isSubscribed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "parentMessageId",
+          "replyCount",
+          "lastReplyAt",
+          "isSubscribed"
+        ]
       },
       "CreateAliasGroupDto": {
         "type": "object",

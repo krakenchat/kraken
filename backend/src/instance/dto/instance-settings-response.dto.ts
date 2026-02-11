@@ -1,5 +1,7 @@
 import { Transform } from 'class-transformer';
 import { RegistrationMode, InstanceSettings } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { RegistrationModeValues } from '@/common/enums/swagger-enums';
 
 /**
  * Instance settings response DTO with BigInt converted to Number for JSON serialization
@@ -8,6 +10,7 @@ export class InstanceSettingsResponseDto implements InstanceSettings {
   id: string;
   name: string;
   description: string | null;
+  @ApiProperty({ enum: RegistrationModeValues })
   registrationMode: RegistrationMode;
   createdAt: Date;
   updatedAt: Date;

@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { InviteService } from './invite.service';
 import { RbacActions } from '@prisma/client';
 import { CreateInviteDto } from './dto/create-invite.dto';
@@ -26,6 +27,7 @@ export class InviteController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.CREATE_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiCreatedResponse({ type: InviteResponseDto })
   async createInvite(
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreateInviteDto,
@@ -42,6 +44,7 @@ export class InviteController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: [InviteResponseDto] })
   async getInvites(
     @Req() req: AuthenticatedRequest,
   ): Promise<InviteResponseDto[]> {
@@ -49,6 +52,7 @@ export class InviteController {
   }
 
   @Get('public/:code')
+  @ApiOkResponse({ type: InviteResponseDto })
   async getPublicInvite(
     @Param('code') code: string,
   ): Promise<InviteResponseDto | null> {
@@ -59,6 +63,7 @@ export class InviteController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_INSTANCE_INVITE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: InviteResponseDto })
   async getInvite(@Param('code') code: string): Promise<InviteResponseDto | null> {
     return this.inviteService.getInviteByCode(code);
   }

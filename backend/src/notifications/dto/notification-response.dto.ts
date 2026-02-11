@@ -1,4 +1,6 @@
 import { NotificationType } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { NotificationTypeValues } from '@/common/enums/swagger-enums';
 
 export class UserNotificationSettingsDto {
   id: string;
@@ -39,6 +41,7 @@ export class NotificationMessageDto {
 export class NotificationDto {
   id: string;
   userId: string;
+  @ApiProperty({ enum: NotificationTypeValues })
   type: NotificationType;
   messageId: string | null;
   channelId: string | null;
@@ -68,8 +71,14 @@ export class DebugNotificationResponseDto {
   message: string;
 }
 
+export class DebugPushSubscriptionDto {
+  endpoint: string;
+  createdAt: Date;
+}
+
 export class DebugSubscriptionsResponseDto {
-  subscriptions: any[];
+  @ApiProperty({ type: [DebugPushSubscriptionDto] })
+  subscriptions: DebugPushSubscriptionDto[];
   count: number;
   pushEnabled: boolean;
 }

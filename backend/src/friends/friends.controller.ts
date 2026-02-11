@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { FriendsService } from './friends.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
@@ -16,6 +17,7 @@ import {
   PendingRequestsDto,
   FriendshipStatusDto,
 } from './dto/friends-response.dto';
+import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 
 @Controller('friends')
 @UseGuards(JwtAuthGuard)
@@ -26,6 +28,7 @@ export class FriendsController {
    * Get all friends for the current user
    */
   @Get()
+  @ApiOkResponse({ type: [FriendUserDto] })
   async getFriends(@Req() req: AuthenticatedRequest): Promise<FriendUserDto[]> {
     return this.friendsService.getFriends(req.user.id);
   }
@@ -34,6 +37,7 @@ export class FriendsController {
    * Get pending friend requests (sent and received)
    */
   @Get('requests')
+  @ApiOkResponse({ type: PendingRequestsDto })
   async getPendingRequests(
     @Req() req: AuthenticatedRequest,
   ): Promise<PendingRequestsDto> {
@@ -44,6 +48,7 @@ export class FriendsController {
    * Get friendship status with a specific user
    */
   @Get('status/:userId')
+  @ApiOkResponse({ type: FriendshipStatusDto })
   async getFriendshipStatus(
     @Req() req: AuthenticatedRequest,
     @Param('userId') userId: string,
@@ -55,6 +60,7 @@ export class FriendsController {
    * Send a friend request to a user
    */
   @Post('request/:userId')
+  @ApiCreatedResponse({ type: FriendshipDto })
   async sendFriendRequest(
     @Req() req: AuthenticatedRequest,
     @Param('userId') userId: string,
@@ -66,6 +72,7 @@ export class FriendsController {
    * Accept a friend request
    */
   @Post('accept/:id')
+  @ApiCreatedResponse({ type: FriendshipDto })
   async acceptFriendRequest(
     @Req() req: AuthenticatedRequest,
     @Param('id') friendshipId: string,
@@ -77,6 +84,7 @@ export class FriendsController {
    * Decline a friend request
    */
   @Delete('decline/:id')
+  @ApiOkResponse({ type: SuccessResponseDto })
   async declineFriendRequest(
     @Req() req: AuthenticatedRequest,
     @Param('id') friendshipId: string,
@@ -89,6 +97,7 @@ export class FriendsController {
    * Cancel a sent friend request
    */
   @Delete('cancel/:id')
+  @ApiOkResponse({ type: SuccessResponseDto })
   async cancelFriendRequest(
     @Req() req: AuthenticatedRequest,
     @Param('id') friendshipId: string,
@@ -101,6 +110,7 @@ export class FriendsController {
    * Remove a friend (unfriend)
    */
   @Delete(':id')
+  @ApiOkResponse({ type: SuccessResponseDto })
   async removeFriend(
     @Req() req: AuthenticatedRequest,
     @Param('id') friendshipId: string,

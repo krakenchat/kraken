@@ -1,4 +1,5 @@
 import { IsNumber, IsOptional, Min, Max } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * User storage stats response
@@ -10,6 +11,15 @@ export class UserStorageStatsDto {
   quotaBytes: number;
   percentUsed: number;
   fileCount: number;
+}
+
+/**
+ * Paginated user storage list response
+ */
+export class UserStorageListResponseDto {
+  @ApiProperty({ type: [UserStorageStatsDto] })
+  users: UserStorageStatsDto[];
+  total: number;
 }
 
 /**

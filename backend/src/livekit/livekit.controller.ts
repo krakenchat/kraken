@@ -12,6 +12,7 @@ import {
   Param,
   Logger,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { LivekitService } from './livekit.service';
@@ -39,6 +40,7 @@ import {
   StopReplayResponseDto,
 } from './dto/livekit-response.dto';
 import { StorageService } from '@/storage/storage.service';
+import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -69,6 +71,7 @@ export class LivekitController {
     idKey: 'roomId',
     source: ResourceIdSource.BODY,
   })
+  @ApiCreatedResponse({ type: TokenResponseDto })
   async generateToken(
     @Body() createTokenDto: CreateTokenDto,
     @Req() req: AuthenticatedRequest,
@@ -88,6 +91,7 @@ export class LivekitController {
     idKey: 'roomId',
     source: ResourceIdSource.BODY,
   })
+  @ApiCreatedResponse({ type: TokenResponseDto })
   async generateDmToken(
     @Body() createTokenDto: CreateTokenDto,
     @Req() req: AuthenticatedRequest,
@@ -101,11 +105,13 @@ export class LivekitController {
   }
 
   @Get('connection-info')
+  @ApiOkResponse({ type: ConnectionInfoResponseDto })
   getConnectionInfo(): ConnectionInfoResponseDto {
     return this.livekitService.getConnectionInfo();
   }
 
   @Get('health')
+  @ApiOkResponse({ type: LivekitHealthResponseDto })
   validateConfiguration(): LivekitHealthResponseDto {
     const isValid = this.livekitService.validateConfiguration();
     return {
@@ -124,6 +130,7 @@ export class LivekitController {
     idKey: 'channelId',
     source: ResourceIdSource.BODY,
   })
+  @ApiCreatedResponse({ type: StartReplayResponseDto })
   async startReplayBuffer(
     @Body() dto: StartReplayBufferDto,
     @Req() req: AuthenticatedRequest,
@@ -142,6 +149,7 @@ export class LivekitController {
    * Stop replay buffer egress for current user
    */
   @Post('replay/stop')
+  @ApiCreatedResponse({ type: StopReplayResponseDto })
   async stopReplayBuffer(
     @Req() req: AuthenticatedRequest,
   ): Promise<StopReplayResponseDto> {
@@ -217,6 +225,7 @@ export class LivekitController {
    * Get session info for active replay buffer (for trim UI)
    */
   @Get('replay/session-info')
+  @ApiOkResponse({ type: SessionInfoResponseDto })
   async getSessionInfo(
     @Req() req: AuthenticatedRequest,
   ): Promise<SessionInfoResponseDto> {
@@ -283,6 +292,7 @@ export class LivekitController {
   @RbacResource({
     type: RbacResourceType.INSTANCE,
   })
+  @ApiCreatedResponse({ type: CaptureReplayResponseDto })
   async captureReplay(
     @Body() dto: CaptureReplayDto,
     @Req() req: AuthenticatedRequest,
@@ -294,6 +304,7 @@ export class LivekitController {
    * Get current user's clip library
    */
   @Get('clips')
+  @ApiOkResponse({ type: [ClipResponseDto] })
   async getMyClips(
     @Req() req: AuthenticatedRequest,
   ): Promise<ClipResponseDto[]> {
@@ -304,6 +315,7 @@ export class LivekitController {
    * Get public clips for a specific user (for profile viewing)
    */
   @Get('clips/user/:userId')
+  @ApiOkResponse({ type: [ClipResponseDto] })
   async getUserPublicClips(
     @Param('userId') userId: string,
   ): Promise<ClipResponseDto[]> {
@@ -314,6 +326,7 @@ export class LivekitController {
    * Update a clip (e.g., toggle public visibility)
    */
   @Put('clips/:clipId')
+  @ApiOkResponse({ type: ClipResponseDto })
   async updateClip(
     @Param('clipId') clipId: string,
     @Body() dto: UpdateClipDto,
@@ -326,6 +339,7 @@ export class LivekitController {
    * Delete a clip from user's library
    */
   @Delete('clips/:clipId')
+  @ApiOkResponse({ type: SuccessResponseDto })
   async deleteClip(
     @Param('clipId') clipId: string,
     @Req() req: AuthenticatedRequest,
@@ -338,6 +352,7 @@ export class LivekitController {
    * Share an existing clip to a channel or DM
    */
   @Post('clips/:clipId/share')
+  @ApiCreatedResponse({ type: ShareClipResponseDto })
   async shareClip(
     @Param('clipId') clipId: string,
     @Body() dto: ShareClipDto,
