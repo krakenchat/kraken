@@ -17,7 +17,7 @@ import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
-import { RbacActions, Message } from '@prisma/client';
+import { RbacActions } from '@prisma/client';
 import {
   RbacResource,
   RbacResourceType,
@@ -26,6 +26,7 @@ import {
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { AuthenticatedRequest } from '@/types';
 import {
+  ThreadReplyDto,
   ThreadRepliesResponseDto,
   ThreadMetadataDto,
 } from './dto/thread-response.dto';
@@ -55,7 +56,7 @@ export class ThreadsController {
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Body() body: Omit<CreateThreadReplyDto, 'parentMessageId'>,
     @Req() req: AuthenticatedRequest,
-  ): Promise<Message> {
+  ): Promise<ThreadReplyDto> {
     const dto: CreateThreadReplyDto = {
       ...body,
       parentMessageId,

@@ -10,8 +10,9 @@ import {
 import { FriendsService } from './friends.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
-import { User, Friendship } from '@prisma/client';
 import {
+  FriendUserDto,
+  FriendshipDto,
   PendingRequestsDto,
   FriendshipStatusDto,
 } from './dto/friends-response.dto';
@@ -25,7 +26,7 @@ export class FriendsController {
    * Get all friends for the current user
    */
   @Get()
-  async getFriends(@Req() req: AuthenticatedRequest): Promise<User[]> {
+  async getFriends(@Req() req: AuthenticatedRequest): Promise<FriendUserDto[]> {
     return this.friendsService.getFriends(req.user.id);
   }
 
@@ -57,7 +58,7 @@ export class FriendsController {
   async sendFriendRequest(
     @Req() req: AuthenticatedRequest,
     @Param('userId') userId: string,
-  ): Promise<Friendship> {
+  ): Promise<FriendshipDto> {
     return this.friendsService.sendFriendRequest(req.user.id, userId);
   }
 
@@ -68,7 +69,7 @@ export class FriendsController {
   async acceptFriendRequest(
     @Req() req: AuthenticatedRequest,
     @Param('id') friendshipId: string,
-  ): Promise<Friendship> {
+  ): Promise<FriendshipDto> {
     return this.friendsService.acceptFriendRequest(req.user.id, friendshipId);
   }
 

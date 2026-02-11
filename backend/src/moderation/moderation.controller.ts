@@ -16,12 +16,7 @@ import { ModerationService } from './moderation.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
-import {
-  RbacActions,
-  ModerationAction,
-  CommunityBan,
-  CommunityTimeout,
-} from '@prisma/client';
+import { RbacActions, ModerationAction } from '@prisma/client';
 import {
   RbacResource,
   RbacResourceType,
@@ -40,6 +35,8 @@ import {
   DeleteMessageAsModDto,
 } from './dto';
 import {
+  CommunityBanDto,
+  CommunityTimeoutDto,
   TimeoutStatusResponseDto,
   ModerationLogsResponseDto,
   SuccessMessageDto,
@@ -114,7 +111,7 @@ export class ModerationController {
   })
   async getBanList(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-  ): Promise<CommunityBan[]> {
+  ): Promise<CommunityBanDto[]> {
     return this.moderationService.getBanList(communityId);
   }
 
@@ -208,7 +205,7 @@ export class ModerationController {
   })
   async getTimeoutList(
     @Param('communityId', ParseObjectIdPipe) communityId: string,
-  ): Promise<CommunityTimeout[]> {
+  ): Promise<CommunityTimeoutDto[]> {
     return this.moderationService.getTimeoutList(communityId);
   }
 

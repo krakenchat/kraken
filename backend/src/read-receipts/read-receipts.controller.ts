@@ -14,8 +14,8 @@ import { MarkAsReadDto } from './dto/mark-as-read.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { ReadReceipt } from '@prisma/client';
 import {
+  ReadReceiptDto,
   UnreadCountDto,
   LastReadResponseDto,
 } from './dto/read-receipts-response.dto';
@@ -34,7 +34,7 @@ export class ReadReceiptsController {
   async markAsRead(
     @Req() req: AuthenticatedRequest,
     @Body() markAsReadDto: MarkAsReadDto,
-  ): Promise<ReadReceipt> {
+  ): Promise<ReadReceiptDto> {
     return this.readReceiptsService.markAsRead(req.user.id, markAsReadDto);
   }
 

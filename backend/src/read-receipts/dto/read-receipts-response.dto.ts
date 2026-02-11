@@ -1,3 +1,12 @@
+export class ReadReceiptDto {
+  id: string;
+  userId: string;
+  channelId: string | null;
+  directMessageGroupId: string | null;
+  lastReadMessageId: string;
+  lastReadAt: Date;
+}
+
 export class UnreadCountDto {
   channelId?: string;
   directMessageGroupId?: string;

@@ -19,7 +19,7 @@ import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { MimeTypeAwareSizeValidator } from './validators/mime-type-aware-size.validator';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
-import { File } from '@prisma/client';
+import { FileUploadResponseDto } from './dto/file-upload-response.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('file-upload')
@@ -44,7 +44,7 @@ export class FileUploadController {
     file: Express.Multer.File,
     @Body() body: CreateFileUploadDto,
     @Req() req: AuthenticatedRequest,
-  ): Promise<File> {
+  ): Promise<FileUploadResponseDto> {
     return this.fileUploadService.uploadFile(file, body, req.user);
   }
 
@@ -52,7 +52,7 @@ export class FileUploadController {
   remove(
     @Param('id', ParseObjectIdPipe) id: string,
     @Req() req: AuthenticatedRequest,
-  ): Promise<File> {
+  ): Promise<FileUploadResponseDto> {
     return this.fileUploadService.remove(id, req.user.id);
   }
 }

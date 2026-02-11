@@ -34,9 +34,9 @@ import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { AuthenticatedRequest } from '@/types';
-import { Message } from '@prisma/client';
 import {
   EnrichedMessageDto,
+  MessageDto,
   PaginatedMessagesResponseDto,
 } from './dto/message-response.dto';
 
@@ -169,7 +169,7 @@ export class MessagesController {
   async addReaction(
     @Body() addReactionDto: AddReactionDto,
     @Req() req: AuthenticatedRequest,
-  ): Promise<Message> {
+  ): Promise<MessageDto> {
     const result = await this.reactionsService.addReaction(
       addReactionDto.messageId,
       addReactionDto.emoji,
@@ -203,7 +203,7 @@ export class MessagesController {
   async removeReaction(
     @Body() removeReactionDto: RemoveReactionDto,
     @Req() req: AuthenticatedRequest,
-  ): Promise<Message> {
+  ): Promise<MessageDto> {
     const result = await this.reactionsService.removeReaction(
       removeReactionDto.messageId,
       removeReactionDto.emoji,

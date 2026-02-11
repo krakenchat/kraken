@@ -9,7 +9,7 @@ import {
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AppearanceSettingsService } from './appearance-settings.service';
 import { UpdateAppearanceSettingsDto } from './dto/update-appearance-settings.dto';
-import { UserAppearanceSettings } from '@prisma/client';
+import { AppearanceSettingsResponseDto } from './dto/appearance-settings-response.dto';
 
 @Controller('appearance-settings')
 @UseGuards(JwtAuthGuard)
@@ -24,7 +24,7 @@ export class AppearanceSettingsController {
   @Get()
   async getSettings(
     @Request() req: { user: { id: string } },
-  ): Promise<UserAppearanceSettings> {
+  ): Promise<AppearanceSettingsResponseDto> {
     return this.appearanceSettingsService.getUserSettings(req.user.id);
   }
 
@@ -35,7 +35,7 @@ export class AppearanceSettingsController {
   async updateSettings(
     @Request() req: { user: { id: string } },
     @Body() dto: UpdateAppearanceSettingsDto,
-  ): Promise<UserAppearanceSettings> {
+  ): Promise<AppearanceSettingsResponseDto> {
     return this.appearanceSettingsService.updateUserSettings(req.user.id, dto);
   }
 }
