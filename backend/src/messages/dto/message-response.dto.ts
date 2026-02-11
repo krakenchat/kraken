@@ -1,6 +1,12 @@
 import { FileType, SpanType } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  SpanTypeValues,
+  FileTypeValues,
+} from '@/common/enums/swagger-enums';
 
 export class SpanDto {
+  @ApiProperty({ enum: SpanTypeValues })
   type: SpanType;
   text: string | null;
   userId: string | null;
@@ -18,6 +24,7 @@ export class EnrichedAttachment {
   id: string;
   filename: string;
   mimeType: string;
+  @ApiProperty({ enum: FileTypeValues })
   fileType: FileType;
   size: number;
 }

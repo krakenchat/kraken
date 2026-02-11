@@ -508,6 +508,34 @@ MongoDB with Prisma schema defines:
 - MongoDB requires replica set for change streams
 - Redis used for WebSocket scaling and caching
 
+## OpenAPI / Swagger Patterns
+
+### Prisma Enums in DTOs
+
+The NestJS Swagger plugin can't introspect Prisma enum types (generated into `node_modules/.prisma/client`), so DTO properties typed with Prisma enums render as `"type": "object"` in the OpenAPI spec (and `{ [key: string]: unknown }` in generated client types).
+
+**Fix:** Add `@ApiProperty({ enum: XxxValues })` using the const arrays from `@/common/enums/swagger-enums.ts`:
+
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+import { ChannelTypeValues } from '@/common/enums/swagger-enums';
+
+export class ChannelDto {
+  @ApiProperty({ enum: ChannelTypeValues })
+  type: ChannelType;
+}
+```
+
+For enum arrays: `@ApiProperty({ enum: RbacActionsValues, isArray: true })`
+
+### Controller Response Types
+
+Controllers need `@ApiOkResponse({ type: FooDto })` (or `@ApiCreatedResponse`) decorators for the OpenAPI spec to know the response shape. Without these, endpoints generate as `200: unknown`. The Swagger plugin auto-infers return types in simple cases, but fails for many controller patterns.
+
+### PartialType Import
+
+Always import `PartialType` from `@nestjs/swagger`, **not** `@nestjs/mapped-types`. The mapped-types version doesn't preserve Swagger metadata, causing the entire DTO to render as `{ [key: string]: unknown }`.
+
 ## Important Notes
 
 ### Database Operations

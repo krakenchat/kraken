@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Param, UseGuards, Req } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { VoicePresenceService } from './voice-presence.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RbacGuard } from '../auth/rbac.guard';
@@ -29,6 +30,7 @@ export class VoicePresenceController {
     idKey: 'channelId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: ChannelVoicePresenceResponseDto })
   async getChannelPresence(
     @Param('channelId') channelId: string,
   ): Promise<ChannelVoicePresenceResponseDto> {
@@ -47,6 +49,7 @@ export class VoicePresenceController {
     idKey: 'channelId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiCreatedResponse({ type: RefreshPresenceResponseDto })
   async refreshPresence(
     @Param('channelId') channelId: string,
     @Req() req: AuthenticatedRequest,
@@ -66,6 +69,7 @@ export class DmVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get()
+  @ApiOkResponse({ type: DmVoicePresenceResponseDto })
   async getDmPresence(
     @Param('dmGroupId') dmGroupId: string,
   ): Promise<DmVoicePresenceResponseDto> {
@@ -84,6 +88,7 @@ export class UserVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get('me')
+  @ApiOkResponse({ type: UserVoiceChannelsResponseDto })
   async getMyVoiceChannels(
     @Req() req: AuthenticatedRequest,
   ): Promise<UserVoiceChannelsResponseDto> {

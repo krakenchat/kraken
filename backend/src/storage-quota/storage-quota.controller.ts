@@ -11,6 +11,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { StorageQuotaService } from './storage-quota.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
@@ -18,10 +19,12 @@ import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { RbacActions } from '@prisma/client';
 import { AuthenticatedRequest } from '@/types';
+import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 import {
   UpdateUserQuotaDto,
   UpdateStorageSettingsDto,
   UserStorageStatsDto,
+  UserStorageListResponseDto,
   InstanceStorageStatsDto,
 } from './dto/storage-stats.dto';
 
@@ -34,6 +37,7 @@ export class StorageQuotaController {
    * Get current user's storage stats (for user settings)
    */
   @Get('my-usage')
+  @ApiOkResponse({ type: UserStorageStatsDto })
   async getMyStorageStats(
     @Req() req: AuthenticatedRequest,
   ): Promise<UserStorageStatsDto> {
@@ -46,6 +50,7 @@ export class StorageQuotaController {
   @Get('instance')
   @RequiredActions(RbacActions.READ_INSTANCE_STATS)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: InstanceStorageStatsDto })
   async getInstanceStorageStats(): Promise<InstanceStorageStatsDto> {
     return this.storageQuotaService.getInstanceStorageStats();
   }
@@ -56,6 +61,7 @@ export class StorageQuotaController {
   @Get('users')
   @RequiredActions(RbacActions.MANAGE_USER_STORAGE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: UserStorageListResponseDto })
   async getUsersStorageList(
     @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
     @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number,
@@ -75,6 +81,7 @@ export class StorageQuotaController {
   @Get('users/:userId')
   @RequiredActions(RbacActions.MANAGE_USER_STORAGE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: UserStorageStatsDto })
   async getUserStorageStats(
     @Param('userId') userId: string,
   ): Promise<UserStorageStatsDto> {
@@ -87,6 +94,7 @@ export class StorageQuotaController {
   @Patch('users/:userId/quota')
   @RequiredActions(RbacActions.MANAGE_USER_STORAGE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: UserStorageStatsDto })
   async updateUserQuota(
     @Param('userId') userId: string,
     @Body() dto: UpdateUserQuotaDto,
@@ -100,6 +108,7 @@ export class StorageQuotaController {
   @Post('users/:userId/recalculate')
   @RequiredActions(RbacActions.MANAGE_USER_STORAGE)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: UserStorageStatsDto })
   async recalculateUserStorage(
     @Param('userId') userId: string,
   ): Promise<UserStorageStatsDto> {
@@ -112,6 +121,7 @@ export class StorageQuotaController {
   @Patch('settings')
   @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
   @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: SuccessResponseDto })
   async updateStorageSettings(
     @Body() dto: UpdateStorageSettingsDto,
   ): Promise<{ success: boolean }> {

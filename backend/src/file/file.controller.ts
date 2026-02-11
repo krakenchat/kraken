@@ -8,6 +8,7 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import { FileService } from './file.service';
 import { StorageType } from '@prisma/client';
@@ -23,6 +24,7 @@ export class FileController {
 
   @Get(':id/metadata')
   @UseGuards(JwtAuthGuard, FileAccessGuard)
+  @ApiOkResponse({ type: FileMetadataResponseDto })
   async getFileMetadata(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<FileMetadataResponseDto> {
