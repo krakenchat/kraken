@@ -12,6 +12,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import { ThreadsService } from './threads.service';
 import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -52,6 +53,7 @@ export class ThreadsController {
     idKey: 'parentMessageId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiCreatedResponse({ type: ThreadReplyDto })
   async createReply(
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Body() body: Omit<CreateThreadReplyDto, 'parentMessageId'>,
@@ -74,6 +76,7 @@ export class ThreadsController {
     idKey: 'parentMessageId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: ThreadRepliesResponseDto })
   async getReplies(
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
@@ -96,6 +99,7 @@ export class ThreadsController {
     idKey: 'parentMessageId',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: ThreadMetadataDto })
   async getMetadata(
     @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
     @Req() req: AuthenticatedRequest,

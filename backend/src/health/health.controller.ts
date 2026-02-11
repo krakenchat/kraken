@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { Public } from '@/auth/public.decorator';
 import { HealthService } from './health.service';
 import { HealthResponseDto } from './dto/health-response.dto';
@@ -11,6 +11,7 @@ export class HealthController {
 
   @Get()
   @Public()
+  @ApiOkResponse({ type: HealthResponseDto })
   check(): HealthResponseDto {
     return this.healthService.getHealthMetadata();
   }

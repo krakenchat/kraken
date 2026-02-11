@@ -13,6 +13,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { LocalAuthGuard } from './local-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService, DeviceInfo } from './auth.service';
@@ -58,6 +59,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: LoginResponseDto })
   async login(
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
@@ -88,6 +90,7 @@ export class AuthController {
   @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: LoginResponseDto })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -149,6 +152,7 @@ export class AuthController {
 
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
   @Post('logout')
+  @ApiCreatedResponse({ type: LogoutResponseDto })
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -218,6 +222,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('sessions')
+  @ApiOkResponse({ type: [SessionInfoDto] })
   async getSessions(
     @Req() req: AuthenticatedRequest,
   ): Promise<SessionInfoDto[]> {
@@ -230,6 +235,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Delete('sessions/:sessionId')
+  @ApiOkResponse({ type: RevokeSessionResponseDto })
   async revokeSession(
     @Req() req: AuthenticatedRequest,
     @Param('sessionId', ParseObjectIdPipe) sessionId: string,
@@ -251,6 +257,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Delete('sessions')
+  @ApiOkResponse({ type: RevokeAllSessionsResponseDto })
   async revokeAllOtherSessions(
     @Req() req: AuthenticatedRequest,
   ): Promise<RevokeAllSessionsResponseDto> {

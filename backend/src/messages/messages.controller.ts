@@ -13,6 +13,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -51,6 +52,7 @@ export class MessagesController {
 
   @Post()
   @HttpCode(201)
+  @ApiCreatedResponse({ type: EnrichedMessageDto })
   @RequiredActions(RbacActions.CREATE_MESSAGE)
   @RbacResource({
     type: RbacResourceType.CHANNEL,
@@ -71,6 +73,7 @@ export class MessagesController {
   }
 
   @Get('/group/:groupId')
+  @ApiOkResponse({ type: PaginatedMessagesResponseDto })
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
     type: RbacResourceType.DM_GROUP,
@@ -90,6 +93,7 @@ export class MessagesController {
   }
 
   @Get('/channel/:channelId')
+  @ApiOkResponse({ type: PaginatedMessagesResponseDto })
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
     type: RbacResourceType.CHANNEL,
@@ -109,6 +113,7 @@ export class MessagesController {
   }
 
   @Get('search/channel/:channelId')
+  @ApiOkResponse({ type: [EnrichedMessageDto] })
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
     type: RbacResourceType.CHANNEL,
@@ -124,6 +129,7 @@ export class MessagesController {
   }
 
   @Get('search/group/:groupId')
+  @ApiOkResponse({ type: [EnrichedMessageDto] })
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
     type: RbacResourceType.DM_GROUP,
@@ -139,6 +145,7 @@ export class MessagesController {
   }
 
   @Get('search/community/:communityId')
+  @ApiOkResponse({ type: [EnrichedMessageDto] })
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
     type: RbacResourceType.COMMUNITY,
@@ -160,6 +167,7 @@ export class MessagesController {
   }
 
   @Post('reactions')
+  @ApiCreatedResponse({ type: MessageDto })
   @RequiredActions(RbacActions.CREATE_REACTION)
   @RbacResource({
     type: RbacResourceType.MESSAGE,
@@ -194,6 +202,7 @@ export class MessagesController {
   }
 
   @Delete('reactions')
+  @ApiOkResponse({ type: MessageDto })
   @RequiredActions(RbacActions.DELETE_REACTION)
   @RbacResource({
     type: RbacResourceType.MESSAGE,
@@ -228,6 +237,7 @@ export class MessagesController {
   }
 
   @Post(':id/attachments')
+  @ApiCreatedResponse({ type: EnrichedMessageDto })
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
   async addAttachment(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -260,6 +270,7 @@ export class MessagesController {
   }
 
   @Get(':id')
+  @ApiOkResponse({ type: EnrichedMessageDto })
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
     type: RbacResourceType.CHANNEL,
@@ -275,6 +286,7 @@ export class MessagesController {
   }
 
   @Patch(':id')
+  @ApiOkResponse({ type: EnrichedMessageDto })
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
   async update(
     @Param('id', ParseObjectIdPipe) id: string,

@@ -5,6 +5,7 @@ import {
   IsOptional,
   ValidateIf,
 } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * DTO for updating a replay clip (e.g., toggling public visibility)
@@ -27,6 +28,7 @@ export class ShareClipDto {
    * - 'channel': Post to specified channel
    * - 'dm': Send to specified DM group
    */
+  @ApiProperty({ enum: ['channel', 'dm'] })
   @IsEnum(['channel', 'dm'], {
     message: 'Destination must be channel or dm',
   })
@@ -70,5 +72,6 @@ export class ClipResponseDto {
 export class ShareClipResponseDto {
   messageId: string;
   clipId: string;
+  @ApiProperty({ enum: ['channel', 'dm'] })
   destination: 'channel' | 'dm';
 }

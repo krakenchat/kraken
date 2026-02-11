@@ -9,6 +9,7 @@ import {
   HttpCode,
   Param,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { ReadReceiptsService } from './read-receipts.service';
 import { MarkAsReadDto } from './dto/mark-as-read.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -31,6 +32,7 @@ export class ReadReceiptsController {
    */
   @Post('mark-read')
   @HttpCode(200)
+  @ApiOkResponse({ type: ReadReceiptDto })
   async markAsRead(
     @Req() req: AuthenticatedRequest,
     @Body() markAsReadDto: MarkAsReadDto,
@@ -43,6 +45,7 @@ export class ReadReceiptsController {
    * GET /read-receipts/unread-counts
    */
   @Get('unread-counts')
+  @ApiOkResponse({ type: [UnreadCountDto] })
   async getUnreadCounts(
     @Req() req: AuthenticatedRequest,
   ): Promise<UnreadCountDto[]> {
@@ -54,6 +57,7 @@ export class ReadReceiptsController {
    * GET /read-receipts/unread-count?channelId=xxx or ?directMessageGroupId=xxx
    */
   @Get('unread-count')
+  @ApiOkResponse({ type: UnreadCountDto })
   async getUnreadCount(
     @Req() req: AuthenticatedRequest,
     @Query('channelId', ParseObjectIdPipe) channelId?: string,
@@ -72,6 +76,7 @@ export class ReadReceiptsController {
    * GET /read-receipts/last-read?channelId=xxx or ?directMessageGroupId=xxx
    */
   @Get('last-read')
+  @ApiOkResponse({ type: LastReadResponseDto })
   async getLastReadMessageId(
     @Req() req: AuthenticatedRequest,
     @Query('channelId', ParseObjectIdPipe) channelId?: string,

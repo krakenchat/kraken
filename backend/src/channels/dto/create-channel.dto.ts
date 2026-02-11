@@ -10,6 +10,8 @@ import {
   Min,
   Max,
 } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { ChannelTypeValues } from '@/common/enums/swagger-enums';
 
 export class CreateChannelDto implements Channel {
   @IsBoolean()
@@ -24,6 +26,7 @@ export class CreateChannelDto implements Channel {
   @IsNotEmpty()
   communityId: string;
 
+  @ApiProperty({ enum: ChannelTypeValues })
   @IsEnum($Enums.ChannelType)
   type: $Enums.ChannelType;
 

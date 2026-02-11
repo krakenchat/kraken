@@ -12,6 +12,7 @@ import {
   HttpCode,
   ForbiddenException,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { UpdateChannelOverrideDto } from './dto/update-channel-override.dto';
@@ -46,6 +47,7 @@ export class NotificationsController {
    * GET /notifications?unreadOnly=true&limit=50&offset=0
    */
   @Get()
+  @ApiOkResponse({ type: NotificationListResponseDto })
   async getNotifications(
     @Req() req: AuthenticatedRequest,
     @Query() query: NotificationQueryDto,
@@ -71,6 +73,7 @@ export class NotificationsController {
    * GET /notifications/unread-count
    */
   @Get('unread-count')
+  @ApiOkResponse({ type: UnreadCountResponseDto })
   async getUnreadCount(
     @Req() req: AuthenticatedRequest,
   ): Promise<UnreadCountResponseDto> {
@@ -84,6 +87,7 @@ export class NotificationsController {
    */
   @Post(':id/read')
   @HttpCode(200)
+  @ApiOkResponse({ type: NotificationDto })
   async markAsRead(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) notificationId: string,
@@ -97,6 +101,7 @@ export class NotificationsController {
    */
   @Post('read-all')
   @HttpCode(200)
+  @ApiOkResponse({ type: UnreadCountResponseDto })
   async markAllAsRead(
     @Req() req: AuthenticatedRequest,
   ): Promise<{ count: number }> {
@@ -109,6 +114,7 @@ export class NotificationsController {
    */
   @Post(':id/dismiss')
   @HttpCode(200)
+  @ApiOkResponse({ type: NotificationDto })
   async dismissNotification(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) notificationId: string,
@@ -140,6 +146,7 @@ export class NotificationsController {
    * GET /notifications/settings
    */
   @Get('settings')
+  @ApiOkResponse({ type: UserNotificationSettingsDto })
   async getSettings(
     @Req() req: AuthenticatedRequest,
   ): Promise<UserNotificationSettingsDto> {
@@ -151,6 +158,7 @@ export class NotificationsController {
    * PUT /notifications/settings
    */
   @Put('settings')
+  @ApiOkResponse({ type: UserNotificationSettingsDto })
   async updateSettings(
     @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateNotificationSettingsDto,
@@ -163,6 +171,7 @@ export class NotificationsController {
    * GET /notifications/channels/:channelId/override
    */
   @Get('channels/:channelId/override')
+  @ApiOkResponse({ type: ChannelNotificationOverrideDto })
   async getChannelOverride(
     @Req() req: AuthenticatedRequest,
     @Param('channelId', ParseObjectIdPipe) channelId: string,
@@ -175,6 +184,7 @@ export class NotificationsController {
    * PUT /notifications/channels/:channelId/override
    */
   @Put('channels/:channelId/override')
+  @ApiOkResponse({ type: ChannelNotificationOverrideDto })
   async setChannelOverride(
     @Req() req: AuthenticatedRequest,
     @Param('channelId', ParseObjectIdPipe) channelId: string,
@@ -223,6 +233,7 @@ export class NotificationsController {
    */
   @Post('debug/send-test')
   @HttpCode(200)
+  @ApiOkResponse({ type: DebugNotificationResponseDto })
   async sendTestNotification(
     @Req() req: AuthenticatedRequest,
     @Body() dto: SendTestNotificationDto,
@@ -245,6 +256,7 @@ export class NotificationsController {
    * Only available to OWNER users
    */
   @Get('debug/subscriptions')
+  @ApiOkResponse({ type: DebugSubscriptionsResponseDto })
   async getDebugSubscriptions(
     @Req() req: AuthenticatedRequest,
   ): Promise<DebugSubscriptionsResponseDto> {
@@ -265,6 +277,7 @@ export class NotificationsController {
    */
   @Delete('debug/clear-all')
   @HttpCode(200)
+  @ApiOkResponse({ type: ClearNotificationDataResponseDto })
   async clearDebugSettings(
     @Req() req: AuthenticatedRequest,
   ): Promise<ClearNotificationDataResponseDto> {

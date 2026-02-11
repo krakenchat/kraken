@@ -8,6 +8,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -73,6 +74,7 @@ export class DirectMessagesController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
+  @ApiOkResponse({ type: PaginatedMessagesResponseDto })
   async getDmMessages(
     @Param('id') id: string,
     @Req() req: { user: { id: string } },

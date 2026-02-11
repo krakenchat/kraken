@@ -1,11 +1,14 @@
 import { IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
 import { NotificationType } from '@prisma/client';
 import { IsObjectId } from 'nestjs-object-id';
+import { ApiProperty } from '@nestjs/swagger';
+import { NotificationTypeValues } from '@/common/enums/swagger-enums';
 
 export class CreateNotificationDto {
   @IsObjectId()
   userId: string;
 
+  @ApiProperty({ enum: NotificationTypeValues })
   @IsNotEmpty()
   @IsEnum(NotificationType)
   type: NotificationType;

@@ -8,6 +8,8 @@ import {
 } from 'class-validator';
 import { RegistrationMode } from '@prisma/client';
 import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
+import { RegistrationModeValues } from '@/common/enums/swagger-enums';
 
 export class UpdateInstanceSettingsDto {
   @IsOptional()
@@ -20,6 +22,7 @@ export class UpdateInstanceSettingsDto {
   @MaxLength(500)
   description?: string;
 
+  @ApiProperty({ enum: RegistrationModeValues, required: false })
   @IsOptional()
   @IsEnum(RegistrationMode)
   registrationMode?: RegistrationMode;

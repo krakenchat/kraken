@@ -1,5 +1,17 @@
 import { IsString, IsOptional, IsArray, IsInt, Min } from 'class-validator';
 import { $Enums } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { SpanTypeValues } from '@/common/enums/swagger-enums';
+
+class ThreadReplySpanDto {
+  @ApiProperty({ enum: SpanTypeValues })
+  type: $Enums.SpanType;
+  text: string | null;
+  userId: string | null;
+  specialKind: string | null;
+  communityId: string | null;
+  aliasId: string | null;
+}
 
 /**
  * DTO for creating a thread reply message.
@@ -9,15 +21,9 @@ export class CreateThreadReplyDto {
   @IsString()
   parentMessageId: string;
 
+  @ApiProperty({ type: [ThreadReplySpanDto] })
   @IsArray()
-  spans: {
-    type: $Enums.SpanType;
-    text: string | null;
-    userId: string | null;
-    specialKind: string | null;
-    communityId: string | null;
-    aliasId: string | null;
-  }[];
+  spans: ThreadReplySpanDto[];
 
   @IsArray()
   @IsOptional()

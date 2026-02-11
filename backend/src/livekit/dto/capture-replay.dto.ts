@@ -8,6 +8,7 @@ import {
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * DTO for streaming a replay clip (download-only, no persistence)
@@ -17,6 +18,7 @@ export class StreamReplayDto {
    * Duration preset in minutes
    * User selects from: 1, 2, 5, or 10 minutes
    */
+  @ApiProperty({ enum: [1, 2, 5, 10] })
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -35,6 +37,7 @@ export class CaptureReplayDto {
    * Duration preset in minutes (optional if using custom range)
    * User selects from: 1, 2, 5, or 10 minutes
    */
+  @ApiProperty({ enum: [1, 2, 5, 10], required: false })
   @IsOptional()
   @ValidateIf((o: CaptureReplayDto) => !o.startSeconds && !o.endSeconds)
   @IsEnum([1, 2, 5, 10], {
@@ -70,6 +73,7 @@ export class CaptureReplayDto {
    * - 'dm': Save to library and send to specified DM group
    * - 'channel': Save to library and post to specified channel
    */
+  @ApiProperty({ enum: ['library', 'dm', 'channel'] })
   @IsEnum(['library', 'dm', 'channel'], {
     message: 'Destination must be library, dm, or channel',
   })
