@@ -20,13 +20,9 @@ import { SendTestNotificationDto } from './dto/debug-notification.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
+import { InstanceRole } from '@prisma/client';
 import {
-  InstanceRole,
-  Notification,
-  UserNotificationSettings,
-  ChannelNotificationOverride,
-} from '@prisma/client';
-import {
+  NotificationDto,
   NotificationListResponseDto,
   UnreadCountResponseDto,
   DebugNotificationResponseDto,
@@ -89,7 +85,7 @@ export class NotificationsController {
   async markAsRead(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) notificationId: string,
-  ): Promise<Notification> {
+  ): Promise<NotificationDto> {
     return this.notificationsService.markAsRead(notificationId, req.user.id);
   }
 
@@ -114,7 +110,7 @@ export class NotificationsController {
   async dismissNotification(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseObjectIdPipe) notificationId: string,
-  ): Promise<Notification> {
+  ): Promise<NotificationDto> {
     return this.notificationsService.dismissNotification(
       notificationId,
       req.user.id,

@@ -1,7 +1,35 @@
-import { Notification } from '@prisma/client';
+import { NotificationType } from '@prisma/client';
+
+export class NotificationAuthorDto {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+export class NotificationMessageDto {
+  id: string;
+  content: string;
+}
+
+export class NotificationDto {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  messageId: string | null;
+  channelId: string | null;
+  directMessageGroupId: string | null;
+  authorId: string;
+  parentMessageId: string | null;
+  read: boolean;
+  dismissed: boolean;
+  createdAt: Date;
+  author?: NotificationAuthorDto;
+  message?: NotificationMessageDto | null;
+}
 
 export class NotificationListResponseDto {
-  notifications: Notification[];
+  notifications: NotificationDto[];
   total: number;
   unreadCount: number;
 }
@@ -12,7 +40,7 @@ export class UnreadCountResponseDto {
 
 export class DebugNotificationResponseDto {
   success: boolean;
-  notification: Notification;
+  notification: NotificationDto;
   message: string;
 }
 
