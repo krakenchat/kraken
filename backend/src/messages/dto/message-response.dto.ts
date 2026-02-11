@@ -1,9 +1,6 @@
 import { FileType, SpanType } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  SpanTypeValues,
-  FileTypeValues,
-} from '@/common/enums/swagger-enums';
+import { SpanTypeValues, FileTypeValues } from '@/common/enums/swagger-enums';
 
 export class SpanDto {
   @ApiProperty({ enum: SpanTypeValues })

@@ -6,8 +6,10 @@ import {
   Delete,
   Body,
   Param,
+  HttpCode,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -17,11 +19,11 @@ import {
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
 import { RbacActions } from '@prisma/client';
+import { AliasGroupsService } from './alias-groups.service';
 import {
-  AliasGroupsService,
-  AliasGroupWithMembers,
-  AliasGroupSummary,
-} from './alias-groups.service';
+  AliasGroupWithMembersDto,
+  AliasGroupSummaryDto,
+} from './dto/alias-group-response.dto';
 import { CreateAliasGroupDto } from './dto/create-alias-group.dto';
 import { UpdateAliasGroupDto } from './dto/update-alias-group.dto';
 import { AddMemberDto } from './dto/add-member.dto';
@@ -36,6 +38,7 @@ export class AliasGroupsController {
    * Get all alias groups for a community
    */
   @Get('community/:communityId')
+  @ApiOkResponse({ type: [AliasGroupSummaryDto] })
   @RequiredActions(RbacActions.READ_ALIAS_GROUP)
   @RbacResource({
     type: RbacResourceType.COMMUNITY,
@@ -44,7 +47,7 @@ export class AliasGroupsController {
   })
   async getCommunityAliasGroups(
     @Param('communityId') communityId: string,
-  ): Promise<AliasGroupSummary[]> {
+  ): Promise<AliasGroupSummaryDto[]> {
     return this.aliasGroupsService.getCommunityAliasGroups(communityId);
   }
 
@@ -52,6 +55,7 @@ export class AliasGroupsController {
    * Create a new alias group
    */
   @Post('community/:communityId')
+  @ApiCreatedResponse({ type: AliasGroupWithMembersDto })
   @RequiredActions(RbacActions.CREATE_ALIAS_GROUP)
   @RbacResource({
     type: RbacResourceType.COMMUNITY,
@@ -61,7 +65,7 @@ export class AliasGroupsController {
   async createAliasGroup(
     @Param('communityId') communityId: string,
     @Body() dto: CreateAliasGroupDto,
-  ): Promise<AliasGroupWithMembers> {
+  ): Promise<AliasGroupWithMembersDto> {
     return this.aliasGroupsService.createAliasGroup(communityId, dto);
   }
 
@@ -69,6 +73,7 @@ export class AliasGroupsController {
    * Get a single alias group with full member details
    */
   @Get(':groupId')
+  @ApiOkResponse({ type: AliasGroupWithMembersDto })
   @RequiredActions(RbacActions.READ_ALIAS_GROUP)
   @RbacResource({
     type: RbacResourceType.ALIAS_GROUP,
@@ -77,7 +82,7 @@ export class AliasGroupsController {
   })
   async getAliasGroup(
     @Param('groupId') groupId: string,
-  ): Promise<AliasGroupWithMembers> {
+  ): Promise<AliasGroupWithMembersDto> {
     return this.aliasGroupsService.getAliasGroup(groupId);
   }
 
@@ -85,6 +90,7 @@ export class AliasGroupsController {
    * Update an alias group's name
    */
   @Put(':groupId')
+  @ApiOkResponse({ type: AliasGroupWithMembersDto })
   @RequiredActions(RbacActions.UPDATE_ALIAS_GROUP)
   @RbacResource({
     type: RbacResourceType.ALIAS_GROUP,
@@ -94,7 +100,7 @@ export class AliasGroupsController {
   async updateAliasGroup(
     @Param('groupId') groupId: string,
     @Body() dto: UpdateAliasGroupDto,
-  ): Promise<AliasGroupWithMembers> {
+  ): Promise<AliasGroupWithMembersDto> {
     return this.aliasGroupsService.updateAliasGroup(groupId, dto);
   }
 
@@ -102,6 +108,7 @@ export class AliasGroupsController {
    * Delete an alias group
    */
   @Delete(':groupId')
+  @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_ALIAS_GROUP)
   @RbacResource({
     type: RbacResourceType.ALIAS_GROUP,
@@ -116,6 +123,7 @@ export class AliasGroupsController {
    * Add a member to an alias group
    */
   @Post(':groupId/members')
+  @HttpCode(204)
   @RequiredActions(RbacActions.CREATE_ALIAS_GROUP_MEMBER)
   @RbacResource({
     type: RbacResourceType.ALIAS_GROUP,
@@ -133,6 +141,7 @@ export class AliasGroupsController {
    * Remove a member from an alias group
    */
   @Delete(':groupId/members/:userId')
+  @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_ALIAS_GROUP_MEMBER)
   @RbacResource({
     type: RbacResourceType.ALIAS_GROUP,
@@ -150,6 +159,7 @@ export class AliasGroupsController {
    * Replace all members of an alias group
    */
   @Put(':groupId/members')
+  @HttpCode(204)
   @RequiredActions(RbacActions.UPDATE_ALIAS_GROUP_MEMBER)
   @RbacResource({
     type: RbacResourceType.ALIAS_GROUP,

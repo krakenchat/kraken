@@ -19,6 +19,7 @@ import {
   ReadReceiptDto,
   UnreadCountDto,
   LastReadResponseDto,
+  MessageReaderDto,
 } from './dto/read-receipts-response.dto';
 
 @Controller('read-receipts')
@@ -98,12 +99,13 @@ export class ReadReceiptsController {
    * GET /read-receipts/message/:messageId/readers?channelId=xxx or ?directMessageGroupId=xxx
    */
   @Get('message/:messageId/readers')
+  @ApiOkResponse({ type: [MessageReaderDto] })
   async getMessageReaders(
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Query('channelId', ParseObjectIdPipe) channelId?: string,
     @Query('directMessageGroupId', ParseObjectIdPipe)
     directMessageGroupId?: string,
-  ): Promise<any[]> {
+  ): Promise<MessageReaderDto[]> {
     return this.readReceiptsService.getMessageReaders(
       messageId,
       channelId,

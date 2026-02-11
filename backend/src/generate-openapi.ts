@@ -27,4 +27,4 @@ async function generate() {
   await app.close();
 }
 
-generate();
+void generate();

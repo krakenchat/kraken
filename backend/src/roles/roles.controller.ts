@@ -27,6 +27,7 @@ import { RoleUserDto } from './dto/role-users-response.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
+import { AssignInstanceRoleDto } from './dto/assign-instance-role.dto';
 import { CommunityRolesResponseDto } from './dto/community-roles-response.dto';
 import { AuthenticatedRequest } from '@/types';
 
@@ -167,6 +168,7 @@ export class RolesController {
   // ===== USER-ROLE ASSIGNMENT ENDPOINTS =====
 
   @Post('community/:communityId/assign')
+  @HttpCode(204)
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.UPDATE_MEMBER)
   @RbacResource({
@@ -283,14 +285,15 @@ export class RolesController {
    * Assign an instance role to a user
    */
   @Post('instance/:roleId/assign')
+  @HttpCode(204)
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.UPDATE_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async assignInstanceRole(
     @Param('roleId', ParseObjectIdPipe) roleId: string,
-    @Body() body: { userId: string },
+    @Body() dto: AssignInstanceRoleDto,
   ): Promise<void> {
-    return this.rolesService.assignUserToInstanceRole(body.userId, roleId);
+    return this.rolesService.assignUserToInstanceRole(dto.userId, roleId);
   }
 
   /**

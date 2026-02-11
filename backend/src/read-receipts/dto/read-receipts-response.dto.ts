@@ -20,9 +20,9 @@ export class LastReadResponseDto {
 }
 
 export class MessageReaderDto {
-  id: string;
+  userId: string;
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
-  lastReadAt: Date;
+  readAt: Date;
 }

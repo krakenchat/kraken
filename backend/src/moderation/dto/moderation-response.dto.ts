@@ -91,4 +91,3 @@ export class ModerationLogsResponseDto {
   logs: ModerationLogDto[];
   total: number;
 }
-

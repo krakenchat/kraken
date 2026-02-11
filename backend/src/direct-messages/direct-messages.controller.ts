@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Delete,
+  HttpCode,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -106,6 +107,7 @@ export class DirectMessagesController {
   }
 
   @Delete(':id/members/me')
+  @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_MESSAGE)
   @RbacResource({
     type: RbacResourceType.DM_GROUP,

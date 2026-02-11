@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
   SpanDto,
   ReactionDto,
@@ -50,13 +51,22 @@ export class EnrichedThreadReplyDto {
   deletedByReason: string | null;
 }
 
+export class FileMetadataEntryDto {
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
 export class ThreadRepliesResponseDto {
   replies: EnrichedThreadReplyDto[];
   continuationToken?: string;
-  fileMetadata?: Record<
-    string,
-    { filename: string; mimeType: string; size: number }
-  >;
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'object' },
+    nullable: true,
+  })
+  fileMetadata?: Record<string, FileMetadataEntryDto>;
 }
 
 export class ThreadMetadataDto {
