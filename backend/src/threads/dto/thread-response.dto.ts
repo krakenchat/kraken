@@ -1,4 +1,8 @@
-import { SpanDto, ReactionDto } from '@/messages/dto/message-response.dto';
+import {
+  SpanDto,
+  ReactionDto,
+  EnrichedAttachment,
+} from '@/messages/dto/message-response.dto';
 
 export class ThreadReplyDto {
   id: string;
@@ -23,8 +27,31 @@ export class ThreadReplyDto {
   deletedByReason: string | null;
 }
 
+export class EnrichedThreadReplyDto {
+  id: string;
+  channelId: string | null;
+  directMessageGroupId: string | null;
+  authorId: string;
+  spans: SpanDto[];
+  attachments: EnrichedAttachment[];
+  pendingAttachments: number | null;
+  reactions: ReactionDto[];
+  sentAt: Date;
+  editedAt: Date | null;
+  deletedAt: Date | null;
+  pinned: boolean;
+  pinnedAt: Date | null;
+  pinnedBy: string | null;
+  replyCount: number;
+  lastReplyAt: Date | null;
+  parentMessageId: string | null;
+  searchText: string | null;
+  deletedBy: string | null;
+  deletedByReason: string | null;
+}
+
 export class ThreadRepliesResponseDto {
-  replies: ThreadReplyDto[];
+  replies: EnrichedThreadReplyDto[];
   continuationToken?: string;
   fileMetadata?: Record<
     string,

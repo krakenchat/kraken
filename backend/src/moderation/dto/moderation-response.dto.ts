@@ -1,4 +1,4 @@
-import { FileType, ModerationAction } from '@prisma/client';
+import { FileType, ModerationAction, Prisma } from '@prisma/client';
 import { SpanDto, ReactionDto } from '@/messages/dto/message-response.dto';
 
 export class PinnedMessageAuthorDto {
@@ -68,7 +68,7 @@ export class ModerationLogDto {
   targetUserId: string | null;
   action: ModerationAction;
   reason: string | null;
-  metadata: Record<string, unknown> | null;
+  metadata: Prisma.JsonValue | null;
   createdAt: Date;
 }
 
