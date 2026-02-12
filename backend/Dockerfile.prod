@@ -57,19 +57,18 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-# Copy built application and production dependencies from builder
-COPY --from=builder --chown=nestjs:nodejs /app/backend/dist ./dist
+# Preserve workspace directory structure so Node's module resolution works naturally:
+#   /app/backend/dist/src/main.js → finds /app/backend/node_modules/ then /app/node_modules/
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/backend/node_modules ./backend_modules
-COPY --from=builder --chown=nestjs:nodejs /app/backend/package*.json ./
-COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./prisma
+COPY --from=builder --chown=nestjs:nodejs /app/shared ./shared
+COPY --from=builder --chown=nestjs:nodejs /app/backend/dist ./backend/dist
+COPY --from=builder --chown=nestjs:nodejs /app/backend/node_modules ./backend/node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/backend/package*.json ./backend/
+COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./backend/prisma
 
-# Merge backend node_modules into top-level (for runtime module resolution)
-RUN cp -rn ./backend_modules/* ./node_modules/ 2>/dev/null || true && rm -rf ./backend_modules
+WORKDIR /app/backend
 
 # Rebuild bcrypt for Alpine's musl libc to prevent segfaults
-# The cp -rn merge above doesn't recreate .bin symlinks, so we restore it
-RUN ln -sf ../@mapbox/node-pre-gyp/bin/node-pre-gyp node_modules/.bin/node-pre-gyp
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
     npm rebuild bcrypt --build-from-source && \
     apk del .build-deps
