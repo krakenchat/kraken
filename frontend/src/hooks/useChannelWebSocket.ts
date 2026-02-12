@@ -1,6 +1,7 @@
 import { useSocket } from "./useSocket";
-import { useEffect, useRef } from "react";
-import { Message } from "../types/message.type";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Message } from "../types/message.type";
 import {
   ServerEvents,
   ClientEvents,
@@ -14,182 +15,184 @@ import {
   ThreadReplyCountUpdatedPayload,
   ReadReceiptUpdatedPayload,
 } from "@kraken/shared";
-import { useAppDispatch, useAppSelector } from "../app/hooks";
-import {
-  prependMessage,
-  updateMessage,
-  deleteMessage,
-  selectMessageIndex,
-  selectMessagesByContextId,
-} from "../features/messages/messagesSlice";
+import { useAppDispatch } from "../app/hooks";
 import { markAsRead } from "../features/readReceipts/readReceiptsSlice";
+import { channelMessagesQueryKey } from "../utils/messageQueryKeys";
+import {
+  prependMessageToInfinite,
+  updateMessageInInfinite,
+  deleteMessageFromInfinite,
+  findMessageInInfinite,
+} from "../utils/messageCacheUpdaters";
+import {
+  setMessageContext,
+  getMessageContext,
+  removeMessageContext,
+} from "../utils/messageIndex";
 
 export function useChannelWebSocket(communityId: string | undefined) {
   const dispatch = useAppDispatch();
   const socket = useSocket();
-  const messagesByContextId = useAppSelector(selectMessagesByContextId);
-  const messageIndex = useAppSelector(selectMessageIndex);
-
-  // Use refs to access latest state without triggering effect re-runs
-  const messagesByContextIdRef = useRef(messagesByContextId);
-  messagesByContextIdRef.current = messagesByContextId;
-  const messageIndexRef = useRef(messageIndex);
-  messageIndexRef.current = messageIndex;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!socket || !communityId) return;
-    // No need to join/leave community here; handled by useCommunityJoin
 
-    const handleNewMessage = ({ message }: NewMessagePayload) => {
+    const handleNewMessage = async ({ message }: NewMessagePayload) => {
       const contextId = message.channelId || message.directMessageGroupId;
-      if (contextId) {
-        dispatch(prependMessage({ contextId, message }));
-      }
+      if (!contextId) return;
+      const queryKey = channelMessagesQueryKey(contextId);
+      // Cancel in-flight fetchNextPage to prevent it from overwriting this
+      // WebSocket update when it resolves. See: TanStack Query issue #3579
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        prependMessageToInfinite(old as never, message as Message)
+      );
+      setMessageContext(message.id, contextId);
     };
-    const handleUpdateMessage = ({ message }: UpdateMessagePayload) => {
+
+    const handleUpdateMessage = async ({ message }: UpdateMessagePayload) => {
       const contextId = message.channelId || message.directMessageGroupId;
-      if (contextId) {
-        dispatch(updateMessage({ contextId, message }));
-      }
+      if (!contextId) return;
+      const queryKey = channelMessagesQueryKey(contextId);
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        updateMessageInInfinite(old as never, message as Message)
+      );
     };
-    const handleDeleteMessage = ({
+
+    const handleDeleteMessage = async ({
       messageId,
       channelId,
       directMessageGroupId,
     }: DeleteMessagePayload) => {
       const contextId = channelId || directMessageGroupId;
-      if (contextId) {
-        dispatch(deleteMessage({ contextId, id: messageId }));
-      }
+      if (!contextId) return;
+      const queryKey = channelMessagesQueryKey(contextId);
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        deleteMessageFromInfinite(old as never, messageId)
+      );
+      removeMessageContext(messageId);
     };
 
-    const handleReactionAdded = ({
+    const handleReactionAdded = async ({
       messageId,
       reaction,
     }: ReactionAddedPayload) => {
-      // O(1) lookup using message index
-      const contextId = messageIndexRef.current[messageId];
+      const contextId = getMessageContext(messageId);
       if (!contextId) return;
 
-      const currentMessages = messagesByContextIdRef.current;
-      const messages = currentMessages[contextId]?.messages || [];
-      const messageToUpdate = messages.find((msg) => msg.id === messageId);
+      const queryKey = channelMessagesQueryKey(contextId);
+      const data = queryClient.getQueryData(queryKey);
+      const messageToUpdate = findMessageInInfinite(data as never, messageId);
+      if (!messageToUpdate) return;
 
-      if (messageToUpdate) {
-        const updatedReactions = [...messageToUpdate.reactions];
-        const existingIndex = updatedReactions.findIndex(
-          (r) => r.emoji === reaction.emoji
-        );
-
-        if (existingIndex >= 0) {
-          updatedReactions[existingIndex] = reaction;
-        } else {
-          updatedReactions.push(reaction);
-        }
-
-        dispatch(
-          updateMessage({
-            contextId,
-            message: { ...messageToUpdate, reactions: updatedReactions },
-          })
-        );
+      const updatedReactions = [...messageToUpdate.reactions];
+      const existingIndex = updatedReactions.findIndex(
+        (r) => r.emoji === reaction.emoji
+      );
+      if (existingIndex >= 0) {
+        updatedReactions[existingIndex] = reaction;
+      } else {
+        updatedReactions.push(reaction);
       }
+
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        updateMessageInInfinite(old as never, {
+          ...messageToUpdate,
+          reactions: updatedReactions,
+        })
+      );
     };
 
-    const handleReactionRemoved = ({
+    const handleReactionRemoved = async ({
       messageId,
       reactions,
     }: ReactionRemovedPayload) => {
-      // O(1) lookup using message index
-      const contextId = messageIndexRef.current[messageId];
+      const contextId = getMessageContext(messageId);
       if (!contextId) return;
 
-      const currentMessages = messagesByContextIdRef.current;
-      const messages = currentMessages[contextId]?.messages || [];
-      const messageToUpdate = messages.find((msg) => msg.id === messageId);
+      const queryKey = channelMessagesQueryKey(contextId);
+      const data = queryClient.getQueryData(queryKey);
+      const messageToUpdate = findMessageInInfinite(data as never, messageId);
+      if (!messageToUpdate) return;
 
-      if (messageToUpdate) {
-        dispatch(
-          updateMessage({
-            contextId,
-            message: { ...messageToUpdate, reactions },
-          })
-        );
-      }
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        updateMessageInInfinite(old as never, {
+          ...messageToUpdate,
+          reactions,
+        })
+      );
     };
 
-    const handleMessagePinned = ({
+    const handleMessagePinned = async ({
       messageId,
       channelId,
       pinnedBy,
       pinnedAt,
     }: MessagePinnedPayload) => {
-      // channelId from payload is the context ID for pinned messages
       const contextId = channelId;
-      const currentMessages = messagesByContextIdRef.current;
-      const messages = currentMessages[contextId]?.messages || [];
-      const messageToUpdate = messages.find((msg) => msg.id === messageId);
+      const queryKey = channelMessagesQueryKey(contextId);
+      const data = queryClient.getQueryData(queryKey);
+      const messageToUpdate = findMessageInInfinite(data as never, messageId);
+      if (!messageToUpdate) return;
 
-      if (messageToUpdate) {
-        dispatch(
-          updateMessage({
-            contextId,
-            message: { ...messageToUpdate, pinned: true, pinnedBy, pinnedAt },
-          })
-        );
-      }
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        updateMessageInInfinite(old as never, {
+          ...messageToUpdate,
+          pinned: true,
+          pinnedBy,
+          pinnedAt,
+        })
+      );
     };
 
-    const handleMessageUnpinned = ({
+    const handleMessageUnpinned = async ({
       messageId,
       channelId,
     }: MessageUnpinnedPayload) => {
-      // channelId from payload is the context ID for pinned messages
       const contextId = channelId;
-      const currentMessages = messagesByContextIdRef.current;
-      const messages = currentMessages[contextId]?.messages || [];
-      const messageToUpdate = messages.find((msg) => msg.id === messageId);
+      const queryKey = channelMessagesQueryKey(contextId);
+      const data = queryClient.getQueryData(queryKey);
+      const messageToUpdate = findMessageInInfinite(data as never, messageId);
+      if (!messageToUpdate) return;
 
-      if (messageToUpdate) {
-        dispatch(
-          updateMessage({
-            contextId,
-            message: {
-              ...messageToUpdate,
-              pinned: false,
-              pinnedBy: null,
-              pinnedAt: null,
-            },
-          })
-        );
-      }
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        updateMessageInInfinite(old as never, {
+          ...messageToUpdate,
+          pinned: false,
+          pinnedBy: null,
+          pinnedAt: null,
+        })
+      );
     };
 
-    const handleThreadReplyCountUpdated = ({
+    const handleThreadReplyCountUpdated = async ({
       parentMessageId,
       replyCount,
       lastReplyAt,
     }: ThreadReplyCountUpdatedPayload) => {
-      // O(1) lookup using message index
-      const contextId = messageIndexRef.current[parentMessageId];
+      const contextId = getMessageContext(parentMessageId);
       if (!contextId) return;
 
-      const currentMessages = messagesByContextIdRef.current;
-      const messages = currentMessages[contextId]?.messages || [];
-      const messageToUpdate = messages.find((msg) => msg.id === parentMessageId);
+      const queryKey = channelMessagesQueryKey(contextId);
+      const data = queryClient.getQueryData(queryKey);
+      const messageToUpdate = findMessageInInfinite(data as never, parentMessageId);
+      if (!messageToUpdate) return;
 
-      if (messageToUpdate) {
-        dispatch(
-          updateMessage({
-            contextId,
-            message: {
-              ...messageToUpdate,
-              replyCount,
-              lastReplyAt,
-            },
-          })
-        );
-      }
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) =>
+        updateMessageInInfinite(old as never, {
+          ...messageToUpdate,
+          replyCount,
+          lastReplyAt,
+        })
+      );
     };
 
     const handleReadReceiptUpdated = ({
@@ -197,7 +200,6 @@ export function useChannelWebSocket(communityId: string | undefined) {
       directMessageGroupId,
       lastReadMessageId,
     }: ReadReceiptUpdatedPayload) => {
-      // Update Redux state to sync read receipts across tabs/devices
       dispatch(
         markAsRead({
           channelId: channelId || undefined,
@@ -205,6 +207,14 @@ export function useChannelWebSocket(communityId: string | undefined) {
           lastReadMessageId,
         })
       );
+    };
+
+    // After reconnect, we may have missed WebSocket events while disconnected.
+    // Invalidate message queries to re-fetch and catch up.
+    const handleReconnect = () => {
+      queryClient.invalidateQueries({
+        queryKey: [{ _id: 'messagesControllerFindAllForChannel' }],
+      });
     };
 
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);
@@ -216,6 +226,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
     socket.on(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
     socket.on(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
     socket.on(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
+    socket.on('connect', handleReconnect);
 
     return () => {
       socket.off(ServerEvents.NEW_MESSAGE, handleNewMessage);
@@ -227,8 +238,9 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
       socket.off(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
       socket.off(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
+      socket.off('connect', handleReconnect);
     };
-  }, [socket, communityId, dispatch]); // Using refs for latest state without re-triggering effect
+  }, [socket, communityId, dispatch, queryClient]);
 
   const sendMessage = (msg: Omit<Message, "id">) => {
     // @ts-expect-error: id will be assigned by the server

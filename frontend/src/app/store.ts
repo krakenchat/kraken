@@ -1,5 +1,4 @@
 import { configureStore } from "@reduxjs/toolkit";
-import messagesReducer from "../features/messages/messagesSlice";
 import voiceReducer from "../features/voice/voiceSlice";
 import readReceiptsReducer from "../features/readReceipts/readReceiptsSlice";
 import notificationsReducer from "../features/notifications/notificationsSlice";
@@ -7,7 +6,6 @@ import threadsReducer from "../features/threads/threadsSlice";
 
 export const store = configureStore({
   reducer: {
-    messages: messagesReducer,
     voice: voiceReducer,
     readReceipts: readReceiptsReducer,
     notifications: notificationsReducer,

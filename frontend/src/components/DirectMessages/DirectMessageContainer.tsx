@@ -5,11 +5,11 @@ import { useDirectMessages } from "../../hooks/useDirectMessages";
 import { useQuery } from "@tanstack/react-query";
 import { directMessagesControllerFindDmGroupOptions, userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import { useFileUpload } from "../../hooks/useFileUpload";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { messagesControllerAddAttachmentMutation } from "../../api-client/@tanstack/react-query.gen";
-import { useDispatch } from "react-redux";
-import { updateMessage } from "../../features/messages/messagesSlice";
 import { useNotification } from "../../contexts/NotificationContext";
+import { dmMessagesQueryKey } from "../../utils/messageQueryKeys";
+import { updateMessageInFlat } from "../../utils/messageCacheUpdaters";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import type { UserMention } from "../../utils/mentionParser";
@@ -25,14 +25,16 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
 
-  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const { uploadFile } = useFileUpload();
   const { mutateAsync: addAttachment } = useMutation({
     ...messagesControllerAddAttachmentMutation(),
     onSuccess: (updatedMessage) => {
-      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
-      if (contextId) {
-        dispatch(updateMessage({ contextId, message: updatedMessage as import("../../types/message.type").Message }));
+      if (updatedMessage.directMessageGroupId) {
+        const queryKey = dmMessagesQueryKey(updatedMessage.directMessageGroupId);
+        queryClient.setQueryData(queryKey, (old: unknown) =>
+          updateMessageInFlat(old as never, updatedMessage as import("../../types/message.type").Message)
+        );
       }
     },
   });
@@ -120,8 +122,11 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
     // Store files in ref for callback
     pendingFilesRef.current = files || null;
 
-    // Send message immediately (optimistic)
-    sendMessage(msg);
+    // Await the send so callers (MessageInput) can catch failures
+    const result = await sendMessage(msg);
+    if (!result.success) {
+      throw result.error || new Error("Failed to send message");
+    }
   };
 
   // Create member list component for the DM group
