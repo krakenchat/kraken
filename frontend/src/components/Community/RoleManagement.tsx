@@ -118,7 +118,10 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
   const { mutateAsync: resetDefaults, isPending: resettingDefaults } = useMutation({
     ...rolesControllerResetDefaultCommunityRolesMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
+    onSuccess: () => {
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles);
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.userRoles);
+    },
   });
 
   const handleCreateRole = useCallback(async (data: { name?: string; actions: string[] }) => {

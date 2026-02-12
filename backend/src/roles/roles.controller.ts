@@ -116,6 +116,7 @@ export class RolesController {
   }
 
   @Post('community/:communityId/reset-defaults')
+  @HttpCode(200)
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.UPDATE_ROLE)
   @RbacResource({
