@@ -18,6 +18,7 @@ import {
   FullscreenExit,
 } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
+import { useLocation } from 'react-router-dom';
 import { RootState } from '../../app/store';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { VideoTiles } from './VideoTiles';
@@ -88,6 +89,22 @@ export const PersistentVideoOverlay: React.FC = () => {
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-restore PIP from maximized when navigating to a different page
+  const location = useLocation();
+  const prevPathnameRef = useRef(location.pathname);
+
+  useEffect(() => {
+    if (location.pathname !== prevPathnameRef.current) {
+      prevPathnameRef.current = location.pathname;
+      setSettings(prev => {
+        if (!prev.isMaximized) return prev;
+        const updated = { ...prev, isMaximized: false };
+        setCachedItem(PIP_SETTINGS_KEY, updated);
+        return updated;
+      });
+    }
+  }, [location.pathname]);
 
   // Save settings to localStorage
   const saveSettings = useCallback((newSettings: PipSettings) => {
