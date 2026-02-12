@@ -57,6 +57,10 @@ const electronAPI = {
   // Platform information
   platform: process.platform,
   isElectron: true,
+  isWayland: process.platform === 'linux' && (
+    !!process.env.WAYLAND_DISPLAY ||
+    process.env.XDG_SESSION_TYPE === 'wayland'
+  ),
 
   // Auto-updater events
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) => {

@@ -10,6 +10,7 @@
  */
 interface ElectronAPI {
   isElectron?: boolean;
+  isWayland?: boolean;
   getDesktopSources?: (types: string[]) => Promise<unknown[]>;
   getScreenStream?: (sourceId: string) => Promise<MediaStream | null>;
   [key: string]: unknown;
@@ -49,6 +50,15 @@ export const isElectron = (): boolean => {
  */
 export const isWeb = (): boolean => {
   return typeof window !== 'undefined' && !isElectron();
+};
+
+/**
+ * Check if running in Electron on Linux Wayland.
+ * On Wayland, the custom screen source picker is skipped in favor of
+ * the native PipeWire/XDG Desktop Portal dialog.
+ */
+export const isWayland = (): boolean => {
+  return isElectron() && window.electronAPI?.isWayland === true;
 };
 
 /**
@@ -130,6 +140,7 @@ export const isSecureContext = (): boolean => {
  */
 export const platformUtils = {
   isElectron,
+  isWayland,
   isWeb,
   isMobile,
   isDesktopBrowser,
