@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.0.3] - 2025-02-11
+
+### Added
+
+- **Reset Default Roles** — Communities can now reset roles back to defaults (#65)
+- **Typed API Pipeline** — Shared WebSocket types package and fully typed API client generation (#53)
+- **Screen Share Diagnostics** — Diagnostic logging for audio capture failures in screen sharing (#50)
+- **Electron Screen Share** — Graceful audio fallback for improved Electron screen sharing
+
+### Changed
+
+- **TanStack Query Migration** — Migrated frontend from RTK Query to TanStack Query v5 (#59)
+- **Backend Code Review** — Comprehensive backend code quality improvements (#44, #51)
+- **Frontend Beta Readiness** — Frontend polish and readiness fixes (#45)
+
+### Fixed
+
+- **OpenAPI Response Types** — Added remaining response types, eliminating 93+ unknown type generations (#57, #63)
+- **Replay Trim UI** — Fixed trim UI bugs, Wayland screen sharing, and Redux messages migration (#64)
+- **PIP Auto-Restore** — Fixed auto-restore of picture-in-picture from maximized state on navigation
+- **Video Overlay UX** — Improved video overlay interactions and fixed replay message bug (#47)
+- **Production Dockerfile** — Fixed workspace layout, dist output path, and start script for production builds
+
+### DevOps
+
+- **GHCR Push on Main** — Docker images now push to GHCR on every push to main
+
 ## [0.0.1] - 2025-01-01
 
 ### Added
