@@ -57,7 +57,7 @@ jobs:
 
       - name: Type check with TypeScript
         working-directory: frontend
-        run: npx tsc -b --noEmit
+        run: npx tsc --noEmit
 
   build-windows:
     name: Build Windows Installer
