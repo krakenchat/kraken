@@ -1,18 +1,18 @@
-Kraken Chat — Commercial License Notice
-=======================================
+Kraken Chat — Dual License Notice
+==================================
 
 This software is dual-licensed:
 
-1. GNU Affero General Public License (AGPL) v3
-   - For individuals, self-hosters, open source contributors, research, and non-profit use.
+1. GNU Affero General Public License (AGPL) v3 (default)
+   - Everyone may use, modify, and distribute Kraken Chat under the AGPLv3.
+   - The AGPL requires that if you modify Kraken Chat and make it available over a network, you must release your complete source code under the AGPLv3.
 
-2. Commercial License:
-   - For any use by companies, businesses, enterprises, managed hosting, or commercial SaaS providers, a separate commercial license is REQUIRED.
-   - If you are running Kraken Chat as part of a for-profit business, or providing it as a paid or hosted service, you must license Kraken Chat commercially.
+2. Commercial License (alternative)
+   - If you want to use Kraken Chat without the AGPL's copyleft obligations — for example, to keep your modifications proprietary, integrate into closed-source products, or avoid source-sharing requirements — a commercial license is available.
 
 Contact us for commercial licensing:
     licensing {at} krakenchat [dot] app
 
-If you are unsure whether you need a commercial license, please contact us.
+If you are unsure which license applies to your use case, please contact us.
 
 See also: LICENSE, LICENSE-FAQ.md
