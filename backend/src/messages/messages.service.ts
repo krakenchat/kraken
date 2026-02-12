@@ -65,6 +65,9 @@ export class MessagesService {
       data: {
         ...data,
         searchText,
+        // Explicitly set parentMessageId so the field exists in MongoDB.
+        // Without this, Prisma's null filter won't match (it requires the field to exist).
+        parentMessageId: data.parentMessageId ?? null,
       },
     });
   }
@@ -290,7 +293,13 @@ export class MessagesService {
   ) {
     const where = {
       [field]: value,
-      parentMessageId: null, // Exclude thread replies - they only show in thread panel
+      // Exclude thread replies - they only show in thread panel.
+      // Use OR to handle MongoDB documents where parentMessageId is either
+      // explicitly null or absent (Prisma's null filter requires the field to exist).
+      OR: [
+        { parentMessageId: null },
+        { NOT: { parentMessageId: { isSet: true } } },
+      ],
     };
     const query = {
       where,

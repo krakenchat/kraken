@@ -67,6 +67,7 @@ describe('MessagesService', () => {
         data: {
           ...createDto,
           searchText: 'hello world', // Lowercase for MongoDB case-insensitive search
+          parentMessageId: null, // Explicitly set for MongoDB null-filter compatibility
         },
       });
     });
@@ -302,7 +303,7 @@ describe('MessagesService', () => {
 
       expect(result.messages).toHaveLength(3);
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
-        where: { channelId, parentMessageId: null },
+        where: { channelId, OR: [{ parentMessageId: null }, { NOT: { parentMessageId: { isSet: true } } }] },
         orderBy: { sentAt: 'desc' },
         take: 50, // fetch exactly limit, thread replies excluded via where clause
       });
@@ -331,7 +332,7 @@ describe('MessagesService', () => {
       await service.findAllForChannel(channelId, 50, continuationToken);
 
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
-        where: { channelId, parentMessageId: null },
+        where: { channelId, OR: [{ parentMessageId: null }, { NOT: { parentMessageId: { isSet: true } } }] },
         orderBy: { sentAt: 'desc' },
         take: 50, // fetch exactly limit, thread replies excluded via where clause
         cursor: { id: continuationToken },
@@ -396,7 +397,7 @@ describe('MessagesService', () => {
 
       expect(result.messages).toHaveLength(3);
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
-        where: { directMessageGroupId: dmGroupId, parentMessageId: null },
+        where: { directMessageGroupId: dmGroupId, OR: [{ parentMessageId: null }, { NOT: { parentMessageId: { isSet: true } } }] },
         orderBy: { sentAt: 'desc' },
         take: 50, // fetch exactly limit, thread replies excluded via where clause
       });
