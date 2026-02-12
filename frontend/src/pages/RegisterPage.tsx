@@ -9,7 +9,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/system";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { userControllerRegisterMutation, authControllerLoginMutation } from "../api-client/@tanstack/react-query.gen";
 
@@ -137,9 +137,9 @@ const RegisterPage: React.FC = () => {
         </Button>
         <Typography variant="body2" color="textSecondary" sx={{ marginTop: 2 }}>
           Already have an account?{" "}
-          <a href="/login" aria-label="Go to login page">
+          <Link to="/login" aria-label="Go to login page">
             Login here
-          </a>
+          </Link>
         </Typography>
       </FormBox>
     </FormContainer>

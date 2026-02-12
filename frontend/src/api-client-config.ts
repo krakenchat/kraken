@@ -37,6 +37,12 @@ export function configureApiClient() {
         retryRequest.headers.set('Authorization', `Bearer ${newToken}`);
         return fetch(retryRequest);
       }
+      const publicPrefixes = ['/login', '/register', '/join', '/onboarding'];
+      const currentPath = window.location.hash.replace('#', '') || '/';
+      const isPublicRoute = publicPrefixes.some(p => currentPath === p || currentPath.startsWith(p + '/'));
+      if (isPublicRoute) {
+        return response;
+      }
       redirectToLogin();
     }
     return response;

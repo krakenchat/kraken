@@ -11,7 +11,7 @@ import {
 import { LockOutlined } from "@mui/icons-material";
 import { useMutation } from "@tanstack/react-query";
 import { authControllerLoginMutation } from "../api-client/@tanstack/react-query.gen";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -115,9 +115,9 @@ const LoginPage: React.FC = () => {
         </Button>
         <Typography variant="body2" color="textSecondary">
           Don't have an account?{" "}
-          <a href="/register" aria-label="Register for an account">
+          <Link to="/register" aria-label="Register for an account">
             Register here
-          </a>
+          </Link>
         </Typography>
       </Box>
     </Box>
