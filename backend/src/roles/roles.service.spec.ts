@@ -1099,7 +1099,7 @@ describe('RolesService', () => {
         RoleFactory.build({ name: 'Member', communityId, isDefault: true }),
       ];
 
-      mockDatabase.$transaction.mockImplementation(async (fn: any) => fn(mockDatabase));
+      mockDatabase.$transaction.mockImplementation((fn: any) => fn(mockDatabase));
       mockDatabase.role.upsert.mockResolvedValue(RoleFactory.build());
       mockDatabase.role.findMany.mockResolvedValue(roles);
 
@@ -1114,7 +1114,7 @@ describe('RolesService', () => {
     it('should upsert with correct where/update/create for each default role', async () => {
       const communityId = 'community-456';
 
-      mockDatabase.$transaction.mockImplementation(async (fn: any) => fn(mockDatabase));
+      mockDatabase.$transaction.mockImplementation((fn: any) => fn(mockDatabase));
       mockDatabase.role.upsert.mockResolvedValue(RoleFactory.build());
       mockDatabase.role.findMany.mockResolvedValue([]);
 
@@ -1141,7 +1141,7 @@ describe('RolesService', () => {
     it('should reset permissions on existing roles without affecting user assignments', async () => {
       const communityId = 'community-789';
 
-      mockDatabase.$transaction.mockImplementation(async (fn: any) => fn(mockDatabase));
+      mockDatabase.$transaction.mockImplementation((fn: any) => fn(mockDatabase));
       mockDatabase.role.upsert.mockResolvedValue(RoleFactory.build());
       mockDatabase.role.findMany.mockResolvedValue([]);
 
