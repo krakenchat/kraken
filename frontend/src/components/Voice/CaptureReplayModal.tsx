@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -80,6 +80,18 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
     setCustomRange({ start, end });
   }, []);
   const { showNotification } = useNotification();
+
+  // Reset all state when modal opens
+  useEffect(() => {
+    if (open) {
+      setSelectedDuration(5);
+      setDestination('library');
+      setSelectedChannelId('');
+      setSelectedDmGroupId('');
+      setUseCustomTrim(false);
+      setCustomRange({ start: 0, end: 60 });
+    }
+  }, [open]);
 
   // Get current community ID from URL params
   const { communityId } = useParams<{ communityId: string }>();
@@ -269,7 +281,7 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
               {useCustomTrim ? 'Custom Trim (Active)' : 'Custom Trim'}
             </Button>
 
-            <Collapse in={useCustomTrim}>
+            <Collapse in={useCustomTrim} unmountOnExit>
               <TrimPreview onRangeChange={handleCustomRangeChange} />
             </Collapse>
           </Box>
