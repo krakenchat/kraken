@@ -120,21 +120,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-installer
           path: frontend/dist/Kraken Setup *.exe
           retention-days: 7
 
       - name: Upload Windows blockmap
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-blockmap
           path: frontend/dist/Kraken Setup *.exe.blockmap
           retention-days: 7
 
       - name: Upload Windows update manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-yml
           path: frontend/dist/latest.yml
@@ -192,28 +192,28 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux AppImage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-appimage
           path: frontend/dist/Kraken-*.AppImage
           retention-days: 7
 
       - name: Upload Linux Debian package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-deb
           path: frontend/dist/kraken_*_amd64.deb
           retention-days: 7
 
       - name: Upload Linux RPM package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-rpm
           path: frontend/dist/kraken-*.x86_64.rpm
           retention-days: 7
 
       - name: Upload Linux update manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-yml
           path: frontend/dist/latest-linux.yml
