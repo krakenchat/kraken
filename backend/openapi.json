@@ -626,7 +626,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -844,7 +851,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": ""
           }
         },
@@ -1108,6 +1115,46 @@
         ]
       }
     },
+    "/api/roles/community/{communityId}/reset-defaults": {
+      "post": {
+        "operationId": "RolesController_resetDefaultCommunityRoles",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityRolesResponseDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityRolesResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Roles"
+        ]
+      }
+    },
     "/api/roles/community/{communityId}/{roleId}": {
       "put": {
         "operationId": "RolesController_updateRole",
@@ -1209,7 +1256,7 @@
           }
         },
         "responses": {
-          "201": {
+          "204": {
             "description": ""
           }
         },
@@ -1430,8 +1477,18 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignInstanceRoleDto"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": {
+          "204": {
             "description": ""
           }
         },
@@ -3642,7 +3699,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/UserPresenceResponseDto"
                 }
               }
             }
@@ -3663,7 +3720,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
                 }
               }
             }
@@ -3693,7 +3750,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
                 }
               }
             }
@@ -4421,7 +4478,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/MessageReaderDto"
                   }
                 }
               }
@@ -4913,7 +4970,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Handle LiveKit webhook events\n\nVerifies webhook signature and processes egress_ended events",
@@ -5252,7 +5316,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": ""
           }
         },
@@ -6113,7 +6177,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/AliasGroupSummaryDto"
                   }
                 }
               }
@@ -6153,7 +6217,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/AliasGroupWithMembersDto"
                 }
               }
             }
@@ -6184,7 +6248,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/AliasGroupWithMembersDto"
                 }
               }
             }
@@ -6223,7 +6287,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/AliasGroupWithMembersDto"
                 }
               }
             }
@@ -6247,7 +6311,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": ""
           }
         },
@@ -6281,7 +6345,7 @@
           }
         },
         "responses": {
-          "201": {
+          "204": {
             "description": ""
           }
         },
@@ -6313,7 +6377,7 @@
           }
         },
         "responses": {
-          "200": {
+          "204": {
             "description": ""
           }
         },
@@ -6345,7 +6409,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": ""
           }
         },
@@ -7203,6 +7267,17 @@
         "required": [
           "userId",
           "username"
+        ]
+      },
+      "AssignInstanceRoleDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
         ]
       },
       "CreateChannelDto": {
@@ -8857,6 +8932,35 @@
           "message"
         ]
       },
+      "UserPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "isOnline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "userId",
+          "isOnline"
+        ]
+      },
+      "BulkPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "presence": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
+        },
+        "required": [
+          "presence"
+        ]
+      },
       "UnbanUserDto": {
         "type": "object",
         "properties": {
@@ -9355,6 +9459,36 @@
         },
         "required": [
           "lastReadMessageId"
+        ]
+      },
+      "MessageReaderDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "readAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "username",
+          "displayName",
+          "avatarUrl",
+          "readAt"
         ]
       },
       "CreateTokenDto": {
@@ -11035,6 +11169,25 @@
           "deletedByReason"
         ]
       },
+      "FileMetadataEntryDto": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "filename",
+          "mimeType",
+          "size"
+        ]
+      },
       "EnrichedThreadReplyDto": {
         "type": "object",
         "properties": {
@@ -11151,6 +11304,12 @@
       "ThreadRepliesResponseDto": {
         "type": "object",
         "properties": {
+          "fileMetadata": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FileMetadataEntryDto"
+            }
+          },
           "replies": {
             "type": "array",
             "items": {
@@ -11159,9 +11318,6 @@
           },
           "continuationToken": {
             "type": "string"
-          },
-          "fileMetadata": {
-            "type": "object"
           }
         },
         "required": [
@@ -11193,6 +11349,29 @@
           "isSubscribed"
         ]
       },
+      "AliasGroupSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "communityId",
+          "memberCount"
+        ]
+      },
       "CreateAliasGroupDto": {
         "type": "object",
         "properties": {
@@ -11211,6 +11390,66 @@
         },
         "required": [
           "name"
+        ]
+      },
+      "AliasGroupMemberDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "avatarUrl"
+        ]
+      },
+      "AliasGroupWithMembersDto": {
+        "type": "object",
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AliasGroupMemberDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "members",
+          "id",
+          "name",
+          "communityId",
+          "createdAt",
+          "memberCount"
         ]
       },
       "UpdateAliasGroupDto": {
