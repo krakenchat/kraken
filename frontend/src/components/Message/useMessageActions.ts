@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   messagesControllerUpdateMutation,
   messagesControllerRemoveMutation,
@@ -20,10 +20,15 @@ import {
   moderationControllerPinMessageMutation,
   moderationControllerUnpinMessageMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { useQueryClient } from "@tanstack/react-query";
 import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
-import { useAppDispatch } from "../../app/hooks";
-import { updateMessage, deleteMessage as deleteMessageAction } from "../../features/messages/messagesSlice";
+import { channelMessagesQueryKey, dmMessagesQueryKey } from "../../utils/messageQueryKeys";
+import {
+  updateMessageInInfinite,
+  deleteMessageFromInfinite,
+  updateMessageInFlat,
+  deleteMessageFromFlat,
+} from "../../utils/messageCacheUpdaters";
+import { removeMessageContext } from "../../utils/messageIndex";
 import { logger } from "../../utils/logger";
 
 export interface UseMessageActionsReturn {
@@ -46,6 +51,43 @@ export interface UseMessageActionsReturn {
   handleUnpin: () => Promise<void>;
 }
 
+/** Update the TQ cache for a message (handles both channel and DM contexts) */
+function updateCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  msg: MessageType,
+) {
+  if (msg.channelId) {
+    const queryKey = channelMessagesQueryKey(msg.channelId);
+    queryClient.setQueryData(queryKey, (old: unknown) =>
+      updateMessageInInfinite(old as never, msg)
+    );
+  } else if (msg.directMessageGroupId) {
+    const queryKey = dmMessagesQueryKey(msg.directMessageGroupId);
+    queryClient.setQueryData(queryKey, (old: unknown) =>
+      updateMessageInFlat(old as never, msg)
+    );
+  }
+}
+
+/** Delete a message from the TQ cache (handles both channel and DM contexts) */
+function deleteFromCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  msg: MessageType,
+) {
+  if (msg.channelId) {
+    const queryKey = channelMessagesQueryKey(msg.channelId);
+    queryClient.setQueryData(queryKey, (old: unknown) =>
+      deleteMessageFromInfinite(old as never, msg.id)
+    );
+  } else if (msg.directMessageGroupId) {
+    const queryKey = dmMessagesQueryKey(msg.directMessageGroupId);
+    queryClient.setQueryData(queryKey, (old: unknown) =>
+      deleteMessageFromFlat(old as never, msg.id)
+    );
+  }
+  removeMessageContext(msg.id);
+}
+
 /**
  * Custom hook for managing message editing, deletion, and reactions
  */
@@ -53,64 +95,51 @@ export function useMessageActions(
   message: MessageType,
   currentUserId: string | undefined
 ): UseMessageActionsReturn {
-  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
 
   const { mutateAsync: updateMessageApi } = useMutation({
     ...messagesControllerUpdateMutation(),
     onSuccess: (updatedMessage) => {
-      const contextId = message.channelId || message.directMessageGroupId;
-      if (contextId) {
-        // If we have original attachments metadata, enrich the response
-        let enrichedMessage = updatedMessage;
-        if (message.attachments && Array.isArray(updatedMessage.attachments)) {
-          const attachmentMap = new Map(message.attachments.map((att: FileMetadata) => [att.id, att]));
-          enrichedMessage = {
-            ...updatedMessage,
-            attachments: updatedMessage.attachments
-              .map((idOrObj: string | FileMetadata) => {
-                if (typeof idOrObj === 'object' && idOrObj.id) return idOrObj;
-                if (typeof idOrObj === 'string') return attachmentMap.get(idOrObj);
-                return idOrObj;
-              })
-              .filter(Boolean) as MessageType['attachments'],
-          };
-        }
-        dispatch(updateMessage({ contextId, message: enrichedMessage as MessageType }));
+      // If we have original attachments metadata, enrich the response
+      let enrichedMessage = updatedMessage;
+      if (message.attachments && Array.isArray(updatedMessage.attachments)) {
+        const attachmentMap = new Map(message.attachments.map((att: FileMetadata) => [att.id, att]));
+        enrichedMessage = {
+          ...updatedMessage,
+          attachments: updatedMessage.attachments
+            .map((idOrObj: string | FileMetadata) => {
+              if (typeof idOrObj === 'object' && idOrObj.id) return idOrObj;
+              if (typeof idOrObj === 'string') return attachmentMap.get(idOrObj);
+              return idOrObj;
+            })
+            .filter(Boolean) as MessageType['attachments'],
+        };
       }
+      updateCache(queryClient, enrichedMessage as MessageType);
     },
   });
 
   const { mutateAsync: deleteMessageApi } = useMutation({
     ...messagesControllerRemoveMutation(),
     onSuccess: () => {
-      const contextId = message.channelId || message.directMessageGroupId;
-      if (contextId) {
-        dispatch(deleteMessageAction({ contextId, id: message.id }));
-      }
+      deleteFromCache(queryClient, message);
     },
   });
 
   const { mutateAsync: addReactionApi } = useMutation({
     ...messagesControllerAddReactionMutation(),
     onSuccess: (updatedMessage) => {
-      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
-      if (contextId) {
-        dispatch(updateMessage({ contextId, message: updatedMessage as MessageType }));
-      }
+      updateCache(queryClient, updatedMessage as MessageType);
     },
   });
 
   const { mutateAsync: removeReactionApi } = useMutation({
     ...messagesControllerRemoveReactionMutation(),
     onSuccess: (updatedMessage) => {
-      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
-      if (contextId) {
-        dispatch(updateMessage({ contextId, message: updatedMessage as MessageType }));
-      }
+      updateCache(queryClient, updatedMessage as MessageType);
     },
   });
 
-  const queryClient = useQueryClient();
   const { mutateAsync: pinMessage } = useMutation({
     ...moderationControllerPinMessageMutation(),
     onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.pinnedMessages),

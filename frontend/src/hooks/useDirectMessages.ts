@@ -1,46 +1,43 @@
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { directMessagesControllerGetDmMessagesOptions } from "../api-client/@tanstack/react-query.gen";
-import {
-  makeSelectMessagesByContext,
-  makeSelectContinuationTokenByContext,
-} from "../features/messages/messagesSlice";
 import { useDirectMessageWebSocket } from "./useDirectMessageWebSocket";
-import type { RootState } from "../app/store";
+import { MESSAGE_STALE_TIME } from "../utils/messageQueryKeys";
+import { indexMessages, clearContextIndex } from "../utils/messageIndex";
 import type { Message } from "../types/message.type";
 
 export const useDirectMessages = (dmGroupId: string) => {
-  const [isLoadingMore] = useState(false); // DMs don't have pagination yet
-
   // WebSocket connection for DMs
   const { joinDmGroup, leaveDmGroup } = useDirectMessageWebSocket();
 
-  // Initial data fetch - this will populate Redux store via onQueryStarted
-  const { error, isLoading } = useQuery(directMessagesControllerGetDmMessagesOptions({ path: { id: dmGroupId } }));
+  // Initial data fetch
+  const { data, error, isLoading } = useQuery({
+    ...directMessagesControllerGetDmMessagesOptions({ path: { id: dmGroupId } }),
+    // WebSocket events keep message data fresh — disable TanStack Query
+    // background refetch. Re-fetch only on socket reconnect (invalidateQueries).
+    staleTime: MESSAGE_STALE_TIME,
+  });
 
-  // Memoized selectors for this DM group (contextId = dmGroupId)
-  const selectMessages = React.useMemo(
-    () => makeSelectMessagesByContext(),
-    []
+  // Read messages directly from TanStack Query cache
+  const messages: Message[] = useMemo(
+    () => (data?.messages as unknown as Message[]) ?? [],
+    [data?.messages],
   );
-  const selectContinuationToken = React.useMemo(
-    () => makeSelectContinuationTokenByContext(),
-    []
-  );
+  const continuationToken = data?.continuationToken;
 
-  // Get messages from Redux store (contextId = dmGroupId)
-  const messages: Message[] = useSelector((state: RootState) =>
-    selectMessages(state, dmGroupId)
-  );
-  const continuationToken = useSelector((state: RootState) =>
-    selectContinuationToken(state, dmGroupId)
-  );
+  // Index messages for O(1) lookup by messageId → contextId
+  useEffect(() => {
+    if (messages.length > 0) {
+      indexMessages(messages, dmGroupId);
+    }
+    return () => {
+      clearContextIndex(dmGroupId);
+    };
+  }, [messages, dmGroupId]);
 
   // Join/leave DM group for WebSocket
   React.useEffect(() => {
     joinDmGroup(dmGroupId);
-    
     return () => {
       leaveDmGroup(dmGroupId);
     };
@@ -51,7 +48,7 @@ export const useDirectMessages = (dmGroupId: string) => {
     isLoading,
     error,
     continuationToken,
-    isLoadingMore,
+    isLoadingMore: false, // DMs don't have pagination yet
     onLoadMore: undefined, // DMs don't support pagination yet
   };
 };

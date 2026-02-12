@@ -11,7 +11,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessage } from "../../hooks/useSendMessage";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   membershipControllerFindAllForCommunityOptions,
   channelsControllerGetMentionableChannelsOptions,
@@ -23,9 +23,9 @@ import {
   messagesControllerAddAttachmentMutation,
 } from "../../api-client/@tanstack/react-query.gen";
 import { useFileUpload } from "../../hooks/useFileUpload";
-import { useMutation } from "@tanstack/react-query";
-import { updateMessage } from "../../features/messages/messagesSlice";
 import { useNotification } from "../../contexts/NotificationContext";
+import { channelMessagesQueryKey } from "../../utils/messageQueryKeys";
+import { updateMessageInInfinite } from "../../utils/messageCacheUpdaters";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import { openThread, closeThread, selectOpenThreadId } from "../../features/threads/threadsSlice";
@@ -69,14 +69,17 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   }, [highlightMessageId, communityId, channelId, navigate]);
 
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
 
   const { uploadFile } = useFileUpload();
   const { mutateAsync: addAttachment } = useMutation({
     ...messagesControllerAddAttachmentMutation(),
     onSuccess: (updatedMessage) => {
-      const contextId = updatedMessage.channelId || updatedMessage.directMessageGroupId;
-      if (contextId) {
-        dispatch(updateMessage({ contextId, message: updatedMessage as import("../../types/message.type").Message }));
+      if (updatedMessage.channelId) {
+        const queryKey = channelMessagesQueryKey(updatedMessage.channelId);
+        queryClient.setQueryData(queryKey, (old: unknown) =>
+          updateMessageInInfinite(old as never, updatedMessage as import("../../types/message.type").Message)
+        );
       }
     },
   });
@@ -206,8 +209,11 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     // Store files in ref for callback
     pendingFilesRef.current = files || null;
 
-    // Send message immediately (optimistic)
-    sendMessage(msg);
+    // Await the send so callers (MessageInput) can catch failures
+    const result = await sendMessage(msg);
+    if (!result.success) {
+      throw result.error || new Error("Failed to send message");
+    }
   };
 
   // Create member list component for the channel

@@ -1,96 +1,77 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { messagesControllerFindAllForChannelOptions } from "../api-client/@tanstack/react-query.gen";
-import { logger } from "../utils/logger";
+import { useCallback, useEffect, useMemo } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { messagesControllerFindAllForChannel } from "../api-client/sdk.gen";
 import { useParams } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import {
-  setMessages,
-  appendMessages,
-  makeSelectMessagesByContext,
-  makeSelectContinuationTokenByContext,
-} from "../features/messages/messagesSlice";
 import { useChannelWebSocket } from "./useChannelWebSocket";
-import type { RootState } from "../app/store";
+import { channelMessagesQueryKey, MESSAGE_STALE_TIME, MESSAGE_MAX_PAGES } from "../utils/messageQueryKeys";
+import { indexMessages, clearContextIndex } from "../utils/messageIndex";
 import type { Message } from "../types/message.type";
 
 export const useChannelMessages = (channelId: string) => {
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const dispatch = useDispatch();
-  const queryClient = useQueryClient();
+  const queryKey = channelMessagesQueryKey(channelId);
 
   // WebSocket connection
   const { communityId } = useParams<{ communityId: string }>();
   useChannelWebSocket(communityId);
 
-  // Initial data fetch via TanStack Query
-  const { data, error, isLoading } = useQuery({
-    ...messagesControllerFindAllForChannelOptions({ path: { channelId }, query: { limit: 25, continuationToken: '' } }),
+  const {
+    data,
+    error,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey,
+    queryFn: async ({ pageParam, signal }) => {
+      const { data } = await messagesControllerFindAllForChannel({
+        path: { channelId },
+        query: { limit: 25, continuationToken: pageParam },
+        throwOnError: true,
+        signal,
+      });
+      return data;
+    },
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.continuationToken || undefined,
+    // WebSocket events keep message data fresh — disable TanStack Query
+    // background refetch. Re-fetch only on socket reconnect (invalidateQueries).
+    staleTime: MESSAGE_STALE_TIME,
+    maxPages: MESSAGE_MAX_PAGES,
     enabled: !!channelId,
   });
 
-  // Dispatch initial data to Redux messagesSlice
+  // Flatten pages into a single messages array
+  const messages: Message[] = useMemo(
+    () => data?.pages.flatMap(page => page.messages) as unknown as Message[] ?? [],
+    [data],
+  );
+
+  // Index messages for O(1) lookup by messageId → contextId
   useEffect(() => {
-    if (data) {
-      dispatch(setMessages({
-        contextId: channelId,
-        messages: data.messages as Message[],
-        continuationToken: data.continuationToken,
-      }));
+    if (messages.length > 0) {
+      indexMessages(messages, channelId);
     }
-  }, [data, channelId, dispatch]);
+    return () => {
+      clearContextIndex(channelId);
+    };
+  }, [messages, channelId]);
 
-  // Memoized selectors for this specific channel (contextId = channelId)
-  const selectMessages = React.useMemo(
-    () => makeSelectMessagesByContext(),
-    []
-  );
-  const selectContinuationToken = React.useMemo(
-    () => makeSelectContinuationTokenByContext(),
-    []
-  );
-
-  // Get messages from Redux store
-  const messages: Message[] = useSelector((state: RootState) =>
-    selectMessages(state, channelId)
-  );
-  const continuationToken = useSelector((state: RootState) =>
-    selectContinuationToken(state, channelId)
-  );
-
-  // Paginated load via queryClient.fetchQuery
   const handleLoadMore = useCallback(async () => {
-    if (isLoadingMore || !continuationToken) {
-      return;
+    if (!isFetchingNextPage && hasNextPage) {
+      await fetchNextPage();
     }
+  }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
 
-    setIsLoadingMore(true);
-
-    try {
-      const moreData = await queryClient.fetchQuery(
-        messagesControllerFindAllForChannelOptions({
-          path: { channelId },
-          query: { limit: 25, continuationToken },
-        })
-      );
-      dispatch(appendMessages({
-        contextId: channelId,
-        messages: moreData.messages as Message[],
-        continuationToken: moreData.continuationToken,
-      }));
-    } catch (error) {
-      logger.error("Failed to load more messages:", error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [channelId, continuationToken, isLoadingMore, queryClient, dispatch]);
+  // Derive continuationToken from last page for backward compatibility
+  const continuationToken = data?.pages[data.pages.length - 1]?.continuationToken;
 
   return {
     messages,
     isLoading,
     error,
     continuationToken,
-    isLoadingMore,
+    isLoadingMore: isFetchingNextPage,
     onLoadMore: handleLoadMore,
   };
 };

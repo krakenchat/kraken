@@ -12,7 +12,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useVoiceConnection } from './useVoiceConnection';
 import { useLocalMediaState } from './useLocalMediaState';
-import { hasElectronFeature } from '../utils/platform';
+import { hasElectronFeature, isWayland } from '../utils/platform';
 import { ScreenShareSettings } from '../components/Voice/ScreenSourcePicker';
 import { setScreenShareConfig, clearScreenShareConfig } from '../utils/screenShareState';
 import { useNotification } from '../contexts/NotificationContext';
@@ -60,12 +60,12 @@ export const useScreenShare = (): UseScreenShareReturn => {
    * - Web: Directly triggers native browser picker via LiveKit
    */
   const startScreenShare = useCallback(async () => {
-    if (hasElectronFeature('getDesktopSources')) {
-      // Electron: Show custom source picker
+    if (hasElectronFeature('getDesktopSources') && !isWayland()) {
+      // Electron on X11/macOS/Windows: Show custom source picker
       setShowSourcePicker(true);
     } else {
-      // Web: Let LiveKit use native browser picker
-      // In Electron, main process will auto-select primary screen as fallback
+      // Web or Electron on Wayland: Let browser/OS handle source selection.
+      // On Wayland, the main process handler triggers the PipeWire portal.
       await actions.toggleScreenShare();
     }
   }, [actions]);

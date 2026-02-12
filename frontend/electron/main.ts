@@ -10,6 +10,12 @@ import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
 import * as path from 'path';
 
+// Enable PipeWire-based screen capture for Wayland (must be before initMain()
+// so electron-audio-loopback picks it up in its feature flag merging)
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer');
+}
+
 // Initialize audio loopback for cross-platform system audio capture
 // This sets up Chromium feature flags for Linux/macOS audio loopback
 // Windows uses native WASAPI loopback - but initMain() must still be called
@@ -22,6 +28,18 @@ console.log('Audio service flags:', {
   hasAudioServiceOutOfProcess: app.commandLine.getSwitchValue('enable-features')?.includes('AudioServiceOutOfProcess'),
   hasWebRtcAllow: app.commandLine.getSwitchValue('enable-features')?.includes('WebRtcAllow'),
 });
+
+/**
+ * Detect if running on Wayland display server.
+ * On Wayland, desktopCapturer.getSources() triggers the PipeWire/XDG Desktop Portal
+ * dialog and returns only the user-selected source, making the custom picker redundant.
+ */
+function isWayland(): boolean {
+  return process.platform === 'linux' && (
+    !!process.env.WAYLAND_DISPLAY ||
+    process.env.XDG_SESSION_TYPE === 'wayland'
+  );
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -289,6 +307,21 @@ app.whenReady().then(() => {
     log('Request frame:', request.frame ? 'present' : 'null');
 
     try {
+      if (isWayland()) {
+        // On Wayland, desktopCapturer.getSources() triggers the PipeWire portal
+        // and returns the single source the user selected — no custom picker needed
+        log('Wayland detected, using PipeWire portal for source selection');
+        const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
+        if (sources.length > 0) {
+          log('PipeWire portal returned source:', sources[0].name, sources[0].id);
+          callback({ video: sources[0], audio: 'loopback' });
+        } else {
+          log('PipeWire portal returned no sources (user cancelled or no PipeWire)');
+          callback({});
+        }
+        return;
+      }
+
       // Check if the renderer has pre-selected a sourceId and settings (from React UI)
       const selectedSourceId = await mainWindow?.webContents.executeJavaScript(
         'window.__selectedScreenSourceId'

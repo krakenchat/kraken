@@ -1,5 +1,6 @@
 import { useSocket } from "./useSocket";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ServerEvents,
   ClientEvents,
@@ -9,27 +10,24 @@ import {
   ReactionAddedPayload,
   ReactionRemovedPayload,
 } from "@kraken/shared";
-import { useAppDispatch, useAppSelector } from "../app/hooks";
+import type { Message } from "../types/message.type";
+import { dmMessagesQueryKey } from "../utils/messageQueryKeys";
 import {
-  prependMessage,
-  updateMessage,
-  deleteMessage,
-  selectMessageIndex,
-  selectMessagesByContextId,
-} from "../features/messages/messagesSlice";
+  prependMessageToFlat,
+  updateMessageInFlat,
+  deleteMessageFromFlat,
+  findMessageInFlat,
+} from "../utils/messageCacheUpdaters";
+import {
+  setMessageContext,
+  getMessageContext,
+  removeMessageContext,
+} from "../utils/messageIndex";
 import { logger } from "../utils/logger";
 
 export function useDirectMessageWebSocket() {
-  const dispatch = useAppDispatch();
   const socket = useSocket();
-  const messagesByContextId = useAppSelector(selectMessagesByContextId);
-  const messageIndex = useAppSelector(selectMessageIndex);
-
-  // Use refs to access latest state without triggering effect re-runs
-  const messagesByContextIdRef = useRef(messagesByContextId);
-  messagesByContextIdRef.current = messagesByContextId;
-  const messageIndexRef = useRef(messageIndex);
-  messageIndexRef.current = messageIndex;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!socket) return;
@@ -39,7 +37,11 @@ export function useDirectMessageWebSocket() {
       const contextId = message.directMessageGroupId;
       if (contextId) {
         logger.dev("[useDirectMessageWebSocket] Adding message to DM group:", contextId);
-        dispatch(prependMessage({ contextId, message }));
+        const queryKey = dmMessagesQueryKey(contextId);
+        queryClient.setQueryData(queryKey, (old: unknown) =>
+          prependMessageToFlat(old as never, message as Message)
+        );
+        setMessageContext(message.id, contextId);
       } else {
         logger.warn("[useDirectMessageWebSocket] No directMessageGroupId in message:", message);
       }
@@ -48,7 +50,10 @@ export function useDirectMessageWebSocket() {
     const handleUpdateMessage = ({ message }: UpdateMessagePayload) => {
       const contextId = message.directMessageGroupId;
       if (contextId) {
-        dispatch(updateMessage({ contextId, message }));
+        const queryKey = dmMessagesQueryKey(contextId);
+        queryClient.setQueryData(queryKey, (old: unknown) =>
+          updateMessageInFlat(old as never, message as Message)
+        );
       }
     };
 
@@ -57,7 +62,11 @@ export function useDirectMessageWebSocket() {
       directMessageGroupId,
     }: DeleteMessagePayload) => {
       if (directMessageGroupId) {
-        dispatch(deleteMessage({ contextId: directMessageGroupId, id: messageId }));
+        const queryKey = dmMessagesQueryKey(directMessageGroupId);
+        queryClient.setQueryData(queryKey, (old: unknown) =>
+          deleteMessageFromFlat(old as never, messageId)
+        );
+        removeMessageContext(messageId);
       }
     };
 
@@ -65,13 +74,12 @@ export function useDirectMessageWebSocket() {
       messageId,
       reaction,
     }: ReactionAddedPayload) => {
-      // O(1) lookup using message index
-      const contextId = messageIndexRef.current[messageId];
+      const contextId = getMessageContext(messageId);
       if (!contextId) return;
 
-      const currentMessages = messagesByContextIdRef.current;
-      const messages = currentMessages[contextId]?.messages || [];
-      const messageToUpdate = messages.find(msg => msg.id === messageId);
+      const queryKey = dmMessagesQueryKey(contextId);
+      const data = queryClient.getQueryData(queryKey);
+      const messageToUpdate = findMessageInFlat(data as never, messageId);
 
       if (messageToUpdate && messageToUpdate.directMessageGroupId) {
         const updatedReactions = [...messageToUpdate.reactions];
@@ -83,10 +91,9 @@ export function useDirectMessageWebSocket() {
           updatedReactions.push(reaction);
         }
 
-        dispatch(updateMessage({
-          contextId,
-          message: { ...messageToUpdate, reactions: updatedReactions }
-        }));
+        queryClient.setQueryData(queryKey, (old: unknown) =>
+          updateMessageInFlat(old as never, { ...messageToUpdate, reactions: updatedReactions })
+        );
       }
     };
 
@@ -94,37 +101,44 @@ export function useDirectMessageWebSocket() {
       messageId,
       reactions,
     }: ReactionRemovedPayload) => {
-      // O(1) lookup using message index
-      const contextId = messageIndexRef.current[messageId];
+      const contextId = getMessageContext(messageId);
       if (!contextId) return;
 
-      const currentMessages = messagesByContextIdRef.current;
-      const messages = currentMessages[contextId]?.messages || [];
-      const messageToUpdate = messages.find(msg => msg.id === messageId);
+      const queryKey = dmMessagesQueryKey(contextId);
+      const data = queryClient.getQueryData(queryKey);
+      const messageToUpdate = findMessageInFlat(data as never, messageId);
 
       if (messageToUpdate && messageToUpdate.directMessageGroupId) {
-        dispatch(updateMessage({
-          contextId,
-          message: { ...messageToUpdate, reactions }
-        }));
+        queryClient.setQueryData(queryKey, (old: unknown) =>
+          updateMessageInFlat(old as never, { ...messageToUpdate, reactions })
+        );
       }
     };
 
-    // Listen to DM-specific events
+    // After reconnect, we may have missed WebSocket events while disconnected.
+    // Invalidate DM message queries to re-fetch and catch up.
+    const handleReconnect = () => {
+      queryClient.invalidateQueries({
+        queryKey: [{ _id: 'directMessagesControllerGetDmMessages' }],
+      });
+    };
+
     socket.on(ServerEvents.NEW_DM, handleNewDM);
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
     socket.on(ServerEvents.REACTION_ADDED, handleReactionAdded);
     socket.on(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
-    
+    socket.on('connect', handleReconnect);
+
     return () => {
       socket.off(ServerEvents.NEW_DM, handleNewDM);
       socket.off(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
       socket.off(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
       socket.off(ServerEvents.REACTION_ADDED, handleReactionAdded);
       socket.off(ServerEvents.REACTION_REMOVED, handleReactionRemoved);
+      socket.off('connect', handleReconnect);
     };
-  }, [socket, dispatch]); // Using refs for latest state without re-triggering effect
+  }, [socket, queryClient]);
 
   const joinDmGroup = (dmGroupId: string) => {
     socket?.emit(ClientEvents.JOIN_DM_ROOM, dmGroupId);

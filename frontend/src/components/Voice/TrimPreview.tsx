@@ -54,6 +54,8 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   const [endTime, setEndTime] = useState(60);
   const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
 
+  const isInitializedRef = useRef(false);
+
   // Refs to avoid stale closures in event handlers
   const startTimeRef = useRef(startTime);
   const endTimeRef = useRef(endTime);
@@ -77,20 +79,21 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   const { data: sessionInfo, isLoading: sessionLoading } = useQuery({
     ...livekitControllerGetSessionInfoOptions(),
     staleTime: 0, // Always refetch on mount
+    refetchInterval: 15_000,
   });
   const maxDuration = sessionInfo?.totalDurationSeconds || 0;
 
-  // Initialize range when session info loads
+  // Initialize range when session info first loads (polling updates extend timeline only)
   useEffect(() => {
-    if (sessionInfo?.totalDurationSeconds) {
+    if (sessionInfo?.totalDurationSeconds && !isInitializedRef.current) {
       const maxDur = sessionInfo.totalDurationSeconds;
       // Default to last 60 seconds or full buffer if less
       const defaultStart = Math.max(0, maxDur - 60);
       setStartTime(defaultStart);
       setEndTime(maxDur);
       onRangeChange(defaultStart, maxDur);
+      isInitializedRef.current = true;
     }
-    // Only run once when session info loads, not when onRangeChange changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionInfo?.totalDurationSeconds]);
 
@@ -353,33 +356,19 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
     setRetryKey((prev) => prev + 1);
   }, []);
 
-  // Click on timeline to seek
+  // Click on timeline to seek (anywhere on the timeline, not just within selection)
   const handleTimelineClick = (e: React.MouseEvent) => {
     if (!timelineRef.current || !videoRef.current || isDragging) return;
-    if (videoRef.current.readyState < 2) return; // Video not ready
+    if (videoRef.current.readyState < 2) return;
 
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-
-    // Validate x is within bounds
     if (x < 0 || x > rect.width) return;
 
     const percentage = x / rect.width;
-    const clickTime = percentage * maxDuration;
-
-    // Use refs to avoid stale closure issues
-    // Add small epsilon for floating-point boundary comparisons
-    const epsilon = 0.01;
-    const currentStartTime = startTimeRef.current;
-    const currentEndTime = endTimeRef.current;
-
-    // Only seek within selection (with epsilon tolerance at boundaries)
-    if (clickTime >= currentStartTime - epsilon && clickTime <= currentEndTime + epsilon) {
-      // Clamp to actual range
-      const clampedTime = Math.max(currentStartTime, Math.min(currentEndTime, clickTime));
-      videoRef.current.currentTime = clampedTime;
-      setCurrentTime(clampedTime);
-    }
+    const clickTime = Math.max(0, Math.min(maxDuration, percentage * maxDuration));
+    videoRef.current.currentTime = clickTime;
+    setCurrentTime(clickTime);
   };
 
   if (sessionLoading) {
