@@ -29,6 +29,7 @@ import {
   Delete as DeleteIcon,
   People as PeopleIcon,
   Security as SecurityIcon,
+  RestartAlt as RestartAltIcon,
 } from "@mui/icons-material";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ import {
   rolesControllerUpdateRoleMutation,
   rolesControllerDeleteRoleMutation,
   rolesControllerGetUsersForRoleOptions,
+  rolesControllerResetDefaultCommunityRolesMutation,
 } from "../../api-client/@tanstack/react-query.gen";
 import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import type { RoleDto } from "../../api-client/types.gen";
@@ -52,6 +54,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
   const [editingRole, setEditingRole] = useState<RoleDto | null>(null);
   const [creatingRole, setCreatingRole] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<RoleDto | null>(null);
   const [viewingRoleUsers, setViewingRoleUsers] = useState<string | null>(null);
 
@@ -113,6 +116,14 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
   });
 
+  const { mutateAsync: resetDefaults, isPending: resettingDefaults } = useMutation({
+    ...rolesControllerResetDefaultCommunityRolesMutation(),
+    onSuccess: () => {
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles);
+      invalidateByIds(queryClient, INVALIDATION_GROUPS.userRoles);
+    },
+  });
+
   const handleCreateRole = useCallback(async (data: { name?: string; actions: string[] }) => {
     try {
       await createRole({
@@ -153,6 +164,15 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
       // Error handled by mutation
     }
   }, [roleToDelete, deleteRole, communityId]);
+
+  const handleResetDefaults = useCallback(async () => {
+    try {
+      await resetDefaults({ path: { communityId } });
+      setResetConfirmOpen(false);
+    } catch {
+      // Error handled by mutation
+    }
+  }, [communityId, resetDefaults]);
 
   const handleCancelEdit = useCallback(() => {
     setCreatingRole(false);
@@ -230,15 +250,26 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
             <Typography variant="h6">
               Role Management
             </Typography>
-            {canCreateRoles && (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setCreatingRole(true)}
-              >
-                Create Role
-              </Button>
-            )}
+            <Box display="flex" gap={1}>
+              {canUpdateRoles && (
+                <Button
+                  variant="outlined"
+                  startIcon={<RestartAltIcon />}
+                  onClick={() => setResetConfirmOpen(true)}
+                >
+                  Reset Defaults
+                </Button>
+              )}
+              {canCreateRoles && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => setCreatingRole(true)}
+                >
+                  Create Role
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {communityRoles && communityRoles.roles.length > 0 ? (
@@ -392,6 +423,36 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
             disabled={deletingRoleLoading}
           >
             {deletingRoleLoading ? <CircularProgress size={20} /> : "Delete Role"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset Defaults Confirmation Dialog */}
+      <Dialog
+        open={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Reset Default Roles</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will restore the default roles (Community Admin, Moderator, Member) to their
+            original permissions. Missing default roles will be recreated. Custom roles and user
+            assignments will not be affected.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResetConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleResetDefaults}
+            color="primary"
+            variant="contained"
+            disabled={resettingDefaults}
+          >
+            {resettingDefaults ? <CircularProgress size={20} /> : "Reset Defaults"}
           </Button>
         </DialogActions>
       </Dialog>

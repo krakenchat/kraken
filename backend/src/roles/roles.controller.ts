@@ -115,6 +115,22 @@ export class RolesController {
     return this.rolesService.getCommunityRoles(communityId);
   }
 
+  @Post('community/:communityId/reset-defaults')
+  @HttpCode(200)
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_ROLE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiOkResponse({ type: CommunityRolesResponseDto })
+  async resetDefaultCommunityRoles(
+    @Param('communityId', ParseObjectIdPipe) communityId: string,
+  ): Promise<CommunityRolesResponseDto> {
+    return this.rolesService.resetDefaultCommunityRoles(communityId);
+  }
+
   @Post('community/:communityId')
   @UseGuards(RbacGuard)
   @RequiredActions(RbacActions.CREATE_ROLE)

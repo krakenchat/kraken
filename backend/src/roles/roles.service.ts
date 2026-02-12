@@ -452,6 +452,43 @@ export class RolesService implements OnModuleInit {
   }
 
   /**
+   * Reset default community roles to their default permissions.
+   * Creates missing default roles and resets permissions on existing ones.
+   * Preserves user assignments and custom roles.
+   */
+  async resetDefaultCommunityRoles(
+    communityId: string,
+  ): Promise<CommunityRolesResponseDto> {
+    const defaultRoles = getDefaultCommunityRoles();
+
+    await this.databaseService.$transaction(async (tx) => {
+      for (const defaultRole of defaultRoles) {
+        await tx.role.upsert({
+          where: {
+            name_communityId: {
+              name: defaultRole.name,
+              communityId,
+            },
+          },
+          update: {
+            actions: defaultRole.actions,
+            isDefault: true,
+          },
+          create: {
+            name: defaultRole.name,
+            communityId,
+            isDefault: true,
+            actions: defaultRole.actions,
+          },
+        });
+      }
+    });
+
+    this.logger.log(`Reset default roles for community ${communityId}`);
+    return this.getCommunityRoles(communityId);
+  }
+
+  /**
    * Get all roles for a community
    */
   async getCommunityRoles(
