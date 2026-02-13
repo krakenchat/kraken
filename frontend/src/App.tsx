@@ -8,6 +8,8 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { AvatarCacheProvider } from "./contexts/AvatarCacheContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { UserProfileProvider } from "./contexts/UserProfileContext";
+import { ThreadPanelProvider } from "./contexts/ThreadPanelContext";
+import { VoiceProvider } from "./contexts/VoiceContext";
 import { useQuery } from "@tanstack/react-query";
 import { onboardingControllerGetStatusOptions } from "./api-client/@tanstack/react-query.gen";
 import AutoUpdater from "./components/Electron/AutoUpdater";
@@ -129,7 +131,9 @@ function App() {
       <PWAInstallPrompt />
       <AvatarCacheProvider>
         <NotificationProvider>
+          <VoiceProvider>
           <RoomProvider>
+            <ThreadPanelProvider>
             <UserProfileProvider>
             <Suspense fallback={
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -176,7 +180,9 @@ function App() {
             </Routes>
             </Suspense>
             </UserProfileProvider>
+            </ThreadPanelProvider>
           </RoomProvider>
+          </VoiceProvider>
         </NotificationProvider>
       </AvatarCacheProvider>
     </ThemeProvider>

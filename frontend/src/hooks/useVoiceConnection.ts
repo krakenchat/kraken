@@ -1,34 +1,36 @@
 import { useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "../app/store";
-import { useSocket } from "./useSocket";
+import { useVoice, useVoiceDispatch } from "../contexts/VoiceContext";
 import { useRoom } from "./useRoom";
 import { useQuery } from "@tanstack/react-query";
 import { userControllerGetProfileOptions, livekitControllerGetConnectionInfoOptions } from "../api-client/@tanstack/react-query.gen";
-import { setShowVideoTiles } from "../features/voice/voiceSlice";
 import { logger } from "../utils/logger";
 import {
   joinVoiceChannel,
   leaveVoiceChannel,
   joinDmVoice,
   leaveDmVoice,
-  switchAudioInputDevice,
-  switchAudioOutputDevice,
-  switchVideoInputDevice,
-  // Unified thunks (replace duplicate channel/DM versions)
   toggleMicrophone,
   toggleCameraUnified,
   toggleScreenShareUnified,
   toggleDeafenUnified,
-} from "../features/voice/voiceThunks";
+  switchAudioInputDevice,
+  switchAudioOutputDevice,
+  switchVideoInputDevice,
+} from "../features/voice/voiceActions";
 
 export const useVoiceConnection = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const socket = useSocket();
-  const voiceState = useSelector((state: RootState) => state.voice);
+  const voiceState = useVoice();
+  const { dispatch, stateRef } = useVoiceDispatch();
   const { room, setRoom, getRoom } = useRoom();
   const { data: user } = useQuery(userControllerGetProfileOptions());
   const { data: connectionInfo } = useQuery(livekitControllerGetConnectionInfoOptions());
+
+  const getDeps = useCallback(() => ({
+    dispatch,
+    getVoiceState: () => stateRef.current,
+    getRoom,
+    setRoom,
+  }), [dispatch, stateRef, getRoom, setRoom]);
 
   const handleJoinVoiceChannel = useCallback(
     async (
@@ -42,13 +44,13 @@ export const useVoiceConnection = () => {
       logger.info('[useVoiceConnection] user:', user?.id, 'connectionInfo:', !!connectionInfo);
 
       if (!user || !connectionInfo) {
-        logger.error('[useVoiceConnection] ✗ Missing user or connectionInfo', { user: !!user, connectionInfo: !!connectionInfo });
+        logger.error('[useVoiceConnection] Missing user or connectionInfo');
         throw new Error("User or connection info not available");
       }
 
-      logger.info('[useVoiceConnection] Dispatching joinVoiceChannel thunk...');
-      await dispatch(
-        joinVoiceChannel({
+      logger.info('[useVoiceConnection] Calling joinVoiceChannel...');
+      await joinVoiceChannel(
+        {
           channelId,
           channelName,
           communityId,
@@ -60,13 +62,12 @@ export const useVoiceConnection = () => {
             displayName: user.displayName ?? undefined,
           },
           connectionInfo,
-          socket: socket ?? undefined,
-          setRoom,
-        })
-      ).unwrap();
-      logger.info('[useVoiceConnection] ✓ joinVoiceChannel thunk completed');
+        },
+        getDeps()
+      );
+      logger.info('[useVoiceConnection] joinVoiceChannel completed');
     },
-    [dispatch, user, connectionInfo, socket, setRoom]
+    [user, connectionInfo, getDeps]
   );
 
   const handleJoinDmVoice = useCallback(
@@ -75,8 +76,8 @@ export const useVoiceConnection = () => {
         throw new Error("User or connection info not available");
       }
 
-      await dispatch(
-        joinDmVoice({
+      await joinDmVoice(
+        {
           dmGroupId,
           dmGroupName,
           user: {
@@ -85,75 +86,68 @@ export const useVoiceConnection = () => {
             displayName: user.displayName ?? undefined,
           },
           connectionInfo,
-          socket: socket ?? undefined,
-          setRoom,
-        })
-      ).unwrap();
+        },
+        getDeps()
+      );
     },
-    [dispatch, user, connectionInfo, socket, setRoom]
+    [user, connectionInfo, getDeps]
   );
 
   const handleLeaveVoiceChannel = useCallback(async () => {
-    // Use the correct leave action based on context
-    if (voiceState.contextType === 'dm') {
-      await dispatch(
-        leaveDmVoice({ socket: socket ?? undefined, getRoom, setRoom })
-      ).unwrap();
+    const deps = getDeps();
+    if (deps.getVoiceState().contextType === 'dm') {
+      await leaveDmVoice(deps);
     } else {
-      await dispatch(
-        leaveVoiceChannel({ socket: socket ?? undefined, getRoom, setRoom })
-      ).unwrap();
+      await leaveVoiceChannel(deps);
     }
-  }, [dispatch, socket, getRoom, setRoom, voiceState.contextType]);
+  }, [getDeps]);
 
-  // Unified handlers (no longer need to check contextType - thunks handle it)
   const handleToggleAudio = useCallback(async () => {
-    await dispatch(toggleMicrophone({ getRoom })).unwrap();
-  }, [dispatch, getRoom]);
+    await toggleMicrophone(getDeps());
+  }, [getDeps]);
 
   const handleToggleVideo = useCallback(async () => {
-    await dispatch(toggleCameraUnified({ getRoom })).unwrap();
-  }, [dispatch, getRoom]);
+    await toggleCameraUnified(getDeps());
+  }, [getDeps]);
 
   const handleToggleScreenShare = useCallback(async () => {
-    await dispatch(toggleScreenShareUnified({ getRoom })).unwrap();
-  }, [dispatch, getRoom]);
+    await toggleScreenShareUnified(getDeps());
+  }, [getDeps]);
 
   const handleToggleMute = useCallback(async () => {
-    // toggleMicrophone replaces both toggleAudio and toggleMute
-    await dispatch(toggleMicrophone({ getRoom })).unwrap();
-  }, [dispatch, getRoom]);
+    await toggleMicrophone(getDeps());
+  }, [getDeps]);
 
   const handleToggleDeafen = useCallback(async () => {
-    await dispatch(toggleDeafenUnified({ getRoom })).unwrap();
-  }, [dispatch, getRoom]);
+    await toggleDeafenUnified(getDeps());
+  }, [getDeps]);
 
   const handleSetShowVideoTiles = useCallback(
     (show: boolean) => {
-      dispatch(setShowVideoTiles(show));
+      dispatch({ type: 'SET_SHOW_VIDEO_TILES', payload: show });
     },
     [dispatch]
   );
 
   const handleSwitchAudioInputDevice = useCallback(
     async (deviceId: string) => {
-      await dispatch(switchAudioInputDevice({ deviceId, getRoom })).unwrap();
+      await switchAudioInputDevice(deviceId, getDeps());
     },
-    [dispatch, getRoom]
+    [getDeps]
   );
 
   const handleSwitchAudioOutputDevice = useCallback(
     async (deviceId: string) => {
-      await dispatch(switchAudioOutputDevice({ deviceId, getRoom })).unwrap();
+      await switchAudioOutputDevice(deviceId, getDeps());
     },
-    [dispatch, getRoom]
+    [getDeps]
   );
 
   const handleSwitchVideoInputDevice = useCallback(
     async (deviceId: string) => {
-      await dispatch(switchVideoInputDevice({ deviceId, getRoom })).unwrap();
+      await switchVideoInputDevice(deviceId, getDeps());
     },
-    [dispatch, getRoom]
+    [getDeps]
   );
 
   return {

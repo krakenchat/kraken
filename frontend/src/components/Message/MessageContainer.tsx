@@ -7,11 +7,7 @@ import MessageSkeleton from "./MessageSkeleton";
 import { UnreadMessageDivider } from "./UnreadMessageDivider";
 import type { Message } from "../../types/message.type";
 import { useMessageVisibility } from "../../hooks/useMessageVisibility";
-import { useAppSelector } from "../../app/hooks";
-import {
-  selectLastReadMessageId,
-  selectUnreadCount,
-} from "../../features/readReceipts/readReceiptsSlice";
+import { useReadReceipts } from "../../hooks/useReadReceipts";
 
 interface MessageContainerProps {
   // Data
@@ -88,12 +84,9 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
   // Read receipts - determine where to show unread divider
   const contextKey = channelId || directMessageGroupId;
-  const lastReadMessageId = useAppSelector((state) =>
-    selectLastReadMessageId(state, contextKey)
-  );
-  const unreadCount = useAppSelector((state) =>
-    selectUnreadCount(state, contextKey)
-  );
+  const { lastReadMessageId: getLastReadMessageId, unreadCount: getUnreadCount } = useReadReceipts();
+  const lastReadMessageId = getLastReadMessageId(contextKey);
+  const unreadCount = getUnreadCount(contextKey);
 
   // Find the index of the last read message in the display (chronological) array
   const lastReadDisplayIndex = useMemo(() => {

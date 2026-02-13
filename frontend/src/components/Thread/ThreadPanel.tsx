@@ -20,31 +20,17 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOff";
-import { useDispatch, useSelector } from "react-redux";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   threadsControllerGetRepliesOptions,
-  threadsControllerSubscribeMutation,
-  threadsControllerUnsubscribeMutation,
-  threadsControllerGetMetadataOptions,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
-import {
-  setThreadReplies,
-  appendThreadReplies,
-  setThreadLoading,
-  setSubscription,
-  selectThreadReplies,
-  selectThreadLoading,
-  selectThreadContinuationToken,
-  selectIsSubscribed,
-  selectThreadLoaded,
-  closeThread,
-} from "../../features/threads/threadsSlice";
 import { Message } from "../../types/message.type";
 import MessageComponent from "../Message/MessageComponent";
 import ThreadMessageInput from "./ThreadMessageInput";
 import useThreadWebSocket from "../../hooks/useThreadWebSocket";
+import { useThreadPanel } from "../../contexts/ThreadPanelContext";
+import { useThreadReplies } from "../../hooks/useThreadReplies";
+import { useThreadSubscription } from "../../hooks/useThreadSubscription";
 import { logger } from "../../utils/logger";
 
 interface ThreadPanelProps {
@@ -61,82 +47,20 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   communityId,
 }) => {
   const theme = useTheme();
-  const dispatch = useDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   // Listen for real-time thread updates
   useThreadWebSocket();
 
   const parentMessageId = parentMessage.id;
+  const { closeThread } = useThreadPanel();
 
-  const queryClient = useQueryClient();
+  // Thread replies via TanStack Query
+  const { replies, continuationToken, isLoading, isFetched } = useThreadReplies(parentMessageId);
 
-  const replies = useSelector(selectThreadReplies(parentMessageId));
-  const isLoading = useSelector(selectThreadLoading(parentMessageId));
-  const isLoaded = useSelector(selectThreadLoaded(parentMessageId));
-  const continuationToken = useSelector(selectThreadContinuationToken(parentMessageId));
-  const isSubscribed = useSelector(selectIsSubscribed(parentMessageId));
-
-  const { mutateAsync: subscribe } = useMutation({
-    ...threadsControllerSubscribeMutation(),
-    onMutate: () => {
-      dispatch(setSubscription({ parentMessageId, isSubscribed: true }));
-    },
-    onError: () => {
-      dispatch(setSubscription({ parentMessageId, isSubscribed: false }));
-    },
-    onSettled: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.threadMetadata),
-  });
-
-  const { mutateAsync: unsubscribe } = useMutation({
-    ...threadsControllerUnsubscribeMutation(),
-    onMutate: () => {
-      dispatch(setSubscription({ parentMessageId, isSubscribed: false }));
-    },
-    onError: () => {
-      dispatch(setSubscription({ parentMessageId, isSubscribed: true }));
-    },
-    onSettled: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.threadMetadata),
-  });
-
-  // Load initial replies and metadata (only once per thread)
-  useEffect(() => {
-    if (!isLoaded && !isLoading) {
-      dispatch(setThreadLoading({ parentMessageId, isLoading: true }));
-
-      (async () => {
-        try {
-          // Fetch replies
-          const data = await queryClient.fetchQuery(
-            threadsControllerGetRepliesOptions({
-              path: { parentMessageId },
-              query: { limit: 50, continuationToken: '' },
-            })
-          );
-          if (data && data.replies) {
-            dispatch(setThreadReplies({
-              parentMessageId,
-              replies: data.replies as Message[],
-              continuationToken: data.continuationToken,
-            }));
-          }
-
-          // Also fetch metadata for subscription status
-          const metadata = await queryClient.fetchQuery(
-            threadsControllerGetMetadataOptions({
-              path: { parentMessageId },
-            })
-          );
-          if (metadata) {
-            dispatch(setSubscription({ parentMessageId, isSubscribed: metadata.isSubscribed }));
-          }
-        } catch (error) {
-          logger.error("Failed to fetch thread replies:", error);
-          dispatch(setThreadLoading({ parentMessageId, isLoading: false }));
-        }
-      })();
-    }
-  }, [parentMessageId, isLoaded, isLoading, queryClient, dispatch]);
+  // Subscription status via TanStack Query
+  const { isSubscribed, toggleSubscription } = useThreadSubscription(parentMessageId);
 
   // Scroll to bottom when new replies come in
   useEffect(() => {
@@ -144,44 +68,38 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   }, [replies.length]);
 
   const handleClose = () => {
-    dispatch(closeThread());
+    closeThread();
   };
 
   const handleLoadMore = useCallback(async () => {
     if (continuationToken && !isLoading) {
-      dispatch(setThreadLoading({ parentMessageId, isLoading: true }));
       try {
-        const data = await queryClient.fetchQuery(
+        const nextPage = await queryClient.fetchQuery(
           threadsControllerGetRepliesOptions({
             path: { parentMessageId },
             query: { limit: 50, continuationToken },
           })
         );
-        if (data && data.replies) {
-          dispatch(appendThreadReplies({
-            parentMessageId,
-            replies: data.replies as Message[],
-            continuationToken: data.continuationToken,
-          }));
-        }
+
+        // Merge into the base query cache (continuationToken: '') so useThreadReplies sees the results
+        const baseQueryKey = threadsControllerGetRepliesOptions({
+          path: { parentMessageId },
+          query: { limit: 50, continuationToken: '' },
+        }).queryKey;
+
+        queryClient.setQueryData(baseQueryKey, (old: typeof nextPage | undefined) => {
+          if (!old) return nextPage;
+          return {
+            ...old,
+            replies: [...(nextPage.replies ?? []), ...old.replies],
+            continuationToken: nextPage.continuationToken,
+          };
+        });
       } catch (error) {
         logger.error("Failed to load more thread replies:", error);
-        dispatch(setThreadLoading({ parentMessageId, isLoading: false }));
       }
     }
-  }, [continuationToken, isLoading, queryClient, parentMessageId, dispatch]);
-
-  const handleToggleSubscription = async () => {
-    try {
-      if (isSubscribed) {
-        await unsubscribe({ path: { parentMessageId } });
-      } else {
-        await subscribe({ path: { parentMessageId } });
-      }
-    } catch (err) {
-      logger.error("Failed to toggle subscription:", err);
-    }
-  };
+  }, [continuationToken, isLoading, queryClient, parentMessageId]);
 
   const contextId = channelId || directMessageGroupId || "";
 
@@ -214,7 +132,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Tooltip title={isSubscribed ? "Turn off notifications" : "Get notified about replies"}>
-            <IconButton size="small" onClick={handleToggleSubscription}>
+            <IconButton size="small" onClick={toggleSubscription}>
               {isSubscribed ? (
                 <NotificationsIcon fontSize="small" color="primary" />
               ) : (
@@ -281,7 +199,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         )}
 
         {/* No replies state */}
-        {!isLoading && replies.length === 0 && (
+        {!isLoading && isFetched && replies.length === 0 && (
           <Box
             sx={{
               display: "flex",

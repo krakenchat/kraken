@@ -124,5 +124,5 @@ export const useVoiceSettings = () => {
   };
 };
 
-// Export the storage key for use in voiceThunks
+// Export the storage key for use in voiceActions
 export { VOICE_SETTINGS_KEY };

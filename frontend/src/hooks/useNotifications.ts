@@ -2,10 +2,11 @@
  * useNotifications Hook
  *
  * Manages real-time notifications via WebSocket and displays browser/Electron notifications.
- * Integrates with Redux state for notification management.
+ * Integrates with TanStack Query cache for notification management.
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { logger } from '../utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from './useSocket';
@@ -19,13 +20,17 @@ import {
   formatNotificationContent,
   getNotificationPermission,
 } from '../utils/notifications';
-import { useAppDispatch } from '../app/hooks';
-import {
-  addNotification,
-  markNotificationAsRead as markAsReadAction,
-  markNotificationAsShown,
-} from '../features/notifications/notificationsSlice';
+import { markNotificationAsShown } from '../utils/notificationTracking';
 import { isElectron, getElectronAPI } from '../utils/platform';
+import {
+  notificationsControllerGetNotificationsQueryKey,
+  notificationsControllerGetUnreadCountQueryKey,
+} from '../api-client/@tanstack/react-query.gen';
+import type {
+  NotificationListResponseDto,
+  UnreadCountResponseDto,
+  NotificationDto,
+} from '../api-client';
 
 /**
  * Options for the useNotifications hook
@@ -66,7 +71,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   } = options;
 
   const socket = useSocket();
-  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -155,14 +160,67 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       // Store notification for later lookup (e.g., Electron click events)
       notificationsRef.current.set(payload.notificationId, payload);
 
-      // Add notification to Redux state
-      dispatch(addNotification(payload));
+      // Convert WebSocket payload to NotificationDto shape for TQ cache
+      const notification: NotificationDto = {
+        id: payload.notificationId,
+        userId: '',
+        type: payload.type,
+        messageId: payload.messageId ?? null,
+        channelId: payload.channelId ?? null,
+        communityId: payload.communityId ?? null,
+        directMessageGroupId: payload.directMessageGroupId ?? null,
+        authorId: payload.authorId,
+        parentMessageId: null,
+        read: payload.read,
+        dismissed: false,
+        createdAt: payload.createdAt,
+        author: payload.author ? {
+          id: payload.author.id || '',
+          username: payload.author.username,
+          avatarUrl: payload.author.avatarUrl ?? null,
+        } : undefined,
+        message: payload.message ? {
+          id: payload.message.id || '',
+          content: '',
+          spans: payload.message.spans.map((s) => ({
+            type: s.type,
+            text: s.text,
+            userId: s.userId,
+          })),
+        } : undefined,
+      };
+
+      // Prepend to all notifications query caches (different consumers use different query params)
+      const notificationsQueryKey = notificationsControllerGetNotificationsQueryKey();
+      queryClient.setQueriesData<NotificationListResponseDto>(
+        { queryKey: notificationsQueryKey },
+        (old) => {
+          if (!old) return old;
+          // Check if already exists
+          if (old.notifications.some((n) => n.id === notification.id)) return old;
+          return {
+            ...old,
+            notifications: [notification, ...old.notifications].slice(0, 100),
+            total: old.total + 1,
+            unreadCount: notification.read ? old.unreadCount : old.unreadCount + 1,
+          };
+        }
+      );
+
+      // Increment unread count cache
+      if (!notification.read) {
+        const unreadCountQueryKey = notificationsControllerGetUnreadCountQueryKey();
+        queryClient.setQueryData(
+          unreadCountQueryKey,
+          (old: UnreadCountResponseDto | undefined) => {
+            if (!old) return { count: 1 };
+            return { count: old.count + 1 };
+          }
+        );
+      }
 
       // Call custom callback if provided
       onNotificationReceived?.(payload);
-
-      // Note: We don't check if shown here because we want to show all new notifications
-      // The selectIsNotificationShown selector can be used elsewhere if needed
 
       // Play sound
       if (playSound) {
@@ -201,12 +259,12 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
           },
         });
 
-        // Mark as shown
-        dispatch(markNotificationAsShown(payload.notificationId));
+        // Mark as shown (module-scoped tracking)
+        markNotificationAsShown(payload.notificationId);
       }
     },
     [
-      dispatch,
+      queryClient,
       showDesktopNotifications,
       playSound,
       playNotificationSound,
@@ -222,10 +280,35 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     (payload: NotificationReadPayload) => {
       logger.dev('[Notifications] Notification marked as read:', payload);
 
-      // Update notification state in Redux
-      dispatch(markAsReadAction(payload.notificationId));
+      // Update notification in all TQ caches (different consumers use different query params)
+      const notificationsQueryKey = notificationsControllerGetNotificationsQueryKey();
+      queryClient.setQueriesData<NotificationListResponseDto>(
+        { queryKey: notificationsQueryKey },
+        (old) => {
+          if (!old) return old;
+          const notification = old.notifications.find((n) => n.id === payload.notificationId);
+          if (!notification || notification.read) return old;
+          return {
+            ...old,
+            notifications: old.notifications.map((n) =>
+              n.id === payload.notificationId ? { ...n, read: true } : n
+            ),
+            unreadCount: Math.max(0, old.unreadCount - 1),
+          };
+        }
+      );
+
+      // Decrement unread count cache
+      const unreadCountQueryKey = notificationsControllerGetUnreadCountQueryKey();
+      queryClient.setQueryData(
+        unreadCountQueryKey,
+        (old: UnreadCountResponseDto | undefined) => {
+          if (!old) return old;
+          return { count: Math.max(0, old.count - 1) };
+        }
+      );
     },
-    [dispatch]
+    [queryClient]
   );
 
   /**
