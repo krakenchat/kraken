@@ -91,7 +91,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
           if (!old) return nextPage;
           return {
             ...old,
-            replies: [...(nextPage.replies ?? []), ...old.replies],
+            replies: [...old.replies, ...(nextPage.replies ?? [])],
             continuationToken: nextPage.continuationToken,
           };
         });
@@ -182,7 +182,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               onClick={handleLoadMore}
               disabled={isLoading}
             >
-              Load earlier replies
+              Load more replies
             </Button>
           </Box>
         )}

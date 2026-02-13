@@ -77,6 +77,23 @@ describe('useDirectMessageWebSocket', () => {
       expect(data.messages[0]).toMatchObject({ id: 'new-dm' });
     });
 
+    it('cancels in-flight queries before updating cache', async () => {
+      const key = dmMessagesQueryKey('dm-1');
+      queryClient.setQueryData(key, createFlatData([
+        createMessage({ id: 'existing', directMessageGroupId: 'dm-1' }),
+      ]));
+      const spy = vi.spyOn(queryClient, 'cancelQueries');
+
+      renderDmWebSocket();
+
+      const newMsg = createMessage({ id: 'new-dm', directMessageGroupId: 'dm-1' });
+      await act(() =>
+        mockSocket.simulateEvent('newDirectMessage', { message: newMsg }),
+      );
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: key });
+    });
+
     it('skips message with no directMessageGroupId', async () => {
       renderDmWebSocket();
 
@@ -105,6 +122,23 @@ describe('useDirectMessageWebSocket', () => {
       const data = queryClient.getQueryData(key) as PaginatedMessagesResponseDto;
       expect(data.messages[0]).toMatchObject({ authorId: 'new' });
     });
+
+    it('cancels in-flight queries before updating cache', async () => {
+      const key = dmMessagesQueryKey('dm-1');
+      queryClient.setQueryData(key, createFlatData([
+        createMessage({ id: 'dm-1-msg', directMessageGroupId: 'dm-1' }),
+      ]));
+      const spy = vi.spyOn(queryClient, 'cancelQueries');
+
+      renderDmWebSocket();
+
+      const updated = createMessage({ id: 'dm-1-msg', directMessageGroupId: 'dm-1', authorId: 'new' });
+      await act(() =>
+        mockSocket.simulateEvent('updateMessage', { message: updated }),
+      );
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: key });
+    });
   });
 
   describe('DELETE_MESSAGE', () => {
@@ -128,6 +162,26 @@ describe('useDirectMessageWebSocket', () => {
       const data = queryClient.getQueryData(key) as PaginatedMessagesResponseDto;
       expect(data.messages).toHaveLength(1);
       expect(data.messages[0]).toMatchObject({ id: 'keep' });
+    });
+
+    it('cancels in-flight queries before updating cache', async () => {
+      const key = dmMessagesQueryKey('dm-1');
+      queryClient.setQueryData(key, createFlatData([
+        createMessage({ id: 'msg', directMessageGroupId: 'dm-1' }),
+      ]));
+      const spy = vi.spyOn(queryClient, 'cancelQueries');
+
+      renderDmWebSocket();
+
+      await act(() =>
+        mockSocket.simulateEvent('deleteMessage', {
+          messageId: 'msg',
+          channelId: null,
+          directMessageGroupId: 'dm-1',
+        }),
+      );
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: key });
     });
   });
 

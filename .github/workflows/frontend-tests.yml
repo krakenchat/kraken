@@ -33,6 +33,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate API client
+        working-directory: ./frontend
+        run: npx openapi-ts
+
       - name: Run unit tests with coverage
         working-directory: ./frontend
         run: npm run test:cov

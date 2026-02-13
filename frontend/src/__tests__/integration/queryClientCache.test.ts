@@ -22,8 +22,10 @@ import { invalidateByIds, invalidateByIdAndPath } from '../../utils/queryInvalid
 import {
   createTestQueryClient,
   createMessage,
+  createThreadReply,
   createInfiniteData,
   createFlatData,
+  createThreadRepliesData,
 } from '../test-utils';
 
 let queryClient: ReturnType<typeof createTestQueryClient>;
@@ -143,6 +145,44 @@ describe('QueryClient round-trip: DM messages (flat)', () => {
     const result = queryClient.getQueryData(key) as PaginatedMessagesResponseDto;
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0]).toMatchObject({ id: 'keep' });
+  });
+});
+
+describe('Thread reply pagination merge order', () => {
+  it('appends newer page after existing replies (chronological asc order)', () => {
+    // Regression: ThreadPanel.tsx previously merged [...nextPage, ...old] which
+    // broke chronological order. Thread replies are sorted sentAt: 'asc' (oldest first),
+    // so the next page (newer replies) must come AFTER existing (older) replies.
+    const key = ['thread-replies-test'];
+    const oldReplies = createThreadRepliesData([
+      createThreadReply({ id: 'old-1', sentAt: '2025-01-01T00:00:00Z' }),
+      createThreadReply({ id: 'old-2', sentAt: '2025-01-01T01:00:00Z' }),
+    ], 'token-1');
+
+    queryClient.setQueryData(key, oldReplies);
+
+    const nextPage = createThreadRepliesData([
+      createThreadReply({ id: 'new-1', sentAt: '2025-01-01T02:00:00Z' }),
+      createThreadReply({ id: 'new-2', sentAt: '2025-01-01T03:00:00Z' }),
+    ]);
+
+    // Correct merge: old replies first, then newer page
+    queryClient.setQueryData(key, (old: typeof nextPage | undefined) => {
+      if (!old) return nextPage;
+      return {
+        ...old,
+        replies: [...old.replies, ...(nextPage.replies ?? [])],
+        continuationToken: nextPage.continuationToken,
+      };
+    });
+
+    const result = queryClient.getQueryData(key) as typeof oldReplies;
+    expect(result.replies).toHaveLength(4);
+    // Chronological order preserved: old-1, old-2, new-1, new-2
+    expect(result.replies[0]).toMatchObject({ id: 'old-1' });
+    expect(result.replies[1]).toMatchObject({ id: 'old-2' });
+    expect(result.replies[2]).toMatchObject({ id: 'new-1' });
+    expect(result.replies[3]).toMatchObject({ id: 'new-2' });
   });
 });
 
