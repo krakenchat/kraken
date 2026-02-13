@@ -83,27 +83,26 @@ export function useChannelWebSocket(communityId: string | undefined) {
       if (!contextId) return;
 
       const queryKey = channelMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const messageToUpdate = findMessageInInfinite(data as never, messageId);
-      if (!messageToUpdate) return;
-
-      const updatedReactions = [...messageToUpdate.reactions];
-      const existingIndex = updatedReactions.findIndex(
-        (r) => r.emoji === reaction.emoji
-      );
-      if (existingIndex >= 0) {
-        updatedReactions[existingIndex] = reaction;
-      } else {
-        updatedReactions.push(reaction);
-      }
-
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, (old: unknown) =>
-        updateMessageInInfinite(old as never, {
-          ...messageToUpdate,
+      queryClient.setQueryData(queryKey, (old: unknown) => {
+        const msg = findMessageInInfinite(old as never, messageId);
+        if (!msg) return old;
+
+        const updatedReactions = [...msg.reactions];
+        const existingIndex = updatedReactions.findIndex(
+          (r) => r.emoji === reaction.emoji
+        );
+        if (existingIndex >= 0) {
+          updatedReactions[existingIndex] = reaction;
+        } else {
+          updatedReactions.push(reaction);
+        }
+
+        return updateMessageInInfinite(old as never, {
+          ...msg,
           reactions: updatedReactions,
-        })
-      );
+        });
+      });
     };
 
     const handleReactionRemoved = async ({
@@ -114,17 +113,15 @@ export function useChannelWebSocket(communityId: string | undefined) {
       if (!contextId) return;
 
       const queryKey = channelMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const messageToUpdate = findMessageInInfinite(data as never, messageId);
-      if (!messageToUpdate) return;
-
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, (old: unknown) =>
-        updateMessageInInfinite(old as never, {
-          ...messageToUpdate,
+      queryClient.setQueryData(queryKey, (old: unknown) => {
+        const msg = findMessageInInfinite(old as never, messageId);
+        if (!msg) return old;
+        return updateMessageInInfinite(old as never, {
+          ...msg,
           reactions,
-        })
-      );
+        });
+      });
     };
 
     const handleMessagePinned = async ({
@@ -135,19 +132,17 @@ export function useChannelWebSocket(communityId: string | undefined) {
     }: MessagePinnedPayload) => {
       const contextId = channelId;
       const queryKey = channelMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const messageToUpdate = findMessageInInfinite(data as never, messageId);
-      if (!messageToUpdate) return;
-
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, (old: unknown) =>
-        updateMessageInInfinite(old as never, {
-          ...messageToUpdate,
+      queryClient.setQueryData(queryKey, (old: unknown) => {
+        const msg = findMessageInInfinite(old as never, messageId);
+        if (!msg) return old;
+        return updateMessageInInfinite(old as never, {
+          ...msg,
           pinned: true,
           pinnedBy,
           pinnedAt,
-        })
-      );
+        });
+      });
     };
 
     const handleMessageUnpinned = async ({
@@ -156,19 +151,17 @@ export function useChannelWebSocket(communityId: string | undefined) {
     }: MessageUnpinnedPayload) => {
       const contextId = channelId;
       const queryKey = channelMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const messageToUpdate = findMessageInInfinite(data as never, messageId);
-      if (!messageToUpdate) return;
-
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, (old: unknown) =>
-        updateMessageInInfinite(old as never, {
-          ...messageToUpdate,
+      queryClient.setQueryData(queryKey, (old: unknown) => {
+        const msg = findMessageInInfinite(old as never, messageId);
+        if (!msg) return old;
+        return updateMessageInInfinite(old as never, {
+          ...msg,
           pinned: false,
           pinnedBy: null,
           pinnedAt: null,
-        })
-      );
+        });
+      });
     };
 
     const handleThreadReplyCountUpdated = async ({
@@ -180,18 +173,16 @@ export function useChannelWebSocket(communityId: string | undefined) {
       if (!contextId) return;
 
       const queryKey = channelMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const messageToUpdate = findMessageInInfinite(data as never, parentMessageId);
-      if (!messageToUpdate) return;
-
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, (old: unknown) =>
-        updateMessageInInfinite(old as never, {
-          ...messageToUpdate,
+      queryClient.setQueryData(queryKey, (old: unknown) => {
+        const msg = findMessageInInfinite(old as never, parentMessageId);
+        if (!msg) return old;
+        return updateMessageInInfinite(old as never, {
+          ...msg,
           replyCount,
           lastReplyAt,
-        })
-      );
+        });
+      });
     };
 
     const handleReadReceiptUpdated = ({

@@ -32,12 +32,13 @@ export function useDirectMessageWebSocket() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewDM = ({ message }: NewMessagePayload) => {
+    const handleNewDM = async ({ message }: NewMessagePayload) => {
       logger.dev("[useDirectMessageWebSocket] Received NEW_DM event:", message);
       const contextId = message.directMessageGroupId;
       if (contextId) {
         logger.dev("[useDirectMessageWebSocket] Adding message to DM group:", contextId);
         const queryKey = dmMessagesQueryKey(contextId);
+        await queryClient.cancelQueries({ queryKey });
         queryClient.setQueryData(queryKey, (old: unknown) =>
           prependMessageToFlat(old as never, message as Message)
         );
@@ -47,22 +48,24 @@ export function useDirectMessageWebSocket() {
       }
     };
 
-    const handleUpdateMessage = ({ message }: UpdateMessagePayload) => {
+    const handleUpdateMessage = async ({ message }: UpdateMessagePayload) => {
       const contextId = message.directMessageGroupId;
       if (contextId) {
         const queryKey = dmMessagesQueryKey(contextId);
+        await queryClient.cancelQueries({ queryKey });
         queryClient.setQueryData(queryKey, (old: unknown) =>
           updateMessageInFlat(old as never, message as Message)
         );
       }
     };
 
-    const handleDeleteMessage = ({
+    const handleDeleteMessage = async ({
       messageId,
       directMessageGroupId,
     }: DeleteMessagePayload) => {
       if (directMessageGroupId) {
         const queryKey = dmMessagesQueryKey(directMessageGroupId);
+        await queryClient.cancelQueries({ queryKey });
         queryClient.setQueryData(queryKey, (old: unknown) =>
           deleteMessageFromFlat(old as never, messageId)
         );
@@ -70,7 +73,7 @@ export function useDirectMessageWebSocket() {
       }
     };
 
-    const handleReactionAdded = ({
+    const handleReactionAdded = async ({
       messageId,
       reaction,
     }: ReactionAddedPayload) => {
@@ -78,11 +81,12 @@ export function useDirectMessageWebSocket() {
       if (!contextId) return;
 
       const queryKey = dmMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const messageToUpdate = findMessageInFlat(data as never, messageId);
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) => {
+        const msg = findMessageInFlat(old as never, messageId);
+        if (!msg || !msg.directMessageGroupId) return old;
 
-      if (messageToUpdate && messageToUpdate.directMessageGroupId) {
-        const updatedReactions = [...messageToUpdate.reactions];
+        const updatedReactions = [...msg.reactions];
         const existingIndex = updatedReactions.findIndex(r => r.emoji === reaction.emoji);
 
         if (existingIndex >= 0) {
@@ -91,13 +95,11 @@ export function useDirectMessageWebSocket() {
           updatedReactions.push(reaction);
         }
 
-        queryClient.setQueryData(queryKey, (old: unknown) =>
-          updateMessageInFlat(old as never, { ...messageToUpdate, reactions: updatedReactions })
-        );
-      }
+        return updateMessageInFlat(old as never, { ...msg, reactions: updatedReactions });
+      });
     };
 
-    const handleReactionRemoved = ({
+    const handleReactionRemoved = async ({
       messageId,
       reactions,
     }: ReactionRemovedPayload) => {
@@ -105,14 +107,12 @@ export function useDirectMessageWebSocket() {
       if (!contextId) return;
 
       const queryKey = dmMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const messageToUpdate = findMessageInFlat(data as never, messageId);
-
-      if (messageToUpdate && messageToUpdate.directMessageGroupId) {
-        queryClient.setQueryData(queryKey, (old: unknown) =>
-          updateMessageInFlat(old as never, { ...messageToUpdate, reactions })
-        );
-      }
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) => {
+        const msg = findMessageInFlat(old as never, messageId);
+        if (!msg || !msg.directMessageGroupId) return old;
+        return updateMessageInFlat(old as never, { ...msg, reactions });
+      });
     };
 
     // After reconnect, we may have missed WebSocket events while disconnected.
