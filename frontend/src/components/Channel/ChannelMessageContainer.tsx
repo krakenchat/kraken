@@ -8,7 +8,6 @@ import MessageSearch from "../Message/MessageSearch";
 import { PinnedMessagesPanel } from "../Moderation";
 import { ThreadPanel } from "../Thread";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import { useChannelMessages } from "../../hooks/useChannelMessages";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -28,7 +27,7 @@ import { channelMessagesQueryKey } from "../../utils/messageQueryKeys";
 import { updateMessageInInfinite } from "../../utils/messageCacheUpdaters";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
-import { openThread, closeThread, selectOpenThreadId } from "../../features/threads/threadsSlice";
+import { useThreadPanel } from "../../contexts/ThreadPanelContext";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 import { logger } from "../../utils/logger";
 import type { Message } from "../../types/message.type";
@@ -68,7 +67,6 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     }
   }, [highlightMessageId, communityId, channelId, navigate]);
 
-  const dispatch = useDispatch();
   const queryClient = useQueryClient();
 
   const { uploadFile } = useFileUpload();
@@ -100,18 +98,18 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const { data: pinnedMessages = [] } = useQuery(moderationControllerGetPinnedMessagesOptions({ path: { channelId } }));
 
   // Thread state
-  const openThreadId = useSelector(selectOpenThreadId);
+  const { openThreadId, openThread, closeThread } = useThreadPanel();
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null);
 
   const handleOpenThread = useCallback((message: Message) => {
     setThreadParentMessage(message);
-    dispatch(openThread(message.id));
-  }, [dispatch]);
+    openThread(message.id);
+  }, [openThread]);
 
   const handleCloseThread = useCallback(() => {
-    dispatch(closeThread());
+    closeThread();
     setThreadParentMessage(null);
-  }, [dispatch]);
+  }, [closeThread]);
 
   // Fetch channel data for header
   const { data: channel } = useQuery(channelsControllerFindOneOptions({ path: { id: channelId } }));

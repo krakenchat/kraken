@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { Room } from "livekit-client";
-import { useSelector } from "react-redux";
-import { RootState } from "../app/store";
+import { useVoice } from "./VoiceContext";
 import { RoomContext, RoomContextType } from "./RoomContextDef";
 import { getApiBaseUrl } from "../config/env";
 import { getCachedItem } from "../utils/storage";
@@ -12,15 +11,7 @@ interface RoomProviderProps {
 
 export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   const roomRef = useRef<Room | null>(null);
-  const isConnected = useSelector(
-    (state: RootState) => state.voice.isConnected
-  );
-  const currentChannelId = useSelector(
-    (state: RootState) => state.voice.currentChannelId
-  );
-  const currentDmGroupId = useSelector(
-    (state: RootState) => state.voice.currentDmGroupId
-  );
+  const { isConnected, currentChannelId, currentDmGroupId } = useVoice();
 
   // Use refs to access current values in beforeunload handler without re-registering
   const channelIdRef = useRef(currentChannelId);

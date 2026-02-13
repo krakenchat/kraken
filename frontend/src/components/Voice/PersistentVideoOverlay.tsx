@@ -17,9 +17,8 @@ import {
   Fullscreen,
   FullscreenExit,
 } from '@mui/icons-material';
-import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
-import { RootState } from '../../app/store';
+import { useVoice } from '../../contexts/VoiceContext';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { VideoTiles } from './VideoTiles';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
@@ -57,7 +56,7 @@ const getDefaultSettings = (): PipSettings => ({
 
 export const PersistentVideoOverlay: React.FC = () => {
   const theme = useTheme();
-  const voiceState = useSelector((state: RootState) => state.voice);
+  const voiceState = useVoice();
   const { actions } = useVoiceConnection();
 
   // Load saved settings or use defaults, clamping size on initial load

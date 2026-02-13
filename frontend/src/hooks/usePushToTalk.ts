@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../app/store';
+import { useVoice } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { useVoiceSettings } from './useVoiceSettings';
 import { logger } from '../utils/logger';
@@ -16,7 +15,7 @@ import { logger } from '../utils/logger';
  */
 export function usePushToTalk() {
   const { getRoom } = useRoom();
-  const voiceState = useSelector((state: RootState) => state.voice);
+  const voiceState = useVoice();
   const { inputMode, pushToTalkKey, pushToTalkKeyDisplay, isPushToTalk } = useVoiceSettings();
 
   const [isKeyHeld, setIsKeyHeld] = useState(false);

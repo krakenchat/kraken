@@ -1,19 +1,18 @@
 /**
  * useThreadWebSocket Hook
  *
- * Listens for thread-related WebSocket events and updates Redux state.
+ * Listens for thread-related WebSocket events and updates TanStack Query cache.
  * Should be used in components that display threads.
  */
 
 import { useEffect, useContext } from "react";
-import { useDispatch } from "react-redux";
+import { useQueryClient } from "@tanstack/react-query";
 import { SocketContext } from "../utils/SocketContext";
 import { ServerEvents } from '@kraken/shared';
 import {
-  addThreadReply,
-  updateThreadReply,
-  deleteThreadReply,
-} from "../features/threads/threadsSlice";
+  threadsControllerGetRepliesQueryKey,
+} from "../api-client/@tanstack/react-query.gen";
+import type { ThreadRepliesResponseDto } from "../api-client";
 import { Message } from "../types/message.type";
 
 interface NewThreadReplyPayload {
@@ -32,36 +31,55 @@ interface DeleteThreadReplyPayload {
  */
 export function useThreadWebSocket() {
   const socket = useContext(SocketContext);
-  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewThreadReply = (payload: NewThreadReplyPayload) => {
-      dispatch(
-        addThreadReply({
-          parentMessageId: payload.parentMessageId,
-          reply: payload.reply,
-        })
-      );
+    const getRepliesQueryKey = (parentMessageId: string) =>
+      threadsControllerGetRepliesQueryKey({
+        path: { parentMessageId },
+        query: { limit: 50, continuationToken: '' },
+      });
+
+    const handleNewThreadReply = async (payload: NewThreadReplyPayload) => {
+      const queryKey = getRepliesQueryKey(payload.parentMessageId);
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: ThreadRepliesResponseDto | undefined) => {
+        if (!old) return old;
+        // Check for duplicates
+        if (old.replies.some((r) => r.id === payload.reply.id)) return old;
+        return {
+          ...old,
+          replies: [...old.replies, payload.reply as never],
+        };
+      });
     };
 
-    const handleUpdateThreadReply = (payload: NewThreadReplyPayload) => {
-      dispatch(
-        updateThreadReply({
-          parentMessageId: payload.parentMessageId,
-          reply: payload.reply,
-        })
-      );
+    const handleUpdateThreadReply = async (payload: NewThreadReplyPayload) => {
+      const queryKey = getRepliesQueryKey(payload.parentMessageId);
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: ThreadRepliesResponseDto | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          replies: old.replies.map((r) =>
+            r.id === payload.reply.id ? (payload.reply as never) : r
+          ),
+        };
+      });
     };
 
-    const handleDeleteThreadReply = (payload: DeleteThreadReplyPayload) => {
-      dispatch(
-        deleteThreadReply({
-          parentMessageId: payload.parentMessageId,
-          replyId: payload.replyId,
-        })
-      );
+    const handleDeleteThreadReply = async (payload: DeleteThreadReplyPayload) => {
+      const queryKey = getRepliesQueryKey(payload.parentMessageId);
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: ThreadRepliesResponseDto | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          replies: old.replies.filter((r) => r.id !== payload.replyId),
+        };
+      });
     };
 
     socket.on(ServerEvents.NEW_THREAD_REPLY, handleNewThreadReply);
@@ -73,7 +91,7 @@ export function useThreadWebSocket() {
       socket.off(ServerEvents.UPDATE_THREAD_REPLY, handleUpdateThreadReply);
       socket.off(ServerEvents.DELETE_THREAD_REPLY, handleDeleteThreadReply);
     };
-  }, [socket, dispatch]);
+  }, [socket, queryClient]);
 }
 
 export default useThreadWebSocket;

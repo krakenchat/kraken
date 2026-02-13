@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useVoiceConnection } from './useVoiceConnection';
 import { useQuery } from '@tanstack/react-query';
 import { userControllerGetProfileOptions, livekitControllerGetConnectionInfoOptions } from '../api-client/@tanstack/react-query.gen';
-import { getSavedConnection, clearSavedConnection } from '../features/voice/voiceThunks';
+import { getSavedConnection, clearSavedConnection } from '../features/voice/voiceActions';
 import { logger } from '../utils/logger';
 
 /**

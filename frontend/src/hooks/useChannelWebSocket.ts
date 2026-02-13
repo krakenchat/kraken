@@ -15,9 +15,9 @@ import {
   ThreadReplyCountUpdatedPayload,
   ReadReceiptUpdatedPayload,
 } from "@kraken/shared";
-import { useAppDispatch } from "../app/hooks";
-import { markAsRead } from "../features/readReceipts/readReceiptsSlice";
 import { channelMessagesQueryKey } from "../utils/messageQueryKeys";
+import { readReceiptsControllerGetUnreadCountsQueryKey } from "../api-client/@tanstack/react-query.gen";
+import type { UnreadCountDto } from "../api-client";
 import {
   prependMessageToInfinite,
   updateMessageInInfinite,
@@ -31,7 +31,6 @@ import {
 } from "../utils/messageIndex";
 
 export function useChannelWebSocket(communityId: string | undefined) {
-  const dispatch = useAppDispatch();
   const socket = useSocket();
   const queryClient = useQueryClient();
 
@@ -200,13 +199,28 @@ export function useChannelWebSocket(communityId: string | undefined) {
       directMessageGroupId,
       lastReadMessageId,
     }: ReadReceiptUpdatedPayload) => {
-      dispatch(
-        markAsRead({
+      const id = channelId || directMessageGroupId;
+      if (!id) return;
+      const queryKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      queryClient.setQueryData(queryKey, (old: UnreadCountDto[] | undefined) => {
+        if (!old) return old;
+        const updated: UnreadCountDto = {
           channelId: channelId || undefined,
           directMessageGroupId: directMessageGroupId || undefined,
+          unreadCount: 0,
           lastReadMessageId,
-        })
-      );
+          lastReadAt: new Date().toISOString(),
+        };
+        const index = old.findIndex(
+          (c) => (c.channelId || c.directMessageGroupId) === id
+        );
+        if (index >= 0) {
+          const next = [...old];
+          next[index] = updated;
+          return next;
+        }
+        return [...old, updated];
+      });
     };
 
     // After reconnect, we may have missed WebSocket events while disconnected.
@@ -240,7 +254,7 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
       socket.off('connect', handleReconnect);
     };
-  }, [socket, communityId, dispatch, queryClient]);
+  }, [socket, communityId, queryClient]);
 
   const sendMessage = (msg: Omit<Message, "id">) => {
     // @ts-expect-error: id will be assigned by the server

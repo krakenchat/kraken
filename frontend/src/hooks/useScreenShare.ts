@@ -9,14 +9,13 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSelector } from 'react-redux';
 import { useVoiceConnection } from './useVoiceConnection';
 import { useLocalMediaState } from './useLocalMediaState';
 import { hasElectronFeature, isWayland } from '../utils/platform';
 import { ScreenShareSettings } from '../components/Voice/ScreenSourcePicker';
 import { setScreenShareConfig, clearScreenShareConfig } from '../utils/screenShareState';
 import { useNotification } from '../contexts/NotificationContext';
-import { RootState } from '../app/store';
+import { useVoice } from '../contexts/VoiceContext';
 
 interface UseScreenShareReturn {
   isScreenSharing: boolean;
@@ -38,9 +37,7 @@ export const useScreenShare = (): UseScreenShareReturn => {
   const { showNotification } = useNotification();
 
   // Track if audio capture failed (USB headset in exclusive mode, etc.)
-  const screenShareAudioFailed = useSelector(
-    (state: RootState) => state.voice.screenShareAudioFailed
-  );
+  const { screenShareAudioFailed } = useVoice();
   const prevAudioFailedRef = useRef(false);
 
   // Show notification when audio capture fails

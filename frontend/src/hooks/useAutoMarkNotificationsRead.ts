@@ -5,15 +5,14 @@
  * Marks all unread notifications for the current context (channel/DM).
  */
 
-import { useEffect, useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { notificationsControllerMarkAsReadMutation } from '../api-client/@tanstack/react-query.gen';
+import { useEffect, useMemo, useRef } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  notificationsControllerMarkAsReadMutation,
+  notificationsControllerGetNotificationsOptions,
+} from '../api-client/@tanstack/react-query.gen';
 import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
 import { logger } from '../utils/logger';
-import { useAppSelector } from '../app/hooks';
-import {
-  selectUnreadNotifications,
-} from '../features/notifications/notificationsSlice';
 
 interface UseAutoMarkNotificationsReadOptions {
   /**
@@ -39,7 +38,18 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
   const { contextType, contextId, enabled = true } = options;
 
   const queryClient = useQueryClient();
-  const unreadNotifications = useAppSelector(selectUnreadNotifications);
+
+  const { data: notificationsData } = useQuery(
+    notificationsControllerGetNotificationsOptions()
+  );
+
+  // Filter unread notifications client-side
+  const unreadNotifications = useMemo(
+    () => notificationsData?.notifications.filter(
+      (n) => !n.read && !n.dismissed
+    ) ?? [],
+    [notificationsData]
+  );
 
   const { mutateAsync: markAsRead } = useMutation({
     ...notificationsControllerMarkAsReadMutation(),

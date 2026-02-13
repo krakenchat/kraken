@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { logger } from '../utils/logger';
-import { useSelector } from 'react-redux';
-import { RootState } from '../app/store';
+import { useVoice } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { Track } from 'livekit-client';
 
@@ -23,7 +22,7 @@ import { Track } from 'livekit-client';
  */
 export const useDeafenEffect = () => {
   const { room } = useRoom();
-  const isDeafened = useSelector((state: RootState) => state.voice.isDeafened);
+  const { isDeafened } = useVoice();
   const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
