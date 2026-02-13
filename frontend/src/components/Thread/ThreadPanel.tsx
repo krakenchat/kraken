@@ -74,12 +74,27 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   const handleLoadMore = useCallback(async () => {
     if (continuationToken && !isLoading) {
       try {
-        await queryClient.fetchQuery(
+        const nextPage = await queryClient.fetchQuery(
           threadsControllerGetRepliesOptions({
             path: { parentMessageId },
             query: { limit: 50, continuationToken },
           })
         );
+
+        // Merge into the base query cache (continuationToken: '') so useThreadReplies sees the results
+        const baseQueryKey = threadsControllerGetRepliesOptions({
+          path: { parentMessageId },
+          query: { limit: 50, continuationToken: '' },
+        }).queryKey;
+
+        queryClient.setQueryData(baseQueryKey, (old: typeof nextPage | undefined) => {
+          if (!old) return nextPage;
+          return {
+            ...old,
+            replies: [...(nextPage.replies ?? []), ...old.replies],
+            continuationToken: nextPage.continuationToken,
+          };
+        });
       } catch (error) {
         logger.error("Failed to load more thread replies:", error);
       }

@@ -118,14 +118,11 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
 }
 
 // Split into two contexts to avoid unnecessary re-renders
-const VoiceStateContext = createContext<VoiceState>(initialState);
+const VoiceStateContext = createContext<VoiceState | null>(null);
 const VoiceDispatchContext = createContext<{
   dispatch: React.Dispatch<VoiceAction>;
   stateRef: React.RefObject<VoiceState>;
-}>({
-  dispatch: () => {},
-  stateRef: { current: initialState },
-});
+} | null>(null);
 
 export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(voiceReducer, initialState);
@@ -146,10 +143,14 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 /** Read voice state (re-renders on changes) */
 export function useVoice(): VoiceState {
-  return useContext(VoiceStateContext);
+  const ctx = useContext(VoiceStateContext);
+  if (!ctx) throw new Error('useVoice must be used within a VoiceProvider');
+  return ctx;
 }
 
 /** Get voice dispatch + stateRef (stable, no re-renders from state changes) */
 export function useVoiceDispatch() {
-  return useContext(VoiceDispatchContext);
+  const ctx = useContext(VoiceDispatchContext);
+  if (!ctx) throw new Error('useVoiceDispatch must be used within a VoiceProvider');
+  return ctx;
 }

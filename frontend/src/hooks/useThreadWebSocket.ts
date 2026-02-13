@@ -12,11 +12,10 @@ import { ServerEvents } from '@kraken/shared';
 import {
   threadsControllerGetRepliesQueryKey,
 } from "../api-client/@tanstack/react-query.gen";
-import type { ThreadRepliesResponseDto } from "../api-client";
-import { Message } from "../types/message.type";
+import type { ThreadRepliesResponseDto, EnrichedThreadReplyDto } from "../api-client";
 
 interface NewThreadReplyPayload {
-  reply: Message;
+  reply: EnrichedThreadReplyDto;
   parentMessageId: string;
 }
 
@@ -51,7 +50,7 @@ export function useThreadWebSocket() {
         if (old.replies.some((r) => r.id === payload.reply.id)) return old;
         return {
           ...old,
-          replies: [...old.replies, payload.reply as never],
+          replies: [...old.replies, payload.reply as EnrichedThreadReplyDto],
         };
       });
     };
@@ -64,7 +63,7 @@ export function useThreadWebSocket() {
         return {
           ...old,
           replies: old.replies.map((r) =>
-            r.id === payload.reply.id ? (payload.reply as never) : r
+            r.id === payload.reply.id ? (payload.reply as EnrichedThreadReplyDto) : r
           ),
         };
       });

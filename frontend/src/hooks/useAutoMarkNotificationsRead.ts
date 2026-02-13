@@ -5,12 +5,13 @@
  * Marks all unread notifications for the current context (channel/DM).
  */
 
-import { useEffect, useMemo, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   notificationsControllerMarkAsReadMutation,
-  notificationsControllerGetNotificationsOptions,
+  notificationsControllerGetNotificationsQueryKey,
 } from '../api-client/@tanstack/react-query.gen';
+import type { NotificationListResponseDto } from '../api-client';
 import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
 import { logger } from '../utils/logger';
 
@@ -39,24 +40,12 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
 
   const queryClient = useQueryClient();
 
-  const { data: notificationsData } = useQuery(
-    notificationsControllerGetNotificationsOptions()
-  );
-
-  // Filter unread notifications client-side
-  const unreadNotifications = useMemo(
-    () => notificationsData?.notifications.filter(
-      (n) => !n.read && !n.dismissed
-    ) ?? [],
-    [notificationsData]
-  );
-
   const { mutateAsync: markAsRead } = useMutation({
     ...notificationsControllerMarkAsReadMutation(),
     onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
   });
 
-  // Wrap in useCallback to stabilize for useEffect deps
+  // Wrap in ref to stabilize for useEffect
   const markAsReadRef = useRef(markAsRead);
   markAsReadRef.current = markAsRead;
 
@@ -73,23 +62,37 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
       return;
     }
 
+    // Read unread notifications from existing cache (snapshot, no separate fetch).
+    // Uses getQueriesData to find any cached data regardless of query params.
+    const queries = queryClient.getQueriesData<NotificationListResponseDto>({
+      queryKey: notificationsControllerGetNotificationsQueryKey(),
+    });
+
+    let unreadNotifications: NotificationListResponseDto['notifications'] = [];
+    for (const [, data] of queries) {
+      if (data?.notifications) {
+        unreadNotifications = data.notifications.filter((n) => !n.read && !n.dismissed);
+        break;
+      }
+    }
+
     // Find all unread notifications for this context
     const notificationsToMark = unreadNotifications.filter((notification) => {
       if (contextType === 'channel') {
-        return notification.channelId === contextId && !notification.read;
+        return notification.channelId === contextId;
       } else {
-        return notification.directMessageGroupId === contextId && !notification.read;
+        return notification.directMessageGroupId === contextId;
       }
     });
+
+    // Update ref to prevent re-processing
+    lastProcessedContextRef.current = contextId;
 
     // Mark each notification as read
     if (notificationsToMark.length > 0) {
       logger.dev(
         `[Auto-mark] Marking ${notificationsToMark.length} notification(s) as read for ${contextType}:${contextId}`
       );
-
-      // Update ref to prevent re-processing
-      lastProcessedContextRef.current = contextId;
 
       // Track if effect is still active (for cleanup)
       let isCancelled = false;
@@ -125,11 +128,8 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
       return () => {
         isCancelled = true;
       };
-    } else {
-      // Update ref even if no notifications to mark
-      lastProcessedContextRef.current = contextId;
     }
-  }, [contextType, contextId, enabled, unreadNotifications]);
+  }, [contextType, contextId, enabled, queryClient]);
 }
 
 export default useAutoMarkNotificationsRead;

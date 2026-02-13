@@ -190,11 +190,11 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         } : undefined,
       };
 
-      // Prepend to notifications query cache
+      // Prepend to all notifications query caches (different consumers use different query params)
       const notificationsQueryKey = notificationsControllerGetNotificationsQueryKey();
-      queryClient.setQueryData(
-        notificationsQueryKey,
-        (old: NotificationListResponseDto | undefined) => {
+      queryClient.setQueriesData<NotificationListResponseDto>(
+        { queryKey: notificationsQueryKey },
+        (old) => {
           if (!old) return old;
           // Check if already exists
           if (old.notifications.some((n) => n.id === notification.id)) return old;
@@ -280,11 +280,11 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     (payload: NotificationReadPayload) => {
       logger.dev('[Notifications] Notification marked as read:', payload);
 
-      // Update notification in TQ cache
+      // Update notification in all TQ caches (different consumers use different query params)
       const notificationsQueryKey = notificationsControllerGetNotificationsQueryKey();
-      queryClient.setQueryData(
-        notificationsQueryKey,
-        (old: NotificationListResponseDto | undefined) => {
+      queryClient.setQueriesData<NotificationListResponseDto>(
+        { queryKey: notificationsQueryKey },
+        (old) => {
           if (!old) return old;
           const notification = old.notifications.find((n) => n.id === payload.notificationId);
           if (!notification || notification.read) return old;
