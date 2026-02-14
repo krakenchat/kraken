@@ -221,7 +221,7 @@ For issues or questions, please open a pull request or GitHub issue.
 
 Kraken Chat is **dual-licensed**:
 
-- **AGPLv3** — for personal, open-source, research, non-profits, and self-hosters (see [LICENSE](./LICENSE.md)).
-- **Commercial License Required** — for business, enterprise, hosted SaaS, or any commercial use (see [LICENSE_COM](./LICENSE_COM.md) and [LICENSE-FAQ.md](./LICENSE-FAQ.md)).
+- **AGPLv3** (default) — free for everyone, including commercial use, as long as you comply with AGPL terms (see [LICENSE](./LICENSE.md)).
+- **Commercial License** — available for those who want to keep modifications proprietary or avoid AGPL source-sharing obligations (see [LICENSE_COM](./LICENSE_COM.md) and [LICENSE-FAQ.md](./LICENSE-FAQ.md)).
 
-Commercial users: Contact us for licensing — licensing {at} krakenchat [dot] app
+Contact us for commercial licensing — licensing {at} krakenchat [dot] app
