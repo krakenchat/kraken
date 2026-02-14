@@ -50,7 +50,7 @@ const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
         onSelectDmGroup(result.id);
       } else {
         // Navigate to DM view if no callback
-        navigate(`/dm/${result.id}`);
+        navigate(`/direct-messages?group=${result.id}`);
       }
     } catch (err) {
       logger.error("Failed to create DM:", err);

@@ -23,6 +23,6 @@ export class UpdateAppearanceSettingsDto {
   accentColor?: string;
 
   @IsOptional()
-  @IsIn(['minimal', 'subtle', 'vibrant'])
+  @IsIn(['minimal', 'balanced', 'vibrant'])
   intensity?: string;
 }

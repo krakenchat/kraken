@@ -22,9 +22,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChatIcon from "@mui/icons-material/Chat";
 import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { userControllerGetUserByIdOptions, userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { userControllerGetUserByIdOptions, userControllerGetProfileOptions, directMessagesControllerCreateDmGroupMutation } from "../../api-client/@tanstack/react-query.gen";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
+import { logger } from "../../utils/logger";
 
 const BannerContainer = styled(Box)(({ theme }) => ({
   position: "relative",
@@ -85,6 +86,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const { blobUrl: bannerUrl } = useAuthenticatedImage(user?.bannerUrl || null);
   const { blobUrl: avatarUrl } = useAuthenticatedImage(user?.avatarUrl || null);
 
+  const { mutateAsync: createDmGroup } = useMutation(directMessagesControllerCreateDmGroupMutation());
+
   const isOwnProfile = currentUser?.id === userId;
 
   const handleViewFullProfile = () => {
@@ -92,10 +95,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     navigate(`/profile/${userId}`);
   };
 
-  const handleSendMessage = () => {
-    onClose();
-    // TODO: Navigate to or create DM with user
-    navigate(`/dm/${userId}`);
+  const handleSendMessage = async () => {
+    if (!userId) return;
+    try {
+      const result = await createDmGroup({
+        body: { userIds: [userId], isGroup: false },
+      });
+      onClose();
+      navigate(`/direct-messages?group=${result.id}`);
+    } catch (err) {
+      logger.error("Failed to create DM:", err);
+    }
   };
 
   return (

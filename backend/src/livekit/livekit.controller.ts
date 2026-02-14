@@ -161,10 +161,6 @@ export class LivekitController {
    * Creates a temporary file, streams it, and deletes it after streaming completes
    */
   @Get('replay/stream')
-  @RequiredActions(RbacActions.CAPTURE_REPLAY)
-  @RbacResource({
-    type: RbacResourceType.INSTANCE,
-  })
   async streamReplay(
     @Query() query: StreamReplayDto,
     @Req() req: AuthenticatedRequest,
@@ -287,10 +283,6 @@ export class LivekitController {
   @Throttle({
     short: { limit: 3, ttl: 60000 }, // 3 per minute
     long: { limit: 15, ttl: 3600000 }, // 15 per hour
-  })
-  @RequiredActions(RbacActions.CAPTURE_REPLAY)
-  @RbacResource({
-    type: RbacResourceType.INSTANCE,
   })
   @ApiCreatedResponse({ type: CaptureReplayResponseDto })
   async captureReplay(

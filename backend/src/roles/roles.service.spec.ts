@@ -1094,12 +1094,18 @@ describe('RolesService', () => {
     it('should upsert all three default roles and return community roles', async () => {
       const communityId = 'community-123';
       const roles = [
-        RoleFactory.build({ name: 'Community Admin', communityId, isDefault: true }),
+        RoleFactory.build({
+          name: 'Community Admin',
+          communityId,
+          isDefault: true,
+        }),
         RoleFactory.build({ name: 'Moderator', communityId, isDefault: true }),
         RoleFactory.build({ name: 'Member', communityId, isDefault: true }),
       ];
 
-      mockDatabase.$transaction.mockImplementation((fn: any) => fn(mockDatabase));
+      mockDatabase.$transaction.mockImplementation((fn: any) =>
+        fn(mockDatabase),
+      );
       mockDatabase.role.upsert.mockResolvedValue(RoleFactory.build());
       mockDatabase.role.findMany.mockResolvedValue(roles);
 
@@ -1114,7 +1120,9 @@ describe('RolesService', () => {
     it('should upsert with correct where/update/create for each default role', async () => {
       const communityId = 'community-456';
 
-      mockDatabase.$transaction.mockImplementation((fn: any) => fn(mockDatabase));
+      mockDatabase.$transaction.mockImplementation((fn: any) =>
+        fn(mockDatabase),
+      );
       mockDatabase.role.upsert.mockResolvedValue(RoleFactory.build());
       mockDatabase.role.findMany.mockResolvedValue([]);
 
@@ -1124,24 +1132,41 @@ describe('RolesService', () => {
       expect(mockDatabase.role.upsert).toHaveBeenCalledWith({
         where: { name_communityId: { name: 'Community Admin', communityId } },
         update: { actions: expect.any(Array), isDefault: true },
-        create: { name: 'Community Admin', communityId, isDefault: true, actions: expect.any(Array) },
+        create: {
+          name: 'Community Admin',
+          communityId,
+          isDefault: true,
+          actions: expect.any(Array),
+        },
       });
       expect(mockDatabase.role.upsert).toHaveBeenCalledWith({
         where: { name_communityId: { name: 'Moderator', communityId } },
         update: { actions: expect.any(Array), isDefault: true },
-        create: { name: 'Moderator', communityId, isDefault: true, actions: expect.any(Array) },
+        create: {
+          name: 'Moderator',
+          communityId,
+          isDefault: true,
+          actions: expect.any(Array),
+        },
       });
       expect(mockDatabase.role.upsert).toHaveBeenCalledWith({
         where: { name_communityId: { name: 'Member', communityId } },
         update: { actions: expect.any(Array), isDefault: true },
-        create: { name: 'Member', communityId, isDefault: true, actions: expect.any(Array) },
+        create: {
+          name: 'Member',
+          communityId,
+          isDefault: true,
+          actions: expect.any(Array),
+        },
       });
     });
 
     it('should reset permissions on existing roles without affecting user assignments', async () => {
       const communityId = 'community-789';
 
-      mockDatabase.$transaction.mockImplementation((fn: any) => fn(mockDatabase));
+      mockDatabase.$transaction.mockImplementation((fn: any) =>
+        fn(mockDatabase),
+      );
       mockDatabase.role.upsert.mockResolvedValue(RoleFactory.build());
       mockDatabase.role.findMany.mockResolvedValue([]);
 
@@ -1150,7 +1175,10 @@ describe('RolesService', () => {
       // Upsert only touches actions and isDefault on update — not UserRoles
       for (const call of mockDatabase.role.upsert.mock.calls) {
         const args = call[0];
-        expect(args.update).toEqual({ actions: expect.any(Array), isDefault: true });
+        expect(args.update).toEqual({
+          actions: expect.any(Array),
+          isDefault: true,
+        });
         expect(args.update).not.toHaveProperty('UserRoles');
       }
     });

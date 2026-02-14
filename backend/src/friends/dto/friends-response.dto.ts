@@ -1,5 +1,6 @@
 import { FriendshipStatus, InstanceRole } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import {
   InstanceRoleValues,
   FriendshipStatusValues,
@@ -8,11 +9,22 @@ import {
 export class FriendUserDto {
   id: string;
   username: string;
+
+  @Exclude()
+  @ApiHideProperty()
   email: string | null;
+
+  @Exclude()
+  @ApiHideProperty()
   verified: boolean;
+
   @ApiProperty({ enum: InstanceRoleValues })
   role: InstanceRole;
+
+  @Exclude()
+  @ApiHideProperty()
   createdAt: Date;
+
   avatarUrl: string | null;
   bannerUrl: string | null;
   lastSeen: Date | null;
@@ -20,7 +32,34 @@ export class FriendUserDto {
   bio: string | null;
   status: string | null;
   statusUpdatedAt: Date | null;
+
+  @Exclude()
+  @ApiHideProperty()
   banned: boolean;
+
+  @Exclude()
+  @ApiHideProperty()
+  hashedPassword: string;
+
+  @Exclude()
+  @ApiHideProperty()
+  bannedAt: Date | null;
+
+  @Exclude()
+  @ApiHideProperty()
+  bannedById: string | null;
+
+  @Exclude()
+  @ApiHideProperty()
+  storageQuotaBytes: bigint;
+
+  @Exclude()
+  @ApiHideProperty()
+  storageUsedBytes: bigint;
+
+  constructor(partial: Partial<FriendUserDto>) {
+    Object.assign(this, partial);
+  }
 }
 
 export class FriendshipDto {

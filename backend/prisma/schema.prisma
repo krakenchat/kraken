@@ -135,7 +135,7 @@ model UserAppearanceSettings {
   userId      String   @unique @db.ObjectId
   themeMode   String   @default("dark") // "dark" | "light"
   accentColor String   @default("blue") // "teal" | "purple" | "orange" | "blue"
-  intensity   String   @default("minimal") // "minimal" | "subtle" | "vibrant"
+  intensity   String   @default("minimal") // "minimal" | "balanced" | "vibrant"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

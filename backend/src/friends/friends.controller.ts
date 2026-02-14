@@ -6,6 +6,8 @@ import {
   Param,
   Req,
   UseGuards,
+  UseInterceptors,
+  ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { FriendsService } from './friends.service';
@@ -21,6 +23,7 @@ import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 
 @Controller('friends')
 @UseGuards(JwtAuthGuard)
+@UseInterceptors(ClassSerializerInterceptor)
 export class FriendsController {
   constructor(private readonly friendsService: FriendsService) {}
 
@@ -30,7 +33,8 @@ export class FriendsController {
   @Get()
   @ApiOkResponse({ type: [FriendUserDto] })
   async getFriends(@Req() req: AuthenticatedRequest): Promise<FriendUserDto[]> {
-    return this.friendsService.getFriends(req.user.id);
+    const friends = await this.friendsService.getFriends(req.user.id);
+    return friends.map((f) => new FriendUserDto(f));
   }
 
   /**
@@ -41,7 +45,19 @@ export class FriendsController {
   async getPendingRequests(
     @Req() req: AuthenticatedRequest,
   ): Promise<PendingRequestsDto> {
-    return this.friendsService.getPendingRequests(req.user.id);
+    const result = await this.friendsService.getPendingRequests(req.user.id);
+    return {
+      sent: result.sent.map((f) => ({
+        ...f,
+        userA: new FriendUserDto(f.userA),
+        userB: new FriendUserDto(f.userB),
+      })),
+      received: result.received.map((f) => ({
+        ...f,
+        userA: new FriendUserDto(f.userA),
+        userB: new FriendUserDto(f.userB),
+      })),
+    };
   }
 
   /**
