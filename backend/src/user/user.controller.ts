@@ -97,11 +97,7 @@ export class UserController {
   }
 
   @Get('search')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @RequiredActions(RbacActions.READ_USER)
-  @RbacResource({
-    type: RbacResourceType.INSTANCE,
-  })
+  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({ type: [UserEntity] })
   searchUsers(
     @Query('q') query: string,

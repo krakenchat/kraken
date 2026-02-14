@@ -1,4 +1,8 @@
-import { ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiPropertyOptional,
+  ApiExtraModels,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import {
   SpanDto,
   ReactionDto,
