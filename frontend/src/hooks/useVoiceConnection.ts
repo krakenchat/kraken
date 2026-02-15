@@ -150,6 +150,10 @@ export const useVoiceConnection = () => {
     [getDeps]
   );
 
+  const handleRequestMaximize = useCallback(() => {
+    dispatch({ type: 'SET_REQUEST_MAXIMIZE', payload: true });
+  }, [dispatch]);
+
   return {
     state: { ...voiceState, room },
     actions: {
@@ -165,6 +169,7 @@ export const useVoiceConnection = () => {
       switchAudioInputDevice: handleSwitchAudioInputDevice,
       switchAudioOutputDevice: handleSwitchAudioOutputDevice,
       switchVideoInputDevice: handleSwitchVideoInputDevice,
+      requestMaximize: handleRequestMaximize,
     },
   };
 };

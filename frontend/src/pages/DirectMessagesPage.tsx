@@ -14,6 +14,7 @@ import {
 } from "../api-client/@tanstack/react-query.gen";
 import { styled } from "@mui/material/styles";
 import { DirectMessageGroup, DirectMessageGroupMember } from "../types/direct-message.type";
+import { useVideoOverlay } from "../contexts/VideoOverlayContext";
 
 const Root = styled(Box)({
   display: "flex",
@@ -85,6 +86,7 @@ const DirectMessagesPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const { data: pendingRequests } = useQuery(friendsControllerGetPendingRequestsOptions());
+  const { setContainerElement } = useVideoOverlay();
 
   // Count of incoming friend requests for badge
   const incomingRequestCount = pendingRequests?.received?.length || 0;
@@ -243,7 +245,7 @@ const DirectMessagesPage: React.FC = () => {
           />
         )}
       </Sidebar>
-      <Content>
+      <Content ref={setContainerElement}>
         {selectedDmGroupId ? (
           <>
             <DMChatHeader

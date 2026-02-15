@@ -26,10 +26,40 @@ import { useNotifications } from "./hooks/useNotifications";
 import NotificationBadge from "./components/Notifications/NotificationBadge";
 import NotificationCenter from "./components/Notifications/NotificationCenter";
 import { ReplayBufferProvider } from "./contexts/ReplayBufferContext";
+import { VideoOverlayProvider, useVideoOverlay } from "./contexts/VideoOverlayContext";
 import { setTelemetryUser, clearTelemetryUser } from "./services/telemetry";
 import { useThemeSync } from "./hooks/useThemeSync";
 
 const settings = ["My Profile", "Settings", "Logout"];
+
+/** Content area that registers itself as the fallback video overlay container */
+const LayoutContentArea: React.FC<{ voiceConnected: boolean; isMenuExpanded: boolean }> = ({
+  voiceConnected,
+  isMenuExpanded,
+}) => {
+  const { setContainerElement } = useVideoOverlay();
+
+  return (
+    <Box
+      ref={setContainerElement}
+      sx={{
+        position: "absolute",
+        top: APPBAR_HEIGHT,
+        left: isMenuExpanded ? 320 : SIDEBAR_WIDTH,
+        right: 0,
+        bottom: voiceConnected ? VOICE_BAR_HEIGHT : 0,
+        overflow: "auto",
+        transition: "left 0.3s cubic-bezier(0.4,0,0.2,1)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box sx={{ flex: 1, minHeight: "100%" }}>
+        <Outlet />
+      </Box>
+    </Box>
+  );
+};
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();
@@ -135,84 +165,70 @@ const Layout: React.FC = () => {
   // Desktop layout (original)
   return (
     <ReplayBufferProvider>
-      <AppBar position="fixed">
-        <Toolbar sx={{ minHeight: APPBAR_HEIGHT }}>
-          <div
-            style={{
-              flexGrow: 1,
-              flexDirection: "row",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.25em",
-            }}
-          >
-            <IconButton
-              size="large"
-              edge="start"
-              aria-label="menu"
-              onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-              sx={{ mr: 2, color: "text.primary" }}
+      <VideoOverlayProvider>
+        <AppBar position="fixed">
+          <Toolbar sx={{ minHeight: APPBAR_HEIGHT }}>
+            <div
+              style={{
+                flexGrow: 1,
+                flexDirection: "row",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.25em",
+              }}
             >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" sx={{ color: "text.primary" }}>Kraken</Typography>
-          </div>
-          <NavigationLinks
-            isLoading={isLoading}
-            isError={isError}
-            userData={userData as User | undefined}
-            handleLogout={handleLogout}
-            logoutLoading={logoutLoading}
-          />
-          <ThemeToggle />
-          &nbsp;
-          {!isLoading && (
-            <>
-              <NotificationBadge
-                onClick={() => setNotificationCenterOpen(true)}
-              />
-              <ProfileIcon
-                userData={profileUserData}
-                anchorElUser={anchorElUser}
-                handleOpenUserMenu={handleOpenUserMenu}
-                handleCloseUserMenu={handleCloseUserMenu}
-                settings={settings}
-                onSettingClick={handleSettingClick}
-              />
-            </>
-          )}
-        </Toolbar>
-      </AppBar>
-      <NotificationCenter
-        open={notificationCenterOpen}
-        onClose={() => setNotificationCenterOpen(false)}
-      />
-      <CommunityToggle
-        isExpanded={isMenuExpanded}
-        appBarHeight={APPBAR_HEIGHT}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          top: APPBAR_HEIGHT,
-          left: isMenuExpanded ? 320 : SIDEBAR_WIDTH,
-          right: 0,
-          bottom: voiceState.isConnected ? VOICE_BAR_HEIGHT : 0,
-          overflow: "auto",
-          transition: "left 0.3s cubic-bezier(0.4,0,0.2,1)",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Box sx={{ flex: 1, minHeight: "100%" }}>
-          <Outlet />
-        </Box>
-      </Box>
+              <IconButton
+                size="large"
+                edge="start"
+                aria-label="menu"
+                onClick={() => setIsMenuExpanded(!isMenuExpanded)}
+                sx={{ mr: 2, color: "text.primary" }}
+              >
+                <MenuIcon />
+              </IconButton>
+              <Typography variant="h6" sx={{ color: "text.primary" }}>Kraken</Typography>
+            </div>
+            <NavigationLinks
+              isLoading={isLoading}
+              isError={isError}
+              userData={userData as User | undefined}
+              handleLogout={handleLogout}
+              logoutLoading={logoutLoading}
+            />
+            <ThemeToggle />
+            &nbsp;
+            {!isLoading && (
+              <>
+                <NotificationBadge
+                  onClick={() => setNotificationCenterOpen(true)}
+                />
+                <ProfileIcon
+                  userData={profileUserData}
+                  anchorElUser={anchorElUser}
+                  handleOpenUserMenu={handleOpenUserMenu}
+                  handleCloseUserMenu={handleCloseUserMenu}
+                  settings={settings}
+                  onSettingClick={handleSettingClick}
+                />
+              </>
+            )}
+          </Toolbar>
+        </AppBar>
+        <NotificationCenter
+          open={notificationCenterOpen}
+          onClose={() => setNotificationCenterOpen(false)}
+        />
+        <CommunityToggle
+          isExpanded={isMenuExpanded}
+          appBarHeight={APPBAR_HEIGHT}
+        />
+        <LayoutContentArea voiceConnected={voiceState.isConnected} isMenuExpanded={isMenuExpanded} />
 
-      {/* Voice Components */}
-      <VoiceBottomBar />
-      <AudioRenderer />
-      <PersistentVideoOverlay />
+        {/* Voice Components */}
+        <VoiceBottomBar />
+        <AudioRenderer />
+        <PersistentVideoOverlay />
+      </VideoOverlayProvider>
     </ReplayBufferProvider>
   );
 };
