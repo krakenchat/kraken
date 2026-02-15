@@ -20,7 +20,6 @@ import { UpdateChannelOverrideDto } from './dto/update-channel-override.dto';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 import { NotificationsGateway } from './notifications.gateway';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
-import { PresenceService } from '@/presence/presence.service';
 
 @Injectable()
 export class NotificationsService {
@@ -31,7 +30,6 @@ export class NotificationsService {
     @Inject(forwardRef(() => NotificationsGateway))
     private readonly notificationsGateway: NotificationsGateway,
     private readonly pushNotificationsService: PushNotificationsService,
-    private readonly presenceService: PresenceService,
   ) {}
 
   /**
@@ -327,8 +325,8 @@ export class NotificationsService {
     // Emit WebSocket event to notify the user in real-time
     this.notificationsGateway.emitNotificationToUser(dto.userId, notification);
 
-    // Send push notification if user is not online (fire-and-forget to avoid blocking)
-    this.sendPushIfOffline(dto.userId, notification).catch((error) => {
+    // Send push notification (fire-and-forget to avoid blocking)
+    this.sendPushNotification(dto.userId, notification).catch((error) => {
       this.logger.error(
         `Failed to send push notification to user ${dto.userId}:`,
         error,
@@ -339,9 +337,11 @@ export class NotificationsService {
   }
 
   /**
-   * Send push notification if user is not currently online
+   * Send push notification to subscribed users.
+   * Always sends when push is configured — the push subscription toggle
+   * serves as the opt-in/out mechanism.
    */
-  private async sendPushIfOffline(
+  private async sendPushNotification(
     userId: string,
     notification: Notification & {
       author: { username: string; displayName: string | null } | null;
@@ -351,13 +351,6 @@ export class NotificationsService {
     try {
       // Check if push notifications are enabled
       if (!this.pushNotificationsService.isEnabled()) {
-        return;
-      }
-
-      // Check if user is online (has active WebSocket connections)
-      const isOnline = await this.presenceService.isOnline(userId);
-      if (isOnline) {
-        this.logger.debug(`Skipping push for user ${userId} - user is online`);
         return;
       }
 
@@ -378,7 +371,7 @@ export class NotificationsService {
         },
       });
 
-      this.logger.debug(`Push notification sent to offline user ${userId}`);
+      this.logger.debug(`Push notification sent to user ${userId}`);
     } catch (error) {
       this.logger.error(
         `Failed to send push notification to user ${userId}:`,

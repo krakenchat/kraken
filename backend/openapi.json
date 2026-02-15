@@ -3649,6 +3649,28 @@
         ]
       }
     },
+    "/api/push/test": {
+      "post": {
+        "operationId": "PushNotificationsController_sendTestPushToSelf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestPushResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Send a test push notification to the current user\nPOST /push/test\nAny authenticated user can test their own push notifications",
+        "tags": [
+          "PushNotifications"
+        ]
+      }
+    },
     "/api/push/debug/send-test": {
       "post": {
         "operationId": "PushNotificationsController_sendTestPush",
@@ -3667,87 +3689,6 @@
         },
         "tags": [
           "PushNotifications"
-        ]
-      }
-    },
-    "/api/presence/user/{userId}": {
-      "get": {
-        "operationId": "PresenceController_getUserPresence",
-        "parameters": [
-          {
-            "name": "userId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Presence"
-        ]
-      }
-    },
-    "/api/presence/users/bulk": {
-      "get": {
-        "operationId": "PresenceController_getBulkPresence",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Presence"
-        ]
-      }
-    },
-    "/api/presence/users/{userIds}": {
-      "get": {
-        "operationId": "PresenceController_getMultipleUserPresence",
-        "parameters": [
-          {
-            "name": "userIds",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Presence"
         ]
       }
     },
@@ -4478,6 +4419,87 @@
         "summary": "Get all users who have read a specific message\nGET /read-receipts/message/:messageId/readers?channelId=xxx or ?directMessageGroupId=xxx",
         "tags": [
           "ReadReceipts"
+        ]
+      }
+    },
+    "/api/presence/user/{userId}": {
+      "get": {
+        "operationId": "PresenceController_getUserPresence",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Presence"
+        ]
+      }
+    },
+    "/api/presence/users/bulk": {
+      "get": {
+        "operationId": "PresenceController_getBulkPresence",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Presence"
+        ]
+      }
+    },
+    "/api/presence/users/{userIds}": {
+      "get": {
+        "operationId": "PresenceController_getMultipleUserPresence",
+        "parameters": [
+          {
+            "name": "userIds",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Presence"
         ]
       }
     },
@@ -9012,35 +9034,6 @@
           "message"
         ]
       },
-      "UserPresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string"
-          },
-          "isOnline": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "userId",
-          "isOnline"
-        ]
-      },
-      "BulkPresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "presence": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "boolean"
-            }
-          }
-        },
-        "required": [
-          "presence"
-        ]
-      },
       "UnbanUserDto": {
         "type": "object",
         "properties": {
@@ -9569,6 +9562,35 @@
           "displayName",
           "avatarUrl",
           "readAt"
+        ]
+      },
+      "UserPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "isOnline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "userId",
+          "isOnline"
+        ]
+      },
+      "BulkPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "presence": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
+        },
+        "required": [
+          "presence"
         ]
       },
       "CreateTokenDto": {

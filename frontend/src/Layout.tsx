@@ -23,6 +23,7 @@ import { useResponsive } from "./hooks/useResponsive";
 import type { User } from "./types/auth.type";
 import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from "./constants/layout";
 import { useNotifications } from "./hooks/useNotifications";
+import { usePushNotifications } from "./hooks/usePushNotifications";
 import NotificationBadge from "./components/Notifications/NotificationBadge";
 import NotificationCenter from "./components/Notifications/NotificationCenter";
 import { ReplayBufferProvider } from "./contexts/ReplayBufferContext";
@@ -81,10 +82,14 @@ const Layout: React.FC = () => {
   useChannelWebSocket();
   useDirectMessageWebSocket();
 
+  // Check push subscription status to avoid duplicate desktop notifications
+  const { isSubscribed: isPushSubscribed } = usePushNotifications();
+
   // Initialize notification WebSocket listeners and desktop notifications
   useNotifications({
     showDesktopNotifications: true,
     playSound: true,
+    isPushSubscribed,
   });
 
   // Sync theme settings with server (server wins on initial load)

@@ -7,7 +7,6 @@ import { WebsocketModule } from '@/websocket/websocket.module';
 import { AuthModule } from '@/auth/auth.module';
 import { UserModule } from '@/user/user.module';
 import { PushNotificationsModule } from '@/push-notifications/push-notifications.module';
-import { PresenceModule } from '@/presence/presence.module';
 
 @Module({
   controllers: [NotificationsController],
@@ -18,7 +17,6 @@ import { PresenceModule } from '@/presence/presence.module';
     AuthModule,
     UserModule,
     PushNotificationsModule,
-    PresenceModule,
   ],
   exports: [NotificationsService, NotificationsGateway],
 })

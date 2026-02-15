@@ -15,6 +15,13 @@ import { NotificationType } from '../types/notification.type';
 export type NotificationPermission = 'default' | 'granted' | 'denied';
 
 /**
+ * Check if notification permission is currently granted
+ */
+export const isNotificationPermissionGranted = (): boolean => {
+  return getNotificationPermission() === 'granted';
+};
+
+/**
  * Check if notifications are supported in the current environment
  */
 export const supportsNotifications = (): boolean => {

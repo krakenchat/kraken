@@ -28,16 +28,22 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { Notifications as NotificationsIcon, PlayArrow as PlayArrowIcon } from '@mui/icons-material';
+import {
+  Notifications as NotificationsIcon,
+  PlayArrow as PlayArrowIcon,
+  Send as SendIcon,
+} from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   notificationsControllerGetSettingsOptions,
   notificationsControllerUpdateSettingsMutation,
+  pushNotificationsControllerSendTestPushToSelfMutation,
 } from '../../api-client/@tanstack/react-query.gen';
 import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { isElectron } from '../../utils/platform';
+import { showNotification } from '../../utils/notifications';
 import { logger } from '../../utils/logger';
 import type { UpdateNotificationSettingsDto } from '../../types/notification.type';
 
@@ -66,6 +72,10 @@ export const NotificationSettings: React.FC = () => {
     toggle: togglePush,
   } = usePushNotifications();
 
+  const { mutateAsync: sendTestPush, isPending: isTestPushPending } = useMutation(
+    pushNotificationsControllerSendTestPushToSelfMutation(),
+  );
+
   const showPushOption = !isElectron() && isPushSupported && isPushServerEnabled;
 
   // Local form state
@@ -81,6 +91,7 @@ export const NotificationSettings: React.FC = () => {
   });
 
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [testPushResult, setTestPushResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Update form when settings load
   useEffect(() => {
@@ -394,6 +405,55 @@ export const NotificationSettings: React.FC = () => {
           }
           sx={{ mb: 3, alignItems: 'flex-start' }}
         />
+
+        {/* Test Notifications */}
+        <Typography variant="subtitle2" gutterBottom>
+          Test Notifications
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<SendIcon />}
+            disabled={!isEnabled}
+            onClick={() => {
+              showNotification({
+                title: 'Test Notification',
+                body: 'Desktop notifications are working!',
+                tag: `test-local-${Date.now()}`,
+              });
+            }}
+          >
+            Send Test Notification
+          </Button>
+          {isPushSubscribed && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={isTestPushPending ? <CircularProgress size={16} /> : <SendIcon />}
+              disabled={isTestPushPending}
+              onClick={async () => {
+                setTestPushResult(null);
+                try {
+                  const result = await sendTestPush({});
+                  setTestPushResult({ success: result.success, message: result.message });
+                } catch {
+                  setTestPushResult({ success: false, message: 'Failed to send test push notification' });
+                }
+                setTimeout(() => setTestPushResult(null), 5000);
+              }}
+            >
+              Send Test Push
+            </Button>
+          )}
+        </Box>
+        {testPushResult && (
+          <Alert severity={testPushResult.success ? 'success' : 'error'} sx={{ mb: 2 }}>
+            {testPushResult.message}
+          </Alert>
+        )}
+
+        <Divider sx={{ my: 3 }} />
 
         {/* Save Button */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>

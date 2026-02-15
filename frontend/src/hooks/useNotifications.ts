@@ -18,7 +18,7 @@ import {
 import {
   showNotification,
   formatNotificationContent,
-  getNotificationPermission,
+  isNotificationPermissionGranted,
 } from '../utils/notifications';
 import { markNotificationAsShown } from '../utils/notificationTracking';
 import { isElectron, getElectronAPI } from '../utils/platform';
@@ -49,6 +49,14 @@ export interface UseNotificationsOptions {
   playSound?: boolean;
 
   /**
+   * Whether the user has an active push subscription.
+   * When true, desktop notifications are handled by the service worker push handler
+   * instead of the browser Notification API, preventing duplicates.
+   * @default false
+   */
+  isPushSubscribed?: boolean;
+
+  /**
    * Callback when a notification is received
    */
   onNotificationReceived?: (notification: NewNotificationPayload) => void;
@@ -66,6 +74,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const {
     showDesktopNotifications = true,
     playSound = true,
+    isPushSubscribed = false,
     onNotificationReceived,
     onNotificationClick,
   } = options;
@@ -227,8 +236,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         playNotificationSound();
       }
 
-      // Show desktop notification if enabled and permission granted
-      if (showDesktopNotifications && getNotificationPermission() === 'granted') {
+      // Show desktop notification if enabled and permission granted.
+      // Skip when push is subscribed — the service worker push handler shows
+      // the notification instead, preventing duplicates.
+      if (showDesktopNotifications && isNotificationPermissionGranted() && !isPushSubscribed) {
         // Extract message text from spans
         const messageText = payload.message?.spans
           .filter((span) => span.type === 'PLAINTEXT')
@@ -267,6 +278,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       queryClient,
       showDesktopNotifications,
       playSound,
+      isPushSubscribed,
       playNotificationSound,
       onNotificationReceived,
       handleNotificationClicked,
