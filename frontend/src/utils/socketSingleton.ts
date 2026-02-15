@@ -81,16 +81,22 @@ export async function getSocketSingleton(): Promise<
 
     return new Promise<Socket<ServerToClientEvents, ClientToServerEvents>>(
       (resolve, reject) => {
-        socketInstance!.on("connect", () => {
+        socketInstance!.once("connect", () => {
           logger.dev("Socket connected " + socketInstance!.id);
           resolve(socketInstance!);
         });
-        socketInstance!.on("connect_error", (err) => {
+        socketInstance!.once("connect_error", (err) => {
+          connectPromise = null;
           reject(err);
         });
       }
     );
   })();
+
+  connectPromise = connectPromise.catch((err) => {
+    connectPromise = null;
+    throw err;
+  });
 
   return connectPromise;
 }

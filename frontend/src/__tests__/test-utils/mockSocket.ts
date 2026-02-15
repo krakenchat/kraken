@@ -16,6 +16,8 @@ export interface MockSocket {
 
 export function createMockSocket(): MockSocket {
   const handlers = new Map<string, Set<Handler>>();
+  // Track original→wrapped mapping so off() can remove once() handlers
+  const onceWrappers = new Map<Handler, Handler>();
 
   const on = vi.fn((event: string, handler: Handler) => {
     if (!handlers.has(event)) handlers.set(event, new Set());
@@ -24,14 +26,22 @@ export function createMockSocket(): MockSocket {
 
   const off = vi.fn((event: string, handler: Handler) => {
     handlers.get(event)?.delete(handler);
+    // Also remove if it was registered via once()
+    const wrapped = onceWrappers.get(handler);
+    if (wrapped) {
+      handlers.get(event)?.delete(wrapped);
+      onceWrappers.delete(handler);
+    }
   });
 
   const once = vi.fn((event: string, handler: Handler) => {
     if (!handlers.has(event)) handlers.set(event, new Set());
     const wrappedHandler: Handler = (...args: unknown[]) => {
       handlers.get(event)?.delete(wrappedHandler);
+      onceWrappers.delete(handler);
       handler(...args);
     };
+    onceWrappers.set(handler, wrappedHandler);
     handlers.get(event)!.add(wrappedHandler);
   });
 

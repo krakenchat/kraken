@@ -1,5 +1,5 @@
 import { useContext, useCallback } from "react";
-import { Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { logger } from "../utils/logger";
 import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from '@kraken/shared';
@@ -77,8 +77,12 @@ export function useSendMessage(
               ? ClientEvents.SEND_MESSAGE
               : ClientEvents.SEND_DM;
 
+          let settled = false;
+
           // Add a timeout in case server doesn't respond
           const timeoutId = setTimeout(() => {
+            if (settled) return;
+            settled = true;
             resolve({
               success: false,
               error: new Error("Message send timed out. Please try again."),
@@ -87,7 +91,9 @@ export function useSendMessage(
 
           // Emit with acknowledgment callback
           socket.emit(event, payload, (messageId: string) => {
-            clearTimeout(timeoutId); // Clear timeout on success
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeoutId);
             if (callback) {
               callback(messageId);
             }

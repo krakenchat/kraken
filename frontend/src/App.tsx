@@ -130,7 +130,7 @@ function App() {
       <CssBaseline />
       <AutoUpdater />
       <PWAInstallPrompt />
-      <ConnectionStatusBanner />
+      {token && !isPublicRoute && <ConnectionStatusBanner />}
       <AvatarCacheProvider>
         <NotificationProvider>
           <VoiceProvider>

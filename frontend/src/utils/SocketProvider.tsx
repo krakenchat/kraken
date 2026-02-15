@@ -1,5 +1,5 @@
 import { Socket } from "socket.io-client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { getSocketSingleton } from "./socketSingleton";
 import {
   SocketContext,
@@ -17,13 +17,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     ClientToServerEvents
   > | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   const connectSocket = useCallback(async (retryCount: number) => {
     try {
       const sock = await getSocketSingleton();
+      if (!mountedRef.current) return;
       setSocket(sock);
       setIsConnected(sock.connected);
     } catch (err) {
+      if (!mountedRef.current) return;
       const error =
         err instanceof Error ? err : new Error("Socket connection failed");
       logger.error("[Socket] Failed to connect:", error.message);
@@ -32,7 +36,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         logger.info(
           `[Socket] Retrying connection (${retryCount + 1}/${MAX_RETRY_COUNT})...`
         );
-        setTimeout(() => {
+        retryTimeoutRef.current = setTimeout(() => {
           connectSocket(retryCount + 1);
         }, RETRY_DELAY_MS);
       } else {
@@ -41,9 +45,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initial connection
+  // Initial connection + cleanup
   useEffect(() => {
+    mountedRef.current = true;
     connectSocket(0);
+
+    return () => {
+      mountedRef.current = false;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
   }, [connectSocket]);
 
   // Track connection state via socket events
@@ -60,8 +73,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(false);
 
       if (reason === "io server disconnect") {
-        // Server initiated disconnect - may need auth refresh
-        logger.warn("[Socket] Server-initiated disconnect");
+        // Server initiated disconnect — Socket.IO will NOT auto-reconnect
+        logger.warn("[Socket] Server-initiated disconnect, reconnecting explicitly");
+        socket.connect();
       }
       // For all other reasons, Socket.IO will auto-reconnect
     };
