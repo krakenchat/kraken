@@ -13,6 +13,7 @@ import { FileModule } from '@/file/file.module';
 import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
 import { NotificationsModule } from '@/notifications/notifications.module';
 import { ModerationModule } from '@/moderation/moderation.module';
+import { ReadReceiptsModule } from '@/read-receipts/read-receipts.module';
 
 @Module({
   controllers: [MessagesController],
@@ -32,6 +33,7 @@ import { ModerationModule } from '@/moderation/moderation.module';
     FileModule,
     NotificationsModule,
     ModerationModule,
+    ReadReceiptsModule,
   ],
   exports: [MessagesService, ReactionsService],
 })

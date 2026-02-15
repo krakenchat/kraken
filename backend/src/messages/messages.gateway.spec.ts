@@ -9,6 +9,7 @@ import { RbacGuard } from '@/auth/rbac.guard';
 import { ServerEvents } from '@kraken/shared';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
+import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
 
 describe('MessagesGateway', () => {
   let gateway: MessagesGateway;
@@ -45,6 +46,15 @@ describe('MessagesGateway', () => {
     isUserTimedOut: jest.fn().mockResolvedValue({ isTimedOut: false }),
   };
 
+  const mockReadReceiptsService = {
+    markAsRead: jest.fn().mockResolvedValue({
+      channelId: null,
+      directMessageGroupId: null,
+      lastReadMessageId: 'msg-123',
+      lastReadAt: new Date(),
+    }),
+  };
+
   const mockGuard = { canActivate: jest.fn(() => true) };
 
   beforeEach(async () => {
@@ -71,6 +81,10 @@ describe('MessagesGateway', () => {
           provide: ModerationService,
           useValue: mockModerationService,
         },
+        {
+          provide: ReadReceiptsService,
+          useValue: mockReadReceiptsService,
+        },
       ],
     })
       .overrideGuard(WsThrottleGuard)
@@ -87,6 +101,12 @@ describe('MessagesGateway', () => {
     websocketService = module.get<WebsocketService>(WebsocketService);
     notificationsService =
       module.get<NotificationsService>(NotificationsService);
+
+    // Set up mock server for READ_RECEIPT_UPDATED emission
+    const mockEmit = jest.fn();
+    gateway.server = {
+      to: jest.fn().mockReturnValue({ emit: mockEmit }),
+    } as any;
   });
 
   afterEach(() => {
@@ -182,6 +202,38 @@ describe('MessagesGateway', () => {
       );
     });
 
+    it('should auto-mark the sent message as read', async () => {
+      const payload = {
+        channelId: 'channel-123',
+        content: 'Test message',
+      };
+      const mockClient = {
+        handshake: { user: { id: 'user-123' } },
+      } as any;
+
+      const createdMessage = {
+        id: 'msg-123',
+        ...payload,
+        authorId: 'user-123',
+      };
+      const enrichedMessage = { ...createdMessage, files: [] };
+
+      mockMessagesService.create.mockResolvedValue(createdMessage);
+      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage,
+      );
+
+      await gateway.handleMessage(payload as any, mockClient);
+
+      expect(mockReadReceiptsService.markAsRead).toHaveBeenCalledWith(
+        'user-123',
+        {
+          lastReadMessageId: 'msg-123',
+          channelId: 'channel-123',
+        },
+      );
+    });
+
     it('should throw error when channelId is missing', async () => {
       const payload = {
         content: 'Test message',
@@ -236,6 +288,38 @@ describe('MessagesGateway', () => {
         ServerEvents.NEW_DM,
         {
           message: enrichedMessage,
+        },
+      );
+    });
+
+    it('should auto-mark the sent DM as read', async () => {
+      const payload = {
+        directMessageGroupId: 'dm-group-456',
+        content: 'DM test message',
+      };
+      const mockClient = {
+        handshake: { user: { id: 'user-456' } },
+      } as any;
+
+      const createdMessage = {
+        id: 'msg-456',
+        ...payload,
+        authorId: 'user-456',
+      };
+      const enrichedMessage = { ...createdMessage, files: [] };
+
+      mockMessagesService.create.mockResolvedValue(createdMessage);
+      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage,
+      );
+
+      await gateway.handleDirectMessageWithRBAC(payload as any, mockClient);
+
+      expect(mockReadReceiptsService.markAsRead).toHaveBeenCalledWith(
+        'user-456',
+        {
+          lastReadMessageId: 'msg-456',
+          directMessageGroupId: 'dm-group-456',
         },
       );
     });

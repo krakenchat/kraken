@@ -23,7 +23,6 @@ import { isUserMentioned } from "./messageUtils";
 import UserAvatar from "../Common/UserAvatar";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
 import { useUserProfile } from "../../contexts/UserProfileContext";
-import { ReadStatusIndicator, ReadStatus } from "./ReadStatusIndicator";
 import { SeenByTooltip } from "./SeenByTooltip";
 
 interface MessageProps {
@@ -37,8 +36,6 @@ interface MessageProps {
   onOpenThread?: (message: MessageType) => void;
   /** Context type to determine if read receipts should be shown */
   contextType?: "channel" | "dm";
-  /** Read status for DM messages (sent/delivered/read) */
-  readStatus?: ReadStatus;
 }
 
 function MessageComponentInner({
@@ -50,7 +47,6 @@ function MessageComponentInner({
   isThreadReply,
   onOpenThread,
   contextType,
-  readStatus = "sent",
 }: MessageProps) {
   const { data: author } = useQuery(userControllerGetUserByIdOptions({ path: { id: message.authorId } }));
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
@@ -143,11 +139,7 @@ function MessageComponentInner({
               <SeenByTooltip
                 messageId={message.id}
                 directMessageGroupId={contextId}
-              >
-                <span>
-                  <ReadStatusIndicator status={readStatus} showForDm={true} />
-                </span>
-              </SeenByTooltip>
+              />
             )}
           </Typography>
           {isPinned && (
@@ -238,7 +230,6 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevProps.isThreadReply === nextProps.isThreadReply &&
     prevProps.isAuthor === nextProps.isAuthor &&
     prevProps.contextType === nextProps.contextType &&
-    prevProps.readStatus === nextProps.readStatus &&
     // Deep compare reactions array
     prevMsg.reactions.length === nextMsg.reactions.length &&
     prevMsg.reactions.every((r, i) =>

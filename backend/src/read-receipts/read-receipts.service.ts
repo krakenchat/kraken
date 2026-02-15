@@ -53,6 +53,35 @@ export class ReadReceiptsService {
       );
     }
 
+    // Guard against watermark regression: only advance, never go backwards
+    const existingReceipt = await this.databaseService.readReceipt.findUnique({
+      where: channelId
+        ? { userId_channelId: { userId, channelId } }
+        : {
+            userId_directMessageGroupId: {
+              userId,
+              directMessageGroupId: directMessageGroupId!,
+            },
+          },
+    });
+
+    if (existingReceipt) {
+      const currentWatermarkMessage =
+        await this.databaseService.message.findUnique({
+          where: { id: existingReceipt.lastReadMessageId },
+          select: { sentAt: true },
+        });
+
+      // If the current watermark message still exists and is newer than (or same as)
+      // the incoming message, skip the update to prevent regression
+      if (
+        currentWatermarkMessage &&
+        currentWatermarkMessage.sentAt >= message.sentAt
+      ) {
+        return existingReceipt;
+      }
+    }
+
     // Upsert the read receipt
     const readReceipt = channelId
       ? await this.databaseService.readReceipt.upsert({
@@ -451,6 +480,7 @@ export class ReadReceiptsService {
     messageId: string,
     channelId?: string,
     directMessageGroupId?: string,
+    excludeUserId?: string,
   ) {
     if (
       (!channelId && !directMessageGroupId) ||
@@ -504,6 +534,7 @@ export class ReadReceiptsService {
 
     return readReceipts
       .filter((r) => r.user !== null)
+      .filter((r) => !excludeUserId || r.user!.id !== excludeUserId)
       .map((r) => ({
         userId: r.user!.id,
         username: r.user!.username,
