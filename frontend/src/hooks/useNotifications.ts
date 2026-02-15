@@ -19,6 +19,7 @@ import {
   showNotification,
   formatNotificationContent,
   isNotificationPermissionGranted,
+  getNotificationPermission,
 } from '../utils/notifications';
 import { markNotificationAsShown } from '../utils/notificationTracking';
 import { isElectron, getElectronAPI } from '../utils/platform';
@@ -324,7 +325,9 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   );
 
   /**
-   * Set up WebSocket event listeners
+   * Set up WebSocket event listeners and reconnect-based cache invalidation.
+   * If the socket disconnects and reconnects, any events during the gap are lost,
+   * so we re-fetch notification data on reconnect.
    */
   useEffect(() => {
     if (!socket) return;
@@ -332,11 +335,19 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     socket.on(ServerEvents.NEW_NOTIFICATION, handleNewNotification);
     socket.on(ServerEvents.NOTIFICATION_READ, handleNotificationRead);
 
+    const handleReconnect = () => {
+      logger.dev('[Notifications] Socket reconnected — invalidating notification queries');
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
+    };
+    socket.on('connect', handleReconnect);
+
     return () => {
       socket.off(ServerEvents.NEW_NOTIFICATION, handleNewNotification);
       socket.off(ServerEvents.NOTIFICATION_READ, handleNotificationRead);
+      socket.off('connect', handleReconnect);
     };
-  }, [socket, handleNewNotification, handleNotificationRead]);
+  }, [socket, handleNewNotification, handleNotificationRead, queryClient]);
 
   /**
    * Set up Electron notification click handler

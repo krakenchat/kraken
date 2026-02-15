@@ -13,6 +13,8 @@ import {
   Notifications as NotificationsIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
+import { notificationsControllerGetUnreadCountOptions } from '../../../api-client/@tanstack/react-query.gen';
 import { useMobileNavigation, type MobileTab } from './MobileNavigationContext';
 import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
 
@@ -25,6 +27,8 @@ import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
  */
 export const MobileBottomNavigation: React.FC = () => {
   const { activeTab, setActiveTab } = useMobileNavigation();
+  const { data: unreadData } = useQuery(notificationsControllerGetUnreadCountOptions());
+  const notificationCount = unreadData?.count ?? 0;
 
   const handleChange = (_event: React.SyntheticEvent, newValue: MobileTab) => {
     setActiveTab(newValue);
@@ -87,7 +91,7 @@ export const MobileBottomNavigation: React.FC = () => {
           label="Notifications"
           value="notifications"
           icon={
-            <Badge badgeContent={0} color="error">
+            <Badge badgeContent={notificationCount} color="error">
               <NotificationsIcon />
             </Badge>
           }
