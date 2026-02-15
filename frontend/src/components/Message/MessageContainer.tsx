@@ -124,7 +124,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [continuationToken, onLoadMore, isLoadingMore]);
+  }, [hasMessages, continuationToken, onLoadMore, isLoadingMore]);
 
   // Scroll to bottom: scrollTop=0 is visual bottom in column-reverse
   const scrollToBottom = useCallback(() => {

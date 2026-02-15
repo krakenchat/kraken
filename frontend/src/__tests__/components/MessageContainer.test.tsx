@@ -44,8 +44,8 @@ class MockIntersectionObserver {
 
 // ── Mock child components ──────────────────────────────────────────────
 vi.mock('../../components/Message/MessageComponent', () => ({
-  default: ({ message, isSearchHighlight }: { message: { id: string; spans: unknown[] }; isSearchHighlight?: boolean }) => (
-    <div data-testid={`message-${message.id}`} data-highlighted={isSearchHighlight}>
+  default: ({ message, isSearchHighlight, contextType }: { message: { id: string; spans: unknown[] }; isSearchHighlight?: boolean; contextType?: string }) => (
+    <div data-testid={`message-${message.id}`} data-highlighted={isSearchHighlight} data-context-type={contextType}>
       message-{message.id}
     </div>
   ),
@@ -289,32 +289,16 @@ describe('MessageContainer', () => {
         />,
       );
 
-      // The top sentinel observer uses threshold: 0 and is the one whose
-      // observed element is NOT the bottom sentinel. We can find it by
-      // checking it was created after the bottom observer.
-      // Since there are multiple observers (bottom + top + visibility hook),
-      // find the one that triggers onLoadMore by simulating all non-0.5-threshold ones.
-      const topObserver = mockObserverInstances.find(
-        (inst) =>
-          inst.options?.threshold === 0 &&
-          inst !== findObserverFor(
-            (i) => i.options?.threshold === 0 && i === mockObserverInstances[0],
-          ) &&
-          inst !== mockObserverInstances[0],
-      );
-
-      // Alternatively, just trigger all threshold=0 observers and check onLoadMore
+      // threshold=0 observers: bottom sentinel (1st) and top sentinel (2nd)
       const thresholdZeroObservers = mockObserverInstances.filter(
         (inst) => inst.options?.threshold === 0,
       );
+      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
 
-      // The second threshold=0 observer is the top sentinel (first is bottom)
-      if (thresholdZeroObservers.length >= 2) {
-        act(() => {
-          thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
-        });
-        expect(onLoadMore).toHaveBeenCalledTimes(1);
-      }
+      act(() => {
+        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
+      });
+      expect(onLoadMore).toHaveBeenCalledTimes(1);
     });
 
     it('does not call onLoadMore when isLoadingMore is true', () => {
@@ -334,13 +318,12 @@ describe('MessageContainer', () => {
       const thresholdZeroObservers = mockObserverInstances.filter(
         (inst) => inst.options?.threshold === 0,
       );
+      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
 
-      if (thresholdZeroObservers.length >= 2) {
-        act(() => {
-          thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
-        });
-        expect(onLoadMore).not.toHaveBeenCalled();
-      }
+      act(() => {
+        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
+      });
+      expect(onLoadMore).not.toHaveBeenCalled();
     });
 
     it('does not call onLoadMore without continuationToken', () => {
@@ -358,13 +341,12 @@ describe('MessageContainer', () => {
       const thresholdZeroObservers = mockObserverInstances.filter(
         (inst) => inst.options?.threshold === 0,
       );
+      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
 
-      if (thresholdZeroObservers.length >= 2) {
-        act(() => {
-          thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
-        });
-        expect(onLoadMore).not.toHaveBeenCalled();
-      }
+      act(() => {
+        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
+      });
+      expect(onLoadMore).not.toHaveBeenCalled();
     });
 
     it('shows loading skeletons when isLoadingMore is true', () => {
@@ -407,8 +389,19 @@ describe('MessageContainer', () => {
       );
 
       const divider = screen.getByTestId('unread-divider');
-      expect(divider).toBeInTheDocument();
       expect(divider).toHaveTextContent('2 new messages');
+
+      // Verify DOM order: in column-reverse, DOM order is newest-first.
+      // The divider should appear between msg-b (unread) and msg-c (last read) in DOM,
+      // which visually places it between msg-c (above) and msg-b (below).
+      const container = getScrollContainer()!;
+      const children = Array.from(container.querySelectorAll('[data-testid]'));
+      const testIds = children.map((el) => el.getAttribute('data-testid'));
+      const dividerIdx = testIds.indexOf('unread-divider');
+      const msgBIdx = testIds.indexOf('message-msg-b');
+      const msgCIdx = testIds.indexOf('message-msg-c');
+      expect(dividerIdx).toBeGreaterThan(msgBIdx);
+      expect(dividerIdx).toBeLessThan(msgCIdx);
     });
 
     it('does not show divider when unreadCount is 0', () => {
@@ -550,8 +543,10 @@ describe('MessageContainer', () => {
         />,
       );
 
-      // MessageComponent receives contextType="dm" — verified via the mock
-      expect(screen.getByTestId('message-msg-1')).toBeInTheDocument();
+      expect(screen.getByTestId('message-msg-1')).toHaveAttribute(
+        'data-context-type',
+        'dm',
+      );
     });
   });
 });
