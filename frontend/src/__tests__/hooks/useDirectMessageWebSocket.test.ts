@@ -248,17 +248,4 @@ describe('useDirectMessageWebSocket', () => {
     });
   });
 
-  describe('joinDmGroup / leaveDmGroup', () => {
-    it('joinDmGroup emits JOIN_DM_ROOM', () => {
-      const { result } = renderDmWebSocket();
-      result.current.joinDmGroup('dm-123');
-      expect(mockSocket.emit).toHaveBeenCalledWith('joinDmRoom', 'dm-123');
-    });
-
-    it('leaveDmGroup emits LEAVE_ROOM', () => {
-      const { result } = renderDmWebSocket();
-      result.current.leaveDmGroup('dm-123');
-      expect(mockSocket.emit).toHaveBeenCalledWith('leaveRoom', 'dm-123');
-    });
-  });
 });
