@@ -18,3 +18,9 @@ export {
   createMockJwtPayload,
   mockAuthenticatedRequest,
 } from './auth.helper';
+
+export {
+  SENSITIVE_USER_FIELDS,
+  expectNoSensitiveUserFields,
+  expectNoSensitiveFieldsInPlainObject,
+} from './user-dto.helper';

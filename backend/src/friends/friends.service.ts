@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { Friendship, FriendshipStatus, User } from '@prisma/client';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 export interface FriendshipWithUsers extends Friendship {
-  userA: User;
-  userB: User;
+  userA: Partial<User>;
+  userB: Partial<User>;
 }
 
 export interface PendingRequests {
@@ -212,15 +213,15 @@ export class FriendsService {
   /**
    * Get all accepted friends for a user
    */
-  async getFriends(userId: string): Promise<User[]> {
+  async getFriends(userId: string): Promise<Partial<User>[]> {
     const friendships = await this.databaseService.friendship.findMany({
       where: {
         status: FriendshipStatus.ACCEPTED,
         OR: [{ userAId: userId }, { userBId: userId }],
       },
       include: {
-        userA: true,
-        userB: true,
+        userA: { select: PUBLIC_USER_SELECT },
+        userB: { select: PUBLIC_USER_SELECT },
       },
     });
 
@@ -240,8 +241,8 @@ export class FriendsService {
           status: FriendshipStatus.PENDING,
         },
         include: {
-          userA: true,
-          userB: true,
+          userA: { select: PUBLIC_USER_SELECT },
+          userB: { select: PUBLIC_USER_SELECT },
         },
       }),
       // Requests I received (I am userB)
@@ -251,8 +252,8 @@ export class FriendsService {
           status: FriendshipStatus.PENDING,
         },
         include: {
-          userA: true,
-          userB: true,
+          userA: { select: PUBLIC_USER_SELECT },
+          userB: { select: PUBLIC_USER_SELECT },
         },
       }),
     ]);

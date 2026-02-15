@@ -637,6 +637,20 @@ When creating new components, hooks, or modules, use these templates for documen
 - Remove orphan containers when using docker to run commands
 - use @suites/unit testbed automocks for backend tests and write tests whenever we implement a new backend feature
 
+## Sensitive User Fields Policy
+
+**Preventing user data leaks requires defense-in-depth. Follow these rules when working with User data:**
+
+1. **Never return raw Prisma `User` objects** to clients - always wrap in `new UserEntity(user)` which applies `@Exclude()` decorators
+2. **Use `PUBLIC_USER_SELECT`** (`@/common/constants/user-select.constant`) instead of `include: { user: true }` to prevent sensitive fields from being fetched at the query level
+3. **Never create duplicate `@Exclude()` declarations** - reuse `UserEntity` instead of creating feature-specific user DTOs
+4. **Test with `expectNoSensitiveUserFields()`** (from `@/test-utils`) when creating DTOs that include user data
+5. **When adding new fields to the User model**, update all of:
+   - `UserEntity` `@Exclude()` decorators (if sensitive)
+   - `SENSITIVE_USER_FIELDS` constant in `test-utils/helpers/user-dto.helper.ts`
+   - `PUBLIC_USER_SELECT` constant (add if public, omit if sensitive)
+   - `UserFactory.buildComplete()` (add non-null values for testing)
+
 ## Future TODOs
 
 ### Configurable LiveKit Egress Output Storage

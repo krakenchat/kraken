@@ -14,11 +14,11 @@ import { FriendsService } from './friends.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
 import {
-  FriendUserDto,
   FriendshipDto,
   PendingRequestsDto,
   FriendshipStatusDto,
 } from './dto/friends-response.dto';
+import { UserEntity } from '@/user/dto/user-response.dto';
 import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 
 @Controller('friends')
@@ -31,10 +31,10 @@ export class FriendsController {
    * Get all friends for the current user
    */
   @Get()
-  @ApiOkResponse({ type: [FriendUserDto] })
-  async getFriends(@Req() req: AuthenticatedRequest): Promise<FriendUserDto[]> {
+  @ApiOkResponse({ type: [UserEntity] })
+  async getFriends(@Req() req: AuthenticatedRequest): Promise<UserEntity[]> {
     const friends = await this.friendsService.getFriends(req.user.id);
-    return friends.map((f) => new FriendUserDto(f));
+    return friends.map((f) => new UserEntity(f));
   }
 
   /**
@@ -49,13 +49,13 @@ export class FriendsController {
     return {
       sent: result.sent.map((f) => ({
         ...f,
-        userA: new FriendUserDto(f.userA),
-        userB: new FriendUserDto(f.userB),
+        userA: new UserEntity(f.userA),
+        userB: new UserEntity(f.userB),
       })),
       received: result.received.map((f) => ({
         ...f,
-        userA: new FriendUserDto(f.userA),
-        userB: new FriendUserDto(f.userB),
+        userA: new UserEntity(f.userA),
+        userB: new UserEntity(f.userB),
       })),
     };
   }

@@ -18,7 +18,7 @@ export class MembershipResponseDto {
 
   constructor(
     membership: Membership & {
-      user?: User;
+      user?: Partial<User>;
       community?: Partial<Community>;
     },
   ) {

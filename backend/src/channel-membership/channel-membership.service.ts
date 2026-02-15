@@ -8,6 +8,7 @@ import {
 import { CreateChannelMembershipDto } from './dto/create-channel-membership.dto';
 import { ChannelMembershipResponseDto } from './dto/channel-membership-response.dto';
 import { DatabaseService } from '@/database/database.service';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 @Injectable()
 export class ChannelMembershipService {
@@ -116,7 +117,7 @@ export class ChannelMembershipService {
     const memberships = await this.databaseService.channelMembership.findMany({
       where: { channelId },
       include: {
-        user: true,
+        user: { select: PUBLIC_USER_SELECT },
       },
     });
 

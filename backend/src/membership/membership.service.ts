@@ -11,6 +11,7 @@ import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
 import { isPrismaError } from '@/common/utils/prisma.utils';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 @Injectable()
 export class MembershipService {
@@ -156,7 +157,7 @@ export class MembershipService {
     const memberships = await this.databaseService.membership.findMany({
       where: { communityId },
       include: {
-        user: true,
+        user: { select: PUBLIC_USER_SELECT },
       },
       take: 1000,
     });
@@ -292,7 +293,7 @@ export class MembershipService {
         },
       },
       include: {
-        user: true,
+        user: { select: PUBLIC_USER_SELECT },
       },
       take: limit,
       orderBy: {

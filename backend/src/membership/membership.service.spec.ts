@@ -11,6 +11,7 @@ import {
   MembershipFactory,
   RoleFactory,
 } from '@/test-utils';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 describe('MembershipService', () => {
   let service: MembershipService;
@@ -380,7 +381,7 @@ describe('MembershipService', () => {
       expect(mockDatabase.membership.findMany).toHaveBeenCalledWith({
         where: { communityId: community.id },
         include: {
-          user: true,
+          user: { select: PUBLIC_USER_SELECT },
         },
         take: 1000,
       });
@@ -725,7 +726,7 @@ describe('MembershipService', () => {
           },
         },
         include: {
-          user: true,
+          user: { select: PUBLIC_USER_SELECT },
         },
         take: 10,
         orderBy: {

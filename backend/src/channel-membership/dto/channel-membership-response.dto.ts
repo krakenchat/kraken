@@ -1,5 +1,5 @@
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { ChannelMembership } from '@prisma/client';
+import { ChannelMembership, User } from '@prisma/client';
 
 export class ChannelMembershipResponseDto {
   id: string;
@@ -9,7 +9,7 @@ export class ChannelMembershipResponseDto {
   joinedAt: Date;
   addedBy?: string;
 
-  constructor(channelMembership: ChannelMembership & { user?: UserEntity }) {
+  constructor(channelMembership: ChannelMembership & { user?: Partial<User> }) {
     this.id = channelMembership.id;
     this.userId = channelMembership.userId;
     this.channelId = channelMembership.channelId;

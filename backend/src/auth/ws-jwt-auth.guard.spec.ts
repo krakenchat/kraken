@@ -6,7 +6,9 @@ import {
   UserFactory,
   createMockHttpExecutionContext,
   createMockWsExecutionContext,
+  expectNoSensitiveUserFields,
 } from '@/test-utils';
+import { UserEntity } from '@/user/dto/user-response.dto';
 
 describe('WsJwtAuthGuard', () => {
   let guard: WsJwtAuthGuard;
@@ -84,7 +86,8 @@ describe('WsJwtAuthGuard', () => {
       expect(jwtService.verify).toHaveBeenCalledWith('valid-token-123');
       expect(userService.findById).toHaveBeenCalledWith(user.id);
 
-      expect((mockClient.handshake as any).user).toBe(user);
+      expect((mockClient.handshake as any).user).toBeInstanceOf(UserEntity);
+      expect((mockClient.handshake as any).user.id).toBe(user.id);
       expect(mockClient.disconnect).not.toHaveBeenCalled();
     });
 
@@ -319,8 +322,8 @@ describe('WsJwtAuthGuard', () => {
   });
 
   describe('User attachment to handshake', () => {
-    it('should attach user to handshake on successful authentication', async () => {
-      const user = UserFactory.build();
+    it('should attach user as UserEntity to handshake on successful authentication', async () => {
+      const user = UserFactory.buildComplete();
       const mockClient = {
         id: 'socket-attach',
         handshake: {
@@ -336,7 +339,28 @@ describe('WsJwtAuthGuard', () => {
 
       await guard.canActivate(context);
 
-      expect((mockClient.handshake as any).user).toBe(user);
+      expect((mockClient.handshake as any).user).toBeInstanceOf(UserEntity);
+      expect((mockClient.handshake as any).user.id).toBe(user.id);
+    });
+
+    it('should not leak sensitive fields in attached user', async () => {
+      const user = UserFactory.buildComplete();
+      const mockClient = {
+        id: 'socket-sensitive',
+        handshake: {
+          auth: { token: 'valid-token' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
+      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+
+      await guard.canActivate(context);
+
+      expectNoSensitiveUserFields((mockClient.handshake as any).user);
     });
 
     it('should not attach user when authentication fails', async () => {

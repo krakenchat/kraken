@@ -14,6 +14,7 @@ import {
   MembershipFactory,
   ChannelMembershipFactory,
 } from '@/test-utils';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 describe('ChannelMembershipService', () => {
   let service: ChannelMembershipService;
@@ -313,7 +314,7 @@ describe('ChannelMembershipService', () => {
       expect(mockDatabase.channelMembership.findMany).toHaveBeenCalledWith({
         where: { channelId: channel.id },
         include: {
-          user: true,
+          user: { select: PUBLIC_USER_SELECT },
         },
       });
     });
