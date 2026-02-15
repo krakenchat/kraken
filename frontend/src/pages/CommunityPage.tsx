@@ -48,7 +48,7 @@ const DesktopCommunityPage: React.FC = () => {
   });
   const { state: voiceState } = useVoiceConnection();
   const { blobUrl: communityAvatarUrl } = useAuthenticatedImage(data?.avatar);
-  const { setContainerElement } = useVideoOverlay();
+  const { setPageContainer } = useVideoOverlay();
 
   if (!communityId) return <div>Community ID is required</div>;
   if (isLoading) return <div>Loading...</div>;
@@ -148,7 +148,7 @@ const DesktopCommunityPage: React.FC = () => {
         </CommunityHeader>
         <ChannelList communityId={communityId} />
       </Sidebar>
-      <Content ref={setContainerElement}>
+      <Content ref={setPageContainer}>
         {renderChannelContent()}
       </Content>
     </Root>

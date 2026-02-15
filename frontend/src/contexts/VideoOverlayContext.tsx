@@ -1,21 +1,39 @@
-import React, { createContext, useContext, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
 interface VideoOverlayContextValue {
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  setContainerElement: (el: HTMLDivElement | null) => void;
+  containerElement: HTMLDivElement | null;
+  setDefaultContainer: (el: HTMLDivElement | null) => void;
+  setPageContainer: (el: HTMLDivElement | null) => void;
 }
+
+const noopContext: VideoOverlayContextValue = {
+  containerElement: null,
+  setDefaultContainer: () => {},
+  setPageContainer: () => {},
+};
 
 const VideoOverlayContext = createContext<VideoOverlayContextValue | null>(null);
 
 export const VideoOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [defaultContainer, setDefaultContainer] = useState<HTMLDivElement | null>(null);
+  const [pageContainer, setPageContainer] = useState<HTMLDivElement | null>(null);
 
-  const setContainerElement = useCallback((el: HTMLDivElement | null) => {
-    containerRef.current = el;
+  const handleSetDefaultContainer = useCallback((el: HTMLDivElement | null) => {
+    setDefaultContainer(el);
   }, []);
 
+  const handleSetPageContainer = useCallback((el: HTMLDivElement | null) => {
+    setPageContainer(el);
+  }, []);
+
+  const containerElement = pageContainer || defaultContainer;
+
   return (
-    <VideoOverlayContext.Provider value={{ containerRef, setContainerElement }}>
+    <VideoOverlayContext.Provider value={{
+      containerElement,
+      setDefaultContainer: handleSetDefaultContainer,
+      setPageContainer: handleSetPageContainer,
+    }}>
       {children}
     </VideoOverlayContext.Provider>
   );
@@ -23,6 +41,6 @@ export const VideoOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
 export function useVideoOverlay(): VideoOverlayContextValue {
   const ctx = useContext(VideoOverlayContext);
-  if (!ctx) throw new Error('useVideoOverlay must be used within a VideoOverlayProvider');
+  if (!ctx) return noopContext;
   return ctx;
 }

@@ -86,7 +86,7 @@ const DirectMessagesPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const { data: pendingRequests } = useQuery(friendsControllerGetPendingRequestsOptions());
-  const { setContainerElement } = useVideoOverlay();
+  const { setPageContainer } = useVideoOverlay();
 
   // Count of incoming friend requests for badge
   const incomingRequestCount = pendingRequests?.received?.length || 0;
@@ -245,7 +245,7 @@ const DirectMessagesPage: React.FC = () => {
           />
         )}
       </Sidebar>
-      <Content ref={setContainerElement}>
+      <Content ref={setPageContainer}>
         {selectedDmGroupId ? (
           <>
             <DMChatHeader

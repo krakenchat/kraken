@@ -1,5 +1,5 @@
 import React, { Suspense, useState } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./Layout";
 import CssBaseline from "@mui/material/CssBaseline";
 import { CircularProgress, Box } from "@mui/material";
@@ -116,13 +116,7 @@ function App() {
   }
 
   if (!token && !isPublicRoute) {
-    return (
-      <ThemeProvider>
-        <CssBaseline />
-        <AutoUpdater />
-        <LoginPage />
-      </ThemeProvider>
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return (

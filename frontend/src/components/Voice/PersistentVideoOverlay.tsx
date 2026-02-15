@@ -60,7 +60,7 @@ export const PersistentVideoOverlay: React.FC = () => {
   const voiceState = useVoice();
   const { dispatch } = useVoiceDispatch();
   const { actions } = useVoiceConnection();
-  const { containerRef: overlayContainerRef } = useVideoOverlay();
+  const { containerElement } = useVideoOverlay();
 
   // Load saved settings or use defaults, clamping size on initial load
   const [settings, setSettings] = useState<PipSettings>(() => {
@@ -115,20 +115,19 @@ export const PersistentVideoOverlay: React.FC = () => {
 
   // Observe the content container's bounds for dynamic maximize positioning
   useEffect(() => {
-    const el = overlayContainerRef.current;
-    if (!el) return;
+    if (!containerElement) return;
 
-    const updateBounds = () => setContainerBounds(el.getBoundingClientRect());
+    const updateBounds = () => setContainerBounds(containerElement.getBoundingClientRect());
     updateBounds();
 
     const observer = new ResizeObserver(updateBounds);
-    observer.observe(el);
+    observer.observe(containerElement);
     window.addEventListener('resize', updateBounds);
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', updateBounds);
     };
-  }, [overlayContainerRef]);
+  }, [containerElement]);
 
   // Handle requestMaximize from channel click
   useEffect(() => {

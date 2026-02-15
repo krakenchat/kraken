@@ -37,11 +37,11 @@ const LayoutContentArea: React.FC<{ voiceConnected: boolean; isMenuExpanded: boo
   voiceConnected,
   isMenuExpanded,
 }) => {
-  const { setContainerElement } = useVideoOverlay();
+  const { setDefaultContainer } = useVideoOverlay();
 
   return (
     <Box
-      ref={setContainerElement}
+      ref={setDefaultContainer}
       sx={{
         position: "absolute",
         top: APPBAR_HEIGHT,
