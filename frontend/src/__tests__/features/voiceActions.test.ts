@@ -85,6 +85,7 @@ import {
   switchAudioOutputDevice,
 } from '../../features/voice/voiceActions';
 import { livekitControllerGenerateToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence } from '../../api-client/sdk.gen';
+import { getCachedItem } from '../../utils/storage';
 
 function createMockDeps(overrides: Partial<{
   channelId: string | null;
@@ -183,6 +184,53 @@ describe('voiceActions', () => {
 
       await expect(joinVoiceChannel(params, deps)).rejects.toThrow();
       expect(deps.setRoom).toHaveBeenCalledWith(null);
+    });
+
+    it('applies "default" device preference on connect', async () => {
+      vi.mocked(getCachedItem).mockReturnValue({
+        audioInputDeviceId: 'default',
+        audioOutputDeviceId: 'default',
+        videoInputDeviceId: 'default',
+      });
+      // Mock navigator.mediaDevices.enumerateDevices
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          enumerateDevices: vi.fn().mockResolvedValue([
+            { deviceId: 'default', kind: 'audioinput', label: 'Default', groupId: '1' },
+            { deviceId: 'default', kind: 'audiooutput', label: 'Default', groupId: '1' },
+          ]),
+        },
+        configurable: true,
+      });
+
+      const deps = createMockDeps();
+      await joinVoiceChannel(params, deps);
+
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default');
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audiooutput', 'default');
+    });
+
+    it('applies explicit device preference on connect', async () => {
+      vi.mocked(getCachedItem).mockReturnValue({
+        audioInputDeviceId: 'mic-123',
+        audioOutputDeviceId: 'speaker-456',
+        videoInputDeviceId: 'default',
+      });
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          enumerateDevices: vi.fn().mockResolvedValue([
+            { deviceId: 'mic-123', kind: 'audioinput', label: 'USB Mic', groupId: '1' },
+            { deviceId: 'speaker-456', kind: 'audiooutput', label: 'USB Speaker', groupId: '2' },
+          ]),
+        },
+        configurable: true,
+      });
+
+      const deps = createMockDeps();
+      await joinVoiceChannel(params, deps);
+
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'mic-123');
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audiooutput', 'speaker-456');
     });
   });
 

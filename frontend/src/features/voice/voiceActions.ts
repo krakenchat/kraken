@@ -139,9 +139,9 @@ async function connectToLiveKitRoom(
       const audioInputDevices = devices.filter(d => d.kind === 'audioinput');
       const audioOutputDevices = devices.filter(d => d.kind === 'audiooutput');
 
-      if (savedPreferences.audioInputDeviceId && savedPreferences.audioInputDeviceId !== 'default') {
-        const deviceExists = audioInputDevices.some(d => d.deviceId === savedPreferences.audioInputDeviceId);
-        if (deviceExists) {
+      if (savedPreferences.audioInputDeviceId) {
+        if (savedPreferences.audioInputDeviceId === 'default' ||
+            audioInputDevices.some(d => d.deviceId === savedPreferences.audioInputDeviceId)) {
           await room.switchActiveDevice('audioinput', savedPreferences.audioInputDeviceId);
           logger.info('[Voice] Applied saved audio input device:', savedPreferences.audioInputDeviceId);
         } else {
@@ -150,9 +150,9 @@ async function connectToLiveKitRoom(
         }
       }
 
-      if (savedPreferences.audioOutputDeviceId && savedPreferences.audioOutputDeviceId !== 'default') {
-        const deviceExists = audioOutputDevices.some(d => d.deviceId === savedPreferences.audioOutputDeviceId);
-        if (deviceExists) {
+      if (savedPreferences.audioOutputDeviceId) {
+        if (savedPreferences.audioOutputDeviceId === 'default' ||
+            audioOutputDevices.some(d => d.deviceId === savedPreferences.audioOutputDeviceId)) {
           await room.switchActiveDevice('audiooutput', savedPreferences.audioOutputDeviceId);
           logger.info('[Voice] Applied saved audio output device:', savedPreferences.audioOutputDeviceId);
         } else {
