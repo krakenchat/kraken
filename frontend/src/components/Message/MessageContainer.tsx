@@ -95,15 +95,19 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   }, [displayMessages, lastReadMessageId]);
 
   // Scroll to highlighted message when it's available
+  // Short delay lets Virtuoso stabilize layout before scrolling
   useEffect(() => {
     if (highlightMessageId && displayMessages.length > 0) {
       const idx = displayMessages.findIndex((m) => m.id === highlightMessageId);
       if (idx >= 0) {
-        virtuosoRef.current?.scrollToIndex({
-          index: idx,
-          align: "center",
-          behavior: "smooth",
-        });
+        const timer = setTimeout(() => {
+          virtuosoRef.current?.scrollToIndex({
+            index: idx,
+            align: "center",
+            behavior: "smooth",
+          });
+        }, 100);
+        return () => clearTimeout(timer);
       }
     }
   }, [highlightMessageId, displayMessages]);
@@ -122,6 +126,21 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
       onLoadMore();
     }
   }, [continuationToken, onLoadMore, isLoadingMore]);
+
+  // Memoize Header to avoid Virtuoso DOM churn on re-renders
+  const HeaderComponent = useMemo(
+    () =>
+      function VirtuosoHeader() {
+        return isLoadingMore ? (
+          <div style={{ padding: "16px", textAlign: "center" }}>
+            <MessageSkeleton />
+            <MessageSkeleton />
+            <MessageSkeleton />
+          </div>
+        ) : null;
+      },
+    [isLoadingMore]
+  );
 
   const skeletonCount = 10;
 
@@ -209,7 +228,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
                 (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
               }
             }}
-            style={{ flex: 1 }}
+            style={{ flex: 1, minHeight: 0 }}
             data={displayMessages}
             initialTopMostItemIndex={displayMessages.length - 1}
             followOutput="smooth"
@@ -218,27 +237,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             startReached={handleStartReached}
             overscan={200}
             components={{
-              Header: () =>
-                isLoadingMore ? (
-                  <div style={{ padding: "16px", textAlign: "center" }}>
-                    <MessageSkeleton />
-                    <MessageSkeleton />
-                    <MessageSkeleton />
-                  </div>
-                ) : null,
-              Footer: () => (
-                <div
-                  style={{
-                    position: "sticky",
-                    bottom: 0,
-                    background: "inherit",
-                    zIndex: 2,
-                    padding: "0 16px 16px",
-                  }}
-                >
-                  {messageInput}
-                </div>
-              ),
+              Header: HeaderComponent,
             }}
             itemContent={(index, message) => {
               const isHighlighted = highlightMessageId === message.id;
@@ -279,28 +278,20 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             style={{
               flex: 1,
               display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              height: "100%",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Typography color="text.secondary">
-                {emptyStateMessage}
-              </Typography>
-            </div>
-            <div style={{ padding: "0 16px 16px" }}>
-              {messageInput}
-            </div>
+            <Typography color="text.secondary">
+              {emptyStateMessage}
+            </Typography>
           </div>
         )}
+
+        {/* Input rendered outside Virtuoso — stable DOM, never unmounted by message changes */}
+        <div style={{ padding: "0 16px 16px", flexShrink: 0 }}>
+          {messageInput}
+        </div>
 
         {!atBottom && (
           <Fab
