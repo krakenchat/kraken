@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import MessageComponent from "./MessageComponent";
 import { Typography, Fab, useMediaQuery, useTheme } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -66,12 +65,10 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const bottomSentinelRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [atBottom, setAtBottom] = useState(true);
-
-  // Messages are newest-first from the API; reverse for chronological display in Virtuoso
-  const displayMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   // Auto-mark messages as read when they scroll into view
   useMessageVisibility({
@@ -88,59 +85,64 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   const lastReadMessageId = getLastReadMessageId(contextKey);
   const unreadCount = getUnreadCount(contextKey);
 
-  // Find the index of the last read message in the display (chronological) array
-  const lastReadDisplayIndex = useMemo(() => {
+  // Find the index of the last read message in the newest-first array
+  const lastReadIndex = useMemo(() => {
     if (!lastReadMessageId) return -1;
-    return displayMessages.findIndex((msg) => msg.id === lastReadMessageId);
-  }, [displayMessages, lastReadMessageId]);
+    return messages.findIndex((msg) => msg.id === lastReadMessageId);
+  }, [messages, lastReadMessageId]);
 
-  // Scroll to highlighted message when it's available
-  // Short delay lets Virtuoso stabilize layout before scrolling
+  // "At bottom" detection via IntersectionObserver on bottom sentinel
+  // Bottom sentinel is first in DOM = visual bottom in column-reverse
+  const hasMessages = messages.length > 0;
   useEffect(() => {
-    if (highlightMessageId && displayMessages.length > 0) {
-      const idx = displayMessages.findIndex((m) => m.id === highlightMessageId);
-      if (idx >= 0) {
+    const sentinel = bottomSentinelRef.current;
+    const container = scrollContainerRef.current;
+    if (!sentinel || !container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setAtBottom(entry.isIntersecting),
+      { root: container, threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMessages]);
+
+  // "Load more" pagination via IntersectionObserver on top sentinel
+  // Top sentinel is last in DOM = visual top in column-reverse
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    const container = scrollContainerRef.current;
+    if (!sentinel || !container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isLoadingMore && continuationToken && onLoadMore) {
+          onLoadMore();
+        }
+      },
+      { root: container, threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMessages, continuationToken, onLoadMore, isLoadingMore]);
+
+  // Scroll to bottom: scrollTop=0 is visual bottom in column-reverse
+  const scrollToBottom = useCallback(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // Scroll to highlighted message
+  useEffect(() => {
+    if (highlightMessageId && messages.length > 0) {
+      const el = messageRefs.current.get(highlightMessageId);
+      if (el) {
         const timer = setTimeout(() => {
-          virtuosoRef.current?.scrollToIndex({
-            index: idx,
-            align: "center",
-            behavior: "smooth",
-          });
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
         return () => clearTimeout(timer);
       }
     }
-  }, [highlightMessageId, displayMessages]);
-
-  const scrollToBottom = useCallback(() => {
-    virtuosoRef.current?.scrollToIndex({
-      index: displayMessages.length - 1,
-      align: "end",
-      behavior: "smooth",
-    });
-  }, [displayMessages.length]);
-
-  // Load more when reaching the top of the list
-  const handleStartReached = useCallback(() => {
-    if (continuationToken && onLoadMore && !isLoadingMore) {
-      onLoadMore();
-    }
-  }, [continuationToken, onLoadMore, isLoadingMore]);
-
-  // Memoize Header to avoid Virtuoso DOM churn on re-renders
-  const HeaderComponent = useMemo(
-    () =>
-      function VirtuosoHeader() {
-        return isLoadingMore ? (
-          <div style={{ padding: "16px", textAlign: "center" }}>
-            <MessageSkeleton />
-            <MessageSkeleton />
-            <MessageSkeleton />
-          </div>
-        ) : null;
-      },
-    [isLoadingMore]
-  );
+  }, [highlightMessageId, messages]);
 
   const skeletonCount = 10;
 
@@ -220,59 +222,69 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
           position: "relative",
         }}
       >
-        {displayMessages.length > 0 ? (
-          <Virtuoso
-            ref={virtuosoRef}
-            scrollerRef={(el) => {
-              if (el instanceof HTMLDivElement) {
-                (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-              }
+        {messages.length > 0 ? (
+          <div
+            ref={scrollContainerRef}
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column-reverse",
             }}
-            style={{ flex: 1, minHeight: 0 }}
-            data={displayMessages}
-            initialTopMostItemIndex={displayMessages.length - 1}
-            followOutput="smooth"
-            alignToBottom
-            atBottomStateChange={setAtBottom}
-            startReached={handleStartReached}
-            overscan={200}
-            components={{
-              Header: HeaderComponent,
-            }}
-            itemContent={(index, message) => {
+          >
+            {/* Bottom sentinel: first in DOM = visual bottom in column-reverse */}
+            <div ref={bottomSentinelRef} style={{ height: 1, flexShrink: 0 }} />
+
+            {/* Messages newest-first; column-reverse shows oldest at top */}
+            {messages.map((message, index) => {
               const isHighlighted = highlightMessageId === message.id;
-              // Show divider after the last read message (before the first unread)
-              const showDividerBeforeThis =
-                unreadCount > 0 &&
-                lastReadDisplayIndex >= 0 &&
-                index === lastReadDisplayIndex + 1;
+              // Show divider before the last-read message in DOM.
+              // In column-reverse, "before in DOM" = "below visually",
+              // placing the divider between last-read (above) and first-unread (below).
+              const showDividerBefore =
+                unreadCount > 0 && lastReadIndex > 0 && index === lastReadIndex;
 
               return (
-                <div style={{ padding: "0 16px" }}>
-                  {showDividerBeforeThis && (
+                <React.Fragment key={message.id}>
+                  {showDividerBefore && (
                     <UnreadMessageDivider unreadCount={unreadCount} />
                   )}
-                  <div
-                    data-message-id={message.id}
-                    ref={(el) => {
-                      if (el) messageRefs.current.set(message.id, el);
-                      else messageRefs.current.delete(message.id);
-                    }}
-                  >
-                    <MessageComponent
-                      message={message}
-                      isAuthor={message.authorId === authorId}
-                      isSearchHighlight={isHighlighted}
-                      contextId={contextId}
-                      communityId={communityId}
-                      onOpenThread={onOpenThread}
-                      contextType={directMessageGroupId ? "dm" : "channel"}
-                    />
+                  <div style={{ padding: "0 16px" }}>
+                    <div
+                      data-message-id={message.id}
+                      ref={(el) => {
+                        if (el) messageRefs.current.set(message.id, el);
+                        else messageRefs.current.delete(message.id);
+                      }}
+                    >
+                      <MessageComponent
+                        message={message}
+                        isAuthor={message.authorId === authorId}
+                        isSearchHighlight={isHighlighted}
+                        contextId={contextId}
+                        communityId={communityId}
+                        onOpenThread={onOpenThread}
+                        contextType={directMessageGroupId ? "dm" : "channel"}
+                      />
+                    </div>
                   </div>
-                </div>
+                </React.Fragment>
               );
-            }}
-          />
+            })}
+
+            {/* Loading skeleton at DOM end = visual top */}
+            {isLoadingMore && (
+              <div style={{ padding: "16px", textAlign: "center" }}>
+                <MessageSkeleton />
+                <MessageSkeleton />
+                <MessageSkeleton />
+              </div>
+            )}
+
+            {/* Top sentinel: last in DOM = visual top */}
+            <div ref={topSentinelRef} style={{ height: 1, flexShrink: 0 }} />
+          </div>
         ) : (
           <div
             style={{
@@ -288,7 +300,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
           </div>
         )}
 
-        {/* Input rendered outside Virtuoso — stable DOM, never unmounted by message changes */}
+        {/* Input rendered outside scroll container — stable DOM, never unmounted by message changes */}
         <div style={{ padding: "0 16px 16px", flexShrink: 0 }}>
           {messageInput}
         </div>
