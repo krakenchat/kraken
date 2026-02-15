@@ -55,6 +55,11 @@ export async function getSocketSingleton(): Promise<
     socketInstance = io(url, {
       transports: ["websocket"],
       auth: { token: `Bearer ${token}` },
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30000,
+      randomizationFactor: 0.5,
     });
 
     // Subscribe to token refresh events to update socket auth
@@ -76,16 +81,22 @@ export async function getSocketSingleton(): Promise<
 
     return new Promise<Socket<ServerToClientEvents, ClientToServerEvents>>(
       (resolve, reject) => {
-        socketInstance!.on("connect", () => {
+        socketInstance!.once("connect", () => {
           logger.dev("Socket connected " + socketInstance!.id);
           resolve(socketInstance!);
         });
-        socketInstance!.on("connect_error", (err) => {
+        socketInstance!.once("connect_error", (err) => {
+          connectPromise = null;
           reject(err);
         });
       }
     );
   })();
+
+  connectPromise = connectPromise.catch((err) => {
+    connectPromise = null;
+    throw err;
+  });
 
   return connectPromise;
 }

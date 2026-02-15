@@ -3,7 +3,7 @@ import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from '@kraken/shared';
 
 export function useCommunityJoin(communityId: string | undefined) {
-  const socket = useContext(SocketContext);
+  const { socket } = useContext(SocketContext);
   // Track the previous community ID to leave rooms when switching communities
   const prevCommunityId = useRef<string | undefined>(undefined);
 

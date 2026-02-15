@@ -1,5 +1,5 @@
 import { Socket } from "socket.io-client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { getSocketSingleton } from "./socketSingleton";
 import {
   SocketContext,
@@ -8,100 +8,95 @@ import {
 } from "./SocketContext";
 import { logger } from "./logger";
 
-interface SocketConnectionState {
-  socket: Socket<ServerToClientEvents, ClientToServerEvents> | null;
-  error: Error | null;
-  isConnecting: boolean;
-  retryCount: number;
-}
-
 const MAX_RETRY_COUNT = 3;
 const RETRY_DELAY_MS = 2000;
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<SocketConnectionState>({
-    socket: null,
-    error: null,
-    isConnecting: true,
-    retryCount: 0,
-  });
+  const [socket, setSocket] = useState<Socket<
+    ServerToClientEvents,
+    ClientToServerEvents
+  > | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   const connectSocket = useCallback(async (retryCount: number) => {
-    setState((prev) => ({
-      ...prev,
-      isConnecting: true,
-      error: null,
-      retryCount,
-    }));
-
     try {
-      const socket = await getSocketSingleton();
-      setState({
-        socket,
-        error: null,
-        isConnecting: false,
-        retryCount: 0,
-      });
-
-      // Set up disconnect/reconnect handlers
-      socket.on("disconnect", (reason) => {
-        logger.warn(`[Socket] Disconnected: ${reason}`);
-        if (reason === "io server disconnect") {
-          // Server initiated disconnect - may need auth refresh
-          setState((prev) => ({
-            ...prev,
-            socket: null,
-            error: new Error("Disconnected by server"),
-          }));
-        }
-      });
-
-      socket.on("connect_error", (err) => {
-        logger.error("[Socket] Connection error:", err.message);
-        setState((prev) => ({
-          ...prev,
-          error: err,
-        }));
-      });
+      const sock = await getSocketSingleton();
+      if (!mountedRef.current) return;
+      setSocket(sock);
+      setIsConnected(sock.connected);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("Socket connection failed");
+      if (!mountedRef.current) return;
+      const error =
+        err instanceof Error ? err : new Error("Socket connection failed");
       logger.error("[Socket] Failed to connect:", error.message);
 
-      // Retry if under limit
       if (retryCount < MAX_RETRY_COUNT) {
-        logger.info(`[Socket] Retrying connection (${retryCount + 1}/${MAX_RETRY_COUNT})...`);
-        setTimeout(() => {
+        logger.info(
+          `[Socket] Retrying connection (${retryCount + 1}/${MAX_RETRY_COUNT})...`
+        );
+        retryTimeoutRef.current = setTimeout(() => {
           connectSocket(retryCount + 1);
         }, RETRY_DELAY_MS);
       } else {
         logger.error("[Socket] Max retries exceeded");
-        setState({
-          socket: null,
-          error,
-          isConnecting: false,
-          retryCount,
-        });
       }
     }
   }, []);
 
+  // Initial connection + cleanup
   useEffect(() => {
-    let isMounted = true;
-
-    // Only connect if still mounted
-    if (isMounted) {
-      connectSocket(0);
-    }
+    mountedRef.current = true;
+    connectSocket(0);
 
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
     };
   }, [connectSocket]);
 
-  // Always render children - socket may not be available immediately
-  // Components should handle null socket gracefully
+  // Track connection state via socket events
+  useEffect(() => {
+    if (!socket) return;
+
+    const onConnect = () => {
+      logger.dev("[Socket] Connected:", socket.id);
+      setIsConnected(true);
+    };
+
+    const onDisconnect = (reason: string) => {
+      logger.warn(`[Socket] Disconnected: ${reason}`);
+      setIsConnected(false);
+
+      if (reason === "io server disconnect") {
+        // Server initiated disconnect — Socket.IO will NOT auto-reconnect
+        logger.warn("[Socket] Server-initiated disconnect, reconnecting explicitly");
+        socket.connect();
+      }
+      // For all other reasons, Socket.IO will auto-reconnect
+    };
+
+    const onConnectError = (err: Error) => {
+      logger.error("[Socket] Connection error:", err.message);
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect_error", onConnectError);
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect_error", onConnectError);
+    };
+  }, [socket]);
+
   return (
-    <SocketContext.Provider value={state.socket}>
+    <SocketContext.Provider value={{ socket, isConnected }}>
       {children}
     </SocketContext.Provider>
   );

@@ -16,7 +16,7 @@ export type NewMessagePayload = Omit<Message, "id">;
  * This hook is kept for backwards compatibility.
  */
 export function useSendMessageSocket(callback?: (messageId: string) => void) {
-  const socket = useContext(SocketContext);
+  const { socket } = useContext(SocketContext);
 
   const sendMessage = useCallback(
     (payload: NewMessagePayload): Promise<SendMessageResult> => {
