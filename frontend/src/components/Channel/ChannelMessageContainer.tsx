@@ -311,7 +311,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         open={!!openThreadId && !!threadParentMessage}
         onClose={handleCloseThread}
         PaperProps={{
-          sx: { width: 400 },
+          sx: { width: 400, height: '100dvh', overflow: 'hidden' },
         }}
       >
         {threadParentMessage && (

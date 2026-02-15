@@ -86,6 +86,7 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
     <Box
       sx={{
         p: 2,
+        flexShrink: 0,
         borderTop: 1,
         borderColor: "divider",
         backgroundColor: theme.palette.background.paper,

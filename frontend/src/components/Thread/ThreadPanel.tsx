@@ -110,6 +110,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         height: "100%",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
         backgroundColor: theme.palette.background.default,
         borderLeft: `1px solid ${theme.palette.divider}`,
       }}
@@ -121,6 +122,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
           alignItems: "center",
           justifyContent: "space-between",
           p: 2,
+          flexShrink: 0,
           borderBottom: 1,
           borderColor: "divider",
           backgroundColor: theme.palette.background.paper,
@@ -150,6 +152,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       <Box
         sx={{
           p: 2,
+          flexShrink: 0,
           backgroundColor: alpha(theme.palette.primary.main, 0.04),
           borderBottom: 1,
           borderColor: "divider",
@@ -170,6 +173,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       <Box
         sx={{
           flex: 1,
+          minHeight: 0,
           overflowY: "auto",
           p: 1,
         }}
