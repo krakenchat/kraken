@@ -61,6 +61,49 @@ export class VoicePresenceController {
       channelId,
     };
   }
+
+  @Post('join')
+  @RequiredActions(RbacActions.JOIN_CHANNEL)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiCreatedResponse({ type: RefreshPresenceResponseDto })
+  async joinPresence(
+    @Param('channelId') channelId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RefreshPresenceResponseDto> {
+    await this.voicePresenceService.joinVoiceChannelDirect(
+      channelId,
+      req.user.id,
+    );
+    return {
+      success: true,
+      message: 'Voice presence registered',
+      channelId,
+    };
+  }
+
+  @Post('leave')
+  @RequiredActions(RbacActions.JOIN_CHANNEL)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiCreatedResponse({ type: RefreshPresenceResponseDto })
+  async leavePresence(
+    @Param('channelId') channelId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RefreshPresenceResponseDto> {
+    await this.voicePresenceService.leaveVoiceChannel(channelId, req.user.id);
+    return {
+      success: true,
+      message: 'Voice presence removed',
+      channelId,
+    };
+  }
 }
 
 @Controller('dm-groups/:dmGroupId/voice-presence')

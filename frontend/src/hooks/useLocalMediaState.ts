@@ -5,7 +5,9 @@ import {
   LocalVideoTrack,
   RoomEvent,
   Track,
-  LocalTrackPublication
+  LocalTrackPublication,
+  TrackPublication,
+  Participant,
 } from 'livekit-client';
 import { logger } from '../utils/logger';
 
@@ -107,8 +109,11 @@ export const useLocalMediaState = () => {
       }
     };
 
-    const handleTrackMuted = (publication: LocalTrackPublication) => {
-      // When a track is muted (not unpublished), update state
+    const handleTrackMuted = (publication: TrackPublication, participant: Participant) => {
+      // Only track local participant's mute state - RoomEvent.TrackMuted
+      // fires for ALL participants (local and remote)
+      if (participant !== room.localParticipant) return;
+
       logger.info('[useLocalMediaState] Track muted:', publication.source);
       if (publication.source === Track.Source.Camera) {
         setIsCameraEnabled(false);
@@ -119,8 +124,10 @@ export const useLocalMediaState = () => {
       }
     };
 
-    const handleTrackUnmuted = (publication: LocalTrackPublication) => {
-      // When a track is unmuted, update state
+    const handleTrackUnmuted = (publication: TrackPublication, participant: Participant) => {
+      // Only track local participant's unmute state
+      if (participant !== room.localParticipant) return;
+
       logger.info('[useLocalMediaState] Track unmuted:', publication.source);
       if (publication.source === Track.Source.Camera) {
         setIsCameraEnabled(true);

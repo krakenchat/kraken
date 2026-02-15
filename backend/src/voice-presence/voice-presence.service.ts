@@ -53,6 +53,24 @@ export class VoicePresenceService {
   ) {}
 
   /**
+   * Join a voice channel directly - called by frontend as belt-and-suspenders
+   * alongside LiveKit webhooks. Ensures presence is registered even if
+   * webhooks are delayed or misconfigured.
+   */
+  async joinVoiceChannelDirect(
+    channelId: string,
+    userId: string,
+  ): Promise<void> {
+    // Delegate to the same logic used by the webhook handler
+    await this.handleWebhookChannelParticipantJoined(
+      channelId,
+      userId,
+      undefined,
+      undefined,
+    );
+  }
+
+  /**
    * Leave a voice channel - called by LiveKit webhook handler
    */
   async leaveVoiceChannel(channelId: string, userId: string): Promise<void> {
