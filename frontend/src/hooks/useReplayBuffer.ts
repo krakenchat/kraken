@@ -62,13 +62,26 @@ export const useReplayBuffer = () => {
         return;
       }
 
-      // Extract track IDs
-      const videoTrackId = publication.videoTrack?.sid;
-      const audioTrackId = publication.audioTrack?.sid;
+      // Extract video track ID
+      const videoTrackId = publication.track?.sid;
 
       if (!videoTrackId) {
         logger.warn('[ReplayBuffer] Screen share has no video track');
         return;
+      }
+
+      // Screen share audio is published as a separate track (Track.Source.ScreenShareAudio).
+      // It may arrive slightly after the video track, so retry briefly.
+      let audioTrackId: string | undefined;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const audioPub = room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
+        audioTrackId = audioPub?.track?.sid;
+        if (audioTrackId) break;
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      if (!audioTrackId) {
+        logger.warn('[ReplayBuffer] No screen share audio track found — recording without audio');
       }
 
       // Get participant identity for track resolution query
@@ -91,7 +104,7 @@ export const useReplayBuffer = () => {
             channelId: currentVoiceChannel,
             roomName: room.name,
             videoTrackId,
-            audioTrackId: audioTrackId || '',
+            ...(audioTrackId ? { audioTrackId } : {}),
             participantIdentity, // Pass identity for track resolution matching
           },
         });

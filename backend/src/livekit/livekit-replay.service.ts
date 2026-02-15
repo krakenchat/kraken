@@ -115,7 +115,7 @@ export class LivekitReplayService {
     channelId: string;
     roomName: string;
     videoTrackId: string;
-    audioTrackId: string;
+    audioTrackId?: string;
     participantIdentity?: string;
   }) {
     const {
@@ -227,7 +227,7 @@ export class LivekitReplayService {
         outputs,
         {
           videoTrackId,
-          audioTrackId,
+          ...(audioTrackId ? { audioTrackId } : {}),
           encodingOptions,
         },
       );
