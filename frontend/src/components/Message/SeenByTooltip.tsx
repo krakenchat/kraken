@@ -3,21 +3,22 @@ import { Box, Typography, Tooltip, Avatar, CircularProgress } from "@mui/materia
 import { useQuery } from "@tanstack/react-query";
 import { readReceiptsControllerGetMessageReadersOptions } from "../../api-client/@tanstack/react-query.gen";
 import type { MessageReader } from "../../types/read-receipt.type";
+import { ReadStatusIndicator } from "./ReadStatusIndicator";
 
 interface SeenByTooltipProps {
   messageId: string;
   directMessageGroupId: string;
-  children: React.ReactElement;
 }
 
 /**
- * Tooltip component that shows who has read a message (in DMs only).
- * Lazy-loads the readers on hover for performance.
+ * Renders a read-status icon for DM messages with a "seen by" tooltip on hover.
+ * - Shows a check icon (sent) by default
+ * - After hovering and fetching readers, switches to eye icon (seen) if anyone has read it
+ * - The "seen by" list never includes the current user (filtered by the backend)
  */
 export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
   messageId,
   directMessageGroupId,
-  children,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [fetchEnabled, setFetchEnabled] = useState(false);
@@ -33,13 +34,16 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
 
   const handleOpen = () => {
     setIsOpen(true);
-    // Enable fetch on first open
     setFetchEnabled(true);
   };
 
   const handleClose = () => {
     setIsOpen(false);
   };
+
+  // Determine read status from fetched readers
+  const hasSeen = (readers?.length ?? 0) > 0;
+  const readStatus = hasSeen ? "read" as const : "sent" as const;
 
   const displayReaders = readers?.slice(0, 15) ?? [];
   const remainingCount = (readers?.length ?? 0) - displayReaders.length;
@@ -55,7 +59,7 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
           mb: 0.5,
         }}
       >
-        Seen by
+        {hasSeen ? "Seen by" : "Sent"}
       </Typography>
       {isLoading || isFetching ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
@@ -126,7 +130,13 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
         },
       }}
     >
-      {children}
+      <span>
+        <ReadStatusIndicator
+          status={readStatus}
+          showForDm={true}
+          disableTooltip={true}
+        />
+      </span>
     </Tooltip>
   );
 };

@@ -102,6 +102,7 @@ export class ReadReceiptsController {
   @Get('message/:messageId/readers')
   @ApiOkResponse({ type: [MessageReaderDto] })
   async getMessageReaders(
+    @Req() req: AuthenticatedRequest,
     @Param('messageId', ParseObjectIdPipe) messageId: string,
     @Query('channelId', OptionalParseObjectIdPipe) channelId?: string,
     @Query('directMessageGroupId', OptionalParseObjectIdPipe)
@@ -111,6 +112,7 @@ export class ReadReceiptsController {
       messageId,
       channelId,
       directMessageGroupId,
+      req.user.id,
     );
   }
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Tooltip } from "@mui/material";
 import DoneIcon from "@mui/icons-material/Done";
-import DoneAllIcon from "@mui/icons-material/DoneAll";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 
 export type ReadStatus = "sent" | "delivered" | "read";
 
@@ -9,62 +9,55 @@ interface ReadStatusIndicatorProps {
   status: ReadStatus;
   /** Only shown in DMs for own messages */
   showForDm?: boolean;
+  /** Disable the built-in tooltip (when wrapped by an outer tooltip) */
+  disableTooltip?: boolean;
 }
 
 /**
- * Discord-style read status indicator showing checkmarks for messages
+ * Read status indicator for DM messages:
+ * - check icon (gray) = sent
+ * - eye icon (blue) = seen by recipient(s)
  *
- * ✓ (gray) = sent/delivered
- * ✓✓ (gray) = delivered to recipient
- * ✓✓ (blue) = read by recipient
- *
- * Only displayed for the user's own messages in DMs
+ * Only displayed for the user's own messages in DMs.
  */
 export const ReadStatusIndicator: React.FC<ReadStatusIndicatorProps> = ({
   status,
   showForDm = true,
+  disableTooltip = false,
 }) => {
   if (!showForDm) return null;
 
-  const getIcon = () => {
-    switch (status) {
-      case "sent":
-        return <DoneIcon sx={{ fontSize: 14 }} />;
-      case "delivered":
-        return <DoneAllIcon sx={{ fontSize: 14 }} />;
-      case "read":
-        return <DoneAllIcon sx={{ fontSize: 14, color: "primary.main" }} />;
-      default:
-        return null;
-    }
-  };
+  const isSeen = status === "read" || status === "delivered";
 
-  const getTooltipText = () => {
-    switch (status) {
-      case "sent":
-        return "Sent";
-      case "delivered":
-        return "Delivered";
-      case "read":
-        return "Read";
-      default:
-        return "";
-    }
-  };
+  const icon = isSeen ? (
+    <VisibilityIcon sx={{ fontSize: 14, color: "primary.main" }} />
+  ) : (
+    <DoneIcon sx={{ fontSize: 14 }} />
+  );
+
+  const tooltipText = isSeen ? "Seen" : "Sent";
+
+  const content = (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        color: isSeen ? "primary.main" : "text.disabled",
+        ml: 0.5,
+      }}
+    >
+      {icon}
+    </Box>
+  );
+
+  if (disableTooltip) {
+    return content;
+  }
 
   return (
-    <Tooltip title={getTooltipText()} placement="top" arrow>
-      <Box
-        component="span"
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          color: status === "read" ? "primary.main" : "text.disabled",
-          ml: 0.5,
-        }}
-      >
-        {getIcon()}
-      </Box>
+    <Tooltip title={tooltipText} placement="top" arrow>
+      {content}
     </Tooltip>
   );
 };

@@ -37,6 +37,7 @@ import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
+import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
 
 @UseFilters(WsLoggingExceptionFilter)
@@ -67,6 +68,7 @@ export class MessagesGateway
     private readonly websocketService: WebsocketService,
     private readonly notificationsService: NotificationsService,
     private readonly moderationService: ModerationService,
+    private readonly readReceiptsService: ReadReceiptsService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -132,6 +134,24 @@ export class MessagesGateway
       sentAt: new Date(),
     });
 
+    // Auto-mark the sender's own message as read
+    this.readReceiptsService
+      .markAsRead(userId, {
+        lastReadMessageId: message.id,
+        channelId: payload.channelId,
+      })
+      .then((receipt) => {
+        this.server.to(`user:${userId}`).emit(ServerEvents.READ_RECEIPT_UPDATED, {
+          channelId: receipt.channelId,
+          directMessageGroupId: receipt.directMessageGroupId,
+          lastReadMessageId: receipt.lastReadMessageId,
+          lastReadAt: receipt.lastReadAt,
+        });
+      })
+      .catch((error) =>
+        this.logger.error('Failed to auto-mark message as read', error),
+      );
+
     // Process message for notifications (mentions, etc.)
     // This runs asynchronously and doesn't block message sending
     this.notificationsService
@@ -179,6 +199,24 @@ export class MessagesGateway
       authorId: userId,
       sentAt: new Date(),
     });
+
+    // Auto-mark the sender's own message as read
+    this.readReceiptsService
+      .markAsRead(userId, {
+        lastReadMessageId: message.id,
+        directMessageGroupId: payload.directMessageGroupId,
+      })
+      .then((receipt) => {
+        this.server.to(`user:${userId}`).emit(ServerEvents.READ_RECEIPT_UPDATED, {
+          channelId: receipt.channelId,
+          directMessageGroupId: receipt.directMessageGroupId,
+          lastReadMessageId: receipt.lastReadMessageId,
+          lastReadAt: receipt.lastReadAt,
+        });
+      })
+      .catch((error) =>
+        this.logger.error('Failed to auto-mark DM as read', error),
+      );
 
     // Process message for notifications (mentions, DMs, etc.)
     // This runs asynchronously and doesn't block message sending

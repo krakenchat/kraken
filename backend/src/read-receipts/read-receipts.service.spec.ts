@@ -56,6 +56,7 @@ describe('ReadReceiptsService', () => {
       };
 
       mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.readReceipt.findUnique.mockResolvedValue(null);
       mockDatabase.readReceipt.upsert.mockResolvedValue(readReceipt);
 
       const result = await service.markAsRead(userId, dto);
@@ -96,6 +97,7 @@ describe('ReadReceiptsService', () => {
       };
 
       mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.readReceipt.findUnique.mockResolvedValue(null);
       mockDatabase.readReceipt.upsert.mockResolvedValue(readReceipt);
 
       const result = await service.markAsRead(userId, dto);
@@ -123,7 +125,21 @@ describe('ReadReceiptsService', () => {
 
     it('should update existing read receipt for a channel', async () => {
       const newMessageId = 'message-456';
-      const message = MessageFactory.build({ id: newMessageId, channelId });
+      const message = MessageFactory.build({
+        id: newMessageId,
+        channelId,
+        sentAt: new Date('2024-01-02'),
+      });
+      const existingReceipt = ReadReceiptFactory.buildForChannel({
+        userId,
+        channelId,
+        lastReadMessageId: messageId,
+      });
+      const currentWatermarkMessage = MessageFactory.build({
+        id: messageId,
+        channelId,
+        sentAt: new Date('2024-01-01'),
+      });
       const updatedReceipt = ReadReceiptFactory.buildForChannel({
         userId,
         channelId,
@@ -135,7 +151,10 @@ describe('ReadReceiptsService', () => {
         channelId,
       };
 
-      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.message.findUnique
+        .mockResolvedValueOnce(message) // Validate incoming message
+        .mockResolvedValueOnce(currentWatermarkMessage); // Fetch current watermark
+      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
       mockDatabase.readReceipt.upsert.mockResolvedValue(updatedReceipt);
 
       const result = await service.markAsRead(userId, dto);
@@ -205,6 +224,118 @@ describe('ReadReceiptsService', () => {
       await expect(service.markAsRead(userId, dto)).rejects.toThrow(
         'Message does not belong to the specified channel or DM group',
       );
+    });
+
+    it('should not regress watermark when new message is older than current watermark', async () => {
+      const olderMessageId = 'message-older';
+      const currentMessageId = 'message-current';
+      const olderMessage = MessageFactory.build({
+        id: olderMessageId,
+        channelId,
+        sentAt: new Date('2024-01-01'),
+      });
+      const currentWatermarkMessage = MessageFactory.build({
+        id: currentMessageId,
+        channelId,
+        sentAt: new Date('2024-01-02'),
+      });
+      const existingReceipt = ReadReceiptFactory.buildForChannel({
+        userId,
+        channelId,
+        lastReadMessageId: currentMessageId,
+      });
+
+      const dto: MarkAsReadDto = {
+        lastReadMessageId: olderMessageId,
+        channelId,
+      };
+
+      mockDatabase.message.findUnique
+        .mockResolvedValueOnce(olderMessage) // Validate incoming message
+        .mockResolvedValueOnce(currentWatermarkMessage); // Fetch current watermark message
+      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
+
+      const result = await service.markAsRead(userId, dto);
+
+      expect(result).toEqual(existingReceipt);
+      expect(mockDatabase.readReceipt.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should advance watermark when new message is newer than current watermark', async () => {
+      const newerMessageId = 'message-newer';
+      const currentMessageId = 'message-current';
+      const newerMessage = MessageFactory.build({
+        id: newerMessageId,
+        channelId,
+        sentAt: new Date('2024-01-03'),
+      });
+      const currentWatermarkMessage = MessageFactory.build({
+        id: currentMessageId,
+        channelId,
+        sentAt: new Date('2024-01-02'),
+      });
+      const existingReceipt = ReadReceiptFactory.buildForChannel({
+        userId,
+        channelId,
+        lastReadMessageId: currentMessageId,
+      });
+      const updatedReceipt = ReadReceiptFactory.buildForChannel({
+        userId,
+        channelId,
+        lastReadMessageId: newerMessageId,
+      });
+
+      const dto: MarkAsReadDto = {
+        lastReadMessageId: newerMessageId,
+        channelId,
+      };
+
+      mockDatabase.message.findUnique
+        .mockResolvedValueOnce(newerMessage) // Validate incoming message
+        .mockResolvedValueOnce(currentWatermarkMessage); // Fetch current watermark message
+      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
+      mockDatabase.readReceipt.upsert.mockResolvedValue(updatedReceipt);
+
+      const result = await service.markAsRead(userId, dto);
+
+      expect(result).toEqual(updatedReceipt);
+      expect(mockDatabase.readReceipt.upsert).toHaveBeenCalled();
+    });
+
+    it('should advance watermark when current watermark message was deleted', async () => {
+      const newMessageId = 'message-new';
+      const deletedMessageId = 'message-deleted';
+      const newMessage = MessageFactory.build({
+        id: newMessageId,
+        channelId,
+        sentAt: new Date('2024-01-01'),
+      });
+      const existingReceipt = ReadReceiptFactory.buildForChannel({
+        userId,
+        channelId,
+        lastReadMessageId: deletedMessageId,
+      });
+      const updatedReceipt = ReadReceiptFactory.buildForChannel({
+        userId,
+        channelId,
+        lastReadMessageId: newMessageId,
+      });
+
+      const dto: MarkAsReadDto = {
+        lastReadMessageId: newMessageId,
+        channelId,
+      };
+
+      mockDatabase.message.findUnique
+        .mockResolvedValueOnce(newMessage) // Validate incoming message
+        .mockResolvedValueOnce(null); // Current watermark message was deleted
+      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
+      mockDatabase.readReceipt.upsert.mockResolvedValue(updatedReceipt);
+
+      const result = await service.markAsRead(userId, dto);
+
+      expect(result).toEqual(updatedReceipt);
+      expect(mockDatabase.readReceipt.upsert).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when message does not belong to the specified DM group', async () => {
@@ -608,6 +739,124 @@ describe('ReadReceiptsService', () => {
       await expect(
         service.getLastReadMessageId(userId, channelId, dmGroupId),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getMessageReaders', () => {
+    const channelId = 'channel-123';
+    const messageId = 'message-789';
+    const sentAt = new Date('2024-01-15');
+
+    const message = {
+      sentAt,
+      channelId,
+      directMessageGroupId: null,
+    };
+
+    const readReceipts = [
+      {
+        userId: 'user-123',
+        channelId,
+        lastReadMessageId: messageId,
+        lastReadAt: sentAt,
+        user: {
+          id: 'user-123',
+          username: 'self',
+          displayName: 'Self',
+          avatarUrl: null,
+        },
+      },
+      {
+        userId: 'user-456',
+        channelId,
+        lastReadMessageId: messageId,
+        lastReadAt: sentAt,
+        user: {
+          id: 'user-456',
+          username: 'other',
+          displayName: 'Other',
+          avatarUrl: null,
+        },
+      },
+    ];
+
+    it('should return readers who have read the message', async () => {
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.readReceipt.findMany.mockResolvedValue(readReceipts);
+
+      const result = await service.getMessageReaders(messageId, channelId);
+
+      expect(result).toHaveLength(2);
+      expect(result).toEqual([
+        {
+          userId: 'user-123',
+          username: 'self',
+          displayName: 'Self',
+          avatarUrl: null,
+          readAt: sentAt,
+        },
+        {
+          userId: 'user-456',
+          username: 'other',
+          displayName: 'Other',
+          avatarUrl: null,
+          readAt: sentAt,
+        },
+      ]);
+      expect(mockDatabase.message.findUnique).toHaveBeenCalledWith({
+        where: { id: messageId },
+        select: { sentAt: true, channelId: true, directMessageGroupId: true },
+      });
+      expect(mockDatabase.readReceipt.findMany).toHaveBeenCalledWith({
+        where: {
+          channelId,
+          lastReadAt: { gte: sentAt },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      });
+    });
+
+    it('should exclude the requesting user from readers', async () => {
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.readReceipt.findMany.mockResolvedValue(readReceipts);
+
+      const result = await service.getMessageReaders(
+        messageId,
+        channelId,
+        undefined,
+        'user-123',
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].userId).toBe('user-456');
+      expect(result).toEqual([
+        {
+          userId: 'user-456',
+          username: 'other',
+          displayName: 'Other',
+          avatarUrl: null,
+          readAt: sentAt,
+        },
+      ]);
+    });
+
+    it('should return all readers when excludeUserId is not provided', async () => {
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.readReceipt.findMany.mockResolvedValue(readReceipts);
+
+      const result = await service.getMessageReaders(messageId, channelId);
+
+      expect(result).toHaveLength(2);
+      expect(result.map((r) => r.userId)).toEqual(['user-123', 'user-456']);
     });
   });
 });
