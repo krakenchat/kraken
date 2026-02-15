@@ -38,11 +38,12 @@ const GRID_CONSTANTS = {
   MOBILE_MIN_TILE_HEIGHT: 150,
   MOBILE_HEADER_HEIGHT: 40,
 } as const;
-import { 
-  TrackPublication, 
-  VideoTrack, 
+import {
+  TrackPublication,
+  VideoTrack,
   RemoteParticipant,
-  LocalParticipant
+  LocalParticipant,
+  RoomEvent
 } from 'livekit-client';
 
 interface VideoTileProps {
@@ -377,14 +378,14 @@ interface VideoTilesProps {
 
 export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const theme = useTheme();
-  const { state } = useVoiceConnection();
+  const { state, actions } = useVoiceConnection();
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
   const { isReplayBufferActive } = useReplayBufferState();
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>('grid');
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
-  const [, setTrackUpdate] = useState(0); // Force re-render on track changes
+  const [trackUpdate, setTrackUpdate] = useState(0); // Force re-render on track changes
 
   // Define callbacks before any early returns (React hooks must be called unconditionally)
   // Memoize grid layout calculation
@@ -538,35 +539,58 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     });
 
     return tiles;
-  }, [state.room, isCameraEnabled, isScreenShareEnabled]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- trackUpdate triggers recomputation when remote tracks change
+  }, [state.room, isCameraEnabled, isScreenShareEnabled, trackUpdate]);
 
   // Listen to LiveKit room events for track publications/unpublications
   useEffect(() => {
     if (!state.room) return;
 
-    const handleTrackPublished = () => {
-      setTrackUpdate((prev) => prev + 1);
-    };
-
-    const handleTrackUnpublished = () => {
+    const handleTrackChange = () => {
       setTrackUpdate((prev) => prev + 1);
     };
 
     // Local participant events
-    state.room.localParticipant.on('trackPublished', handleTrackPublished);
-    state.room.localParticipant.on('trackUnpublished', handleTrackUnpublished);
+    state.room.localParticipant.on('trackPublished', handleTrackChange);
+    state.room.localParticipant.on('trackUnpublished', handleTrackChange);
 
-    // Remote participant events
-    state.room.on('trackPublished', handleTrackPublished);
-    state.room.on('trackUnpublished', handleTrackUnpublished);
+    // Remote participant events (Room-level events cover all remote participants)
+    state.room.on(RoomEvent.TrackPublished, handleTrackChange);
+    state.room.on(RoomEvent.TrackUnpublished, handleTrackChange);
+    state.room.on(RoomEvent.TrackSubscribed, handleTrackChange);
+    state.room.on(RoomEvent.TrackUnsubscribed, handleTrackChange);
+    state.room.on(RoomEvent.TrackMuted, handleTrackChange);
+    state.room.on(RoomEvent.TrackUnmuted, handleTrackChange);
+    state.room.on(RoomEvent.ParticipantDisconnected, handleTrackChange);
 
     return () => {
-      state.room?.localParticipant.off('trackPublished', handleTrackPublished);
-      state.room?.localParticipant.off('trackUnpublished', handleTrackUnpublished);
-      state.room?.off('trackPublished', handleTrackPublished);
-      state.room?.off('trackUnpublished', handleTrackUnpublished);
+      state.room?.localParticipant.off('trackPublished', handleTrackChange);
+      state.room?.localParticipant.off('trackUnpublished', handleTrackChange);
+      state.room?.off(RoomEvent.TrackPublished, handleTrackChange);
+      state.room?.off(RoomEvent.TrackUnpublished, handleTrackChange);
+      state.room?.off(RoomEvent.TrackSubscribed, handleTrackChange);
+      state.room?.off(RoomEvent.TrackUnsubscribed, handleTrackChange);
+      state.room?.off(RoomEvent.TrackMuted, handleTrackChange);
+      state.room?.off(RoomEvent.TrackUnmuted, handleTrackChange);
+      state.room?.off(RoomEvent.ParticipantDisconnected, handleTrackChange);
     };
   }, [state.room]);
+
+  // Auto-show video panel when any remote participant starts screen sharing
+  useEffect(() => {
+    if (!state.room) return;
+
+    const handleRemoteTrackPublished = (publication: TrackPublication) => {
+      if (publication.source === 'screen_share') {
+        actions.setShowVideoTiles(true);
+      }
+    };
+
+    state.room.on(RoomEvent.TrackPublished, handleRemoteTrackPublished);
+    return () => {
+      state.room?.off(RoomEvent.TrackPublished, handleRemoteTrackPublished);
+    };
+  }, [state.room, actions]);
 
   // Early return if not connected
   if (!state.isConnected || !state.room) {

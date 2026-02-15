@@ -353,4 +353,47 @@ describe('VoiceBottomBar', () => {
     expect(mockActions.setShowVideoTiles).toHaveBeenCalledWith(true);
     expect(mockToggleScreenShare).toHaveBeenCalled();
   });
+
+  it('shows "Show Video Tiles" button when connected and tiles are hidden, even without local camera', () => {
+    // No local camera or screen share active
+    vi.mocked(useLocalMediaState).mockReturnValue({
+      isCameraEnabled: false,
+      isMicrophoneEnabled: true,
+      isScreenShareEnabled: false,
+      audioTrack: undefined,
+      videoTrack: undefined,
+    });
+    vi.mocked(useScreenShare).mockReturnValue({
+      isScreenSharing: false,
+      showSourcePicker: false,
+      toggleScreenShare: vi.fn(),
+      handleSourcePickerClose: vi.fn(),
+      handleSourceSelect: vi.fn(),
+      startScreenShare: vi.fn(),
+      stopScreenShare: vi.fn(),
+    });
+
+    // showVideoTiles is false, but user is connected
+    voiceState = { ...defaultVoiceState, showVideoTiles: false };
+    vi.mocked(useVoiceConnection).mockReturnValue({
+      state: voiceState,
+      actions: mockActions,
+    } as never);
+
+    renderWithProviders(<VoiceBottomBar />);
+
+    expect(screen.getByRole('button', { name: /show video tiles/i })).toBeInTheDocument();
+  });
+
+  it('hides "Show Video Tiles" button when tiles are already shown', () => {
+    voiceState = { ...defaultVoiceState, showVideoTiles: true };
+    vi.mocked(useVoiceConnection).mockReturnValue({
+      state: voiceState,
+      actions: mockActions,
+    } as never);
+
+    renderWithProviders(<VoiceBottomBar />);
+
+    expect(screen.queryByRole('button', { name: /show video tiles/i })).not.toBeInTheDocument();
+  });
 });
