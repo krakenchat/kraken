@@ -82,9 +82,11 @@ export class LivekitReplayService {
       this.configService.get<string>('REPLAY_EGRESS_OUTPUT_PATH') || '/out';
 
     // Convert clips path to absolute path for FFmpeg compatibility
+    // Default must be absolute — relative paths resolve against process.cwd()
+    // (/app/backend), but the uploads volume is mounted at /app/uploads.
     const rawClipsPath =
       this.configService.get<string>('REPLAY_CLIPS_PATH') ||
-      './uploads/replays';
+      '/app/uploads/replays';
     this.clipsPath = path.resolve(rawClipsPath);
 
     this.cleanupAgeMinutes = parseInt(

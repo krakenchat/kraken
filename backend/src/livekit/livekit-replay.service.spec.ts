@@ -162,7 +162,7 @@ describe('LivekitReplayService', () => {
         LIVEKIT_API_SECRET: 'test-api-secret',
         REPLAY_SEGMENTS_PATH: '/app/storage/replay-segments',
         REPLAY_EGRESS_OUTPUT_PATH: '/out',
-        REPLAY_CLIPS_PATH: './uploads/replays',
+        REPLAY_CLIPS_PATH: '/app/uploads/replays',
         REPLAY_SEGMENT_CLEANUP_AGE_MINUTES: '20',
       };
       return config[key];
