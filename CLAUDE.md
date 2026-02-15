@@ -568,9 +568,34 @@ Copy `backend/env.sample` to `backend/.env` and configure:
 
 ### Testing
 
-- Backend uses Jest for unit and e2e tests
-- Test files follow `*.spec.ts` pattern
+When implementing a feature, fixing a bug, or modifying behavior in either the backend or frontend, write or update corresponding unit tests. Tests are the primary safety net against regressions — E2E tests are slow and coarse-grained, so fast unit/component tests should cover as much behavior as possible.
+
+#### Backend Tests
+
+- Uses Jest with `@suites/unit` TestBed automocks
+- Test files follow `*.spec.ts` pattern alongside source files
 - E2E tests in `backend/test/` directory
+- Run: `docker compose run --rm backend npm run test`
+
+#### Frontend Tests
+
+- Uses Vitest + jsdom + `@testing-library/react` + MSW v2
+- Test files live in `frontend/src/__tests__/` organized by type: `components/`, `hooks/`, `features/`
+- Run: `docker compose run --rm frontend npm run test` (or `npm run test:cov` for coverage)
+- CI runs automatically on PRs touching `frontend/**` or `shared/**`
+
+**Test infrastructure** (in `frontend/src/__tests__/test-utils/`):
+- `renderWithProviders()` — wraps components with QueryClient, MemoryRouter, ThemeProvider, SocketContext, NotificationProvider. Returns `{ user, queryClient, ...renderResult }` where `user` is a `userEvent` instance for realistic interaction simulation.
+- `factories.ts` — `createMessage()`, `createChannel()`, `createUser()`, `createDmGroup()`, etc.
+- `msw/handlers.ts` — default MSW request handlers for auth, user profile, channels, DMs. Override per-test with `server.use(...)`.
+
+**What to test**: Component rendering and user interactions, hook behavior (state changes, side effects), action functions (dispatch sequences, API calls, error handling). Mock external dependencies (hooks, child components, API client) to isolate the unit under test.
+
+**Key patterns**:
+- Mock API client: `vi.mock('../../api-client/client.gen', async (importOriginal) => { ... })` with `createClient(createConfig({ baseUrl: 'http://localhost:3000' }))` so MSW can intercept
+- Mock hooks: `vi.mock('../../hooks/useFoo', () => ({ useFoo: vi.fn(() => mockValue) }))` — remember that `vi.clearAllMocks()` does NOT reset `mockReturnValue`, so reset mocks explicitly in `beforeEach` if any test overrides them
+- Mock `useParams`/`useNavigate`: mock `react-router-dom` with `importOriginal` spread + overrides
+- Test async error flows: rejected promises from mocked functions trigger catch blocks; use `findByRole`/`waitFor` to assert on resulting DOM changes
 
 ### Code Quality
 
@@ -649,7 +674,6 @@ When creating new components, hooks, or modules, use these templates for documen
 
 **After creating new code, ALWAYS create corresponding documentation using these templates.**
 - Remove orphan containers when using docker to run commands
-- use @suites/unit testbed automocks for backend tests and write tests whenever we implement a new backend feature
 
 ## Sensitive User Fields Policy
 
