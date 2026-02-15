@@ -4,7 +4,7 @@
  * Displays a badge icon with unread notification count in the app bar.
  * Opens the NotificationCenter drawer when clicked.
  *
- * Uses TanStack Query to fetch the unread count from the server.
+ * Uses TanStack Query cache — kept in sync by useNotifications WebSocket listeners.
  */
 
 import React from 'react';
@@ -18,11 +18,8 @@ interface NotificationBadgeProps {
 }
 
 export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ onClick }) => {
-  // Fetch unread count from server, poll every 30 seconds
-  const { data } = useQuery({
-    ...notificationsControllerGetUnreadCountOptions(),
-    refetchInterval: 30_000,
-  });
+  // Unread count is seeded on mount and kept current via WebSocket cache updates in useNotifications
+  const { data } = useQuery(notificationsControllerGetUnreadCountOptions());
 
   const unreadCount = data?.count ?? 0;
 
