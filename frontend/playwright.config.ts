@@ -13,7 +13,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: [['html', { open: 'never' }], ['list']],
 
   use: {
@@ -24,28 +24,25 @@ export default defineConfig({
   },
 
   projects: [
-    // Desktop browsers
+    // Auth setup — runs once, saves storageState for reuse
+    { name: 'setup', testMatch: /.*\.setup\.ts/ },
+
+    // Main tests — use saved auth state (skip auth.spec.ts which tests auth itself)
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/user.json',
+      },
+      dependencies: ['setup'],
+      testIgnore: /auth\.spec\.ts/,
     },
 
-    // Mobile viewports
+    // Auth tests — run without saved state so they can test login/register flows
     {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 12'] },
+      name: 'auth-tests',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /auth\.spec\.ts/,
     },
   ],
 

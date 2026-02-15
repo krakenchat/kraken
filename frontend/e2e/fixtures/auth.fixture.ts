@@ -114,20 +114,21 @@ interface AuthFixtures {
  * ```
  */
 export const test = base.extend<AuthFixtures>({
-  // Authenticated page fixture - logs in before test
+  // Authenticated page fixture - reuses storageState auth or falls back to API login
   authenticatedPage: async ({ page, request }, use) => {
     try {
-      // Login via API
-      const { accessToken } = await loginViaApi(request, TEST_USER);
-
-      // Navigate to app and set token
+      // Check if already authenticated via storageState (from setup project)
       await page.goto('/');
-      await setAuthToken(page, accessToken);
+      const hasToken = await isAuthenticated(page);
 
-      // Reload to pick up the token
-      await page.reload();
+      if (!hasToken) {
+        // Fall back to API login (local dev without setup project)
+        const { accessToken } = await loginViaApi(request, TEST_USER);
+        await setAuthToken(page, accessToken);
+        await page.reload();
+      }
 
-      // Wait for app to be ready (adjust selector based on your app)
+      // Wait for app to be ready
       await page.waitForSelector('[data-testid="app-ready"], [data-testid="main-content"]', {
         timeout: 10000,
       }).catch(() => {

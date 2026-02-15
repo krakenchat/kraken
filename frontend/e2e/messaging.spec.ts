@@ -95,14 +95,12 @@ test.describe('Channels', () => {
       const channel1Element = authenticatedPage.getByText(channel1.name);
       if (await channel1Element.isVisible({ timeout: 5000 }).catch(() => false)) {
         await channel1Element.click();
-
-        await authenticatedPage.waitForTimeout(1000);
+        await authenticatedPage.waitForLoadState('networkidle');
 
         const channel2Element = authenticatedPage.getByText(channel2.name);
         if (await channel2Element.isVisible({ timeout: 5000 }).catch(() => false)) {
           await channel2Element.click();
-
-          await authenticatedPage.waitForTimeout(1000);
+          await authenticatedPage.waitForLoadState('networkidle');
         }
       }
     });

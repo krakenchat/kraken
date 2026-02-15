@@ -29,8 +29,6 @@ test.describe('Mobile UX', () => {
       await page.mouse.down();
       await page.mouse.move(viewportWidth * 0.5, 300, { steps: 10 });
       await page.mouse.up();
-
-      await page.waitForTimeout(500);
     });
 
     test('can open community drawer via menu button', async ({ page, request }) => {
@@ -51,7 +49,6 @@ test.describe('Mobile UX', () => {
 
       if (await menuButton.isVisible({ timeout: 5000 }).catch(() => false)) {
         await menuButton.click();
-        await page.waitForTimeout(500);
 
         const drawer = page.locator(
           '[data-testid="community-drawer"], [role="presentation"], .MuiDrawer-paper'
@@ -81,12 +78,12 @@ test.describe('Mobile UX', () => {
         const communityElement = page.getByText(community.name);
         if (await communityElement.isVisible({ timeout: 5000 }).catch(() => false)) {
           await communityElement.click();
-          await page.waitForTimeout(500);
+          await page.waitForLoadState('networkidle');
 
           const channelElement = page.locator('text=/general|text|voice/i').first();
           if (await channelElement.isVisible({ timeout: 3000 }).catch(() => false)) {
             await channelElement.click();
-            await page.waitForTimeout(500);
+            await page.waitForLoadState('networkidle');
 
             const backButton = page.locator(
               '[data-testid="back-button"], [aria-label*="back"], button:has(svg[data-testid*="ArrowBack"])'
@@ -94,7 +91,7 @@ test.describe('Mobile UX', () => {
 
             if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
               await backButton.click();
-              await page.waitForTimeout(500);
+              await page.waitForLoadState('networkidle');
             }
           }
         }
@@ -140,18 +137,18 @@ test.describe('Mobile UX', () => {
 
       // Start with mobile size
       await page.setViewportSize({ width: 375, height: 667 });
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('domcontentloaded');
 
       const mobileNav = page.locator('[data-testid="mobile-bottom-nav"], [data-testid="mobile-layout"]');
       await mobileNav.first().isVisible({ timeout: 5000 }).catch(() => false);
 
       // Switch to tablet size
       await page.setViewportSize({ width: 768, height: 1024 });
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('domcontentloaded');
 
       // Switch to desktop size
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('domcontentloaded');
     });
   });
 });

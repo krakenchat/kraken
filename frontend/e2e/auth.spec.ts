@@ -85,7 +85,6 @@ test.describe('Authentication', () => {
       const submitButton = page.getByRole('button', { name: /register|sign up|create/i });
       if (await submitButton.isVisible().catch(() => false)) {
         await submitButton.click();
-        await page.waitForTimeout(2000);
       }
     });
 
@@ -110,9 +109,7 @@ test.describe('Authentication', () => {
       await setAuthToken(page, accessToken);
       await page.reload();
 
-      await page.waitForTimeout(2000);
-
-      expect(page.url()).not.toContain('/login');
+      await expect(page).not.toHaveURL(/\/login/);
     });
 
     test('token persists after page reload', async ({ page, request }) => {
@@ -161,13 +158,7 @@ test.describe('Protected Routes', () => {
     await clearAuthToken(page);
     await page.goto('/settings');
 
-    await page.waitForTimeout(2000);
-
-    const currentUrl = page.url();
-    const isOnLoginPage = currentUrl.includes('/login') || currentUrl.includes('/register');
-    const hasLoginForm = await page.locator('input[type="password"]').isVisible().catch(() => false);
-
-    expect(isOnLoginPage || hasLoginForm).toBe(true);
+    await expect(page).toHaveURL(/\/(login|register)/);
   });
 
   test('direct URL access with valid auth works', async ({ page, request }) => {
