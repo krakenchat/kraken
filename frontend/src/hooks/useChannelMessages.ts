@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { messagesControllerFindAllForChannel } from "../api-client/sdk.gen";
-import { useParams } from "react-router-dom";
-import { useChannelWebSocket } from "./useChannelWebSocket";
 import { channelMessagesQueryKey, MESSAGE_STALE_TIME, MESSAGE_MAX_PAGES } from "../utils/messageQueryKeys";
 import { indexMessages, clearContextIndex } from "../utils/messageIndex";
 import type { Message } from "../types/message.type";
 
 export const useChannelMessages = (channelId: string) => {
   const queryKey = channelMessagesQueryKey(channelId);
-
-  // WebSocket connection
-  const { communityId } = useParams<{ communityId: string }>();
-  useChannelWebSocket(communityId);
 
   const {
     data,

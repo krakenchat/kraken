@@ -16,6 +16,9 @@ export const useDirectMessages = (dmGroupId: string) => {
     // WebSocket events keep message data fresh — disable TanStack Query
     // background refetch. Re-fetch only on socket reconnect (invalidateQueries).
     staleTime: MESSAGE_STALE_TIME,
+    // DM rooms are left when navigating away, so events are missed.
+    // Always refetch on mount to pick up messages sent while away.
+    refetchOnMount: 'always',
   });
 
   // Read messages directly from TanStack Query cache
