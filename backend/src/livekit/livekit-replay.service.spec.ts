@@ -49,15 +49,27 @@ jest.mock('livekit-server-sdk', () => ({
 }));
 
 // Mock fluent-ffmpeg
+const mockFfmpegCommand = {
+  input: jest.fn().mockReturnThis(),
+  outputOptions: jest.fn().mockReturnThis(),
+  output: jest.fn().mockReturnThis(),
+  on: jest.fn().mockImplementation(function (
+    this: typeof mockFfmpegCommand,
+    event: string,
+    cb: () => void,
+  ) {
+    if (event === 'end') {
+      (this as { _endCb?: () => void })._endCb = cb;
+    }
+    return this;
+  }),
+  run: jest.fn().mockImplementation(function (this: typeof mockFfmpegCommand) {
+    const self = this as { _endCb?: () => void };
+    if (self._endCb) self._endCb();
+  }),
+};
 jest.mock('fluent-ffmpeg', () => {
-  const mockCommand = {
-    input: jest.fn().mockReturnThis(),
-    outputOptions: jest.fn().mockReturnThis(),
-    output: jest.fn().mockReturnThis(),
-    on: jest.fn().mockReturnThis(),
-    run: jest.fn(),
-  };
-  return jest.fn(() => mockCommand);
+  return jest.fn(() => mockFfmpegCommand);
 });
 
 describe('LivekitReplayService', () => {
@@ -675,6 +687,117 @@ describe('LivekitReplayService', () => {
 
   // Clip library tests (getUserClips, getPublicClips, updateClip, deleteClip, shareClip)
   // have been moved to clip-library.service.spec.ts
+
+  describe('getRemuxedSegmentPath', () => {
+    const userId = 'user-123';
+    const segmentFile = 'segment_00001.ts';
+
+    beforeEach(() => {
+      mockDatabaseService.egressSession.findFirst.mockResolvedValue({
+        id: 'session-1',
+        userId,
+        status: 'active',
+        segmentPath: 'session-1',
+      });
+      mockStorageService.ensureDirectory.mockResolvedValue(undefined);
+      // First call: original segment exists (getSegmentPath check)
+      // Second call: remuxed cache doesn't exist yet
+      mockStorageService.fileExists
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+      mockStorageService.getFileStats.mockResolvedValue({ size: 50000 });
+    });
+
+    it('should pass -copyts to FFmpeg to preserve segment timestamps', async () => {
+      await service.getRemuxedSegmentPath(userId, segmentFile);
+
+      expect(mockFfmpegCommand.outputOptions).toHaveBeenCalledWith(
+        expect.arrayContaining(['-copyts']),
+      );
+    });
+
+    it('should pass all required output options', async () => {
+      await service.getRemuxedSegmentPath(userId, segmentFile);
+
+      expect(mockFfmpegCommand.outputOptions).toHaveBeenCalledWith([
+        '-c copy',
+        '-f mpegts',
+        '-copyts',
+      ]);
+    });
+
+    it('should return cached path if already remuxed', async () => {
+      mockStorageService.fileExists
+        .mockReset()
+        .mockResolvedValueOnce(true) // original exists
+        .mockResolvedValueOnce(true); // cache exists
+
+      const result = await service.getRemuxedSegmentPath(userId, segmentFile);
+
+      expect(result).toContain(segmentFile);
+      expect(mockFfmpegCommand.outputOptions).not.toHaveBeenCalled();
+    });
+
+    it('should return original path for incomplete segments', async () => {
+      mockStorageService.fileExists
+        .mockReset()
+        .mockResolvedValueOnce(true) // original exists
+        .mockResolvedValueOnce(false); // cache doesn't exist
+      mockStorageService.getFileStats.mockResolvedValue({ size: 500 });
+
+      const result = await service.getRemuxedSegmentPath(userId, segmentFile);
+
+      // Should return the original path (resolved from segmentPath)
+      expect(result).toContain('session-1');
+      expect(mockFfmpegCommand.outputOptions).not.toHaveBeenCalled();
+    });
+
+    it('should return original path when remux fails', async () => {
+      mockStorageService.fileExists
+        .mockReset()
+        .mockResolvedValueOnce(true) // original exists
+        .mockResolvedValueOnce(false); // cache doesn't exist
+      mockFfmpegCommand.on.mockImplementation(function (
+        this: typeof mockFfmpegCommand,
+        event: string,
+        cb: (err?: Error) => void,
+      ) {
+        if (event === 'error') {
+          (this as { _errorCb?: (err: Error) => void })._errorCb = cb;
+        }
+        return this;
+      });
+      mockFfmpegCommand.run.mockImplementation(function (
+        this: typeof mockFfmpegCommand,
+      ) {
+        const self = this as { _errorCb?: (err: Error) => void };
+        if (self._errorCb) self._errorCb(new Error('FFmpeg failed'));
+      });
+
+      const result = await service.getRemuxedSegmentPath(userId, segmentFile);
+
+      // Falls back to original path
+      expect(result).toContain('session-1');
+
+      // Restore default mock behavior for other tests
+      mockFfmpegCommand.on.mockImplementation(function (
+        this: typeof mockFfmpegCommand,
+        event: string,
+        cb: () => void,
+      ) {
+        if (event === 'end') {
+          (this as { _endCb?: () => void })._endCb = cb;
+        }
+        return this;
+      });
+      mockFfmpegCommand.run.mockImplementation(function (
+        this: typeof mockFfmpegCommand,
+      ) {
+        const self = this as { _endCb?: () => void };
+        if (self._endCb) self._endCb();
+      });
+    });
+  });
 
   describe('cleanupOldSegments', () => {
     it('should delete old segment files from active sessions', async () => {

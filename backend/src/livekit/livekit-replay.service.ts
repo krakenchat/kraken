@@ -1519,6 +1519,7 @@ export class LivekitReplayService {
         .outputOptions([
           '-c copy', // Stream copy, no transcoding
           '-f mpegts', // Force standard MPEG-TS output (re-muxes stream IDs)
+          '-copyts', // Preserve original PTS (don't normalize to 0)
         ])
         .output(outputPath)
         .on('end', () => {
