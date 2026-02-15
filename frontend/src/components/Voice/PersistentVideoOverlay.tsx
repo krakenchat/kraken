@@ -18,11 +18,12 @@ import {
   FullscreenExit,
 } from '@mui/icons-material';
 import { useLocation } from 'react-router-dom';
-import { useVoice } from '../../contexts/VoiceContext';
+import { useVoice, useVoiceDispatch } from '../../contexts/VoiceContext';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
+import { useVideoOverlay } from '../../contexts/VideoOverlayContext';
 import { VideoTiles } from './VideoTiles';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
-import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from '../../constants/layout';
+import { VOICE_BAR_HEIGHT } from '../../constants/layout';
 
 // Constants
 const PIP_SETTINGS_KEY = 'kraken_pip_settings';
@@ -57,7 +58,9 @@ const getDefaultSettings = (): PipSettings => ({
 export const PersistentVideoOverlay: React.FC = () => {
   const theme = useTheme();
   const voiceState = useVoice();
+  const { dispatch } = useVoiceDispatch();
   const { actions } = useVoiceConnection();
+  const { containerRef: overlayContainerRef } = useVideoOverlay();
 
   // Load saved settings or use defaults, clamping size on initial load
   const [settings, setSettings] = useState<PipSettings>(() => {
@@ -85,9 +88,12 @@ export const PersistentVideoOverlay: React.FC = () => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   // Track window size for maximized mode re-renders
-  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Track the video overlay container's bounds for maximized positioning
+  const [containerBounds, setContainerBounds] = useState<DOMRect | null>(null);
+
+  const pipRef = useRef<HTMLDivElement>(null);
 
   // Auto-restore PIP from maximized when navigating to a different page
   const location = useLocation();
@@ -96,6 +102,8 @@ export const PersistentVideoOverlay: React.FC = () => {
   useEffect(() => {
     if (location.pathname !== prevPathnameRef.current) {
       prevPathnameRef.current = location.pathname;
+      // Skip restore if requestMaximize is pending (channel click → maximize)
+      if (voiceState.requestMaximize) return;
       setSettings(prev => {
         if (!prev.isMaximized) return prev;
         const updated = { ...prev, isMaximized: false };
@@ -103,7 +111,36 @@ export const PersistentVideoOverlay: React.FC = () => {
         return updated;
       });
     }
-  }, [location.pathname]);
+  }, [location.pathname, voiceState.requestMaximize]);
+
+  // Observe the content container's bounds for dynamic maximize positioning
+  useEffect(() => {
+    const el = overlayContainerRef.current;
+    if (!el) return;
+
+    const updateBounds = () => setContainerBounds(el.getBoundingClientRect());
+    updateBounds();
+
+    const observer = new ResizeObserver(updateBounds);
+    observer.observe(el);
+    window.addEventListener('resize', updateBounds);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateBounds);
+    };
+  }, [overlayContainerRef]);
+
+  // Handle requestMaximize from channel click
+  useEffect(() => {
+    if (voiceState.requestMaximize) {
+      setSettings(prev => {
+        const updated = { ...prev, isMaximized: true, isMinimized: false };
+        setCachedItem(PIP_SETTINGS_KEY, updated);
+        return updated;
+      });
+      dispatch({ type: 'SET_REQUEST_MAXIMIZE', payload: false });
+    }
+  }, [voiceState.requestMaximize, dispatch]);
 
   // Save settings to localStorage
   const saveSettings = useCallback((newSettings: PipSettings) => {
@@ -276,19 +313,19 @@ export const PersistentVideoOverlay: React.FC = () => {
     ? voiceState.dmGroupName || 'DM Call'
     : voiceState.channelName || 'Voice';
 
-  // Compute effective position and size based on maximize state
-  const effectivePosition = settings.isMaximized
-    ? { x: SIDEBAR_WIDTH, y: APPBAR_HEIGHT }
+  // Compute effective position and size based on maximize state + container bounds
+  const effectivePosition = settings.isMaximized && containerBounds
+    ? { x: containerBounds.left, y: containerBounds.top }
     : settings.position;
-  const effectiveSize = settings.isMaximized
-    ? { width: windowSize.width - SIDEBAR_WIDTH, height: windowSize.height - APPBAR_HEIGHT - VOICE_BAR_HEIGHT }
+  const effectiveSize = settings.isMaximized && containerBounds
+    ? { width: containerBounds.width, height: containerBounds.height }
     : settings.size;
 
   // Minimized view
   if (settings.isMinimized) {
     return (
       <Paper
-        ref={containerRef}
+        ref={pipRef}
         elevation={8}
         sx={{
           position: 'fixed',
@@ -334,7 +371,7 @@ export const PersistentVideoOverlay: React.FC = () => {
   // Full PiP view
   return (
     <Paper
-      ref={containerRef}
+      ref={pipRef}
       elevation={8}
       sx={{
         position: 'fixed',
