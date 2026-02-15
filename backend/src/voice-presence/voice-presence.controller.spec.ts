@@ -16,6 +16,8 @@ describe('VoicePresenceController', () => {
   const mockVoicePresenceService = {
     getChannelPresence: jest.fn(),
     refreshPresence: jest.fn(),
+    joinVoiceChannelDirect: jest.fn(),
+    leaveVoiceChannel: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn(() => true) };
@@ -112,6 +114,46 @@ describe('VoicePresenceController', () => {
       expect(result).toEqual({
         success: true,
         message: 'Presence refreshed successfully',
+        channelId,
+      });
+    });
+  });
+
+  describe('joinPresence', () => {
+    it('should register voice presence and return success', async () => {
+      const channelId = 'channel-123';
+
+      jest.spyOn(service, 'joinVoiceChannelDirect').mockResolvedValue();
+
+      const result = await controller.joinPresence(channelId, mockRequest);
+
+      expect(service.joinVoiceChannelDirect).toHaveBeenCalledWith(
+        channelId,
+        mockUser.id,
+      );
+      expect(result).toEqual({
+        success: true,
+        message: 'Voice presence registered',
+        channelId,
+      });
+    });
+  });
+
+  describe('leavePresence', () => {
+    it('should remove voice presence and return success', async () => {
+      const channelId = 'channel-123';
+
+      jest.spyOn(service, 'leaveVoiceChannel').mockResolvedValue();
+
+      const result = await controller.leavePresence(channelId, mockRequest);
+
+      expect(service.leaveVoiceChannel).toHaveBeenCalledWith(
+        channelId,
+        mockUser.id,
+      );
+      expect(result).toEqual({
+        success: true,
+        message: 'Voice presence removed',
         channelId,
       });
     });

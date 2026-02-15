@@ -36,6 +36,9 @@ describe('VoicePresenceService', () => {
     directMessageGroup: {
       findFirst: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+    },
   };
 
   const mockLivekitReplayService = {
@@ -75,6 +78,80 @@ describe('VoicePresenceService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('joinVoiceChannelDirect', () => {
+    it('should register new user presence in voice channel', async () => {
+      const channelId = 'channel-123';
+      const userId = 'user-123';
+      const mockUser = {
+        id: userId,
+        username: 'testuser',
+        displayName: 'Test User',
+        avatarUrl: 'https://example.com/avatar.png',
+      };
+
+      mockRedis.get.mockResolvedValue(null); // No existing presence
+      mockDatabaseService.user.findUnique.mockResolvedValue(mockUser);
+
+      await service.joinVoiceChannelDirect(channelId, userId);
+
+      expect(mockDatabaseService.user.findUnique).toHaveBeenCalledWith({
+        where: { id: userId },
+      });
+      expect(mockRedis.pipeline).toHaveBeenCalled();
+      expect(mockPipeline.set).toHaveBeenCalledWith(
+        expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
+        expect.any(String),
+        'EX',
+        300,
+      );
+      expect(mockPipeline.sadd).toHaveBeenCalledTimes(2);
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        channelId,
+        ServerEvents.VOICE_CHANNEL_USER_JOINED,
+        expect.objectContaining({
+          channelId,
+          user: expect.objectContaining({ id: userId, username: 'testuser' }),
+        }),
+      );
+    });
+
+    it('should refresh TTL if user is already in channel', async () => {
+      const channelId = 'channel-123';
+      const userId = 'user-123';
+      const existingData = JSON.stringify({
+        id: userId,
+        username: 'testuser',
+        joinedAt: new Date(),
+        isDeafened: false,
+      });
+
+      mockRedis.get.mockResolvedValue(existingData);
+
+      await service.joinVoiceChannelDirect(channelId, userId);
+
+      expect(mockRedis.expire).toHaveBeenCalledWith(
+        expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
+        300,
+      );
+      // Should not create new entry or emit join event
+      expect(mockDatabaseService.user.findUnique).not.toHaveBeenCalled();
+      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+    });
+
+    it('should not register presence if user is not found in database', async () => {
+      const channelId = 'channel-123';
+      const userId = 'nonexistent-user';
+
+      mockRedis.get.mockResolvedValue(null);
+      mockDatabaseService.user.findUnique.mockResolvedValue(null);
+
+      await service.joinVoiceChannelDirect(channelId, userId);
+
+      expect(mockRedis.pipeline).not.toHaveBeenCalled();
+      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+    });
   });
 
   describe('leaveVoiceChannel', () => {
