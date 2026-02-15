@@ -79,6 +79,111 @@ const threadRepliesResponse: ThreadRepliesResponseDto = {
   continuationToken: undefined,
 };
 
+/** Auth handlers */
+const authHandlers = [
+  http.post(`${BASE_URL}/api/auth/login`, async ({ request }) => {
+    const body = await request.json() as { username: string; password: string };
+    if (body.username === 'invalid') {
+      return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+    }
+    return HttpResponse.json({
+      accessToken: 'mock-access-token',
+      refreshToken: 'mock-refresh-token',
+    });
+  }),
+];
+
+/** User handlers */
+const userHandlers = [
+  http.post(`${BASE_URL}/api/users`, () => {
+    return HttpResponse.json({
+      id: 'new-user-1',
+      username: 'newuser',
+      email: 'newuser@test.com',
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/users/profile`, () => {
+    return HttpResponse.json({
+      id: 'current-user-1',
+      username: 'testuser',
+      displayName: 'Test User',
+      email: 'test@test.com',
+      avatarUrl: null,
+    });
+  }),
+];
+
+/** Channel handlers */
+const channelHandlers = [
+  http.get(`${BASE_URL}/api/channels/community/:communityId`, () => {
+    return HttpResponse.json([
+      {
+        id: 'ch-1',
+        name: 'general',
+        communityId: 'community-1',
+        type: 'TEXT',
+        isPrivate: false,
+        createdAt: '2025-01-01T00:00:00Z',
+        position: 0,
+      },
+      {
+        id: 'ch-2',
+        name: 'voice-chat',
+        communityId: 'community-1',
+        type: 'VOICE',
+        isPrivate: false,
+        createdAt: '2025-01-01T00:00:00Z',
+        position: 1,
+      },
+    ]);
+  }),
+];
+
+/** DM handlers */
+const dmHandlers = [
+  http.get(`${BASE_URL}/api/direct-messages`, () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.post(`${BASE_URL}/api/direct-messages`, () => {
+    return HttpResponse.json({
+      id: 'new-dm-1',
+      name: null,
+      isGroup: false,
+      createdAt: new Date().toISOString(),
+      members: [],
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/direct-messages/:id`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      name: null,
+      isGroup: false,
+      createdAt: '2025-01-01T00:00:00Z',
+      members: [
+        {
+          id: 'member-1',
+          userId: 'current-user-1',
+          joinedAt: '2025-01-01T00:00:00Z',
+          user: { id: 'current-user-1', username: 'testuser', displayName: 'Test User', avatarUrl: null },
+        },
+        {
+          id: 'member-2',
+          userId: 'other-user-1',
+          joinedAt: '2025-01-01T00:00:00Z',
+          user: { id: 'other-user-1', username: 'otheruser', displayName: 'Other User', avatarUrl: null },
+        },
+      ],
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/livekit/connection-info`, () => {
+    return HttpResponse.json({ url: 'ws://localhost:7880' });
+  }),
+];
+
 export const handlers = [
   http.get(`${BASE_URL}/api/messages/channel/:channelId`, () => {
     return HttpResponse.json(channelMessagesResponse);
@@ -91,4 +196,9 @@ export const handlers = [
   http.get(`${BASE_URL}/api/threads/:parentMessageId/replies`, () => {
     return HttpResponse.json(threadRepliesResponse);
   }),
+
+  ...authHandlers,
+  ...userHandlers,
+  ...channelHandlers,
+  ...dmHandlers,
 ];
