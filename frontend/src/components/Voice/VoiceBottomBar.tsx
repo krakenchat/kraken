@@ -49,6 +49,7 @@ import { useResponsive } from "../../hooks/useResponsive";
 import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import { useVoicePresenceHeartbeat } from "../../hooks/useVoicePresenceHeartbeat";
 import { useQuery } from "@tanstack/react-query";
 import { userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 
@@ -71,6 +72,13 @@ export const VoiceBottomBar: React.FC = () => {
   const { showDebugPanel } = useDebugPanelShortcut();
   const { isActive: isPTTActive, isKeyHeld: isPTTKeyHeld, currentKeyDisplay: pttKeyDisplay } = usePushToTalk();
   const { participantCount } = useVoiceParticipantCount({
+    channelId: state.currentChannelId,
+    dmGroupId: state.currentDmGroupId,
+    contextType: state.contextType,
+  });
+
+  // Keep voice presence TTL alive in Redis while connected
+  useVoicePresenceHeartbeat({
     channelId: state.currentChannelId,
     dmGroupId: state.currentDmGroupId,
     contextType: state.contextType,

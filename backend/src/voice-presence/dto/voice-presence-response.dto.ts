@@ -25,6 +25,12 @@ export class RefreshPresenceResponseDto {
   channelId: string;
 }
 
+export class RefreshDmPresenceResponseDto {
+  success: boolean;
+  message: string;
+  dmGroupId: string;
+}
+
 export class UserVoiceChannelsResponseDto {
   userId: string;
   voiceChannels: string[];

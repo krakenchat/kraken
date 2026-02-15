@@ -15,6 +15,7 @@ import {
   ChannelVoicePresenceResponseDto,
   DmVoicePresenceResponseDto,
   RefreshPresenceResponseDto,
+  RefreshDmPresenceResponseDto,
   UserVoiceChannelsResponseDto,
 } from './dto/voice-presence-response.dto';
 
@@ -61,6 +62,49 @@ export class VoicePresenceController {
       channelId,
     };
   }
+
+  @Post('join')
+  @RequiredActions(RbacActions.JOIN_CHANNEL)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiCreatedResponse({ type: RefreshPresenceResponseDto })
+  async joinPresence(
+    @Param('channelId') channelId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RefreshPresenceResponseDto> {
+    await this.voicePresenceService.joinVoiceChannelDirect(
+      channelId,
+      req.user.id,
+    );
+    return {
+      success: true,
+      message: 'Voice presence registered',
+      channelId,
+    };
+  }
+
+  @Post('leave')
+  @RequiredActions(RbacActions.JOIN_CHANNEL)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiCreatedResponse({ type: RefreshPresenceResponseDto })
+  async leavePresence(
+    @Param('channelId') channelId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RefreshPresenceResponseDto> {
+    await this.voicePresenceService.leaveVoiceChannel(channelId, req.user.id);
+    return {
+      success: true,
+      message: 'Voice presence removed',
+      channelId,
+    };
+  }
 }
 
 @Controller('dm-groups/:dmGroupId/voice-presence')
@@ -78,6 +122,23 @@ export class DmVoicePresenceController {
       dmGroupId,
       users,
       count: users.length,
+    };
+  }
+
+  @Post('refresh')
+  @ApiCreatedResponse({ type: RefreshDmPresenceResponseDto })
+  async refreshDmPresence(
+    @Param('dmGroupId') dmGroupId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RefreshDmPresenceResponseDto> {
+    await this.voicePresenceService.refreshDmPresence(
+      dmGroupId,
+      req.user.id,
+    );
+    return {
+      success: true,
+      message: 'DM presence refreshed successfully',
+      dmGroupId,
     };
   }
 }

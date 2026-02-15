@@ -16,6 +16,8 @@ describe('VoicePresenceController', () => {
   const mockVoicePresenceService = {
     getChannelPresence: jest.fn(),
     refreshPresence: jest.fn(),
+    joinVoiceChannelDirect: jest.fn(),
+    leaveVoiceChannel: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn(() => true) };
@@ -116,6 +118,46 @@ describe('VoicePresenceController', () => {
       });
     });
   });
+
+  describe('joinPresence', () => {
+    it('should register voice presence and return success', async () => {
+      const channelId = 'channel-123';
+
+      jest.spyOn(service, 'joinVoiceChannelDirect').mockResolvedValue();
+
+      const result = await controller.joinPresence(channelId, mockRequest);
+
+      expect(service.joinVoiceChannelDirect).toHaveBeenCalledWith(
+        channelId,
+        mockUser.id,
+      );
+      expect(result).toEqual({
+        success: true,
+        message: 'Voice presence registered',
+        channelId,
+      });
+    });
+  });
+
+  describe('leavePresence', () => {
+    it('should remove voice presence and return success', async () => {
+      const channelId = 'channel-123';
+
+      jest.spyOn(service, 'leaveVoiceChannel').mockResolvedValue();
+
+      const result = await controller.leavePresence(channelId, mockRequest);
+
+      expect(service.leaveVoiceChannel).toHaveBeenCalledWith(
+        channelId,
+        mockUser.id,
+      );
+      expect(result).toEqual({
+        success: true,
+        message: 'Voice presence removed',
+        channelId,
+      });
+    });
+  });
 });
 
 describe('DmVoicePresenceController', () => {
@@ -124,9 +166,15 @@ describe('DmVoicePresenceController', () => {
 
   const mockVoicePresenceService = {
     getDmPresence: jest.fn(),
+    refreshDmPresence: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn(() => true) };
+
+  const mockUser = UserFactory.build();
+  const mockRequest = {
+    user: mockUser,
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -177,6 +225,29 @@ describe('DmVoicePresenceController', () => {
         dmGroupId,
         users: mockUsers,
         count: 1,
+      });
+    });
+  });
+
+  describe('refreshDmPresence', () => {
+    it('should refresh DM presence and return success', async () => {
+      const dmGroupId = 'dm-group-123';
+
+      jest.spyOn(service, 'refreshDmPresence').mockResolvedValue();
+
+      const result = await controller.refreshDmPresence(
+        dmGroupId,
+        mockRequest,
+      );
+
+      expect(service.refreshDmPresence).toHaveBeenCalledWith(
+        dmGroupId,
+        mockUser.id,
+      );
+      expect(result).toEqual({
+        success: true,
+        message: 'DM presence refreshed successfully',
+        dmGroupId,
       });
     });
   });
