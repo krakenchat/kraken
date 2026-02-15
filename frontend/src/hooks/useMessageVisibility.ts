@@ -12,8 +12,8 @@ interface UseMessageVisibilityProps {
 }
 
 /**
- * Hook to track message visibility using Intersection Observer
- * Automatically marks messages as read when they scroll into view
+ * Hook to track message visibility using Intersection Observer.
+ * Automatically marks messages as read when they scroll into view.
  */
 export const useMessageVisibility = ({
   channelId,
@@ -70,9 +70,8 @@ export const useMessageVisibility = ({
     return latestMessageId;
   }, []); // No dependencies - uses refs
 
-  // Set up Intersection Observer + MutationObserver for virtualized lists
-  // The MutationObserver watches for dynamically added/removed message elements
-  // (e.g., from react-virtuoso) and keeps the IntersectionObserver in sync.
+  // Set up IntersectionObserver to track which messages are visible.
+  // Re-runs when messages change so newly added DOM elements get observed.
   useEffect(() => {
     if (!enabled) return;
 
@@ -106,23 +105,12 @@ export const useMessageVisibility = ({
       }
     };
 
-    // Create intersection observer
+    // Use the scroll container as root for accurate visibility detection
     observerRef.current = new IntersectionObserver(handleIntersection, {
-      root: null, // viewport
+      root: containerRef?.current || null,
       rootMargin: "0px",
       threshold: 0.5, // 50% of message must be visible
     });
-
-    // Helper to observe a single element if it has data-message-id
-    const observeElement = (el: Element) => {
-      if (el.hasAttribute("data-message-id")) {
-        observerRef.current?.observe(el);
-      }
-      // Also check children (virtuoso may add wrapper divs)
-      el.querySelectorAll("[data-message-id]").forEach((child) => {
-        observerRef.current?.observe(child);
-      });
-    };
 
     // Observe all currently rendered message elements
     const root = containerRef?.current || document;
@@ -130,36 +118,6 @@ export const useMessageVisibility = ({
     messageElements.forEach((el) => {
       observerRef.current?.observe(el);
     });
-
-    // Watch for dynamically added/removed elements (virtualization)
-    let mutationObserver: MutationObserver | null = null;
-    const observeRoot = containerRef?.current || document.body;
-    mutationObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        mutation.addedNodes.forEach((node) => {
-          if (node instanceof Element) {
-            observeElement(node);
-          }
-        });
-        mutation.removedNodes.forEach((node) => {
-          if (node instanceof Element) {
-            const msgId = node.getAttribute("data-message-id");
-            if (msgId) {
-              visibleMessagesRef.current.delete(msgId);
-              observerRef.current?.unobserve(node);
-            }
-            node.querySelectorAll("[data-message-id]").forEach((child) => {
-              const childId = child.getAttribute("data-message-id");
-              if (childId) {
-                visibleMessagesRef.current.delete(childId);
-                observerRef.current?.unobserve(child);
-              }
-            });
-          }
-        });
-      }
-    });
-    mutationObserver.observe(observeRoot, { childList: true, subtree: true });
 
     // Capture ref value for cleanup to avoid stale reference
     const visibleMessages = visibleMessagesRef.current;
@@ -170,12 +128,9 @@ export const useMessageVisibility = ({
         observerRef.current.disconnect();
         observerRef.current = null;
       }
-      if (mutationObserver) {
-        mutationObserver.disconnect();
-      }
       visibleMessages.clear();
     };
-  }, [enabled, containerRef, findLatestVisibleMessage, markAsRead]);
+  }, [enabled, containerRef, findLatestVisibleMessage, markAsRead, messages]);
 
   return {
     markAsRead,
