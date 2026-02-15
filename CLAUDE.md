@@ -336,6 +336,20 @@ import { isElectron, hasElectronFeature } from './utils/platform';
 - **Full setup**: `docker compose run backend npm run prisma` (generates + pushes)
 - **Prisma studio**: `docker compose run -p 5555:5555 backend npx prisma studio`
 
+### OpenAPI SDK Client Regeneration
+
+When backend controllers or DTOs change (new endpoints, modified responses), regenerate the frontend API client:
+
+```bash
+# 1. Generate the OpenAPI spec from the backend
+docker compose run --rm backend npm run generate:openapi
+
+# 2. Regenerate the frontend SDK (must run inside frontend container)
+docker compose run --rm frontend sh -c 'OPENAPI_SPEC_PATH=/spec/openapi.json npx openapi-ts'
+```
+
+The backend dir is mounted at `/spec` inside the frontend container (see `docker-compose.yml`). The generated client goes to `frontend/src/api-client/`. Always use generated SDK functions (`voicePresenceControllerJoinPresence(...)`) instead of raw `client.post()` calls.
+
 ### 📹 **LiveKit Egress Storage Setup (Optional)**
 
 For testing replay buffer / screen recording features, you need to configure storage for egress output:

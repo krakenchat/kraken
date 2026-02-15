@@ -166,9 +166,15 @@ describe('DmVoicePresenceController', () => {
 
   const mockVoicePresenceService = {
     getDmPresence: jest.fn(),
+    refreshDmPresence: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn(() => true) };
+
+  const mockUser = UserFactory.build();
+  const mockRequest = {
+    user: mockUser,
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -219,6 +225,29 @@ describe('DmVoicePresenceController', () => {
         dmGroupId,
         users: mockUsers,
         count: 1,
+      });
+    });
+  });
+
+  describe('refreshDmPresence', () => {
+    it('should refresh DM presence and return success', async () => {
+      const dmGroupId = 'dm-group-123';
+
+      jest.spyOn(service, 'refreshDmPresence').mockResolvedValue();
+
+      const result = await controller.refreshDmPresence(
+        dmGroupId,
+        mockRequest,
+      );
+
+      expect(service.refreshDmPresence).toHaveBeenCalledWith(
+        dmGroupId,
+        mockUser.id,
+      );
+      expect(result).toEqual({
+        success: true,
+        message: 'DM presence refreshed successfully',
+        dmGroupId,
       });
     });
   });

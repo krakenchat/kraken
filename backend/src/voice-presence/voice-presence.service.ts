@@ -218,6 +218,21 @@ export class VoicePresenceService {
   }
 
   /**
+   * Refresh a user's presence in a DM voice call (extend TTL)
+   */
+  async refreshDmPresence(dmGroupId: string, userId: string): Promise<void> {
+    try {
+      const userDataKey = `${this.DM_VOICE_PRESENCE_USER_DATA_PREFIX}:${dmGroupId}:${userId}`;
+      await this.redis.expire(userDataKey, this.VOICE_PRESENCE_TTL);
+    } catch (error) {
+      this.logger.error(
+        `Failed to refresh DM presence for user ${userId} in DM ${dmGroupId}`,
+        error,
+      );
+    }
+  }
+
+  /**
    * Clean up expired presence entries (called periodically)
    * Note: This is now less critical since getChannelPresence automatically
    * cleans up stale entries when detected.

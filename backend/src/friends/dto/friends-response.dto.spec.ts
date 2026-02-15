@@ -1,7 +1,7 @@
 import { instanceToPlain } from 'class-transformer';
 import { FriendshipWithUsersDto } from './friends-response.dto';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { FriendshipStatus, InstanceRole } from '@prisma/client';
+import { FriendshipStatus } from '@prisma/client';
 import { UserFactory, expectNoSensitiveUserFields } from '@/test-utils';
 
 describe('FriendshipWithUsersDto', () => {

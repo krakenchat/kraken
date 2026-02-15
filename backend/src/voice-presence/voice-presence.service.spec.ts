@@ -349,6 +349,35 @@ describe('VoicePresenceService', () => {
     });
   });
 
+  describe('refreshDmPresence', () => {
+    it('should refresh TTL for DM voice presence', async () => {
+      const dmGroupId = 'dm-group-123';
+      const userId = 'user-123';
+
+      mockRedis.expire.mockResolvedValue(1);
+
+      await service.refreshDmPresence(dmGroupId, userId);
+
+      expect(mockRedis.expire).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `dm_voice_presence:user:${dmGroupId}:${userId}`,
+        ),
+        300,
+      );
+    });
+
+    it('should not throw error on failure', async () => {
+      const dmGroupId = 'dm-group-123';
+      const userId = 'user-123';
+
+      mockRedis.expire.mockRejectedValue(new Error('Redis error'));
+
+      await expect(
+        service.refreshDmPresence(dmGroupId, userId),
+      ).resolves.not.toThrow();
+    });
+  });
+
   describe('cleanupExpiredPresence', () => {
     it('should execute without errors', () => {
       expect(() => service.cleanupExpiredPresence()).not.toThrow();

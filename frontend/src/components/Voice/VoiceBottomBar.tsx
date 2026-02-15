@@ -78,7 +78,11 @@ export const VoiceBottomBar: React.FC = () => {
   });
 
   // Keep voice presence TTL alive in Redis while connected
-  useVoicePresenceHeartbeat(state.currentChannelId);
+  useVoicePresenceHeartbeat({
+    channelId: state.currentChannelId,
+    dmGroupId: state.currentDmGroupId,
+    contextType: state.contextType,
+  });
 
   // Implement proper deafen functionality (mute received audio)
   useDeafenEffect();

@@ -5036,6 +5036,66 @@
         ]
       }
     },
+    "/api/channels/{channelId}/voice-presence/join": {
+      "post": {
+        "operationId": "VoicePresenceController_joinPresence",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/voice-presence/leave": {
+      "post": {
+        "operationId": "VoicePresenceController_leavePresence",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
     "/api/voice-presence/me": {
       "get": {
         "operationId": "UserVoicePresenceController_getMyVoiceChannels",
@@ -5077,6 +5137,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DmVoicePresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "DmVoicePresence"
+        ]
+      }
+    },
+    "/api/dm-groups/{dmGroupId}/voice-presence/refresh": {
+      "post": {
+        "operationId": "DmVoicePresenceController_refreshDmPresence",
+        "parameters": [
+          {
+            "name": "dmGroupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshDmPresenceResponseDto"
                 }
               }
             }
@@ -5772,7 +5862,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/FriendUserDto"
+                    "$ref": "#/components/schemas/UserEntity"
                   }
                 }
               }
@@ -10062,6 +10152,25 @@
           "count"
         ]
       },
+      "RefreshDmPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "dmGroupId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "dmGroupId"
+        ]
+      },
       "OnboardingStatusDto": {
         "type": "object",
         "properties": {
@@ -10836,89 +10945,11 @@
             "type": "string",
             "enum": [
               "minimal",
-              "subtle",
+              "balanced",
               "vibrant"
             ]
           }
         }
-      },
-      "FriendUserDto": {
-        "type": "object",
-        "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "OWNER",
-              "USER"
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "nullable": true
-          },
-          "verified": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "avatarUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "bannerUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "lastSeen": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true
-          },
-          "displayName": {
-            "type": "string",
-            "nullable": true
-          },
-          "bio": {
-            "type": "string",
-            "nullable": true
-          },
-          "status": {
-            "type": "string",
-            "nullable": true
-          },
-          "statusUpdatedAt": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true
-          },
-          "banned": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "role",
-          "id",
-          "username",
-          "email",
-          "verified",
-          "createdAt",
-          "avatarUrl",
-          "bannerUrl",
-          "lastSeen",
-          "displayName",
-          "bio",
-          "status",
-          "statusUpdatedAt",
-          "banned"
-        ]
       },
       "FriendshipWithUsersDto": {
         "type": "object",
@@ -10945,10 +10976,10 @@
             "type": "string"
           },
           "userA": {
-            "$ref": "#/components/schemas/FriendUserDto"
+            "$ref": "#/components/schemas/UserEntity"
           },
           "userB": {
-            "$ref": "#/components/schemas/FriendUserDto"
+            "$ref": "#/components/schemas/UserEntity"
           }
         },
         "required": [

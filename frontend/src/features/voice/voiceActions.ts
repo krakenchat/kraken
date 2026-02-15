@@ -1,7 +1,6 @@
 import { Room, VideoCaptureOptions } from "livekit-client";
 import type { VoiceAction, VoiceState } from "../../contexts/VoiceContext";
-import { livekitControllerGenerateToken, livekitControllerGenerateDmToken } from "../../api-client/sdk.gen";
-import { client } from "../../api-client/client.gen";
+import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence } from "../../api-client/sdk.gen";
 import { queryClient } from "../../main";
 import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
@@ -214,7 +213,7 @@ export async function joinVoiceChannel(
 
     // Register presence directly (belt-and-suspenders alongside LiveKit webhooks)
     try {
-      await client.post({ url: `/api/channels/${channelId}/voice-presence/join` });
+      await voicePresenceControllerJoinPresence({ path: { channelId } });
       logger.info('[Voice] Registered voice presence via REST');
     } catch (err) {
       logger.warn('[Voice] Failed to register voice presence (webhook will handle it):', err);
@@ -257,7 +256,7 @@ export async function leaveVoiceChannel(deps: VoiceActionDeps) {
   try {
     // Notify backend before disconnecting (best-effort)
     try {
-      await client.post({ url: `/api/channels/${currentChannelId}/voice-presence/leave` });
+      await voicePresenceControllerLeavePresence({ path: { channelId: currentChannelId } });
       logger.info('[Voice] Removed voice presence via REST');
     } catch (err) {
       logger.warn('[Voice] Failed to remove voice presence (webhook will handle it):', err);

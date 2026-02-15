@@ -15,6 +15,7 @@ import {
   ChannelVoicePresenceResponseDto,
   DmVoicePresenceResponseDto,
   RefreshPresenceResponseDto,
+  RefreshDmPresenceResponseDto,
   UserVoiceChannelsResponseDto,
 } from './dto/voice-presence-response.dto';
 
@@ -121,6 +122,23 @@ export class DmVoicePresenceController {
       dmGroupId,
       users,
       count: users.length,
+    };
+  }
+
+  @Post('refresh')
+  @ApiCreatedResponse({ type: RefreshDmPresenceResponseDto })
+  async refreshDmPresence(
+    @Param('dmGroupId') dmGroupId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RefreshDmPresenceResponseDto> {
+    await this.voicePresenceService.refreshDmPresence(
+      dmGroupId,
+      req.user.id,
+    );
+    return {
+      success: true,
+      message: 'DM presence refreshed successfully',
+      dmGroupId,
     };
   }
 }
