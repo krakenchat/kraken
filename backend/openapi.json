@@ -9665,8 +9665,7 @@
         "required": [
           "channelId",
           "roomName",
-          "videoTrackId",
-          "audioTrackId"
+          "videoTrackId"
         ]
       },
       "StartReplayResponseDto": {

@@ -10,8 +10,9 @@ export class StartReplayBufferDto {
   @IsString()
   videoTrackId: string;
 
+  @IsOptional()
   @IsString()
-  audioTrackId: string;
+  audioTrackId?: string;
 
   /**
    * Participant identity (usually the user ID)
