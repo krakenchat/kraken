@@ -1,0 +1,206 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  isElectron,
+  isWeb,
+  isWayland,
+  isMobile,
+  isDesktopBrowser,
+  getPlatform,
+  hasElectronFeature,
+  getElectronAPI,
+  supportsScreenCapture,
+  supportsMediaDevices,
+  isSecureContext,
+  Platform,
+} from '../../utils/platform';
+
+describe('platform utilities', () => {
+  const originalUserAgent = navigator.userAgent;
+
+  beforeEach(() => {
+    delete window.electronAPI;
+  });
+
+  afterEach(() => {
+    delete window.electronAPI;
+    Object.defineProperty(navigator, 'userAgent', {
+      value: originalUserAgent,
+      configurable: true,
+    });
+  });
+
+  describe('isElectron', () => {
+    it('returns true when window.electronAPI.isElectron is true', () => {
+      window.electronAPI = { isElectron: true };
+      expect(isElectron()).toBe(true);
+    });
+
+    it('returns false when electronAPI is undefined', () => {
+      expect(isElectron()).toBe(false);
+    });
+  });
+
+  describe('isWeb', () => {
+    it('returns true when no electronAPI is present', () => {
+      expect(isWeb()).toBe(true);
+    });
+
+    it('returns false when running in electron', () => {
+      window.electronAPI = { isElectron: true };
+      expect(isWeb()).toBe(false);
+    });
+  });
+
+  describe('isWayland', () => {
+    it('returns true when electron and isWayland is true', () => {
+      window.electronAPI = { isElectron: true, isWayland: true };
+      expect(isWayland()).toBe(true);
+    });
+
+    it('returns false when not electron', () => {
+      expect(isWayland()).toBe(false);
+    });
+
+    it('returns false when electron but isWayland is not set', () => {
+      window.electronAPI = { isElectron: true };
+      expect(isWayland()).toBe(false);
+    });
+  });
+
+  describe('isMobile', () => {
+    it('returns true for iPhone user agent', () => {
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
+        configurable: true,
+      });
+      expect(isMobile()).toBe(true);
+    });
+
+    it('returns false for desktop user agent', () => {
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        configurable: true,
+      });
+      expect(isMobile()).toBe(false);
+    });
+  });
+
+  describe('isDesktopBrowser', () => {
+    it('returns true for desktop web (not electron, not mobile)', () => {
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        configurable: true,
+      });
+      expect(isDesktopBrowser()).toBe(true);
+    });
+  });
+
+  describe('getPlatform', () => {
+    it('returns Platform.ELECTRON when electron', () => {
+      window.electronAPI = { isElectron: true };
+      expect(getPlatform()).toBe(Platform.ELECTRON);
+    });
+
+    it('returns Platform.WEB when web browser', () => {
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        configurable: true,
+      });
+      expect(getPlatform()).toBe(Platform.WEB);
+    });
+
+    it('returns Platform.MOBILE when mobile user agent', () => {
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
+        configurable: true,
+      });
+      expect(getPlatform()).toBe(Platform.MOBILE);
+    });
+  });
+
+  describe('hasElectronFeature', () => {
+    it('returns true when electron and the feature function exists', () => {
+      window.electronAPI = {
+        isElectron: true,
+        getDesktopSources: async () => [],
+      };
+      expect(hasElectronFeature('getDesktopSources')).toBe(true);
+    });
+
+    it('returns false when not electron', () => {
+      expect(hasElectronFeature('getDesktopSources')).toBe(false);
+    });
+
+    it('returns false when electron but feature does not exist', () => {
+      window.electronAPI = { isElectron: true };
+      expect(hasElectronFeature('getDesktopSources')).toBe(false);
+    });
+  });
+
+  describe('getElectronAPI', () => {
+    it('returns the electronAPI when in electron', () => {
+      window.electronAPI = { isElectron: true };
+      expect(getElectronAPI()).toBe(window.electronAPI);
+    });
+
+    it('returns null when not in electron', () => {
+      expect(getElectronAPI()).toBeNull();
+    });
+  });
+
+  describe('supportsScreenCapture', () => {
+    it('returns true in electron with getDesktopSources', () => {
+      window.electronAPI = {
+        isElectron: true,
+        getDesktopSources: async () => [],
+      };
+      expect(supportsScreenCapture()).toBe(true);
+    });
+
+    it('returns true in web with getDisplayMedia', () => {
+      // jsdom may not provide navigator.mediaDevices, so we stub the entire chain
+      const originalMediaDevices = navigator.mediaDevices;
+      const fakeMediaDevices = {
+        getDisplayMedia: () => Promise.resolve(null),
+      } as unknown as MediaDevices;
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: fakeMediaDevices,
+        configurable: true,
+      });
+      expect(supportsScreenCapture()).toBe(true);
+      // restore
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: originalMediaDevices,
+        configurable: true,
+      });
+    });
+  });
+
+  describe('supportsMediaDevices', () => {
+    it('returns true when navigator.mediaDevices.getUserMedia exists', () => {
+      // jsdom may not provide navigator.mediaDevices, so we stub the entire chain
+      const originalMediaDevices = navigator.mediaDevices;
+      const fakeMediaDevices = {
+        getUserMedia: () => Promise.resolve(null),
+      } as unknown as MediaDevices;
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: fakeMediaDevices,
+        configurable: true,
+      });
+      expect(supportsMediaDevices()).toBe(true);
+      // restore
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: originalMediaDevices,
+        configurable: true,
+      });
+    });
+  });
+
+  describe('isSecureContext', () => {
+    it('returns true when window.isSecureContext is true', () => {
+      // jsdom typically sets isSecureContext based on the URL
+      // localhost is considered secure context
+      expect(isSecureContext()).toBe(true);
+    });
+  });
+});

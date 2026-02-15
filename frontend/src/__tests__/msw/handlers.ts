@@ -184,6 +184,21 @@ const dmHandlers = [
   }),
 ];
 
+/** Moderation handlers */
+const moderationHandlers = [
+  http.post(`${BASE_URL}/api/moderation/ban/:communityId/:userId`, () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.post(`${BASE_URL}/api/moderation/timeout/:communityId/:userId`, () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.post(`${BASE_URL}/api/moderation/kick/:communityId/:userId`, () => {
+    return HttpResponse.json({ success: true });
+  }),
+];
+
 export const handlers = [
   http.get(`${BASE_URL}/api/messages/channel/:channelId`, () => {
     return HttpResponse.json(channelMessagesResponse);
@@ -201,4 +216,5 @@ export const handlers = [
   ...userHandlers,
   ...channelHandlers,
   ...dmHandlers,
+  ...moderationHandlers,
 ];

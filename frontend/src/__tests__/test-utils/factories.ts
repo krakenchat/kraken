@@ -184,3 +184,37 @@ export function createDmGroup(overrides: Partial<DirectMessageGroup> = {}): Dire
     lastMessage: overrides.lastMessage ?? null,
   };
 }
+
+export function createSpan(overrides: Partial<{
+  type: string;
+  text: string;
+  userId: string;
+  specialKind: string;
+  communityId: string;
+  aliasId: string;
+}> = {}) {
+  return {
+    type: overrides.type ?? 'PLAINTEXT',
+    text: overrides.text ?? 'hello',
+    userId: overrides.userId,
+    specialKind: overrides.specialKind,
+    communityId: overrides.communityId,
+    aliasId: overrides.aliasId,
+  };
+}
+
+export function createFileMetadata(overrides: Partial<{
+  id: string;
+  filename: string;
+  mimeType: string;
+  fileType: string;
+  size: number;
+}> = {}) {
+  return {
+    id: overrides.id ?? `file-${++counter}`,
+    filename: overrides.filename ?? 'test-file.png',
+    mimeType: overrides.mimeType ?? 'image/png',
+    fileType: overrides.fileType ?? 'IMAGE',
+    size: overrides.size ?? 1024,
+  };
+}
