@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Message } from "../types/message.type";
 import {
   ServerEvents,
-  ClientEvents,
   NewMessagePayload,
   UpdateMessagePayload,
   DeleteMessagePayload,
@@ -30,12 +29,12 @@ import {
   removeMessageContext,
 } from "../utils/messageIndex";
 
-export function useChannelWebSocket(communityId: string | undefined) {
+export function useChannelWebSocket() {
   const socket = useSocket();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!socket || !communityId) return;
+    if (!socket) return;
 
     const handleNewMessage = async ({ message }: NewMessagePayload) => {
       const contextId = message.channelId || message.directMessageGroupId;
@@ -245,12 +244,5 @@ export function useChannelWebSocket(communityId: string | undefined) {
       socket.off(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
       socket.off('connect', handleReconnect);
     };
-  }, [socket, communityId, queryClient]);
-
-  const sendMessage = (msg: Omit<Message, "id">) => {
-    // @ts-expect-error: id will be assigned by the server
-    socket.emit(ClientEvents.SEND_MESSAGE, msg);
-  };
-
-  return { sendMessage };
+  }, [socket, queryClient]);
 }

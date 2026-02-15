@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { InfiniteData } from '@tanstack/react-query';
-import type { PaginatedMessagesResponseDto } from '../../api-client/types.gen';
+import type { PaginatedMessagesResponseDto, UnreadCountDto } from '../../api-client/types.gen';
 
 // Mock the generated client
 vi.mock('../../api-client/client.gen', () => ({
@@ -12,6 +12,7 @@ vi.mock('../../api-client/client.gen', () => ({
 
 import { useChannelWebSocket } from '../../hooks/useChannelWebSocket';
 import { channelMessagesQueryKey } from '../../utils/messageQueryKeys';
+import { readReceiptsControllerGetUnreadCountsQueryKey } from '../../api-client/@tanstack/react-query.gen';
 import { setMessageContext, clearContextIndex } from '../../utils/messageIndex';
 import {
   createTestQueryClient,
@@ -34,8 +35,8 @@ beforeEach(() => {
   clearContextIndex('channel-2');
 });
 
-function renderChannelWebSocket(communityId = 'community-1') {
-  return renderHook(() => useChannelWebSocket(communityId), {
+function renderChannelWebSocket() {
+  return renderHook(() => useChannelWebSocket(), {
     wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
   });
 }
@@ -307,15 +308,99 @@ describe('useChannelWebSocket', () => {
     });
   });
 
-  describe('sendMessage', () => {
-    it('emits SEND_MESSAGE via socket', () => {
-      const { result } = renderChannelWebSocket();
+  describe('READ_RECEIPT_UPDATED', () => {
+    it('updates unread count to 0 for a channel', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 5, lastReadMessageId: 'old-msg' },
+        { channelId: 'channel-2', unreadCount: 3 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
 
-      const msg = createMessage({ channelId: 'channel-1' });
-      const { id: _id, ...msgWithoutId } = msg;
-      result.current.sendMessage(msgWithoutId);
+      renderChannelWebSocket();
 
-      expect(mockSocket.emit).toHaveBeenCalledWith('sendMessage', msgWithoutId);
+      await act(() =>
+        mockSocket.simulateEvent('readReceiptUpdated', {
+          channelId: 'channel-1',
+          directMessageGroupId: null,
+          lastReadMessageId: 'new-msg',
+        }),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      const entry = data!.find((c) => c.channelId === 'channel-1');
+      expect(entry!.unreadCount).toBe(0);
+      expect(entry!.lastReadMessageId).toBe('new-msg');
+      // Other channels untouched
+      expect(data!.find((c) => c.channelId === 'channel-2')!.unreadCount).toBe(3);
+    });
+
+    it('adds new entry when channel not in existing cache', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 5 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+
+      renderChannelWebSocket();
+
+      await act(() =>
+        mockSocket.simulateEvent('readReceiptUpdated', {
+          channelId: 'channel-new',
+          directMessageGroupId: null,
+          lastReadMessageId: 'msg-1',
+        }),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data).toHaveLength(2);
+      const newEntry = data!.find((c) => c.channelId === 'channel-new');
+      expect(newEntry).toBeDefined();
+      expect(newEntry!.unreadCount).toBe(0);
+    });
+
+    it('works for DM groups', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { directMessageGroupId: 'dm-1', unreadCount: 10 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+
+      renderChannelWebSocket();
+
+      await act(() =>
+        mockSocket.simulateEvent('readReceiptUpdated', {
+          channelId: null,
+          directMessageGroupId: 'dm-1',
+          lastReadMessageId: 'dm-msg-5',
+        }),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      const entry = data!.find((c) => c.directMessageGroupId === 'dm-1');
+      expect(entry!.unreadCount).toBe(0);
+      expect(entry!.lastReadMessageId).toBe('dm-msg-5');
+    });
+
+    it('skips when no channelId or directMessageGroupId', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 5 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+
+      renderChannelWebSocket();
+
+      await act(() =>
+        mockSocket.simulateEvent('readReceiptUpdated', {
+          channelId: null,
+          directMessageGroupId: null,
+          lastReadMessageId: 'msg-1',
+        }),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data).toEqual(existing);
     });
   });
 });

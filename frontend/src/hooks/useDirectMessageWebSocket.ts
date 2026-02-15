@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ServerEvents,
-  ClientEvents,
   NewMessagePayload,
   UpdateMessagePayload,
   DeleteMessagePayload,
@@ -139,17 +138,4 @@ export function useDirectMessageWebSocket() {
       socket.off('connect', handleReconnect);
     };
   }, [socket, queryClient]);
-
-  const joinDmGroup = (dmGroupId: string) => {
-    socket?.emit(ClientEvents.JOIN_DM_ROOM, dmGroupId);
-  };
-
-  const leaveDmGroup = (dmGroupId: string) => {
-    socket?.emit(ClientEvents.LEAVE_ROOM, dmGroupId);
-  };
-
-  return {
-    joinDmGroup,
-    leaveDmGroup
-  };
 }

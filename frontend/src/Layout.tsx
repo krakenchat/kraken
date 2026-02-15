@@ -15,6 +15,8 @@ import { useVoiceRecovery } from "./hooks/useVoiceRecovery";
 import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import { useVoiceEvents } from "./hooks/useVoiceEvents";
+import { useChannelWebSocket } from "./hooks/useChannelWebSocket";
+import { useDirectMessageWebSocket } from "./hooks/useDirectMessageWebSocket";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
 import { useResponsive } from "./hooks/useResponsive";
@@ -44,6 +46,10 @@ const Layout: React.FC = () => {
 
   // Listen for real-time voice presence events globally
   useVoiceEvents();
+
+  // Listen for channel/DM message events globally (not page-scoped)
+  useChannelWebSocket();
+  useDirectMessageWebSocket();
 
   // Initialize notification WebSocket listeners and desktop notifications
   useNotifications({
