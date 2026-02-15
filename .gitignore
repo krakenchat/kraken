@@ -70,6 +70,7 @@ frontend/playwright/.cache/
 frontend/dev-dist/
 .env.*
 backend/coverage
+frontend/coverage
 
 # Docker Compose local overrides
 docker-compose.override.yml
