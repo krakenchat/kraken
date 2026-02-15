@@ -16,6 +16,7 @@ import { ChannelType } from "../types/channel.type";
 import { useVoiceConnection } from "../hooks/useVoiceConnection";
 import { useAuthenticatedImage } from "../hooks/useAuthenticatedImage";
 import { useResponsive } from "../hooks/useResponsive";
+import { useVideoOverlay } from "../contexts/VideoOverlayContext";
 
 const CommunityPage: React.FC = () => {
   const { isMobile } = useResponsive();
@@ -47,6 +48,7 @@ const DesktopCommunityPage: React.FC = () => {
   });
   const { state: voiceState } = useVoiceConnection();
   const { blobUrl: communityAvatarUrl } = useAuthenticatedImage(data?.avatar);
+  const { setContainerElement } = useVideoOverlay();
 
   if (!communityId) return <div>Community ID is required</div>;
   if (isLoading) return <div>Loading...</div>;
@@ -146,7 +148,7 @@ const DesktopCommunityPage: React.FC = () => {
         </CommunityHeader>
         <ChannelList communityId={communityId} />
       </Sidebar>
-      <Content>
+      <Content ref={setContainerElement}>
         {renderChannelContent()}
       </Content>
     </Root>

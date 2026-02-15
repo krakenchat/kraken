@@ -17,6 +17,7 @@ export interface VoiceState {
   isDeafened: boolean;
   showVideoTiles: boolean;
   screenShareAudioFailed: boolean;
+  requestMaximize: boolean;
   selectedAudioInputId: string | null;
   selectedAudioOutputId: string | null;
   selectedVideoInputId: string | null;
@@ -33,6 +34,7 @@ export type VoiceAction =
   | { type: 'SET_SCREEN_SHARE_AUDIO_FAILED'; payload: boolean }
   | { type: 'SET_SELECTED_AUDIO_INPUT_ID'; payload: string | null }
   | { type: 'SET_SELECTED_AUDIO_OUTPUT_ID'; payload: string | null }
+  | { type: 'SET_REQUEST_MAXIMIZE'; payload: boolean }
   | { type: 'SET_SELECTED_VIDEO_INPUT_ID'; payload: string | null };
 
 const initialState: VoiceState = {
@@ -50,6 +52,7 @@ const initialState: VoiceState = {
   isDeafened: false,
   showVideoTiles: false,
   screenShareAudioFailed: false,
+  requestMaximize: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
   selectedVideoInputId: null,
@@ -106,6 +109,8 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
       return { ...state, showVideoTiles: action.payload };
     case 'SET_SCREEN_SHARE_AUDIO_FAILED':
       return { ...state, screenShareAudioFailed: action.payload };
+    case 'SET_REQUEST_MAXIMIZE':
+      return { ...state, requestMaximize: action.payload };
     case 'SET_SELECTED_AUDIO_INPUT_ID':
       return { ...state, selectedAudioInputId: action.payload };
     case 'SET_SELECTED_AUDIO_OUTPUT_ID':
