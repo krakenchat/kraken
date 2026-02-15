@@ -434,7 +434,7 @@ export const VoiceBottomBar: React.FC = () => {
             )}
 
             {/* Show Video Tiles - visible when tiles are hidden and video/screenshare is active */}
-            {!state.showVideoTiles && (isCameraEnabled || screenShare.isScreenSharing) && (
+            {!state.showVideoTiles && state.isConnected && (
               <Tooltip title="Show Video Tiles" arrow={!isMobile}>
                 <IconButton
                   onClick={() => actions.setShowVideoTiles(true)}
