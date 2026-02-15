@@ -101,6 +101,43 @@ export class PushNotificationsController {
     };
   }
 
+  /**
+   * Send a test push notification to the current user
+   * POST /push/test
+   * Any authenticated user can test their own push notifications
+   */
+  @Post('test')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: TestPushResponseDto })
+  async sendTestPushToSelf(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<TestPushResponseDto> {
+    if (!this.pushNotificationsService.isEnabled()) {
+      throw new NotFoundException(
+        'Push notifications are not configured on this instance. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in .env',
+      );
+    }
+
+    const result = await this.pushNotificationsService.sendToUser(req.user.id, {
+      title: 'Test Push Notification',
+      body: 'Push notifications are working! You will receive notifications for mentions and messages.',
+      tag: `test-${Date.now()}`,
+      data: {
+        type: 'TEST',
+      },
+    });
+
+    return {
+      success: result.sent > 0,
+      sent: result.sent,
+      failed: result.failed,
+      message:
+        result.sent > 0
+          ? `Push notification sent to ${result.sent} device(s)`
+          : 'No active push subscriptions found',
+    };
+  }
+
   // ============================================================================
   // DEBUG ENDPOINTS (Admin only)
   // ============================================================================
