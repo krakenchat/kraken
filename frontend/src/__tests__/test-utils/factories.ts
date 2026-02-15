@@ -159,9 +159,10 @@ export function createUser(overrides: Partial<{
 }
 
 export function createDmGroupMember(overrides: Partial<DirectMessageGroupMember> = {}): DirectMessageGroupMember {
+  const memberId = overrides.id ?? `member-${++counter}`;
   const userId = overrides.userId ?? `user-${++counter}`;
   return {
-    id: overrides.id ?? `member-${counter}`,
+    id: memberId,
     userId,
     joinedAt: overrides.joinedAt ?? new Date(),
     user: overrides.user ?? {

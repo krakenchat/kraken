@@ -3,29 +3,14 @@ import { render, type RenderOptions } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, type MemoryRouterProps } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import { SocketContext } from '../../utils/SocketContext';
 import { NotificationProvider } from '../../contexts/NotificationContext';
+import { generateTheme } from '../../theme/themeConfig';
 import { createTestQueryClient } from './queryClient';
 import type { MockSocket } from './mockSocket';
 
-const defaultTheme = createTheme({
-  palette: {
-    semantic: {
-      status: {
-        positive: '#22c55e',
-        negative: '#ef4444',
-        positiveText: '#ffffff',
-        negativeText: '#ffffff',
-      },
-      overlay: {
-        light: 'rgba(0,0,0,0.3)',
-        medium: 'rgba(0,0,0,0.5)',
-        heavy: 'rgba(0,0,0,0.7)',
-      },
-    },
-  },
-} as Parameters<typeof createTheme>[0]);
+const defaultTheme = generateTheme('dark', 'blue', 'balanced');
 
 interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient;
@@ -43,7 +28,7 @@ export function renderWithProviders(
   const {
     queryClient = createTestQueryClient(),
     socket = null,
-    isSocketConnected = false,
+    isSocketConnected = socket ? true : false,
     routerProps = {},
     withRouter = true,
     withTheme = true,
