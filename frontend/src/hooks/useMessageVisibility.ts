@@ -22,7 +22,7 @@ export const useMessageVisibility = ({
   containerRef,
   enabled = true,
 }: UseMessageVisibilityProps) => {
-  const socket = useContext(SocketContext);
+  const { socket } = useContext(SocketContext);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const visibleMessagesRef = useRef<Set<string>>(new Set());
   const lastMarkedMessageIdRef = useRef<string | null>(null);

@@ -31,7 +31,7 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
   directMessageGroupId: _directMessageGroupId,
 }) => {
   const theme = useTheme();
-  const socket = useContext(SocketContext);
+  const { socket } = useContext(SocketContext);
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
 

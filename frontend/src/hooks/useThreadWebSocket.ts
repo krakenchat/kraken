@@ -29,7 +29,7 @@ interface DeleteThreadReplyPayload {
  * Call this in components that display thread replies.
  */
 export function useThreadWebSocket() {
-  const socket = useContext(SocketContext);
+  const { socket } = useContext(SocketContext);
   const queryClient = useQueryClient();
 
   useEffect(() => {

@@ -15,6 +15,7 @@ import { onboardingControllerGetStatusOptions } from "./api-client/@tanstack/rea
 import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
 import { PWAInstallPrompt } from "./components/PWA/PWAInstallPrompt";
+import { ConnectionStatusBanner } from "./components/ConnectionStatusBanner";
 import { hasServers } from "./utils/serverStorage";
 import { isElectron } from "./utils/platform";
 
@@ -129,6 +130,7 @@ function App() {
       <CssBaseline />
       <AutoUpdater />
       <PWAInstallPrompt />
+      <ConnectionStatusBanner />
       <AvatarCacheProvider>
         <NotificationProvider>
           <VoiceProvider>

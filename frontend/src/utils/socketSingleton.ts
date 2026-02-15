@@ -55,6 +55,11 @@ export async function getSocketSingleton(): Promise<
     socketInstance = io(url, {
       transports: ["websocket"],
       auth: { token: `Bearer ${token}` },
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30000,
+      randomizationFactor: 0.5,
     });
 
     // Subscribe to token refresh events to update socket auth
