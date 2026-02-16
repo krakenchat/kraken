@@ -1,6 +1,10 @@
 import { Injectable, Inject, Logger, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import {
+  AccessToken,
+  RoomServiceClient,
+  TrackSource,
+} from 'livekit-server-sdk';
 import { CreateTokenDto } from './dto/create-token.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { LivekitException } from './exceptions/livekit.exception';
@@ -12,7 +16,8 @@ export class LivekitService {
 
   constructor(
     private readonly configService: ConfigService,
-    @Inject(ROOM_SERVICE_CLIENT) private readonly roomServiceClient: RoomServiceClient | null,
+    @Inject(ROOM_SERVICE_CLIENT)
+    private readonly roomServiceClient: RoomServiceClient | null,
   ) {}
 
   async generateToken(
@@ -101,7 +106,11 @@ export class LivekitService {
   /**
    * Mute or unmute a participant's audio tracks in a room
    */
-  async muteParticipant(roomId: string, participantIdentity: string, mute: boolean): Promise<void> {
+  async muteParticipant(
+    roomId: string,
+    participantIdentity: string,
+    mute: boolean,
+  ): Promise<void> {
     if (!this.roomServiceClient) {
       throw new LivekitException(
         'LiveKit credentials not configured',
@@ -110,11 +119,19 @@ export class LivekitService {
     }
 
     try {
-      const participant = await this.roomServiceClient.getParticipant(roomId, participantIdentity);
+      const participant = await this.roomServiceClient.getParticipant(
+        roomId,
+        participantIdentity,
+      );
 
       for (const track of participant.tracks) {
-        if (track.source === 1) { // TrackSource.MICROPHONE
-          await this.roomServiceClient.mutePublishedTrack(roomId, participantIdentity, track.sid, mute);
+        if (track.source === TrackSource.MICROPHONE) {
+          await this.roomServiceClient.mutePublishedTrack(
+            roomId,
+            participantIdentity,
+            track.sid,
+            mute,
+          );
         }
       }
 

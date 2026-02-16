@@ -125,9 +125,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       navigate(
         `/community/${communityId}/channel/${notification.channelId}?highlight=${notification.messageId}`
       );
-    } else if (notification.channelId && notification.messageId) {
-      // Channel notification without communityId - just navigate to channel
-      // (shouldn't happen but fallback)
     } else if (notification.directMessageGroupId) {
       navigate(
         `/direct-messages?group=${notification.directMessageGroupId}${notification.messageId ? `&highlight=${notification.messageId}` : ''}`
