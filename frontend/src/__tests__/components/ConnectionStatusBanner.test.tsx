@@ -31,6 +31,15 @@ vi.mock('../../hooks/useVoiceConnection', () => ({
   })),
 }));
 
+vi.mock('../../hooks/useResponsive', () => ({
+  useResponsive: vi.fn(() => ({
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+    deviceType: 'desktop',
+  })),
+}));
+
 const { useVoiceConnection } = await import('../../hooks/useVoiceConnection');
 
 describe('ConnectionStatusBanner', () => {

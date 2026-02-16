@@ -2,12 +2,15 @@ import React from "react";
 import { Chip, CircularProgress } from "@mui/material";
 import { useSocketConnected } from "../hooks/useSocket";
 import { useVoiceConnection } from "../hooks/useVoiceConnection";
-import { VOICE_BAR_HEIGHT } from "../constants/layout";
+import { useResponsive } from "../hooks/useResponsive";
+import { VOICE_BAR_HEIGHT, VOICE_BAR_HEIGHT_MOBILE } from "../constants/layout";
 
 export const ConnectionStatusBanner: React.FC = () => {
   const isConnected = useSocketConnected();
   const { state: voiceState } = useVoiceConnection();
+  const { isMobile } = useResponsive();
   const voiceConnected = voiceState.isConnected && (voiceState.currentChannelId || voiceState.currentDmGroupId);
+  const voiceBarHeight = isMobile ? VOICE_BAR_HEIGHT_MOBILE : VOICE_BAR_HEIGHT;
 
   if (isConnected) return null;
 
@@ -18,7 +21,7 @@ export const ConnectionStatusBanner: React.FC = () => {
       size="small"
       sx={{
         position: "fixed",
-        bottom: voiceConnected ? VOICE_BAR_HEIGHT + 16 : 16,
+        bottom: voiceConnected ? voiceBarHeight + 16 : 16,
         left: 16,
         zIndex: 9999,
         animation: "connectionPulse 2s ease-in-out infinite",
