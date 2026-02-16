@@ -14,7 +14,6 @@ import { useTheme } from "@mui/material/styles";
 import { PersonAdd as PersonAddIcon } from "@mui/icons-material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelMembershipControllerCreateMutation } from "../../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../../utils/queryInvalidation";
 import { logger } from "../../../utils/logger";
 
 interface CommunityMember {
@@ -60,7 +59,12 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: createChannelMembership, isPending: isAdding } = useMutation({
     ...channelMembershipControllerCreateMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelMembership),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForChannel' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForUser' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindMyChannelMemberships' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindOne' }] });
+    },
   });
 
   const currentChannelMemberIds = useMemo(() => 

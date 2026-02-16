@@ -31,7 +31,7 @@ import {
   notificationsControllerMarkAllAsReadMutation,
   notificationsControllerDeleteNotificationMutation,
 } from '../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+
 import { Notification, NotificationType } from '../../types/notification.type';
 import { formatDistanceToNow } from 'date-fns';
 import { logger } from '../../utils/logger';
@@ -58,17 +58,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const { mutateAsync: markAsRead } = useMutation({
     ...notificationsControllerMarkAsReadMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   const { mutateAsync: markAllAsRead } = useMutation({
     ...notificationsControllerMarkAllAsReadMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   const { mutateAsync: deleteNotification } = useMutation({
     ...notificationsControllerDeleteNotificationMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   // Refetch notifications when drawer opens

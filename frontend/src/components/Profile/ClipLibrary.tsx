@@ -44,7 +44,7 @@ import {
   channelsControllerFindAllForCommunityOptions,
   directMessagesControllerFindUserDmGroupsOptions,
 } from '../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+
 import type { ClipResponseDto as ClipResponse } from '../../api-client/types.gen';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
@@ -238,11 +238,17 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
   const { mutateAsync: updateClip } = useMutation({
     ...livekitControllerUpdateClipMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.clips),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetMyClips' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetUserPublicClips' }] });
+    },
   });
   const { mutateAsync: deleteClip } = useMutation({
     ...livekitControllerDeleteClipMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.clips),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetMyClips' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetUserPublicClips' }] });
+    },
   });
   const { mutateAsync: shareClip } = useMutation(livekitControllerShareClipMutation());
 

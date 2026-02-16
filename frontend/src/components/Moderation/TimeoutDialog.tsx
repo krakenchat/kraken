@@ -24,7 +24,6 @@ import {
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { moderationControllerTimeoutUserMutation } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 interface TimeoutDialogProps {
   open: boolean;
@@ -57,7 +56,11 @@ const TimeoutDialog: React.FC<TimeoutDialogProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: timeoutUser, isPending: isLoading } = useMutation({
     ...moderationControllerTimeoutUserMutation(),
-    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.timeoutList, ...INVALIDATION_GROUPS.moderationLogs]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetTimeoutList' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetTimeoutStatus' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetModerationLogs' }] });
+    },
   });
 
   const handleSubmit = async () => {

@@ -32,7 +32,6 @@ import {
   aliasGroupsControllerUpdateAliasGroupMutation,
   aliasGroupsControllerUpdateMembersMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 interface AliasGroupSummary {
   id: string;
   name: string;
@@ -80,17 +79,26 @@ const AliasGroupEditor: React.FC<AliasGroupEditorProps> = ({
   // Mutations
   const { mutateAsync: createGroup, isPending: creatingGroup, error: createError } = useMutation({
     ...aliasGroupsControllerCreateAliasGroupMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
+    },
   });
 
   const { mutateAsync: updateGroup, isPending: updatingGroup, error: updateError } = useMutation({
     ...aliasGroupsControllerUpdateAliasGroupMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
+    },
   });
 
   const { mutateAsync: updateMembers, isPending: updatingMembers, error: membersError } = useMutation({
     ...aliasGroupsControllerUpdateMembersMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
+    },
   });
 
   // Initialize selected members when editing

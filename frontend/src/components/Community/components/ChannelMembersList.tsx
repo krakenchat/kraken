@@ -20,7 +20,6 @@ import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelMembershipControllerRemoveMutation } from "../../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../../utils/queryInvalidation";
 import { logger } from "../../../utils/logger";
 
 interface ChannelMember {
@@ -58,7 +57,12 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: removeChannelMembership, isPending: isRemoving } = useMutation({
     ...channelMembershipControllerRemoveMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelMembership),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForChannel' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForUser' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindMyChannelMemberships' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindOne' }] });
+    },
   });
 
   const handleRemoveMember = (userId: string, username: string) => {

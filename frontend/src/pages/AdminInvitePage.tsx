@@ -47,7 +47,7 @@ import {
   inviteControllerDeleteInviteMutation,
   communityControllerFindAllMineOptions,
 } from "../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
+
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../types/invite.type";
 
@@ -85,11 +85,17 @@ const AdminInvitePage: React.FC = () => {
 
   const { mutateAsync: createInvite, isPending: creatingInvite } = useMutation({
     ...inviteControllerCreateInviteMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvites' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvite' }] });
+    },
   });
   const { mutateAsync: deleteInvite, isPending: deletingInvite } = useMutation({
     ...inviteControllerDeleteInviteMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvites' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvite' }] });
+    },
   });
 
   const { hasPermissions: canCreateInvites } = useUserPermissions({

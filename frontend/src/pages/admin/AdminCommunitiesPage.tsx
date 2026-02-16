@@ -36,7 +36,7 @@ import {
   communityControllerFindAllWithStatsOptions,
   communityControllerForceRemoveMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import type { CommunityStatsDetailDto as AdminCommunity } from "../../api-client/types.gen";
 
 const AdminCommunitiesPage: React.FC = () => {
@@ -54,7 +54,10 @@ const AdminCommunitiesPage: React.FC = () => {
 
   const { mutateAsync: forceDeleteCommunity } = useMutation({
     ...communityControllerForceRemoveMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminCommunities),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllWithStats' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOneWithStats' }] });
+    },
   });
 
   const handleDelete = (community: AdminCommunity) => {

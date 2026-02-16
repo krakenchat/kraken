@@ -2,7 +2,7 @@ import { Room, VideoCaptureOptions } from "livekit-client";
 import type { VoiceAction, VoiceState } from "../../contexts/VoiceContext";
 import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence } from "../../api-client/sdk.gen";
 import { queryClient } from "../../main";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";
 import { logger } from "../../utils/logger";
@@ -219,7 +219,9 @@ export async function joinVoiceChannel(
       logger.warn('[Voice] Failed to register voice presence (webhook will handle it):', err);
     }
 
-    invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+    queryClient.invalidateQueries({ queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }] });
+    queryClient.invalidateQueries({ queryKey: [{ _id: 'userVoicePresenceControllerGetMyVoiceChannels' }] });
+    queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
 
     saveConnectionState({
       contextType: 'channel',
@@ -312,7 +314,9 @@ export async function joinDmVoice(
       payload: { dmGroupId, dmGroupName },
     });
 
-    invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+    queryClient.invalidateQueries({ queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }] });
+    queryClient.invalidateQueries({ queryKey: [{ _id: 'userVoicePresenceControllerGetMyVoiceChannels' }] });
+    queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
 
     saveConnectionState({
       contextType: 'dm',

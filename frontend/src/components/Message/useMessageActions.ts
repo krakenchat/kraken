@@ -20,7 +20,7 @@ import {
   moderationControllerPinMessageMutation,
   moderationControllerUnpinMessageMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import { channelMessagesQueryKey, dmMessagesQueryKey } from "../../utils/messageQueryKeys";
 import {
   updateMessageInInfinite,
@@ -142,11 +142,15 @@ export function useMessageActions(
 
   const { mutateAsync: pinMessage } = useMutation({
     ...moderationControllerPinMessageMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.pinnedMessages),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetPinnedMessages' }] });
+    },
   });
   const { mutateAsync: unpinMessage } = useMutation({
     ...moderationControllerUnpinMessageMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.pinnedMessages),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetPinnedMessages' }] });
+    },
   });
 
   const [isEditing, setIsEditing] = useState(false);

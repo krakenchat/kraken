@@ -35,7 +35,7 @@ import {
   notificationsControllerMarkAllAsReadMutation,
   notificationsControllerDismissNotificationMutation,
 } from '../../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../../utils/queryInvalidation';
+
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { NotificationType, Notification } from '../../../types/notification.type';
@@ -220,17 +220,26 @@ export const NotificationsScreen: React.FC = () => {
 
   const { mutateAsync: markAsRead } = useMutation({
     ...notificationsControllerMarkAsReadMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   const { mutateAsync: markAllAsRead, isPending: isMarkingAllRead } = useMutation({
     ...notificationsControllerMarkAllAsReadMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   const { mutateAsync: dismissNotification } = useMutation({
     ...notificationsControllerDismissNotificationMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   const notifications = data?.notifications || [];

@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userControllerGetProfileOptions, userControllerUpdateProfileMutation } from "../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
+
 import { useFileUpload } from "../hooks/useFileUpload";
 import { useProfileForm } from "../hooks/useProfileForm";
 import { ProfileEditForm } from "../components/Profile";
@@ -24,7 +24,7 @@ const ProfileEditPage: React.FC = () => {
   const { data: currentUser, isLoading: isLoadingProfile } = useQuery(userControllerGetProfileOptions());
   const { mutateAsync: updateProfile, isPending: isUpdating, error: updateError } = useMutation({
     ...userControllerUpdateProfileMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.profile),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetProfile' }] }),
   });
   const { uploadFile, isUploading, error: uploadError } = useFileUpload();
 

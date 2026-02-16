@@ -4,7 +4,7 @@ import { useSocket } from './useSocket';
 import { ServerEvents } from '@kraken/shared';
 import { voicePresenceControllerGetChannelPresenceQueryKey } from '../api-client/@tanstack/react-query.gen';
 import type { VoicePresenceUserDto, ChannelVoicePresenceResponseDto } from '../api-client/types.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
+
 import { logger } from '../utils/logger';
 
 export const useVoiceEvents = () => {
@@ -41,7 +41,9 @@ export const useVoiceEvents = () => {
         });
       } else {
         // If cache doesn't exist, invalidate to trigger refetch when component loads
-        invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }] });
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'userVoicePresenceControllerGetMyVoiceChannels' }] });
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
       }
     };
 
@@ -58,7 +60,9 @@ export const useVoiceEvents = () => {
           return { ...draft, users: newUsers, count: newUsers.length };
         });
       } else {
-        invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }] });
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'userVoicePresenceControllerGetMyVoiceChannels' }] });
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
       }
     };
 
@@ -80,7 +84,9 @@ export const useVoiceEvents = () => {
           return draft;
         });
       } else {
-        invalidateByIds(queryClient, INVALIDATION_GROUPS.voicePresence);
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }] });
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'userVoicePresenceControllerGetMyVoiceChannels' }] });
+        queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
       }
     };
 
