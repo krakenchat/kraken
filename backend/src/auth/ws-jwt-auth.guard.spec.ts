@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { WsJwtAuthGuard } from './ws-jwt-auth.guard';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '@/user/user.service';
@@ -12,31 +13,15 @@ import { UserEntity } from '@/user/dto/user-response.dto';
 
 describe('WsJwtAuthGuard', () => {
   let guard: WsJwtAuthGuard;
-  let jwtService: JwtService;
-  let userService: UserService;
+  let jwtService: Mocked<JwtService>;
+  let userService: Mocked<UserService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        WsJwtAuthGuard,
-        {
-          provide: JwtService,
-          useValue: {
-            verify: jest.fn(),
-          },
-        },
-        {
-          provide: UserService,
-          useValue: {
-            findById: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(WsJwtAuthGuard).compile();
 
-    guard = module.get<WsJwtAuthGuard>(WsJwtAuthGuard);
-    jwtService = module.get<JwtService>(JwtService);
-    userService = module.get<UserService>(UserService);
+    guard = unit;
+    jwtService = unitRef.get(JwtService);
+    userService = unitRef.get(UserService);
   });
 
   afterEach(() => {

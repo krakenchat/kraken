@@ -1,40 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { InviteController } from './invite.controller';
 import { InviteService } from './invite.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
+import type { Mocked } from '@suites/doubles.jest';
 
 describe('InviteController', () => {
   let controller: InviteController;
-  let service: InviteService;
-
-  const mockInviteService = {
-    createInvite: jest.fn(),
-    getInvites: jest.fn(),
-    getInviteByCode: jest.fn(),
-    deleteInvite: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<InviteService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [InviteController],
-      providers: [
-        {
-          provide: InviteService,
-          useValue: mockInviteService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      InviteController,
+    ).compile();
 
-    controller = module.get<InviteController>(InviteController);
-    service = module.get<InviteService>(InviteService);
+    controller = unit;
+    service = unitRef.get(InviteService);
   });
 
   afterEach(() => {
@@ -67,12 +46,12 @@ describe('InviteController', () => {
         createdById: 'user-123',
       };
 
-      mockInviteService.createInvite.mockResolvedValue(createdInvite);
+      service.createInvite.mockResolvedValue(createdInvite as any);
 
       const result = await controller.createInvite(mockReq, createDto as any);
 
       expect(result).toEqual(createdInvite);
-      expect(mockInviteService.createInvite).toHaveBeenCalledWith(
+      expect(service.createInvite).toHaveBeenCalledWith(
         mockUser,
         10,
         createDto.validUntil,
@@ -90,12 +69,12 @@ describe('InviteController', () => {
         { id: 'invite-2', code: 'CODE2', uses: 0, maxUses: 5 },
       ];
 
-      mockInviteService.getInvites.mockResolvedValue(invites);
+      service.getInvites.mockResolvedValue(invites as any);
 
       const result = await controller.getInvites(mockReq);
 
       expect(result).toEqual(invites);
-      expect(mockInviteService.getInvites).toHaveBeenCalledWith(mockUser);
+      expect(service.getInvites).toHaveBeenCalledWith(mockUser);
     });
   });
 
@@ -109,23 +88,23 @@ describe('InviteController', () => {
         maxUses: 50,
       };
 
-      mockInviteService.getInviteByCode.mockResolvedValue(invite);
+      service.getInviteByCode.mockResolvedValue(invite as any);
 
       const result = await controller.getPublicInvite(code);
 
       expect(result).toEqual(invite);
-      expect(mockInviteService.getInviteByCode).toHaveBeenCalledWith(code);
+      expect(service.getInviteByCode).toHaveBeenCalledWith(code);
     });
 
     it('should return null when invite not found', async () => {
       const code = 'NOTFOUND';
 
-      mockInviteService.getInviteByCode.mockResolvedValue(null);
+      service.getInviteByCode.mockResolvedValue(null);
 
       const result = await controller.getPublicInvite(code);
 
       expect(result).toBeNull();
-      expect(mockInviteService.getInviteByCode).toHaveBeenCalledWith(code);
+      expect(service.getInviteByCode).toHaveBeenCalledWith(code);
     });
   });
 
@@ -139,12 +118,12 @@ describe('InviteController', () => {
         maxUses: 10,
       };
 
-      mockInviteService.getInviteByCode.mockResolvedValue(invite);
+      service.getInviteByCode.mockResolvedValue(invite as any);
 
       const result = await controller.getInvite(code);
 
       expect(result).toEqual(invite);
-      expect(mockInviteService.getInviteByCode).toHaveBeenCalledWith(code);
+      expect(service.getInviteByCode).toHaveBeenCalledWith(code);
     });
   });
 
@@ -154,12 +133,12 @@ describe('InviteController', () => {
       const mockReq = { user: mockUser } as any;
       const code = 'DELETE123';
 
-      mockInviteService.deleteInvite.mockResolvedValue(undefined);
+      service.deleteInvite.mockResolvedValue(undefined as any);
 
       const result = await controller.deleteInvite(mockReq, code);
 
       expect(result).toBeUndefined();
-      expect(mockInviteService.deleteInvite).toHaveBeenCalledWith(
+      expect(service.deleteInvite).toHaveBeenCalledWith(
         mockUser,
         code,
       );

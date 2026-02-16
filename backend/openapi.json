@@ -4565,32 +4565,6 @@
         ]
       }
     },
-    "/api/livekit/channels/{channelId}/mute-participant": {
-      "post": {
-        "operationId": "LivekitController_muteParticipant",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Participant muted/unmuted successfully"
-          },
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
     "/api/livekit/connection-info": {
       "get": {
         "operationId": "LivekitController_getConnectionInfo",
@@ -7135,8 +7109,7 @@
                 "UNPIN_MESSAGE",
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
-                "VIEW_MODERATION_LOGS",
-                "MUTE_PARTICIPANT"
+                "VIEW_MODERATION_LOGS"
               ]
             }
           },
@@ -7277,8 +7250,7 @@
                 "UNPIN_MESSAGE",
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
-                "VIEW_MODERATION_LOGS",
-                "MUTE_PARTICIPANT"
+                "VIEW_MODERATION_LOGS"
               ]
             }
           },
@@ -7356,8 +7328,7 @@
                 "UNPIN_MESSAGE",
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
-                "VIEW_MODERATION_LOGS",
-                "MUTE_PARTICIPANT"
+                "VIEW_MODERATION_LOGS"
               ]
             }
           },
@@ -8630,10 +8601,6 @@
             "nullable": true
           },
           "directMessageGroupId": {
-            "type": "string",
-            "nullable": true
-          },
-          "communityId": {
             "type": "string",
             "nullable": true
           },

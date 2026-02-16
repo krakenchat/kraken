@@ -1,16 +1,12 @@
+import { TestBed } from '@suites/unit';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/database/database.service';
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMockDatabase } from '@/test-utils';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-
-  const mockDatabaseService = {
-    user: {
-      findUniqueOrThrow: jest.fn(),
-    },
-  };
+  let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
@@ -20,21 +16,16 @@ describe('JwtStrategy', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        JwtStrategy,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-      ],
-    }).compile();
+    mockDatabase = createMockDatabase();
 
-    strategy = module.get<JwtStrategy>(JwtStrategy);
+    const { unit } = await TestBed.solitary(JwtStrategy)
+      .mock(ConfigService)
+      .final(mockConfigService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
+
+    strategy = unit;
   });
 
   afterEach(() => {
@@ -52,7 +43,7 @@ describe('JwtStrategy', () => {
       };
 
       expect(() => {
-        new JwtStrategy(badConfigService as any, mockDatabaseService as any);
+        new JwtStrategy(badConfigService as any, mockDatabase as any);
       }).toThrow('JWT_SECRET not set');
     });
 
@@ -75,12 +66,12 @@ describe('JwtStrategy', () => {
         email: 'test@example.com',
       };
 
-      mockDatabaseService.user.findUniqueOrThrow.mockResolvedValue(mockUser);
+      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(mockUser);
 
       const result = await strategy.validate(payload);
 
       expect(result).toEqual(mockUser);
-      expect(mockDatabaseService.user.findUniqueOrThrow).toHaveBeenCalledWith({
+      expect(mockDatabase.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: 'user-123' },
       });
     });
@@ -91,7 +82,7 @@ describe('JwtStrategy', () => {
         username: 'ghost',
       };
 
-      mockDatabaseService.user.findUniqueOrThrow.mockRejectedValue(
+      mockDatabase.user.findUniqueOrThrow.mockRejectedValue(
         new Error('User not found'),
       );
 
@@ -108,7 +99,7 @@ describe('JwtStrategy', () => {
       ];
 
       for (const user of users) {
-        mockDatabaseService.user.findUniqueOrThrow.mockResolvedValue(user);
+        mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
 
         const result = await strategy.validate({
           sub: user.id,
@@ -116,11 +107,9 @@ describe('JwtStrategy', () => {
         });
 
         expect(result).toEqual(user);
-        expect(mockDatabaseService.user.findUniqueOrThrow).toHaveBeenCalledWith(
-          {
-            where: { id: user.id },
-          },
-        );
+        expect(mockDatabase.user.findUniqueOrThrow).toHaveBeenCalledWith({
+          where: { id: user.id },
+        });
 
         jest.clearAllMocks();
       }
@@ -138,7 +127,7 @@ describe('JwtStrategy', () => {
         email: 'actual@test.com',
       };
 
-      mockDatabaseService.user.findUniqueOrThrow.mockResolvedValue(mockUser);
+      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(mockUser);
 
       const result = await strategy.validate(payload);
 

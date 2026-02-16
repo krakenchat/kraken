@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ClipLibraryService } from './clip-library.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
@@ -22,31 +23,20 @@ describe('ClipLibraryService', () => {
     },
   };
 
-  const mockStorageService = {
-    deleteFile: jest.fn(),
-  };
-
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-  };
-
-  const mockMessagesService = {
-    create: jest.fn(),
-    enrichMessageWithFileMetadata: jest.fn(),
-  };
+  let storageService: Mocked<StorageService>;
+  let websocketService: Mocked<WebsocketService>;
+  let messagesService: Mocked<MessagesService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ClipLibraryService,
-        { provide: DatabaseService, useValue: mockDatabaseService },
-        { provide: StorageService, useValue: mockStorageService },
-        { provide: WebsocketService, useValue: mockWebsocketService },
-        { provide: MessagesService, useValue: mockMessagesService },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(ClipLibraryService)
+      .mock(DatabaseService)
+      .final(mockDatabaseService)
+      .compile();
 
-    service = module.get<ClipLibraryService>(ClipLibraryService);
+    service = unit;
+    storageService = unitRef.get(StorageService);
+    websocketService = unitRef.get(WebsocketService);
+    messagesService = unitRef.get(MessagesService);
 
     // Reset all mocks before each test
     jest.clearAllMocks();
@@ -193,7 +183,7 @@ describe('ClipLibraryService', () => {
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
       mockDatabaseService.replayClip.delete.mockResolvedValue(clip);
       mockDatabaseService.file.delete.mockResolvedValue(clip.file);
-      mockStorageService.deleteFile.mockResolvedValue(undefined);
+      storageService.deleteFile.mockResolvedValue(undefined as any);
 
       await service.deleteClip('user-123', 'clip-1');
 
@@ -203,7 +193,7 @@ describe('ClipLibraryService', () => {
       expect(mockDatabaseService.file.delete).toHaveBeenCalledWith({
         where: { id: 'file-1' },
       });
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/uploads/replays/user-123/clip.mp4',
       );
     });
@@ -230,7 +220,7 @@ describe('ClipLibraryService', () => {
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
       mockDatabaseService.replayClip.delete.mockResolvedValue(clip);
       mockDatabaseService.file.delete.mockResolvedValue(clip.file);
-      mockStorageService.deleteFile.mockRejectedValue(
+      storageService.deleteFile.mockRejectedValue(
         new Error('File not found'),
       );
 
@@ -260,11 +250,11 @@ describe('ClipLibraryService', () => {
       };
 
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
-      mockMessagesService.create.mockResolvedValue(message);
-      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue({
+      messagesService.create.mockResolvedValue(message as any);
+      messagesService.enrichMessageWithFileMetadata.mockResolvedValue({
         ...message,
         attachmentMetadata: [{ id: 'file-1', filename: 'clip.mp4' }],
-      });
+      } as any);
 
       const result = await service.shareClip('user-123', 'clip-1', {
         destination: 'channel',
@@ -274,7 +264,7 @@ describe('ClipLibraryService', () => {
       expect(result.messageId).toBe('message-1');
       expect(result.clipId).toBe('clip-1');
       expect(result.destination).toBe('channel');
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'channel-1',
         ServerEvents.NEW_MESSAGE,
         expect.any(Object),
@@ -299,11 +289,11 @@ describe('ClipLibraryService', () => {
       };
 
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
-      mockMessagesService.create.mockResolvedValue(message);
-      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue({
+      messagesService.create.mockResolvedValue(message as any);
+      messagesService.enrichMessageWithFileMetadata.mockResolvedValue({
         ...message,
         attachmentMetadata: [{ id: 'file-1', filename: 'clip.mp4' }],
-      });
+      } as any);
 
       const result = await service.shareClip('user-123', 'clip-1', {
         destination: 'dm',
@@ -312,7 +302,7 @@ describe('ClipLibraryService', () => {
 
       expect(result.messageId).toBe('message-1');
       expect(result.destination).toBe('dm');
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'dm-group-1',
         ServerEvents.NEW_DM,
         expect.any(Object),

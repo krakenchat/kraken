@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { VoicePresenceService } from './voice-presence.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -8,7 +9,8 @@ import { ServerEvents } from '@kraken/shared';
 
 describe('VoicePresenceService', () => {
   let service: VoicePresenceService;
-  let websocketService: WebsocketService;
+  let websocketService: Mocked<WebsocketService>;
+  let mockDatabaseService: any;
 
   const mockPipeline = {
     set: jest.fn().mockReturnThis(),
@@ -28,48 +30,25 @@ describe('VoicePresenceService', () => {
     pipeline: jest.fn(() => mockPipeline),
   };
 
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-  };
-
-  const mockDatabaseService = {
-    directMessageGroup: {
-      findFirst: jest.fn(),
-    },
-    user: {
-      findUnique: jest.fn(),
-    },
-  };
-
-  const mockLivekitReplayService = {
-    stopReplayBuffer: jest.fn(),
-  };
-
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        VoicePresenceService,
-        {
-          provide: REDIS_CLIENT,
-          useValue: mockRedis,
-        },
-        {
-          provide: WebsocketService,
-          useValue: mockWebsocketService,
-        },
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-        {
-          provide: LivekitReplayService,
-          useValue: mockLivekitReplayService,
-        },
-      ],
-    }).compile();
+    mockDatabaseService = {
+      directMessageGroup: {
+        findFirst: jest.fn(),
+      },
+      user: {
+        findUnique: jest.fn(),
+      },
+    };
 
-    service = module.get<VoicePresenceService>(VoicePresenceService);
-    websocketService = module.get<WebsocketService>(WebsocketService);
+    const { unit, unitRef } = await TestBed.solitary(VoicePresenceService)
+      .mock(REDIS_CLIENT)
+      .final(mockRedis)
+      .mock(DatabaseService)
+      .final(mockDatabaseService)
+      .compile();
+
+    service = unit;
+    websocketService = unitRef.get(WebsocketService);
   });
 
   afterEach(() => {

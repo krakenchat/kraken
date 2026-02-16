@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { RbacGuard } from './rbac.guard';
 import { RolesService } from '@/roles/roles.service';
 import { Reflector } from '@nestjs/core';
@@ -12,31 +13,15 @@ import { ResourceIdSource, RbacResourceType } from './rbac-resource.decorator';
 
 describe('RbacGuard', () => {
   let guard: RbacGuard;
-  let rolesService: RolesService;
-  let reflector: Reflector;
+  let rolesService: Mocked<RolesService>;
+  let reflector: Mocked<Reflector>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RbacGuard,
-        {
-          provide: RolesService,
-          useValue: {
-            verifyActionsForUserAndResource: jest.fn(),
-          },
-        },
-        {
-          provide: Reflector,
-          useValue: {
-            getAllAndOverride: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(RbacGuard).compile();
 
-    guard = module.get<RbacGuard>(RbacGuard);
-    rolesService = module.get<RolesService>(RolesService);
-    reflector = module.get<Reflector>(Reflector);
+    guard = unit;
+    rolesService = unitRef.get(RolesService);
+    reflector = unitRef.get(Reflector);
   });
 
   afterEach(() => {

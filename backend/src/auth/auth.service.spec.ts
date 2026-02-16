@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
 import { JwtService } from '@nestjs/jwt';
@@ -20,8 +21,8 @@ jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
-  let userService: UserService;
-  let jwtService: JwtService;
+  let userService: Mocked<UserService>;
+  let jwtService: Mocked<JwtService>;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
@@ -29,36 +30,22 @@ describe('AuthService', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: UserService,
-          useValue: {
-            findByUsername: jest.fn(),
-            findById: jest.fn(),
-          },
-        },
-        {
-          provide: JwtService,
-          useValue: createMockJwtService(),
-        },
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: ConfigService,
-          useValue: createMockConfigService({
-            JWT_REFRESH_SECRET: 'test-refresh-secret',
-          }),
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(AuthService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .mock(JwtService)
+      .final(createMockJwtService())
+      .mock(ConfigService)
+      .final(
+        createMockConfigService({
+          JWT_REFRESH_SECRET: 'test-refresh-secret',
+        }),
+      )
+      .compile();
 
-    service = module.get<AuthService>(AuthService);
-    userService = module.get<UserService>(UserService);
-    jwtService = module.get<JwtService>(JwtService);
+    service = unit;
+    userService = unitRef.get(UserService);
+    jwtService = unitRef.get(JwtService);
   });
 
   afterEach(() => {

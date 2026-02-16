@@ -1,106 +1,53 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { MessagesGateway } from './messages.gateway';
 import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
-import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import { ServerEvents } from '@kraken/shared';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
 import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
+import type { Mocked } from '@suites/doubles.jest';
 
 describe('MessagesGateway', () => {
   let gateway: MessagesGateway;
-  let messagesService: MessagesService;
-  let reactionsService: ReactionsService;
-  let websocketService: WebsocketService;
-  let notificationsService: NotificationsService;
+  let messagesService: Mocked<MessagesService>;
+  let reactionsService: Mocked<ReactionsService>;
+  let websocketService: Mocked<WebsocketService>;
+  let notificationsService: Mocked<NotificationsService>;
+  let moderationService: Mocked<ModerationService>;
+  let readReceiptsService: Mocked<ReadReceiptsService>;
 
-  const mockMessagesService = {
-    create: jest.fn(),
-    findAll: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-    enrichMessageWithFileMetadata: jest.fn(),
-    checkSlowmode: jest.fn().mockResolvedValue(undefined),
-  };
+  beforeEach(async () => {
+    const { unit, unitRef } = await TestBed.solitary(
+      MessagesGateway,
+    ).compile();
 
-  const mockReactionsService = {
-    addReaction: jest.fn(),
-    removeReaction: jest.fn(),
-  };
+    gateway = unit;
+    messagesService = unitRef.get(MessagesService);
+    reactionsService = unitRef.get(ReactionsService);
+    websocketService = unitRef.get(WebsocketService);
+    notificationsService = unitRef.get(NotificationsService);
+    moderationService = unitRef.get(ModerationService);
+    readReceiptsService = unitRef.get(ReadReceiptsService);
 
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-    setServer: jest.fn(),
-  };
-
-  const mockNotificationsService = {
-    processMessageForNotifications: jest.fn().mockResolvedValue(undefined),
-  };
-
-  const mockModerationService = {
-    getCommunityIdFromChannel: jest.fn().mockResolvedValue('community-123'),
-    isUserTimedOut: jest.fn().mockResolvedValue({ isTimedOut: false }),
-  };
-
-  const mockReadReceiptsService = {
-    markAsRead: jest.fn().mockResolvedValue({
+    // Set up default return values that tests rely on
+    messagesService.checkSlowmode.mockResolvedValue(undefined);
+    moderationService.getCommunityIdFromChannel.mockResolvedValue(
+      'community-123',
+    );
+    moderationService.isUserTimedOut.mockResolvedValue({
+      isTimedOut: false,
+    } as any);
+    notificationsService.processMessageForNotifications.mockResolvedValue(
+      undefined,
+    );
+    readReceiptsService.markAsRead.mockResolvedValue({
       channelId: null,
       directMessageGroupId: null,
       lastReadMessageId: 'msg-123',
       lastReadAt: new Date(),
-    }),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        MessagesGateway,
-        {
-          provide: MessagesService,
-          useValue: mockMessagesService,
-        },
-        {
-          provide: ReactionsService,
-          useValue: mockReactionsService,
-        },
-        {
-          provide: WebsocketService,
-          useValue: mockWebsocketService,
-        },
-        {
-          provide: NotificationsService,
-          useValue: mockNotificationsService,
-        },
-        {
-          provide: ModerationService,
-          useValue: mockModerationService,
-        },
-        {
-          provide: ReadReceiptsService,
-          useValue: mockReadReceiptsService,
-        },
-      ],
-    })
-      .overrideGuard(WsThrottleGuard)
-      .useValue(mockGuard)
-      .overrideGuard(WsJwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
-
-    gateway = module.get<MessagesGateway>(MessagesGateway);
-    messagesService = module.get<MessagesService>(MessagesService);
-    reactionsService = module.get<ReactionsService>(ReactionsService);
-    websocketService = module.get<WebsocketService>(WebsocketService);
-    notificationsService =
-      module.get<NotificationsService>(NotificationsService);
+    } as any);
 
     // Set up mock server for READ_RECEIPT_UPDATED emission
     const mockEmit = jest.fn();
@@ -178,22 +125,22 @@ describe('MessagesGateway', () => {
       };
       const enrichedMessage = { ...createdMessage, files: [] };
 
-      mockMessagesService.create.mockResolvedValue(createdMessage);
-      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue(
-        enrichedMessage,
+      messagesService.create.mockResolvedValue(createdMessage as any);
+      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
       );
 
       const result = await gateway.handleMessage(payload as any, mockClient);
 
       expect(result).toBe('msg-123');
-      expect(mockMessagesService.create).toHaveBeenCalledWith(
+      expect(messagesService.create).toHaveBeenCalledWith(
         expect.objectContaining({
           channelId: 'channel-123',
           content: 'Test message',
           authorId: 'user-123',
         }),
       );
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'channel-123',
         ServerEvents.NEW_MESSAGE,
         {
@@ -218,14 +165,14 @@ describe('MessagesGateway', () => {
       };
       const enrichedMessage = { ...createdMessage, files: [] };
 
-      mockMessagesService.create.mockResolvedValue(createdMessage);
-      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue(
-        enrichedMessage,
+      messagesService.create.mockResolvedValue(createdMessage as any);
+      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
       );
 
       await gateway.handleMessage(payload as any, mockClient);
 
-      expect(mockReadReceiptsService.markAsRead).toHaveBeenCalledWith(
+      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith(
         'user-123',
         {
           lastReadMessageId: 'msg-123',
@@ -265,9 +212,9 @@ describe('MessagesGateway', () => {
       };
       const enrichedMessage = { ...createdMessage, files: [] };
 
-      mockMessagesService.create.mockResolvedValue(createdMessage);
-      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue(
-        enrichedMessage,
+      messagesService.create.mockResolvedValue(createdMessage as any);
+      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
       );
 
       const result = await gateway.handleDirectMessageWithRBAC(
@@ -276,14 +223,14 @@ describe('MessagesGateway', () => {
       );
 
       expect(result).toBe('msg-456');
-      expect(mockMessagesService.create).toHaveBeenCalledWith(
+      expect(messagesService.create).toHaveBeenCalledWith(
         expect.objectContaining({
           directMessageGroupId: 'dm-group-456',
           content: 'DM test message',
           authorId: 'user-456',
         }),
       );
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'dm-group-456',
         ServerEvents.NEW_DM,
         {
@@ -308,14 +255,14 @@ describe('MessagesGateway', () => {
       };
       const enrichedMessage = { ...createdMessage, files: [] };
 
-      mockMessagesService.create.mockResolvedValue(createdMessage);
-      mockMessagesService.enrichMessageWithFileMetadata.mockResolvedValue(
-        enrichedMessage,
+      messagesService.create.mockResolvedValue(createdMessage as any);
+      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
       );
 
       await gateway.handleDirectMessageWithRBAC(payload as any, mockClient);
 
-      expect(mockReadReceiptsService.markAsRead).toHaveBeenCalledWith(
+      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith(
         'user-456',
         {
           lastReadMessageId: 'msg-456',
@@ -354,16 +301,16 @@ describe('MessagesGateway', () => {
         reactions: [{ emoji: '👍', count: 1, users: ['user-789'] }],
       };
 
-      mockReactionsService.addReaction.mockResolvedValue(updatedMessage);
+      reactionsService.addReaction.mockResolvedValue(updatedMessage as any);
 
       await gateway.handleAddReaction(payload as any, mockClient);
 
-      expect(mockReactionsService.addReaction).toHaveBeenCalledWith(
+      expect(reactionsService.addReaction).toHaveBeenCalledWith(
         'msg-789',
         '👍',
         'user-789',
       );
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'channel-789',
         ServerEvents.REACTION_ADDED,
         {
@@ -388,11 +335,11 @@ describe('MessagesGateway', () => {
         reactions: [{ emoji: '❤️', count: 1, users: ['user-999'] }],
       };
 
-      mockReactionsService.addReaction.mockResolvedValue(updatedMessage);
+      reactionsService.addReaction.mockResolvedValue(updatedMessage as any);
 
       await gateway.handleAddReaction(payload as any, mockClient);
 
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'dm-group-999',
         ServerEvents.REACTION_ADDED,
         expect.objectContaining({
@@ -415,12 +362,12 @@ describe('MessagesGateway', () => {
         reactions: [{ emoji: '👍', count: 1, users: ['user-111'] }],
       };
 
-      mockReactionsService.addReaction.mockResolvedValue(updatedMessage);
+      reactionsService.addReaction.mockResolvedValue(updatedMessage as any);
 
       await gateway.handleAddReaction(payload as any, mockClient);
 
-      expect(mockReactionsService.addReaction).toHaveBeenCalled();
-      expect(mockWebsocketService.sendToRoom).not.toHaveBeenCalled();
+      expect(reactionsService.addReaction).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
   });
 
@@ -440,16 +387,16 @@ describe('MessagesGateway', () => {
         reactions: [],
       };
 
-      mockReactionsService.removeReaction.mockResolvedValue(updatedMessage);
+      reactionsService.removeReaction.mockResolvedValue(updatedMessage as any);
 
       await gateway.handleRemoveReaction(payload as any, mockClient);
 
-      expect(mockReactionsService.removeReaction).toHaveBeenCalledWith(
+      expect(reactionsService.removeReaction).toHaveBeenCalledWith(
         'msg-222',
         '👍',
         'user-222',
       );
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'channel-222',
         ServerEvents.REACTION_REMOVED,
         {
@@ -475,11 +422,11 @@ describe('MessagesGateway', () => {
         reactions: [],
       };
 
-      mockReactionsService.removeReaction.mockResolvedValue(updatedMessage);
+      reactionsService.removeReaction.mockResolvedValue(updatedMessage as any);
 
       await gateway.handleRemoveReaction(payload as any, mockClient);
 
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'dm-group-333',
         ServerEvents.REACTION_REMOVED,
         expect.objectContaining({
@@ -503,12 +450,12 @@ describe('MessagesGateway', () => {
         reactions: [],
       };
 
-      mockReactionsService.removeReaction.mockResolvedValue(updatedMessage);
+      reactionsService.removeReaction.mockResolvedValue(updatedMessage as any);
 
       await gateway.handleRemoveReaction(payload as any, mockClient);
 
-      expect(mockReactionsService.removeReaction).toHaveBeenCalled();
-      expect(mockWebsocketService.sendToRoom).not.toHaveBeenCalled();
+      expect(reactionsService.removeReaction).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
   });
 });

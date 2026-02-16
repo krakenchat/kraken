@@ -1,49 +1,26 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { FileService } from './file.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 
 describe('FileService', () => {
   let service: FileService;
-  let databaseService: DatabaseService;
-
-  const mockDatabaseService = {
-    file: {
-      findUniqueOrThrow: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-  };
-
-  const mockStorageService = {
-    deleteFile: jest.fn(),
-    fileExists: jest.fn(),
-  };
+  let databaseService: Mocked<DatabaseService>;
+  let storageService: Mocked<StorageService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        FileService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-        {
-          provide: StorageService,
-          useValue: mockStorageService,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(FileService).compile();
 
-    service = module.get<FileService>(FileService);
-    databaseService = module.get<DatabaseService>(DatabaseService);
+    service = unit;
+    databaseService = unitRef.get(DatabaseService);
+    storageService = unitRef.get(StorageService);
 
     // Reset mocks
     jest.clearAllMocks();
 
     // Default mock for deleteFile
-    mockStorageService.deleteFile.mockResolvedValue(undefined);
+    storageService.deleteFile.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -68,12 +45,12 @@ describe('FileService', () => {
         size: 1024,
       };
 
-      mockDatabaseService.file.findUniqueOrThrow.mockResolvedValue(mockFile);
+      databaseService.file.findUniqueOrThrow.mockResolvedValue(mockFile as any);
 
       const result = await service.findOne(fileId);
 
       expect(result).toEqual(mockFile);
-      expect(mockDatabaseService.file.findUniqueOrThrow).toHaveBeenCalledWith({
+      expect(databaseService.file.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: fileId },
       });
     });
@@ -81,7 +58,7 @@ describe('FileService', () => {
     it('should throw error if file not found', async () => {
       const fileId = 'non-existent';
 
-      mockDatabaseService.file.findUniqueOrThrow.mockRejectedValue(
+      databaseService.file.findUniqueOrThrow.mockRejectedValue(
         new Error('File not found'),
       );
 
@@ -93,14 +70,14 @@ describe('FileService', () => {
     it('should mark a file for deletion', async () => {
       const fileId = 'file-456';
 
-      mockDatabaseService.file.update.mockResolvedValue({
+      databaseService.file.update.mockResolvedValue({
         id: fileId,
         deletedAt: new Date(),
-      });
+      } as any);
 
       await service.markForDeletion(fileId);
 
-      expect(mockDatabaseService.file.update).toHaveBeenCalledWith({
+      expect(databaseService.file.update).toHaveBeenCalledWith({
         where: { id: fileId },
         data: { deletedAt: expect.any(Date) },
       });
@@ -109,7 +86,7 @@ describe('FileService', () => {
     it('should not throw error if file update fails', async () => {
       const fileId = 'file-789';
 
-      mockDatabaseService.file.update.mockRejectedValue(
+      databaseService.file.update.mockRejectedValue(
         new Error('File not found'),
       );
 
@@ -135,21 +112,21 @@ describe('FileService', () => {
         where: { id: fileId },
         data: { deletedAt: expect.any(Date) },
       });
-      expect(mockDatabaseService.file.update).not.toHaveBeenCalled();
+      expect(databaseService.file.update).not.toHaveBeenCalled();
     });
 
     it('should handle multiple mark for deletion calls', async () => {
       const fileIds = ['file-1', 'file-2', 'file-3'];
 
       for (const fileId of fileIds) {
-        mockDatabaseService.file.update.mockResolvedValue({
+        databaseService.file.update.mockResolvedValue({
           id: fileId,
           deletedAt: new Date(),
-        });
+        } as any);
 
         await service.markForDeletion(fileId);
 
-        expect(mockDatabaseService.file.update).toHaveBeenCalledWith({
+        expect(databaseService.file.update).toHaveBeenCalledWith({
           where: { id: fileId },
           data: { deletedAt: expect.any(Date) },
         });
@@ -174,29 +151,29 @@ describe('FileService', () => {
         },
       ];
 
-      mockDatabaseService.file.findMany.mockResolvedValue(deletedFiles);
-      mockDatabaseService.file.delete.mockResolvedValue({ id: 'file-1' });
+      databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
+      databaseService.file.delete.mockResolvedValue({ id: 'file-1' } as any);
 
       await service.cleanupOldFiles();
 
-      expect(mockDatabaseService.file.findMany).toHaveBeenCalledWith({
+      expect(databaseService.file.findMany).toHaveBeenCalledWith({
         where: {
           deletedAt: { not: null },
         },
       });
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/file1.png',
       );
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/file2.png',
       );
-      expect(mockStorageService.deleteFile).toHaveBeenCalledTimes(2);
+      expect(storageService.deleteFile).toHaveBeenCalledTimes(2);
 
-      expect(mockDatabaseService.file.delete).toHaveBeenCalledWith({
+      expect(databaseService.file.delete).toHaveBeenCalledWith({
         where: { id: 'file-1' },
       });
-      expect(mockDatabaseService.file.delete).toHaveBeenCalledWith({
+      expect(databaseService.file.delete).toHaveBeenCalledWith({
         where: { id: 'file-2' },
       });
     });
@@ -211,12 +188,12 @@ describe('FileService', () => {
         },
       ];
 
-      mockDatabaseService.file.findMany.mockResolvedValue(deletedFiles);
+      databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
 
       await service.cleanupOldFiles();
 
-      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
-      expect(mockDatabaseService.file.delete).not.toHaveBeenCalled();
+      expect(storageService.deleteFile).not.toHaveBeenCalled();
+      expect(databaseService.file.delete).not.toHaveBeenCalled();
     });
 
     it('should skip files without storage path', async () => {
@@ -229,12 +206,12 @@ describe('FileService', () => {
         },
       ];
 
-      mockDatabaseService.file.findMany.mockResolvedValue(deletedFiles);
+      databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
 
       await service.cleanupOldFiles();
 
-      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
-      expect(mockDatabaseService.file.delete).not.toHaveBeenCalled();
+      expect(storageService.deleteFile).not.toHaveBeenCalled();
+      expect(databaseService.file.delete).not.toHaveBeenCalled();
     });
 
     it('should continue on error and process remaining files', async () => {
@@ -253,35 +230,35 @@ describe('FileService', () => {
         },
       ];
 
-      mockDatabaseService.file.findMany.mockResolvedValue(deletedFiles);
-      mockStorageService.deleteFile
+      databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
+      storageService.deleteFile
         .mockRejectedValueOnce(new Error('File not found'))
         .mockResolvedValueOnce(undefined);
 
       await service.cleanupOldFiles();
 
       // Should have attempted both files
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/error.png',
       );
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/success.png',
       );
 
       // Only successful file should be deleted from DB
-      expect(mockDatabaseService.file.delete).toHaveBeenCalledTimes(1);
-      expect(mockDatabaseService.file.delete).toHaveBeenCalledWith({
+      expect(databaseService.file.delete).toHaveBeenCalledTimes(1);
+      expect(databaseService.file.delete).toHaveBeenCalledWith({
         where: { id: 'file-success' },
       });
     });
 
     it('should handle empty deleted files list', async () => {
-      mockDatabaseService.file.findMany.mockResolvedValue([]);
+      databaseService.file.findMany.mockResolvedValue([]);
 
       await service.cleanupOldFiles();
 
-      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
-      expect(mockDatabaseService.file.delete).not.toHaveBeenCalled();
+      expect(storageService.deleteFile).not.toHaveBeenCalled();
+      expect(databaseService.file.delete).not.toHaveBeenCalled();
     });
 
     it('should continue if database delete fails', async () => {
@@ -294,15 +271,15 @@ describe('FileService', () => {
         },
       ];
 
-      mockDatabaseService.file.findMany.mockResolvedValue(deletedFiles);
-      mockDatabaseService.file.delete.mockRejectedValue(
+      databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
+      databaseService.file.delete.mockRejectedValue(
         new Error('DB delete failed'),
       );
 
       // Should not throw - just logs error
       await expect(service.cleanupOldFiles()).resolves.toBeUndefined();
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/file.png',
       );
     });

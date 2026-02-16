@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { OnboardingService } from './onboarding.service';
 import { DatabaseService } from '@/database/database.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
@@ -15,6 +15,7 @@ import {
 } from '@/test-utils';
 import { SetupInstanceDto } from './dto/setup-instance.dto';
 import { InstanceRole } from '@prisma/client';
+import type { Mocked } from '@suites/doubles.jest';
 
 // Mock bcrypt and crypto
 jest.mock('bcrypt');
@@ -26,7 +27,7 @@ describe('OnboardingService', () => {
   let service: OnboardingService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let mockRedis: ReturnType<typeof createMockRedis>;
-  let rolesService: RolesService;
+  let rolesService: Mocked<RolesService>;
 
   const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
@@ -34,36 +35,27 @@ describe('OnboardingService', () => {
     mockDatabase = createMockDatabase();
     mockRedis = createMockRedis();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OnboardingService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: REDIS_CLIENT,
-          useValue: mockRedis,
-        },
-        {
-          provide: RolesService,
-          useValue: {
-            createDefaultCommunityRoles: jest.fn(),
-            assignUserToCommunityRole: jest.fn(),
-            createDefaultInstanceRole: jest
-              .fn()
-              .mockResolvedValue('mock-instance-admin-role-id'),
-            assignUserToInstanceRole: jest.fn(),
-            createDefaultCommunityCreatorRole: jest
-              .fn()
-              .mockResolvedValue('mock-community-creator-role-id'),
-          },
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(OnboardingService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .mock(REDIS_CLIENT)
+      .final(mockRedis)
+      .mock(RolesService)
+      .final({
+        createDefaultCommunityRoles: jest.fn(),
+        assignUserToCommunityRole: jest.fn(),
+        createDefaultInstanceRole: jest
+          .fn()
+          .mockResolvedValue('mock-instance-admin-role-id'),
+        assignUserToInstanceRole: jest.fn(),
+        createDefaultCommunityCreatorRole: jest
+          .fn()
+          .mockResolvedValue('mock-community-creator-role-id'),
+      })
+      .compile();
 
-    service = module.get<OnboardingService>(OnboardingService);
-    rolesService = module.get<RolesService>(RolesService);
+    service = unit;
+    rolesService = unitRef.get(RolesService);
   });
 
   afterEach(() => {

@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { ReactionsService } from './reactions.service';
 import { DatabaseService } from '@/database/database.service';
 import { NotFoundException } from '@nestjs/common';
@@ -20,14 +20,12 @@ describe('ReactionsService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ReactionsService,
-        { provide: DatabaseService, useValue: mockDatabaseService },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(ReactionsService)
+      .mock(DatabaseService)
+      .final(mockDatabaseService)
+      .compile();
 
-    service = module.get<ReactionsService>(ReactionsService);
+    service = unit;
 
     jest.clearAllMocks();
   });

@@ -1,20 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { VoicePresenceGateway } from './voice-presence.gateway';
 import { VoicePresenceService } from './voice-presence.service';
 import { UserFactory } from '@/test-utils';
 import { Socket } from 'socket.io';
-import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 
 describe('VoicePresenceGateway', () => {
   let gateway: VoicePresenceGateway;
-  let service: VoicePresenceService;
-
-  const mockVoicePresenceService = {
-    getUserVoiceChannels: jest.fn(),
-    leaveVoiceChannel: jest.fn(),
-    refreshPresence: jest.fn(),
-  };
+  let service: Mocked<VoicePresenceService>;
 
   const mockUser = UserFactory.build();
 
@@ -29,26 +22,13 @@ describe('VoicePresenceGateway', () => {
     } as Socket & { handshake: { user: typeof mockUser } };
   };
 
-  const mockGuard = { canActivate: jest.fn(() => true) };
-
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        VoicePresenceGateway,
-        {
-          provide: VoicePresenceService,
-          useValue: mockVoicePresenceService,
-        },
-      ],
-    })
-      .overrideGuard(WsJwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      VoicePresenceGateway,
+    ).compile();
 
-    gateway = module.get<VoicePresenceGateway>(VoicePresenceGateway);
-    service = module.get<VoicePresenceService>(VoicePresenceService);
+    gateway = unit;
+    service = unitRef.get(VoicePresenceService);
   });
 
   afterEach(() => {
@@ -64,10 +44,8 @@ describe('VoicePresenceGateway', () => {
       const client = createMockSocket();
       const voiceChannels = ['channel-1', 'channel-2', 'channel-3'];
 
-      jest
-        .spyOn(service, 'getUserVoiceChannels')
-        .mockResolvedValue(voiceChannels);
-      jest.spyOn(service, 'leaveVoiceChannel').mockResolvedValue();
+      service.getUserVoiceChannels.mockResolvedValue(voiceChannels);
+      service.leaveVoiceChannel.mockResolvedValue();
 
       await gateway.handleDisconnect(client);
 
@@ -102,8 +80,8 @@ describe('VoicePresenceGateway', () => {
     it('should handle empty voice channels list', async () => {
       const client = createMockSocket();
 
-      jest.spyOn(service, 'getUserVoiceChannels').mockResolvedValue([]);
-      jest.spyOn(service, 'leaveVoiceChannel').mockResolvedValue();
+      service.getUserVoiceChannels.mockResolvedValue([]);
+      service.leaveVoiceChannel.mockResolvedValue();
 
       await gateway.handleDisconnect(client);
 
@@ -115,11 +93,8 @@ describe('VoicePresenceGateway', () => {
       const client = createMockSocket();
       const voiceChannels = ['channel-1', 'channel-2'];
 
-      jest
-        .spyOn(service, 'getUserVoiceChannels')
-        .mockResolvedValue(voiceChannels);
-      jest
-        .spyOn(service, 'leaveVoiceChannel')
+      service.getUserVoiceChannels.mockResolvedValue(voiceChannels);
+      service.leaveVoiceChannel
         .mockRejectedValueOnce(new Error('Failed to leave channel-1'))
         .mockResolvedValueOnce();
 
@@ -140,7 +115,7 @@ describe('VoicePresenceGateway', () => {
       const client = createMockSocket();
       const data = { channelId: 'channel-123' };
 
-      jest.spyOn(service, 'refreshPresence').mockResolvedValue();
+      service.refreshPresence.mockResolvedValue();
 
       const result = await gateway.handleRefreshPresence(client, data);
 
@@ -159,7 +134,7 @@ describe('VoicePresenceGateway', () => {
       const client = createMockSocket(customUser);
       const data = { channelId: 'channel-refresh' };
 
-      jest.spyOn(service, 'refreshPresence').mockResolvedValue();
+      service.refreshPresence.mockResolvedValue();
 
       await gateway.handleRefreshPresence(client, data);
 
@@ -173,7 +148,7 @@ describe('VoicePresenceGateway', () => {
       const client = createMockSocket();
       const testChannels = ['channel-a', 'channel-b', 'channel-c'];
 
-      jest.spyOn(service, 'refreshPresence').mockResolvedValue();
+      service.refreshPresence.mockResolvedValue();
 
       for (const channelId of testChannels) {
         await gateway.handleRefreshPresence(client, { channelId });
@@ -199,7 +174,7 @@ describe('VoicePresenceGateway', () => {
       const data = { channelId: 'channel-456' };
 
       // refreshPresence in the service doesn't throw, it logs errors
-      jest.spyOn(service, 'refreshPresence').mockResolvedValue();
+      service.refreshPresence.mockResolvedValue();
 
       const result = await gateway.handleRefreshPresence(client, data);
 

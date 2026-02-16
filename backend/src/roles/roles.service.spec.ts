@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { RolesService } from './roles.service';
 import { DatabaseService } from '@/database/database.service';
 import { RbacResourceType } from '@/auth/rbac-resource.decorator';
@@ -24,17 +24,12 @@ describe('RolesService', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RolesService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(RolesService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<RolesService>(RolesService);
+    service = unit;
   });
 
   afterEach(() => {

@@ -1,8 +1,6 @@
 import { FriendshipStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  FriendshipStatusValues,
-} from '@/common/enums/swagger-enums';
+import { FriendshipStatusValues } from '@/common/enums/swagger-enums';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
 export class FriendshipDto {

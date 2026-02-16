@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { PresenceService } from './presence.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 
@@ -18,17 +18,12 @@ describe('PresenceService', () => {
       del: jest.fn(),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PresenceService,
-        {
-          provide: REDIS_CLIENT,
-          useValue: mockRedis,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(PresenceService)
+      .mock(REDIS_CLIENT)
+      .final(mockRedis)
+      .compile();
 
-    service = module.get<PresenceService>(PresenceService);
+    service = unit;
   });
 
   afterEach(() => {

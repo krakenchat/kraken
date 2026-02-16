@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { LivekitService } from './livekit.service';
 import { ConfigService } from '@nestjs/config';
 import { createMockConfigService } from '@/test-utils';
@@ -37,22 +37,15 @@ describe('LivekitService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LivekitService,
-        {
-          provide: ConfigService,
-          useValue: createMockConfigService(mockConfig),
-        },
-        {
-          provide: ROOM_SERVICE_CLIENT,
-          useValue: mockRoomServiceClient,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(LivekitService)
+      .mock(ConfigService)
+      .final(createMockConfigService(mockConfig))
+      .mock(ROOM_SERVICE_CLIENT)
+      .final(mockRoomServiceClient)
+      .compile();
 
-    service = module.get<LivekitService>(LivekitService);
-    configService = module.get<ConfigService>(ConfigService);
+    service = unit;
+    configService = unitRef.get(ConfigService);
   });
 
   afterEach(() => {
@@ -379,22 +372,15 @@ describe('LivekitService', () => {
     });
 
     it('should throw when roomServiceClient is not configured', async () => {
-      // Create a service with null roomServiceClient
-      const module = await Test.createTestingModule({
-        providers: [
-          LivekitService,
-          {
-            provide: ConfigService,
-            useValue: createMockConfigService(mockConfig),
-          },
-          {
-            provide: ROOM_SERVICE_CLIENT,
-            useValue: null,
-          },
-        ],
-      }).compile();
-
-      const serviceWithoutClient = module.get<LivekitService>(LivekitService);
+      // Create a service with null roomServiceClient using TestBed
+      const { unit: serviceWithoutClient } = await TestBed.solitary(
+        LivekitService,
+      )
+        .mock(ConfigService)
+        .final(createMockConfigService(mockConfig))
+        .mock(ROOM_SERVICE_CLIENT)
+        .final(null)
+        .compile();
 
       await expect(
         serviceWithoutClient.muteParticipant('room-1', 'user-1', true),

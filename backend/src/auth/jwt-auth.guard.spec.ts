@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './public.decorator';
@@ -9,23 +10,13 @@ import {
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
-  let reflector: Reflector;
+  let reflector: Mocked<Reflector>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        JwtAuthGuard,
-        {
-          provide: Reflector,
-          useValue: {
-            getAllAndOverride: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(JwtAuthGuard).compile();
 
-    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-    reflector = module.get<Reflector>(Reflector);
+    guard = unit;
+    reflector = unitRef.get(Reflector);
   });
 
   afterEach(() => {

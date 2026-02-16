@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { UserService } from './user.service';
 import { DatabaseService } from '@/database/database.service';
 import { InviteService } from '@/invite/invite.service';
@@ -19,48 +20,22 @@ jest.mock('bcrypt');
 describe('UserService', () => {
   let service: UserService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let inviteService: InviteService;
-  let channelsService: ChannelsService;
-  let rolesService: RolesService;
+  let inviteService: Mocked<InviteService>;
+  let channelsService: Mocked<ChannelsService>;
+  let rolesService: Mocked<RolesService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UserService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: InviteService,
-          useValue: {
-            validateInviteCode: jest.fn(),
-            redeemInviteWithTx: jest.fn(),
-          },
-        },
-        {
-          provide: ChannelsService,
-          useValue: {
-            addUserToGeneralChannel: jest.fn(),
-          },
-        },
-        {
-          provide: RolesService,
-          useValue: {
-            getCommunityMemberRole: jest.fn(),
-            createMemberRoleForCommunity: jest.fn(),
-            assignUserToCommunityRole: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(UserService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<UserService>(UserService);
-    inviteService = module.get<InviteService>(InviteService);
-    channelsService = module.get<ChannelsService>(ChannelsService);
-    rolesService = module.get<RolesService>(RolesService);
+    service = unit;
+    inviteService = unitRef.get(InviteService);
+    channelsService = unitRef.get(ChannelsService);
+    rolesService = unitRef.get(RolesService);
 
     // Mock bcrypt
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
@@ -154,7 +129,7 @@ describe('UserService', () => {
   describe('getInvite', () => {
     it('should validate and return invite code', async () => {
       const invite = InstanceInviteFactory.build();
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
 
       const result = await service.getInvite(invite.code);
 
@@ -165,7 +140,7 @@ describe('UserService', () => {
     });
 
     it('should return null for invalid invite', async () => {
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(null);
+      inviteService.validateInviteCode.mockResolvedValue(null as any);
 
       const result = await service.getInvite('invalid-code');
 
@@ -184,11 +159,11 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null); // No conflicts
       mockDatabase.user.count.mockResolvedValue(0); // First user
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue({
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue({
         ...invite,
         defaultCommunityId: [],
-      });
+      } as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
 
       const result = await service.createUser(
@@ -220,11 +195,11 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(5); // Existing users
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue({
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue({
         ...invite,
         defaultCommunityId: [],
-      });
+      } as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
 
       const result = await service.createUser(
@@ -241,11 +216,11 @@ describe('UserService', () => {
       const invite = InstanceInviteFactory.build();
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(0);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue({
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue({
         ...invite,
         defaultCommunityId: [],
-      });
+      } as any);
       mockDatabase.user.create.mockResolvedValue(UserFactory.build());
 
       await service.createUser('invite-code', 'user', 'mypassword');
@@ -255,7 +230,7 @@ describe('UserService', () => {
 
     it('should throw NotFoundException when invite not found', async () => {
       mockDatabase.user.findFirst.mockResolvedValue(null);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(null);
+      inviteService.validateInviteCode.mockResolvedValue(null as any);
 
       await expect(
         service.createUser('invalid-code', 'user', 'password'),
@@ -276,18 +251,18 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(1);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue(invite);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockResolvedValue(undefined);
-      jest
-        .spyOn(rolesService, 'getCommunityMemberRole')
-        .mockResolvedValue(memberRole);
-      jest
-        .spyOn(rolesService, 'assignUserToCommunityRole')
-        .mockResolvedValue(undefined);
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      rolesService.assignUserToCommunityRole.mockResolvedValue(
+        undefined as any,
+      );
 
       await service.createUser('invite-code', 'user', 'password');
 
@@ -309,18 +284,18 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(1);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue(invite);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockResolvedValue(undefined);
-      jest
-        .spyOn(rolesService, 'getCommunityMemberRole')
-        .mockResolvedValue(memberRole);
-      jest
-        .spyOn(rolesService, 'assignUserToCommunityRole')
-        .mockResolvedValue(undefined);
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      rolesService.assignUserToCommunityRole.mockResolvedValue(
+        undefined as any,
+      );
 
       await service.createUser('invite-code', 'user', 'password');
 
@@ -340,18 +315,18 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(1);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue(invite);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockResolvedValue(undefined);
-      jest
-        .spyOn(rolesService, 'getCommunityMemberRole')
-        .mockResolvedValue(memberRole);
-      jest
-        .spyOn(rolesService, 'assignUserToCommunityRole')
-        .mockResolvedValue(undefined);
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      rolesService.assignUserToCommunityRole.mockResolvedValue(
+        undefined as any,
+      );
 
       await service.createUser('invite-code', 'user', 'password');
 
@@ -373,22 +348,21 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(1);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue(invite);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockResolvedValue(undefined);
-      jest
-        .spyOn(rolesService, 'getCommunityMemberRole')
-        .mockResolvedValueOnce(null) // First call returns null
-        .mockResolvedValueOnce(memberRole); // Second call returns created role
-      jest
-        .spyOn(rolesService, 'createMemberRoleForCommunity')
-        .mockResolvedValue('role-id-123');
-      jest
-        .spyOn(rolesService, 'assignUserToCommunityRole')
-        .mockResolvedValue(undefined);
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
+      rolesService.getCommunityMemberRole
+        .mockResolvedValueOnce(null as any) // First call returns null
+        .mockResolvedValueOnce(memberRole as any); // Second call returns created role
+      rolesService.createMemberRoleForCommunity.mockResolvedValue(
+        'role-id-123' as any,
+      );
+      rolesService.assignUserToCommunityRole.mockResolvedValue(
+        undefined as any,
+      );
 
       await service.createUser('invite-code', 'user', 'password');
 
@@ -408,18 +382,18 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(1);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue(invite);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockRejectedValue(new Error('Channel error'));
-      jest
-        .spyOn(rolesService, 'getCommunityMemberRole')
-        .mockResolvedValue(memberRole);
-      jest
-        .spyOn(rolesService, 'assignUserToCommunityRole')
-        .mockResolvedValue(undefined);
+      channelsService.addUserToGeneralChannel.mockRejectedValue(
+        new Error('Channel error'),
+      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      rolesService.assignUserToCommunityRole.mockResolvedValue(
+        undefined as any,
+      );
 
       const result = await service.createUser(
         'invite-code',
@@ -439,15 +413,15 @@ describe('UserService', () => {
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
       mockDatabase.user.count.mockResolvedValue(1);
-      jest.spyOn(inviteService, 'validateInviteCode').mockResolvedValue(invite);
-      jest.spyOn(inviteService, 'redeemInviteWithTx').mockResolvedValue(invite);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockResolvedValue(undefined);
-      jest
-        .spyOn(rolesService, 'getCommunityMemberRole')
-        .mockRejectedValue(new Error('Role error'));
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
+      rolesService.getCommunityMemberRole.mockRejectedValue(
+        new Error('Role error'),
+      );
 
       const result = await service.createUser(
         'invite-code',

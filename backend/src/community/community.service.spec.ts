@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { CommunityService } from './community.service';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
@@ -13,39 +14,20 @@ import {
 describe('CommunityService', () => {
   let service: CommunityService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let channelsService: ChannelsService;
-  let rolesService: RolesService;
+  let channelsService: Mocked<ChannelsService>;
+  let rolesService: Mocked<RolesService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CommunityService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: ChannelsService,
-          useValue: {
-            createDefaultGeneralChannel: jest.fn(),
-            addUserToGeneralChannel: jest.fn(),
-          },
-        },
-        {
-          provide: RolesService,
-          useValue: {
-            createDefaultCommunityRoles: jest.fn(),
-            assignUserToCommunityRole: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(CommunityService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<CommunityService>(CommunityService);
-    channelsService = module.get<ChannelsService>(ChannelsService);
-    rolesService = module.get<RolesService>(RolesService);
+    service = unit;
+    channelsService = unitRef.get(ChannelsService);
+    rolesService = unitRef.get(RolesService);
   });
 
   afterEach(() => {
@@ -69,22 +51,20 @@ describe('CommunityService', () => {
         userId: user.id,
         communityId: community.id,
       });
-      jest
-        .spyOn(channelsService, 'createDefaultGeneralChannel')
-        .mockResolvedValue({
-          id: 'channel-123',
-          name: 'general',
-          communityId: community.id,
-          type: 'TEXT',
-          isPrivate: false,
-          createdAt: new Date(),
-        } as any);
-      jest
-        .spyOn(rolesService, 'createDefaultCommunityRoles')
-        .mockResolvedValue('admin-role-id');
-      jest
-        .spyOn(rolesService, 'assignUserToCommunityRole')
-        .mockResolvedValue(undefined);
+      channelsService.createDefaultGeneralChannel.mockResolvedValue({
+        id: 'channel-123',
+        name: 'general',
+        communityId: community.id,
+        type: 'TEXT',
+        isPrivate: false,
+        createdAt: new Date(),
+      } as any);
+      rolesService.createDefaultCommunityRoles.mockResolvedValue(
+        'admin-role-id' as any,
+      );
+      rolesService.assignUserToCommunityRole.mockResolvedValue(
+        undefined as any,
+      );
 
       const result = await service.create(createDto, user.id);
 
@@ -169,9 +149,9 @@ describe('CommunityService', () => {
         userId: user.id,
         communityId: community.id,
       });
-      jest
-        .spyOn(channelsService, 'createDefaultGeneralChannel')
-        .mockRejectedValue(new Error('Channel creation failed'));
+      channelsService.createDefaultGeneralChannel.mockRejectedValue(
+        new Error('Channel creation failed'),
+      );
 
       await expect(service.create(createDto, user.id)).rejects.toThrow(
         'Channel creation failed',
@@ -392,9 +372,9 @@ describe('CommunityService', () => {
       const communityId = 'community-123';
       const userId = 'user-456';
 
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockResolvedValue(undefined);
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
 
       await service.addMemberToGeneralChannel(communityId, userId);
 
@@ -408,9 +388,9 @@ describe('CommunityService', () => {
       const communityId = 'community-123';
       const userId = 'user-456';
 
-      jest
-        .spyOn(channelsService, 'addUserToGeneralChannel')
-        .mockRejectedValue(new Error('Channel not found'));
+      channelsService.addUserToGeneralChannel.mockRejectedValue(
+        new Error('Channel not found'),
+      );
 
       // Should not throw
       await expect(

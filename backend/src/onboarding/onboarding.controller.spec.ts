@@ -1,32 +1,22 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { OnboardingController } from './onboarding.controller';
 import { OnboardingService } from './onboarding.service';
 import { SetupInstanceDto } from './dto/setup-instance.dto';
 import { BadRequestException } from '@nestjs/common';
 import { UserFactory, CommunityFactory } from '@/test-utils';
+import type { Mocked } from '@suites/doubles.jest';
 
 describe('OnboardingController', () => {
   let controller: OnboardingController;
-  let service: OnboardingService;
-
-  const mockOnboardingService = {
-    getStatus: jest.fn(),
-    completeSetup: jest.fn(),
-  };
+  let service: Mocked<OnboardingService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [OnboardingController],
-      providers: [
-        {
-          provide: OnboardingService,
-          useValue: mockOnboardingService,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      OnboardingController,
+    ).compile();
 
-    controller = module.get<OnboardingController>(OnboardingController);
-    service = module.get<OnboardingService>(OnboardingService);
+    controller = unit;
+    service = unitRef.get(OnboardingService);
   });
 
   afterEach(() => {
@@ -45,7 +35,7 @@ describe('OnboardingController', () => {
         setupToken: 'token-123',
       };
 
-      jest.spyOn(service, 'getStatus').mockResolvedValue(mockStatus);
+      service.getStatus.mockResolvedValue(mockStatus);
 
       const result = await controller.getStatus();
 
@@ -60,7 +50,7 @@ describe('OnboardingController', () => {
         setupToken: undefined,
       };
 
-      jest.spyOn(service, 'getStatus').mockResolvedValue(mockStatus);
+      service.getStatus.mockResolvedValue(mockStatus);
 
       const result = await controller.getStatus();
 
@@ -70,7 +60,7 @@ describe('OnboardingController', () => {
     });
 
     it('should call service without any parameters', async () => {
-      jest.spyOn(service, 'getStatus').mockResolvedValue({
+      service.getStatus.mockResolvedValue({
         needsSetup: true,
         hasUsers: false,
         setupToken: 'token-123',
@@ -98,7 +88,7 @@ describe('OnboardingController', () => {
       const mockAdmin = UserFactory.build({ id: 'user-123' });
       const mockCommunity = CommunityFactory.build({ id: 'community-123' });
 
-      jest.spyOn(service, 'completeSetup').mockResolvedValue({
+      service.completeSetup.mockResolvedValue({
         adminUser: mockAdmin as any,
         defaultCommunity: mockCommunity as any,
       });
@@ -120,7 +110,7 @@ describe('OnboardingController', () => {
     it('should complete setup without default community', async () => {
       const mockAdmin = UserFactory.build({ id: 'admin-456' });
 
-      jest.spyOn(service, 'completeSetup').mockResolvedValue({
+      service.completeSetup.mockResolvedValue({
         adminUser: mockAdmin as any,
         defaultCommunity: null,
       });
@@ -166,7 +156,7 @@ describe('OnboardingController', () => {
 
     it('should pass setup token from DTO to service', async () => {
       const mockAdmin = UserFactory.build();
-      jest.spyOn(service, 'completeSetup').mockResolvedValue({
+      service.completeSetup.mockResolvedValue({
         adminUser: mockAdmin as any,
         defaultCommunity: null,
       });
@@ -181,7 +171,7 @@ describe('OnboardingController', () => {
       const mockAdmin = UserFactory.build({ id: 'admin-id' });
       const mockCommunity = CommunityFactory.build({ id: 'comm-id' });
 
-      jest.spyOn(service, 'completeSetup').mockResolvedValue({
+      service.completeSetup.mockResolvedValue({
         adminUser: mockAdmin as any,
         defaultCommunity: mockCommunity as any,
       });
@@ -198,9 +188,7 @@ describe('OnboardingController', () => {
     });
 
     it('should handle service errors gracefully', async () => {
-      jest
-        .spyOn(service, 'completeSetup')
-        .mockRejectedValue(new Error('Setup failed'));
+      service.completeSetup.mockRejectedValue(new Error('Setup failed'));
 
       await expect(controller.setupInstance(validSetupDto)).rejects.toThrow(
         'Setup failed',

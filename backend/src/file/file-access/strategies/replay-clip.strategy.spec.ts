@@ -1,56 +1,29 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ForbiddenException } from '@nestjs/common';
 import { ReplayClipAccessStrategy } from './replay-clip.strategy';
 import { DatabaseService } from '@/database/database.service';
 import { MembershipService } from '@/membership/membership.service';
 import { ChannelMembershipService } from '@/channel-membership/channel-membership.service';
+import { createMockDatabase } from '@/test-utils';
 
 describe('ReplayClipAccessStrategy', () => {
   let strategy: ReplayClipAccessStrategy;
-
-  const mockDatabaseService = {
-    replayClip: {
-      findFirst: jest.fn(),
-    },
-    message: {
-      findMany: jest.fn(),
-    },
-    channel: {
-      findUnique: jest.fn(),
-    },
-    directMessageGroupMember: {
-      findUnique: jest.fn(),
-    },
-  };
-
-  const mockMembershipService = {
-    isMember: jest.fn(),
-  };
-
-  const mockChannelMembershipService = {
-    isMember: jest.fn(),
-  };
+  let mockDatabase: any;
+  let membershipService: Mocked<MembershipService>;
+  let channelMembershipService: Mocked<ChannelMembershipService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ReplayClipAccessStrategy,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-        {
-          provide: MembershipService,
-          useValue: mockMembershipService,
-        },
-        {
-          provide: ChannelMembershipService,
-          useValue: mockChannelMembershipService,
-        },
-      ],
-    }).compile();
+    mockDatabase = createMockDatabase();
 
-    strategy = module.get<ReplayClipAccessStrategy>(ReplayClipAccessStrategy);
+    const { unit, unitRef } = await TestBed.solitary(ReplayClipAccessStrategy)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
+
+    strategy = unit;
+    membershipService = unitRef.get(MembershipService);
+    channelMembershipService = unitRef.get(ChannelMembershipService);
   });
 
   afterEach(() => {
@@ -72,8 +45,8 @@ describe('ReplayClipAccessStrategy', () => {
 
         expect(result).toBe(true);
         // Should not need to check database when user is owner
-        expect(mockDatabaseService.replayClip.findFirst).not.toHaveBeenCalled();
-        expect(mockDatabaseService.message.findMany).not.toHaveBeenCalled();
+        expect(mockDatabase.replayClip.findFirst).not.toHaveBeenCalled();
+        expect(mockDatabase.message.findMany).not.toHaveBeenCalled();
       });
     });
 
@@ -83,19 +56,19 @@ describe('ReplayClipAccessStrategy', () => {
         const clipOwnerId = 'user-456'; // Different owner
         const fileId = 'file-789';
 
-        mockDatabaseService.replayClip.findFirst.mockResolvedValue({
+        mockDatabase.replayClip.findFirst.mockResolvedValue({
           isPublic: true,
         });
 
         const result = await strategy.checkAccess(userId, clipOwnerId, fileId);
 
         expect(result).toBe(true);
-        expect(mockDatabaseService.replayClip.findFirst).toHaveBeenCalledWith({
+        expect(mockDatabase.replayClip.findFirst).toHaveBeenCalledWith({
           where: { fileId },
           select: { isPublic: true },
         });
         // Should not check message access when clip is public
-        expect(mockDatabaseService.message.findMany).not.toHaveBeenCalled();
+        expect(mockDatabase.message.findMany).not.toHaveBeenCalled();
       });
 
       it('should continue checking when clip is not public', async () => {
@@ -103,16 +76,16 @@ describe('ReplayClipAccessStrategy', () => {
         const clipOwnerId = 'user-456';
         const fileId = 'file-789';
 
-        mockDatabaseService.replayClip.findFirst.mockResolvedValue({
+        mockDatabase.replayClip.findFirst.mockResolvedValue({
           isPublic: false,
         });
-        mockDatabaseService.message.findMany.mockResolvedValue([]);
+        mockDatabase.message.findMany.mockResolvedValue([]);
 
         await expect(
           strategy.checkAccess(userId, clipOwnerId, fileId),
         ).rejects.toThrow(ForbiddenException);
 
-        expect(mockDatabaseService.message.findMany).toHaveBeenCalled();
+        expect(mockDatabase.message.findMany).toHaveBeenCalled();
       });
 
       it('should handle clip not found in database', async () => {
@@ -120,8 +93,8 @@ describe('ReplayClipAccessStrategy', () => {
         const clipOwnerId = 'user-456';
         const fileId = 'file-789';
 
-        mockDatabaseService.replayClip.findFirst.mockResolvedValue(null);
-        mockDatabaseService.message.findMany.mockResolvedValue([]);
+        mockDatabase.replayClip.findFirst.mockResolvedValue(null);
+        mockDatabase.message.findMany.mockResolvedValue([]);
 
         await expect(
           strategy.checkAccess(userId, clipOwnerId, fileId),
@@ -131,13 +104,13 @@ describe('ReplayClipAccessStrategy', () => {
 
     describe('message-based access', () => {
       beforeEach(() => {
-        mockDatabaseService.replayClip.findFirst.mockResolvedValue({
+        mockDatabase.replayClip.findFirst.mockResolvedValue({
           isPublic: false,
         });
       });
 
       it('should deny access when file is not attached to any message', async () => {
-        mockDatabaseService.message.findMany.mockResolvedValue([]);
+        mockDatabase.message.findMany.mockResolvedValue([]);
 
         await expect(
           strategy.checkAccess('user-123', 'user-456', 'file-789'),
@@ -161,9 +134,9 @@ describe('ReplayClipAccessStrategy', () => {
             isPrivate: false,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue([message]);
-          mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-          mockMembershipService.isMember.mockResolvedValue(true);
+          mockDatabase.message.findMany.mockResolvedValue([message]);
+          mockDatabase.channel.findUnique.mockResolvedValue(channel);
+          membershipService.isMember.mockResolvedValue(true);
 
           const result = await strategy.checkAccess(
             'user-123',
@@ -172,7 +145,7 @@ describe('ReplayClipAccessStrategy', () => {
           );
 
           expect(result).toBe(true);
-          expect(mockMembershipService.isMember).toHaveBeenCalledWith(
+          expect(membershipService.isMember).toHaveBeenCalledWith(
             'user-123',
             'community-1',
           );
@@ -191,9 +164,9 @@ describe('ReplayClipAccessStrategy', () => {
             isPrivate: false,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue([message]);
-          mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-          mockMembershipService.isMember.mockResolvedValue(false);
+          mockDatabase.message.findMany.mockResolvedValue([message]);
+          mockDatabase.channel.findUnique.mockResolvedValue(channel);
+          membershipService.isMember.mockResolvedValue(false);
 
           await expect(
             strategy.checkAccess('user-123', 'user-456', 'file-789'),
@@ -213,9 +186,9 @@ describe('ReplayClipAccessStrategy', () => {
             isPrivate: true,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue([message]);
-          mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-          mockChannelMembershipService.isMember.mockResolvedValue(true);
+          mockDatabase.message.findMany.mockResolvedValue([message]);
+          mockDatabase.channel.findUnique.mockResolvedValue(channel);
+          channelMembershipService.isMember.mockResolvedValue(true);
 
           const result = await strategy.checkAccess(
             'user-123',
@@ -224,7 +197,7 @@ describe('ReplayClipAccessStrategy', () => {
           );
 
           expect(result).toBe(true);
-          expect(mockChannelMembershipService.isMember).toHaveBeenCalledWith(
+          expect(channelMembershipService.isMember).toHaveBeenCalledWith(
             'user-123',
             'channel-1',
           );
@@ -243,9 +216,9 @@ describe('ReplayClipAccessStrategy', () => {
             isPrivate: true,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue([message]);
-          mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-          mockChannelMembershipService.isMember.mockResolvedValue(false);
+          mockDatabase.message.findMany.mockResolvedValue([message]);
+          mockDatabase.channel.findUnique.mockResolvedValue(channel);
+          channelMembershipService.isMember.mockResolvedValue(false);
 
           await expect(
             strategy.checkAccess('user-123', 'user-456', 'file-789'),
@@ -259,8 +232,8 @@ describe('ReplayClipAccessStrategy', () => {
             directMessageGroupId: null,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue([message]);
-          mockDatabaseService.channel.findUnique.mockResolvedValue(null);
+          mockDatabase.message.findMany.mockResolvedValue([message]);
+          mockDatabase.channel.findUnique.mockResolvedValue(null);
 
           await expect(
             strategy.checkAccess('user-123', 'user-456', 'file-789'),
@@ -276,8 +249,8 @@ describe('ReplayClipAccessStrategy', () => {
             directMessageGroupId: 'dm-group-1',
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue([message]);
-          mockDatabaseService.directMessageGroupMember.findUnique.mockResolvedValue(
+          mockDatabase.message.findMany.mockResolvedValue([message]);
+          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
             {
               groupId: 'dm-group-1',
               userId: 'user-123',
@@ -292,7 +265,7 @@ describe('ReplayClipAccessStrategy', () => {
 
           expect(result).toBe(true);
           expect(
-            mockDatabaseService.directMessageGroupMember.findUnique,
+            mockDatabase.directMessageGroupMember.findUnique,
           ).toHaveBeenCalledWith({
             where: {
               groupId_userId: {
@@ -310,8 +283,8 @@ describe('ReplayClipAccessStrategy', () => {
             directMessageGroupId: 'dm-group-1',
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue([message]);
-          mockDatabaseService.directMessageGroupMember.findUnique.mockResolvedValue(
+          mockDatabase.message.findMany.mockResolvedValue([message]);
+          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
             null,
           );
 
@@ -348,11 +321,11 @@ describe('ReplayClipAccessStrategy', () => {
             isPrivate: false,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue(messages);
-          mockDatabaseService.channel.findUnique
+          mockDatabase.message.findMany.mockResolvedValue(messages);
+          mockDatabase.channel.findUnique
             .mockResolvedValueOnce(channel1)
             .mockResolvedValueOnce(channel2);
-          mockMembershipService.isMember
+          membershipService.isMember
             .mockResolvedValueOnce(false) // Not member of first community
             .mockResolvedValueOnce(true); // Member of second community
 
@@ -385,10 +358,10 @@ describe('ReplayClipAccessStrategy', () => {
             isPrivate: false,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue(messages);
-          mockDatabaseService.channel.findUnique.mockResolvedValue(channel1);
-          mockMembershipService.isMember.mockResolvedValue(false);
-          mockDatabaseService.directMessageGroupMember.findUnique.mockResolvedValue(
+          mockDatabase.message.findMany.mockResolvedValue(messages);
+          mockDatabase.channel.findUnique.mockResolvedValue(channel1);
+          membershipService.isMember.mockResolvedValue(false);
+          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
             null,
           );
 
@@ -417,14 +390,14 @@ describe('ReplayClipAccessStrategy', () => {
             isPrivate: false,
           };
 
-          mockDatabaseService.message.findMany.mockResolvedValue(messages);
-          mockDatabaseService.channel.findUnique.mockResolvedValue(channel1);
+          mockDatabase.message.findMany.mockResolvedValue(messages);
+          mockDatabase.channel.findUnique.mockResolvedValue(channel1);
           // First check throws error
-          mockMembershipService.isMember.mockRejectedValueOnce(
+          membershipService.isMember.mockRejectedValueOnce(
             new Error('Database error'),
           );
           // Second check succeeds
-          mockDatabaseService.directMessageGroupMember.findUnique.mockResolvedValue(
+          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
             { groupId: 'dm-group-1', userId: 'user-123' },
           );
 

@@ -1,25 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ChannelMembershipController } from './channel-membership.controller';
 import { ChannelMembershipService } from './channel-membership.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import { UserFactory, ChannelMembershipFactory } from '@/test-utils';
 import { CreateChannelMembershipDto } from './dto/create-channel-membership.dto';
 import { ForbiddenException } from '@nestjs/common';
 
 describe('ChannelMembershipController', () => {
   let controller: ChannelMembershipController;
-  let service: ChannelMembershipService;
-
-  const mockChannelMembershipService = {
-    create: jest.fn(),
-    findAllForChannel: jest.fn(),
-    findAllForUser: jest.fn(),
-    findOne: jest.fn(),
-    remove: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<ChannelMembershipService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -27,25 +16,12 @@ describe('ChannelMembershipController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [ChannelMembershipController],
-      providers: [
-        {
-          provide: ChannelMembershipService,
-          useValue: mockChannelMembershipService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
-
-    controller = module.get<ChannelMembershipController>(
+    const { unit, unitRef } = await TestBed.solitary(
       ChannelMembershipController,
-    );
-    service = module.get<ChannelMembershipService>(ChannelMembershipService);
+    ).compile();
+
+    controller = unit;
+    service = unitRef.get(ChannelMembershipService);
   });
 
   afterEach(() => {
@@ -68,7 +44,7 @@ describe('ChannelMembershipController', () => {
         channelId: 'channel-123',
       });
 
-      jest.spyOn(service, 'create').mockResolvedValue(mockMembership as any);
+      service.create.mockResolvedValue(mockMembership as any);
 
       const result = await controller.create(createDto, mockRequest);
 
@@ -82,9 +58,9 @@ describe('ChannelMembershipController', () => {
         channelId: 'channel-456',
       };
 
-      jest
-        .spyOn(service, 'create')
-        .mockResolvedValue(ChannelMembershipFactory.build() as any);
+      service.create.mockResolvedValue(
+        ChannelMembershipFactory.build() as any,
+      );
 
       await controller.create(createDto, mockRequest);
 
@@ -101,9 +77,7 @@ describe('ChannelMembershipController', () => {
         ChannelMembershipFactory.build({ channelId }),
       ];
 
-      jest
-        .spyOn(service, 'findAllForChannel')
-        .mockResolvedValue(mockMemberships as any);
+      service.findAllForChannel.mockResolvedValue(mockMemberships as any);
 
       const result = await controller.findAllForChannel(channelId);
 
@@ -120,9 +94,7 @@ describe('ChannelMembershipController', () => {
         ChannelMembershipFactory.build({ userId }),
       ];
 
-      jest
-        .spyOn(service, 'findAllForUser')
-        .mockResolvedValue(mockMemberships as any);
+      service.findAllForUser.mockResolvedValue(mockMemberships as any);
 
       const result = await controller.findAllForUser(userId, mockRequest);
 
@@ -154,9 +126,7 @@ describe('ChannelMembershipController', () => {
         ChannelMembershipFactory.build({ userId: mockUser.id }),
       ];
 
-      jest
-        .spyOn(service, 'findAllForUser')
-        .mockResolvedValue(mockMemberships as any);
+      service.findAllForUser.mockResolvedValue(mockMemberships as any);
 
       const result = await controller.findMyChannelMemberships(mockRequest);
 
@@ -174,7 +144,7 @@ describe('ChannelMembershipController', () => {
         channelId,
       });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockMembership as any);
+      service.findOne.mockResolvedValue(mockMembership as any);
 
       const result = await controller.findOne(userId, channelId);
 
@@ -188,7 +158,7 @@ describe('ChannelMembershipController', () => {
       const userId = 'user-123';
       const channelId = 'channel-123';
 
-      jest.spyOn(service, 'remove').mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined);
 
       await controller.remove(userId, channelId);
 
@@ -200,7 +170,7 @@ describe('ChannelMembershipController', () => {
     it('should allow user to leave channel', async () => {
       const channelId = 'channel-123';
 
-      jest.spyOn(service, 'remove').mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined);
 
       await controller.leaveChannel(channelId, mockRequest);
 
@@ -210,7 +180,7 @@ describe('ChannelMembershipController', () => {
     it('should use authenticated user ID', async () => {
       const channelId = 'channel-456';
 
-      jest.spyOn(service, 'remove').mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined);
 
       await controller.leaveChannel(channelId, mockRequest);
 

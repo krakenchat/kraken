@@ -1,20 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { PresenceController } from './presence.controller';
 import { PresenceService } from './presence.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
 
 describe('PresenceController', () => {
   let controller: PresenceController;
-  let presenceService: PresenceService;
-
-  const mockPresenceService = {
-    isOnline: jest.fn(),
-    getOnlineUsers: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let presenceService: Mocked<PresenceService>;
 
   const mockUsers = [
     UserFactory.build(),
@@ -23,23 +15,12 @@ describe('PresenceController', () => {
   ];
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [PresenceController],
-      providers: [
-        {
-          provide: PresenceService,
-          useValue: mockPresenceService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      PresenceController,
+    ).compile();
 
-    controller = module.get<PresenceController>(PresenceController);
-    presenceService = module.get<PresenceService>(PresenceService);
+    controller = unit;
+    presenceService = unitRef.get(PresenceService);
   });
 
   afterEach(() => {
@@ -53,7 +34,7 @@ describe('PresenceController', () => {
   describe('getUserPresence', () => {
     it('should return user presence when user is online', async () => {
       const userId = mockUsers[0].id;
-      jest.spyOn(presenceService, 'isOnline').mockResolvedValue(true);
+      presenceService.isOnline.mockResolvedValue(true);
 
       const result = await controller.getUserPresence(userId);
 
@@ -66,7 +47,7 @@ describe('PresenceController', () => {
 
     it('should return user presence when user is offline', async () => {
       const userId = mockUsers[0].id;
-      jest.spyOn(presenceService, 'isOnline').mockResolvedValue(false);
+      presenceService.isOnline.mockResolvedValue(false);
 
       const result = await controller.getUserPresence(userId);
 
@@ -78,7 +59,7 @@ describe('PresenceController', () => {
 
     it('should include userId in response', async () => {
       const userId = 'test-user-123';
-      jest.spyOn(presenceService, 'isOnline').mockResolvedValue(true);
+      presenceService.isOnline.mockResolvedValue(true);
 
       const result = await controller.getUserPresence(userId);
 
@@ -89,9 +70,7 @@ describe('PresenceController', () => {
   describe('getBulkPresence', () => {
     it('should return presence for all online users', async () => {
       const onlineUserIds = [mockUsers[0].id, mockUsers[1].id];
-      jest
-        .spyOn(presenceService, 'getOnlineUsers')
-        .mockResolvedValue(onlineUserIds);
+      presenceService.getOnlineUsers.mockResolvedValue(onlineUserIds);
 
       const result = await controller.getBulkPresence();
 
@@ -103,7 +82,7 @@ describe('PresenceController', () => {
     });
 
     it('should return empty object when no users are online', async () => {
-      jest.spyOn(presenceService, 'getOnlineUsers').mockResolvedValue([]);
+      presenceService.getOnlineUsers.mockResolvedValue([]);
 
       const result = await controller.getBulkPresence();
 
@@ -112,9 +91,7 @@ describe('PresenceController', () => {
 
     it('should mark all returned users as online', async () => {
       const onlineUserIds = [mockUsers[0].id, mockUsers[1].id, mockUsers[2].id];
-      jest
-        .spyOn(presenceService, 'getOnlineUsers')
-        .mockResolvedValue(onlineUserIds);
+      presenceService.getOnlineUsers.mockResolvedValue(onlineUserIds);
 
       const result = await controller.getBulkPresence();
 
@@ -131,8 +108,7 @@ describe('PresenceController', () => {
       const user2 = mockUsers[1].id;
       const userIds = `${user1},${user2}`;
 
-      jest
-        .spyOn(presenceService, 'isOnline')
+      presenceService.isOnline
         .mockResolvedValueOnce(true) // user1
         .mockResolvedValueOnce(false); // user2
 
@@ -149,7 +125,7 @@ describe('PresenceController', () => {
 
     it('should handle single user ID', async () => {
       const userId = mockUsers[0].id;
-      jest.spyOn(presenceService, 'isOnline').mockResolvedValue(true);
+      presenceService.isOnline.mockResolvedValue(true);
 
       const result = await controller.getMultipleUserPresence(userId);
 
@@ -165,7 +141,7 @@ describe('PresenceController', () => {
       const user3 = 'user-3';
       const userIds = `${user1},${user2},${user3}`;
 
-      jest.spyOn(presenceService, 'isOnline').mockResolvedValue(true);
+      presenceService.isOnline.mockResolvedValue(true);
 
       await controller.getMultipleUserPresence(userIds);
 
@@ -181,8 +157,7 @@ describe('PresenceController', () => {
       const user3 = 'also-online';
       const userIds = `${user1},${user2},${user3}`;
 
-      jest
-        .spyOn(presenceService, 'isOnline')
+      presenceService.isOnline
         .mockResolvedValueOnce(true) // user1
         .mockResolvedValueOnce(false) // user2
         .mockResolvedValueOnce(true); // user3
@@ -197,7 +172,7 @@ describe('PresenceController', () => {
     });
 
     it('should handle empty user IDs gracefully', async () => {
-      jest.spyOn(presenceService, 'isOnline').mockResolvedValue(false);
+      presenceService.isOnline.mockResolvedValue(false);
 
       const result = await controller.getMultipleUserPresence('');
 

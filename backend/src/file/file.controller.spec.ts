@@ -1,8 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { FileController } from './file.controller';
 import { FileService } from './file.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { FileAccessGuard } from '@/file/file-access/file-access.guard';
 import { NotFoundException, NotImplementedException } from '@nestjs/common';
 import { StorageType, FileType } from '@prisma/client';
 import { Response } from 'express';
@@ -12,37 +11,17 @@ jest.mock('fs');
 
 describe('FileController', () => {
   let controller: FileController;
-  let service: FileService;
-
-  const mockFileService = {
-    findOne: jest.fn(),
-    markForDeletion: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<FileService>;
 
   const mockResponse = {
     set: jest.fn(),
   } as unknown as Response;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [FileController],
-      providers: [
-        {
-          provide: FileService,
-          useValue: mockFileService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(FileAccessGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(FileController).compile();
 
-    controller = module.get<FileController>(FileController);
-    service = module.get<FileService>(FileService);
+    controller = unit;
+    service = unitRef.get(FileService);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -80,7 +59,7 @@ describe('FileController', () => {
         storagePath: '/tmp/test.png',
       };
 
-      mockFileService.findOne.mockResolvedValue(mockFile);
+      service.findOne.mockResolvedValue(mockFile as any);
 
       const result = await controller.getFileMetadata(fileId);
 
@@ -91,13 +70,13 @@ describe('FileController', () => {
         fileType: FileType.IMAGE,
         size: 1024,
       });
-      expect(mockFileService.findOne).toHaveBeenCalledWith(fileId);
+      expect(service.findOne).toHaveBeenCalledWith(fileId);
     });
 
     it('should throw NotFoundException if file not found', async () => {
       const fileId = 'non-existent';
 
-      mockFileService.findOne.mockResolvedValue(null);
+      service.findOne.mockResolvedValue(null as any);
 
       await expect(controller.getFileMetadata(fileId)).rejects.toThrow(
         NotFoundException,
@@ -107,7 +86,7 @@ describe('FileController', () => {
     it('should propagate service errors', async () => {
       const fileId = 'error-file';
 
-      mockFileService.findOne.mockRejectedValue(new Error('Database error'));
+      service.findOne.mockRejectedValue(new Error('Database error'));
 
       await expect(controller.getFileMetadata(fileId)).rejects.toThrow(
         'Database error',
@@ -132,7 +111,7 @@ describe('FileController', () => {
           storagePath: '/tmp/test',
         };
 
-        mockFileService.findOne.mockResolvedValue(mockFile);
+        service.findOne.mockResolvedValue(mockFile as any);
 
         const result = await controller.getFileMetadata('file-123');
 
@@ -157,11 +136,11 @@ describe('FileController', () => {
         storagePath: '/tmp/download.pdf',
       };
 
-      mockFileService.findOne.mockResolvedValue(mockFile);
+      service.findOne.mockResolvedValue(mockFile as any);
 
       const result = await controller.getFile(fileId, mockResponse);
 
-      expect(mockFileService.findOne).toHaveBeenCalledWith(fileId);
+      expect(service.findOne).toHaveBeenCalledWith(fileId);
       expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/download.pdf');
       expect(mockResponse.set).toHaveBeenCalledWith({
         'Content-Type': 'application/pdf',
@@ -182,7 +161,7 @@ describe('FileController', () => {
         storagePath: 's3://bucket/remote.png',
       };
 
-      mockFileService.findOne.mockResolvedValue(mockFile);
+      service.findOne.mockResolvedValue(mockFile as any);
 
       await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
         NotImplementedException,
@@ -192,7 +171,7 @@ describe('FileController', () => {
     it('should throw NotFoundException if file not found', async () => {
       const fileId = 'missing-file';
 
-      mockFileService.findOne.mockResolvedValue(null);
+      service.findOne.mockResolvedValue(null as any);
 
       await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
         NotFoundException,
@@ -202,7 +181,7 @@ describe('FileController', () => {
     it('should propagate service errors', async () => {
       const fileId = 'error-file';
 
-      mockFileService.findOne.mockRejectedValue(new Error('Database error'));
+      service.findOne.mockRejectedValue(new Error('Database error'));
 
       await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
         'Database error',
@@ -228,7 +207,7 @@ describe('FileController', () => {
           storagePath: `/tmp/${filename}`,
         };
 
-        mockFileService.findOne.mockResolvedValue(mockFile);
+        service.findOne.mockResolvedValue(mockFile as any);
 
         await controller.getFile('file-123', mockResponse);
 
@@ -253,7 +232,7 @@ describe('FileController', () => {
         storagePath: '/tmp/special.pdf',
       };
 
-      mockFileService.findOne.mockResolvedValue(mockFile);
+      service.findOne.mockResolvedValue(mockFile as any);
 
       await controller.getFile('file-special', mockResponse);
 

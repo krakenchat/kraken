@@ -131,10 +131,7 @@ export class DmVoicePresenceController {
     @Param('dmGroupId') dmGroupId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<RefreshDmPresenceResponseDto> {
-    await this.voicePresenceService.refreshDmPresence(
-      dmGroupId,
-      req.user.id,
-    );
+    await this.voicePresenceService.refreshDmPresence(dmGroupId, req.user.id);
     return {
       success: true,
       message: 'DM presence refreshed successfully',

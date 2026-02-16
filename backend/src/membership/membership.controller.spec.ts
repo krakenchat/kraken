@@ -1,26 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { MembershipController } from './membership.controller';
 import { MembershipService } from './membership.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import { UserFactory, MembershipFactory } from '@/test-utils';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { ForbiddenException } from '@nestjs/common';
 
 describe('MembershipController', () => {
   let controller: MembershipController;
-  let service: MembershipService;
-
-  const mockMembershipService = {
-    create: jest.fn(),
-    findAllForCommunity: jest.fn(),
-    findAllForUser: jest.fn(),
-    findOne: jest.fn(),
-    remove: jest.fn(),
-    searchMembers: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<MembershipService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -28,23 +16,12 @@ describe('MembershipController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [MembershipController],
-      providers: [
-        {
-          provide: MembershipService,
-          useValue: mockMembershipService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      MembershipController,
+    ).compile();
 
-    controller = module.get<MembershipController>(MembershipController);
-    service = module.get<MembershipService>(MembershipService);
+    controller = unit;
+    service = unitRef.get(MembershipService);
   });
 
   afterEach(() => {
@@ -67,7 +44,7 @@ describe('MembershipController', () => {
         communityId: 'community-123',
       });
 
-      jest.spyOn(service, 'create').mockResolvedValue(mockMembership as any);
+      service.create.mockResolvedValue(mockMembership as any);
 
       const result = await controller.create(createDto);
 
@@ -84,9 +61,7 @@ describe('MembershipController', () => {
         MembershipFactory.build({ communityId }),
       ];
 
-      jest
-        .spyOn(service, 'findAllForCommunity')
-        .mockResolvedValue(mockMemberships as any);
+      service.findAllForCommunity.mockResolvedValue(mockMemberships as any);
 
       const result = await controller.findAllForCommunity(communityId);
 
@@ -101,9 +76,7 @@ describe('MembershipController', () => {
       const query = 'john';
       const mockResults = [MembershipFactory.build()];
 
-      jest
-        .spyOn(service, 'searchMembers')
-        .mockResolvedValue(mockResults as any);
+      service.searchMembers.mockResolvedValue(mockResults as any);
 
       const result = await controller.searchCommunityMembers(
         communityId,
@@ -123,7 +96,7 @@ describe('MembershipController', () => {
       const communityId = 'community-456';
       const query = 'test';
 
-      jest.spyOn(service, 'searchMembers').mockResolvedValue([]);
+      service.searchMembers.mockResolvedValue([] as any);
 
       await controller.searchCommunityMembers(communityId, query, 25);
 
@@ -137,7 +110,7 @@ describe('MembershipController', () => {
     it('should use empty string when query is not provided', async () => {
       const communityId = 'community-789';
 
-      jest.spyOn(service, 'searchMembers').mockResolvedValue([]);
+      service.searchMembers.mockResolvedValue([] as any);
 
       await controller.searchCommunityMembers(communityId, '', 10);
 
@@ -153,9 +126,7 @@ describe('MembershipController', () => {
         MembershipFactory.build({ userId }),
       ];
 
-      jest
-        .spyOn(service, 'findAllForUser')
-        .mockResolvedValue(mockMemberships as any);
+      service.findAllForUser.mockResolvedValue(mockMemberships as any);
 
       const result = await controller.findAllForUser(userId, mockRequest);
 
@@ -185,9 +156,7 @@ describe('MembershipController', () => {
         MembershipFactory.build({ userId: mockUser.id }),
       ];
 
-      jest
-        .spyOn(service, 'findAllForUser')
-        .mockResolvedValue(mockMemberships as any);
+      service.findAllForUser.mockResolvedValue(mockMemberships as any);
 
       const result = await controller.findMyMemberships(mockRequest);
 
@@ -196,7 +165,7 @@ describe('MembershipController', () => {
     });
 
     it('should use authenticated user ID from request', async () => {
-      jest.spyOn(service, 'findAllForUser').mockResolvedValue([]);
+      service.findAllForUser.mockResolvedValue([] as any);
 
       await controller.findMyMemberships(mockRequest);
 
@@ -213,7 +182,7 @@ describe('MembershipController', () => {
         communityId,
       });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockMembership as any);
+      service.findOne.mockResolvedValue(mockMembership as any);
 
       const result = await controller.findOne(userId, communityId);
 
@@ -227,7 +196,7 @@ describe('MembershipController', () => {
       const userId = 'user-123';
       const communityId = 'community-123';
 
-      jest.spyOn(service, 'remove').mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined as any);
 
       await controller.remove(userId, communityId);
 
@@ -239,7 +208,7 @@ describe('MembershipController', () => {
     it('should allow user to leave community', async () => {
       const communityId = 'community-123';
 
-      jest.spyOn(service, 'remove').mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined as any);
 
       await controller.leaveCommunity(communityId, mockRequest);
 
@@ -249,7 +218,7 @@ describe('MembershipController', () => {
     it('should use authenticated user ID', async () => {
       const communityId = 'community-456';
 
-      jest.spyOn(service, 'remove').mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined as any);
 
       await controller.leaveCommunity(communityId, mockRequest);
 

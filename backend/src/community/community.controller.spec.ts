@@ -1,41 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { CommunityController } from './community.controller';
 import { CommunityService } from './community.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 
 describe('CommunityController', () => {
   let controller: CommunityController;
-  let service: CommunityService;
-
-  const mockCommunityService = {
-    create: jest.fn(),
-    findAll: jest.fn(),
-    findOne: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<CommunityService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [CommunityController],
-      providers: [
-        {
-          provide: CommunityService,
-          useValue: mockCommunityService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      CommunityController,
+    ).compile();
 
-    controller = module.get<CommunityController>(CommunityController);
-    service = module.get<CommunityService>(CommunityService);
+    controller = unit;
+    service = unitRef.get(CommunityService);
   });
 
   afterEach(() => {
@@ -64,15 +42,12 @@ describe('CommunityController', () => {
         ownerId: 'user-123',
       };
 
-      mockCommunityService.create.mockResolvedValue(createdCommunity);
+      service.create.mockResolvedValue(createdCommunity as any);
 
       const result = await controller.create(createDto as any, mockReq);
 
       expect(result).toEqual(createdCommunity);
-      expect(mockCommunityService.create).toHaveBeenCalledWith(
-        createDto,
-        'user-123',
-      );
+      expect(service.create).toHaveBeenCalledWith(createDto, 'user-123');
     });
   });
 
@@ -83,12 +58,12 @@ describe('CommunityController', () => {
         { id: 'community-2', name: 'Community 2' },
       ];
 
-      mockCommunityService.findAll.mockResolvedValue(communities);
+      service.findAll.mockResolvedValue(communities as any);
 
       const result = await controller.findAll();
 
       expect(result).toEqual(communities);
-      expect(mockCommunityService.findAll).toHaveBeenCalledWith();
+      expect(service.findAll).toHaveBeenCalledWith();
     });
   });
 
@@ -101,12 +76,12 @@ describe('CommunityController', () => {
         { id: 'community-2', name: 'My Community 2' },
       ];
 
-      mockCommunityService.findAll.mockResolvedValue(communities);
+      service.findAll.mockResolvedValue(communities as any);
 
       const result = await controller.findAllMine(mockReq);
 
       expect(result).toEqual(communities);
-      expect(mockCommunityService.findAll).toHaveBeenCalledWith('user-456');
+      expect(service.findAll).toHaveBeenCalledWith('user-456');
     });
   });
 
@@ -119,12 +94,12 @@ describe('CommunityController', () => {
         description: 'A specific community',
       };
 
-      mockCommunityService.findOne.mockResolvedValue(community);
+      service.findOne.mockResolvedValue(community as any);
 
       const result = await controller.findOne(communityId);
 
       expect(result).toEqual(community);
-      expect(mockCommunityService.findOne).toHaveBeenCalledWith(communityId);
+      expect(service.findOne).toHaveBeenCalledWith(communityId);
     });
   });
 
@@ -138,15 +113,12 @@ describe('CommunityController', () => {
         description: 'Original description',
       };
 
-      mockCommunityService.update.mockResolvedValue(updatedCommunity);
+      service.update.mockResolvedValue(updatedCommunity as any);
 
       const result = await controller.update(communityId, updateDto as any);
 
       expect(result).toEqual(updatedCommunity);
-      expect(mockCommunityService.update).toHaveBeenCalledWith(
-        communityId,
-        updateDto,
-      );
+      expect(service.update).toHaveBeenCalledWith(communityId, updateDto);
     });
   });
 
@@ -154,12 +126,12 @@ describe('CommunityController', () => {
     it('should remove a community', async () => {
       const communityId = 'community-222';
 
-      mockCommunityService.remove.mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined);
 
       const result = await controller.remove(communityId);
 
       expect(result).toBeUndefined();
-      expect(mockCommunityService.remove).toHaveBeenCalledWith(communityId);
+      expect(service.remove).toHaveBeenCalledWith(communityId);
     });
   });
 });
