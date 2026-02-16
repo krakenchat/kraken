@@ -31,6 +31,7 @@ import {
   MovieCreation,
   VideoCall,
 } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useScreenShare } from "../../hooks/useScreenShare";
 import { useLocalMediaState } from "../../hooks/useLocalMediaState";
@@ -55,6 +56,7 @@ import { userControllerGetProfileOptions } from "../../api-client/@tanstack/reac
 
 export const VoiceBottomBar: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { state, actions } = useVoiceConnection();
   const screenShare = useScreenShare();
   const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
@@ -514,6 +516,15 @@ export const VoiceBottomBar: React.FC = () => {
           </MenuItem>
           <MenuItem onClick={() => handleDeviceSettingsOpen('video')}>
             Video Settings
+          </MenuItem>
+          <Divider />
+          <MenuItem
+            onClick={() => {
+              navigate("/settings");
+              handleSettingsClose();
+            }}
+          >
+            All Settings
           </MenuItem>
         </Menu>
 

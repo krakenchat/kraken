@@ -36,6 +36,16 @@ vi.mock('../../components/Voice', () => ({
   VoiceChannelUserList: () => <div data-testid="voice-user-list" />,
 }));
 
+const mockUnreadCount = vi.fn((_id?: string) => 0);
+vi.mock('../../hooks/useReadReceipts', () => ({
+  useReadReceipts: () => ({
+    unreadCount: mockUnreadCount,
+    hasUnread: (id?: string) => mockUnreadCount(id) > 0,
+    lastReadMessageId: () => undefined,
+    allUnreadCounts: [],
+  }),
+}));
+
 const mockNavigate = vi.fn();
 let mockParams: Record<string, string> = { communityId: 'c1', channelId: 'other' };
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -176,5 +186,38 @@ describe('Channel', () => {
     });
 
     expect(screen.queryByTestId('voice-user-list')).not.toBeInTheDocument();
+  });
+
+  it('shows unread badge for text channels with unread messages', () => {
+    mockUnreadCount.mockReturnValue(5);
+    const channel = createChannel({ id: 'ch-1', name: 'general', type: 'TEXT' });
+    renderWithProviders(<Channel channel={channel} />, {
+      routerProps: { initialEntries: ['/community/c1/channel/other'] },
+    });
+
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+
+  it('hides unread badge when count is zero', () => {
+    mockUnreadCount.mockReturnValue(0);
+    const channel = createChannel({ id: 'ch-1', name: 'general', type: 'TEXT' });
+    renderWithProviders(<Channel channel={channel} />, {
+      routerProps: { initialEntries: ['/community/c1/channel/other'] },
+    });
+
+    // MUI Badge with invisible=true adds display:none via CSS but
+    // the badge element still exists in the DOM. Just verify no numeric text.
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  it('does not show unread badge for voice channels', () => {
+    mockUnreadCount.mockReturnValue(10);
+    const channel = createChannel({ id: 'vc-1', name: 'voice', type: 'VOICE' });
+    renderWithProviders(<Channel channel={channel} />, {
+      routerProps: { initialEntries: ['/community/c1/channel/other'] },
+    });
+
+    // Voice channels should not display any count badge
+    expect(screen.queryByText('10')).not.toBeInTheDocument();
   });
 });

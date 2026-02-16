@@ -3,7 +3,7 @@ import {
   Channel as ChannelType,
   ChannelType as ChannelKind,
 } from "../../types/channel.type";
-import { Box, alpha } from "@mui/material";
+import { Badge, Box, alpha } from "@mui/material";
 import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
@@ -15,6 +15,7 @@ import { VoiceChannelUserList } from "../Voice";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import type { ListItemProps } from "@mui/material/ListItem";
 import { useNotification } from "../../contexts/NotificationContext";
+import { useReadReceipts } from "../../hooks/useReadReceipts";
 import { logger } from "../../utils/logger";
 
 interface ChannelProps {
@@ -70,6 +71,8 @@ export function Channel({ channel }: ChannelProps) {
   }>();
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
   const { showNotification } = useNotification();
+  const { unreadCount } = useReadReceipts();
+  const count = channel.type === ChannelKind.TEXT ? unreadCount(channel.id) : 0;
 
   const handleClick = useCallback(async () => {
     if (channel.type === ChannelKind.TEXT) {
@@ -131,7 +134,15 @@ export function Channel({ channel }: ChannelProps) {
             <VolumeUpIcon sx={{ fontSize: 18 }} />
           )}
         </ListItemIcon>
-        <ChannelName primary={channel.name} />
+        <Badge
+          badgeContent={count}
+          color="primary"
+          max={99}
+          invisible={count === 0}
+          sx={{ "& .MuiBadge-badge": { fontSize: 10, height: 16, minWidth: 16 } }}
+        >
+          <ChannelName primary={channel.name} />
+        </Badge>
       </ChannelContainer>
 
       {/* Discord-style voice users nested under the channel */}

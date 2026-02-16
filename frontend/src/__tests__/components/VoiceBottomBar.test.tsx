@@ -136,6 +136,15 @@ vi.mock('../../components/Voice/VoiceChannelUserList', () => ({
   VoiceChannelUserList: () => <div data-testid="voice-user-list" />,
 }));
 
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock('../../components/Voice/DeviceSettingsDialog', () => ({
   DeviceSettingsDialog: () => null,
 }));
@@ -395,5 +404,28 @@ describe('VoiceBottomBar', () => {
     renderWithProviders(<VoiceBottomBar />);
 
     expect(screen.queryByRole('button', { name: /show video tiles/i })).not.toBeInTheDocument();
+  });
+
+  it('settings menu has "All Settings" item that navigates to /settings', async () => {
+    // Ensure desktop mode so settings button is visible
+    vi.mocked(useResponsive).mockReturnValue({
+      isMobile: false,
+      isTablet: false,
+      isDesktop: true,
+      deviceType: 'desktop',
+    } as never);
+
+    const { user } = renderWithProviders(<VoiceBottomBar />);
+
+    // Open settings menu via the Settings icon button
+    const settingsIcon = screen.getByTestId('SettingsIcon');
+    const settingsButton = settingsIcon.closest('button')!;
+    await user.click(settingsButton);
+
+    // Click "All Settings"
+    const allSettingsItem = await screen.findByText('All Settings');
+    await user.click(allSettingsItem);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/settings');
   });
 });

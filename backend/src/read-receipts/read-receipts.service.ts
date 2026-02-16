@@ -10,6 +10,15 @@ export interface UnreadCount {
   lastReadAt?: Date;
 }
 
+/** Filter to exclude thread replies from message counts.
+ *  Uses OR pattern for backward compat with messages that predate the field. */
+const EXCLUDE_THREAD_REPLIES = {
+  OR: [
+    { parentMessageId: null },
+    { NOT: { parentMessageId: { isSet: true } } },
+  ],
+};
+
 @Injectable()
 export class ReadReceiptsService {
   private readonly logger = new Logger(ReadReceiptsService.name);
@@ -156,7 +165,10 @@ export class ReadReceiptsService {
     // If no read receipt exists, all messages are unread
     if (!readReceipt) {
       const unreadCount = await this.databaseService.message.count({
-        where: channelId ? { channelId } : { directMessageGroupId },
+        where: {
+          ...(channelId ? { channelId } : { directMessageGroupId }),
+          ...EXCLUDE_THREAD_REPLIES,
+        },
       });
 
       return {
@@ -175,7 +187,10 @@ export class ReadReceiptsService {
     if (!lastReadMessage) {
       // If the last read message was deleted, treat all messages as unread
       const unreadCount = await this.databaseService.message.count({
-        where: channelId ? { channelId } : { directMessageGroupId },
+        where: {
+          ...(channelId ? { channelId } : { directMessageGroupId }),
+          ...EXCLUDE_THREAD_REPLIES,
+        },
       });
 
       return {
@@ -190,6 +205,7 @@ export class ReadReceiptsService {
       where: {
         ...(channelId ? { channelId } : { directMessageGroupId }),
         sentAt: { gt: lastReadMessage.sentAt },
+        ...EXCLUDE_THREAD_REPLIES,
       },
     });
 
@@ -282,14 +298,20 @@ export class ReadReceiptsService {
       channelsWithoutReceipt.length > 0
         ? this.databaseService.message.groupBy({
             by: ['channelId'],
-            where: { channelId: { in: channelsWithoutReceipt } },
+            where: {
+              channelId: { in: channelsWithoutReceipt },
+              ...EXCLUDE_THREAD_REPLIES,
+            },
             _count: { channelId: true },
           })
         : Promise.resolve([]),
       dmGroupsWithoutReceipt.length > 0
         ? this.databaseService.message.groupBy({
             by: ['directMessageGroupId'],
-            where: { directMessageGroupId: { in: dmGroupsWithoutReceipt } },
+            where: {
+              directMessageGroupId: { in: dmGroupsWithoutReceipt },
+              ...EXCLUDE_THREAD_REPLIES,
+            },
             _count: { directMessageGroupId: true },
           })
         : Promise.resolve([]),
@@ -337,7 +359,10 @@ export class ReadReceiptsService {
     if (channelReceiptsWithoutTimestamp.length > 0) {
       const counts = await this.databaseService.message.groupBy({
         by: ['channelId'],
-        where: { channelId: { in: channelReceiptsWithoutTimestamp } },
+        where: {
+          channelId: { in: channelReceiptsWithoutTimestamp },
+          ...EXCLUDE_THREAD_REPLIES,
+        },
         _count: { channelId: true },
       });
       const countMap = new Map(
@@ -359,6 +384,7 @@ export class ReadReceiptsService {
             where: {
               channelId: receipt.channelId,
               sentAt: { gt: receipt.lastReadAtDate },
+              ...EXCLUDE_THREAD_REPLIES,
             },
           });
           return {
@@ -400,7 +426,10 @@ export class ReadReceiptsService {
     if (dmReceiptsWithoutTimestamp.length > 0) {
       const counts = await this.databaseService.message.groupBy({
         by: ['directMessageGroupId'],
-        where: { directMessageGroupId: { in: dmReceiptsWithoutTimestamp } },
+        where: {
+          directMessageGroupId: { in: dmReceiptsWithoutTimestamp },
+          ...EXCLUDE_THREAD_REPLIES,
+        },
         _count: { directMessageGroupId: true },
       });
       const countMap = new Map(
@@ -425,6 +454,7 @@ export class ReadReceiptsService {
             where: {
               directMessageGroupId: receipt.directMessageGroupId,
               sentAt: { gt: receipt.lastReadAtDate },
+              ...EXCLUDE_THREAD_REPLIES,
             },
           });
           return {

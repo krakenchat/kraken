@@ -12,6 +12,13 @@ import {
 } from '@/test-utils';
 import { MarkAsReadDto } from './dto/mark-as-read.dto';
 
+const EXCLUDE_THREAD_REPLIES = {
+  OR: [
+    { parentMessageId: null },
+    { NOT: { parentMessageId: { isSet: true } } },
+  ],
+};
+
 describe('ReadReceiptsService', () => {
   let service: ReadReceiptsService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
@@ -393,6 +400,7 @@ describe('ReadReceiptsService', () => {
         where: {
           channelId,
           sentAt: { gt: lastReadMessage.sentAt },
+          ...EXCLUDE_THREAD_REPLIES,
         },
       });
     });
@@ -437,7 +445,7 @@ describe('ReadReceiptsService', () => {
         unreadCount: 10,
       });
       expect(mockDatabase.message.count).toHaveBeenCalledWith({
-        where: { channelId },
+        where: { channelId, ...EXCLUDE_THREAD_REPLIES },
       });
     });
 
@@ -472,6 +480,35 @@ describe('ReadReceiptsService', () => {
       await expect(
         service.getUnreadCount(userId, channelId, dmGroupId),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should exclude thread replies from unread counts', async () => {
+      const lastReadMessageId = 'message-100';
+      const lastReadMessage = MessageFactory.build({
+        id: lastReadMessageId,
+        channelId,
+        sentAt: new Date('2024-01-01'),
+      });
+      const readReceipt = ReadReceiptFactory.buildForChannel({
+        userId,
+        channelId,
+        lastReadMessageId,
+      });
+
+      mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
+      mockDatabase.message.findUnique.mockResolvedValue(lastReadMessage);
+      mockDatabase.message.count.mockResolvedValue(3);
+
+      await service.getUnreadCount(userId, channelId);
+
+      expect(mockDatabase.message.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          OR: [
+            { parentMessageId: null },
+            { NOT: { parentMessageId: { isSet: true } } },
+          ],
+        }),
+      });
     });
   });
 
@@ -671,7 +708,7 @@ describe('ReadReceiptsService', () => {
       // Should use groupBy for batch counting instead of individual counts
       expect(mockDatabase.message.groupBy).toHaveBeenCalledWith({
         by: ['channelId'],
-        where: { channelId: { in: channelIds } },
+        where: { channelId: { in: channelIds }, ...EXCLUDE_THREAD_REPLIES },
         _count: { channelId: true },
       });
       // Should NOT call count for each channel individually
