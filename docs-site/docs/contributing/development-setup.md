@@ -1,0 +1,178 @@
+# Development Setup
+
+All development is done through Docker — never run `npm` commands directly on the host.
+
+## Prerequisites
+
+- **[Docker](https://docs.docker.com/get-docker/)** (v20+) and **Docker Compose** (v2+)
+- **[Git](https://git-scm.com/)**
+
+## Starting the dev environment
+
+```bash
+git clone https://github.com/krakenchat/kraken.git
+cd kraken
+cp backend/env.sample backend/.env
+docker-compose up
+```
+
+This starts all services with hot reload — changes to `backend/` and `frontend/` are automatically picked up.
+
+| Service | URL |
+|---------|-----|
+| Frontend | [http://localhost:5173](http://localhost:5173) |
+| Backend API | [http://localhost:3000](http://localhost:3000) |
+| MongoDB | `localhost:27017` |
+| Redis | `localhost:6379` |
+
+## Common commands
+
+### Backend
+
+```bash
+# Open a shell in the backend container
+docker compose run --rm backend bash
+
+# Run tests
+docker compose run --rm backend npm run test
+
+# Run a single test file
+docker compose run --rm backend npx jest <test-pattern>
+
+# Lint
+docker compose run --rm backend npm run lint
+
+# Build
+docker compose run --rm backend npm run build
+```
+
+### Frontend
+
+```bash
+# Open a shell in the frontend container
+docker compose run --rm frontend bash
+
+# Lint
+docker compose run --rm frontend npm run lint
+
+# Build
+docker compose run --rm frontend npm run build
+
+# Run tests
+docker compose run --rm frontend npm run test
+```
+
+### Database (Prisma)
+
+```bash
+# Generate Prisma client + push schema (combined)
+docker compose run --rm backend npm run prisma
+
+# Generate Prisma client only
+docker compose run --rm backend npm run prisma:generate
+
+# Push schema to database only
+docker compose run --rm backend npm run prisma:push
+
+# Open Prisma Studio (database browser)
+docker compose run --rm -p 5555:5555 backend npx prisma studio
+```
+
+### Docker
+
+```bash
+# Start all services in background
+docker-compose up -d
+
+# Stop all services
+docker-compose down
+
+# View logs for a specific service
+docker-compose logs backend -f
+
+# Rebuild containers (after Dockerfile changes)
+docker-compose build --no-cache
+
+# Full reset (removes all data)
+docker-compose down -v && docker-compose build --no-cache && docker-compose up
+```
+
+## Regenerating the API client
+
+When backend controllers or DTOs change, regenerate the frontend API client:
+
+```bash
+# 1. Generate the OpenAPI spec
+docker compose run --rm backend npm run generate:openapi
+
+# 2. Regenerate the frontend SDK
+docker compose run --rm frontend sh -c 'OPENAPI_SPEC_PATH=/spec/openapi.json npx openapi-ts'
+```
+
+The backend directory is mounted at `/spec` inside the frontend container. The generated client goes to `frontend/src/api-client/` (gitignored — regenerated at build time).
+
+!!! note
+    Always use generated SDK functions (e.g., `voicePresenceControllerJoinPresence(...)`) instead of raw `client.post()` calls.
+
+## Testing
+
+### Backend tests
+
+- Framework: Jest with `@suites/unit` TestBed automocks
+- Test files: `*.spec.ts` alongside source files
+- E2E tests: `backend/test/` directory
+
+```bash
+docker compose run --rm backend npm run test        # All unit tests
+docker compose run --rm backend npm run test:e2e     # E2E tests
+docker compose run --rm backend npm run test -- --coverage  # With coverage
+```
+
+### Frontend tests
+
+- Framework: Vitest + jsdom + Testing Library + MSW v2
+- Test files: `frontend/src/__tests__/`
+
+```bash
+docker compose run --rm frontend npm run test       # All tests
+docker compose run --rm frontend npm run test:cov   # With coverage
+```
+
+## Project structure
+
+```
+kraken/
+├── backend/
+│   ├── src/           # NestJS application (modules, services, controllers)
+│   ├── prisma/        # Database schema (single schema.prisma for MongoDB)
+│   └── test/          # E2E tests
+├── frontend/
+│   ├── src/           # React application
+│   └── electron/      # Electron desktop app
+├── shared/            # Shared types and utilities (mounted in both containers)
+├── helm/              # Kubernetes Helm chart
+├── docs/              # Internal developer documentation
+└── docker-compose.yml
+```
+
+## Troubleshooting
+
+### Services not starting
+
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up
+```
+
+### Database connection issues
+
+Check that the MongoDB container is healthy:
+
+```bash
+docker-compose ps
+```
+
+### Port conflicts
+
+Ensure ports 3000, 5173, 27017, and 6379 are available. Stop any conflicting services or change the ports in `docker-compose.yml`.
