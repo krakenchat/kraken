@@ -15,6 +15,7 @@ export interface Notification {
   messageId: string | null;
   channelId: string | null;
   directMessageGroupId: string | null;
+  communityId?: string | null;
   authorId: string;
   read: boolean;
   dismissed: boolean;

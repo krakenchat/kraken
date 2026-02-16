@@ -41,6 +41,7 @@ import {
   UpdateThreadReplyPayload,
   DeleteThreadReplyPayload,
   ThreadReplyCountUpdatedPayload,
+  MemberAddedToCommunityPayload,
 } from '../payloads/websocket-payloads';
 
 /**
@@ -102,6 +103,9 @@ export type ServerToClientEvents = {
   [ServerEvents.TIMEOUT_REMOVED]: (data: TimeoutRemovedPayload) => void;
   [ServerEvents.MESSAGE_PINNED]: (data: MessagePinnedPayload) => void;
   [ServerEvents.MESSAGE_UNPINNED]: (data: MessageUnpinnedPayload) => void;
+
+  // Community Membership
+  [ServerEvents.MEMBER_ADDED_TO_COMMUNITY]: (data: MemberAddedToCommunityPayload) => void;
 
   // Acknowledgments & Errors
   [ServerEvents.ACK]: (data: AckPayload) => void;

@@ -17,6 +17,7 @@ describe('LivekitController', () => {
     generateToken: jest.fn(),
     getConnectionInfo: jest.fn(),
     validateConfiguration: jest.fn(),
+    muteParticipant: jest.fn(),
   };
 
   const mockLivekitReplayService = {
@@ -260,6 +261,52 @@ describe('LivekitController', () => {
       controller.validateConfiguration();
 
       expect(service.validateConfiguration).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('muteParticipant', () => {
+    it('should call service muteParticipant and return success', async () => {
+      jest.spyOn(service, 'muteParticipant').mockResolvedValue(undefined);
+
+      const result = await controller.muteParticipant('channel-123', {
+        participantIdentity: 'user-456',
+        mute: true,
+      });
+
+      expect(service.muteParticipant).toHaveBeenCalledWith(
+        'channel-123',
+        'user-456',
+        true,
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should pass mute=false for unmute', async () => {
+      jest.spyOn(service, 'muteParticipant').mockResolvedValue(undefined);
+
+      await controller.muteParticipant('channel-123', {
+        participantIdentity: 'user-456',
+        mute: false,
+      });
+
+      expect(service.muteParticipant).toHaveBeenCalledWith(
+        'channel-123',
+        'user-456',
+        false,
+      );
+    });
+
+    it('should propagate service errors', async () => {
+      jest
+        .spyOn(service, 'muteParticipant')
+        .mockRejectedValue(new Error('Mute failed'));
+
+      await expect(
+        controller.muteParticipant('channel-123', {
+          participantIdentity: 'user-456',
+          mute: true,
+        }),
+      ).rejects.toThrow('Mute failed');
     });
   });
 });

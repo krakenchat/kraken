@@ -12,7 +12,7 @@ import {
   Typography,
   IconButton,
   List,
-  ListItem,
+  ListItemButton,
   ListItemText,
   ListItemAvatar,
   Avatar,
@@ -34,6 +34,7 @@ import {
 
 import { Notification, NotificationType } from '../../types/notification.type';
 import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { logger } from '../../utils/logger';
 
 interface NotificationCenterProps {
@@ -46,6 +47,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onClose,
 }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const {
     data: notificationsData,
@@ -109,6 +111,27 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     } catch (error) {
       logger.error('Failed to delete notification:', error);
     }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read if unread
+    if (!notification.read) {
+      handleMarkAsRead(notification.id);
+    }
+
+    // Navigate to the message with highlight
+    const communityId = notification.communityId;
+    if (communityId && notification.channelId && notification.messageId) {
+      navigate(
+        `/community/${communityId}/channel/${notification.channelId}?highlight=${notification.messageId}`
+      );
+    } else if (notification.directMessageGroupId) {
+      navigate(
+        `/direct-messages?group=${notification.directMessageGroupId}${notification.messageId ? `&highlight=${notification.messageId}` : ''}`
+      );
+    }
+
+    onClose();
   };
 
   const getNotificationText = (notification: Notification): string => {
@@ -205,7 +228,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             <List sx={{ p: 0 }}>
               {notifications.map((notification) => (
                 <React.Fragment key={notification.id}>
-                  <ListItem
+                  <ListItemButton
                     sx={{
                       backgroundColor: notification.read
                         ? 'transparent'
@@ -216,6 +239,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                           : 'action.selected',
                       },
                     }}
+                    onClick={() => handleNotificationClick(notification)}
                     secondaryAction={
                       <Box>
                         {!notification.read && (
@@ -259,7 +283,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         variant: 'caption',
                       }}
                     />
-                  </ListItem>
+                  </ListItemButton>
                   <Divider component="li" />
                 </React.Fragment>
               ))}

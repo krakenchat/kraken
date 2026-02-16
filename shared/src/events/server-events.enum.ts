@@ -58,6 +58,9 @@ export enum ServerEvents {
   DELETE_THREAD_REPLY = 'deleteThreadReply',
   THREAD_REPLY_COUNT_UPDATED = 'threadReplyCountUpdated',
 
+  // Community Membership
+  MEMBER_ADDED_TO_COMMUNITY = 'memberAddedToCommunity',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',

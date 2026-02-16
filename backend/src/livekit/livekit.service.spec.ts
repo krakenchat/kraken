@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { createMockConfigService } from '@/test-utils';
 import { LivekitException } from './exceptions/livekit.exception';
 import { AccessToken } from 'livekit-server-sdk';
+import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
 // Mock the livekit-server-sdk
 jest.mock('livekit-server-sdk', () => {
@@ -14,6 +15,7 @@ jest.mock('livekit-server-sdk', () => {
         toJwt: jest.fn().mockResolvedValue('mock-jwt-token'),
       };
     }),
+    TrackSource: { MICROPHONE: 2 },
   };
 });
 
@@ -27,6 +29,11 @@ describe('LivekitService', () => {
     LIVEKIT_URL: 'wss://test.livekit.cloud',
   };
 
+  const mockRoomServiceClient = {
+    getParticipant: jest.fn(),
+    mutePublishedTrack: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -36,6 +43,10 @@ describe('LivekitService', () => {
         {
           provide: ConfigService,
           useValue: createMockConfigService(mockConfig),
+        },
+        {
+          provide: ROOM_SERVICE_CLIENT,
+          useValue: mockRoomServiceClient,
         },
       ],
     }).compile();
@@ -325,6 +336,92 @@ describe('LivekitService', () => {
       expect(loggerSpy).toHaveBeenCalledWith(
         'LiveKit configuration incomplete',
       );
+    });
+  });
+
+  describe('muteParticipant', () => {
+    it('should mute participant microphone tracks', async () => {
+      mockRoomServiceClient.getParticipant.mockResolvedValue({
+        tracks: [
+          { source: 2, sid: 'track-mic-1' }, // MICROPHONE
+          { source: 1, sid: 'track-cam-1' }, // CAMERA — should be skipped
+        ],
+      });
+
+      await service.muteParticipant('room-1', 'user-1', true);
+
+      expect(mockRoomServiceClient.getParticipant).toHaveBeenCalledWith(
+        'room-1',
+        'user-1',
+      );
+      expect(mockRoomServiceClient.mutePublishedTrack).toHaveBeenCalledTimes(1);
+      expect(mockRoomServiceClient.mutePublishedTrack).toHaveBeenCalledWith(
+        'room-1',
+        'user-1',
+        'track-mic-1',
+        true,
+      );
+    });
+
+    it('should unmute participant microphone tracks', async () => {
+      mockRoomServiceClient.getParticipant.mockResolvedValue({
+        tracks: [{ source: 2, sid: 'track-mic-1' }],
+      });
+
+      await service.muteParticipant('room-1', 'user-1', false);
+
+      expect(mockRoomServiceClient.mutePublishedTrack).toHaveBeenCalledWith(
+        'room-1',
+        'user-1',
+        'track-mic-1',
+        false,
+      );
+    });
+
+    it('should throw when roomServiceClient is not configured', async () => {
+      // Create a service with null roomServiceClient
+      const module = await Test.createTestingModule({
+        providers: [
+          LivekitService,
+          {
+            provide: ConfigService,
+            useValue: createMockConfigService(mockConfig),
+          },
+          {
+            provide: ROOM_SERVICE_CLIENT,
+            useValue: null,
+          },
+        ],
+      }).compile();
+
+      const serviceWithoutClient = module.get<LivekitService>(LivekitService);
+
+      await expect(
+        serviceWithoutClient.muteParticipant('room-1', 'user-1', true),
+      ).rejects.toThrow('LiveKit credentials not configured');
+    });
+
+    it('should throw LivekitException when getParticipant fails', async () => {
+      mockRoomServiceClient.getParticipant.mockRejectedValue(
+        new Error('Participant not found'),
+      );
+
+      await expect(
+        service.muteParticipant('room-1', 'user-1', true),
+      ).rejects.toThrow('Failed to mute participant');
+    });
+
+    it('should skip non-microphone tracks', async () => {
+      mockRoomServiceClient.getParticipant.mockResolvedValue({
+        tracks: [
+          { source: 1, sid: 'track-cam' }, // CAMERA
+          { source: 3, sid: 'track-screen' }, // SCREEN_SHARE
+        ],
+      });
+
+      await service.muteParticipant('room-1', 'user-1', true);
+
+      expect(mockRoomServiceClient.mutePublishedTrack).not.toHaveBeenCalled();
     });
   });
 });

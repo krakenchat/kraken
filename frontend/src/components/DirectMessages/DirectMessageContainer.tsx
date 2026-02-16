@@ -1,4 +1,5 @@
 import React from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import MessageContainerWrapper from "../Message/MessageContainerWrapper";
 import MemberListContainer from "../Message/MemberListContainer";
 import { useDirectMessages } from "../../hooks/useDirectMessages";
@@ -49,6 +50,21 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
     contextType: 'dm',
     contextId: dmGroupId,
   });
+
+  // Get highlight message ID from URL params (for notification deep linking)
+  const [searchParams] = useSearchParams();
+  const dmNavigate = useNavigate();
+  const highlightMessageId = searchParams.get("highlight");
+
+  // Clear highlight param from URL after a delay (so the flash animation can play)
+  React.useEffect(() => {
+    if (highlightMessageId) {
+      const timer = setTimeout(() => {
+        dmNavigate(`/direct-messages?group=${dmGroupId}`, { replace: true });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightMessageId, dmGroupId, dmNavigate]);
 
   // Convert DM group members to mention format
   const userMentions: UserMention[] = React.useMemo(() => {
@@ -147,6 +163,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
       memberListComponent={memberListComponent}
       placeholder="Type a direct message..."
       emptyStateMessage="No messages yet. Start the conversation!"
+      highlightMessageId={highlightMessageId || undefined}
     />
   );
 };

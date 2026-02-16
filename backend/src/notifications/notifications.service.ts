@@ -436,10 +436,7 @@ export class NotificationsService {
   /**
    * Get notifications for a user with pagination
    */
-  async getUserNotifications(
-    userId: string,
-    query: NotificationQueryDto,
-  ): Promise<Notification[]> {
+  async getUserNotifications(userId: string, query: NotificationQueryDto) {
     const { unreadOnly, limit = 50, offset = 0 } = query;
 
     return this.databaseService.notification.findMany({
@@ -465,6 +462,11 @@ export class NotificationsService {
             spans: true,
             channelId: true,
             directMessageGroupId: true,
+          },
+        },
+        channel: {
+          select: {
+            communityId: true,
           },
         },
       },

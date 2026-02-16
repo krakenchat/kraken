@@ -104,6 +104,22 @@ export class LivekitController {
     return this.livekitService.generateToken(tokenDto);
   }
 
+  @Post('channels/:channelId/mute-participant')
+  @RequiredActions(RbacActions.MUTE_PARTICIPANT)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiOkResponse({ description: 'Participant muted/unmuted successfully' })
+  async muteParticipant(
+    @Param('channelId') channelId: string,
+    @Body() body: { participantIdentity: string; mute: boolean },
+  ): Promise<{ success: boolean }> {
+    await this.livekitService.muteParticipant(channelId, body.participantIdentity, body.mute);
+    return { success: true };
+  }
+
   @Get('connection-info')
   @ApiOkResponse({ type: ConnectionInfoResponseDto })
   getConnectionInfo(): ConnectionInfoResponseDto {

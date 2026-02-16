@@ -32,6 +32,7 @@ export {
   type UpdateThreadReplyPayload,
   type DeleteThreadReplyPayload,
   type ThreadReplyCountUpdatedPayload,
+  type MemberAddedToCommunityPayload,
   type ServerEventPayloads,
   type ServerEventHandler,
   type PayloadOf,

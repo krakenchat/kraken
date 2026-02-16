@@ -29,6 +29,8 @@ import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import { useParticipantTracks } from "../../hooks/useParticipantTracks";
 import UserAvatar from "../Common/UserAvatar";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
+import { useUserProfile } from "../../contexts/UserProfileContext";
+import VoiceUserContextMenu from "./VoiceUserContextMenu";
 import { RoomEvent, Participant } from "livekit-client";
 
 interface VoiceChannelUserListProps {
@@ -45,6 +47,20 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   const theme = useTheme();
   const { state: voiceState } = useVoiceConnection();
   const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUserDto[]>([]);
+  const { openProfile } = useUserProfile();
+  const [contextMenu, setContextMenu] = useState<{
+    anchorEl: HTMLElement | null;
+    user: VoicePresenceUserDto | null;
+  }>({ anchorEl: null, user: null });
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLElement>, user: VoicePresenceUserDto) => {
+    event.preventDefault();
+    setContextMenu({ anchorEl: event.currentTarget, user });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({ anchorEl: null, user: null });
+  };
 
   // Check if we're connected to this specific channel
   const isConnectedToThisChannel = voiceState.currentChannelId === channel.id && voiceState.isConnected;
@@ -193,10 +209,13 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           py: 0.5,
           pl: 4, // Indent under voice channel like Discord
           minHeight: 40,
+          cursor: "pointer",
           "&:hover": {
             backgroundColor: theme.palette.semantic.overlay.light,
           },
         }}
+        onClick={() => openProfile(user.id)}
+        onContextMenu={(e) => handleContextMenu(e, user)}
       >
         <ListItemAvatar sx={{ minWidth: 40 }}>
           <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -343,10 +362,13 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           sx={{
             px: showInline ? 1 : 2,
             py: 1,
+            cursor: "pointer",
             "&:hover": {
               backgroundColor: "action.hover",
             },
           }}
+          onClick={() => openProfile(user.id)}
+          onContextMenu={(e) => handleContextMenu(e, user)}
         >
           <ListItemAvatar>
             <UserAvatar user={user} size="small" />
@@ -403,7 +425,10 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            cursor: "pointer",
           }}
+          onClick={() => openProfile(user.id)}
+          onContextMenu={(e) => handleContextMenu(e, user)}
         >
           <UserAvatar user={user} size="small" />
         </Box>
@@ -413,66 +438,102 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 
   if (showInline) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.5,
-          flexWrap: "wrap",
-        }}
-      >
-        {presence.users.slice(0, 3).map((user) => (
-          <InlineUserAvatar key={user.id} user={user} />
-        ))}
-        {presence.users.length > 3 && (
-          <Chip
-            label={`+${presence.users.length - 3}`}
-            size="small"
-            sx={{ height: 24, fontSize: "0.75rem" }}
+      <>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            flexWrap: "wrap",
+          }}
+        >
+          {presence.users.slice(0, 3).map((user) => (
+            <InlineUserAvatar key={user.id} user={user} />
+          ))}
+          {presence.users.length > 3 && (
+            <Chip
+              label={`+${presence.users.length - 3}`}
+              size="small"
+              sx={{ height: 24, fontSize: "0.75rem" }}
+            />
+          )}
+        </Box>
+        {contextMenu.user && (
+          <VoiceUserContextMenu
+            anchorEl={contextMenu.anchorEl}
+            open={Boolean(contextMenu.anchorEl)}
+            onClose={handleCloseContextMenu}
+            user={contextMenu.user}
+            communityId={channel.communityId}
+            onViewProfile={() => openProfile(contextMenu.user!.id)}
           />
         )}
-      </Box>
+      </>
     );
   }
 
   // Discord-style nested display under voice channels
   if (showDiscordStyle) {
     return (
-      <Box>
-        {presence.users.map((user) => (
-          <DiscordStyleUserItem key={user.id} user={user} />
-        ))}
-      </Box>
+      <>
+        <Box>
+          {presence.users.map((user) => (
+            <DiscordStyleUserItem key={user.id} user={user} />
+          ))}
+        </Box>
+        {contextMenu.user && (
+          <VoiceUserContextMenu
+            anchorEl={contextMenu.anchorEl}
+            open={Boolean(contextMenu.anchorEl)}
+            onClose={handleCloseContextMenu}
+            user={contextMenu.user}
+            communityId={channel.communityId}
+            onViewProfile={() => openProfile(contextMenu.user!.id)}
+          />
+        )}
+      </>
     );
   }
 
   return (
-    <Paper
-      elevation={2}
-      sx={{
-        maxHeight: 300,
-        overflow: "auto",
-        "&::-webkit-scrollbar": {
-          width: 6,
-        },
-        "&::-webkit-scrollbar-thumb": {
-          backgroundColor: theme.palette.semantic.overlay.heavy,
-          borderRadius: 3,
-        },
-      }}
-    >
-      <Box sx={{ p: 2, pb: 1 }}>
-        <Typography variant="h6" gutterBottom>
-          Voice Channel — {presence.count}{" "}
-          {presence.count === 1 ? "user" : "users"}
-        </Typography>
-      </Box>
+    <>
+      <Paper
+        elevation={2}
+        sx={{
+          maxHeight: 300,
+          overflow: "auto",
+          "&::-webkit-scrollbar": {
+            width: 6,
+          },
+          "&::-webkit-scrollbar-thumb": {
+            backgroundColor: theme.palette.semantic.overlay.heavy,
+            borderRadius: 3,
+          },
+        }}
+      >
+        <Box sx={{ p: 2, pb: 1 }}>
+          <Typography variant="h6" gutterBottom>
+            Voice Channel — {presence.count}{" "}
+            {presence.count === 1 ? "user" : "users"}
+          </Typography>
+        </Box>
 
-      <List disablePadding>
-        {presence.users.map((user, index) => (
-          <UserItem key={user.id} user={user} index={index} />
-        ))}
-      </List>
-    </Paper>
+        <List disablePadding>
+          {presence.users.map((user, index) => (
+            <UserItem key={user.id} user={user} index={index} />
+          ))}
+        </List>
+      </Paper>
+      {contextMenu.user && (
+        <VoiceUserContextMenu
+          anchorEl={contextMenu.anchorEl}
+          open={Boolean(contextMenu.anchorEl)}
+          onClose={handleCloseContextMenu}
+          user={contextMenu.user}
+          communityId={channel.communityId}
+          onViewProfile={() => openProfile(contextMenu.user!.id)}
+        />
+      )}
+    </>
   );
 };

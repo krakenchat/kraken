@@ -102,9 +102,10 @@ const DirectMessagesPage: React.FC = () => {
     const groupFromUrl = searchParams.get("group");
     if (groupFromUrl && groupFromUrl !== selectedDmGroupId) {
       setSelectedDmGroupId(groupFromUrl);
-      // Clear the query param after applying it to avoid stale state on refresh
-      searchParams.delete("group");
-      setSearchParams(searchParams, { replace: true });
+      // Clear only the group param, preserve highlight for the message container
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("group");
+      setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, selectedDmGroupId, setSearchParams]);
 

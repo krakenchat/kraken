@@ -1,15 +1,24 @@
-import { Injectable, Logger, HttpStatus } from '@nestjs/common';
+import { Injectable, Inject, Logger, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AccessToken } from 'livekit-server-sdk';
+import {
+  AccessToken,
+  RoomServiceClient,
+  TrackSource,
+} from 'livekit-server-sdk';
 import { CreateTokenDto } from './dto/create-token.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { LivekitException } from './exceptions/livekit.exception';
+import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
 @Injectable()
 export class LivekitService {
   private readonly logger = new Logger(LivekitService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(ROOM_SERVICE_CLIENT)
+    private readonly roomServiceClient: RoomServiceClient | null,
+  ) {}
 
   async generateToken(
     createTokenDto: CreateTokenDto,
@@ -92,5 +101,52 @@ export class LivekitService {
 
     this.logger.log('LiveKit configuration validated successfully');
     return true;
+  }
+
+  /**
+   * Mute or unmute a participant's audio tracks in a room
+   */
+  async muteParticipant(
+    roomId: string,
+    participantIdentity: string,
+    mute: boolean,
+  ): Promise<void> {
+    if (!this.roomServiceClient) {
+      throw new LivekitException(
+        'LiveKit credentials not configured',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    try {
+      const participant = await this.roomServiceClient.getParticipant(
+        roomId,
+        participantIdentity,
+      );
+
+      for (const track of participant.tracks) {
+        if (track.source === TrackSource.MICROPHONE) {
+          await this.roomServiceClient.mutePublishedTrack(
+            roomId,
+            participantIdentity,
+            track.sid,
+            mute,
+          );
+        }
+      }
+
+      this.logger.log(
+        `${mute ? 'Muted' : 'Unmuted'} participant ${participantIdentity} in room ${roomId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to ${mute ? 'mute' : 'unmute'} participant ${participantIdentity} in room ${roomId}`,
+        error,
+      );
+      throw new LivekitException(
+        `Failed to ${mute ? 'mute' : 'unmute'} participant`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
