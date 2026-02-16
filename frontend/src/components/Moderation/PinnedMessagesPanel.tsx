@@ -26,7 +26,6 @@ import {
   moderationControllerGetPinnedMessagesOptions,
   moderationControllerUnpinMessageMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import type { PinnedMessageDto as PinnedMessage } from "../../api-client/types.gen";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
@@ -52,7 +51,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
   const { data: pinnedMessages, isLoading, error } = useQuery(moderationControllerGetPinnedMessagesOptions({ path: { channelId } }));
   const { mutateAsync: unpinMessage } = useMutation({
     ...moderationControllerUnpinMessageMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.pinnedMessages),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetPinnedMessages' }] }),
   });
 
   const canUnpin = useCanPerformAction("COMMUNITY", communityId, RBAC_ACTIONS.UNPIN_MESSAGE);

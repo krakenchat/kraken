@@ -43,7 +43,7 @@ import {
   rolesControllerGetInstanceRoleUsersOptions,
   rolesControllerRemoveInstanceRoleMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import type { RoleDto as InstanceRole } from "../../api-client/types.gen";
 
 // All valid instance-level actions (must match backend)
@@ -74,15 +74,24 @@ const AdminRolesPage: React.FC = () => {
   const { data: roles, isLoading, error, refetch } = useQuery(rolesControllerGetInstanceRolesOptions());
   const { mutateAsync: createRole } = useMutation({
     ...rolesControllerCreateInstanceRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
+    },
   });
   const { mutateAsync: updateRole } = useMutation({
     ...rolesControllerUpdateInstanceRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
+    },
   });
   const { mutateAsync: deleteRole } = useMutation({
     ...rolesControllerDeleteInstanceRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
+    },
   });
 
   const [expandedRole, setExpandedRole] = useState<string | false>(false);
@@ -395,7 +404,10 @@ const RoleUsers: React.FC<{ roleId: string; onRemoveUser: () => void }> = ({
   const { data: users, isLoading } = useQuery(rolesControllerGetInstanceRoleUsersOptions({ path: { roleId } }));
   const { mutateAsync: removeUser } = useMutation({
     ...rolesControllerRemoveInstanceRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
+    },
   });
   const [removing, setRemoving] = useState<string | null>(null);
 

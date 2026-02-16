@@ -28,7 +28,7 @@ import {
   communityControllerFindAllMineOptions,
   userControllerGetProfileOptions,
 } from "../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
+
 import { CreateInviteDto } from "../types/invite.type";
 import { useResponsive } from "../hooks/useResponsive";
 import { useAuthenticatedImage } from "../hooks/useAuthenticatedFile";
@@ -52,7 +52,10 @@ const DesktopHomePage: React.FC = () => {
   const { data: communities = [] } = useQuery(communityControllerFindAllMineOptions());
   const { mutateAsync: createInvite, isPending: creatingInvite } = useMutation({
     ...inviteControllerCreateInviteMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.invite),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvites' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvite' }] });
+    },
   });
   const [lastCreatedInvite, setLastCreatedInvite] = useState<string | null>(
     null

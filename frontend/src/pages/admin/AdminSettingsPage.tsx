@@ -23,7 +23,7 @@ import {
   instanceControllerGetSettingsOptions,
   instanceControllerUpdateSettingsMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 
 // Helper functions for byte conversion
 const bytesToGB = (bytes: number): number => {
@@ -47,7 +47,10 @@ const AdminSettingsPage: React.FC = () => {
   const { data: settings, isLoading, error } = useQuery(instanceControllerGetSettingsOptions());
   const { mutateAsync: updateSettings, isPending: isSaving } = useMutation({
     ...instanceControllerUpdateSettingsMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceSettings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'instanceControllerGetSettings' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'instanceControllerGetPublicSettings' }] });
+    },
   });
 
   const [name, setName] = useState("");

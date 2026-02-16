@@ -41,7 +41,6 @@ import {
   rolesControllerGetUsersForRoleOptions,
   rolesControllerResetDefaultCommunityRolesMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import type { RoleDto } from "../../api-client/types.gen";
 import RoleEditor from "./RoleEditor";
 import { ACTION_LABELS } from "../../constants/rbacActions";
@@ -103,24 +102,39 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
   const { mutateAsync: createRole, isPending: creatingRoleLoading, error: createRoleError } = useMutation({
     ...rolesControllerCreateCommunityRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
+    },
   });
 
   const { mutateAsync: updateRole, isPending: updatingRoleLoading, error: updateRoleError } = useMutation({
     ...rolesControllerUpdateRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
+    },
   });
 
   const { mutateAsync: deleteRole, isPending: deletingRoleLoading } = useMutation({
     ...rolesControllerDeleteRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
+    },
   });
 
   const { mutateAsync: resetDefaults, isPending: resettingDefaults } = useMutation({
     ...rolesControllerResetDefaultCommunityRolesMutation(),
     onSuccess: () => {
-      invalidateByIds(queryClient, INVALIDATION_GROUPS.communityRoles);
-      invalidateByIds(queryClient, INVALIDATION_GROUPS.userRoles);
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForChannel' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyInstanceRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForChannel' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserInstanceRoles' }] });
     },
   });
 

@@ -16,7 +16,7 @@ import {
   friendsControllerCancelFriendRequestMutation,
   userControllerGetProfileOptions,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import FriendRequestCard from "./FriendRequestCard";
 import EmptyState from "../Common/EmptyState";
 import { logger } from "../../utils/logger";
@@ -35,15 +35,27 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
 
   const { mutateAsync: acceptRequest } = useMutation({
     ...friendsControllerAcceptFriendRequestMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+    },
   });
   const { mutateAsync: declineRequest } = useMutation({
     ...friendsControllerDeclineFriendRequestMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+    },
   });
   const { mutateAsync: cancelRequest } = useMutation({
     ...friendsControllerCancelFriendRequestMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+    },
   });
 
   const handleAccept = async (friendshipId: string) => {

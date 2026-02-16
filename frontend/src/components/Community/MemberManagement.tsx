@@ -24,7 +24,6 @@ import {
   membershipControllerCreateMutation,
   membershipControllerRemoveMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { userControllerFindAllUsersOptions } from "../../api-client/@tanstack/react-query.gen";
 import UserAvatar from "../Common/UserAvatar";
@@ -59,11 +58,23 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
 
   const { mutateAsync: createMembership, isPending: addingMember } = useMutation({
     ...membershipControllerCreateMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.membership),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForUser' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindMyMemberships' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerSearchCommunityMembers' }] });
+    },
   });
   const { mutateAsync: removeMembership, isPending: removingMember } = useMutation({
     ...membershipControllerRemoveMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.membership),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForUser' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindMyMemberships' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerSearchCommunityMembers' }] });
+    },
   });
 
   const { hasPermissions: canCreateMembers } = useUserPermissions({

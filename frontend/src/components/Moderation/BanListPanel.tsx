@@ -32,7 +32,6 @@ import {
   moderationControllerGetBanListOptions,
   moderationControllerUnbanUserMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import type { CommunityBanDto as CommunityBan } from "../../api-client/types.gen";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
@@ -116,7 +115,10 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
   const { data: bans, isLoading, error } = useQuery(moderationControllerGetBanListOptions({ path: { communityId } }));
   const { mutateAsync: unbanUser, isPending: isUnbanning } = useMutation({
     ...moderationControllerUnbanUserMutation(),
-    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.banList, ...INVALIDATION_GROUPS.moderationLogs]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetBanList' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetModerationLogs' }] });
+    },
   });
   const [selectedBan, setSelectedBan] = useState<CommunityBan | null>(null);
 

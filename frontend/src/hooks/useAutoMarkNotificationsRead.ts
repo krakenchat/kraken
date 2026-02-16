@@ -12,7 +12,7 @@ import {
   notificationsControllerGetNotificationsQueryKey,
 } from '../api-client/@tanstack/react-query.gen';
 import type { NotificationListResponseDto } from '../api-client';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
+
 import { logger } from '../utils/logger';
 
 interface UseAutoMarkNotificationsReadOptions {
@@ -42,7 +42,10 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
 
   const { mutateAsync: markAsRead } = useMutation({
     ...notificationsControllerMarkAsReadMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   // Wrap in ref to stabilize for useEffect

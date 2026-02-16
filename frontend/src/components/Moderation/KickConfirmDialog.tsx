@@ -20,7 +20,6 @@ import {
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { moderationControllerKickUserMutation } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 interface KickConfirmDialogProps {
   open: boolean;
@@ -43,7 +42,14 @@ const KickConfirmDialog: React.FC<KickConfirmDialogProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: kickUser, isPending: isLoading } = useMutation({
     ...moderationControllerKickUserMutation(),
-    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.moderationLogs, ...INVALIDATION_GROUPS.membership]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetModerationLogs' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForUser' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindMyMemberships' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerSearchCommunityMembers' }] });
+    },
   });
 
   const handleSubmit = async () => {

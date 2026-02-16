@@ -5,7 +5,7 @@ import {
   threadsControllerSubscribeMutation,
   threadsControllerUnsubscribeMutation,
 } from "../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../utils/queryInvalidation";
+
 import type { ThreadMetadataDto } from "../api-client";
 import { logger } from "../utils/logger";
 
@@ -41,7 +41,7 @@ export function useThreadSubscription(parentMessageId: string) {
         return { ...old, isSubscribed: false };
       });
     },
-    onSettled: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.threadMetadata),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [{ _id: 'threadsControllerGetMetadata' }] }),
   });
 
   const { mutateAsync: unsubscribe } = useMutation({
@@ -58,7 +58,7 @@ export function useThreadSubscription(parentMessageId: string) {
         return { ...old, isSubscribed: true };
       });
     },
-    onSettled: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.threadMetadata),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [{ _id: 'threadsControllerGetMetadata' }] }),
   });
 
   const toggleSubscription = async () => {

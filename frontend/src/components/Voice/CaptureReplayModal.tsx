@@ -28,7 +28,7 @@ import {
   livekitControllerCaptureReplayMutation,
   directMessagesControllerFindUserDmGroupsOptions,
 } from '../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+
 import { useParams } from 'react-router-dom';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken } from '../../utils/auth';
@@ -73,7 +73,10 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: captureReplay, isPending: isLoading } = useMutation({
     ...livekitControllerCaptureReplayMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.clips),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetMyClips' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetUserPublicClips' }] });
+    },
   });
 
   const handleCustomRangeChange = useCallback((start: number, end: number) => {

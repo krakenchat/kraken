@@ -13,7 +13,7 @@ import {
   friendsControllerRemoveFriendMutation,
   directMessagesControllerCreateDmGroupMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import FriendCard from "./FriendCard";
 import EmptyState from "../Common/EmptyState";
 import { logger } from "../../utils/logger";
@@ -28,11 +28,18 @@ const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
   const { data: friends = [], isLoading, error } = useQuery(friendsControllerGetFriendsOptions());
   const { mutateAsync: removeFriend } = useMutation({
     ...friendsControllerRemoveFriendMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+    },
   });
   const { mutateAsync: createDmGroup } = useMutation({
     ...directMessagesControllerCreateDmGroupMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.directMessageGroup),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindUserDmGroups' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindDmGroup' }] });
+    },
   });
 
   // We need to track the friendship IDs with each friend

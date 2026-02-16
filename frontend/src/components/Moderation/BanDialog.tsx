@@ -24,7 +24,6 @@ import {
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { moderationControllerBanUserMutation } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 
 interface BanDialogProps {
   open: boolean;
@@ -57,7 +56,15 @@ const BanDialog: React.FC<BanDialogProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: banUser, isPending: isLoading } = useMutation({
     ...moderationControllerBanUserMutation(),
-    onSuccess: () => invalidateByIds(queryClient, [...INVALIDATION_GROUPS.banList, ...INVALIDATION_GROUPS.moderationLogs, ...INVALIDATION_GROUPS.membership]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetBanList' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetModerationLogs' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForUser' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindMyMemberships' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerSearchCommunityMembers' }] });
+    },
   });
 
   const handleSubmit = async () => {

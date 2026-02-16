@@ -50,7 +50,7 @@ import {
   notificationsControllerGetDebugSubscriptionsOptions,
   notificationsControllerClearDebugSettingsMutation,
 } from '../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+
 import { pushNotificationsControllerSendTestPushMutation } from '../../api-client/@tanstack/react-query.gen';
 
 interface TestResult {
@@ -86,18 +86,22 @@ const NotificationDebugPage: React.FC = () => {
 
   const { mutateAsync: sendTestNotification, isPending: isSendingTest } = useMutation({
     ...notificationsControllerSendTestNotificationMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+    },
   });
 
   const { mutateAsync: sendTestPush, isPending: isSendingPush } = useMutation(pushNotificationsControllerSendTestPushMutation());
 
   const { mutateAsync: clearSettings, isPending: isClearing } = useMutation({
     ...notificationsControllerClearDebugSettingsMutation(),
-    onSuccess: () => invalidateByIds(queryClient, [
-      ...INVALIDATION_GROUPS.notifications,
-      ...INVALIDATION_GROUPS.notificationSettings,
-      ...INVALIDATION_GROUPS.channelOverrides,
-    ]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetSettings' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetChannelOverride' }] });
+    },
   });
 
   const [subscriptionsData, setSubscriptionsData] = React.useState<{

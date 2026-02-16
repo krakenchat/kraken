@@ -30,7 +30,7 @@ import {
   notificationsControllerDeleteChannelOverrideMutation,
   notificationsControllerGetSettingsOptions,
 } from '../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+
 import { logger } from '../../utils/logger';
 
 interface ChannelNotificationMenuProps {
@@ -55,12 +55,16 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
 
   const { mutateAsync: setOverride, isPending: isSettingOverride } = useMutation({
     ...notificationsControllerSetChannelOverrideMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelOverrides),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetChannelOverride' }] });
+    },
   });
 
   const { mutateAsync: deleteOverride, isPending: isDeletingOverride } = useMutation({
     ...notificationsControllerDeleteChannelOverrideMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channelOverrides),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetChannelOverride' }] });
+    },
   });
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {

@@ -13,7 +13,7 @@ import {
   appearanceSettingsControllerGetSettingsOptions,
   appearanceSettingsControllerUpdateSettingsMutation,
 } from '../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../utils/queryInvalidation';
+
 import type { AccentColor, ThemeIntensity, ThemeMode } from '../theme/constants';
 
 export function useThemeSync() {
@@ -22,7 +22,7 @@ export function useThemeSync() {
   const { data: serverSettings, isSuccess } = useQuery(appearanceSettingsControllerGetSettingsOptions());
   const { mutate: updateSettings } = useMutation({
     ...appearanceSettingsControllerUpdateSettingsMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.appearanceSettings),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [{ _id: 'appearanceSettingsControllerGetSettings' }] }),
   });
   const hasAppliedServerSettings = useRef(false);
 

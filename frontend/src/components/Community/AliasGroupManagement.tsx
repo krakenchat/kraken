@@ -35,7 +35,6 @@ import {
   aliasGroupsControllerGetCommunityAliasGroupsOptions,
   aliasGroupsControllerDeleteAliasGroupMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 interface AliasGroupSummary {
   id: string;
   name: string;
@@ -89,7 +88,10 @@ const AliasGroupManagement: React.FC<AliasGroupManagementProps> = ({ communityId
 
   const { mutateAsync: deleteGroup, isPending: deletingGroupLoading } = useMutation({
     ...aliasGroupsControllerDeleteAliasGroupMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.aliasGroups),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
+    },
   });
 
   const handleDeleteGroup = useCallback(async () => {

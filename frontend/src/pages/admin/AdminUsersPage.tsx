@@ -54,7 +54,7 @@ import {
   rolesControllerRemoveInstanceRoleMutation,
   rolesControllerGetInstanceRoleUsersOptions,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import type { AdminUserEntity as AdminUser, RoleDto as InstanceRole } from "../../api-client/types.gen";
 import UserAvatar from "../../components/Common/UserAvatar";
 
@@ -85,23 +85,38 @@ const AdminUsersPage: React.FC = () => {
   const { data: instanceRoles } = useQuery(rolesControllerGetInstanceRolesOptions());
   const { mutateAsync: updateRole } = useMutation({
     ...userControllerUpdateUserRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminUsers),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerFindAllUsersAdmin' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetUserByIdAdmin' }] });
+    },
   });
   const { mutateAsync: setBanStatus } = useMutation({
     ...userControllerSetBanStatusMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminUsers),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerFindAllUsersAdmin' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetUserByIdAdmin' }] });
+    },
   });
   const { mutateAsync: deleteUser } = useMutation({
     ...userControllerDeleteUserMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.adminUsers),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerFindAllUsersAdmin' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetUserByIdAdmin' }] });
+    },
   });
   const { mutateAsync: assignRole } = useMutation({
     ...rolesControllerAssignInstanceRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
+    },
   });
   const { mutateAsync: removeRole } = useMutation({
     ...rolesControllerRemoveInstanceRoleMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.instanceRoles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
+    },
   });
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, user: AdminUser) => {

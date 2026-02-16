@@ -31,7 +31,7 @@ import {
   storageQuotaControllerGetUsersStorageListOptions,
   storageQuotaControllerRecalculateUserStorageMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 
 // Helper to format bytes
 const formatBytes = (bytes: number): string => {
@@ -70,7 +70,10 @@ const AdminStoragePage: React.FC = () => {
   }));
   const { mutateAsync: recalculateStorage, isPending: isRecalculating } = useMutation({
     ...storageQuotaControllerRecalculateUserStorageMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.userStorage),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'storageQuotaControllerGetUsersStorageList' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'storageQuotaControllerGetUserStorageStats' }] });
+    },
   });
 
   // Sort users client-side (backend sorts by percentUsed desc by default)

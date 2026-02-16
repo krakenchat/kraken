@@ -38,7 +38,7 @@ import {
   userControllerFindAllUsersOptions,
   userControllerGetProfileOptions,
 } from '../../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../../utils/queryInvalidation';
+
 import UserAvatar from '../../Common/UserAvatar';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
@@ -66,7 +66,10 @@ export const MobileMessagesPanel: React.FC = () => {
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const { mutateAsync: createDmGroup, isPending: isCreating } = useMutation({
     ...directMessagesControllerCreateDmGroupMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.directMessageGroup),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindUserDmGroups' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindDmGroup' }] });
+    },
   });
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);

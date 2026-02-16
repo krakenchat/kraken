@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { friendsControllerSendFriendRequestMutation } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
 
 interface AddFriendDialogProps {
@@ -24,7 +24,11 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
   const queryClient = useQueryClient();
   const { mutateAsync: sendFriendRequest, isPending: isSending } = useMutation({
     ...friendsControllerSendFriendRequestMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.friends),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+    },
   });
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);

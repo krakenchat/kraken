@@ -35,7 +35,7 @@ import {
   authControllerRevokeSessionMutation,
   authControllerRevokeAllOtherSessionsMutation,
 } from '../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+
 import type { SessionInfoDto as SessionInfo } from '../../api-client/types.gen';
 import { useNotification } from '../../contexts/NotificationContext';
 import { logger } from '../../utils/logger';
@@ -132,11 +132,15 @@ const SessionsSettings: React.FC = () => {
   const { data: sessions, isLoading, error, refetch } = useQuery(authControllerGetSessionsOptions());
   const { mutateAsync: revokeSession } = useMutation({
     ...authControllerRevokeSessionMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.sessions),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'authControllerGetSessions' }] });
+    },
   });
   const { mutateAsync: revokeAllOther, isPending: isRevokingAll } = useMutation({
     ...authControllerRevokeAllOtherSessionsMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.sessions),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'authControllerGetSessions' }] });
+    },
   });
 
   const [revokingId, setRevokingId] = useState<string | null>(null);

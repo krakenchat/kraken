@@ -24,7 +24,7 @@ import {
   directMessagesControllerCreateDmGroupMutation,
   userControllerGetProfileOptions,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
+
 import { DirectMessageGroup } from "../../types/direct-message.type";
 import UserAvatar from "../Common/UserAvatar";
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
@@ -49,7 +49,10 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const { mutateAsync: createDmGroup, isPending: isCreating } = useMutation({
     ...directMessagesControllerCreateDmGroupMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.directMessageGroup),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindUserDmGroups' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindDmGroup' }] });
+    },
   });
 
   const [selectedUsers, setSelectedUsers] = useState<UserOption[]>([]);

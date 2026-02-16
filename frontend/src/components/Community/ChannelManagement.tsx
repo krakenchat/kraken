@@ -39,7 +39,6 @@ import {
   channelsControllerMoveUpMutation,
   channelsControllerMoveDownMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { invalidateByIds, INVALIDATION_GROUPS } from "../../utils/queryInvalidation";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import type { Channel } from "../../types/channel.type";
 import { logger } from "../../utils/logger";
@@ -78,23 +77,43 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
 
   const { mutateAsync: createChannel, isPending: creatingChannel } = useMutation({
     ...channelsControllerCreateMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
+    },
   });
   const { mutateAsync: updateChannel, isPending: updatingChannel } = useMutation({
     ...channelsControllerUpdateMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
+    },
   });
   const { mutateAsync: deleteChannel, isPending: deletingChannel } = useMutation({
     ...channelsControllerRemoveMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
+    },
   });
   const { mutateAsync: moveUp, isPending: movingUp } = useMutation({
     ...channelsControllerMoveUpMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
+    },
   });
   const { mutateAsync: moveDown, isPending: movingDown } = useMutation({
     ...channelsControllerMoveDownMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.channel),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
+    },
   });
 
   // Sort channels by type (TEXT first) then by position

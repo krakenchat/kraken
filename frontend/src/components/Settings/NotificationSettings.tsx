@@ -39,7 +39,7 @@ import {
   notificationsControllerUpdateSettingsMutation,
   pushNotificationsControllerSendTestPushToSelfMutation,
 } from '../../api-client/@tanstack/react-query.gen';
-import { invalidateByIds, INVALIDATION_GROUPS } from '../../utils/queryInvalidation';
+
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { isElectron } from '../../utils/platform';
@@ -52,7 +52,9 @@ export const NotificationSettings: React.FC = () => {
   const { data: settings, isLoading, error } = useQuery(notificationsControllerGetSettingsOptions());
   const { mutateAsync: updateSettings, isPending: isUpdating } = useMutation({
     ...notificationsControllerUpdateSettingsMutation(),
-    onSuccess: () => invalidateByIds(queryClient, INVALIDATION_GROUPS.notificationSettings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetSettings' }] });
+    },
   });
   const {
     isEnabled,

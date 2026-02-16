@@ -47,11 +47,6 @@ vi.mock('../../main', () => ({
   queryClient: { invalidateQueries: vi.fn() },
 }));
 
-vi.mock('../../utils/queryInvalidation', () => ({
-  invalidateByIds: vi.fn(),
-  INVALIDATION_GROUPS: { voicePresence: ['voicePresence'] },
-}));
-
 vi.mock('../../utils/storage', () => ({
   getCachedItem: vi.fn().mockReturnValue(null),
   setCachedItem: vi.fn(),
