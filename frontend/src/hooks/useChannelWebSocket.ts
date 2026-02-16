@@ -219,6 +219,9 @@ export function useChannelWebSocket() {
       queryClient.invalidateQueries({
         queryKey: [{ _id: 'messagesControllerFindAllForChannel' }],
       });
+      queryClient.invalidateQueries({
+        queryKey: readReceiptsControllerGetUnreadCountsQueryKey(),
+      });
     };
 
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);

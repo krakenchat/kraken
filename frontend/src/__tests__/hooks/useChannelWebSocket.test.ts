@@ -306,6 +306,21 @@ describe('useChannelWebSocket', () => {
       const query = queryClient.getQueryCache().find({ queryKey: key });
       expect(query?.isStale()).toBe(true);
     });
+
+    it('invalidates unread counts on reconnect', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 5 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+
+      renderChannelWebSocket();
+
+      await act(() => mockSocket.simulateEvent('connect'));
+
+      const query = queryClient.getQueryCache().find({ queryKey: unreadKey });
+      expect(query?.isStale()).toBe(true);
+    });
   });
 
   describe('READ_RECEIPT_UPDATED', () => {
