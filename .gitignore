@@ -76,6 +76,9 @@ frontend/coverage
 docker-compose.override.yml
 egress-output/
 
+# Git worktrees
+.worktrees/
+
 # Generated API client (regenerated from openapi.json)
 frontend/src/api-client/
 

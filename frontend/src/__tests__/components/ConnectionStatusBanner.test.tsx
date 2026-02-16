@@ -24,11 +24,8 @@ const defaultVoiceState = {
   showVideoTiles: false,
 };
 
-vi.mock('../../hooks/useVoiceConnection', () => ({
-  useVoiceConnection: vi.fn(() => ({
-    state: defaultVoiceState,
-    actions: {},
-  })),
+vi.mock('../../contexts/VoiceContext', () => ({
+  useVoice: vi.fn(() => defaultVoiceState),
 }));
 
 vi.mock('../../hooks/useResponsive', () => ({
@@ -40,16 +37,13 @@ vi.mock('../../hooks/useResponsive', () => ({
   })),
 }));
 
-const { useVoiceConnection } = await import('../../hooks/useVoiceConnection');
+const { useVoice } = await import('../../contexts/VoiceContext');
 
 describe('ConnectionStatusBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSocketConnected.mockReturnValue(true);
-    vi.mocked(useVoiceConnection).mockReturnValue({
-      state: { ...defaultVoiceState },
-      actions: {},
-    } as never);
+    vi.mocked(useVoice).mockReturnValue({ ...defaultVoiceState } as never);
   });
 
   it('renders nothing when connected', () => {
@@ -74,14 +68,11 @@ describe('ConnectionStatusBanner', () => {
 
   it('positions higher when voice bar is active', () => {
     mockSocketConnected.mockReturnValue(false);
-    vi.mocked(useVoiceConnection).mockReturnValue({
-      state: {
-        isConnected: true,
-        currentChannelId: 'ch-1',
-        currentDmGroupId: null,
-        showVideoTiles: false,
-      },
-      actions: {},
+    vi.mocked(useVoice).mockReturnValue({
+      isConnected: true,
+      currentChannelId: 'ch-1',
+      currentDmGroupId: null,
+      showVideoTiles: false,
     } as never);
 
     renderWithProviders(<ConnectionStatusBanner />);

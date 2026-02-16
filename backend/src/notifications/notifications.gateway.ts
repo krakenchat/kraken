@@ -67,6 +67,8 @@ export class NotificationsGateway
       message?: {
         id: string;
         spans: any[];
+        channelId: string | null;
+        directMessageGroupId: string | null;
       } | null;
       channel?: {
         id: string;

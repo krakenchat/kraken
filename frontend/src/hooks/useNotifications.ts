@@ -191,7 +191,6 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         } : undefined,
         message: payload.message ? {
           id: payload.message.id || '',
-          content: '',
           spans: payload.message.spans.map((s) => ({
             type: s.type,
             text: s.text,
