@@ -110,7 +110,12 @@ describe('NotificationsService', () => {
             displayName: null,
             avatarUrl: null,
           },
-          message: { id: 'msg-1', spans: [] },
+          message: {
+            id: 'msg-1',
+            spans: [],
+            channelId,
+            directMessageGroupId: null,
+          },
         }),
       );
 
@@ -246,7 +251,12 @@ describe('NotificationsService', () => {
             displayName: null,
             avatarUrl: null,
           },
-          message: { id: message.id, spans: [] },
+          message: {
+            id: message.id,
+            spans: [],
+            channelId,
+            directMessageGroupId: null,
+          },
         }),
       );
 

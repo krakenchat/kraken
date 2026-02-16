@@ -310,6 +310,8 @@ export class NotificationsService {
           select: {
             id: true,
             spans: true,
+            channelId: true,
+            directMessageGroupId: true,
           },
         },
         channel: {
