@@ -1,7 +1,7 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { NotificationsService } from './notifications.service';
-import { NotificationsGateway } from './notifications.gateway';
+
 import { DatabaseService } from '@/database/database.service';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 import { NotificationType, SpanType } from '@prisma/client';
@@ -16,7 +16,7 @@ import {
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let notificationsGateway: Mocked<NotificationsGateway>;
+
   let pushNotificationsService: Mocked<PushNotificationsService>;
 
   beforeEach(async () => {
@@ -28,12 +28,15 @@ describe('NotificationsService', () => {
       .compile();
 
     service = unit;
-    notificationsGateway = unitRef.get(NotificationsGateway);
+
     pushNotificationsService = unitRef.get(PushNotificationsService);
 
     // Default mock behaviors
     pushNotificationsService.isEnabled.mockReturnValue(false);
-    pushNotificationsService.sendToUser.mockResolvedValue({ sent: 0, failed: 0 });
+    pushNotificationsService.sendToUser.mockResolvedValue({
+      sent: 0,
+      failed: 0,
+    });
   });
 
   afterEach(() => {

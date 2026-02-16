@@ -2,7 +2,7 @@ import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { LivekitWebhookController } from './livekit-webhook.controller';
 import { LivekitReplayService } from './livekit-replay.service';
-import { VoicePresenceService } from '../voice-presence/voice-presence.service';
+
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { WebhookReceiver } from 'livekit-server-sdk';

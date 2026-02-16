@@ -4,7 +4,7 @@ import { MembershipService } from './membership.service';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
-import { WebsocketService } from '@/websocket/websocket.service';
+
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   createMockDatabase,
@@ -56,9 +56,7 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(
-        memberRole as any,
-      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
       rolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
@@ -153,9 +151,7 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockRejectedValue(
         new Error('Channel not found'),
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(
-        memberRole as any,
-      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
       rolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
@@ -271,9 +267,7 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(
-        memberRole as any,
-      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
       rolesService.assignUserToCommunityRole.mockRejectedValue(
         new Error('Role assignment failed'),
       );

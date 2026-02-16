@@ -4,7 +4,7 @@ import { VoicePresenceService } from './voice-presence.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
-import { LivekitReplayService } from '@/livekit/livekit-replay.service';
+
 import { ServerEvents } from '@kraken/shared';
 
 describe('VoicePresenceService', () => {
