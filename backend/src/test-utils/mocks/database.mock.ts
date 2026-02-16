@@ -70,6 +70,7 @@ export type MockDatabaseService = {
   communityBan: MockPrismaModel;
   communityTimeout: MockPrismaModel;
   moderationLog: MockPrismaModel;
+  replayClip: MockPrismaModel;
 
   // Prisma client methods
   $connect: jest.Mock;
@@ -135,6 +136,7 @@ export function createMockDatabase(): MockDatabaseService {
     communityBan: createMockPrismaModel(),
     communityTimeout: createMockPrismaModel(),
     moderationLog: createMockPrismaModel(),
+    replayClip: createMockPrismaModel(),
 
     // Prisma client methods
     $connect: jest.fn().mockResolvedValue(undefined),

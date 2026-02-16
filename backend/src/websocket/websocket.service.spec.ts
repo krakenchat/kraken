@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { WebsocketService } from './websocket.service';
 import { Server } from 'socket.io';
 
@@ -6,11 +6,13 @@ describe('WebsocketService', () => {
   let service: WebsocketService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [WebsocketService],
-    }).compile();
+    const { unit } = await TestBed.solitary(WebsocketService).compile();
 
-    service = module.get<WebsocketService>(WebsocketService);
+    service = unit;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {

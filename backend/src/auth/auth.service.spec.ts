@@ -29,12 +29,13 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
+    const mockJwtService = createMockJwtService();
 
     const { unit, unitRef } = await TestBed.solitary(AuthService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .mock(JwtService)
-      .final(createMockJwtService())
+      .final(mockJwtService)
       .mock(ConfigService)
       .final(
         createMockConfigService({
@@ -45,7 +46,7 @@ describe('AuthService', () => {
 
     service = unit;
     userService = unitRef.get(UserService);
-    jwtService = unitRef.get(JwtService);
+    jwtService = mockJwtService as unknown as Mocked<JwtService>;
   });
 
   afterEach(() => {
@@ -56,8 +57,8 @@ describe('AuthService', () => {
     it('should throw error if JWT_REFRESH_SECRET is not set', () => {
       expect(() => {
         new AuthService(
-          userService,
-          jwtService,
+          userService as unknown as UserService,
+          jwtService as unknown as JwtService,
           mockDatabase as unknown as DatabaseService,
           createMockConfigService({
             JWT_REFRESH_SECRET: undefined,

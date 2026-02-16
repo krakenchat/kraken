@@ -21,7 +21,7 @@ jest.mock('livekit-server-sdk', () => {
 
 describe('LivekitService', () => {
   let service: LivekitService;
-  let configService: ConfigService;
+  let configService: any;
 
   const mockConfig = {
     LIVEKIT_API_KEY: 'test-api-key',
@@ -36,16 +36,16 @@ describe('LivekitService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    configService = createMockConfigService(mockConfig);
 
-    const { unit, unitRef } = await TestBed.solitary(LivekitService)
+    const { unit } = await TestBed.solitary(LivekitService)
       .mock(ConfigService)
-      .final(createMockConfigService(mockConfig))
+      .final(configService)
       .mock(ROOM_SERVICE_CLIENT)
       .final(mockRoomServiceClient)
       .compile();
 
     service = unit;
-    configService = unitRef.get(ConfigService);
   });
 
   afterEach(() => {
@@ -379,7 +379,7 @@ describe('LivekitService', () => {
         .mock(ConfigService)
         .final(createMockConfigService(mockConfig))
         .mock(ROOM_SERVICE_CLIENT)
-        .final(null)
+        .final(null as any)
         .compile();
 
       await expect(

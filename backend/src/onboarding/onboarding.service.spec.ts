@@ -35,27 +35,29 @@ describe('OnboardingService', () => {
     mockDatabase = createMockDatabase();
     mockRedis = createMockRedis();
 
-    const { unit, unitRef } = await TestBed.solitary(OnboardingService)
+    const mockRolesService = {
+      createDefaultCommunityRoles: jest.fn(),
+      assignUserToCommunityRole: jest.fn(),
+      createDefaultInstanceRole: jest
+        .fn()
+        .mockResolvedValue('mock-instance-admin-role-id'),
+      assignUserToInstanceRole: jest.fn(),
+      createDefaultCommunityCreatorRole: jest
+        .fn()
+        .mockResolvedValue('mock-community-creator-role-id'),
+    };
+
+    const { unit } = await TestBed.solitary(OnboardingService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .mock(REDIS_CLIENT)
       .final(mockRedis)
       .mock(RolesService)
-      .final({
-        createDefaultCommunityRoles: jest.fn(),
-        assignUserToCommunityRole: jest.fn(),
-        createDefaultInstanceRole: jest
-          .fn()
-          .mockResolvedValue('mock-instance-admin-role-id'),
-        assignUserToInstanceRole: jest.fn(),
-        createDefaultCommunityCreatorRole: jest
-          .fn()
-          .mockResolvedValue('mock-community-creator-role-id'),
-      })
+      .final(mockRolesService)
       .compile();
 
     service = unit;
-    rolesService = unitRef.get(RolesService);
+    rolesService = mockRolesService as unknown as Mocked<RolesService>;
   });
 
   afterEach(() => {

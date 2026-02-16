@@ -1,30 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { RoomsGateway } from './rooms.gateway';
 import { RoomsService } from './rooms.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
-import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
 import { Socket, Server } from 'socket.io';
 
 describe('RoomsGateway', () => {
   let gateway: RoomsGateway;
-  let roomsService: RoomsService;
-  let websocketService: WebsocketService;
-
-  const mockRoomsService = {
-    joinAll: jest.fn(),
-    join: jest.fn(),
-  };
-
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-    sendToAll: jest.fn(),
-    setServer: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let roomsService: Mocked<RoomsService>;
+  let websocketService: Mocked<WebsocketService>;
 
   const mockUser = UserFactory.build();
 
@@ -40,30 +25,11 @@ describe('RoomsGateway', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RoomsGateway,
-        {
-          provide: RoomsService,
-          useValue: mockRoomsService,
-        },
-        {
-          provide: WebsocketService,
-          useValue: mockWebsocketService,
-        },
-      ],
-    })
-      .overrideGuard(WsThrottleGuard)
-      .useValue(mockGuard)
-      .overrideGuard(WsJwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(RoomsGateway).compile();
 
-    gateway = module.get<RoomsGateway>(RoomsGateway);
-    roomsService = module.get<RoomsService>(RoomsService);
-    websocketService = module.get<WebsocketService>(WebsocketService);
+    gateway = unit;
+    roomsService = unitRef.get(RoomsService);
+    websocketService = unitRef.get(WebsocketService);
   });
 
   afterEach(() => {
@@ -119,7 +85,7 @@ describe('RoomsGateway', () => {
       const communityId = 'community-123';
       const client = createMockSocket();
 
-      jest.spyOn(roomsService, 'joinAll').mockResolvedValue(undefined);
+      roomsService.joinAll.mockResolvedValue(undefined);
 
       await gateway.joinAll(client, communityId);
 
@@ -130,7 +96,7 @@ describe('RoomsGateway', () => {
       const communityId = 'community-456';
       const client = createMockSocket();
 
-      jest.spyOn(roomsService, 'joinAll').mockResolvedValue(undefined);
+      roomsService.joinAll.mockResolvedValue(undefined);
 
       await gateway.joinAll(client, communityId);
 
@@ -141,7 +107,7 @@ describe('RoomsGateway', () => {
     it('should handle different community IDs', async () => {
       const client = createMockSocket();
 
-      jest.spyOn(roomsService, 'joinAll').mockResolvedValue(undefined);
+      roomsService.joinAll.mockResolvedValue(undefined);
 
       await gateway.joinAll(client, 'community-1');
       await gateway.joinAll(client, 'community-2');
@@ -159,7 +125,7 @@ describe('RoomsGateway', () => {
       const client = createMockSocket();
       const roomId = 'room-123';
 
-      jest.spyOn(roomsService, 'join').mockResolvedValue(undefined);
+      roomsService.join.mockResolvedValue(undefined);
 
       await gateway.findOne(client, roomId);
 
@@ -169,7 +135,7 @@ describe('RoomsGateway', () => {
     it('should join multiple different rooms', async () => {
       const client = createMockSocket();
 
-      jest.spyOn(roomsService, 'join').mockResolvedValue(undefined);
+      roomsService.join.mockResolvedValue(undefined);
 
       await gateway.findOne(client, 'room-1');
       await gateway.findOne(client, 'room-2');
@@ -188,7 +154,7 @@ describe('RoomsGateway', () => {
       const client1 = createMockSocket(user1);
       const client2 = createMockSocket(user2);
 
-      jest.spyOn(roomsService, 'join').mockResolvedValue(undefined);
+      roomsService.join.mockResolvedValue(undefined);
 
       await gateway.findOne(client1, 'room-abc');
       await gateway.findOne(client2, 'room-xyz');
@@ -204,7 +170,7 @@ describe('RoomsGateway', () => {
       const client = createMockSocket();
       const dmGroupId = 'dm-group-123';
 
-      jest.spyOn(roomsService, 'join').mockResolvedValue(undefined);
+      roomsService.join.mockResolvedValue(undefined);
 
       await gateway.joinDmRoom(client, dmGroupId);
 
@@ -214,7 +180,7 @@ describe('RoomsGateway', () => {
     it('should join multiple DM rooms', async () => {
       const client = createMockSocket();
 
-      jest.spyOn(roomsService, 'join').mockResolvedValue(undefined);
+      roomsService.join.mockResolvedValue(undefined);
 
       await gateway.joinDmRoom(client, 'dm-1');
       await gateway.joinDmRoom(client, 'dm-2');
@@ -234,7 +200,7 @@ describe('RoomsGateway', () => {
       const client = createMockSocket(customUser);
       const dmGroupId = 'dm-group-456';
 
-      jest.spyOn(roomsService, 'join').mockResolvedValue(undefined);
+      roomsService.join.mockResolvedValue(undefined);
 
       await gateway.joinDmRoom(client, dmGroupId);
 
@@ -245,7 +211,7 @@ describe('RoomsGateway', () => {
       const client = createMockSocket();
       const dmGroupIds = ['dm-a', 'dm-b', 'dm-c', 'dm-d'];
 
-      jest.spyOn(roomsService, 'join').mockResolvedValue(undefined);
+      roomsService.join.mockResolvedValue(undefined);
 
       for (const dmGroupId of dmGroupIds) {
         await gateway.joinDmRoom(client, dmGroupId);

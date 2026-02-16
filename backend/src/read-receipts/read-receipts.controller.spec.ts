@@ -1,36 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ReadReceiptsController } from './read-receipts.controller';
 import { ReadReceiptsService } from './read-receipts.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 
 describe('ReadReceiptsController', () => {
   let controller: ReadReceiptsController;
-
-  const mockReadReceiptsService = {
-    markAsRead: jest.fn(),
-    getUnreadCounts: jest.fn(),
-    getUnreadCount: jest.fn(),
-    getLastReadMessageId: jest.fn(),
-    getMessageReaders: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let readReceiptsService: Mocked<ReadReceiptsService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [ReadReceiptsController],
-      providers: [
-        {
-          provide: ReadReceiptsService,
-          useValue: mockReadReceiptsService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      ReadReceiptsController,
+    ).compile();
 
-    controller = module.get<ReadReceiptsController>(ReadReceiptsController);
+    controller = unit;
+    readReceiptsService = unitRef.get(ReadReceiptsService);
   });
 
   afterEach(() => {
@@ -58,7 +41,7 @@ describe('ReadReceiptsController', () => {
         },
       ];
 
-      mockReadReceiptsService.getMessageReaders.mockResolvedValue(mockReaders);
+      readReceiptsService.getMessageReaders.mockResolvedValue(mockReaders);
 
       const result = await controller.getMessageReaders(
         mockReq,
@@ -67,7 +50,7 @@ describe('ReadReceiptsController', () => {
       );
 
       expect(result).toEqual(mockReaders);
-      expect(mockReadReceiptsService.getMessageReaders).toHaveBeenCalledWith(
+      expect(readReceiptsService.getMessageReaders).toHaveBeenCalledWith(
         messageId,
         channelId,
         undefined,
@@ -87,7 +70,7 @@ describe('ReadReceiptsController', () => {
         },
       ];
 
-      mockReadReceiptsService.getMessageReaders.mockResolvedValue(mockReaders);
+      readReceiptsService.getMessageReaders.mockResolvedValue(mockReaders);
 
       const result = await controller.getMessageReaders(
         mockReq,
@@ -97,7 +80,7 @@ describe('ReadReceiptsController', () => {
       );
 
       expect(result).toEqual(mockReaders);
-      expect(mockReadReceiptsService.getMessageReaders).toHaveBeenCalledWith(
+      expect(readReceiptsService.getMessageReaders).toHaveBeenCalledWith(
         messageId,
         undefined,
         directMessageGroupId,

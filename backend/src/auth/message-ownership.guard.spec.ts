@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { MessageOwnershipGuard } from './message-ownership.guard';
 import { MessagesService } from '@/messages/messages.service';
 import { RbacGuard } from './rbac.guard';
@@ -10,31 +11,16 @@ import {
 
 describe('MessageOwnershipGuard', () => {
   let guard: MessageOwnershipGuard;
-  let messagesService: MessagesService;
-  let rbacGuard: RbacGuard;
+  let messagesService: Mocked<MessagesService>;
+  let rbacGuard: Mocked<RbacGuard>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        MessageOwnershipGuard,
-        {
-          provide: MessagesService,
-          useValue: {
-            findOne: jest.fn(),
-          },
-        },
-        {
-          provide: RbacGuard,
-          useValue: {
-            canActivate: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    guard = module.get<MessageOwnershipGuard>(MessageOwnershipGuard);
-    messagesService = module.get<MessagesService>(MessagesService);
-    rbacGuard = module.get<RbacGuard>(RbacGuard);
+    const { unit, unitRef } = await TestBed.solitary(
+      MessageOwnershipGuard,
+    ).compile();
+    guard = unit;
+    messagesService = unitRef.get(MessagesService);
+    rbacGuard = unitRef.get(RbacGuard);
   });
 
   afterEach(() => {
@@ -50,7 +36,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      jest.spyOn(messagesService, 'findOne').mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message);
 
       const result = await guard.canActivate(context);
 
@@ -67,8 +53,8 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      jest.spyOn(messagesService, 'findOne').mockResolvedValue(message);
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(true);
+      messagesService.findOne.mockResolvedValue(message);
+      rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -85,8 +71,8 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      jest.spyOn(messagesService, 'findOne').mockResolvedValue(message);
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(false);
+      messagesService.findOne.mockResolvedValue(message);
+      rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
 
@@ -103,7 +89,7 @@ describe('MessageOwnershipGuard', () => {
         params: {},
       });
 
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(true);
+      rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -119,7 +105,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: undefined },
       });
 
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(false);
+      rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
 
@@ -135,7 +121,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: null },
       });
 
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(true);
+      rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -194,10 +180,8 @@ describe('MessageOwnershipGuard', () => {
         params: { id: 'nonexistent-message' },
       });
 
-      jest
-        .spyOn(messagesService, 'findOne')
-        .mockRejectedValue(new Error('Not found'));
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(false);
+      messagesService.findOne.mockRejectedValue(new Error('Not found'));
+      rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
 
@@ -215,10 +199,8 @@ describe('MessageOwnershipGuard', () => {
         params: { id: 'nonexistent-message' },
       });
 
-      jest
-        .spyOn(messagesService, 'findOne')
-        .mockRejectedValue(new Error('Not found'));
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(true);
+      messagesService.findOne.mockRejectedValue(new Error('Not found'));
+      rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -236,9 +218,9 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      jest.spyOn(messagesService, 'findOne').mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message);
       // Mock RBAC to return false to ensure ownership check takes precedence
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(false);
+      rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
 
@@ -255,8 +237,8 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      jest.spyOn(messagesService, 'findOne').mockResolvedValue(message);
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(true);
+      messagesService.findOne.mockResolvedValue(message);
+      rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -273,10 +255,10 @@ describe('MessageOwnershipGuard', () => {
         params: { id: 'message-123' },
       });
 
-      jest
-        .spyOn(messagesService, 'findOne')
-        .mockRejectedValue(new Error('Database connection lost'));
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(false);
+      messagesService.findOne.mockRejectedValue(
+        new Error('Database connection lost'),
+      );
+      rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
 
@@ -291,10 +273,10 @@ describe('MessageOwnershipGuard', () => {
         params: { id: 'message-123' },
       });
 
-      jest
-        .spyOn(messagesService, 'findOne')
-        .mockRejectedValue(new TypeError('Unexpected error'));
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(true);
+      messagesService.findOne.mockRejectedValue(
+        new TypeError('Unexpected error'),
+      );
+      rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -311,7 +293,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: '' },
       });
 
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(false);
+      rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
 
@@ -329,7 +311,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      jest.spyOn(messagesService, 'findOne').mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message);
 
       const result = await guard.canActivate(context);
 
@@ -345,8 +327,8 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      jest.spyOn(messagesService, 'findOne').mockResolvedValue(message);
-      jest.spyOn(rbacGuard, 'canActivate').mockResolvedValue(false);
+      messagesService.findOne.mockResolvedValue(message);
+      rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
 

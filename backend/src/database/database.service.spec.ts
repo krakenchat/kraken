@@ -1,15 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { DatabaseService } from './database.service';
 
 describe('DatabaseService', () => {
   let service: DatabaseService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [DatabaseService],
-    }).compile();
+    const { unit } = await TestBed.solitary(DatabaseService).compile();
+    service = unit;
+  });
 
-    service = module.get<DatabaseService>(DatabaseService);
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {

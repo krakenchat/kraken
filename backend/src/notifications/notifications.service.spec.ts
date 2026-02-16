@@ -1,9 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { NotificationsService } from './notifications.service';
 import { NotificationsGateway } from './notifications.gateway';
 import { DatabaseService } from '@/database/database.service';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
-import { PresenceService } from '@/presence/presence.service';
 import { NotificationType, SpanType } from '@prisma/client';
 import {
   createMockDatabase,
@@ -16,47 +16,24 @@ import {
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-
-  const mockNotificationsGateway = {
-    emitNotificationToUser: jest.fn(),
-    emitNotificationRead: jest.fn(),
-  };
-
-  const mockPushNotificationsService = {
-    isEnabled: jest.fn().mockReturnValue(false),
-    sendToUser: jest.fn().mockResolvedValue({ sent: 0, failed: 0 }),
-  };
-
-  const mockPresenceService = {
-    isOnline: jest.fn().mockResolvedValue(true),
-  };
+  let notificationsGateway: Mocked<NotificationsGateway>;
+  let pushNotificationsService: Mocked<PushNotificationsService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        NotificationsService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: NotificationsGateway,
-          useValue: mockNotificationsGateway,
-        },
-        {
-          provide: PushNotificationsService,
-          useValue: mockPushNotificationsService,
-        },
-        {
-          provide: PresenceService,
-          useValue: mockPresenceService,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(NotificationsService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<NotificationsService>(NotificationsService);
+    service = unit;
+    notificationsGateway = unitRef.get(NotificationsGateway);
+    pushNotificationsService = unitRef.get(PushNotificationsService);
+
+    // Default mock behaviors
+    pushNotificationsService.isEnabled.mockReturnValue(false);
+    pushNotificationsService.sendToUser.mockResolvedValue({ sent: 0, failed: 0 });
   });
 
   afterEach(() => {

@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ConfigService } from '@nestjs/config';
 import { PushNotificationsService } from './push-notifications.service';
 import { DatabaseService } from '@/database/database.service';
@@ -14,43 +15,35 @@ jest.mock('web-push', () => ({
 describe('PushNotificationsService', () => {
   let service: PushNotificationsService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let mockConfigService: { get: jest.Mock };
+  let configService: Mocked<ConfigService>;
 
   const mockVapidPublicKey = 'BNxFj3IxG...testPublicKey';
   const mockVapidPrivateKey = 'testPrivateKey123';
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
-    mockConfigService = {
-      get: jest.fn((key: string) => {
-        switch (key) {
-          case 'VAPID_PUBLIC_KEY':
-            return mockVapidPublicKey;
-          case 'VAPID_PRIVATE_KEY':
-            return mockVapidPrivateKey;
-          case 'VAPID_SUBJECT':
-            return 'mailto:test@example.com';
-          default:
-            return undefined;
-        }
-      }),
-    };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PushNotificationsService,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(PushNotificationsService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<PushNotificationsService>(PushNotificationsService);
+    service = unit;
+    configService = unitRef.get(ConfigService);
+
+    // Setup default config mock
+    configService.get.mockImplementation((key: string) => {
+      switch (key) {
+        case 'VAPID_PUBLIC_KEY':
+          return mockVapidPublicKey;
+        case 'VAPID_PRIVATE_KEY':
+          return mockVapidPrivateKey;
+        case 'VAPID_SUBJECT':
+          return 'mailto:test@example.com';
+        default:
+          return undefined;
+      }
+    });
   });
 
   afterEach(() => {
@@ -70,7 +63,7 @@ describe('PushNotificationsService', () => {
     });
 
     it('should not configure VAPID when keys are missing', () => {
-      mockConfigService.get.mockReturnValue(undefined);
+      configService.get.mockReturnValue(undefined);
 
       service.onModuleInit();
 
@@ -79,7 +72,7 @@ describe('PushNotificationsService', () => {
     });
 
     it('should use default subject when not configured', () => {
-      mockConfigService.get.mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         if (key === 'VAPID_PUBLIC_KEY') return mockVapidPublicKey;
         if (key === 'VAPID_PRIVATE_KEY') return mockVapidPrivateKey;
         return undefined;
@@ -105,7 +98,7 @@ describe('PushNotificationsService', () => {
     });
 
     it('should return null when not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
+      configService.get.mockReturnValue(undefined);
       service.onModuleInit();
 
       const result = service.getVapidPublicKey();
@@ -208,9 +201,9 @@ describe('PushNotificationsService', () => {
     });
 
     it('should return early when not configured', async () => {
-      mockConfigService.get.mockReturnValue(undefined);
+      configService.get.mockReturnValue(undefined);
       const unconfiguredService = new PushNotificationsService(
-        mockConfigService as unknown as ConfigService,
+        configService as unknown as ConfigService,
         mockDatabase as unknown as DatabaseService,
       );
       unconfiguredService.onModuleInit();

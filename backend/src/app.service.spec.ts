@@ -1,15 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { AppService } from './app.service';
 
 describe('AppService', () => {
   let service: AppService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [AppService],
-    }).compile();
+    const { unit } = await TestBed.solitary(AppService).compile();
+    service = unit;
+  });
 
-    service = module.get<AppService>(AppService);
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
