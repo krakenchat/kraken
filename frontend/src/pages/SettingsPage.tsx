@@ -34,6 +34,8 @@ import {
   accentColors,
   type ThemeIntensity,
 } from '../contexts/ThemeContext';
+import { isElectron, hasElectronFeature, getElectronAPI } from '../utils/platform';
+import { getActiveServer, updateServer } from '../utils/serverStorage';
 
 interface HealthResponse {
   status: string;
@@ -158,10 +160,12 @@ const AppearanceSettings: React.FC = () => {
 };
 
 const SettingsPage: React.FC = () => {
-  const [isElectron, setIsElectron] = useState(false);
+  const [isElectronApp, setIsElectronApp] = useState(false);
   const [currentBackendUrl, setCurrentBackendUrl] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [backendVersion, setBackendVersion] = useState<string | null>(null);
+  const [instanceName, setInstanceName] = useState<string | null>(null);
+  const [activeServerId, setActiveServerId] = useState<string | null>(null);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -171,32 +175,36 @@ const SettingsPage: React.FC = () => {
   const [validationSuccess, setValidationSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if running in Electron
-    const electronAPI = (window as Window & { electronAPI?: unknown }).electronAPI;
-    if (electronAPI) {
-      setIsElectron(true);
+    if (!isElectron()) return;
 
-      // Get current backend URL
-      const savedUrl = localStorage.getItem('electron:backendUrl');
-      setCurrentBackendUrl(savedUrl);
+    setIsElectronApp(true);
 
-      // Get app version
-      if ((electronAPI as { getAppVersion?: () => Promise<string> }).getAppVersion) {
-        (electronAPI as { getAppVersion: () => Promise<string> }).getAppVersion().then(version => {
-          setAppVersion(version);
+    // Get current backend URL from serverStorage
+    const activeServer = getActiveServer();
+    if (activeServer) {
+      setCurrentBackendUrl(activeServer.url);
+      setActiveServerId(activeServer.id);
+
+      // Fetch backend version and instance name from health endpoint
+      axios.get<HealthResponse>(`${activeServer.url}/api/health`)
+        .then(response => {
+          setBackendVersion(response.data.version);
+          setInstanceName(response.data.instanceName || null);
+        })
+        .catch(() => {
+          // Ignore errors
         });
-      }
+    }
 
-      // Get backend version from last health check
-      if (savedUrl) {
-        axios.get<HealthResponse>(`${savedUrl}/api/health`)
-          .then(response => {
-            setBackendVersion(response.data.version);
-          })
-          .catch(() => {
-            // Ignore errors
-          });
-      }
+    // Get app version from Electron API
+    if (hasElectronFeature('getAppVersion')) {
+      getElectronAPI()?.getAppVersion?.()
+        .then(version => {
+          setAppVersion(version);
+        })
+        .catch(() => {
+          // Ignore errors
+        });
     }
   }, []);
 
@@ -278,8 +286,10 @@ const SettingsPage: React.FC = () => {
     setIsValidating(false);
 
     if (isValid) {
-      // Save to localStorage
-      localStorage.setItem('electron:backendUrl', cleanUrl);
+      // Update the active server in serverStorage
+      if (activeServerId) {
+        updateServer(activeServerId, { url: cleanUrl });
+      }
 
       // Reload the app to apply the new configuration
       setTimeout(() => {
@@ -309,7 +319,7 @@ const SettingsPage: React.FC = () => {
       <SessionsSettings />
 
       {/* Backend Configuration Section (Electron only) */}
-      {isElectron && (
+      {isElectronApp && (
         <>
           <Card sx={{ mb: 3 }}>
             <CardContent>
@@ -344,6 +354,16 @@ const SettingsPage: React.FC = () => {
               <Divider sx={{ mb: 2 }} />
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {instanceName && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Instance:
+                    </Typography>
+                    <Typography variant="body2">
+                      {instanceName}
+                    </Typography>
+                  </Box>
+                )}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2" color="text.secondary">
                     App Version:

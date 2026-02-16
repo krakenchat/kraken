@@ -13,6 +13,7 @@ interface ElectronAPI {
   isWayland?: boolean;
   getDesktopSources?: (types: string[]) => Promise<unknown[]>;
   getScreenStream?: (sourceId: string) => Promise<MediaStream | null>;
+  getAppVersion?: () => Promise<string>;
   [key: string]: unknown;
 }
 
