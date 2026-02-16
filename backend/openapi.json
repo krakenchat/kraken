@@ -8548,16 +8548,29 @@
       "NotificationMessageDto": {
         "type": "object",
         "properties": {
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
           "id": {
             "type": "string"
           },
-          "content": {
-            "type": "string"
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
+          "spans",
           "id",
-          "content"
+          "channelId",
+          "directMessageGroupId"
         ]
       },
       "NotificationDto": {

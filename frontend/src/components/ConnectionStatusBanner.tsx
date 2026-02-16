@@ -1,13 +1,13 @@
 import React from "react";
 import { Chip, CircularProgress } from "@mui/material";
 import { useSocketConnected } from "../hooks/useSocket";
-import { useVoiceConnection } from "../hooks/useVoiceConnection";
+import { useVoice } from "../contexts/VoiceContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { VOICE_BAR_HEIGHT, VOICE_BAR_HEIGHT_MOBILE } from "../constants/layout";
 
 export const ConnectionStatusBanner: React.FC = () => {
   const isConnected = useSocketConnected();
-  const { state: voiceState } = useVoiceConnection();
+  const voiceState = useVoice();
   const { isMobile } = useResponsive();
   const voiceConnected = voiceState.isConnected && (voiceState.currentChannelId || voiceState.currentDmGroupId);
   const voiceBarHeight = isMobile ? VOICE_BAR_HEIGHT_MOBILE : VOICE_BAR_HEIGHT;
