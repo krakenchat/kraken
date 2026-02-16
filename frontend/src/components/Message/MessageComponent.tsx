@@ -218,7 +218,7 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
   // Compare message properties that would require a re-render
   return (
     prevMsg.id === nextMsg.id &&
-    prevMsg.content === nextMsg.content &&
+    prevMsg.spans === nextMsg.spans &&
     prevMsg.editedAt === nextMsg.editedAt &&
     prevMsg.authorId === nextMsg.authorId &&
     prevMsg.sentAt === nextMsg.sentAt &&
@@ -234,7 +234,7 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevMsg.reactions.length === nextMsg.reactions.length &&
     prevMsg.reactions.every((r, i) =>
       r.emoji === nextMsg.reactions[i]?.emoji &&
-      r.count === nextMsg.reactions[i]?.count
+      r.userIds.length === nextMsg.reactions[i]?.userIds.length
     ) &&
     // Deep compare attachments array
     prevMsg.attachments?.length === nextMsg.attachments?.length &&

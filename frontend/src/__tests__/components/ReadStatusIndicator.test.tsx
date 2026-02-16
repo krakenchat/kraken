@@ -13,24 +13,26 @@ describe('ReadStatusIndicator', () => {
     vi.clearAllMocks();
   });
 
-  it('renders check icon for "sent" status', () => {
+  it('always renders eye icon (VisibilityIcon) regardless of status', () => {
     renderWithProviders(<ReadStatusIndicator {...defaultProps()} status="sent" />);
 
-    // DoneIcon (check) should be rendered
-    const icon = screen.getByTestId('DoneIcon');
-    expect(icon).toBeInTheDocument();
-    // VisibilityIcon should NOT be rendered
-    expect(screen.queryByTestId('VisibilityIcon')).not.toBeInTheDocument();
+    expect(screen.getByTestId('VisibilityIcon')).toBeInTheDocument();
+    // DoneIcon should never be rendered
+    expect(screen.queryByTestId('DoneIcon')).not.toBeInTheDocument();
   });
 
-  it('renders eye icon for "read" status', () => {
-    renderWithProviders(<ReadStatusIndicator {...defaultProps()} status="read" />);
+  it('renders grey eye icon for "sent" status', () => {
+    renderWithProviders(<ReadStatusIndicator {...defaultProps()} status="sent" />);
 
-    // VisibilityIcon (eye) should be rendered
     const icon = screen.getByTestId('VisibilityIcon');
     expect(icon).toBeInTheDocument();
-    // DoneIcon should NOT be rendered
-    expect(screen.queryByTestId('DoneIcon')).not.toBeInTheDocument();
+  });
+
+  it('renders blue eye icon for "read" status', () => {
+    renderWithProviders(<ReadStatusIndicator {...defaultProps()} status="read" />);
+
+    const icon = screen.getByTestId('VisibilityIcon');
+    expect(icon).toBeInTheDocument();
   });
 
   it('renders eye icon for "delivered" status (treated same as read)', () => {
@@ -54,7 +56,7 @@ describe('ReadStatusIndicator', () => {
       <ReadStatusIndicator {...defaultProps()} status="sent" />
     );
 
-    const icon = screen.getByTestId('DoneIcon');
+    const icon = screen.getByTestId('VisibilityIcon');
     await user.hover(icon);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Sent');
@@ -76,7 +78,7 @@ describe('ReadStatusIndicator', () => {
       <ReadStatusIndicator {...defaultProps()} status="sent" disableTooltip={true} />
     );
 
-    const icon = screen.getByTestId('DoneIcon');
+    const icon = screen.getByTestId('VisibilityIcon');
     expect(icon).toBeInTheDocument();
 
     // Hover should NOT produce a tooltip

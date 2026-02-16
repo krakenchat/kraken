@@ -46,7 +46,7 @@ export const Container = styled("div", {
   display: "flex",
   alignItems: "flex-start",
   width: "100%",
-  marginBottom: isDeleting ? 0 : theme.spacing(1),
+  marginBottom: 0,
   position: "relative",
   backgroundColor: isHighlighted
     ? alpha(theme.palette.primary.main, 0.08)

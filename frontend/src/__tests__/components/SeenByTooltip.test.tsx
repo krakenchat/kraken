@@ -30,9 +30,7 @@ describe('SeenByTooltip', () => {
     vi.clearAllMocks();
   });
 
-  it('renders check icon initially (before hover/data fetch)', () => {
-    // Before hovering, the query is disabled so no readers are fetched.
-    // The default readStatus should be "sent" which shows DoneIcon.
+  it('renders grey eye icon initially (before hover/data fetch)', () => {
     server.use(
       http.get(`${BASE_URL}/api/read-receipts/message/:messageId/readers`, () => {
         return HttpResponse.json([]);
@@ -41,12 +39,12 @@ describe('SeenByTooltip', () => {
 
     renderWithProviders(<SeenByTooltip {...defaultProps()} />);
 
-    // DoneIcon (check) should be visible for "sent" status
-    expect(screen.getByTestId('DoneIcon')).toBeInTheDocument();
-    expect(screen.queryByTestId('VisibilityIcon')).not.toBeInTheDocument();
+    // Always shows VisibilityIcon (eye), never DoneIcon
+    expect(screen.getByTestId('VisibilityIcon')).toBeInTheDocument();
+    expect(screen.queryByTestId('DoneIcon')).not.toBeInTheDocument();
   });
 
-  it('shows eye icon after readers data is loaded on hover', async () => {
+  it('shows blue eye icon after readers data is loaded on hover', async () => {
     const readers: MessageReader[] = [
       {
         userId: 'u2',
@@ -65,21 +63,21 @@ describe('SeenByTooltip', () => {
 
     const { user } = renderWithProviders(<SeenByTooltip {...defaultProps()} />);
 
-    // Initially should show check icon (sent)
-    expect(screen.getByTestId('DoneIcon')).toBeInTheDocument();
+    // Initially should show eye icon (grey, "sent" status)
+    expect(screen.getByTestId('VisibilityIcon')).toBeInTheDocument();
 
     // Hover to trigger the tooltip open and data fetch
-    const indicator = screen.getByTestId('DoneIcon').closest('span')!;
+    const indicator = screen.getByTestId('VisibilityIcon').closest('span')!;
     await user.hover(indicator);
 
-    // After data loads, the status should switch to "read" and show VisibilityIcon
-    await waitFor(() => {
-      expect(screen.getByTestId('VisibilityIcon')).toBeInTheDocument();
-    });
-
+    // After data loads, status upgrades to "read" (blue eye)
     // The tooltip should show "Seen by" header and the reader name
-    expect(screen.getByText('Seen by')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Seen by')).toBeInTheDocument();
+    });
     expect(screen.getByText('Alice')).toBeInTheDocument();
+    // Eye icon is still shown
+    expect(screen.getByTestId('VisibilityIcon')).toBeInTheDocument();
   });
 
   it('shows "Not seen yet" text when readers list is empty after loading', async () => {
@@ -92,7 +90,7 @@ describe('SeenByTooltip', () => {
     const { user } = renderWithProviders(<SeenByTooltip {...defaultProps()} />);
 
     // Hover to trigger fetch
-    const indicator = screen.getByTestId('DoneIcon').closest('span')!;
+    const indicator = screen.getByTestId('VisibilityIcon').closest('span')!;
     await user.hover(indicator);
 
     // After data loads with empty array, tooltip should show "Not seen yet"
@@ -100,8 +98,8 @@ describe('SeenByTooltip', () => {
       expect(screen.getByText('Not seen yet')).toBeInTheDocument();
     });
 
-    // Status should remain "sent" (check icon) since no readers
-    expect(screen.getByTestId('DoneIcon')).toBeInTheDocument();
-    expect(screen.queryByTestId('VisibilityIcon')).not.toBeInTheDocument();
+    // Eye icon should still be shown (grey), no DoneIcon ever
+    expect(screen.getByTestId('VisibilityIcon')).toBeInTheDocument();
+    expect(screen.queryByTestId('DoneIcon')).not.toBeInTheDocument();
   });
 });

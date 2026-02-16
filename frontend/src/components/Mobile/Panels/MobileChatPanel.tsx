@@ -32,6 +32,7 @@ import {
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { ChannelType } from '../../../types/channel.type';
 import ChannelMessageContainer from '../../Channel/ChannelMessageContainer';
+import DirectMessageContainer from '../../DirectMessages/DirectMessageContainer';
 import { VideoTiles } from '../../Voice/VideoTiles';
 import { VoiceChannelJoinButton } from '../../Voice/VoiceChannelJoinButton';
 import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
@@ -51,6 +52,7 @@ interface MobileChatPanelProps {
  * Detail screen that slides in from the right
  */
 export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
+  communityId,
   channelId,
   dmGroupId,
 }) => {
@@ -149,8 +151,11 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
     }
 
     // Text channel or DM
-    const contextId = channelId || dmGroupId || '';
-    return <ChannelMessageContainer channelId={contextId} hideHeader />;
+    if (dmGroupId) {
+      return <DirectMessageContainer dmGroupId={dmGroupId} />;
+    }
+    const contextId = channelId || '';
+    return <ChannelMessageContainer channelId={contextId} communityId={communityId} hideHeader />;
   };
 
   return (

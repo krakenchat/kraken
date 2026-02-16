@@ -36,19 +36,23 @@ interface ChannelMessageContainerProps {
   channelId: string;
   /** Hide the built-in header (for mobile which has its own app bar) */
   hideHeader?: boolean;
+  /** Optional communityId prop (for mobile where useParams is unavailable) */
+  communityId?: string;
 }
 
 const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   channelId,
   hideHeader = false,
+  communityId: communityIdProp,
 }) => {
   const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
 
-  // Get communityId from context
-  const { communityId } = useParams<{
+  // Get communityId from props (mobile) or URL params (desktop)
+  const { communityId: communityIdParam } = useParams<{
     communityId: string;
   }>();
+  const communityId = communityIdProp || communityIdParam;
 
   // Get highlight message ID from URL params
   const [searchParams] = useSearchParams();

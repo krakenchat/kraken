@@ -250,7 +250,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
                   {showDividerBefore && (
                     <UnreadMessageDivider unreadCount={unreadCount} />
                   )}
-                  <div style={{ padding: "0 16px" }}>
+                  <div>
                     <div
                       data-message-id={message.id}
                       ref={(el) => {
@@ -301,7 +301,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         )}
 
         {/* Input rendered outside scroll container — stable DOM, never unmounted by message changes */}
-        <div style={{ padding: "0 16px 16px", flexShrink: 0 }}>
+        <div style={{ flexShrink: 0 }}>
           {messageInput}
         </div>
 

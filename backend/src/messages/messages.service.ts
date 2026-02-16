@@ -140,6 +140,7 @@ export class MessagesService {
         if (updateMessageDto.spans) {
           (dataToUpdate as Record<string, unknown>).searchText =
             flattenSpansToText(updateMessageDto.spans);
+          (dataToUpdate as Record<string, unknown>).editedAt = new Date();
         }
 
         // Update the message first

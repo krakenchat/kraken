@@ -43,7 +43,8 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
 
   // Determine read status from fetched readers
   const hasSeen = (readers?.length ?? 0) > 0;
-  const readStatus = hasSeen ? "read" as const : "sent" as const;
+  // Always show eye icon; color changes from grey (sent) to blue (read) after fetching
+  const readStatus = fetchEnabled && hasSeen ? "read" as const : "sent" as const;
 
   const displayReaders = readers?.slice(0, 15) ?? [];
   const remainingCount = (readers?.length ?? 0) - displayReaders.length;

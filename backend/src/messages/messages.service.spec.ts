@@ -132,7 +132,7 @@ describe('MessagesService', () => {
   });
 
   describe('update', () => {
-    it('should update a message', async () => {
+    it('should update a message and set editedAt', async () => {
       const messageId = 'msg-123';
       const updateDto = {
         spans: [
@@ -157,13 +157,10 @@ describe('MessagesService', () => {
       const result = await service.update(messageId, updateDto);
 
       expect(result).toEqual(updatedMessage);
-      expect(mockDatabase.message.update).toHaveBeenCalledWith({
-        where: { id: messageId },
-        data: {
-          ...updateDto,
-          searchText: 'updated text', // Lowercase for MongoDB case-insensitive search
-        },
-      });
+      const updateCall = mockDatabase.message.update.mock.calls[0][0];
+      expect(updateCall.where).toEqual({ id: messageId });
+      expect(updateCall.data.searchText).toBe('updated text');
+      expect(updateCall.data.editedAt).toBeInstanceOf(Date);
     });
 
     it('should mark removed attachments for deletion', async () => {
@@ -204,6 +201,18 @@ describe('MessagesService', () => {
         expect.any(Object),
       );
       expect(fileService.markForDeletion).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not set editedAt when only attachments are updated (no spans)', async () => {
+      const messageId = 'msg-123';
+      const updateDto = { attachments: ['file-1', 'file-2'] };
+
+      mockDatabase.message.update.mockResolvedValue(MessageFactory.build());
+
+      await service.update(messageId, updateDto);
+
+      const updateCall = mockDatabase.message.update.mock.calls[0][0];
+      expect(updateCall.data.editedAt).toBeUndefined();
     });
 
     it('should not mark files for deletion if no attachments changed', async () => {
