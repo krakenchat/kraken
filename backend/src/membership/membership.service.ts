@@ -12,6 +12,8 @@ import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@kraken/shared';
 
 @Injectable()
 export class MembershipService {
@@ -21,6 +23,7 @@ export class MembershipService {
     private readonly databaseService: DatabaseService,
     private readonly communityService: CommunityService,
     private readonly rolesService: RolesService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   async create(
@@ -130,6 +133,13 @@ export class MembershipService {
         );
         // Don't fail the membership creation for this
       }
+
+      // Notify the user in real-time that they've been added to a community
+      this.websocketService.sendToRoom(
+        userId,
+        ServerEvents.MEMBER_ADDED_TO_COMMUNITY,
+        { communityId, userId },
+      );
 
       return new MembershipResponseDto(membership);
     } catch (error) {

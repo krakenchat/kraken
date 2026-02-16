@@ -255,6 +255,15 @@ export interface ThreadReplyCountUpdatedPayload {
 }
 
 // =============================================================================
+// Community Membership Payloads
+// =============================================================================
+
+export interface MemberAddedToCommunityPayload {
+  communityId: string;
+  userId: string;
+}
+
+// =============================================================================
 // Server Events Payload Map
 // =============================================================================
 
@@ -312,6 +321,9 @@ export type ServerEventPayloads = {
   [ServerEvents.UPDATE_THREAD_REPLY]: UpdateThreadReplyPayload;
   [ServerEvents.DELETE_THREAD_REPLY]: DeleteThreadReplyPayload;
   [ServerEvents.THREAD_REPLY_COUNT_UPDATED]: ThreadReplyCountUpdatedPayload;
+
+  // Community Membership
+  [ServerEvents.MEMBER_ADDED_TO_COMMUNITY]: MemberAddedToCommunityPayload;
 
   // Acknowledgments & Errors
   [ServerEvents.ACK]: AckPayload;

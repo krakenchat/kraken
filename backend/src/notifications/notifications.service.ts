@@ -467,6 +467,11 @@ export class NotificationsService {
             directMessageGroupId: true,
           },
         },
+        channel: {
+          select: {
+            communityId: true,
+          },
+        },
       },
     });
   }

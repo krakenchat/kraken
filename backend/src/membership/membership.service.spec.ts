@@ -3,6 +3,7 @@ import { MembershipService } from './membership.service';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
+import { WebsocketService } from '@/websocket/websocket.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   createMockDatabase,
@@ -41,6 +42,12 @@ describe('MembershipService', () => {
             getCommunityMemberRole: jest.fn(),
             createMemberRoleForCommunity: jest.fn(),
             assignUserToCommunityRole: jest.fn(),
+          },
+        },
+        {
+          provide: WebsocketService,
+          useValue: {
+            sendToRoom: jest.fn().mockReturnValue(true),
           },
         },
       ],

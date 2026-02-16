@@ -46,6 +46,7 @@ export class NotificationDto {
   messageId: string | null;
   channelId: string | null;
   directMessageGroupId: string | null;
+  communityId?: string | null;
   authorId: string;
   parentMessageId: string | null;
   read: boolean;

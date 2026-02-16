@@ -12,6 +12,7 @@ import { LivekitReplayService } from './livekit-replay.service';
 import { ClipLibraryService } from './clip-library.service';
 import { FfmpegService } from './ffmpeg.service';
 import { FfmpegProvider } from './providers/ffmpeg.provider';
+import { RoomServiceProvider } from './providers/room-service.provider';
 import { LivekitController } from './livekit.controller';
 import { LivekitWebhookController } from './livekit-webhook.controller';
 import { UserModule } from '@/user/user.module';
@@ -38,6 +39,7 @@ import { RolesModule } from '@/roles/roles.module';
     ClipLibraryService,
     FfmpegService,
     FfmpegProvider,
+    RoomServiceProvider,
   ],
   exports: [LivekitService, LivekitReplayService, ClipLibraryService],
 })

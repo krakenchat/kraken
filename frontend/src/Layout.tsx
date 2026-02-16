@@ -16,6 +16,7 @@ import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import { useVoiceEvents } from "./hooks/useVoiceEvents";
 import { useChannelWebSocket } from "./hooks/useChannelWebSocket";
+import { useCommunityEvents } from "./hooks/useCommunityEvents";
 import { useDirectMessageWebSocket } from "./hooks/useDirectMessageWebSocket";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
@@ -81,6 +82,9 @@ const Layout: React.FC = () => {
   // Listen for channel/DM message events globally (not page-scoped)
   useChannelWebSocket();
   useDirectMessageWebSocket();
+
+  // Listen for community membership changes (e.g., being added to a community)
+  useCommunityEvents();
 
   // Check push subscription status to avoid duplicate desktop notifications
   const { isSubscribed: isPushSubscribed } = usePushNotifications();

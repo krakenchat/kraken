@@ -100,6 +100,7 @@ export const RbacActionsValues = [
   'DELETE_ANY_MESSAGE',
   'VIEW_BAN_LIST',
   'VIEW_MODERATION_LOGS',
+  'MUTE_PARTICIPANT',
 ] as const;
 
 export const InstanceRoleValues = ['OWNER', 'USER'] as const;

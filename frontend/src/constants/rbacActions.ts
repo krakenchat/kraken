@@ -82,6 +82,7 @@ export const RBAC_ACTIONS = {
   DELETE_ANY_MESSAGE: 'DELETE_ANY_MESSAGE',
   VIEW_BAN_LIST: 'VIEW_BAN_LIST',
   VIEW_MODERATION_LOGS: 'VIEW_MODERATION_LOGS',
+  MUTE_PARTICIPANT: 'MUTE_PARTICIPANT',
 } as const;
 
 export type RbacAction = typeof RBAC_ACTIONS[keyof typeof RBAC_ACTIONS];
@@ -159,6 +160,7 @@ export const PERMISSION_GROUPS = {
     RBAC_ACTIONS.DELETE_ANY_MESSAGE,
     RBAC_ACTIONS.VIEW_BAN_LIST,
     RBAC_ACTIONS.VIEW_MODERATION_LOGS,
+    RBAC_ACTIONS.MUTE_PARTICIPANT,
   ],
 };
 
@@ -235,4 +237,5 @@ export const ACTION_LABELS: Record<RbacAction, string> = {
   [RBAC_ACTIONS.DELETE_ANY_MESSAGE]: 'Delete any message',
   [RBAC_ACTIONS.VIEW_BAN_LIST]: 'View ban list',
   [RBAC_ACTIONS.VIEW_MODERATION_LOGS]: 'View moderation logs',
+  [RBAC_ACTIONS.MUTE_PARTICIPANT]: 'Mute voice participants',
 };

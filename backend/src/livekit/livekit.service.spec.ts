@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { createMockConfigService } from '@/test-utils';
 import { LivekitException } from './exceptions/livekit.exception';
 import { AccessToken } from 'livekit-server-sdk';
+import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
 // Mock the livekit-server-sdk
 jest.mock('livekit-server-sdk', () => {
@@ -27,6 +28,11 @@ describe('LivekitService', () => {
     LIVEKIT_URL: 'wss://test.livekit.cloud',
   };
 
+  const mockRoomServiceClient = {
+    getParticipant: jest.fn(),
+    mutePublishedTrack: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -36,6 +42,10 @@ describe('LivekitService', () => {
         {
           provide: ConfigService,
           useValue: createMockConfigService(mockConfig),
+        },
+        {
+          provide: ROOM_SERVICE_CLIENT,
+          useValue: mockRoomServiceClient,
         },
       ],
     }).compile();
