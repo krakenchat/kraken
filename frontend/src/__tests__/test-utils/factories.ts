@@ -1,5 +1,5 @@
 import type { InfiniteData } from '@tanstack/react-query';
-import type { PaginatedMessagesResponseDto, ThreadRepliesResponseDto, EnrichedThreadReplyDto } from '../../api-client/types.gen';
+import type { PaginatedMessagesResponseDto, ThreadRepliesResponseDto, EnrichedThreadReplyDto, FriendshipWithUsersDto, UserEntity } from '../../api-client/types.gen';
 import type { Message, Reaction } from '../../types/message.type';
 import type { DirectMessageGroup, DirectMessageGroupMember } from '../../types/direct-message.type';
 
@@ -216,5 +216,33 @@ export function createFileMetadata(overrides: Partial<{
     mimeType: overrides.mimeType ?? 'image/png',
     fileType: overrides.fileType ?? 'IMAGE',
     size: overrides.size ?? 1024,
+  };
+}
+
+function createUserEntity(overrides: Partial<UserEntity> = {}): UserEntity {
+  const id = overrides.id ?? `user-${++counter}`;
+  return {
+    id,
+    username: overrides.username ?? `user_${id}`,
+    displayName: overrides.displayName ?? null,
+    avatarUrl: overrides.avatarUrl ?? null,
+    bannerUrl: overrides.bannerUrl ?? null,
+    lastSeen: overrides.lastSeen ?? null,
+    bio: overrides.bio ?? null,
+    status: overrides.status ?? null,
+    role: overrides.role ?? 'USER',
+  };
+}
+
+export function createFriendship(overrides: Partial<FriendshipWithUsersDto> = {}): FriendshipWithUsersDto {
+  const id = overrides.id ?? `friendship-${++counter}`;
+  return {
+    id,
+    userAId: overrides.userAId ?? overrides.userA?.id ?? `user-${++counter}`,
+    userBId: overrides.userBId ?? overrides.userB?.id ?? `user-${++counter}`,
+    status: overrides.status ?? 'PENDING',
+    createdAt: overrides.createdAt ?? new Date().toISOString(),
+    userA: overrides.userA ?? createUserEntity({ id: overrides.userAId }),
+    userB: overrides.userB ?? createUserEntity({ id: overrides.userBId }),
   };
 }

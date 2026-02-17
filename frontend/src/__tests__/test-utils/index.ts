@@ -14,6 +14,7 @@ export {
   createDmGroup,
   createSpan,
   createFileMetadata,
+  createFriendship,
 } from './factories';
 export { createTestQueryClient } from './queryClient';
 export { createMockSocket } from './mockSocket';

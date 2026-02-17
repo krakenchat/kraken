@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -8,9 +8,14 @@ import {
   Box,
   CircularProgress,
   Alert,
+  Chip,
 } from "@mui/material";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { friendsControllerSendFriendRequestMutation } from "../../api-client/@tanstack/react-query.gen";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  friendsControllerSendFriendRequestMutation,
+  friendsControllerGetFriendsOptions,
+  friendsControllerGetPendingRequestsOptions,
+} from "../../api-client/@tanstack/react-query.gen";
 
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
 
@@ -18,6 +23,16 @@ interface AddFriendDialogProps {
   open: boolean;
   onClose: () => void;
 }
+
+interface RelationshipInfo {
+  label: string;
+  color: "success" | "warning" | "info";
+}
+
+const FRIENDLY_409_MESSAGES: Record<string, string> = {
+  "Already friends with this user": "You are already friends with this user.",
+  "Friend request already sent": "You have already sent a friend request to this user.",
+};
 
 const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
   const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
@@ -33,6 +48,35 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: friends = [] } = useQuery({
+    ...friendsControllerGetFriendsOptions(),
+    enabled: open,
+  });
+
+  const { data: pendingRequests } = useQuery({
+    ...friendsControllerGetPendingRequestsOptions(),
+    enabled: open,
+  });
+
+  const relationshipMap = useMemo(() => {
+    const map = new Map<string, RelationshipInfo>();
+
+    for (const friend of friends) {
+      map.set(friend.id, { label: "Friends", color: "success" });
+    }
+
+    if (pendingRequests) {
+      for (const req of pendingRequests.sent) {
+        map.set(req.userB.id, { label: "Request Sent", color: "warning" });
+      }
+      for (const req of pendingRequests.received) {
+        map.set(req.userA.id, { label: "Request Received", color: "info" });
+      }
+    }
+
+    return map;
+  }, [friends, pendingRequests]);
+
   const handleSendRequest = async () => {
     if (!selectedUser) return;
 
@@ -42,11 +86,21 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
       setSuccess(true);
       setSelectedUser(null);
     } catch (err: unknown) {
-      const errorMessage =
-        err && typeof err === "object" && "data" in err
-          ? (err as { data?: { message?: string } }).data?.message ||
-            "Failed to send friend request"
-          : "Failed to send friend request";
+      let errorMessage = "Failed to send friend request";
+
+      if (err && typeof err === "object") {
+        const errorObj = err as { statusCode?: number; message?: string };
+        if (errorObj.statusCode === 409) {
+          errorMessage =
+            FRIENDLY_409_MESSAGES[errorObj.message ?? ""] ?? errorObj.message ?? errorMessage;
+          // Invalidate caches to refresh relationship data (handles race conditions)
+          queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
+          queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+        } else if (errorObj.message) {
+          errorMessage = errorObj.message;
+        }
+      }
+
       setError(errorMessage);
     }
   };
@@ -81,6 +135,12 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
             label="Search for a user"
             placeholder="Type to search users..."
             autoFocus
+            getOptionDisabled={(user) => relationshipMap.has(user.id)}
+            renderOptionExtra={(user) => {
+              const info = relationshipMap.get(user.id);
+              if (!info) return null;
+              return <Chip label={info.label} color={info.color} size="small" />;
+            }}
           />
         </Box>
       </DialogContent>

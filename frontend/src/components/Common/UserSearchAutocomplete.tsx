@@ -44,6 +44,10 @@ interface UserSearchAutocompleteProps {
   disabled?: boolean;
   /** Auto focus the input */
   autoFocus?: boolean;
+  /** Render extra content (e.g. a Chip) at the end of each option row */
+  renderOptionExtra?: (user: UserOption) => React.ReactNode;
+  /** Disable specific options (passed to MUI Autocomplete) */
+  getOptionDisabled?: (user: UserOption) => boolean;
 }
 
 const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
@@ -56,6 +60,8 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
   excludeCurrentUser = true,
   disabled = false,
   autoFocus = false,
+  renderOptionExtra,
+  getOptionDisabled,
 }) => {
   const { data: usersData, isLoading } = useQuery(userControllerFindAllUsersOptions({ query: { limit: 100 } }));
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
@@ -79,6 +85,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
         multiple
         options={filteredUsers}
         getOptionLabel={(user) => user.displayName || user.username}
+        getOptionDisabled={getOptionDisabled}
         value={(value as UserOption[]) || []}
         onChange={handleChange as (event: React.SyntheticEvent, value: UserOption[]) => void}
         loading={isLoading}
@@ -119,9 +126,9 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
         renderOption={(props, user) => {
           const { key: _key, ...restProps } = props;
           return (
-            <Box component="li" key={user.id} {...restProps}>
+            <Box component="li" key={user.id} {...restProps} sx={{ display: 'flex', alignItems: 'center' }}>
               <UserAvatar user={user} size="small" />
-              <Box sx={{ ml: 1 }}>
+              <Box sx={{ ml: 1, flex: 1 }}>
                 <Typography variant="body2">
                   {user.displayName || user.username}
                 </Typography>
@@ -129,6 +136,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
                   @{user.username}
                 </Typography>
               </Box>
+              {renderOptionExtra?.(user)}
             </Box>
           );
         }}
@@ -141,6 +149,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
     <Autocomplete
       options={filteredUsers}
       getOptionLabel={(user) => user.displayName || user.username}
+      getOptionDisabled={getOptionDisabled}
       value={value as UserOption | null}
       onChange={handleChange as (event: React.SyntheticEvent, value: UserOption | null) => void}
       loading={isLoading}
@@ -167,9 +176,9 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
       renderOption={(props, user) => {
         const { key: _key, ...restProps } = props;
         return (
-          <Box component="li" key={user.id} {...restProps}>
+          <Box component="li" key={user.id} {...restProps} sx={{ display: 'flex', alignItems: 'center' }}>
             <UserAvatar user={user} size="small" />
-            <Box sx={{ ml: 1 }}>
+            <Box sx={{ ml: 1, flex: 1 }}>
               <Typography variant="body2">
                 {user.displayName || user.username}
               </Typography>
@@ -177,6 +186,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
                 @{user.username}
               </Typography>
             </Box>
+            {renderOptionExtra?.(user)}
           </Box>
         );
       }}
