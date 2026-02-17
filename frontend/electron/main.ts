@@ -123,8 +123,8 @@ function setupTray(): void {
   let trayIcon: Electron.NativeImage;
   try {
     trayIcon = nativeImage.createFromPath(iconPath);
-    // Resize for tray (16x16 on most platforms, 22x22 on Linux)
-    trayIcon = trayIcon.resize({ width: 16, height: 16 });
+    const traySize = process.platform === 'linux' ? 22 : 16;
+    trayIcon = trayIcon.resize({ width: traySize, height: traySize });
   } catch {
     // Fallback to empty icon if file not found
     trayIcon = nativeImage.createEmpty();
@@ -167,15 +167,18 @@ function setupTray(): void {
   tray.setContextMenu(contextMenu);
 
   // On Linux/Windows, clicking the tray icon toggles window visibility
-  tray.on('click', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isVisible()) {
-      mainWindow.hide();
-    } else {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+  // macOS uses the dock icon for this (via 'activate' event)
+  if (process.platform !== 'darwin') {
+    tray.on('click', () => {
+      if (!mainWindow) return;
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+  }
 }
 
 // ─── Application Menu ───────────────────────────────────────────────────────
@@ -512,12 +515,10 @@ function createWindow() {
 
   // Hide to tray instead of closing (unless quitting)
   mainWindow.on('close', (event) => {
+    saveWindowState();
     if (!isQuitting) {
       event.preventDefault();
-      saveWindowState();
-      mainWindow?.hide();
-    } else {
-      saveWindowState();
+      mainWindow!.hide();
     }
   });
 
