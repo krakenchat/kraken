@@ -147,11 +147,21 @@ export const VoiceBottomBar: React.FC = () => {
 
   const handleToggleSpeakerphone = useCallback(async () => {
     try {
-      // Toggle between default (earpiece) and speakerphone
-      // An empty string selects the system default (speakerphone on mobile)
-      // "communications" selects the earpiece/communications device
       const newSpeakerState = !isSpeakerphone;
-      await actions.switchAudioOutputDevice(newSpeakerState ? '' : 'communications');
+
+      // Enumerate real audio output devices to find valid IDs
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+
+      // "communications" is the earpiece on some platforms; "default" is the system default (speaker on mobile)
+      const earpieceDevice = audioOutputs.find(d => d.deviceId === 'communications');
+      const defaultDevice = audioOutputs.find(d => d.deviceId === 'default') ?? audioOutputs[0];
+
+      const targetDeviceId = newSpeakerState
+        ? (defaultDevice?.deviceId ?? 'default')
+        : (earpieceDevice?.deviceId ?? 'default');
+
+      await actions.switchAudioOutputDevice(targetDeviceId);
       setIsSpeakerphone(newSpeakerState);
     } catch (error) {
       logger.error('Failed to toggle speakerphone:', error);
