@@ -21,9 +21,10 @@ import { useLocation } from 'react-router-dom';
 import { useVoice, useVoiceDispatch } from '../../contexts/VoiceContext';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useVideoOverlay } from '../../contexts/VideoOverlayContext';
+import { useResponsive } from '../../hooks/useResponsive';
 import { VideoTiles } from './VideoTiles';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
-import { VOICE_BAR_HEIGHT } from '../../constants/layout';
+import { VOICE_BAR_HEIGHT, VOICE_BAR_HEIGHT_MOBILE } from '../../constants/layout';
 
 // Constants
 const PIP_SETTINGS_KEY = 'kraken_pip_settings';
@@ -61,6 +62,7 @@ export const PersistentVideoOverlay: React.FC = () => {
   const { dispatch } = useVoiceDispatch();
   const { actions } = useVoiceConnection();
   const { containerElement } = useVideoOverlay();
+  const { isMobile } = useResponsive();
 
   // Load saved settings or use defaults, clamping size on initial load
   const [settings, setSettings] = useState<PipSettings>(() => {
@@ -306,6 +308,55 @@ export const PersistentVideoOverlay: React.FC = () => {
 
   if (!shouldShow) {
     return null;
+  }
+
+  // Mobile: simplified full-screen overlay (no drag/resize)
+  if (isMobile) {
+    return (
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: VOICE_BAR_HEIGHT_MOBILE,
+          zIndex: 1200,
+          backgroundColor: 'grey.900',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Close button */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 1,
+          }}
+        >
+          <IconButton
+            size="small"
+            onClick={() => actions.setShowVideoTiles(false)}
+            sx={{
+              backgroundColor: alpha(theme.palette.background.paper, 0.7),
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.background.paper, 0.9),
+              },
+            }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
+        </Box>
+
+        {/* Video content */}
+        <Box sx={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+          <VideoTiles />
+        </Box>
+      </Box>
+    );
   }
 
   const displayName = voiceState.contextType === 'dm'

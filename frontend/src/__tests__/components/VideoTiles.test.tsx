@@ -117,6 +117,7 @@ vi.mock('livekit-client', () => ({
       Camera: 'camera',
       Microphone: 'microphone',
       ScreenShare: 'screen_share',
+      ScreenShareAudio: 'screen_share_audio',
     },
   },
 }));
@@ -383,6 +384,66 @@ describe('VideoTiles', () => {
       });
 
       expect(mockActions.setShowVideoTiles).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('spotlight objectFit (#106)', () => {
+    it('uses contain objectFit for camera video when spotlighted', async () => {
+      const remoteCam = createMockTrackPublication('camera');
+      const remoteAudio = createMockTrackPublication('microphone');
+      remoteParticipants.set(
+        'remote-1',
+        createMockParticipant('SpotlightUser', [remoteCam], [remoteAudio]),
+      );
+
+      const { user } = renderWithProviders(<VideoTiles />);
+
+      // Click the tile to enter spotlight mode
+      const tileText = screen.getByText('SpotlightUser');
+      const card = tileText.closest('[class*="MuiCard"]')!;
+      await user.click(card);
+
+      // After spotlight, re-render should show the video with contain
+      const videos = document.querySelectorAll('video');
+      const cameraVideo = Array.from(videos).find(v => v.style.objectFit === 'contain');
+      expect(cameraVideo).toBeTruthy();
+    });
+  });
+
+  describe('grid layout (#83)', () => {
+    it('does not set minHeight on video tiles', () => {
+      const remoteCam = createMockTrackPublication('camera');
+      remoteParticipants.set(
+        'remote-1',
+        createMockParticipant('GridUser', [remoteCam]),
+      );
+
+      renderWithProviders(<VideoTiles />);
+
+      const cards = document.querySelectorAll('[class*="MuiCard"]');
+      cards.forEach(card => {
+        const style = (card as HTMLElement).style;
+        expect(style.minHeight).not.toBe('200px');
+      });
+    });
+
+    it('uses flexbox layout instead of MUI Grid', () => {
+      const remoteCam1 = createMockTrackPublication('camera');
+      const remoteCam2 = createMockTrackPublication('camera');
+      remoteParticipants.set(
+        'remote-1',
+        createMockParticipant('User1', [remoteCam1]),
+      );
+      remoteParticipants.set(
+        'remote-2',
+        createMockParticipant('User2', [remoteCam2]),
+      );
+
+      renderWithProviders(<VideoTiles />);
+
+      // Should not have any MUI Grid elements
+      const grids = document.querySelectorAll('[class*="MuiGrid"]');
+      expect(grids.length).toBe(0);
     });
   });
 

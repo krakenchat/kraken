@@ -30,6 +30,8 @@ import {
   FiberManualRecord,
   MovieCreation,
   VideoCall,
+  SpeakerPhone,
+  PhoneInTalk,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
@@ -69,6 +71,7 @@ export const VoiceBottomBar: React.FC = () => {
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [showCaptureModal, setShowCaptureModal] = useState(false);
+  const [isSpeakerphone, setIsSpeakerphone] = useState(false);
 
   // Use extracted hooks for cleaner organization
   const { showDebugPanel } = useDebugPanelShortcut();
@@ -138,6 +141,32 @@ export const VoiceBottomBar: React.FC = () => {
     }
     screenShare.toggleScreenShare();
   }, [screenShare, actions]);
+
+  // Check if browser supports audio output switching (setSinkId)
+  const supportsSpeakerToggle = isMobile && 'setSinkId' in HTMLMediaElement.prototype;
+
+  const handleToggleSpeakerphone = useCallback(async () => {
+    try {
+      const newSpeakerState = !isSpeakerphone;
+
+      // Enumerate real audio output devices to find valid IDs
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+
+      // "communications" is the earpiece on some platforms; "default" is the system default (speaker on mobile)
+      const earpieceDevice = audioOutputs.find(d => d.deviceId === 'communications');
+      const defaultDevice = audioOutputs.find(d => d.deviceId === 'default') ?? audioOutputs[0];
+
+      const targetDeviceId = newSpeakerState
+        ? (defaultDevice?.deviceId ?? 'default')
+        : (earpieceDevice?.deviceId ?? 'default');
+
+      await actions.switchAudioOutputDevice(targetDeviceId);
+      setIsSpeakerphone(newSpeakerState);
+    } catch (error) {
+      logger.error('Failed to toggle speakerphone:', error);
+    }
+  }, [isSpeakerphone, actions]);
 
   // Show bar if connected to either a channel or DM
   if (!state.isConnected || (!state.currentChannelId && !state.currentDmGroupId)) {
@@ -322,6 +351,33 @@ export const VoiceBottomBar: React.FC = () => {
                   }}
                 >
                   {state.isDeafened ? <HeadsetOff /> : <Headset />}
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {/* Speakerphone toggle - mobile only, when browser supports setSinkId */}
+            {supportsSpeakerToggle && (
+              <Tooltip title={isSpeakerphone ? "Switch to earpiece" : "Switch to speaker"}>
+                <IconButton
+                  onClick={handleToggleSpeakerphone}
+                  size="medium"
+                  sx={{
+                    backgroundColor: isSpeakerphone
+                      ? "primary.main"
+                      : "transparent",
+                    color: isSpeakerphone
+                      ? "primary.contrastText"
+                      : "text.primary",
+                    minWidth: 48,
+                    minHeight: 48,
+                    "&:hover": {
+                      backgroundColor: isSpeakerphone
+                        ? "primary.dark"
+                        : "action.hover",
+                    },
+                  }}
+                >
+                  {isSpeakerphone ? <SpeakerPhone /> : <PhoneInTalk />}
                 </IconButton>
               </Tooltip>
             )}

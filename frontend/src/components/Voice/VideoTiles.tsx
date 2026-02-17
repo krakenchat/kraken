@@ -7,7 +7,6 @@ import {
   Tooltip,
   Card,
   Fade,
-  Grid,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import {
@@ -30,13 +29,10 @@ import { useReplayBufferState } from '../../contexts/ReplayBufferContext';
 
 // Constants
 const GRID_CONSTANTS = {
-  MIN_TILE_HEIGHT: 200,
   SIDEBAR_WIDTH: 200,
   SIDEBAR_TILE_HEIGHT: 150,
   HEADER_HEIGHT: 48,
   MAX_SIDEBAR_TILES: 6,
-  MOBILE_MIN_TILE_HEIGHT: 150,
-  MOBILE_HEADER_HEIGHT: 40,
 } as const;
 import {
   TrackPublication,
@@ -126,7 +122,6 @@ const VideoTile: React.FC<VideoTileProps> = ({
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: '200px',
         backgroundColor: 'grey.900',
         overflow: 'hidden',
         cursor: onToggleFullscreen ? 'pointer' : 'default',
@@ -157,7 +152,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
           style={{
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
+            objectFit: isSpotlighted ? 'contain' : 'cover',
             backgroundColor: 'black',
           }}
         />
@@ -389,19 +384,19 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
 
   // Define callbacks before any early returns (React hooks must be called unconditionally)
   // Memoize grid layout calculation
-  const getGridLayout = useCallback((tileCount: number) => {
+  const getGridCols = useCallback((tileCount: number) => {
     // Mobile: use 1-2 columns max for better visibility
     if (isMobile) {
-      if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
-      if (tileCount <= 4) return { cols: isPortrait ? 1 : 2, maxHeight: isPortrait ? '50%' : '50%' };
-      return { cols: 2, maxHeight: '33.333%' };
+      if (tileCount <= 1) return 1;
+      if (tileCount <= 4) return isPortrait ? 1 : 2;
+      return 2;
     }
 
     // Desktop: original logic
-    if (tileCount <= 1) return { cols: 1, maxHeight: '100%' };
-    if (tileCount <= 4) return { cols: 2, maxHeight: '50%' };
-    if (tileCount <= 9) return { cols: 3, maxHeight: '33.333%' };
-    return { cols: 4, maxHeight: '25%' };
+    if (tileCount <= 1) return 1;
+    if (tileCount <= 4) return 2;
+    if (tileCount <= 9) return 3;
+    return 4;
   }, [isMobile, isPortrait]);
 
   const handleTilePin = useCallback((tileId: string) => {
@@ -623,43 +618,44 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
 
   // Layout rendering functions
   const renderGridLayout = () => {
-    const { cols, maxHeight } = getGridLayout(videoTiles.length);
-    const gridSize = Math.floor(12 / cols);
+    const cols = getGridCols(videoTiles.length);
+    const rows = Math.ceil(videoTiles.length / cols);
+    const tileWidth = `${100 / cols}%`;
+    const tileHeight = `${100 / rows}%`;
 
     return (
-      <Grid container spacing={1} sx={{ 
-        height: '100%', 
+      <Box sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        height: '100%',
+        width: '100%',
         overflow: 'hidden',
-        alignItems: 'stretch'
       }}>
         {videoTiles.map((tile) => (
-          <Grid 
-            item 
-            xs={gridSize}
+          <Box
             key={tile.tileId}
-            sx={{ 
-              height: videoTiles.length === 1 ? '100%' : maxHeight,
-              display: 'flex',
-              minHeight: GRID_CONSTANTS.MIN_TILE_HEIGHT
+            sx={{
+              width: tileWidth,
+              height: tileHeight,
+              p: 0.5,
+              boxSizing: 'border-box',
             }}
           >
-            <Box sx={{ width: '100%', height: '100%' }}>
-              <VideoTile
-                participant={tile.participant}
-                videoTrack={tile.videoTrack}
-                audioTrack={tile.audioTrack}
-                screenTrack={tile.screenTrack}
-                isLocal={tile.isLocal}
-                isReplayBufferActive={isReplayBufferActive}
-                onToggleFullscreen={() => handleTileSpotlight(tile.tileId)}
-                onPin={undefined}
-                isPinned={pinnedTileId === tile.tileId}
-                isSpotlighted={spotlightTileId === tile.tileId}
-              />
-            </Box>
-          </Grid>
+            <VideoTile
+              participant={tile.participant}
+              videoTrack={tile.videoTrack}
+              audioTrack={tile.audioTrack}
+              screenTrack={tile.screenTrack}
+              isLocal={tile.isLocal}
+              isReplayBufferActive={isReplayBufferActive}
+              onToggleFullscreen={() => handleTileSpotlight(tile.tileId)}
+              onPin={undefined}
+              isPinned={pinnedTileId === tile.tileId}
+              isSpotlighted={spotlightTileId === tile.tileId}
+            />
+          </Box>
         ))}
-      </Grid>
+      </Box>
     );
   };
 
