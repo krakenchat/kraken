@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { LivekitService } from './livekit.service';
 import { ConfigService } from '@nestjs/config';
 import { createMockConfigService } from '@/test-utils';
@@ -21,7 +21,7 @@ jest.mock('livekit-server-sdk', () => {
 
 describe('LivekitService', () => {
   let service: LivekitService;
-  let configService: ConfigService;
+  let configService: any;
 
   const mockConfig = {
     LIVEKIT_API_KEY: 'test-api-key',
@@ -36,23 +36,16 @@ describe('LivekitService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    configService = createMockConfigService(mockConfig);
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LivekitService,
-        {
-          provide: ConfigService,
-          useValue: createMockConfigService(mockConfig),
-        },
-        {
-          provide: ROOM_SERVICE_CLIENT,
-          useValue: mockRoomServiceClient,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(LivekitService)
+      .mock(ConfigService)
+      .final(configService)
+      .mock(ROOM_SERVICE_CLIENT)
+      .final(mockRoomServiceClient)
+      .compile();
 
-    service = module.get<LivekitService>(LivekitService);
-    configService = module.get<ConfigService>(ConfigService);
+    service = unit;
   });
 
   afterEach(() => {
@@ -379,22 +372,15 @@ describe('LivekitService', () => {
     });
 
     it('should throw when roomServiceClient is not configured', async () => {
-      // Create a service with null roomServiceClient
-      const module = await Test.createTestingModule({
-        providers: [
-          LivekitService,
-          {
-            provide: ConfigService,
-            useValue: createMockConfigService(mockConfig),
-          },
-          {
-            provide: ROOM_SERVICE_CLIENT,
-            useValue: null,
-          },
-        ],
-      }).compile();
-
-      const serviceWithoutClient = module.get<LivekitService>(LivekitService);
+      // Create a service with null roomServiceClient using TestBed
+      const { unit: serviceWithoutClient } = await TestBed.solitary(
+        LivekitService,
+      )
+        .mock(ConfigService)
+        .final(createMockConfigService(mockConfig))
+        .mock(ROOM_SERVICE_CLIENT)
+        .final(null as any)
+        .compile();
 
       await expect(
         serviceWithoutClient.muteParticipant('room-1', 'user-1', true),

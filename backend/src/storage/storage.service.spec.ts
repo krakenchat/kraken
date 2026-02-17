@@ -1,45 +1,25 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ConfigService } from '@nestjs/config';
 import { StorageService, StorageType } from './storage.service';
 import { LocalStorageProvider } from './providers/local-storage.provider';
 
 describe('StorageService', () => {
   let service: StorageService;
-  let localProvider: LocalStorageProvider;
-
-  const mockConfigService = {
-    get: jest.fn(),
-  };
-
-  const mockLocalStorageProvider = {
-    ensureDirectory: jest.fn(),
-    directoryExists: jest.fn(),
-    deleteDirectory: jest.fn(),
-    deleteFile: jest.fn(),
-    fileExists: jest.fn(),
-    listFiles: jest.fn(),
-    getFileStats: jest.fn(),
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-    deleteOldFiles: jest.fn(),
-    createReadStream: jest.fn(),
-    getFileUrl: jest.fn(),
-  };
+  let localProvider: Mocked<LocalStorageProvider>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    mockConfigService.get.mockReturnValue(undefined);
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        StorageService,
-        { provide: ConfigService, useValue: mockConfigService },
-        { provide: LocalStorageProvider, useValue: mockLocalStorageProvider },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(StorageService)
+      .mock(ConfigService)
+      .final({
+        get: jest.fn().mockReturnValue(undefined),
+      })
+      .compile();
 
-    service = module.get<StorageService>(StorageService);
-    localProvider = module.get<LocalStorageProvider>(LocalStorageProvider);
+    service = unit;
+    localProvider = unitRef.get(LocalStorageProvider);
   });
 
   afterEach(() => {
@@ -52,25 +32,21 @@ describe('StorageService', () => {
 
   describe('initialization', () => {
     it('should default to LOCAL storage type when not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
       const provider = service.getProvider();
       expect(provider).toBe(localProvider);
     });
 
     it('should use configured storage type from environment', async () => {
-      mockConfigService.get.mockReturnValue(StorageType.LOCAL);
+      const { unit: svc, unitRef: ref } = await TestBed.solitary(StorageService)
+        .mock(ConfigService)
+        .final({
+          get: jest.fn().mockReturnValue(StorageType.LOCAL),
+        })
+        .compile();
 
-      const module = await Test.createTestingModule({
-        providers: [
-          StorageService,
-          { provide: ConfigService, useValue: mockConfigService },
-          { provide: LocalStorageProvider, useValue: mockLocalStorageProvider },
-        ],
-      }).compile();
-
-      const svc = module.get<StorageService>(StorageService);
+      const mockLocalProvider = ref.get(LocalStorageProvider);
       const provider = svc.getProvider();
-      expect(provider).toBe(mockLocalStorageProvider);
+      expect(provider).toBe(mockLocalProvider);
     });
   });
 
@@ -100,59 +76,50 @@ describe('StorageService', () => {
 
   describe('delegation methods', () => {
     it('should delegate ensureDirectory to provider', async () => {
-      mockLocalStorageProvider.ensureDirectory.mockResolvedValue(undefined);
+      localProvider.ensureDirectory.mockResolvedValue(undefined);
       await service.ensureDirectory('/test/path');
-      expect(mockLocalStorageProvider.ensureDirectory).toHaveBeenCalledWith(
-        '/test/path',
-      );
+      expect(localProvider.ensureDirectory).toHaveBeenCalledWith('/test/path');
     });
 
     it('should delegate directoryExists to provider', async () => {
-      mockLocalStorageProvider.directoryExists.mockResolvedValue(true);
+      localProvider.directoryExists.mockResolvedValue(true);
       const result = await service.directoryExists('/test/path');
       expect(result).toBe(true);
-      expect(mockLocalStorageProvider.directoryExists).toHaveBeenCalledWith(
-        '/test/path',
-      );
+      expect(localProvider.directoryExists).toHaveBeenCalledWith('/test/path');
     });
 
     it('should delegate deleteDirectory to provider', async () => {
-      mockLocalStorageProvider.deleteDirectory.mockResolvedValue(undefined);
+      localProvider.deleteDirectory.mockResolvedValue(undefined);
       await service.deleteDirectory('/test/path', {
         recursive: true,
         force: true,
       });
-      expect(mockLocalStorageProvider.deleteDirectory).toHaveBeenCalledWith(
-        '/test/path',
-        { recursive: true, force: true },
-      );
+      expect(localProvider.deleteDirectory).toHaveBeenCalledWith('/test/path', {
+        recursive: true,
+        force: true,
+      });
     });
 
     it('should delegate deleteFile to provider', async () => {
-      mockLocalStorageProvider.deleteFile.mockResolvedValue(undefined);
+      localProvider.deleteFile.mockResolvedValue(undefined);
       await service.deleteFile('/test/file.txt');
-      expect(mockLocalStorageProvider.deleteFile).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.deleteFile).toHaveBeenCalledWith('/test/file.txt');
     });
 
     it('should delegate fileExists to provider', async () => {
-      mockLocalStorageProvider.fileExists.mockResolvedValue(false);
+      localProvider.fileExists.mockResolvedValue(false);
       const result = await service.fileExists('/test/missing.txt');
       expect(result).toBe(false);
-      expect(mockLocalStorageProvider.fileExists).toHaveBeenCalledWith(
+      expect(localProvider.fileExists).toHaveBeenCalledWith(
         '/test/missing.txt',
       );
     });
 
     it('should delegate listFiles to provider', async () => {
-      mockLocalStorageProvider.listFiles.mockResolvedValue([
-        'file1.ts',
-        'file2.ts',
-      ]);
+      localProvider.listFiles.mockResolvedValue(['file1.ts', 'file2.ts']);
       const result = await service.listFiles('/test/dir');
       expect(result).toEqual(['file1.ts', 'file2.ts']);
-      expect(mockLocalStorageProvider.listFiles).toHaveBeenCalledWith(
+      expect(localProvider.listFiles).toHaveBeenCalledWith(
         '/test/dir',
         undefined,
       );
@@ -160,12 +127,11 @@ describe('StorageService', () => {
 
     it('should delegate listFiles with options to provider', async () => {
       const filterFn = (f: string) => f.endsWith('.ts');
-      mockLocalStorageProvider.listFiles.mockResolvedValue(['file1.ts']);
+      localProvider.listFiles.mockResolvedValue(['file1.ts']);
       await service.listFiles('/test/dir', { filter: filterFn });
-      expect(mockLocalStorageProvider.listFiles).toHaveBeenCalledWith(
-        '/test/dir',
-        { filter: filterFn },
-      );
+      expect(localProvider.listFiles).toHaveBeenCalledWith('/test/dir', {
+        filter: filterFn,
+      });
     });
 
     it('should delegate getFileStats to provider', async () => {
@@ -174,28 +140,24 @@ describe('StorageService', () => {
         mtime: new Date(),
         ctime: new Date(),
       };
-      mockLocalStorageProvider.getFileStats.mockResolvedValue(stats);
+      localProvider.getFileStats.mockResolvedValue(stats);
       const result = await service.getFileStats('/test/file.txt');
       expect(result).toEqual(stats);
-      expect(mockLocalStorageProvider.getFileStats).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.getFileStats).toHaveBeenCalledWith('/test/file.txt');
     });
 
     it('should delegate readFile to provider', async () => {
       const buffer = Buffer.from('test content');
-      mockLocalStorageProvider.readFile.mockResolvedValue(buffer);
+      localProvider.readFile.mockResolvedValue(buffer);
       const result = await service.readFile('/test/file.txt');
       expect(result).toBe(buffer);
-      expect(mockLocalStorageProvider.readFile).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.readFile).toHaveBeenCalledWith('/test/file.txt');
     });
 
     it('should delegate writeFile to provider', async () => {
-      mockLocalStorageProvider.writeFile.mockResolvedValue(undefined);
+      localProvider.writeFile.mockResolvedValue(undefined);
       await service.writeFile('/test/file.txt', 'content');
-      expect(mockLocalStorageProvider.writeFile).toHaveBeenCalledWith(
+      expect(localProvider.writeFile).toHaveBeenCalledWith(
         '/test/file.txt',
         'content',
       );
@@ -203,20 +165,20 @@ describe('StorageService', () => {
 
     it('should delegate writeFile with Buffer to provider', async () => {
       const buffer = Buffer.from('binary content');
-      mockLocalStorageProvider.writeFile.mockResolvedValue(undefined);
+      localProvider.writeFile.mockResolvedValue(undefined);
       await service.writeFile('/test/file.bin', buffer);
-      expect(mockLocalStorageProvider.writeFile).toHaveBeenCalledWith(
+      expect(localProvider.writeFile).toHaveBeenCalledWith(
         '/test/file.bin',
         buffer,
       );
     });
 
     it('should delegate deleteOldFiles to provider', async () => {
-      mockLocalStorageProvider.deleteOldFiles.mockResolvedValue(5);
+      localProvider.deleteOldFiles.mockResolvedValue(5);
       const cutoffDate = new Date();
       const result = await service.deleteOldFiles('/test/dir', cutoffDate);
       expect(result).toBe(5);
-      expect(mockLocalStorageProvider.deleteOldFiles).toHaveBeenCalledWith(
+      expect(localProvider.deleteOldFiles).toHaveBeenCalledWith(
         '/test/dir',
         cutoffDate,
       );
@@ -224,21 +186,19 @@ describe('StorageService', () => {
 
     it('should delegate createReadStream to provider', () => {
       const mockStream = {} as any;
-      mockLocalStorageProvider.createReadStream.mockReturnValue(mockStream);
+      localProvider.createReadStream.mockReturnValue(mockStream);
       const result = service.createReadStream('/test/file.txt');
       expect(result).toBe(mockStream);
-      expect(mockLocalStorageProvider.createReadStream).toHaveBeenCalledWith(
+      expect(localProvider.createReadStream).toHaveBeenCalledWith(
         '/test/file.txt',
       );
     });
 
     it('should delegate getFileUrl to provider', async () => {
-      mockLocalStorageProvider.getFileUrl.mockResolvedValue('/test/file.txt');
+      localProvider.getFileUrl.mockResolvedValue('/test/file.txt');
       const result = await service.getFileUrl('/test/file.txt');
       expect(result).toBe('/test/file.txt');
-      expect(mockLocalStorageProvider.getFileUrl).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.getFileUrl).toHaveBeenCalledWith('/test/file.txt');
     });
   });
 });

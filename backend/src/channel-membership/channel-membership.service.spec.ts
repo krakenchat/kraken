@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { ChannelMembershipService } from './channel-membership.service';
 import { DatabaseService } from '@/database/database.service';
 import {
@@ -23,17 +23,12 @@ describe('ChannelMembershipService', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ChannelMembershipService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(ChannelMembershipService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<ChannelMembershipService>(ChannelMembershipService);
+    service = unit;
   });
 
   afterEach(() => {

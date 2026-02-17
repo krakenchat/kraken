@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { DirectMessagesService } from './direct-messages.service';
 import { DatabaseService } from '@/database/database.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -11,22 +11,17 @@ import {
 
 describe('DirectMessagesService', () => {
   let service: DirectMessagesService;
-  let mockDatabase: any;
+  let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        DirectMessagesService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(DirectMessagesService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<DirectMessagesService>(DirectMessagesService);
+    service = unit;
   });
 
   afterEach(() => {

@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
 import { JwtService } from '@nestjs/jwt';
@@ -20,45 +21,32 @@ jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
-  let userService: UserService;
-  let jwtService: JwtService;
+  let userService: Mocked<UserService>;
+  let jwtService: Mocked<JwtService>;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
+    const mockJwtService = createMockJwtService();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: UserService,
-          useValue: {
-            findByUsername: jest.fn(),
-            findById: jest.fn(),
-          },
-        },
-        {
-          provide: JwtService,
-          useValue: createMockJwtService(),
-        },
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: ConfigService,
-          useValue: createMockConfigService({
-            JWT_REFRESH_SECRET: 'test-refresh-secret',
-          }),
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(AuthService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .mock(JwtService)
+      .final(mockJwtService)
+      .mock(ConfigService)
+      .final(
+        createMockConfigService({
+          JWT_REFRESH_SECRET: 'test-refresh-secret',
+        }),
+      )
+      .compile();
 
-    service = module.get<AuthService>(AuthService);
-    userService = module.get<UserService>(UserService);
-    jwtService = module.get<JwtService>(JwtService);
+    service = unit;
+    userService = unitRef.get(UserService);
+    jwtService = mockJwtService as unknown as Mocked<JwtService>;
   });
 
   afterEach(() => {
@@ -69,8 +57,8 @@ describe('AuthService', () => {
     it('should throw error if JWT_REFRESH_SECRET is not set', () => {
       expect(() => {
         new AuthService(
-          userService,
-          jwtService,
+          userService as unknown as UserService,
+          jwtService as unknown as JwtService,
           mockDatabase as unknown as DatabaseService,
           createMockConfigService({
             JWT_REFRESH_SECRET: undefined,

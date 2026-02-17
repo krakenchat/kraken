@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { ReadReceiptsService } from './read-receipts.service';
 import { DatabaseService } from '@/database/database.service';
 import { BadRequestException } from '@nestjs/common';
@@ -26,17 +26,12 @@ describe('ReadReceiptsService', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ReadReceiptsService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(ReadReceiptsService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<ReadReceiptsService>(ReadReceiptsService);
+    service = unit;
   });
 
   afterEach(() => {

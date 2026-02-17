@@ -1,52 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LivekitReplayService } from './livekit-replay.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { FfmpegService } from './ffmpeg.service';
-import { MessagesService } from '@/messages/messages.service';
 import { ServerEvents } from '@kraken/shared';
 import { EgressStatus } from 'livekit-server-sdk';
-
-// Mock livekit-server-sdk
-jest.mock('livekit-server-sdk', () => ({
-  EgressClient: jest.fn().mockImplementation(() => ({
-    startTrackCompositeEgress: jest.fn(),
-    stopEgress: jest.fn(),
-    listEgress: jest.fn(),
-  })),
-  RoomServiceClient: jest.fn().mockImplementation(() => ({
-    getParticipant: jest.fn(),
-  })),
-  SegmentedFileOutput: jest.fn(),
-  SegmentedFileProtocol: {
-    HLS_PROTOCOL: 'HLS_PROTOCOL',
-  },
-  EncodingOptions: jest.fn().mockImplementation((opts) => opts),
-  EncodingOptionsPreset: {
-    H264_1080P_30: 'H264_1080P_30',
-    H264_1080P_60: 'H264_1080P_60',
-  },
-  VideoCodec: {
-    H264_HIGH: 'H264_HIGH',
-  },
-  AudioCodec: {
-    OPUS: 'OPUS',
-  },
-  TrackType: {
-    VIDEO: 1,
-    AUDIO: 2,
-  },
-  EgressStatus: {
-    EGRESS_COMPLETE: 4,
-    EGRESS_FAILED: 5,
-    EGRESS_ABORTED: 6,
-    EGRESS_ACTIVE: 2,
-    EGRESS_STARTING: 1,
-  },
-}));
+import { EGRESS_CLIENT } from './providers/egress-client.provider';
+import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
 // Mock fluent-ffmpeg
 const mockFfmpegCommand = {
@@ -74,118 +36,60 @@ jest.mock('fluent-ffmpeg', () => {
 
 describe('LivekitReplayService', () => {
   let service: LivekitReplayService;
-  let mockEgressClient: {
-    startTrackCompositeEgress: jest.Mock;
-    stopEgress: jest.Mock;
-    listEgress: jest.Mock;
+
+  let databaseService: any;
+
+  let storageService: any;
+
+  let websocketService: any;
+
+  const mockEgressClient = {
+    startTrackCompositeEgress: jest.fn(),
+    stopEgress: jest.fn(),
+    listEgress: jest.fn(),
   };
 
-  const mockConfigService = {
-    get: jest.fn(),
-  };
-
-  const mockDatabaseService = {
-    egressSession: {
-      findFirst: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-      findMany: jest.fn(),
-    },
-    replayClip: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-    file: {
-      create: jest.fn(),
-      delete: jest.fn(),
-      findFirst: jest.fn(),
-    },
-  };
-
-  const mockStorageService = {
-    ensureDirectory: jest.fn(),
-    getDirectoryContents: jest.fn(),
-    readTextFile: jest.fn(),
-    getFileStats: jest.fn(),
-    deleteDirectory: jest.fn(),
-    deleteFile: jest.fn(),
-    directoryExists: jest.fn(),
-    deleteOldFiles: jest.fn(),
-    fileExists: jest.fn(),
-    listFiles: jest.fn(),
-    // New prefix-aware methods
-    getSegmentsPrefix: jest
-      .fn()
-      .mockReturnValue('/app/storage/replay-segments'),
-    resolveSegmentPath: jest
-      .fn()
-      .mockImplementation(
-        (relativePath: string) =>
-          `/app/storage/replay-segments/${relativePath}`,
-      ),
-    deleteSegmentDirectory: jest.fn(),
-    segmentDirectoryExists: jest.fn(),
-    listSegmentFiles: jest.fn(),
-    readSegmentFile: jest.fn(),
-    getSegmentFileStats: jest.fn(),
-  };
-
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-  };
-
-  const mockFfmpegService = {
-    concatenateSegments: jest.fn(),
-    getVideoDuration: jest.fn(),
-    getEstimatedDuration: jest.fn(),
-    getEstimatedFileSize: jest.fn(),
-  };
-
-  const mockMessagesService = {
-    create: jest.fn(),
-    enrichMessageWithFileMetadata: jest.fn(),
+  const mockRoomServiceClient = {
+    getParticipant: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    // Setup default config values
-    mockConfigService.get.mockImplementation((key: string) => {
-      const config: Record<string, string> = {
-        LIVEKIT_URL: 'wss://test.livekit.io',
-        LIVEKIT_API_KEY: 'test-api-key',
-        LIVEKIT_API_SECRET: 'test-api-secret',
-        REPLAY_SEGMENTS_PATH: '/app/storage/replay-segments',
-        REPLAY_EGRESS_OUTPUT_PATH: '/out',
-        REPLAY_CLIPS_PATH: '/app/uploads/replays',
-        REPLAY_SEGMENT_CLEANUP_AGE_MINUTES: '20',
-      };
-      return config[key];
-    });
+    const { unit, unitRef } = await TestBed.solitary(LivekitReplayService)
+      .mock(EGRESS_CLIENT)
+      .final(mockEgressClient)
+      .mock(ROOM_SERVICE_CLIENT)
+      .final(mockRoomServiceClient)
+      .mock(ConfigService)
+      .final({
+        get: jest.fn().mockImplementation((key: string) => {
+          const config: Record<string, string> = {
+            LIVEKIT_URL: 'wss://test.livekit.io',
+            LIVEKIT_API_KEY: 'test-api-key',
+            LIVEKIT_API_SECRET: 'test-api-secret',
+            REPLAY_SEGMENTS_PATH: '/app/storage/replay-segments',
+            REPLAY_EGRESS_OUTPUT_PATH: '/out',
+            REPLAY_CLIPS_PATH: '/app/uploads/replays',
+            REPLAY_SEGMENT_CLEANUP_AGE_MINUTES: '20',
+          };
+          return config[key];
+        }),
+      })
+      .compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LivekitReplayService,
-        { provide: ConfigService, useValue: mockConfigService },
-        { provide: DatabaseService, useValue: mockDatabaseService },
-        { provide: StorageService, useValue: mockStorageService },
-        { provide: WebsocketService, useValue: mockWebsocketService },
-        { provide: FfmpegService, useValue: mockFfmpegService },
-        { provide: MessagesService, useValue: mockMessagesService },
-      ],
-    }).compile();
+    service = unit;
+    databaseService = unitRef.get(DatabaseService);
+    storageService = unitRef.get(StorageService);
+    websocketService = unitRef.get(WebsocketService);
 
-    service = module.get<LivekitReplayService>(LivekitReplayService);
-
-    // Get the mocked EgressClient
-    mockEgressClient = (
-      service as unknown as { egressClient: typeof mockEgressClient }
-    ).egressClient;
+    // Set up default return values for StorageService
+    storageService.getSegmentsPrefix.mockReturnValue(
+      '/app/storage/replay-segments',
+    );
+    storageService.resolveSegmentPath.mockImplementation(
+      (relativePath: string) => `/app/storage/replay-segments/${relativePath}`,
+    );
   });
 
   afterEach(() => {
@@ -194,26 +98,6 @@ describe('LivekitReplayService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-  });
-
-  it('should throw error when LiveKit config is missing', async () => {
-    mockConfigService.get.mockReturnValue(undefined);
-
-    await expect(
-      Test.createTestingModule({
-        providers: [
-          LivekitReplayService,
-          { provide: ConfigService, useValue: mockConfigService },
-          { provide: DatabaseService, useValue: mockDatabaseService },
-          { provide: StorageService, useValue: mockStorageService },
-          { provide: WebsocketService, useValue: mockWebsocketService },
-          { provide: FfmpegService, useValue: mockFfmpegService },
-          { provide: MessagesService, useValue: mockMessagesService },
-        ],
-      }).compile(),
-    ).rejects.toThrow(
-      'LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET must be set',
-    );
   });
 
   describe('startReplayBuffer', () => {
@@ -226,16 +110,16 @@ describe('LivekitReplayService', () => {
     };
 
     beforeEach(() => {
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(null);
+      databaseService.egressSession.findFirst.mockResolvedValue(null);
       mockEgressClient.startTrackCompositeEgress.mockResolvedValue({
         egressId: 'egress-123',
       });
-      mockDatabaseService.egressSession.create.mockResolvedValue({
+      databaseService.egressSession.create.mockResolvedValue({
         id: 'session-1',
         egressId: 'egress-123',
         status: 'active',
       });
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
+      storageService.deleteDirectory.mockResolvedValue(undefined);
     });
 
     it('should start new egress session', async () => {
@@ -245,7 +129,7 @@ describe('LivekitReplayService', () => {
       expect(result.sessionId).toBe('session-1');
       expect(result.status).toBe('active');
       expect(mockEgressClient.startTrackCompositeEgress).toHaveBeenCalled();
-      expect(mockDatabaseService.egressSession.create).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             userId: 'user-123',
@@ -267,23 +151,23 @@ describe('LivekitReplayService', () => {
         segmentPath: 'old-session', // Relative path (just sessionId)
       };
 
-      mockDatabaseService.egressSession.findFirst
+      databaseService.egressSession.findFirst
         .mockResolvedValueOnce(existingSession) // For startReplayBuffer check
         .mockResolvedValueOnce(existingSession) // For stopReplayBuffer lookup
         .mockResolvedValueOnce(null); // After stop, for new start
       mockEgressClient.stopEgress.mockResolvedValue(undefined);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.update.mockResolvedValue({
         ...existingSession,
         status: 'stopped',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.startReplayBuffer(startParams);
 
       expect(mockEgressClient.stopEgress).toHaveBeenCalledWith(
         'old-egress-123',
       );
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'old-session' },
           data: expect.objectContaining({
@@ -314,15 +198,13 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(
-        activeSession,
-      );
+      databaseService.egressSession.findFirst.mockResolvedValue(activeSession);
       mockEgressClient.stopEgress.mockResolvedValue(undefined);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.update.mockResolvedValue({
         ...activeSession,
         status: 'stopped',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       const result = await service.stopReplayBuffer('user-123');
 
@@ -330,7 +212,7 @@ describe('LivekitReplayService', () => {
       expect(result.egressId).toBe('egress-123');
       expect(result.status).toBe('stopped');
       expect(mockEgressClient.stopEgress).toHaveBeenCalledWith('egress-123');
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'session-1' },
           data: expect.objectContaining({
@@ -341,7 +223,7 @@ describe('LivekitReplayService', () => {
     });
 
     it('should throw NotFoundException when no active session', async () => {
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(null);
+      databaseService.egressSession.findFirst.mockResolvedValue(null);
 
       await expect(service.stopReplayBuffer('user-123')).rejects.toThrow(
         NotFoundException,
@@ -357,22 +239,20 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(
-        activeSession,
-      );
+      databaseService.egressSession.findFirst.mockResolvedValue(activeSession);
       mockEgressClient.stopEgress.mockRejectedValue(
         new Error('egress does not exist'),
       );
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.update.mockResolvedValue({
         ...activeSession,
         status: 'stopped',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       // Should still succeed and update database
       const result = await service.stopReplayBuffer('user-123');
       expect(result.status).toBe('stopped');
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalled();
+      expect(databaseService.egressSession.update).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for other egress stop failures', async () => {
@@ -384,9 +264,7 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(
-        activeSession,
-      );
+      databaseService.egressSession.findFirst.mockResolvedValue(activeSession);
       mockEgressClient.stopEgress.mockRejectedValue(
         new Error('Network timeout'),
       );
@@ -405,20 +283,18 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(
-        activeSession,
-      );
+      databaseService.egressSession.findFirst.mockResolvedValue(activeSession);
       mockEgressClient.stopEgress.mockResolvedValue(undefined);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.update.mockResolvedValue({
         ...activeSession,
         status: 'stopped',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.stopReplayBuffer('user-123');
 
       // Now uses deleteSegmentDirectory with relative path
-      expect(mockStorageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
         'session-1',
         { recursive: true, force: true },
       );
@@ -436,16 +312,16 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.findUnique.mockResolvedValue(session);
+      databaseService.egressSession.update.mockResolvedValue({
         ...session,
         status: 'stopped',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'stopped');
 
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'session-1' },
           data: expect.objectContaining({
@@ -465,12 +341,12 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.findUnique.mockResolvedValue(session);
+      databaseService.egressSession.update.mockResolvedValue({
         ...session,
         status: 'failed',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded(
         'egress-123',
@@ -478,7 +354,7 @@ describe('LivekitReplayService', () => {
         'Network timeout',
       );
 
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'session-1' },
           data: expect.objectContaining({
@@ -490,7 +366,7 @@ describe('LivekitReplayService', () => {
     });
 
     it('should handle session not found', async () => {
-      mockDatabaseService.egressSession.findUnique.mockResolvedValue(null);
+      databaseService.egressSession.findUnique.mockResolvedValue(null);
 
       // Should not throw, just log warning
       await expect(
@@ -506,12 +382,12 @@ describe('LivekitReplayService', () => {
         status: 'stopped', // Already stopped
       };
 
-      mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
+      databaseService.egressSession.findUnique.mockResolvedValue(session);
 
       await service.handleEgressEnded('egress-123', 'stopped');
 
       // Should not call update
-      expect(mockDatabaseService.egressSession.update).not.toHaveBeenCalled();
+      expect(databaseService.egressSession.update).not.toHaveBeenCalled();
     });
 
     it('should send REPLAY_BUFFER_FAILED websocket event on failure', async () => {
@@ -524,16 +400,16 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.findUnique.mockResolvedValue(session);
+      databaseService.egressSession.update.mockResolvedValue({
         ...session,
         status: 'failed',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'failed', 'Codec error');
 
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'user-123',
         ServerEvents.REPLAY_BUFFER_FAILED,
         expect.objectContaining({
@@ -555,16 +431,16 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.findUnique.mockResolvedValue(session);
+      databaseService.egressSession.update.mockResolvedValue({
         ...session,
         status: 'stopped',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'stopped');
 
-      expect(mockWebsocketService.sendToRoom).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'user-123',
         ServerEvents.REPLAY_BUFFER_STOPPED,
         expect.objectContaining({
@@ -585,17 +461,17 @@ describe('LivekitReplayService', () => {
         segmentPath: 'session-1', // Relative path
       };
 
-      mockDatabaseService.egressSession.findUnique.mockResolvedValue(session);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.findUnique.mockResolvedValue(session);
+      databaseService.egressSession.update.mockResolvedValue({
         ...session,
         status: 'stopped',
       });
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.handleEgressEnded('egress-123', 'stopped');
 
       // Now uses deleteSegmentDirectory with relative path
-      expect(mockStorageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
         'session-1',
         { recursive: true, force: true },
       );
@@ -612,13 +488,13 @@ describe('LivekitReplayService', () => {
         startedAt: new Date('2025-01-01'),
       };
 
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(session);
+      databaseService.egressSession.findFirst.mockResolvedValue(session);
       // listFiles is called with the resolved path (via listAndSortSegments)
-      mockStorageService.listFiles.mockResolvedValue([
+      storageService.listFiles.mockResolvedValue([
         '2025-01-01T000000-segment_00000.ts',
         '2025-01-01T000010-segment_00001.ts',
       ]);
-      mockStorageService.getFileStats
+      storageService.getFileStats
         .mockResolvedValueOnce({ size: 50000 }) // Complete segment
         .mockResolvedValueOnce({ size: 50000 }); // Complete segment
 
@@ -629,13 +505,13 @@ describe('LivekitReplayService', () => {
       expect(result.totalSegments).toBe(2);
       expect(result.totalDurationSeconds).toBe(20); // 2 segments * 10 seconds
       // Verify resolveSegmentPath was called with relative path
-      expect(mockStorageService.resolveSegmentPath).toHaveBeenCalledWith(
+      expect(storageService.resolveSegmentPath).toHaveBeenCalledWith(
         'session-1',
       );
     });
 
     it('should return inactive status when no session', async () => {
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(null);
+      databaseService.egressSession.findFirst.mockResolvedValue(null);
 
       const result = await service.getSessionInfo('user-123');
 
@@ -651,12 +527,12 @@ describe('LivekitReplayService', () => {
         startedAt: new Date('2025-01-01'),
       };
 
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(session);
-      mockStorageService.listFiles.mockResolvedValue([
+      databaseService.egressSession.findFirst.mockResolvedValue(session);
+      storageService.listFiles.mockResolvedValue([
         '2025-01-01T000000-segment_00000.ts',
         '2025-01-01T000010-segment_00001.ts',
       ]);
-      mockStorageService.getFileStats
+      storageService.getFileStats
         .mockResolvedValueOnce({ size: 50000 }) // Complete
         .mockResolvedValueOnce({ size: 1000 }); // Incomplete (< 10KB)
 
@@ -674,8 +550,8 @@ describe('LivekitReplayService', () => {
         startedAt: new Date('2025-01-01'),
       };
 
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue(session);
-      mockStorageService.listFiles.mockResolvedValue([]);
+      databaseService.egressSession.findFirst.mockResolvedValue(session);
+      storageService.listFiles.mockResolvedValue([]);
 
       const result = await service.getSessionInfo('user-123');
 
@@ -693,19 +569,19 @@ describe('LivekitReplayService', () => {
     const segmentFile = 'segment_00001.ts';
 
     beforeEach(() => {
-      mockDatabaseService.egressSession.findFirst.mockResolvedValue({
+      databaseService.egressSession.findFirst.mockResolvedValue({
         id: 'session-1',
         userId,
         status: 'active',
         segmentPath: 'session-1',
       });
-      mockStorageService.ensureDirectory.mockResolvedValue(undefined);
+      storageService.ensureDirectory.mockResolvedValue(undefined);
       // First call: original segment exists (getSegmentPath check)
       // Second call: remuxed cache doesn't exist yet
-      mockStorageService.fileExists
+      storageService.fileExists
         .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(false);
-      mockStorageService.getFileStats.mockResolvedValue({ size: 50000 });
+      storageService.getFileStats.mockResolvedValue({ size: 50000 });
     });
 
     it('should pass -copyts to FFmpeg to preserve segment timestamps', async () => {
@@ -727,7 +603,7 @@ describe('LivekitReplayService', () => {
     });
 
     it('should return cached path if already remuxed', async () => {
-      mockStorageService.fileExists
+      storageService.fileExists
         .mockReset()
         .mockResolvedValueOnce(true) // original exists
         .mockResolvedValueOnce(true); // cache exists
@@ -739,11 +615,11 @@ describe('LivekitReplayService', () => {
     });
 
     it('should return original path for incomplete segments', async () => {
-      mockStorageService.fileExists
+      storageService.fileExists
         .mockReset()
         .mockResolvedValueOnce(true) // original exists
         .mockResolvedValueOnce(false); // cache doesn't exist
-      mockStorageService.getFileStats.mockResolvedValue({ size: 500 });
+      storageService.getFileStats.mockResolvedValue({ size: 500 });
 
       const result = await service.getRemuxedSegmentPath(userId, segmentFile);
 
@@ -753,7 +629,7 @@ describe('LivekitReplayService', () => {
     });
 
     it('should return original path when remux fails', async () => {
-      mockStorageService.fileExists
+      storageService.fileExists
         .mockReset()
         .mockResolvedValueOnce(true) // original exists
         .mockResolvedValueOnce(false); // cache doesn't exist
@@ -809,20 +685,18 @@ describe('LivekitReplayService', () => {
         },
       ];
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue(
-        activeSessions,
-      );
-      mockStorageService.segmentDirectoryExists.mockResolvedValue(true);
-      mockStorageService.deleteOldFiles.mockResolvedValue(5);
+      databaseService.egressSession.findMany.mockResolvedValue(activeSessions);
+      storageService.segmentDirectoryExists.mockResolvedValue(true);
+      storageService.deleteOldFiles.mockResolvedValue(5);
 
       await service.cleanupOldSegments();
 
       // deleteOldFiles is called with resolved path
-      expect(mockStorageService.deleteOldFiles).toHaveBeenCalledWith(
+      expect(storageService.deleteOldFiles).toHaveBeenCalledWith(
         '/app/storage/replay-segments/session-1',
         expect.any(Date),
       );
-      expect(mockStorageService.resolveSegmentPath).toHaveBeenCalledWith(
+      expect(storageService.resolveSegmentPath).toHaveBeenCalledWith(
         'session-1',
       );
     });
@@ -836,14 +710,12 @@ describe('LivekitReplayService', () => {
         },
       ];
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue(
-        activeSessions,
-      );
-      mockStorageService.segmentDirectoryExists.mockResolvedValue(false);
+      databaseService.egressSession.findMany.mockResolvedValue(activeSessions);
+      storageService.segmentDirectoryExists.mockResolvedValue(false);
 
       await service.cleanupOldSegments();
 
-      expect(mockStorageService.deleteOldFiles).not.toHaveBeenCalled();
+      expect(storageService.deleteOldFiles).not.toHaveBeenCalled();
     });
 
     it('should handle deletion failure gracefully', async () => {
@@ -855,11 +727,9 @@ describe('LivekitReplayService', () => {
         },
       ];
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue(
-        activeSessions,
-      );
-      mockStorageService.segmentDirectoryExists.mockResolvedValue(true);
-      mockStorageService.deleteOldFiles.mockRejectedValue(
+      databaseService.egressSession.findMany.mockResolvedValue(activeSessions);
+      storageService.segmentDirectoryExists.mockResolvedValue(true);
+      storageService.deleteOldFiles.mockRejectedValue(
         new Error('Permission denied'),
       );
 
@@ -878,21 +748,19 @@ describe('LivekitReplayService', () => {
         startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
       };
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue([
-        oldSession,
-      ]);
+      databaseService.egressSession.findMany.mockResolvedValue([oldSession]);
       mockEgressClient.stopEgress.mockResolvedValue(undefined);
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.update.mockResolvedValue({
         ...oldSession,
         status: 'stopped',
       });
-      mockStorageService.segmentDirectoryExists.mockResolvedValue(true);
-      mockStorageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+      storageService.segmentDirectoryExists.mockResolvedValue(true);
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
 
       await service.cleanupOrphanedSessions();
 
       expect(mockEgressClient.stopEgress).toHaveBeenCalledWith('old-egress');
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'old-session' },
           data: expect.objectContaining({
@@ -901,7 +769,7 @@ describe('LivekitReplayService', () => {
         }),
       );
       // Now uses deleteSegmentDirectory with relative path
-      expect(mockStorageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
         'old-session',
         { recursive: true, force: true },
       );
@@ -916,22 +784,20 @@ describe('LivekitReplayService', () => {
         startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
       };
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue([
-        oldSession,
-      ]);
+      databaseService.egressSession.findMany.mockResolvedValue([oldSession]);
       mockEgressClient.stopEgress.mockRejectedValue(
         new Error('Egress not found'),
       );
-      mockDatabaseService.egressSession.update.mockResolvedValue({
+      databaseService.egressSession.update.mockResolvedValue({
         ...oldSession,
         status: 'stopped',
       });
-      mockStorageService.segmentDirectoryExists.mockResolvedValue(false);
+      storageService.segmentDirectoryExists.mockResolvedValue(false);
 
       // Should still cleanup DB record
       await service.cleanupOrphanedSessions();
 
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalled();
+      expect(databaseService.egressSession.update).toHaveBeenCalled();
     });
   });
 
@@ -943,14 +809,12 @@ describe('LivekitReplayService', () => {
         status: 'active',
       };
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue([
-        activeSession,
-      ]);
+      databaseService.egressSession.findMany.mockResolvedValue([activeSession]);
       mockEgressClient.listEgress.mockResolvedValue([]); // Egress not found
 
       await service.reconcileEgressStatus();
 
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'session-1' },
           data: expect.objectContaining({
@@ -967,16 +831,14 @@ describe('LivekitReplayService', () => {
         status: 'active',
       };
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue([
-        activeSession,
-      ]);
+      databaseService.egressSession.findMany.mockResolvedValue([activeSession]);
       mockEgressClient.listEgress.mockResolvedValue([
         { status: EgressStatus.EGRESS_FAILED },
       ]);
 
       await service.reconcileEgressStatus();
 
-      expect(mockDatabaseService.egressSession.update).toHaveBeenCalledWith(
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'session-1' },
           data: expect.objectContaining({
@@ -993,16 +855,14 @@ describe('LivekitReplayService', () => {
         status: 'active',
       };
 
-      mockDatabaseService.egressSession.findMany.mockResolvedValue([
-        activeSession,
-      ]);
+      databaseService.egressSession.findMany.mockResolvedValue([activeSession]);
       mockEgressClient.listEgress.mockResolvedValue([
         { status: EgressStatus.EGRESS_ACTIVE },
       ]);
 
       await service.reconcileEgressStatus();
 
-      expect(mockDatabaseService.egressSession.update).not.toHaveBeenCalled();
+      expect(databaseService.egressSession.update).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,35 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { FileUploadController } from './file-upload.controller';
 import { FileUploadService } from './file-upload.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 
 describe('FileUploadController', () => {
   let controller: FileUploadController;
-  let service: FileUploadService;
-
-  const mockFileUploadService = {
-    uploadFile: jest.fn(),
-    remove: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<FileUploadService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [FileUploadController],
-      providers: [
-        {
-          provide: FileUploadService,
-          useValue: mockFileUploadService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(FileUploadController).compile();
 
-    controller = module.get<FileUploadController>(FileUploadController);
-    service = module.get<FileUploadService>(FileUploadService);
+    controller = unit;
+    service = unitRef.get(FileUploadService);
   });
 
   afterEach(() => {
@@ -70,7 +53,7 @@ describe('FileUploadController', () => {
         size: 1234,
       };
 
-      mockFileUploadService.uploadFile.mockResolvedValue(uploadedFile);
+      service.uploadFile.mockResolvedValue(uploadedFile as any);
 
       const result = await controller.uploadFile(
         mockFile,
@@ -79,7 +62,7 @@ describe('FileUploadController', () => {
       );
 
       expect(result).toEqual(uploadedFile);
-      expect(mockFileUploadService.uploadFile).toHaveBeenCalledWith(
+      expect(service.uploadFile).toHaveBeenCalledWith(
         mockFile,
         mockBody,
         mockUser,
@@ -92,15 +75,12 @@ describe('FileUploadController', () => {
       const fileId = 'file-456';
       const mockReq = { user: { id: 'user-123' } } as any;
 
-      mockFileUploadService.remove.mockResolvedValue({ deleted: true });
+      service.remove.mockResolvedValue({ deleted: true } as any);
 
       const result = await controller.remove(fileId, mockReq);
 
       expect(result).toEqual({ deleted: true });
-      expect(mockFileUploadService.remove).toHaveBeenCalledWith(
-        fileId,
-        'user-123',
-      );
+      expect(service.remove).toHaveBeenCalledWith(fileId, 'user-123');
     });
   });
 });

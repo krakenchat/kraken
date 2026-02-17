@@ -1,29 +1,20 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ForbiddenException } from '@nestjs/common';
 import { CommunityMembershipStrategy } from './community-membership.strategy';
 import { MembershipService } from '@/membership/membership.service';
 
 describe('CommunityMembershipStrategy', () => {
   let strategy: CommunityMembershipStrategy;
-
-  const mockMembershipService = {
-    isMember: jest.fn(),
-  };
+  let membershipService: Mocked<MembershipService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CommunityMembershipStrategy,
-        {
-          provide: MembershipService,
-          useValue: mockMembershipService,
-        },
-      ],
-    }).compile();
-
-    strategy = module.get<CommunityMembershipStrategy>(
+    const { unit, unitRef } = await TestBed.solitary(
       CommunityMembershipStrategy,
-    );
+    ).compile();
+
+    strategy = unit;
+    membershipService = unitRef.get(MembershipService);
   });
 
   afterEach(() => {
@@ -36,7 +27,7 @@ describe('CommunityMembershipStrategy', () => {
 
   describe('checkAccess', () => {
     it('should grant access when user is a community member', async () => {
-      mockMembershipService.isMember.mockResolvedValue(true);
+      membershipService.isMember.mockResolvedValue(true);
 
       const result = await strategy.checkAccess(
         'user-123',
@@ -45,14 +36,14 @@ describe('CommunityMembershipStrategy', () => {
       );
 
       expect(result).toBe(true);
-      expect(mockMembershipService.isMember).toHaveBeenCalledWith(
+      expect(membershipService.isMember).toHaveBeenCalledWith(
         'user-123',
         'community-456',
       );
     });
 
     it('should throw ForbiddenException when user is not a member', async () => {
-      mockMembershipService.isMember.mockResolvedValue(false);
+      membershipService.isMember.mockResolvedValue(false);
 
       await expect(
         strategy.checkAccess('user-123', 'community-456', 'file-789'),
@@ -66,17 +57,17 @@ describe('CommunityMembershipStrategy', () => {
     });
 
     it('should check membership for different users and communities', async () => {
-      mockMembershipService.isMember.mockResolvedValue(true);
+      membershipService.isMember.mockResolvedValue(true);
 
       await strategy.checkAccess('user-1', 'community-1', 'file-1');
       await strategy.checkAccess('user-2', 'community-2', 'file-2');
 
-      expect(mockMembershipService.isMember).toHaveBeenCalledTimes(2);
-      expect(mockMembershipService.isMember).toHaveBeenCalledWith(
+      expect(membershipService.isMember).toHaveBeenCalledTimes(2);
+      expect(membershipService.isMember).toHaveBeenCalledWith(
         'user-1',
         'community-1',
       );
-      expect(mockMembershipService.isMember).toHaveBeenCalledWith(
+      expect(membershipService.isMember).toHaveBeenCalledWith(
         'user-2',
         'community-2',
       );

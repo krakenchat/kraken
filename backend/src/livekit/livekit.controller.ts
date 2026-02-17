@@ -116,7 +116,11 @@ export class LivekitController {
     @Param('channelId') channelId: string,
     @Body() body: { participantIdentity: string; mute: boolean },
   ): Promise<{ success: boolean }> {
-    await this.livekitService.muteParticipant(channelId, body.participantIdentity, body.mute);
+    await this.livekitService.muteParticipant(
+      channelId,
+      body.participantIdentity,
+      body.mute,
+    );
     return { success: true };
   }
 

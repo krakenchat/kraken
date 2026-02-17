@@ -1,15 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { PublicAccessStrategy } from './public-access.strategy';
 
 describe('PublicAccessStrategy', () => {
   let strategy: PublicAccessStrategy;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [PublicAccessStrategy],
-    }).compile();
+    const { unit } = await TestBed.solitary(PublicAccessStrategy).compile();
 
-    strategy = module.get<PublicAccessStrategy>(PublicAccessStrategy);
+    strategy = unit;
   });
 
   it('should be defined', () => {

@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { MessagesService } from './messages.service';
 import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
@@ -9,29 +10,18 @@ import { createMockDatabase, MessageFactory, FileFactory } from '@/test-utils';
 describe('MessagesService', () => {
   let service: MessagesService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let fileService: FileService;
+  let fileService: Mocked<FileService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        MessagesService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: FileService,
-          useValue: {
-            markForDeletion: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(MessagesService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<MessagesService>(MessagesService);
-    fileService = module.get<FileService>(FileService);
+    service = unit;
+    fileService = unitRef.get(FileService);
   });
 
   afterEach(() => {

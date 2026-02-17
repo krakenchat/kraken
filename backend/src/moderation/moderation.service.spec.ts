@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ModerationService } from './moderation.service';
 import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
@@ -19,9 +20,9 @@ import { ModerationAction } from '@prisma/client';
 describe('ModerationService', () => {
   let service: ModerationService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let rolesService: jest.Mocked<Pick<RolesService, 'getUserRolesForCommunity'>>;
-  let membershipService: jest.Mocked<Pick<MembershipService, 'isMember'>>;
-  let websocketService: jest.Mocked<Pick<WebsocketService, 'sendToRoom'>>;
+  let rolesService: Mocked<RolesService>;
+  let membershipService: Mocked<MembershipService>;
+  let websocketService: Mocked<WebsocketService>;
 
   const moderatorId = 'moderator-123';
   const userId = 'user-456';
@@ -32,29 +33,15 @@ describe('ModerationService', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    rolesService = {
-      getUserRolesForCommunity: jest.fn(),
-    };
+    const { unit, unitRef } = await TestBed.solitary(ModerationService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    membershipService = {
-      isMember: jest.fn(),
-    };
-
-    websocketService = {
-      sendToRoom: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ModerationService,
-        { provide: DatabaseService, useValue: mockDatabase },
-        { provide: RolesService, useValue: rolesService },
-        { provide: MembershipService, useValue: membershipService },
-        { provide: WebsocketService, useValue: websocketService },
-      ],
-    }).compile();
-
-    service = module.get<ModerationService>(ModerationService);
+    service = unit;
+    rolesService = unitRef.get(RolesService);
+    membershipService = unitRef.get(MembershipService);
+    websocketService = unitRef.get(WebsocketService);
   });
 
   afterEach(() => {
@@ -87,8 +74,8 @@ describe('ModerationService', () => {
     beforeEach(() => {
       // Setup default mock for role hierarchy (moderator > user)
       rolesService.getUserRolesForCommunity
-        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole])) // moderator
-        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole])); // user
+        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any) // moderator
+        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any); // user
       membershipService.isMember.mockResolvedValue(true);
       mockDatabase.communityBan.findUnique.mockResolvedValue(null);
       mockDatabase.moderationLog.create.mockResolvedValue({} as any);
@@ -126,8 +113,8 @@ describe('ModerationService', () => {
     it('should throw ForbiddenException when moderator has lower role', async () => {
       rolesService.getUserRolesForCommunity.mockReset();
       rolesService.getUserRolesForCommunity
-        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole])) // moderator (low)
-        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole])); // user (high)
+        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any) // moderator (low)
+        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any); // user (high)
 
       await expect(
         service.banUser(communityId, userId, moderatorId, 'spam'),
@@ -271,8 +258,8 @@ describe('ModerationService', () => {
   describe('kickUser', () => {
     beforeEach(() => {
       rolesService.getUserRolesForCommunity
-        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]))
-        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]));
+        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any)
+        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any);
       membershipService.isMember.mockResolvedValue(true);
       mockDatabase.moderationLog.create.mockResolvedValue({} as any);
     });
@@ -311,8 +298,8 @@ describe('ModerationService', () => {
     it('should throw ForbiddenException when moderator has lower role', async () => {
       rolesService.getUserRolesForCommunity.mockReset();
       rolesService.getUserRolesForCommunity
-        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]))
-        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]));
+        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any)
+        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any);
 
       await expect(
         service.kickUser(communityId, userId, moderatorId, 'rule violation'),
@@ -323,8 +310,8 @@ describe('ModerationService', () => {
   describe('timeoutUser', () => {
     beforeEach(() => {
       rolesService.getUserRolesForCommunity
-        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]))
-        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]));
+        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any)
+        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any);
       membershipService.isMember.mockResolvedValue(true);
       mockDatabase.communityTimeout.upsert.mockResolvedValue({} as any);
       mockDatabase.moderationLog.create.mockResolvedValue({} as any);
@@ -353,8 +340,8 @@ describe('ModerationService', () => {
     it('should throw ForbiddenException when moderator has lower role', async () => {
       rolesService.getUserRolesForCommunity.mockReset();
       rolesService.getUserRolesForCommunity
-        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]))
-        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]));
+        .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any)
+        .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any);
 
       await expect(
         service.timeoutUser(communityId, userId, moderatorId, 600),

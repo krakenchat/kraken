@@ -1,53 +1,29 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MessageAttachmentStrategy } from './message-attachment.strategy';
 import { DatabaseService } from '@/database/database.service';
 import { MembershipService } from '@/membership/membership.service';
 import { ChannelMembershipService } from '@/channel-membership/channel-membership.service';
+import { createMockDatabase } from '@/test-utils';
 
 describe('MessageAttachmentStrategy', () => {
   let strategy: MessageAttachmentStrategy;
-
-  const mockDatabaseService = {
-    message: {
-      findUnique: jest.fn(),
-    },
-    channel: {
-      findUnique: jest.fn(),
-    },
-    directMessageGroupMember: {
-      findUnique: jest.fn(),
-    },
-  };
-
-  const mockMembershipService = {
-    isMember: jest.fn(),
-  };
-
-  const mockChannelMembershipService = {
-    isMember: jest.fn(),
-  };
+  let mockDatabase: any;
+  let membershipService: Mocked<MembershipService>;
+  let channelMembershipService: Mocked<ChannelMembershipService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        MessageAttachmentStrategy,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-        {
-          provide: MembershipService,
-          useValue: mockMembershipService,
-        },
-        {
-          provide: ChannelMembershipService,
-          useValue: mockChannelMembershipService,
-        },
-      ],
-    }).compile();
+    mockDatabase = createMockDatabase();
 
-    strategy = module.get<MessageAttachmentStrategy>(MessageAttachmentStrategy);
+    const { unit, unitRef } = await TestBed.solitary(MessageAttachmentStrategy)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
+
+    strategy = unit;
+    membershipService = unitRef.get(MembershipService);
+    channelMembershipService = unitRef.get(ChannelMembershipService);
   });
 
   afterEach(() => {
@@ -60,7 +36,7 @@ describe('MessageAttachmentStrategy', () => {
 
   describe('checkAccess', () => {
     it('should throw NotFoundException when message not found', async () => {
-      mockDatabaseService.message.findUnique.mockResolvedValue(null);
+      mockDatabase.message.findUnique.mockResolvedValue(null);
 
       await expect(
         strategy.checkAccess('user-123', 'message-456', 'file-789'),
@@ -84,9 +60,9 @@ describe('MessageAttachmentStrategy', () => {
         isPrivate: false,
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
-      mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-      mockMembershipService.isMember.mockResolvedValue(true);
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      membershipService.isMember.mockResolvedValue(true);
 
       const result = await strategy.checkAccess(
         'user-1',
@@ -95,7 +71,7 @@ describe('MessageAttachmentStrategy', () => {
       );
 
       expect(result).toBe(true);
-      expect(mockMembershipService.isMember).toHaveBeenCalledWith(
+      expect(membershipService.isMember).toHaveBeenCalledWith(
         'user-1',
         'community-1',
       );
@@ -114,9 +90,9 @@ describe('MessageAttachmentStrategy', () => {
         isPrivate: false,
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
-      mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-      mockMembershipService.isMember.mockResolvedValue(false);
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      membershipService.isMember.mockResolvedValue(false);
 
       await expect(
         strategy.checkAccess('user-1', 'message-1', 'file-1'),
@@ -136,9 +112,9 @@ describe('MessageAttachmentStrategy', () => {
         isPrivate: true,
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
-      mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-      mockChannelMembershipService.isMember.mockResolvedValue(true);
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      channelMembershipService.isMember.mockResolvedValue(true);
 
       const result = await strategy.checkAccess(
         'user-1',
@@ -147,7 +123,7 @@ describe('MessageAttachmentStrategy', () => {
       );
 
       expect(result).toBe(true);
-      expect(mockChannelMembershipService.isMember).toHaveBeenCalledWith(
+      expect(channelMembershipService.isMember).toHaveBeenCalledWith(
         'user-1',
         'channel-1',
       );
@@ -166,9 +142,9 @@ describe('MessageAttachmentStrategy', () => {
         isPrivate: true,
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
-      mockDatabaseService.channel.findUnique.mockResolvedValue(channel);
-      mockChannelMembershipService.isMember.mockResolvedValue(false);
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      channelMembershipService.isMember.mockResolvedValue(false);
 
       await expect(
         strategy.checkAccess('user-1', 'message-1', 'file-1'),
@@ -193,8 +169,8 @@ describe('MessageAttachmentStrategy', () => {
         userId: 'user-1',
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
-      mockDatabaseService.directMessageGroupMember.findUnique.mockResolvedValue(
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
         dmMembership,
       );
 
@@ -206,7 +182,7 @@ describe('MessageAttachmentStrategy', () => {
 
       expect(result).toBe(true);
       expect(
-        mockDatabaseService.directMessageGroupMember.findUnique,
+        mockDatabase.directMessageGroupMember.findUnique,
       ).toHaveBeenCalledWith({
         where: {
           groupId_userId: {
@@ -224,10 +200,8 @@ describe('MessageAttachmentStrategy', () => {
         directMessageGroupId: 'dm-group-1',
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
-      mockDatabaseService.directMessageGroupMember.findUnique.mockResolvedValue(
-        null,
-      );
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(null);
 
       await expect(
         strategy.checkAccess('user-1', 'message-1', 'file-1'),
@@ -247,7 +221,7 @@ describe('MessageAttachmentStrategy', () => {
         directMessageGroupId: null,
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
+      mockDatabase.message.findUnique.mockResolvedValue(message);
 
       await expect(
         strategy.checkAccess('user-1', 'message-1', 'file-1'),
@@ -265,8 +239,8 @@ describe('MessageAttachmentStrategy', () => {
         directMessageGroupId: null,
       };
 
-      mockDatabaseService.message.findUnique.mockResolvedValue(message);
-      mockDatabaseService.channel.findUnique.mockResolvedValue(null);
+      mockDatabase.message.findUnique.mockResolvedValue(message);
+      mockDatabase.channel.findUnique.mockResolvedValue(null);
 
       await expect(
         strategy.checkAccess('user-1', 'message-1', 'file-1'),

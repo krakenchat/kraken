@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { AliasGroupsService } from './alias-groups.service';
 import { DatabaseService } from '@/database/database.service';
 import {
@@ -22,17 +22,12 @@ describe('AliasGroupsService', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AliasGroupsService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(AliasGroupsService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<AliasGroupsService>(AliasGroupsService);
+    service = unit;
   });
 
   afterEach(() => {

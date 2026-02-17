@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { FfmpegService } from './ffmpeg.service';
 import { StorageService } from '@/storage/storage.service';
 import { FfmpegProvider, FfmpegCommand } from './providers/ffmpeg.provider';
@@ -14,12 +15,7 @@ describe('FfmpegService', () => {
   let eventCallbacks: Record<string, (...args: unknown[]) => void>;
   let allCallbacks: Record<string, Array<(...args: unknown[]) => void>>;
 
-  const mockStorageService = {
-    ensureDirectory: jest.fn(),
-    writeFile: jest.fn(),
-    deleteDirectory: jest.fn(),
-    getFileStats: jest.fn(),
-  };
+  let storageService: Mocked<StorageService>;
 
   const mockFfmpegProvider = {
     createCommand: jest.fn(),
@@ -63,21 +59,13 @@ describe('FfmpegService', () => {
 
     mockFfmpegProvider.createCommand.mockReturnValue(mockCommand);
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        FfmpegService,
-        {
-          provide: StorageService,
-          useValue: mockStorageService,
-        },
-        {
-          provide: FfmpegProvider,
-          useValue: mockFfmpegProvider,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(FfmpegService)
+      .mock(FfmpegProvider)
+      .final(mockFfmpegProvider)
+      .compile();
 
-    service = module.get<FfmpegService>(FfmpegService);
+    service = unit;
+    storageService = unitRef.get(StorageService);
   });
 
   afterEach(() => {
@@ -93,13 +81,13 @@ describe('FfmpegService', () => {
     const outputPath = '/uploads/replays/user1/clip.mp4';
 
     beforeEach(() => {
-      mockStorageService.ensureDirectory.mockResolvedValue(undefined);
-      mockStorageService.writeFile.mockResolvedValue(undefined);
-      mockStorageService.deleteDirectory.mockResolvedValue(undefined);
-      mockStorageService.getFileStats.mockResolvedValue({
+      storageService.ensureDirectory.mockResolvedValue(undefined as any);
+      storageService.writeFile.mockResolvedValue(undefined as any);
+      storageService.deleteDirectory.mockResolvedValue(undefined as any);
+      storageService.getFileStats.mockResolvedValue({
         size: 1024,
         mtime: new Date(),
-      });
+      } as any);
     });
 
     it('should throw error when no segments provided', async () => {
@@ -112,17 +100,17 @@ describe('FfmpegService', () => {
       await service.concatenateSegments(segmentPaths, outputPath);
 
       // Should create temp directory
-      expect(mockStorageService.ensureDirectory).toHaveBeenCalledWith(
+      expect(storageService.ensureDirectory).toHaveBeenCalledWith(
         '/tmp/replay-concat-mock-uuid-1234',
       );
 
       // Should create output directory
-      expect(mockStorageService.ensureDirectory).toHaveBeenCalledWith(
+      expect(storageService.ensureDirectory).toHaveBeenCalledWith(
         '/uploads/replays/user1',
       );
 
       // Should write concat file
-      expect(mockStorageService.writeFile).toHaveBeenCalledWith(
+      expect(storageService.writeFile).toHaveBeenCalledWith(
         '/tmp/replay-concat-mock-uuid-1234/concat.txt',
         "file '/out/user1/seg1.ts'\nfile '/out/user1/seg2.ts'",
       );
@@ -193,7 +181,7 @@ describe('FfmpegService', () => {
     it('should cleanup temp directory after success', async () => {
       await service.concatenateSegments(segmentPaths, outputPath);
 
-      expect(mockStorageService.deleteDirectory).toHaveBeenCalledWith(
+      expect(storageService.deleteDirectory).toHaveBeenCalledWith(
         '/tmp/replay-concat-mock-uuid-1234',
         { recursive: true, force: true },
       );
@@ -215,7 +203,7 @@ describe('FfmpegService', () => {
         service.concatenateSegments(segmentPaths, outputPath),
       ).rejects.toThrow('FFmpeg failed');
 
-      expect(mockStorageService.deleteDirectory).toHaveBeenCalledWith(
+      expect(storageService.deleteDirectory).toHaveBeenCalledWith(
         '/tmp/replay-concat-mock-uuid-1234',
         { recursive: true, force: true },
       );
@@ -224,16 +212,16 @@ describe('FfmpegService', () => {
     it('should force NFS cache refresh by stat-ing files', async () => {
       await service.concatenateSegments(segmentPaths, outputPath);
 
-      expect(mockStorageService.getFileStats).toHaveBeenCalledWith(
+      expect(storageService.getFileStats).toHaveBeenCalledWith(
         '/out/user1/seg1.ts',
       );
-      expect(mockStorageService.getFileStats).toHaveBeenCalledWith(
+      expect(storageService.getFileStats).toHaveBeenCalledWith(
         '/out/user1/seg2.ts',
       );
     });
 
     it('should continue even if NFS cache refresh fails', async () => {
-      mockStorageService.getFileStats.mockRejectedValue(
+      storageService.getFileStats.mockRejectedValue(
         new Error('File not accessible'),
       );
 

@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { HealthService } from './health.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { createMockRedis } from '@/test-utils';
@@ -10,17 +10,12 @@ describe('HealthService', () => {
   beforeEach(async () => {
     mockRedis = createMockRedis();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        HealthService,
-        {
-          provide: REDIS_CLIENT,
-          useValue: mockRedis,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(HealthService)
+      .mock(REDIS_CLIENT)
+      .final(mockRedis)
+      .compile();
 
-    service = module.get<HealthService>(HealthService);
+    service = unit;
   });
 
   afterEach(() => {

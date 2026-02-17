@@ -1,8 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -11,18 +10,7 @@ import { UserEntity } from './dto/user-response.dto';
 
 describe('UserController', () => {
   let controller: UserController;
-  let service: UserService;
-
-  const mockUserService = {
-    createUser: jest.fn(),
-    findById: jest.fn(),
-    findByUsername: jest.fn(),
-    updateProfile: jest.fn(),
-    searchUsers: jest.fn(),
-    findAll: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<UserService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -30,23 +18,10 @@ describe('UserController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [UserController],
-      providers: [
-        {
-          provide: UserService,
-          useValue: mockUserService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(UserController).compile();
 
-    controller = module.get<UserController>(UserController);
-    service = module.get<UserService>(UserService);
+    controller = unit;
+    service = unitRef.get(UserService);
   });
 
   afterEach(() => {
@@ -71,7 +46,7 @@ describe('UserController', () => {
         email: 'newuser@example.com',
       });
 
-      jest.spyOn(service, 'createUser').mockResolvedValue(createdUser);
+      service.createUser.mockResolvedValue(createdUser as any);
 
       const result = await controller.register(createUserDto);
 
@@ -93,7 +68,7 @@ describe('UserController', () => {
         email: 'test@test.com',
       };
 
-      jest.spyOn(service, 'createUser').mockResolvedValue(UserFactory.build());
+      service.createUser.mockResolvedValue(UserFactory.build() as any);
 
       await controller.register(createUserDto);
 
@@ -111,7 +86,7 @@ describe('UserController', () => {
     it('should return user profile', async () => {
       const userProfile = UserFactory.build({ id: mockUser.id });
 
-      jest.spyOn(service, 'findById').mockResolvedValue(userProfile);
+      service.findById.mockResolvedValue(userProfile as any);
 
       const result = await controller.getProfile(mockRequest);
 
@@ -121,7 +96,7 @@ describe('UserController', () => {
     });
 
     it('should throw NotFoundException when user not found', async () => {
-      jest.spyOn(service, 'findById').mockResolvedValue(null);
+      service.findById.mockResolvedValue(null as any);
 
       await expect(controller.getProfile(mockRequest)).rejects.toThrow(
         NotFoundException,
@@ -147,7 +122,7 @@ describe('UserController', () => {
         }),
       );
 
-      jest.spyOn(service, 'updateProfile').mockResolvedValue(updatedUser);
+      service.updateProfile.mockResolvedValue(updatedUser as any);
 
       const result = await controller.updateProfile(
         mockRequest,
@@ -164,9 +139,9 @@ describe('UserController', () => {
     it('should pass user ID from request', async () => {
       const updateProfileDto: UpdateProfileDto = { displayName: 'Test' };
 
-      jest
-        .spyOn(service, 'updateProfile')
-        .mockResolvedValue(new UserEntity(UserFactory.build()));
+      service.updateProfile.mockResolvedValue(
+        new UserEntity(UserFactory.build()) as any,
+      );
 
       await controller.updateProfile(mockRequest, updateProfileDto);
 
@@ -182,7 +157,7 @@ describe('UserController', () => {
       const username = 'testuser';
       const foundUser = UserFactory.build({ username });
 
-      jest.spyOn(service, 'findByUsername').mockResolvedValue(foundUser);
+      service.findByUsername.mockResolvedValue(foundUser as any);
 
       const result = await controller.getUserByName(username);
 
@@ -194,7 +169,7 @@ describe('UserController', () => {
     it('should throw NotFoundException when user not found by username', async () => {
       const username = 'nonexistent';
 
-      jest.spyOn(service, 'findByUsername').mockResolvedValue(null);
+      service.findByUsername.mockResolvedValue(null as any);
 
       await expect(controller.getUserByName(username)).rejects.toThrow(
         NotFoundException,
@@ -213,7 +188,7 @@ describe('UserController', () => {
         new UserEntity(UserFactory.build({ username: 'john2' })),
       ];
 
-      jest.spyOn(service, 'searchUsers').mockResolvedValue(mockUsers);
+      service.searchUsers.mockResolvedValue(mockUsers as any);
 
       const result = await controller.searchUsers(query);
 
@@ -229,7 +204,7 @@ describe('UserController', () => {
       const query = 'user';
       const communityId = 'community-123';
 
-      jest.spyOn(service, 'searchUsers').mockResolvedValue([]);
+      service.searchUsers.mockResolvedValue([] as any);
 
       await controller.searchUsers(query, communityId);
 
@@ -244,7 +219,7 @@ describe('UserController', () => {
       const query = 'test';
       const limit = 10;
 
-      jest.spyOn(service, 'searchUsers').mockResolvedValue([]);
+      service.searchUsers.mockResolvedValue([] as any);
 
       await controller.searchUsers(query, undefined, limit);
 
@@ -257,7 +232,7 @@ describe('UserController', () => {
       const userId = 'user-123';
       const foundUser = UserFactory.build({ id: userId });
 
-      jest.spyOn(service, 'findById').mockResolvedValue(foundUser);
+      service.findById.mockResolvedValue(foundUser as any);
 
       const result = await controller.getUserById(userId);
 
@@ -269,7 +244,7 @@ describe('UserController', () => {
     it('should throw NotFoundException when user not found by ID', async () => {
       const userId = 'nonexistent-id';
 
-      jest.spyOn(service, 'findById').mockResolvedValue(null);
+      service.findById.mockResolvedValue(null as any);
 
       await expect(controller.getUserById(userId)).rejects.toThrow(
         NotFoundException,
@@ -287,7 +262,7 @@ describe('UserController', () => {
         continuationToken: 'token-123',
       };
 
-      jest.spyOn(service, 'findAll').mockResolvedValue(mockResponse);
+      service.findAll.mockResolvedValue(mockResponse as any);
 
       const result = await controller.findAllUsers();
 
@@ -302,7 +277,7 @@ describe('UserController', () => {
         continuationToken: undefined,
       };
 
-      jest.spyOn(service, 'findAll').mockResolvedValue(mockResponse);
+      service.findAll.mockResolvedValue(mockResponse as any);
 
       const result = await controller.findAllUsers(limit);
 
@@ -314,10 +289,10 @@ describe('UserController', () => {
       const limit = 50;
       const continuationToken = 'token-abc';
 
-      jest.spyOn(service, 'findAll').mockResolvedValue({
+      service.findAll.mockResolvedValue({
         users: [],
         continuationToken: undefined,
-      });
+      } as any);
 
       await controller.findAllUsers(limit, continuationToken);
 

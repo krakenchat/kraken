@@ -1,25 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { RoomsService } from './rooms.service';
 import { DatabaseService } from '@/database/database.service';
+import { createMockDatabase } from '@/test-utils';
 import { Socket } from 'socket.io';
 
 describe('RoomsService', () => {
   let service: RoomsService;
-
-  const mockDatabaseService = {
-    channel: {
-      findMany: jest.fn(),
-    },
-    channelMembership: {
-      findMany: jest.fn(),
-    },
-    directMessageGroupMember: {
-      findMany: jest.fn(),
-    },
-    aliasGroupMember: {
-      findMany: jest.fn(),
-    },
-  };
+  let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   const createMockClient = (userId: string): Socket => {
     return {
@@ -33,17 +20,14 @@ describe('RoomsService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RoomsService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-      ],
-    }).compile();
+    mockDatabase = createMockDatabase();
 
-    service = module.get<RoomsService>(RoomsService);
+    const { unit } = await TestBed.solitary(RoomsService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
+
+    service = unit;
   });
 
   afterEach(() => {
@@ -60,12 +44,10 @@ describe('RoomsService', () => {
       const communityId = 'community-456';
       const client = createMockClient(userId);
 
-      mockDatabaseService.channel.findMany.mockResolvedValue([]);
-      mockDatabaseService.channelMembership.findMany.mockResolvedValue([]);
-      mockDatabaseService.directMessageGroupMember.findMany.mockResolvedValue(
-        [],
-      );
-      mockDatabaseService.aliasGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+      mockDatabase.channelMembership.findMany.mockResolvedValue([]);
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue([]);
 
       await service.joinAll(client as any, communityId);
 
@@ -83,16 +65,14 @@ describe('RoomsService', () => {
         { id: 'channel-3', communityId, isPrivate: false },
       ];
 
-      mockDatabaseService.channel.findMany.mockResolvedValue(publicChannels);
-      mockDatabaseService.channelMembership.findMany.mockResolvedValue([]);
-      mockDatabaseService.directMessageGroupMember.findMany.mockResolvedValue(
-        [],
-      );
-      mockDatabaseService.aliasGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.channel.findMany.mockResolvedValue(publicChannels);
+      mockDatabase.channelMembership.findMany.mockResolvedValue([]);
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue([]);
 
       await service.joinAll(client as any, communityId);
 
-      expect(mockDatabaseService.channel.findMany).toHaveBeenCalledWith({
+      expect(mockDatabase.channel.findMany).toHaveBeenCalledWith({
         where: {
           communityId,
           isPrivate: false,
@@ -121,20 +101,16 @@ describe('RoomsService', () => {
         },
       ];
 
-      mockDatabaseService.channel.findMany.mockResolvedValue([]);
-      mockDatabaseService.channelMembership.findMany.mockResolvedValue(
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+      mockDatabase.channelMembership.findMany.mockResolvedValue(
         privateChannelMemberships,
       );
-      mockDatabaseService.directMessageGroupMember.findMany.mockResolvedValue(
-        [],
-      );
-      mockDatabaseService.aliasGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue([]);
 
       await service.joinAll(client as any, communityId);
 
-      expect(
-        mockDatabaseService.channelMembership.findMany,
-      ).toHaveBeenCalledWith({
+      expect(mockDatabase.channelMembership.findMany).toHaveBeenCalledWith({
         where: {
           userId,
           channel: {
@@ -161,17 +137,17 @@ describe('RoomsService', () => {
         { userId, groupId: 'dm-group-3' },
       ];
 
-      mockDatabaseService.channel.findMany.mockResolvedValue([]);
-      mockDatabaseService.channelMembership.findMany.mockResolvedValue([]);
-      mockDatabaseService.directMessageGroupMember.findMany.mockResolvedValue(
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+      mockDatabase.channelMembership.findMany.mockResolvedValue([]);
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue(
         directMessages,
       );
-      mockDatabaseService.aliasGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue([]);
 
       await service.joinAll(client as any, communityId);
 
       expect(
-        mockDatabaseService.directMessageGroupMember.findMany,
+        mockDatabase.directMessageGroupMember.findMany,
       ).toHaveBeenCalledWith({
         where: {
           userId,
@@ -192,20 +168,14 @@ describe('RoomsService', () => {
         { userId, aliasGroupId: 'alias-group-2' },
       ];
 
-      mockDatabaseService.channel.findMany.mockResolvedValue([]);
-      mockDatabaseService.channelMembership.findMany.mockResolvedValue([]);
-      mockDatabaseService.directMessageGroupMember.findMany.mockResolvedValue(
-        [],
-      );
-      mockDatabaseService.aliasGroupMember.findMany.mockResolvedValue(
-        aliasGroups,
-      );
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+      mockDatabase.channelMembership.findMany.mockResolvedValue([]);
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue(aliasGroups);
 
       await service.joinAll(client as any, communityId);
 
-      expect(
-        mockDatabaseService.aliasGroupMember.findMany,
-      ).toHaveBeenCalledWith({
+      expect(mockDatabase.aliasGroupMember.findMany).toHaveBeenCalledWith({
         where: {
           userId,
         },
@@ -226,16 +196,14 @@ describe('RoomsService', () => {
       const directMessages = [{ groupId: 'dm-1' }];
       const aliasGroups = [{ aliasGroupId: 'alias-1' }];
 
-      mockDatabaseService.channel.findMany.mockResolvedValue(publicChannels);
-      mockDatabaseService.channelMembership.findMany.mockResolvedValue(
+      mockDatabase.channel.findMany.mockResolvedValue(publicChannels);
+      mockDatabase.channelMembership.findMany.mockResolvedValue(
         privateMemberships,
       );
-      mockDatabaseService.directMessageGroupMember.findMany.mockResolvedValue(
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue(
         directMessages,
       );
-      mockDatabaseService.aliasGroupMember.findMany.mockResolvedValue(
-        aliasGroups,
-      );
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue(aliasGroups);
 
       await service.joinAll(client as any, communityId);
 
@@ -253,12 +221,10 @@ describe('RoomsService', () => {
       const communityId = 'community-empty';
       const client = createMockClient(userId);
 
-      mockDatabaseService.channel.findMany.mockResolvedValue([]);
-      mockDatabaseService.channelMembership.findMany.mockResolvedValue([]);
-      mockDatabaseService.directMessageGroupMember.findMany.mockResolvedValue(
-        [],
-      );
-      mockDatabaseService.aliasGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+      mockDatabase.channelMembership.findMany.mockResolvedValue([]);
+      mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue([]);
 
       await service.joinAll(client as any, communityId);
 

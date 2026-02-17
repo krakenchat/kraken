@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { FileUploadService } from './file-upload.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
@@ -12,28 +13,9 @@ jest.mock('./validators/resource-type-file.validator');
 
 describe('FileUploadService', () => {
   let service: FileUploadService;
-  let databaseService: DatabaseService;
-
-  const mockDatabaseService = {
-    file: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-  };
-
-  const mockStorageService = {
-    deleteFile: jest.fn(),
-    fileExists: jest.fn(),
-    readFile: jest.fn(),
-  };
-
-  const mockStorageQuotaService = {
-    canUploadFile: jest.fn(),
-    incrementUserStorage: jest.fn(),
-    decrementUserStorage: jest.fn(),
-  };
+  let databaseService: Mocked<DatabaseService>;
+  let storageService: Mocked<StorageService>;
+  let storageQuotaService: Mocked<StorageQuotaService>;
 
   const mockUser = {
     id: 'user-123',
@@ -55,43 +37,30 @@ describe('FileUploadService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        FileUploadService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-        {
-          provide: StorageService,
-          useValue: mockStorageService,
-        },
-        {
-          provide: StorageQuotaService,
-          useValue: mockStorageQuotaService,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(FileUploadService).compile();
 
-    service = module.get<FileUploadService>(FileUploadService);
-    databaseService = module.get<DatabaseService>(DatabaseService);
+    service = unit;
+    databaseService = unitRef.get(DatabaseService);
+    storageService = unitRef.get(StorageService);
+    storageQuotaService = unitRef.get(StorageQuotaService);
 
     // Reset mocks
     jest.clearAllMocks();
 
     // Default mock implementations - use StorageService instead of direct fs calls
-    mockStorageService.readFile.mockResolvedValue(Buffer.from('test'));
-    mockStorageService.deleteFile.mockResolvedValue(undefined);
+    storageService.readFile.mockResolvedValue(Buffer.from('test'));
+    storageService.deleteFile.mockResolvedValue(undefined);
 
     // Default quota check passes
-    mockStorageQuotaService.canUploadFile.mockResolvedValue({
+    storageQuotaService.canUploadFile.mockResolvedValue({
       canUpload: true,
       currentUsedBytes: 0,
       quotaBytes: 1000000000,
       requestedBytes: 1024,
       remainingBytes: 999998976,
-    });
-    mockStorageQuotaService.incrementUserStorage.mockResolvedValue(undefined);
+    } as any);
+    storageQuotaService.incrementUserStorage.mockResolvedValue(undefined);
 
     // Mock crypto
     const mockHash = {
@@ -128,7 +97,7 @@ describe('FileUploadService', () => {
         checksum: 'abc123def456',
       };
 
-      mockDatabaseService.file.create.mockResolvedValue(createdFile);
+      databaseService.file.create.mockResolvedValue(createdFile as any);
 
       // Mock validator to pass
 
@@ -142,7 +111,7 @@ describe('FileUploadService', () => {
       const result = await service.uploadFile(mockFile, createDto, mockUser);
 
       expect(result).toEqual(createdFile);
-      expect(mockDatabaseService.file.create).toHaveBeenCalledWith({
+      expect(databaseService.file.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           resourceType: ResourceType.MESSAGE_ATTACHMENT,
           resourceId: 'msg-123',
@@ -178,10 +147,10 @@ describe('FileUploadService', () => {
         service.uploadFile(mockFile, createDto, mockUser),
       ).rejects.toThrow(UnprocessableEntityException);
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/test-123.png',
       );
-      expect(mockDatabaseService.file.create).not.toHaveBeenCalled();
+      expect(databaseService.file.create).not.toHaveBeenCalled();
     });
 
     it('should cleanup file if database insert fails', async () => {
@@ -199,7 +168,7 @@ describe('FileUploadService', () => {
         isValid: jest.fn().mockResolvedValue(true),
       }));
 
-      mockDatabaseService.file.create.mockRejectedValue(
+      databaseService.file.create.mockRejectedValue(
         new Error('Database error'),
       );
 
@@ -207,7 +176,7 @@ describe('FileUploadService', () => {
         service.uploadFile(mockFile, createDto, mockUser),
       ).rejects.toThrow('Database error');
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/test-123.png',
       );
     });
@@ -224,7 +193,7 @@ describe('FileUploadService', () => {
         resourceId: 'msg-123',
       };
 
-      mockDatabaseService.file.create.mockResolvedValue({ id: 'file-123' });
+      databaseService.file.create.mockResolvedValue({ id: 'file-123' } as any);
 
       const {
         ResourceTypeFileValidator,
@@ -235,7 +204,7 @@ describe('FileUploadService', () => {
 
       await service.uploadFile(videoFile, createDto, mockUser);
 
-      expect(mockDatabaseService.file.create).toHaveBeenCalledWith({
+      expect(databaseService.file.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           fileType: FileType.VIDEO,
         }),
@@ -254,7 +223,7 @@ describe('FileUploadService', () => {
         resourceId: 'msg-123',
       };
 
-      mockDatabaseService.file.create.mockResolvedValue({ id: 'file-123' });
+      databaseService.file.create.mockResolvedValue({ id: 'file-123' } as any);
 
       const {
         ResourceTypeFileValidator,
@@ -265,7 +234,7 @@ describe('FileUploadService', () => {
 
       await service.uploadFile(audioFile, createDto, mockUser);
 
-      expect(mockDatabaseService.file.create).toHaveBeenCalledWith({
+      expect(databaseService.file.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           fileType: FileType.AUDIO,
         }),
@@ -292,7 +261,9 @@ describe('FileUploadService', () => {
           resourceId: 'msg-123',
         };
 
-        mockDatabaseService.file.create.mockResolvedValue({ id: 'file-123' });
+        databaseService.file.create.mockResolvedValue({
+          id: 'file-123',
+        } as any);
 
         const {
           ResourceTypeFileValidator,
@@ -303,7 +274,7 @@ describe('FileUploadService', () => {
 
         await service.uploadFile(docFile, createDto, mockUser);
 
-        expect(mockDatabaseService.file.create).toHaveBeenCalledWith({
+        expect(databaseService.file.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             fileType: FileType.DOCUMENT,
           }),
@@ -332,7 +303,9 @@ describe('FileUploadService', () => {
           resourceId: 'msg-123',
         };
 
-        mockDatabaseService.file.create.mockResolvedValue({ id: 'file-123' });
+        databaseService.file.create.mockResolvedValue({
+          id: 'file-123',
+        } as any);
 
         const {
           ResourceTypeFileValidator,
@@ -343,7 +316,7 @@ describe('FileUploadService', () => {
 
         await service.uploadFile(archiveFile, createDto, mockUser);
 
-        expect(mockDatabaseService.file.create).toHaveBeenCalledWith({
+        expect(databaseService.file.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             fileType: FileType.OTHER,
           }),
@@ -359,7 +332,7 @@ describe('FileUploadService', () => {
         resourceId: 'msg-123',
       };
 
-      mockDatabaseService.file.create.mockResolvedValue({ id: 'file-123' });
+      databaseService.file.create.mockResolvedValue({ id: 'file-123' } as any);
 
       const {
         ResourceTypeFileValidator,
@@ -370,11 +343,9 @@ describe('FileUploadService', () => {
 
       await service.uploadFile(mockFile, createDto, mockUser);
 
-      expect(mockStorageService.readFile).toHaveBeenCalledWith(
-        '/tmp/test-123.png',
-      );
+      expect(storageService.readFile).toHaveBeenCalledWith('/tmp/test-123.png');
       expect(crypto.createHash).toHaveBeenCalledWith('sha256');
-      expect(mockDatabaseService.file.create).toHaveBeenCalledWith({
+      expect(databaseService.file.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           checksum: 'abc123def456',
         }),
@@ -389,23 +360,23 @@ describe('FileUploadService', () => {
       const fileId = 'file-123';
       const deletedFile = { id: fileId, deletedAt: new Date() };
 
-      mockDatabaseService.file.findUnique.mockResolvedValue({
+      databaseService.file.findUnique.mockResolvedValue({
         uploadedById: userId,
         size: 2048,
-      });
-      mockDatabaseService.file.update.mockResolvedValue(deletedFile);
+      } as any);
+      databaseService.file.update.mockResolvedValue(deletedFile as any);
 
       const result = await service.remove(fileId, userId);
 
       expect(result).toEqual(deletedFile);
-      expect(mockDatabaseService.file.update).toHaveBeenCalledWith({
+      expect(databaseService.file.update).toHaveBeenCalledWith({
         where: { id: fileId },
         data: { deletedAt: expect.any(Date) },
       });
     });
 
     it('should throw NotFoundException if file does not exist', async () => {
-      mockDatabaseService.file.findUnique.mockResolvedValue(null);
+      databaseService.file.findUnique.mockResolvedValue(null);
 
       await expect(service.remove('nonexistent', userId)).rejects.toThrow(
         'File not found',
@@ -413,11 +384,11 @@ describe('FileUploadService', () => {
     });
 
     it('should throw ForbiddenException if user does not own the file', async () => {
-      mockDatabaseService.file.findUnique.mockResolvedValue({
+      databaseService.file.findUnique.mockResolvedValue({
         uploadedById: 'other-user',
         size: 2048,
         deletedAt: null,
-      });
+      } as any);
 
       await expect(service.remove('file-123', userId)).rejects.toThrow(
         'You can only delete your own files',
@@ -425,38 +396,36 @@ describe('FileUploadService', () => {
     });
 
     it('should throw NotFoundException if file is already soft-deleted', async () => {
-      mockDatabaseService.file.findUnique.mockResolvedValue({
+      databaseService.file.findUnique.mockResolvedValue({
         uploadedById: userId,
         size: 2048,
         deletedAt: new Date(),
-      });
+      } as any);
 
       await expect(service.remove('file-123', userId)).rejects.toThrow(
         'File not found',
       );
-      expect(mockDatabaseService.file.update).not.toHaveBeenCalled();
-      expect(
-        mockStorageQuotaService.decrementUserStorage,
-      ).not.toHaveBeenCalled();
+      expect(databaseService.file.update).not.toHaveBeenCalled();
+      expect(storageQuotaService.decrementUserStorage).not.toHaveBeenCalled();
     });
 
     it('should decrement storage quota after soft deleting a file', async () => {
       const fileId = 'file-456';
       const fileSize = 5120;
 
-      mockDatabaseService.file.findUnique.mockResolvedValue({
+      databaseService.file.findUnique.mockResolvedValue({
         uploadedById: userId,
         size: fileSize,
-      });
-      mockDatabaseService.file.update.mockResolvedValue({
+      } as any);
+      databaseService.file.update.mockResolvedValue({
         id: fileId,
         deletedAt: new Date(),
-      });
-      mockStorageQuotaService.decrementUserStorage.mockResolvedValue(undefined);
+      } as any);
+      storageQuotaService.decrementUserStorage.mockResolvedValue(undefined);
 
       await service.remove(fileId, userId);
 
-      expect(mockStorageQuotaService.decrementUserStorage).toHaveBeenCalledWith(
+      expect(storageQuotaService.decrementUserStorage).toHaveBeenCalledWith(
         userId,
         fileSize,
       );
@@ -465,38 +434,36 @@ describe('FileUploadService', () => {
     it('should not decrement storage quota if file has no size', async () => {
       const fileId = 'file-789';
 
-      mockDatabaseService.file.findUnique.mockResolvedValue({
+      databaseService.file.findUnique.mockResolvedValue({
         uploadedById: userId,
         size: 0,
-      });
-      mockDatabaseService.file.update.mockResolvedValue({
+      } as any);
+      databaseService.file.update.mockResolvedValue({
         id: fileId,
         deletedAt: new Date(),
-      });
+      } as any);
 
       await service.remove(fileId, userId);
 
-      expect(
-        mockStorageQuotaService.decrementUserStorage,
-      ).not.toHaveBeenCalled();
+      expect(storageQuotaService.decrementUserStorage).not.toHaveBeenCalled();
     });
 
     it('should handle multiple file removals', async () => {
       const fileIds = ['file-1', 'file-2', 'file-3'];
 
       for (const fileId of fileIds) {
-        mockDatabaseService.file.findUnique.mockResolvedValue({
+        databaseService.file.findUnique.mockResolvedValue({
           uploadedById: userId,
           size: 1024,
-        });
-        mockDatabaseService.file.update.mockResolvedValue({
+        } as any);
+        databaseService.file.update.mockResolvedValue({
           id: fileId,
           deletedAt: new Date(),
-        });
+        } as any);
 
         await service.remove(fileId, userId);
 
-        expect(mockDatabaseService.file.update).toHaveBeenCalledWith({
+        expect(databaseService.file.update).toHaveBeenCalledWith({
           where: { id: fileId },
           data: { deletedAt: expect.any(Date) },
         });

@@ -1,7 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { LivekitWebhookController } from './livekit-webhook.controller';
 import { LivekitReplayService } from './livekit-replay.service';
-import { VoicePresenceService } from '../voice-presence/voice-presence.service';
+
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { WebhookReceiver } from 'livekit-server-sdk';
@@ -20,21 +21,8 @@ jest.mock('livekit-server-sdk', () => ({
 
 describe('LivekitWebhookController', () => {
   let controller: LivekitWebhookController;
-  let replayService: LivekitReplayService;
+  let replayService: Mocked<LivekitReplayService>;
   let webhookReceiverMock: { receive: jest.Mock };
-
-  const mockReplayService = {
-    handleEgressEnded: jest.fn(),
-  };
-
-  const mockVoicePresenceService = {
-    handleWebhookParticipantJoined: jest.fn(),
-    handleWebhookParticipantLeft: jest.fn(),
-  };
-
-  const mockConfigService = {
-    get: jest.fn(),
-  };
 
   const createMockRequest = (rawBody?: string) => ({
     rawBody: rawBody ? Buffer.from(rawBody) : undefined,
@@ -56,15 +44,6 @@ describe('LivekitWebhookController', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    // Setup default config values
-    mockConfigService.get.mockImplementation((key: string) => {
-      const config: Record<string, string> = {
-        LIVEKIT_API_KEY: 'test-api-key',
-        LIVEKIT_API_SECRET: 'test-api-secret',
-      };
-      return config[key];
-    });
-
     // Get the mock webhook receiver instance
     webhookReceiverMock = {
       receive: jest.fn().mockResolvedValue(true),
@@ -73,26 +52,21 @@ describe('LivekitWebhookController', () => {
       () => webhookReceiverMock,
     );
 
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [LivekitWebhookController],
-      providers: [
-        {
-          provide: LivekitReplayService,
-          useValue: mockReplayService,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: VoicePresenceService,
-          useValue: mockVoicePresenceService,
-        },
-      ],
-    }).compile();
+    const { unit, unitRef } = await TestBed.solitary(LivekitWebhookController)
+      .mock(ConfigService)
+      .final({
+        get: jest.fn().mockImplementation((key: string) => {
+          const config: Record<string, string> = {
+            LIVEKIT_API_KEY: 'test-api-key',
+            LIVEKIT_API_SECRET: 'test-api-secret',
+          };
+          return config[key];
+        }),
+      })
+      .compile();
 
-    controller = module.get<LivekitWebhookController>(LivekitWebhookController);
-    replayService = module.get<LivekitReplayService>(LivekitReplayService);
+    controller = unit;
+    replayService = unitRef.get(LivekitReplayService);
   });
 
   afterEach(() => {
@@ -112,25 +86,12 @@ describe('LivekitWebhookController', () => {
     });
 
     it('should use fallback values when credentials are not set', async () => {
-      mockConfigService.get.mockReturnValue(undefined);
-
-      await Test.createTestingModule({
-        controllers: [LivekitWebhookController],
-        providers: [
-          {
-            provide: LivekitReplayService,
-            useValue: mockReplayService,
-          },
-          {
-            provide: ConfigService,
-            useValue: mockConfigService,
-          },
-          {
-            provide: VoicePresenceService,
-            useValue: mockVoicePresenceService,
-          },
-        ],
-      }).compile();
+      await TestBed.solitary(LivekitWebhookController)
+        .mock(ConfigService)
+        .final({
+          get: jest.fn().mockReturnValue(undefined),
+        })
+        .compile();
 
       expect(WebhookReceiver).toHaveBeenCalledWith('unused', 'unused');
     });
@@ -200,29 +161,14 @@ describe('LivekitWebhookController', () => {
 
       it('should throw ForbiddenException when credentials are not configured', async () => {
         // Recreate controller without credentials
-        mockConfigService.get.mockReturnValue(undefined);
-
-        const module: TestingModule = await Test.createTestingModule({
-          controllers: [LivekitWebhookController],
-          providers: [
-            {
-              provide: LivekitReplayService,
-              useValue: mockReplayService,
-            },
-            {
-              provide: ConfigService,
-              useValue: mockConfigService,
-            },
-            {
-              provide: VoicePresenceService,
-              useValue: mockVoicePresenceService,
-            },
-          ],
-        }).compile();
-
-        const controllerWithoutCreds = module.get<LivekitWebhookController>(
+        const { unit: controllerWithoutCreds } = await TestBed.solitary(
           LivekitWebhookController,
-        );
+        )
+          .mock(ConfigService)
+          .final({
+            get: jest.fn().mockReturnValue(undefined),
+          })
+          .compile();
 
         const req = createMockRequest();
         const body = createEgressEndedWebhook(
@@ -274,7 +220,7 @@ describe('LivekitWebhookController', () => {
           LiveKitEgressStatus.COMPLETE,
         );
 
-        mockReplayService.handleEgressEnded.mockResolvedValue(undefined);
+        replayService.handleEgressEnded.mockResolvedValue(undefined as any);
 
         const result = await controller.handleWebhook(
           req as any,
@@ -298,7 +244,7 @@ describe('LivekitWebhookController', () => {
           'Egress failed due to network error',
         );
 
-        mockReplayService.handleEgressEnded.mockResolvedValue(undefined);
+        replayService.handleEgressEnded.mockResolvedValue(undefined as any);
 
         await controller.handleWebhook(req as any, 'Bearer token', body);
 
@@ -316,7 +262,7 @@ describe('LivekitWebhookController', () => {
           LiveKitEgressStatus.ABORTED,
         );
 
-        mockReplayService.handleEgressEnded.mockResolvedValue(undefined);
+        replayService.handleEgressEnded.mockResolvedValue(undefined as any);
 
         await controller.handleWebhook(req as any, 'Bearer token', body);
 
@@ -334,7 +280,7 @@ describe('LivekitWebhookController', () => {
           LiveKitEgressStatus.COMPLETE,
         );
 
-        mockReplayService.handleEgressEnded.mockRejectedValue(
+        replayService.handleEgressEnded.mockRejectedValue(
           new Error('Database connection lost'),
         );
 

@@ -13,6 +13,7 @@ import { ClipLibraryService } from './clip-library.service';
 import { FfmpegService } from './ffmpeg.service';
 import { FfmpegProvider } from './providers/ffmpeg.provider';
 import { RoomServiceProvider } from './providers/room-service.provider';
+import { EgressClientProvider } from './providers/egress-client.provider';
 import { LivekitController } from './livekit.controller';
 import { LivekitWebhookController } from './livekit-webhook.controller';
 import { UserModule } from '@/user/user.module';
@@ -40,6 +41,7 @@ import { RolesModule } from '@/roles/roles.module';
     FfmpegService,
     FfmpegProvider,
     RoomServiceProvider,
+    EgressClientProvider,
   ],
   exports: [LivekitService, LivekitReplayService, ClipLibraryService],
 })

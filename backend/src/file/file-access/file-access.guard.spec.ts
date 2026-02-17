@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { FileAccessGuard } from './file-access.guard';
 import { FileService } from '@/file/file.service';
 import { MembershipService } from '@/membership/membership.service';
@@ -15,49 +16,23 @@ import {
 
 describe('FileAccessGuard', () => {
   let guard: FileAccessGuard;
-  let fileService: FileService;
-  let membershipService: MembershipService;
-  let channelMembershipService: ChannelMembershipService;
+  let fileService: Mocked<FileService>;
+  let membershipService: Mocked<MembershipService>;
+  let channelMembershipService: Mocked<ChannelMembershipService>;
   let mockDatabase: any;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        FileAccessGuard,
-        {
-          provide: FileService,
-          useValue: {
-            findOne: jest.fn(),
-          },
-        },
-        {
-          provide: MembershipService,
-          useValue: {
-            isMember: jest.fn(),
-          },
-        },
-        {
-          provide: ChannelMembershipService,
-          useValue: {
-            isMember: jest.fn(),
-          },
-        },
-        {
-          provide: DatabaseService,
+    const { unit, unitRef } = await TestBed.solitary(FileAccessGuard)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-          useValue: mockDatabase,
-        },
-      ],
-    }).compile();
-
-    guard = module.get<FileAccessGuard>(FileAccessGuard);
-    fileService = module.get<FileService>(FileService);
-    membershipService = module.get<MembershipService>(MembershipService);
-    channelMembershipService = module.get<ChannelMembershipService>(
-      ChannelMembershipService,
-    );
+    guard = unit;
+    fileService = unitRef.get(FileService);
+    membershipService = unitRef.get(MembershipService);
+    channelMembershipService = unitRef.get(ChannelMembershipService);
   });
 
   afterEach(() => {
@@ -93,7 +68,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
 
       const result = await guard.canActivate(context);
 
@@ -123,7 +98,7 @@ describe('FileAccessGuard', () => {
         switchToWs: jest.fn(),
       } as any;
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
 
       const result = await guard.canActivate(mockContext);
 
@@ -143,7 +118,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
 
       const result = await guard.canActivate(context);
 
@@ -161,7 +136,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
 
       const result = await guard.canActivate(context);
 
@@ -182,8 +157,8 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
-      jest.spyOn(membershipService, 'isMember').mockResolvedValue(true);
+      fileService.findOne.mockResolvedValue(file);
+      membershipService.isMember.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -206,8 +181,8 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
-      jest.spyOn(membershipService, 'isMember').mockResolvedValue(false);
+      fileService.findOne.mockResolvedValue(file);
+      membershipService.isMember.mockResolvedValue(false);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         ForbiddenException,
@@ -229,8 +204,8 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
-      jest.spyOn(membershipService, 'isMember').mockResolvedValue(true);
+      fileService.findOne.mockResolvedValue(file);
+      membershipService.isMember.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -253,7 +228,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue({
         id: messageId,
         channelId,
@@ -264,7 +239,7 @@ describe('FileAccessGuard', () => {
         communityId,
         isPrivate: false,
       });
-      jest.spyOn(membershipService, 'isMember').mockResolvedValue(true);
+      membershipService.isMember.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -289,7 +264,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue({
         id: messageId,
         channelId,
@@ -300,7 +275,7 @@ describe('FileAccessGuard', () => {
         communityId,
         isPrivate: false,
       });
-      jest.spyOn(membershipService, 'isMember').mockResolvedValue(false);
+      membershipService.isMember.mockResolvedValue(false);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         ForbiddenException,
@@ -324,7 +299,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue({
         id: messageId,
         channelId,
@@ -335,7 +310,7 @@ describe('FileAccessGuard', () => {
         communityId,
         isPrivate: true,
       });
-      jest.spyOn(channelMembershipService, 'isMember').mockResolvedValue(true);
+      channelMembershipService.isMember.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
 
@@ -361,7 +336,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue({
         id: messageId,
         channelId,
@@ -372,7 +347,7 @@ describe('FileAccessGuard', () => {
         communityId,
         isPrivate: true,
       });
-      jest.spyOn(channelMembershipService, 'isMember').mockResolvedValue(false);
+      channelMembershipService.isMember.mockResolvedValue(false);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         ForbiddenException,
@@ -397,7 +372,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue({
         id: messageId,
         channelId: null,
@@ -436,7 +411,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue({
         id: messageId,
         channelId: null,
@@ -475,7 +450,7 @@ describe('FileAccessGuard', () => {
         switchToWs: jest.fn(),
       } as any;
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow(
         ForbiddenException,
@@ -492,9 +467,9 @@ describe('FileAccessGuard', () => {
         params: { id: 'nonexistent-file' },
       });
 
-      jest
-        .spyOn(fileService, 'findOne')
-        .mockRejectedValue(new NotFoundException('File not found'));
+      fileService.findOne.mockRejectedValue(
+        new NotFoundException('File not found'),
+      );
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         NotFoundException,
@@ -512,7 +487,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue(null);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
@@ -536,7 +511,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
       mockDatabase.message.findUnique.mockResolvedValue({
         id: messageId,
         channelId,
@@ -563,7 +538,7 @@ describe('FileAccessGuard', () => {
         params: { id: file.id },
       });
 
-      jest.spyOn(fileService, 'findOne').mockResolvedValue(file);
+      fileService.findOne.mockResolvedValue(file);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         ForbiddenException,
@@ -578,9 +553,9 @@ describe('FileAccessGuard', () => {
         params: { id: 'file-123' },
       });
 
-      jest
-        .spyOn(fileService, 'findOne')
-        .mockRejectedValue(new Error('Database connection lost'));
+      fileService.findOne.mockRejectedValue(
+        new Error('Database connection lost'),
+      );
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         NotFoundException,

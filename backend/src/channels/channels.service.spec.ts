@@ -1,7 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { ChannelsService } from './channels.service';
 import { DatabaseService } from '@/database/database.service';
-import { WebsocketService } from '@/websocket/websocket.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ChannelType } from '@prisma/client';
 import { createMockDatabase, UserFactory, ChannelFactory } from '@/test-utils';
@@ -10,28 +9,15 @@ describe('ChannelsService', () => {
   let service: ChannelsService;
   let mockDatabase: any;
 
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-  };
-
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ChannelsService,
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-        {
-          provide: WebsocketService,
-          useValue: mockWebsocketService,
-        },
-      ],
-    }).compile();
+    const { unit } = await TestBed.solitary(ChannelsService)
+      .mock(DatabaseService)
+      .final(mockDatabase)
+      .compile();
 
-    service = module.get<ChannelsService>(ChannelsService);
+    service = unit;
   });
 
   afterEach(() => {

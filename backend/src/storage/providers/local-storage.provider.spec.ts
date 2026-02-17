@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { LocalStorageProvider } from './local-storage.provider';
 import { promises as fs, createReadStream } from 'fs';
 
@@ -23,11 +23,9 @@ describe('LocalStorageProvider', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [LocalStorageProvider],
-    }).compile();
+    const { unit } = await TestBed.solitary(LocalStorageProvider).compile();
 
-    provider = module.get<LocalStorageProvider>(LocalStorageProvider);
+    provider = unit;
   });
 
   afterEach(() => {

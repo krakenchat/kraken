@@ -141,12 +141,14 @@ export class MessagesGateway
         channelId: payload.channelId,
       })
       .then((receipt) => {
-        this.server.to(`user:${userId}`).emit(ServerEvents.READ_RECEIPT_UPDATED, {
-          channelId: receipt.channelId,
-          directMessageGroupId: receipt.directMessageGroupId,
-          lastReadMessageId: receipt.lastReadMessageId,
-          lastReadAt: receipt.lastReadAt,
-        });
+        this.server
+          .to(`user:${userId}`)
+          .emit(ServerEvents.READ_RECEIPT_UPDATED, {
+            channelId: receipt.channelId,
+            directMessageGroupId: receipt.directMessageGroupId,
+            lastReadMessageId: receipt.lastReadMessageId,
+            lastReadAt: receipt.lastReadAt,
+          });
       })
       .catch((error) =>
         this.logger.error('Failed to auto-mark message as read', error),
@@ -207,12 +209,14 @@ export class MessagesGateway
         directMessageGroupId: payload.directMessageGroupId,
       })
       .then((receipt) => {
-        this.server.to(`user:${userId}`).emit(ServerEvents.READ_RECEIPT_UPDATED, {
-          channelId: receipt.channelId,
-          directMessageGroupId: receipt.directMessageGroupId,
-          lastReadMessageId: receipt.lastReadMessageId,
-          lastReadAt: receipt.lastReadAt,
-        });
+        this.server
+          .to(`user:${userId}`)
+          .emit(ServerEvents.READ_RECEIPT_UPDATED, {
+            channelId: receipt.channelId,
+            directMessageGroupId: receipt.directMessageGroupId,
+            lastReadMessageId: receipt.lastReadMessageId,
+            lastReadAt: receipt.lastReadAt,
+          });
       })
       .catch((error) =>
         this.logger.error('Failed to auto-mark DM as read', error),

@@ -1,57 +1,21 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { PresenceGateway } from './presence.gateway';
 import { PresenceService } from './presence.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
-import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import { ServerEvents } from '@kraken/shared';
 
 describe('PresenceGateway', () => {
   let gateway: PresenceGateway;
-  let presenceService: PresenceService;
-  let websocketService: WebsocketService;
-
-  const mockPresenceService = {
-    addConnection: jest.fn(),
-    removeConnection: jest.fn(),
-    isUserOnline: jest.fn(),
-    getOnlineUsers: jest.fn(),
-  };
-
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-    sendToAll: jest.fn(),
-    setServer: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let presenceService: Mocked<PresenceService>;
+  let websocketService: Mocked<WebsocketService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PresenceGateway,
-        {
-          provide: PresenceService,
-          useValue: mockPresenceService,
-        },
-        {
-          provide: WebsocketService,
-          useValue: mockWebsocketService,
-        },
-      ],
-    })
-      .overrideGuard(WsThrottleGuard)
-      .useValue(mockGuard)
-      .overrideGuard(WsJwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(PresenceGateway).compile();
 
-    gateway = module.get<PresenceGateway>(PresenceGateway);
-    presenceService = module.get<PresenceService>(PresenceService);
-    websocketService = module.get<WebsocketService>(WebsocketService);
+    gateway = unit;
+    presenceService = unitRef.get(PresenceService);
+    websocketService = unitRef.get(WebsocketService);
   });
 
   afterEach(() => {
@@ -124,17 +88,17 @@ describe('PresenceGateway', () => {
         },
       } as any;
 
-      mockPresenceService.addConnection.mockResolvedValue(true); // User went online
+      presenceService.addConnection.mockResolvedValue(true); // User went online
 
       const result = await gateway.handleMessage(mockClient);
 
       expect(result).toBe('ACK');
-      expect(mockPresenceService.addConnection).toHaveBeenCalledWith(
+      expect(presenceService.addConnection).toHaveBeenCalledWith(
         'user-123',
         'socket-123',
         60,
       );
-      expect(mockWebsocketService.sendToAll).toHaveBeenCalledWith(
+      expect(websocketService.sendToAll).toHaveBeenCalledWith(
         ServerEvents.USER_ONLINE,
         {
           userId: 'user-123',
@@ -158,17 +122,17 @@ describe('PresenceGateway', () => {
         },
       } as any;
 
-      mockPresenceService.addConnection.mockResolvedValue(false); // User was already online
+      presenceService.addConnection.mockResolvedValue(false); // User was already online
 
       const result = await gateway.handleMessage(mockClient);
 
       expect(result).toBe('ACK');
-      expect(mockPresenceService.addConnection).toHaveBeenCalledWith(
+      expect(presenceService.addConnection).toHaveBeenCalledWith(
         'user-456',
         'socket-456',
         60,
       );
-      expect(mockWebsocketService.sendToAll).not.toHaveBeenCalled();
+      expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
 
     it('should handle multiple clients from same user', async () => {
@@ -196,14 +160,14 @@ describe('PresenceGateway', () => {
         },
       } as any;
 
-      mockPresenceService.addConnection
+      presenceService.addConnection
         .mockResolvedValueOnce(true) // First connection - goes online
         .mockResolvedValueOnce(false); // Second connection - already online
 
       await gateway.handleMessage(mockClient1);
       await gateway.handleMessage(mockClient2);
 
-      expect(mockWebsocketService.sendToAll).toHaveBeenCalledTimes(1);
+      expect(websocketService.sendToAll).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -221,15 +185,15 @@ describe('PresenceGateway', () => {
         },
       } as any;
 
-      mockPresenceService.removeConnection.mockResolvedValue(true); // User went offline
+      presenceService.removeConnection.mockResolvedValue(true); // User went offline
 
       await gateway.handleDisconnect(mockClient);
 
-      expect(mockPresenceService.removeConnection).toHaveBeenCalledWith(
+      expect(presenceService.removeConnection).toHaveBeenCalledWith(
         'user-789',
         'socket-789',
       );
-      expect(mockWebsocketService.sendToAll).toHaveBeenCalledWith(
+      expect(websocketService.sendToAll).toHaveBeenCalledWith(
         ServerEvents.USER_OFFLINE,
         {
           userId: 'user-789',
@@ -253,15 +217,15 @@ describe('PresenceGateway', () => {
         },
       } as any;
 
-      mockPresenceService.removeConnection.mockResolvedValue(false); // User still online
+      presenceService.removeConnection.mockResolvedValue(false); // User still online
 
       await gateway.handleDisconnect(mockClient);
 
-      expect(mockPresenceService.removeConnection).toHaveBeenCalledWith(
+      expect(presenceService.removeConnection).toHaveBeenCalledWith(
         'user-999',
         'socket-999',
       );
-      expect(mockWebsocketService.sendToAll).not.toHaveBeenCalled();
+      expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
 
     it('should handle disconnect without user in handshake', async () => {
@@ -272,8 +236,8 @@ describe('PresenceGateway', () => {
 
       await gateway.handleDisconnect(mockClient);
 
-      expect(mockPresenceService.removeConnection).not.toHaveBeenCalled();
-      expect(mockWebsocketService.sendToAll).not.toHaveBeenCalled();
+      expect(presenceService.removeConnection).not.toHaveBeenCalled();
+      expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
 
     it('should handle disconnect with partial user data', async () => {
@@ -286,8 +250,8 @@ describe('PresenceGateway', () => {
 
       await gateway.handleDisconnect(mockClient);
 
-      expect(mockPresenceService.removeConnection).not.toHaveBeenCalled();
-      expect(mockWebsocketService.sendToAll).not.toHaveBeenCalled();
+      expect(presenceService.removeConnection).not.toHaveBeenCalled();
+      expect(websocketService.sendToAll).not.toHaveBeenCalled();
     });
   });
 });

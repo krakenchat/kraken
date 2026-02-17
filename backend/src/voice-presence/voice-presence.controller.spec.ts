@@ -1,26 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import {
   VoicePresenceController,
   DmVoicePresenceController,
   UserVoicePresenceController,
 } from './voice-presence.controller';
 import { VoicePresenceService } from './voice-presence.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RbacGuard } from '../auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
 
 describe('VoicePresenceController', () => {
   let controller: VoicePresenceController;
-  let service: VoicePresenceService;
-
-  const mockVoicePresenceService = {
-    getChannelPresence: jest.fn(),
-    refreshPresence: jest.fn(),
-    joinVoiceChannelDirect: jest.fn(),
-    leaveVoiceChannel: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<VoicePresenceService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -28,23 +18,12 @@ describe('VoicePresenceController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [VoicePresenceController],
-      providers: [
-        {
-          provide: VoicePresenceService,
-          useValue: mockVoicePresenceService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      VoicePresenceController,
+    ).compile();
 
-    controller = module.get<VoicePresenceController>(VoicePresenceController);
-    service = module.get<VoicePresenceService>(VoicePresenceService);
+    controller = unit;
+    service = unitRef.get(VoicePresenceService);
   });
 
   afterEach(() => {
@@ -73,9 +52,7 @@ describe('VoicePresenceController', () => {
         },
       ];
 
-      jest
-        .spyOn(service, 'getChannelPresence')
-        .mockResolvedValue(mockUsers as any);
+      service.getChannelPresence.mockResolvedValue(mockUsers as any);
 
       const result = await controller.getChannelPresence(channelId);
 
@@ -90,7 +67,7 @@ describe('VoicePresenceController', () => {
     it('should return empty array when no users in channel', async () => {
       const channelId = 'channel-456';
 
-      jest.spyOn(service, 'getChannelPresence').mockResolvedValue([]);
+      service.getChannelPresence.mockResolvedValue([]);
 
       const result = await controller.getChannelPresence(channelId);
 
@@ -103,7 +80,7 @@ describe('VoicePresenceController', () => {
     it('should refresh presence and return success', async () => {
       const channelId = 'channel-123';
 
-      jest.spyOn(service, 'refreshPresence').mockResolvedValue();
+      service.refreshPresence.mockResolvedValue();
 
       const result = await controller.refreshPresence(channelId, mockRequest);
 
@@ -123,7 +100,7 @@ describe('VoicePresenceController', () => {
     it('should register voice presence and return success', async () => {
       const channelId = 'channel-123';
 
-      jest.spyOn(service, 'joinVoiceChannelDirect').mockResolvedValue();
+      service.joinVoiceChannelDirect.mockResolvedValue();
 
       const result = await controller.joinPresence(channelId, mockRequest);
 
@@ -143,7 +120,7 @@ describe('VoicePresenceController', () => {
     it('should remove voice presence and return success', async () => {
       const channelId = 'channel-123';
 
-      jest.spyOn(service, 'leaveVoiceChannel').mockResolvedValue();
+      service.leaveVoiceChannel.mockResolvedValue();
 
       const result = await controller.leavePresence(channelId, mockRequest);
 
@@ -162,14 +139,7 @@ describe('VoicePresenceController', () => {
 
 describe('DmVoicePresenceController', () => {
   let controller: DmVoicePresenceController;
-  let service: VoicePresenceService;
-
-  const mockVoicePresenceService = {
-    getDmPresence: jest.fn(),
-    refreshDmPresence: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<VoicePresenceService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -177,23 +147,12 @@ describe('DmVoicePresenceController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [DmVoicePresenceController],
-      providers: [
-        {
-          provide: VoicePresenceService,
-          useValue: mockVoicePresenceService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .compile();
-
-    controller = module.get<DmVoicePresenceController>(
+    const { unit, unitRef } = await TestBed.solitary(
       DmVoicePresenceController,
-    );
-    service = module.get<VoicePresenceService>(VoicePresenceService);
+    ).compile();
+
+    controller = unit;
+    service = unitRef.get(VoicePresenceService);
   });
 
   afterEach(() => {
@@ -216,7 +175,7 @@ describe('DmVoicePresenceController', () => {
         },
       ];
 
-      jest.spyOn(service, 'getDmPresence').mockResolvedValue(mockUsers as any);
+      service.getDmPresence.mockResolvedValue(mockUsers as any);
 
       const result = await controller.getDmPresence(dmGroupId);
 
@@ -233,12 +192,9 @@ describe('DmVoicePresenceController', () => {
     it('should refresh DM presence and return success', async () => {
       const dmGroupId = 'dm-group-123';
 
-      jest.spyOn(service, 'refreshDmPresence').mockResolvedValue();
+      service.refreshDmPresence.mockResolvedValue();
 
-      const result = await controller.refreshDmPresence(
-        dmGroupId,
-        mockRequest,
-      );
+      const result = await controller.refreshDmPresence(dmGroupId, mockRequest);
 
       expect(service.refreshDmPresence).toHaveBeenCalledWith(
         dmGroupId,
@@ -255,13 +211,7 @@ describe('DmVoicePresenceController', () => {
 
 describe('UserVoicePresenceController', () => {
   let controller: UserVoicePresenceController;
-  let service: VoicePresenceService;
-
-  const mockVoicePresenceService = {
-    getUserVoiceChannels: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<VoicePresenceService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -269,23 +219,12 @@ describe('UserVoicePresenceController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [UserVoicePresenceController],
-      providers: [
-        {
-          provide: VoicePresenceService,
-          useValue: mockVoicePresenceService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .compile();
-
-    controller = module.get<UserVoicePresenceController>(
+    const { unit, unitRef } = await TestBed.solitary(
       UserVoicePresenceController,
-    );
-    service = module.get<VoicePresenceService>(VoicePresenceService);
+    ).compile();
+
+    controller = unit;
+    service = unitRef.get(VoicePresenceService);
   });
 
   afterEach(() => {
@@ -300,9 +239,7 @@ describe('UserVoicePresenceController', () => {
     it('should return user voice channels', async () => {
       const mockChannels = ['channel-1', 'channel-2'];
 
-      jest
-        .spyOn(service, 'getUserVoiceChannels')
-        .mockResolvedValue(mockChannels);
+      service.getUserVoiceChannels.mockResolvedValue(mockChannels);
 
       const result = await controller.getMyVoiceChannels(mockRequest);
 
@@ -314,7 +251,7 @@ describe('UserVoicePresenceController', () => {
     });
 
     it('should return empty array when user is not in any voice channels', async () => {
-      jest.spyOn(service, 'getUserVoiceChannels').mockResolvedValue([]);
+      service.getUserVoiceChannels.mockResolvedValue([]);
 
       const result = await controller.getMyVoiceChannels(mockRequest);
 

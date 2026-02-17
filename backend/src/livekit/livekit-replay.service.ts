@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   Logger,
   BadRequestException,
   NotFoundException,
@@ -35,12 +36,12 @@ import {
 import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { EGRESS_CLIENT } from './providers/egress-client.provider';
+import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
 @Injectable()
 export class LivekitReplayService {
   private readonly logger = new Logger(LivekitReplayService.name);
-  private readonly egressClient: EgressClient;
-  private readonly roomServiceClient: RoomServiceClient;
   private readonly segmentsPath: string;
   private readonly egressOutputPath: string;
   private readonly clipsPath: string;
@@ -49,6 +50,10 @@ export class LivekitReplayService {
   private readonly REMUX_CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
   constructor(
+    @Inject(EGRESS_CLIENT)
+    private readonly egressClient: EgressClient,
+    @Inject(ROOM_SERVICE_CLIENT)
+    private readonly roomServiceClient: RoomServiceClient,
     private readonly configService: ConfigService,
     private readonly databaseService: DatabaseService,
     private readonly storageService: StorageService,
@@ -56,25 +61,6 @@ export class LivekitReplayService {
     private readonly ffmpegService: FfmpegService,
     private readonly messagesService: MessagesService,
   ) {
-    // Initialize LiveKit Egress client
-    const livekitUrl = this.configService.get<string>('LIVEKIT_URL');
-    const apiKey = this.configService.get<string>('LIVEKIT_API_KEY');
-    const apiSecret = this.configService.get<string>('LIVEKIT_API_SECRET');
-
-    if (!livekitUrl || !apiKey || !apiSecret) {
-      this.logger.error('LiveKit configuration missing for egress client');
-      throw new Error(
-        'LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET must be set',
-      );
-    }
-
-    this.egressClient = new EgressClient(livekitUrl, apiKey, apiSecret);
-    this.roomServiceClient = new RoomServiceClient(
-      livekitUrl,
-      apiKey,
-      apiSecret,
-    );
-
     // Load configuration
     // segmentsPath is now loaded from StorageService which handles prefix resolution
     this.segmentsPath = this.storageService.getSegmentsPrefix();

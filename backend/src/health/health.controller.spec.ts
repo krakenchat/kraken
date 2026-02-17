@@ -1,28 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
 
 describe('HealthController', () => {
   let controller: HealthController;
-  let healthService: HealthService;
-
-  const mockHealthService = {
-    getHealthMetadata: jest.fn(),
-  };
+  let healthService: Mocked<HealthService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [HealthController],
-      providers: [
-        {
-          provide: HealthService,
-          useValue: mockHealthService,
-        },
-      ],
-    }).compile();
-
-    controller = module.get<HealthController>(HealthController);
-    healthService = module.get<HealthService>(HealthService);
+    const { unit, unitRef } =
+      await TestBed.solitary(HealthController).compile();
+    controller = unit;
+    healthService = unitRef.get(HealthService);
   });
 
   afterEach(() => {
@@ -42,9 +31,7 @@ describe('HealthController', () => {
         timestamp: new Date().toISOString(),
       };
 
-      jest
-        .spyOn(healthService, 'getHealthMetadata')
-        .mockReturnValue(mockMetadata);
+      healthService.getHealthMetadata.mockReturnValue(mockMetadata);
 
       const result = controller.check();
 
@@ -53,7 +40,7 @@ describe('HealthController', () => {
     });
 
     it('should call service method without arguments', () => {
-      jest.spyOn(healthService, 'getHealthMetadata').mockReturnValue({
+      healthService.getHealthMetadata.mockReturnValue({
         status: 'ok',
         instanceName: 'Kraken Instance',
         version: '0.0.1',
@@ -69,8 +56,7 @@ describe('HealthController', () => {
       const timestamp1 = new Date().toISOString();
       const timestamp2 = new Date().toISOString();
 
-      jest
-        .spyOn(healthService, 'getHealthMetadata')
+      healthService.getHealthMetadata
         .mockReturnValueOnce({
           status: 'ok',
           instanceName: 'Kraken Instance',

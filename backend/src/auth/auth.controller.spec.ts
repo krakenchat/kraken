@@ -1,26 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { DatabaseService } from '@/database/database.service';
-import { LocalAuthGuard } from './local-auth.guard';
 import { UnauthorizedException } from '@nestjs/common';
 import { UserFactory, createMockDatabase } from '@/test-utils';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let authService: AuthService;
+  let authService: Mocked<AuthService>;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-
-  const mockAuthService = {
-    login: jest.fn(),
-    generateRefreshToken: jest.fn(),
-    verifyRefreshToken: jest.fn(),
-    validateRefreshToken: jest.fn(),
-    removeRefreshToken: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
 
   const mockUser = new UserEntity(UserFactory.build());
   const mockAccessToken = 'mock-access-token';
@@ -29,25 +19,13 @@ describe('AuthController', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-      providers: [
-        {
-          provide: AuthService,
-          useValue: mockAuthService,
-        },
-        {
-          provide: DatabaseService,
-          useValue: mockDatabase,
-        },
-      ],
-    })
-      .overrideGuard(LocalAuthGuard)
-      .useValue(mockGuard)
+    const { unit, unitRef } = await TestBed.solitary(AuthController)
+      .mock(DatabaseService)
+      .final(mockDatabase)
       .compile();
 
-    controller = module.get<AuthController>(AuthController);
-    authService = module.get<AuthService>(AuthService);
+    controller = unit;
+    authService = unitRef.get(AuthService);
   });
 
   afterEach(() => {

@@ -1,51 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { LivekitController } from './livekit.controller';
 import { LivekitService } from './livekit.service';
-import { LivekitReplayService } from './livekit-replay.service';
-import { ClipLibraryService } from './clip-library.service';
-import { StorageService } from '@/storage/storage.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RbacGuard } from '../auth/rbac.guard';
 import { UserFactory } from '@/test-utils';
 import { CreateTokenDto } from './dto/create-token.dto';
 
 describe('LivekitController', () => {
   let controller: LivekitController;
-  let service: LivekitService;
-
-  const mockLivekitService = {
-    generateToken: jest.fn(),
-    getConnectionInfo: jest.fn(),
-    validateConfiguration: jest.fn(),
-    muteParticipant: jest.fn(),
-  };
-
-  const mockLivekitReplayService = {
-    startReplayBuffer: jest.fn(),
-    stopReplayBuffer: jest.fn(),
-    getSessionInfo: jest.fn(),
-    captureReplay: jest.fn(),
-    getPlaylistContent: jest.fn(),
-    getSegmentPath: jest.fn(),
-    getRemuxedSegmentPath: jest.fn(),
-  };
-
-  const mockClipLibraryService = {
-    getUserClips: jest.fn(),
-    getPublicClips: jest.fn(),
-    updateClip: jest.fn(),
-    deleteClip: jest.fn(),
-    shareClip: jest.fn(),
-  };
-
-  const mockStorageService = {
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-    deleteFile: jest.fn(),
-    getFileStats: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<LivekitService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -53,35 +15,11 @@ describe('LivekitController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [LivekitController],
-      providers: [
-        {
-          provide: LivekitService,
-          useValue: mockLivekitService,
-        },
-        {
-          provide: LivekitReplayService,
-          useValue: mockLivekitReplayService,
-        },
-        {
-          provide: ClipLibraryService,
-          useValue: mockClipLibraryService,
-        },
-        {
-          provide: StorageService,
-          useValue: mockStorageService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(LivekitController).compile();
 
-    controller = module.get<LivekitController>(LivekitController);
-    service = module.get<LivekitService>(LivekitService);
+    controller = unit;
+    service = unitRef.get(LivekitService);
   });
 
   afterEach(() => {
@@ -107,7 +45,7 @@ describe('LivekitController', () => {
         roomId: 'channel-123',
       };
 
-      jest.spyOn(service, 'generateToken').mockResolvedValue(mockTokenResponse);
+      service.generateToken.mockResolvedValue(mockTokenResponse as any);
 
       const result = await controller.generateToken(
         createTokenDto,
@@ -125,11 +63,11 @@ describe('LivekitController', () => {
         name: 'User Name',
       };
 
-      jest.spyOn(service, 'generateToken').mockResolvedValue({
+      service.generateToken.mockResolvedValue({
         token: 'token',
         identity: mockUser.id,
         roomId: 'channel-789',
-      });
+      } as any);
 
       await controller.generateToken(createTokenDto, mockRequest);
 
@@ -145,11 +83,11 @@ describe('LivekitController', () => {
         name: 'Custom Name',
       };
 
-      jest.spyOn(service, 'generateToken').mockResolvedValue({
+      service.generateToken.mockResolvedValue({
         token: 'token',
         identity: 'custom-identity',
         roomId: 'channel-123',
-      });
+      } as any);
 
       await controller.generateToken(createTokenDto, mockRequest);
 
@@ -172,7 +110,7 @@ describe('LivekitController', () => {
         roomId: 'dm-group-123',
       };
 
-      jest.spyOn(service, 'generateToken').mockResolvedValue(mockTokenResponse);
+      service.generateToken.mockResolvedValue(mockTokenResponse as any);
 
       const result = await controller.generateDmToken(
         createTokenDto,
@@ -190,11 +128,11 @@ describe('LivekitController', () => {
         name: 'DM Participant',
       };
 
-      jest.spyOn(service, 'generateToken').mockResolvedValue({
+      service.generateToken.mockResolvedValue({
         token: 'dm-token',
         identity: mockUser.id,
         roomId: 'dm-group-456',
-      });
+      } as any);
 
       await controller.generateDmToken(createTokenDto, mockRequest);
 
@@ -210,9 +148,7 @@ describe('LivekitController', () => {
         url: 'wss://livekit.example.com',
       };
 
-      jest
-        .spyOn(service, 'getConnectionInfo')
-        .mockReturnValue(mockConnectionInfo);
+      service.getConnectionInfo.mockReturnValue(mockConnectionInfo as any);
 
       const result = controller.getConnectionInfo();
 
@@ -221,9 +157,9 @@ describe('LivekitController', () => {
     });
 
     it('should call service method without parameters', () => {
-      jest.spyOn(service, 'getConnectionInfo').mockReturnValue({
+      service.getConnectionInfo.mockReturnValue({
         url: 'wss://test.livekit.io',
-      });
+      } as any);
 
       controller.getConnectionInfo();
 
@@ -233,7 +169,7 @@ describe('LivekitController', () => {
 
   describe('validateConfiguration', () => {
     it('should return healthy status when configuration is valid', () => {
-      jest.spyOn(service, 'validateConfiguration').mockReturnValue(true);
+      service.validateConfiguration.mockReturnValue(true);
 
       const result = controller.validateConfiguration();
 
@@ -245,7 +181,7 @@ describe('LivekitController', () => {
     });
 
     it('should return unhealthy status when configuration is invalid', () => {
-      jest.spyOn(service, 'validateConfiguration').mockReturnValue(false);
+      service.validateConfiguration.mockReturnValue(false);
 
       const result = controller.validateConfiguration();
 
@@ -256,7 +192,7 @@ describe('LivekitController', () => {
     });
 
     it('should call service validation method', () => {
-      jest.spyOn(service, 'validateConfiguration').mockReturnValue(true);
+      service.validateConfiguration.mockReturnValue(true);
 
       controller.validateConfiguration();
 
@@ -266,7 +202,7 @@ describe('LivekitController', () => {
 
   describe('muteParticipant', () => {
     it('should call service muteParticipant and return success', async () => {
-      jest.spyOn(service, 'muteParticipant').mockResolvedValue(undefined);
+      service.muteParticipant.mockResolvedValue(undefined);
 
       const result = await controller.muteParticipant('channel-123', {
         participantIdentity: 'user-456',
@@ -282,7 +218,7 @@ describe('LivekitController', () => {
     });
 
     it('should pass mute=false for unmute', async () => {
-      jest.spyOn(service, 'muteParticipant').mockResolvedValue(undefined);
+      service.muteParticipant.mockResolvedValue(undefined);
 
       await controller.muteParticipant('channel-123', {
         participantIdentity: 'user-456',
@@ -297,9 +233,7 @@ describe('LivekitController', () => {
     });
 
     it('should propagate service errors', async () => {
-      jest
-        .spyOn(service, 'muteParticipant')
-        .mockRejectedValue(new Error('Mute failed'));
+      service.muteParticipant.mockRejectedValue(new Error('Mute failed'));
 
       await expect(
         controller.muteParticipant('channel-123', {

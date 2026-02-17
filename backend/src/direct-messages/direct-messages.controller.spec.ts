@@ -1,9 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { DirectMessagesController } from './direct-messages.controller';
 import { DirectMessagesService } from './direct-messages.service';
 import { MessagesService } from '@/messages/messages.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
 import {
   DirectMessageGroupFactory,
   UserFactory,
@@ -14,22 +13,8 @@ import { AddMembersDto } from './dto/add-members.dto';
 
 describe('DirectMessagesController', () => {
   let controller: DirectMessagesController;
-  let directMessagesService: DirectMessagesService;
-  let messagesService: MessagesService;
-
-  const mockDirectMessagesService = {
-    findUserDmGroups: jest.fn(),
-    createDmGroup: jest.fn(),
-    findDmGroup: jest.fn(),
-    addMembers: jest.fn(),
-    leaveDmGroup: jest.fn(),
-  };
-
-  const mockMessagesService = {
-    findAllForDirectMessageGroup: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let directMessagesService: Mocked<DirectMessagesService>;
+  let messagesService: Mocked<MessagesService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -37,30 +22,13 @@ describe('DirectMessagesController', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [DirectMessagesController],
-      providers: [
-        {
-          provide: DirectMessagesService,
-          useValue: mockDirectMessagesService,
-        },
-        {
-          provide: MessagesService,
-          useValue: mockMessagesService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } = await TestBed.solitary(
+      DirectMessagesController,
+    ).compile();
 
-    controller = module.get<DirectMessagesController>(DirectMessagesController);
-    directMessagesService = module.get<DirectMessagesService>(
-      DirectMessagesService,
-    );
-    messagesService = module.get<MessagesService>(MessagesService);
+    controller = unit;
+    directMessagesService = unitRef.get(DirectMessagesService);
+    messagesService = unitRef.get(MessagesService);
   });
 
   afterEach(() => {
@@ -78,9 +46,9 @@ describe('DirectMessagesController', () => {
         DirectMessageGroupFactory.build(),
       ];
 
-      jest
-        .spyOn(directMessagesService, 'findUserDmGroups')
-        .mockResolvedValue(mockDmGroups as any);
+      directMessagesService.findUserDmGroups.mockResolvedValue(
+        mockDmGroups as any,
+      );
 
       const result = await controller.findUserDmGroups(mockRequest);
 
@@ -91,9 +59,7 @@ describe('DirectMessagesController', () => {
     });
 
     it('should return empty array when user has no DM groups', async () => {
-      jest
-        .spyOn(directMessagesService, 'findUserDmGroups')
-        .mockResolvedValue([]);
+      directMessagesService.findUserDmGroups.mockResolvedValue([]);
 
       const result = await controller.findUserDmGroups(mockRequest);
 
@@ -114,9 +80,7 @@ describe('DirectMessagesController', () => {
         isGroup: true,
       });
 
-      jest
-        .spyOn(directMessagesService, 'createDmGroup')
-        .mockResolvedValue(mockDmGroup as any);
+      directMessagesService.createDmGroup.mockResolvedValue(mockDmGroup as any);
 
       const result = await controller.createDmGroup(createDto, mockRequest);
 
@@ -138,9 +102,7 @@ describe('DirectMessagesController', () => {
         name: null,
       });
 
-      jest
-        .spyOn(directMessagesService, 'createDmGroup')
-        .mockResolvedValue(mockDmGroup as any);
+      directMessagesService.createDmGroup.mockResolvedValue(mockDmGroup as any);
 
       const result = await controller.createDmGroup(createDto, mockRequest);
 
@@ -154,9 +116,7 @@ describe('DirectMessagesController', () => {
       const dmGroupId = 'dm-group-123';
       const mockDmGroup = DirectMessageGroupFactory.build({ id: dmGroupId });
 
-      jest
-        .spyOn(directMessagesService, 'findDmGroup')
-        .mockResolvedValue(mockDmGroup as any);
+      directMessagesService.findDmGroup.mockResolvedValue(mockDmGroup as any);
 
       const result = await controller.findDmGroup(dmGroupId, mockRequest);
 
@@ -174,12 +134,10 @@ describe('DirectMessagesController', () => {
       const mockDmGroup = DirectMessageGroupFactory.build({ id: dmGroupId });
       const mockMessages = [MessageFactory.build(), MessageFactory.build()];
 
-      jest
-        .spyOn(directMessagesService, 'findDmGroup')
-        .mockResolvedValue(mockDmGroup as any);
-      jest
-        .spyOn(messagesService, 'findAllForDirectMessageGroup')
-        .mockResolvedValue(mockMessages as any);
+      directMessagesService.findDmGroup.mockResolvedValue(mockDmGroup as any);
+      messagesService.findAllForDirectMessageGroup.mockResolvedValue(
+        mockMessages as any,
+      );
 
       const result = await controller.getDmMessages(dmGroupId, mockRequest);
 
@@ -197,12 +155,11 @@ describe('DirectMessagesController', () => {
       const dmGroupId = 'dm-group-123';
       const mockDmGroup = DirectMessageGroupFactory.build({ id: dmGroupId });
 
-      jest
-        .spyOn(directMessagesService, 'findDmGroup')
-        .mockResolvedValue(mockDmGroup as any);
-      jest
-        .spyOn(messagesService, 'findAllForDirectMessageGroup')
-        .mockResolvedValue({ messages: [], continuationToken: undefined });
+      directMessagesService.findDmGroup.mockResolvedValue(mockDmGroup as any);
+      messagesService.findAllForDirectMessageGroup.mockResolvedValue({
+        messages: [],
+        continuationToken: undefined,
+      });
 
       await controller.getDmMessages(dmGroupId, mockRequest);
 
@@ -224,9 +181,7 @@ describe('DirectMessagesController', () => {
         isGroup: true,
       });
 
-      jest
-        .spyOn(directMessagesService, 'addMembers')
-        .mockResolvedValue(mockDmGroup as any);
+      directMessagesService.addMembers.mockResolvedValue(mockDmGroup as any);
 
       const result = await controller.addMembers(
         dmGroupId,
@@ -247,9 +202,7 @@ describe('DirectMessagesController', () => {
     it('should allow user to leave a DM group', async () => {
       const dmGroupId = 'dm-group-123';
 
-      jest
-        .spyOn(directMessagesService, 'leaveDmGroup')
-        .mockResolvedValue(undefined);
+      directMessagesService.leaveDmGroup.mockResolvedValue(undefined);
 
       await controller.leaveDmGroup(dmGroupId, mockRequest);
 
@@ -262,9 +215,7 @@ describe('DirectMessagesController', () => {
     it('should return void when successfully leaving', async () => {
       const dmGroupId = 'dm-group-123';
 
-      jest
-        .spyOn(directMessagesService, 'leaveDmGroup')
-        .mockResolvedValue(undefined);
+      directMessagesService.leaveDmGroup.mockResolvedValue(undefined);
 
       const result = await controller.leaveDmGroup(dmGroupId, mockRequest);
 

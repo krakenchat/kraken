@@ -1,11 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { RbacGuard } from '@/auth/rbac.guard';
-import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
 import { MessageFactory, UserFactory } from '@/test-utils';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
@@ -16,32 +14,9 @@ import { ServerEvents } from '@kraken/shared';
 
 describe('MessagesController', () => {
   let controller: MessagesController;
-  let service: MessagesService;
-  let reactionsService: ReactionsService;
-  let websocketService: WebsocketService;
-
-  const mockMessagesService = {
-    create: jest.fn(),
-    findAllForChannel: jest.fn(),
-    findAllForDirectMessageGroup: jest.fn(),
-    findOne: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-    addAttachment: jest.fn(),
-    enrichMessageWithFileMetadata: jest.fn(),
-  };
-
-  const mockReactionsService = {
-    addReaction: jest.fn(),
-    removeReaction: jest.fn(),
-  };
-
-  const mockWebsocketService = {
-    sendToRoom: jest.fn(),
-    setServer: jest.fn(),
-  };
-
-  const mockGuard = { canActivate: jest.fn(() => true) };
+  let service: Mocked<MessagesService>;
+  let reactionsService: Mocked<ReactionsService>;
+  let websocketService: Mocked<WebsocketService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -49,35 +24,13 @@ describe('MessagesController', () => {
   } as any;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [MessagesController],
-      providers: [
-        {
-          provide: MessagesService,
-          useValue: mockMessagesService,
-        },
-        {
-          provide: ReactionsService,
-          useValue: mockReactionsService,
-        },
-        {
-          provide: WebsocketService,
-          useValue: mockWebsocketService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockGuard)
-      .overrideGuard(RbacGuard)
-      .useValue(mockGuard)
-      .overrideGuard(MessageOwnershipGuard)
-      .useValue(mockGuard)
-      .compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(MessagesController).compile();
 
-    controller = module.get<MessagesController>(MessagesController);
-    service = module.get<MessagesService>(MessagesService);
-    reactionsService = module.get<ReactionsService>(ReactionsService);
-    websocketService = module.get<WebsocketService>(WebsocketService);
+    controller = unit;
+    service = unitRef.get(MessagesService);
+    reactionsService = unitRef.get(ReactionsService);
+    websocketService = unitRef.get(WebsocketService);
   });
 
   afterEach(() => {
@@ -129,10 +82,10 @@ describe('MessagesController', () => {
 
       const enrichedMessage = { ...mockMessage, attachments: [] };
 
-      jest.spyOn(service, 'create').mockResolvedValue(mockMessage as any);
-      jest
-        .spyOn(service, 'enrichMessageWithFileMetadata')
-        .mockResolvedValue(enrichedMessage as any);
+      service.create.mockResolvedValue(mockMessage as any);
+      service.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
+      );
 
       const result = await controller.create(mockRequest, createDto);
 
@@ -174,10 +127,10 @@ describe('MessagesController', () => {
       };
 
       const mockMessage = {};
-      jest.spyOn(service, 'create').mockResolvedValue(mockMessage as any);
-      jest
-        .spyOn(service, 'enrichMessageWithFileMetadata')
-        .mockResolvedValue({ attachments: [] } as any);
+      service.create.mockResolvedValue(mockMessage as any);
+      service.enrichMessageWithFileMetadata.mockResolvedValue({
+        attachments: [],
+      } as any);
 
       await controller.create(mockRequest, createDto);
 
@@ -194,9 +147,9 @@ describe('MessagesController', () => {
         continuationToken: undefined,
       };
 
-      jest
-        .spyOn(service, 'findAllForDirectMessageGroup')
-        .mockResolvedValue(mockMessages as any);
+      service.findAllForDirectMessageGroup.mockResolvedValue(
+        mockMessages as any,
+      );
 
       const result = await controller.findAllForGroup(groupId, 50);
 
@@ -213,9 +166,10 @@ describe('MessagesController', () => {
       const limit = 25;
       const continuationToken = 'token-abc';
 
-      jest
-        .spyOn(service, 'findAllForDirectMessageGroup')
-        .mockResolvedValue({ messages: [], continuationToken: undefined });
+      service.findAllForDirectMessageGroup.mockResolvedValue({
+        messages: [],
+        continuationToken: undefined,
+      } as any);
 
       await controller.findAllForGroup(groupId, limit, continuationToken);
 
@@ -235,9 +189,7 @@ describe('MessagesController', () => {
         continuationToken: 'next-token',
       };
 
-      jest
-        .spyOn(service, 'findAllForChannel')
-        .mockResolvedValue(mockMessages as any);
+      service.findAllForChannel.mockResolvedValue(mockMessages as any);
 
       const result = await controller.findAllForChannel(channelId, 50);
 
@@ -252,9 +204,10 @@ describe('MessagesController', () => {
     it('should use provided limit', async () => {
       const channelId = 'channel-123';
 
-      jest
-        .spyOn(service, 'findAllForChannel')
-        .mockResolvedValue({ messages: [], continuationToken: undefined });
+      service.findAllForChannel.mockResolvedValue({
+        messages: [],
+        continuationToken: undefined,
+      } as any);
 
       await controller.findAllForChannel(channelId, 100);
 
@@ -279,9 +232,7 @@ describe('MessagesController', () => {
         reactions: [{ emoji: '👍', userIds: [mockUser.id] }],
       });
 
-      jest
-        .spyOn(reactionsService, 'addReaction')
-        .mockResolvedValue(mockMessage as any);
+      reactionsService.addReaction.mockResolvedValue(mockMessage as any);
 
       const result = await controller.addReaction(addReactionDto, mockRequest);
 
@@ -314,9 +265,7 @@ describe('MessagesController', () => {
         reactions: [{ emoji: '❤️', userIds: [mockUser.id] }],
       });
 
-      jest
-        .spyOn(reactionsService, 'addReaction')
-        .mockResolvedValue(mockMessage as any);
+      reactionsService.addReaction.mockResolvedValue(mockMessage as any);
 
       await controller.addReaction(addReactionDto, mockRequest);
 
@@ -341,9 +290,7 @@ describe('MessagesController', () => {
         reactions: [],
       });
 
-      jest
-        .spyOn(reactionsService, 'addReaction')
-        .mockResolvedValue(mockMessage as any);
+      reactionsService.addReaction.mockResolvedValue(mockMessage as any);
 
       await controller.addReaction(addReactionDto, mockRequest);
 
@@ -364,9 +311,7 @@ describe('MessagesController', () => {
         reactions: [],
       });
 
-      jest
-        .spyOn(reactionsService, 'removeReaction')
-        .mockResolvedValue(mockMessage as any);
+      reactionsService.removeReaction.mockResolvedValue(mockMessage as any);
 
       const result = await controller.removeReaction(
         removeReactionDto,
@@ -402,9 +347,7 @@ describe('MessagesController', () => {
         reactions: [],
       });
 
-      jest
-        .spyOn(reactionsService, 'removeReaction')
-        .mockResolvedValue(mockMessage as any);
+      reactionsService.removeReaction.mockResolvedValue(mockMessage as any);
 
       await controller.removeReaction(removeReactionDto, mockRequest);
 
@@ -436,13 +379,11 @@ describe('MessagesController', () => {
 
       const enrichedMessage = { ...updatedMessage, fileMetadata: {} };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(originalMessage as any);
-      jest
-        .spyOn(service, 'addAttachment')
-        .mockResolvedValue(updatedMessage as any);
-      jest
-        .spyOn(service, 'enrichMessageWithFileMetadata')
-        .mockResolvedValue(enrichedMessage as any);
+      service.findOne.mockResolvedValue(originalMessage as any);
+      service.addAttachment.mockResolvedValue(updatedMessage as any);
+      service.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
+      );
 
       const result = await controller.addAttachment(
         messageId,
@@ -473,13 +414,11 @@ describe('MessagesController', () => {
       });
       const updatedMessage = MessageFactory.build({ pendingAttachments: 0 });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(originalMessage as any);
-      jest
-        .spyOn(service, 'addAttachment')
-        .mockResolvedValue(updatedMessage as any);
-      jest
-        .spyOn(service, 'enrichMessageWithFileMetadata')
-        .mockResolvedValue(updatedMessage as any);
+      service.findOne.mockResolvedValue(originalMessage as any);
+      service.addAttachment.mockResolvedValue(updatedMessage as any);
+      service.enrichMessageWithFileMetadata.mockResolvedValue(
+        updatedMessage as any,
+      );
 
       await controller.addAttachment(messageId, addAttachmentDto);
 
@@ -493,10 +432,10 @@ describe('MessagesController', () => {
       const mockMessage = MessageFactory.build({ id: messageId });
       const enrichedMessage = { ...mockMessage, attachments: [] };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockMessage as any);
-      jest
-        .spyOn(service, 'enrichMessageWithFileMetadata')
-        .mockResolvedValue(enrichedMessage as any);
+      service.findOne.mockResolvedValue(mockMessage as any);
+      service.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
+      );
 
       const result = await controller.findOne(messageId);
 
@@ -536,11 +475,11 @@ describe('MessagesController', () => {
 
       const enrichedMessage = { ...updatedMessage, attachments: [] };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(originalMessage as any);
-      jest.spyOn(service, 'update').mockResolvedValue(updatedMessage as any);
-      jest
-        .spyOn(service, 'enrichMessageWithFileMetadata')
-        .mockResolvedValue(enrichedMessage as any);
+      service.findOne.mockResolvedValue(originalMessage as any);
+      service.update.mockResolvedValue(updatedMessage as any);
+      service.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
+      );
 
       const result = await controller.update(messageId, updateDto);
 
@@ -574,11 +513,11 @@ describe('MessagesController', () => {
       const updatedMessage = MessageFactory.build();
       const enrichedMessage = { ...updatedMessage, attachments: [] };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(originalMessage as any);
-      jest.spyOn(service, 'update').mockResolvedValue(updatedMessage as any);
-      jest
-        .spyOn(service, 'enrichMessageWithFileMetadata')
-        .mockResolvedValue(enrichedMessage as any);
+      service.findOne.mockResolvedValue(originalMessage as any);
+      service.update.mockResolvedValue(updatedMessage as any);
+      service.enrichMessageWithFileMetadata.mockResolvedValue(
+        enrichedMessage as any,
+      );
 
       await controller.update(messageId, updateDto);
 
@@ -599,8 +538,8 @@ describe('MessagesController', () => {
         attachments: ['file-1', 'file-2'],
       });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockMessage as any);
-      jest.spyOn(service, 'remove').mockResolvedValue(void 0 as any);
+      service.findOne.mockResolvedValue(mockMessage as any);
+      service.remove.mockResolvedValue(void 0 as any);
 
       await controller.remove(messageId);
 
@@ -629,8 +568,8 @@ describe('MessagesController', () => {
         attachments: [],
       });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockMessage as any);
-      jest.spyOn(service, 'remove').mockResolvedValue(void 0 as any);
+      service.findOne.mockResolvedValue(mockMessage as any);
+      service.remove.mockResolvedValue(void 0 as any);
 
       await controller.remove(messageId);
 
@@ -651,8 +590,8 @@ describe('MessagesController', () => {
         attachments: ['file-a', 'file-b', 'file-c'],
       });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockMessage as any);
-      jest.spyOn(service, 'remove').mockResolvedValue(void 0 as any);
+      service.findOne.mockResolvedValue(mockMessage as any);
+      service.remove.mockResolvedValue(void 0 as any);
 
       await controller.remove(messageId);
 
