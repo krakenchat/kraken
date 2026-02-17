@@ -30,6 +30,8 @@ import {
   FiberManualRecord,
   MovieCreation,
   VideoCall,
+  SpeakerPhone,
+  PhoneInTalk,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
@@ -69,6 +71,7 @@ export const VoiceBottomBar: React.FC = () => {
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [showCaptureModal, setShowCaptureModal] = useState(false);
+  const [isSpeakerphone, setIsSpeakerphone] = useState(false);
 
   // Use extracted hooks for cleaner organization
   const { showDebugPanel } = useDebugPanelShortcut();
@@ -138,6 +141,22 @@ export const VoiceBottomBar: React.FC = () => {
     }
     screenShare.toggleScreenShare();
   }, [screenShare, actions]);
+
+  // Check if browser supports audio output switching (setSinkId)
+  const supportsSpeakerToggle = isMobile && 'setSinkId' in HTMLMediaElement.prototype;
+
+  const handleToggleSpeakerphone = useCallback(async () => {
+    try {
+      // Toggle between default (earpiece) and speakerphone
+      // An empty string selects the system default (speakerphone on mobile)
+      // "communications" selects the earpiece/communications device
+      const newSpeakerState = !isSpeakerphone;
+      await actions.switchAudioOutputDevice(newSpeakerState ? '' : 'communications');
+      setIsSpeakerphone(newSpeakerState);
+    } catch (error) {
+      logger.error('Failed to toggle speakerphone:', error);
+    }
+  }, [isSpeakerphone, actions]);
 
   // Show bar if connected to either a channel or DM
   if (!state.isConnected || (!state.currentChannelId && !state.currentDmGroupId)) {
@@ -322,6 +341,33 @@ export const VoiceBottomBar: React.FC = () => {
                   }}
                 >
                   {state.isDeafened ? <HeadsetOff /> : <Headset />}
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {/* Speakerphone toggle - mobile only, when browser supports setSinkId */}
+            {supportsSpeakerToggle && (
+              <Tooltip title={isSpeakerphone ? "Switch to earpiece" : "Switch to speaker"}>
+                <IconButton
+                  onClick={handleToggleSpeakerphone}
+                  size="medium"
+                  sx={{
+                    backgroundColor: isSpeakerphone
+                      ? "primary.main"
+                      : "transparent",
+                    color: isSpeakerphone
+                      ? "primary.contrastText"
+                      : "text.primary",
+                    minWidth: 48,
+                    minHeight: 48,
+                    "&:hover": {
+                      backgroundColor: isSpeakerphone
+                        ? "primary.dark"
+                        : "action.hover",
+                    },
+                  }}
+                >
+                  {isSpeakerphone ? <SpeakerPhone /> : <PhoneInTalk />}
                 </IconButton>
               </Tooltip>
             )}

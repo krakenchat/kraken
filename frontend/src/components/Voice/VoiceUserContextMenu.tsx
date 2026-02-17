@@ -107,7 +107,7 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
       if (!participant || isLocalUser) return;
       const livekitVolume = vol / 100; // Convert 0-200 to 0-2.0
       participant.audioTrackPublications.forEach((pub) => {
-        if (pub.track && pub.source === Track.Source.Microphone) {
+        if (pub.track && (pub.source === Track.Source.Microphone || pub.source === Track.Source.ScreenShareAudio)) {
           pub.track.setVolume(livekitVolume);
         }
       });

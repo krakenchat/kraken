@@ -82,11 +82,11 @@ export const AudioRenderer: React.FC = () => {
     logger.debug('[AudioRenderer] Updating audio tracks, remote participants:', room.remoteParticipants.size);
     room.remoteParticipants.forEach((participant) => {
       participant.audioTrackPublications.forEach((publication) => {
-        // Only include microphone tracks (not screen share audio)
-        if (publication.source === Track.Source.Microphone && publication.track) {
+        // Include microphone and screen share audio tracks
+        if ((publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio) && publication.track) {
           const key = `${participant.identity}-${publication.trackSid}`;
           newTracks.set(key, { participant, publication });
-          logger.debug('[AudioRenderer] Found mic track for:', participant.identity);
+          logger.debug('[AudioRenderer] Found audio track for:', participant.identity);
         }
       });
     });

@@ -32,7 +32,7 @@ export const useDeafenEffect = () => {
     const updateRemoteAudioVolume = (volume: number) => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
-          if (publication.track && publication.source === Track.Source.Microphone) {
+          if (publication.track && (publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio)) {
             publication.track.setVolume(volume);
           }
         });

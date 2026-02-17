@@ -406,6 +406,107 @@ describe('VoiceBottomBar', () => {
     expect(screen.queryByRole('button', { name: /show video tiles/i })).not.toBeInTheDocument();
   });
 
+  describe('speakerphone toggle (#109)', () => {
+    it('does not show speakerphone button on desktop', () => {
+      vi.mocked(useResponsive).mockReturnValue({
+        isMobile: false,
+        isTablet: false,
+        isDesktop: true,
+        deviceType: 'desktop',
+      } as never);
+
+      renderWithProviders(<VoiceBottomBar />);
+
+      expect(screen.queryByTestId('SpeakerPhoneIcon')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('PhoneInTalkIcon')).not.toBeInTheDocument();
+    });
+
+    it('shows speakerphone button on mobile when setSinkId is supported', () => {
+      vi.mocked(useResponsive).mockReturnValue({
+        isMobile: true,
+        isTablet: false,
+        isDesktop: false,
+        deviceType: 'phone',
+      } as never);
+
+      // Mock setSinkId support
+      const originalPrototype = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'setSinkId');
+      Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+
+      renderWithProviders(<VoiceBottomBar />);
+
+      // Should show PhoneInTalk (earpiece) icon by default
+      expect(screen.getByTestId('PhoneInTalkIcon')).toBeInTheDocument();
+
+      // Restore
+      if (originalPrototype) {
+        Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', originalPrototype);
+      } else {
+        delete (HTMLMediaElement.prototype as Record<string, unknown>).setSinkId;
+      }
+    });
+
+    it('toggles to speaker icon when speakerphone is activated', async () => {
+      vi.mocked(useResponsive).mockReturnValue({
+        isMobile: true,
+        isTablet: false,
+        isDesktop: false,
+        deviceType: 'phone',
+      } as never);
+
+      // Mock setSinkId support
+      const originalPrototype = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'setSinkId');
+      Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+
+      const { user } = renderWithProviders(<VoiceBottomBar />);
+
+      const speakerButton = screen.getByTestId('PhoneInTalkIcon').closest('button')!;
+      await user.click(speakerButton);
+
+      expect(mockActions.switchAudioOutputDevice).toHaveBeenCalledWith('');
+
+      // Restore
+      if (originalPrototype) {
+        Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', originalPrototype);
+      } else {
+        delete (HTMLMediaElement.prototype as Record<string, unknown>).setSinkId;
+      }
+    });
+
+    it('does not show speakerphone button when setSinkId is not supported', () => {
+      vi.mocked(useResponsive).mockReturnValue({
+        isMobile: true,
+        isTablet: false,
+        isDesktop: false,
+        deviceType: 'phone',
+      } as never);
+
+      // Ensure setSinkId is NOT on prototype
+      const originalPrototype = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'setSinkId');
+      if (originalPrototype) {
+        delete (HTMLMediaElement.prototype as Record<string, unknown>).setSinkId;
+      }
+
+      renderWithProviders(<VoiceBottomBar />);
+
+      expect(screen.queryByTestId('SpeakerPhoneIcon')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('PhoneInTalkIcon')).not.toBeInTheDocument();
+
+      // Restore
+      if (originalPrototype) {
+        Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', originalPrototype);
+      }
+    });
+  });
+
   it('settings menu has "All Settings" item that navigates to /settings', async () => {
     // Ensure desktop mode so settings button is visible
     vi.mocked(useResponsive).mockReturnValue({
