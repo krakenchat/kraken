@@ -83,8 +83,12 @@ describe('ReactionsService', () => {
           {
             q: {
               _id: { $oid: messageId },
-              'reactions.emoji': '👍',
-              'reactions.userIds': { $ne: userId1 },
+              reactions: {
+                $elemMatch: {
+                  emoji: '👍',
+                  userIds: { $ne: userId1 },
+                },
+              },
             },
             u: {
               $push: { 'reactions.$.userIds': userId1 },
@@ -146,8 +150,12 @@ describe('ReactionsService', () => {
           {
             q: {
               _id: { $oid: messageId },
-              'reactions.emoji': '👍',
-              'reactions.userIds': { $ne: userId2 },
+              reactions: {
+                $elemMatch: {
+                  emoji: '👍',
+                  userIds: { $ne: userId2 },
+                },
+              },
             },
             u: {
               $push: { 'reactions.$.userIds': userId2 },
@@ -185,6 +193,66 @@ describe('ReactionsService', () => {
 
       // Only 2 $runCommandRaw calls (step 1 + step 2 check, no step 3)
       expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(2);
+    });
+
+    it('should add user to existing reaction when user already reacted with a different emoji', async () => {
+      // Regression test for #87: user B has reacted with 🔥, now wants to also add 👍
+      const message = {
+        id: messageId,
+        channelId: 'channel-1',
+        directMessageGroupId: null,
+        reactions: [
+          { emoji: '👍', userIds: [userId1] },
+          { emoji: '🔥', userIds: [userId2] },
+        ],
+      };
+
+      const updatedMessage = {
+        ...message,
+        reactions: [
+          { emoji: '👍', userIds: [userId1, userId2] },
+          { emoji: '🔥', userIds: [userId2] },
+        ],
+      };
+
+      mockDatabaseService.message.findUnique
+        .mockResolvedValueOnce(message)
+        .mockResolvedValueOnce(updatedMessage);
+
+      // Step 1: $elemMatch finds the 👍 element where userId2 is NOT present → succeeds
+      // With the old dot-notation bug, this would return nModified: 0 because
+      // userId2 exists in reactions[1].userIds (the 🔥 reaction)
+      mockDatabaseService.$runCommandRaw.mockResolvedValueOnce({
+        nModified: 1,
+      });
+
+      const result = await service.addReaction(messageId, '👍', userId2);
+
+      expect(result.reactions[0].emoji).toBe('👍');
+      expect(result.reactions[0].userIds).toContain(userId1);
+      expect(result.reactions[0].userIds).toContain(userId2);
+
+      // Only 1 $runCommandRaw call because step 1 succeeded with $elemMatch
+      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(1);
+      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledWith({
+        update: 'Message',
+        updates: [
+          {
+            q: {
+              _id: { $oid: messageId },
+              reactions: {
+                $elemMatch: {
+                  emoji: '👍',
+                  userIds: { $ne: userId2 },
+                },
+              },
+            },
+            u: {
+              $push: { 'reactions.$.userIds': userId2 },
+            },
+          },
+        ],
+      });
     });
 
     it('should throw NotFoundException when message not found', async () => {

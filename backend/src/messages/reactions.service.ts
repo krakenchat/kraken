@@ -47,8 +47,12 @@ export class ReactionsService {
           {
             q: {
               _id: { $oid: oid.toHexString() },
-              'reactions.emoji': emoji,
-              'reactions.userIds': { $ne: userId },
+              reactions: {
+                $elemMatch: {
+                  emoji: emoji,
+                  userIds: { $ne: userId },
+                },
+              },
             },
             u: {
               $push: { 'reactions.$.userIds': userId },
