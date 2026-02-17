@@ -36,8 +36,9 @@ import { useNotifications } from '../../hooks/useNotifications';
 import {
   notificationsControllerGetNotificationsQueryKey,
   notificationsControllerGetUnreadCountQueryKey,
+  readReceiptsControllerGetUnreadCountsQueryKey,
 } from '../../api-client/@tanstack/react-query.gen';
-import type { NotificationListResponseDto, UnreadCountResponseDto } from '../../api-client';
+import type { NotificationListResponseDto, UnreadCountResponseDto, UnreadCountDto } from '../../api-client';
 import {
   createTestQueryClient,
   createMockSocket,
@@ -197,6 +198,138 @@ describe('useNotifications', () => {
 
       const data = queryClient.getQueryData(key) as UnreadCountResponseDto;
       expect(data.count).toBe(1);
+    });
+
+    it('increments mentionCount for USER_MENTION notifications', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 3, mentionCount: 1 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+      seedNotificationsCache([]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent(
+          'newNotification',
+          createNotificationPayload({ type: 'USER_MENTION', channelId: 'channel-1', read: false }),
+        ),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.mentionCount).toBe(2);
+    });
+
+    it('increments mentionCount for SPECIAL_MENTION notifications', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 3, mentionCount: 0 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+      seedNotificationsCache([]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent(
+          'newNotification',
+          createNotificationPayload({ type: 'SPECIAL_MENTION', channelId: 'channel-1', read: false }),
+        ),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.mentionCount).toBe(1);
+    });
+
+    it('increments mentionCount for DIRECT_MESSAGE notifications', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { directMessageGroupId: 'dm-1', unreadCount: 5, mentionCount: 2 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+      seedNotificationsCache([]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent(
+          'newNotification',
+          createNotificationPayload({
+            type: 'DIRECT_MESSAGE',
+            channelId: null,
+            directMessageGroupId: 'dm-1',
+            communityId: null,
+            read: false,
+          }),
+        ),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.directMessageGroupId === 'dm-1')!.mentionCount).toBe(3);
+    });
+
+    it('does not increment mentionCount for CHANNEL_MESSAGE notifications', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 3, mentionCount: 0 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+      seedNotificationsCache([]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent(
+          'newNotification',
+          createNotificationPayload({ type: 'CHANNEL_MESSAGE', channelId: 'channel-1', read: false }),
+        ),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.mentionCount).toBe(0);
+    });
+
+    it('does not increment mentionCount for read notifications', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 3, mentionCount: 1 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+      seedNotificationsCache([]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent(
+          'newNotification',
+          createNotificationPayload({ type: 'USER_MENTION', channelId: 'channel-1', read: true }),
+        ),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.mentionCount).toBe(1);
+    });
+
+    it('creates new unread entry when channel is not yet tracked for mentions', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      queryClient.setQueryData(unreadKey, []);
+      seedNotificationsCache([]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent(
+          'newNotification',
+          createNotificationPayload({ type: 'USER_MENTION', channelId: 'channel-new', read: false }),
+        ),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      const entry = data!.find((c) => c.channelId === 'channel-new');
+      expect(entry).toBeDefined();
+      expect(entry!.mentionCount).toBe(1);
+      expect(entry!.unreadCount).toBe(0);
     });
   });
 

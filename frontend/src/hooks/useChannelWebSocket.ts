@@ -15,8 +15,11 @@ import {
   ReadReceiptUpdatedPayload,
 } from "@kraken/shared";
 import { channelMessagesQueryKey } from "../utils/messageQueryKeys";
-import { readReceiptsControllerGetUnreadCountsQueryKey } from "../api-client/@tanstack/react-query.gen";
-import type { UnreadCountDto } from "../api-client";
+import {
+  readReceiptsControllerGetUnreadCountsQueryKey,
+  userControllerGetProfileQueryKey,
+} from "../api-client/@tanstack/react-query.gen";
+import type { UnreadCountDto, UserControllerGetProfileResponse } from "../api-client";
 import {
   prependMessageToInfinite,
   updateMessageInInfinite,
@@ -47,6 +50,35 @@ export function useChannelWebSocket() {
         prependMessageToInfinite(old as never, message as Message)
       );
       setMessageContext(message.id, contextId);
+
+      // Increment unread count for this channel/DM — skip for own messages
+      const currentUser = queryClient.getQueryData<UserControllerGetProfileResponse>(
+        userControllerGetProfileQueryKey()
+      );
+      if (currentUser && message.authorId === currentUser.id) return;
+
+      const unreadQueryKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      queryClient.setQueryData(unreadQueryKey, (old: UnreadCountDto[] | undefined) => {
+        if (!old) return old;
+        const index = old.findIndex(
+          (c) => (c.channelId || c.directMessageGroupId) === contextId
+        );
+        if (index >= 0) {
+          const next = [...old];
+          next[index] = { ...next[index], unreadCount: next[index].unreadCount + 1 };
+          return next;
+        }
+        // New entry for a channel/DM not yet tracked
+        return [
+          ...old,
+          {
+            channelId: message.channelId || undefined,
+            directMessageGroupId: message.directMessageGroupId || undefined,
+            unreadCount: 1,
+            mentionCount: 0,
+          },
+        ];
+      });
     };
 
     const handleUpdateMessage = async ({ message }: UpdateMessagePayload) => {
@@ -198,6 +230,7 @@ export function useChannelWebSocket() {
           channelId: channelId || undefined,
           directMessageGroupId: directMessageGroupId || undefined,
           unreadCount: 0,
+          mentionCount: 0,
           lastReadMessageId,
           lastReadAt: new Date().toISOString(),
         };

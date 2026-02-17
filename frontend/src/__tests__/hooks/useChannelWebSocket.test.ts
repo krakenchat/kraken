@@ -12,7 +12,10 @@ vi.mock('../../api-client/client.gen', () => ({
 
 import { useChannelWebSocket } from '../../hooks/useChannelWebSocket';
 import { channelMessagesQueryKey } from '../../utils/messageQueryKeys';
-import { readReceiptsControllerGetUnreadCountsQueryKey } from '../../api-client/@tanstack/react-query.gen';
+import {
+  readReceiptsControllerGetUnreadCountsQueryKey,
+  userControllerGetProfileQueryKey,
+} from '../../api-client/@tanstack/react-query.gen';
 import { setMessageContext, clearContextIndex } from '../../utils/messageIndex';
 import {
   createTestQueryClient,
@@ -87,6 +90,71 @@ describe('useChannelWebSocket', () => {
       const msg = createMessage({ id: 'no-ctx', channelId: undefined, directMessageGroupId: undefined });
       await act(() => mockSocket.simulateEvent('newMessage', { message: msg }));
       // No throw, no change
+    });
+
+    it('increments unread count for the channel in read receipts cache', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 2, mentionCount: 0 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+
+      // Seed a current user so the own-message check works
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'current-user' });
+
+      const key = channelMessagesQueryKey('channel-1');
+      queryClient.setQueryData(key, createInfiniteData([]));
+
+      renderChannelWebSocket();
+
+      const newMsg = createMessage({ id: 'new-msg', channelId: 'channel-1', authorId: 'other-user' });
+      await act(() => mockSocket.simulateEvent('newMessage', { message: newMsg }));
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.unreadCount).toBe(3);
+    });
+
+    it('does not increment unread count for own messages', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 2, mentionCount: 0 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+
+      // Current user is the author
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'current-user' });
+
+      const key = channelMessagesQueryKey('channel-1');
+      queryClient.setQueryData(key, createInfiniteData([]));
+
+      renderChannelWebSocket();
+
+      const ownMsg = createMessage({ id: 'own-msg', channelId: 'channel-1', authorId: 'current-user' });
+      await act(() => mockSocket.simulateEvent('newMessage', { message: ownMsg }));
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.unreadCount).toBe(2);
+    });
+
+    it('creates new unread entry when channel is not yet tracked', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      queryClient.setQueryData(unreadKey, []);
+
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'current-user' });
+
+      const key = channelMessagesQueryKey('channel-new');
+      queryClient.setQueryData(key, createInfiniteData([]));
+
+      renderChannelWebSocket();
+
+      const newMsg = createMessage({ id: 'new-msg', channelId: 'channel-new', authorId: 'other-user' });
+      await act(() => mockSocket.simulateEvent('newMessage', { message: newMsg }));
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      const entry = data!.find((c) => c.channelId === 'channel-new');
+      expect(entry).toBeDefined();
+      expect(entry!.unreadCount).toBe(1);
+      expect(entry!.mentionCount).toBe(0);
     });
   });
 
@@ -324,11 +392,11 @@ describe('useChannelWebSocket', () => {
   });
 
   describe('READ_RECEIPT_UPDATED', () => {
-    it('updates unread count to 0 for a channel', async () => {
+    it('updates unread count and mention count to 0 for a channel', async () => {
       const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
       const existing: UnreadCountDto[] = [
-        { channelId: 'channel-1', unreadCount: 5, lastReadMessageId: 'old-msg' },
-        { channelId: 'channel-2', unreadCount: 3 },
+        { channelId: 'channel-1', unreadCount: 5, mentionCount: 3, lastReadMessageId: 'old-msg' },
+        { channelId: 'channel-2', unreadCount: 3, mentionCount: 1 },
       ];
       queryClient.setQueryData(unreadKey, existing);
 
@@ -345,9 +413,11 @@ describe('useChannelWebSocket', () => {
       const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
       const entry = data!.find((c) => c.channelId === 'channel-1');
       expect(entry!.unreadCount).toBe(0);
+      expect(entry!.mentionCount).toBe(0);
       expect(entry!.lastReadMessageId).toBe('new-msg');
       // Other channels untouched
       expect(data!.find((c) => c.channelId === 'channel-2')!.unreadCount).toBe(3);
+      expect(data!.find((c) => c.channelId === 'channel-2')!.mentionCount).toBe(1);
     });
 
     it('adds new entry when channel not in existing cache', async () => {

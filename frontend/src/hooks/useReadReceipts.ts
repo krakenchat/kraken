@@ -23,6 +23,11 @@ export function useReadReceipts() {
     return byId.get(id)?.unreadCount ?? 0;
   };
 
+  const mentionCount = (id?: string): number => {
+    if (!id) return 0;
+    return byId.get(id)?.mentionCount ?? 0;
+  };
+
   const lastReadMessageId = (id?: string): string | undefined => {
     if (!id) return undefined;
     return byId.get(id)?.lastReadMessageId ?? undefined;
@@ -33,5 +38,5 @@ export function useReadReceipts() {
     return (byId.get(id)?.unreadCount ?? 0) > 0;
   };
 
-  return { unreadCount, lastReadMessageId, hasUnread, allUnreadCounts: unreadCounts };
+  return { unreadCount, mentionCount, lastReadMessageId, hasUnread, allUnreadCounts: unreadCounts };
 }

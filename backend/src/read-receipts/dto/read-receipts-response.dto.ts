@@ -11,6 +11,7 @@ export class UnreadCountDto {
   channelId?: string;
   directMessageGroupId?: string;
   unreadCount: number;
+  mentionCount: number;
   lastReadMessageId?: string;
   lastReadAt?: Date;
 }
