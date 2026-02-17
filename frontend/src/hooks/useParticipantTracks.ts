@@ -12,6 +12,7 @@ export interface ParticipantMediaState {
   isMicrophoneEnabled: boolean;
   isScreenShareEnabled: boolean;
   isSpeaking: boolean;
+  isDeafened: boolean;
   participant: Participant | null;
 }
 
@@ -39,6 +40,7 @@ export const useParticipantTracks = (
     isMicrophoneEnabled: false,
     isScreenShareEnabled: false,
     isSpeaking: false,
+    isDeafened: false,
     participant: null,
   });
 
@@ -88,11 +90,22 @@ export const useParticipantTracks = (
       const screenSharePublication = participant.getTrackPublication(Track.Source.ScreenShare);
       const isScreenShareEnabled = !!screenSharePublication && !screenSharePublication.isMuted;
 
+      let isDeafened = false;
+      if (participant.metadata) {
+        try {
+          const meta = JSON.parse(participant.metadata) as { isDeafened?: boolean };
+          isDeafened = meta.isDeafened ?? false;
+        } catch {
+          // Invalid metadata JSON
+        }
+      }
+
       setMediaState({
         isCameraEnabled,
         isMicrophoneEnabled,
         isScreenShareEnabled,
         isSpeaking: participant.isSpeaking,
+        isDeafened,
         participant,
       });
     };
@@ -121,12 +134,17 @@ export const useParticipantTracks = (
       setMediaState((prev) => ({ ...prev, isSpeaking: speaking }));
     };
 
+    const handleMetadataChanged = () => {
+      updateMediaState();
+    };
+
     // Attach event listeners to participant
     participant.on('trackPublished', handleTrackPublished);
     participant.on('trackUnpublished', handleTrackUnpublished);
     participant.on('trackMuted', handleTrackMuted);
     participant.on('trackUnmuted', handleTrackUnmuted);
     participant.on('isSpeakingChanged', handleIsSpeakingChanged);
+    participant.on('participantMetadataChanged', handleMetadataChanged);
 
     // Handle participant disconnect
     const handleParticipantDisconnected = (p: RemoteParticipant) => {
@@ -151,6 +169,7 @@ export const useParticipantTracks = (
         participant.off('trackMuted', handleTrackMuted);
         participant.off('trackUnmuted', handleTrackUnmuted);
         participant.off('isSpeakingChanged', handleIsSpeakingChanged);
+        participant.off('participantMetadataChanged', handleMetadataChanged);
       }
       room.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
     };

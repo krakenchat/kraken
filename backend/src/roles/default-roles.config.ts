@@ -88,6 +88,7 @@ export const DEFAULT_COMMUNITY_CREATOR_ROLE: DefaultRoleConfig = {
     RbacActions.CREATE_ALIAS_GROUP_MEMBER,
     RbacActions.DELETE_ALIAS_GROUP_MEMBER,
     RbacActions.READ_ALIAS_GROUP_MEMBER,
+    RbacActions.UPDATE_ALIAS_GROUP_MEMBER,
 
     // Reaction management
     RbacActions.CREATE_REACTION,
@@ -105,6 +106,7 @@ export const DEFAULT_COMMUNITY_CREATOR_ROLE: DefaultRoleConfig = {
     RbacActions.DELETE_ANY_MESSAGE,
     RbacActions.VIEW_BAN_LIST,
     RbacActions.VIEW_MODERATION_LOGS,
+    RbacActions.MUTE_PARTICIPANT,
   ],
 };
 
@@ -210,6 +212,7 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     RbacActions.CREATE_ALIAS_GROUP_MEMBER,
     RbacActions.DELETE_ALIAS_GROUP_MEMBER,
     RbacActions.READ_ALIAS_GROUP_MEMBER,
+    RbacActions.UPDATE_ALIAS_GROUP_MEMBER,
 
     // Reaction management
     RbacActions.CREATE_REACTION,
@@ -227,6 +230,7 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     RbacActions.DELETE_ANY_MESSAGE,
     RbacActions.VIEW_BAN_LIST,
     RbacActions.VIEW_MODERATION_LOGS,
+    RbacActions.MUTE_PARTICIPANT,
   ],
 };
 
@@ -276,6 +280,7 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
     RbacActions.UNPIN_MESSAGE,
     RbacActions.DELETE_ANY_MESSAGE,
     RbacActions.VIEW_BAN_LIST,
+    RbacActions.MUTE_PARTICIPANT,
   ],
 };
 

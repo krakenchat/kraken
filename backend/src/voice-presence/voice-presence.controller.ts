@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { VoicePresenceService } from './voice-presence.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -18,6 +18,7 @@ import {
   RefreshDmPresenceResponseDto,
   UserVoiceChannelsResponseDto,
 } from './dto/voice-presence-response.dto';
+import { UpdateDeafenStateDto } from './dto/update-deafen-state.dto';
 
 @Controller('channels/:channelId/voice-presence')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -102,6 +103,31 @@ export class VoicePresenceController {
     return {
       success: true,
       message: 'Voice presence removed',
+      channelId,
+    };
+  }
+
+  @Post('deafen')
+  @RequiredActions(RbacActions.JOIN_CHANNEL)
+  @RbacResource({
+    type: RbacResourceType.CHANNEL,
+    idKey: 'channelId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiCreatedResponse({ type: RefreshPresenceResponseDto })
+  async updateDeafenState(
+    @Param('channelId') channelId: string,
+    @Body() body: UpdateDeafenStateDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<RefreshPresenceResponseDto> {
+    await this.voicePresenceService.updateDeafenState(
+      channelId,
+      req.user.id,
+      body.isDeafened,
+    );
+    return {
+      success: true,
+      message: `Deafen state updated to ${body.isDeafened}`,
       channelId,
     };
   }

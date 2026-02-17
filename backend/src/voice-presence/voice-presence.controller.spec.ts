@@ -135,6 +135,51 @@ describe('VoicePresenceController', () => {
       });
     });
   });
+  describe('updateDeafenState', () => {
+    it('should update deafen state and return success', async () => {
+      const channelId = 'channel-123';
+      const body = { isDeafened: true };
+
+      service.updateDeafenState.mockResolvedValue();
+
+      const result = await controller.updateDeafenState(
+        channelId,
+        body,
+        mockRequest,
+      );
+
+      expect(service.updateDeafenState).toHaveBeenCalledWith(
+        channelId,
+        mockUser.id,
+        true,
+      );
+      expect(result).toEqual({
+        success: true,
+        message: 'Deafen state updated to true',
+        channelId,
+      });
+    });
+
+    it('should handle undeafen', async () => {
+      const channelId = 'channel-123';
+      const body = { isDeafened: false };
+
+      service.updateDeafenState.mockResolvedValue();
+
+      const result = await controller.updateDeafenState(
+        channelId,
+        body,
+        mockRequest,
+      );
+
+      expect(service.updateDeafenState).toHaveBeenCalledWith(
+        channelId,
+        mockUser.id,
+        false,
+      );
+      expect(result.message).toBe('Deafen state updated to false');
+    });
+  });
 });
 
 describe('DmVoicePresenceController', () => {

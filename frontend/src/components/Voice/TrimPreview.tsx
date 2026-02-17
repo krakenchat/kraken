@@ -17,6 +17,7 @@ import {
   Replay,
   SkipPrevious,
   SkipNext,
+  Refresh,
 } from '@mui/icons-material';
 import Hls from 'hls.js';
 import { getApiUrl } from '../../config/env';
@@ -55,6 +56,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
 
   const isInitializedRef = useRef(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Refs to avoid stale closures in event handlers
   const startTimeRef = useRef(startTime);
@@ -76,10 +78,10 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
 
   // Fetch session info to get buffer duration
   // refetchOnMountOrArgChange ensures fresh data when component mounts
-  const { data: sessionInfo, isLoading: sessionLoading } = useQuery({
+  const { data: sessionInfo, isLoading: sessionLoading, refetch: refetchSessionInfo } = useQuery({
     ...livekitControllerGetSessionInfoOptions(),
     staleTime: 0, // Always refetch on mount
-    refetchInterval: 15_000,
+    refetchInterval: isInitialized ? false : 15_000,
   });
   const maxDuration = sessionInfo?.totalDurationSeconds || 0;
 
@@ -93,6 +95,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       setEndTime(maxDur);
       onRangeChange(defaultStart, maxDur);
       isInitializedRef.current = true;
+      setIsInitialized(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionInfo?.totalDurationSeconds]);
@@ -223,7 +226,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       setError('HLS playback is not supported in this browser');
       setIsLoading(false);
     }
-  }, [sessionInfo?.hasActiveSession, maxDuration, retryKey]);
+  }, [sessionInfo?.hasActiveSession, isInitialized, retryKey]);
 
   // Handle video time update - constrain to selection
   // This effect depends on isLoading to ensure it runs AFTER HLS is initialized
@@ -355,6 +358,21 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
     // Increment retry key to trigger useEffect re-run
     setRetryKey((prev) => prev + 1);
   }, []);
+
+  // Refresh segments - manually refetch session info and reload HLS
+  const handleRefreshSegments = useCallback(async () => {
+    const { data: updated } = await refetchSessionInfo();
+    if (updated?.totalDurationSeconds) {
+      // If end time was at the previous max, extend it to the new max
+      setEndTime((prev) => {
+        const wasAtMax = prev >= maxDuration;
+        const newEnd = wasAtMax ? updated.totalDurationSeconds : prev;
+        onRangeChange(startTime, newEnd);
+        return newEnd;
+      });
+    }
+    handleRetry();
+  }, [refetchSessionInfo, maxDuration, startTime, onRangeChange, handleRetry]);
 
   // Click on timeline to seek (anywhere on the timeline, not just within selection)
   const handleTimelineClick = (e: React.MouseEvent) => {
@@ -500,6 +518,11 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
           role="switch"
           aria-label="Toggle loop playback"
         />
+        <Tooltip title="Refresh segments">
+          <IconButton onClick={handleRefreshSegments} size="small" aria-label="Refresh segments">
+            <Refresh />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* Time Ruler */}
