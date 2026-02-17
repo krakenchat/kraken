@@ -24,6 +24,7 @@ import { ClientEvents, ServerEvents } from '@kraken/shared';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -47,7 +48,10 @@ export class ReadReceiptsGateway
 
   private readonly logger = new Logger(ReadReceiptsGateway.name);
 
-  constructor(private readonly readReceiptsService: ReadReceiptsService) {}
+  constructor(
+    private readonly readReceiptsService: ReadReceiptsService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   afterInit(_server: Server) {
@@ -82,6 +86,14 @@ export class ReadReceiptsGateway
       const readReceipt = await this.readReceiptsService.markAsRead(
         userId,
         payload,
+      );
+
+      // Also mark related mention notifications as read so mentionCount
+      // stays consistent with read-receipt state after refetch/reconnect
+      await this.notificationsService.markContextNotificationsAsRead(
+        userId,
+        readReceipt.channelId,
+        readReceipt.directMessageGroupId,
       );
 
       const receiptPayload = {

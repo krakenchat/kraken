@@ -6,11 +6,12 @@ import { DatabaseModule } from '@/database/database.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
 import { AuthModule } from '@/auth/auth.module';
 import { UserModule } from '@/user/user.module';
+import { NotificationsModule } from '@/notifications/notifications.module';
 
 @Module({
   controllers: [ReadReceiptsController],
   providers: [ReadReceiptsService, ReadReceiptsGateway],
-  imports: [DatabaseModule, WebsocketModule, AuthModule, UserModule],
+  imports: [DatabaseModule, WebsocketModule, AuthModule, UserModule, NotificationsModule],
   exports: [ReadReceiptsService],
 })
 export class ReadReceiptsModule {}

@@ -335,14 +335,18 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     (payload: NotificationReadPayload) => {
       logger.dev('[Notifications] Notification marked as read:', payload);
 
-      // Update notification in all TQ caches (different consumers use different query params)
+      // Look up the notification before marking it read so we know its type/context
       const notificationsQueryKey = notificationsControllerGetNotificationsQueryKey();
+      let readNotification: NotificationDto | undefined;
+
+      // Update notification in all TQ caches (different consumers use different query params)
       queryClient.setQueriesData<NotificationListResponseDto>(
         { queryKey: notificationsQueryKey },
         (old) => {
           if (!old) return old;
           const notification = old.notifications.find((n) => n.id === payload.notificationId);
           if (!notification || notification.read) return old;
+          readNotification = notification;
           return {
             ...old,
             notifications: old.notifications.map((n) =>
@@ -362,6 +366,37 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
           return { count: Math.max(0, old.count - 1) };
         }
       );
+
+      // Decrement mentionCount in read-receipts cache if this was a mention-type notification
+      if (readNotification) {
+        const isMentionType =
+          readNotification.type === NotificationType.USER_MENTION ||
+          readNotification.type === NotificationType.SPECIAL_MENTION ||
+          readNotification.type === NotificationType.DIRECT_MESSAGE;
+
+        if (isMentionType) {
+          const contextId = readNotification.channelId || readNotification.directMessageGroupId;
+          if (contextId) {
+            const unreadCountsQueryKey = readReceiptsControllerGetUnreadCountsQueryKey();
+            queryClient.setQueryData(
+              unreadCountsQueryKey,
+              (old: UnreadCountDto[] | undefined) => {
+                if (!old) return old;
+                const index = old.findIndex(
+                  (c) => (c.channelId || c.directMessageGroupId) === contextId
+                );
+                if (index < 0) return old;
+                const next = [...old];
+                next[index] = {
+                  ...next[index],
+                  mentionCount: Math.max(0, next[index].mentionCount - 1),
+                };
+                return next;
+              }
+            );
+          }
+        }
+      }
     },
     [queryClient]
   );

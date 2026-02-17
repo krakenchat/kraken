@@ -391,6 +391,72 @@ describe('useNotifications', () => {
       const data = queryClient.getQueryData(key) as UnreadCountResponseDto;
       expect(data.count).toBe(0);
     });
+
+    it('decrements mentionCount for mention-type notifications', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 3, mentionCount: 2 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+      seedNotificationsCache([
+        {
+          id: 'notif-1',
+          userId: '',
+          type: 'USER_MENTION',
+          messageId: 'msg-1',
+          channelId: 'channel-1',
+          communityId: 'community-1',
+          directMessageGroupId: null,
+          authorId: 'author-1',
+          parentMessageId: null,
+          read: false,
+          dismissed: false,
+          createdAt: '2025-01-01T00:00:00Z',
+        },
+      ]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent('notificationRead', { notificationId: 'notif-1' }),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.mentionCount).toBe(1);
+    });
+
+    it('does not decrement mentionCount for non-mention notifications', async () => {
+      const unreadKey = readReceiptsControllerGetUnreadCountsQueryKey();
+      const existing: UnreadCountDto[] = [
+        { channelId: 'channel-1', unreadCount: 3, mentionCount: 2 },
+      ];
+      queryClient.setQueryData(unreadKey, existing);
+      seedNotificationsCache([
+        {
+          id: 'notif-1',
+          userId: '',
+          type: 'CHANNEL_MESSAGE',
+          messageId: 'msg-1',
+          channelId: 'channel-1',
+          communityId: 'community-1',
+          directMessageGroupId: null,
+          authorId: 'author-1',
+          parentMessageId: null,
+          read: false,
+          dismissed: false,
+          createdAt: '2025-01-01T00:00:00Z',
+        },
+      ]);
+
+      renderNotifications();
+
+      await act(() =>
+        mockSocket.simulateEvent('notificationRead', { notificationId: 'notif-1' }),
+      );
+
+      const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
+      expect(data!.find((c) => c.channelId === 'channel-1')!.mentionCount).toBe(2);
+    });
   });
 
   describe('connect (reconnect)', () => {

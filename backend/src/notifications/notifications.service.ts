@@ -515,6 +515,35 @@ export class NotificationsService {
   }
 
   /**
+   * Mark all mention-type notifications as read for a specific channel or DM group.
+   * Called when a user marks messages as read in a channel/DM, so that
+   * mentionCount stays consistent with read-receipt state.
+   */
+  async markContextNotificationsAsRead(
+    userId: string,
+    channelId?: string | null,
+    directMessageGroupId?: string | null,
+  ): Promise<number> {
+    if (!channelId && !directMessageGroupId) return 0;
+
+    const mentionTypes: NotificationType[] = directMessageGroupId
+      ? [NotificationType.USER_MENTION, NotificationType.SPECIAL_MENTION, NotificationType.DIRECT_MESSAGE]
+      : [NotificationType.USER_MENTION, NotificationType.SPECIAL_MENTION];
+
+    const result = await this.databaseService.notification.updateMany({
+      where: {
+        userId,
+        read: false,
+        ...(channelId ? { channelId } : { directMessageGroupId }),
+        type: { in: mentionTypes },
+      },
+      data: { read: true },
+    });
+
+    return result.count;
+  }
+
+  /**
    * Mark all notifications as read for a user
    */
   async markAllAsRead(userId: string): Promise<{ count: number }> {

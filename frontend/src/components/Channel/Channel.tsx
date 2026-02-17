@@ -158,6 +158,7 @@ export function Channel({ channel }: ChannelProps) {
         {/* Mention count badge */}
         {mentions > 0 && !isSelected && (
           <Badge
+            data-testid="mention-badge"
             badgeContent={mentions}
             color="error"
             max={99}

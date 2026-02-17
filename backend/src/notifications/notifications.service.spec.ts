@@ -537,6 +537,61 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('markContextNotificationsAsRead', () => {
+    it('should mark channel mention notifications as read', async () => {
+      mockDatabase.notification.updateMany.mockResolvedValue({ count: 3 });
+
+      const result = await service.markContextNotificationsAsRead(
+        'user-1',
+        'channel-1',
+        null,
+      );
+
+      expect(result).toBe(3);
+      expect(mockDatabase.notification.updateMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          read: false,
+          channelId: 'channel-1',
+          type: { in: ['USER_MENTION', 'SPECIAL_MENTION'] },
+        },
+        data: { read: true },
+      });
+    });
+
+    it('should include DIRECT_MESSAGE type for DM groups', async () => {
+      mockDatabase.notification.updateMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.markContextNotificationsAsRead(
+        'user-1',
+        null,
+        'dm-group-1',
+      );
+
+      expect(result).toBe(2);
+      expect(mockDatabase.notification.updateMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          read: false,
+          directMessageGroupId: 'dm-group-1',
+          type: { in: ['USER_MENTION', 'SPECIAL_MENTION', 'DIRECT_MESSAGE'] },
+        },
+        data: { read: true },
+      });
+    });
+
+    it('should return 0 when no context provided', async () => {
+      const result = await service.markContextNotificationsAsRead(
+        'user-1',
+        null,
+        null,
+      );
+
+      expect(result).toBe(0);
+      expect(mockDatabase.notification.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe('markAllAsRead', () => {
     it('should mark all notifications as read', async () => {
       const userId = 'user-1';

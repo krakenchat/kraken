@@ -211,6 +211,7 @@ describe('Channel', () => {
       routerProps: { initialEntries: ['/community/c1/channel/other'] },
     });
 
+    expect(screen.getByTestId('mention-badge')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
@@ -222,8 +223,7 @@ describe('Channel', () => {
       routerProps: { initialEntries: ['/community/c1/channel/other'] },
     });
 
-    // Badge content should not appear when mentionCount is 0
-    expect(screen.queryByText('3')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mention-badge')).not.toBeInTheDocument();
   });
 
   it('hides all indicators when channel is selected', () => {
@@ -236,7 +236,7 @@ describe('Channel', () => {
     });
 
     // No mention badge when selected
-    expect(screen.queryByText('2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mention-badge')).not.toBeInTheDocument();
     // Channel name should not be bold when selected
     const channelName = screen.getByText('general');
     expect(channelName).not.toHaveStyle({ fontWeight: 700 });
