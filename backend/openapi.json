@@ -9596,6 +9596,9 @@
           "unreadCount": {
             "type": "number"
           },
+          "mentionCount": {
+            "type": "number"
+          },
           "lastReadMessageId": {
             "type": "string"
           },
@@ -9605,7 +9608,8 @@
           }
         },
         "required": [
-          "unreadCount"
+          "unreadCount",
+          "mentionCount"
         ]
       },
       "LastReadResponseDto": {

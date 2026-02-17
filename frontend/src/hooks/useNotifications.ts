@@ -26,12 +26,15 @@ import { isElectron, getElectronAPI } from '../utils/platform';
 import {
   notificationsControllerGetNotificationsQueryKey,
   notificationsControllerGetUnreadCountQueryKey,
+  readReceiptsControllerGetUnreadCountsQueryKey,
 } from '../api-client/@tanstack/react-query.gen';
 import type {
   NotificationListResponseDto,
   UnreadCountResponseDto,
+  UnreadCountDto,
   NotificationDto,
 } from '../api-client';
+import { NotificationType } from '../types/notification.type';
 
 /**
  * Options for the useNotifications hook
@@ -226,6 +229,46 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
             return { count: old.count + 1 };
           }
         );
+      }
+
+      // Increment mentionCount in read-receipts cache for mention-type notifications
+      const isMentionType =
+        payload.type === NotificationType.USER_MENTION ||
+        payload.type === NotificationType.SPECIAL_MENTION ||
+        payload.type === NotificationType.DIRECT_MESSAGE;
+
+      if (isMentionType && !notification.read) {
+        const contextId = payload.channelId || payload.directMessageGroupId;
+        if (contextId) {
+          const unreadCountsQueryKey = readReceiptsControllerGetUnreadCountsQueryKey();
+          queryClient.setQueryData(
+            unreadCountsQueryKey,
+            (old: UnreadCountDto[] | undefined) => {
+              if (!old) return old;
+              const index = old.findIndex(
+                (c) => (c.channelId || c.directMessageGroupId) === contextId
+              );
+              if (index >= 0) {
+                const next = [...old];
+                next[index] = {
+                  ...next[index],
+                  mentionCount: next[index].mentionCount + 1,
+                };
+                return next;
+              }
+              // Entry not yet tracked — create one
+              return [
+                ...old,
+                {
+                  channelId: payload.channelId || undefined,
+                  directMessageGroupId: payload.directMessageGroupId || undefined,
+                  unreadCount: 0,
+                  mentionCount: 1,
+                },
+              ];
+            }
+          );
+        }
       }
 
       // Call custom callback if provided

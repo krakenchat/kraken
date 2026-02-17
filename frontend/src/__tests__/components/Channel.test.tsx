@@ -37,9 +37,11 @@ vi.mock('../../components/Voice', () => ({
 }));
 
 const mockUnreadCount = vi.fn((_id?: string) => 0);
+const mockMentionCount = vi.fn((_id?: string) => 0);
 vi.mock('../../hooks/useReadReceipts', () => ({
   useReadReceipts: () => ({
     unreadCount: mockUnreadCount,
+    mentionCount: mockMentionCount,
     hasUnread: (id?: string) => mockUnreadCount(id) > 0,
     lastReadMessageId: () => undefined,
     allUnreadCounts: [],
@@ -188,36 +190,67 @@ describe('Channel', () => {
     expect(screen.queryByTestId('voice-user-list')).not.toBeInTheDocument();
   });
 
-  it('shows unread badge for text channels with unread messages', () => {
+  it('shows bold text for text channels with unread messages', () => {
     mockUnreadCount.mockReturnValue(5);
     const channel = createChannel({ id: 'ch-1', name: 'general', type: 'TEXT' });
     renderWithProviders(<Channel channel={channel} />, {
       routerProps: { initialEntries: ['/community/c1/channel/other'] },
     });
 
-    expect(screen.getByText('5')).toBeInTheDocument();
+    const channelName = screen.getByText('general');
+    expect(channelName).toBeInTheDocument();
+    // The channel name should be rendered with bold styling (fontWeight: 700)
+    expect(channelName).toHaveStyle({ fontWeight: 700 });
   });
 
-  it('hides unread badge when count is zero', () => {
-    mockUnreadCount.mockReturnValue(0);
+  it('shows mention count badge when mentions exist', () => {
+    mockUnreadCount.mockReturnValue(3);
+    mockMentionCount.mockReturnValue(2);
     const channel = createChannel({ id: 'ch-1', name: 'general', type: 'TEXT' });
     renderWithProviders(<Channel channel={channel} />, {
       routerProps: { initialEntries: ['/community/c1/channel/other'] },
     });
 
-    // MUI Badge with invisible=true adds display:none via CSS but
-    // the badge element still exists in the DOM. Just verify no numeric text.
-    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
   });
 
-  it('does not show unread badge for voice channels', () => {
+  it('hides mention badge when count is zero', () => {
+    mockUnreadCount.mockReturnValue(3);
+    mockMentionCount.mockReturnValue(0);
+    const channel = createChannel({ id: 'ch-1', name: 'general', type: 'TEXT' });
+    renderWithProviders(<Channel channel={channel} />, {
+      routerProps: { initialEntries: ['/community/c1/channel/other'] },
+    });
+
+    // Badge content should not appear when mentionCount is 0
+    expect(screen.queryByText('3')).not.toBeInTheDocument();
+  });
+
+  it('hides all indicators when channel is selected', () => {
+    mockUnreadCount.mockReturnValue(5);
+    mockMentionCount.mockReturnValue(2);
+    mockParams = { communityId: 'c1', channelId: 'ch-1' };
+    const channel = createChannel({ id: 'ch-1', name: 'general', type: 'TEXT' });
+    renderWithProviders(<Channel channel={channel} />, {
+      routerProps: { initialEntries: ['/community/c1/channel/ch-1'] },
+    });
+
+    // No mention badge when selected
+    expect(screen.queryByText('2')).not.toBeInTheDocument();
+    // Channel name should not be bold when selected
+    const channelName = screen.getByText('general');
+    expect(channelName).not.toHaveStyle({ fontWeight: 700 });
+  });
+
+  it('does not show indicators for voice channels', () => {
     mockUnreadCount.mockReturnValue(10);
+    mockMentionCount.mockReturnValue(3);
     const channel = createChannel({ id: 'vc-1', name: 'voice', type: 'VOICE' });
     renderWithProviders(<Channel channel={channel} />, {
       routerProps: { initialEntries: ['/community/c1/channel/other'] },
     });
 
-    // Voice channels should not display any count badge
-    expect(screen.queryByText('10')).not.toBeInTheDocument();
+    // Voice channels should not display any mention badge
+    expect(screen.queryByText('3')).not.toBeInTheDocument();
   });
 });

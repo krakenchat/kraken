@@ -1,7 +1,10 @@
 import { useEffect, useRef, useCallback, useContext } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from '@kraken/shared';
 import { MarkAsReadPayload } from "../types/read-receipt.type";
+import { readReceiptsControllerGetUnreadCountsQueryKey } from "../api-client/@tanstack/react-query.gen";
+import type { UnreadCountDto } from "../api-client";
 
 interface UseMessageVisibilityProps {
   channelId?: string;
@@ -23,6 +26,7 @@ export const useMessageVisibility = ({
   enabled = true,
 }: UseMessageVisibilityProps) => {
   const { socket } = useContext(SocketContext);
+  const queryClient = useQueryClient();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const visibleMessagesRef = useRef<Set<string>>(new Set());
   const lastMarkedMessageIdRef = useRef<string | null>(null);
@@ -47,8 +51,30 @@ export const useMessageVisibility = ({
 
       socket.emit(ClientEvents.MARK_AS_READ, payload);
       lastMarkedMessageIdRef.current = messageId;
+
+      // Optimistic cache clear — immediately remove unread/mention indicators
+      const id = channelId || directMessageGroupId;
+      if (id) {
+        const queryKey = readReceiptsControllerGetUnreadCountsQueryKey();
+        queryClient.setQueryData(queryKey, (old: UnreadCountDto[] | undefined) => {
+          if (!old) return old;
+          const index = old.findIndex(
+            (c) => (c.channelId || c.directMessageGroupId) === id
+          );
+          if (index < 0) return old;
+          const next = [...old];
+          next[index] = {
+            ...next[index],
+            unreadCount: 0,
+            mentionCount: 0,
+            lastReadMessageId: messageId,
+            lastReadAt: new Date().toISOString(),
+          };
+          return next;
+        });
+      }
     },
-    [socket, channelId, directMessageGroupId, enabled]
+    [socket, channelId, directMessageGroupId, enabled, queryClient]
   );
 
   // Find the latest visible message using ref

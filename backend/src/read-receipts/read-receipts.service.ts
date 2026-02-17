@@ -6,6 +6,7 @@ export interface UnreadCount {
   channelId?: string;
   directMessageGroupId?: string;
   unreadCount: number;
+  mentionCount: number;
   lastReadMessageId?: string;
   lastReadAt?: Date;
 }
@@ -162,19 +163,36 @@ export class ReadReceiptsService {
           },
     });
 
+    // Build notification type filter for mention counts
+    const mentionTypes = directMessageGroupId
+      ? (['USER_MENTION', 'SPECIAL_MENTION', 'DIRECT_MESSAGE'] as const)
+      : (['USER_MENTION', 'SPECIAL_MENTION'] as const);
+
+    const notificationWhere = {
+      userId,
+      read: false,
+      dismissed: false,
+      ...(channelId ? { channelId } : { directMessageGroupId }),
+      type: { in: [...mentionTypes] },
+    };
+
     // If no read receipt exists, all messages are unread
     if (!readReceipt) {
-      const unreadCount = await this.databaseService.message.count({
-        where: {
-          ...(channelId ? { channelId } : { directMessageGroupId }),
-          ...EXCLUDE_THREAD_REPLIES,
-        },
-      });
+      const [unreadCount, mentionCount] = await Promise.all([
+        this.databaseService.message.count({
+          where: {
+            ...(channelId ? { channelId } : { directMessageGroupId }),
+            ...EXCLUDE_THREAD_REPLIES,
+          },
+        }),
+        this.databaseService.notification.count({ where: notificationWhere }),
+      ]);
 
       return {
         channelId,
         directMessageGroupId,
         unreadCount,
+        mentionCount,
       };
     }
 
@@ -186,33 +204,41 @@ export class ReadReceiptsService {
 
     if (!lastReadMessage) {
       // If the last read message was deleted, treat all messages as unread
-      const unreadCount = await this.databaseService.message.count({
-        where: {
-          ...(channelId ? { channelId } : { directMessageGroupId }),
-          ...EXCLUDE_THREAD_REPLIES,
-        },
-      });
+      const [unreadCount, mentionCount] = await Promise.all([
+        this.databaseService.message.count({
+          where: {
+            ...(channelId ? { channelId } : { directMessageGroupId }),
+            ...EXCLUDE_THREAD_REPLIES,
+          },
+        }),
+        this.databaseService.notification.count({ where: notificationWhere }),
+      ]);
 
       return {
         channelId,
         directMessageGroupId,
         unreadCount,
+        mentionCount,
       };
     }
 
     // Count messages sent after the last read message
-    const unreadCount = await this.databaseService.message.count({
-      where: {
-        ...(channelId ? { channelId } : { directMessageGroupId }),
-        sentAt: { gt: lastReadMessage.sentAt },
-        ...EXCLUDE_THREAD_REPLIES,
-      },
-    });
+    const [unreadCount, mentionCount] = await Promise.all([
+      this.databaseService.message.count({
+        where: {
+          ...(channelId ? { channelId } : { directMessageGroupId }),
+          sentAt: { gt: lastReadMessage.sentAt },
+          ...EXCLUDE_THREAD_REPLIES,
+        },
+      }),
+      this.databaseService.notification.count({ where: notificationWhere }),
+    ]);
 
     return {
       channelId,
       directMessageGroupId,
       unreadCount,
+      mentionCount,
       lastReadMessageId: readReceipt.lastReadMessageId,
       lastReadAt: readReceipt.lastReadAt,
     };
@@ -268,6 +294,50 @@ export class ReadReceiptsService {
 
     const unreadCounts: UnreadCount[] = [];
 
+    // Batch fetch mention counts from notification table
+    const [channelMentionCounts, dmMentionCounts] = await Promise.all([
+      channelIds.length > 0
+        ? this.databaseService.notification.groupBy({
+            by: ['channelId'],
+            where: {
+              userId,
+              read: false,
+              dismissed: false,
+              channelId: { in: channelIds },
+              type: { in: ['USER_MENTION', 'SPECIAL_MENTION'] },
+            },
+            _count: { channelId: true },
+          })
+        : Promise.resolve([]),
+      dmGroupIds.length > 0
+        ? this.databaseService.notification.groupBy({
+            by: ['directMessageGroupId'],
+            where: {
+              userId,
+              read: false,
+              dismissed: false,
+              directMessageGroupId: { in: dmGroupIds },
+              type: {
+                in: ['USER_MENTION', 'SPECIAL_MENTION', 'DIRECT_MESSAGE'],
+              },
+            },
+            _count: { directMessageGroupId: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const channelMentionMap = new Map<string, number>();
+    for (const c of channelMentionCounts) {
+      channelMentionMap.set(c.channelId!, c._count.channelId as number);
+    }
+    const dmMentionMap = new Map<string, number>();
+    for (const c of dmMentionCounts) {
+      dmMentionMap.set(
+        c.directMessageGroupId!,
+        c._count.directMessageGroupId as number,
+      );
+    }
+
     // Batch fetch all last read message timestamps
     const lastReadMessageIds = readReceipts
       .map((r) => r.lastReadMessageId)
@@ -322,12 +392,15 @@ export class ReadReceiptsService {
       unreadCounts.push({
         channelId: count.channelId!,
         unreadCount: count._count.channelId,
+        mentionCount: channelMentionMap.get(count.channelId!) ?? 0,
       });
     }
     for (const count of dmGroupCounts) {
       unreadCounts.push({
         directMessageGroupId: count.directMessageGroupId!,
         unreadCount: count._count.directMessageGroupId,
+        mentionCount:
+          dmMentionMap.get(count.directMessageGroupId!) ?? 0,
       });
     }
 
@@ -372,6 +445,7 @@ export class ReadReceiptsService {
         unreadCounts.push({
           channelId,
           unreadCount: countMap.get(channelId) ?? 0,
+          mentionCount: channelMentionMap.get(channelId) ?? 0,
         });
       }
     }
@@ -390,6 +464,7 @@ export class ReadReceiptsService {
           return {
             channelId: receipt.channelId,
             unreadCount: count,
+            mentionCount: channelMentionMap.get(receipt.channelId) ?? 0,
             lastReadMessageId: receipt.lastReadMessageId,
             lastReadAt: receipt.lastReadAt,
           };
@@ -442,6 +517,7 @@ export class ReadReceiptsService {
         unreadCounts.push({
           directMessageGroupId: dmGroupId,
           unreadCount: countMap.get(dmGroupId) ?? 0,
+          mentionCount: dmMentionMap.get(dmGroupId) ?? 0,
         });
       }
     }
@@ -460,6 +536,8 @@ export class ReadReceiptsService {
           return {
             directMessageGroupId: receipt.directMessageGroupId,
             unreadCount: count,
+            mentionCount:
+              dmMentionMap.get(receipt.directMessageGroupId) ?? 0,
             lastReadMessageId: receipt.lastReadMessageId,
             lastReadAt: receipt.lastReadAt,
           };

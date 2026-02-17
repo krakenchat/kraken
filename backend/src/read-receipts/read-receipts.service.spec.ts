@@ -381,6 +381,7 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(lastReadMessage);
       mockDatabase.message.count.mockResolvedValue(5);
+      mockDatabase.notification.count.mockResolvedValue(2);
 
       const result = await service.getUnreadCount(userId, channelId);
 
@@ -388,6 +389,7 @@ describe('ReadReceiptsService', () => {
         channelId,
         directMessageGroupId: undefined,
         unreadCount: 5,
+        mentionCount: 2,
         lastReadMessageId,
         lastReadAt: readReceipt.lastReadAt,
       });
@@ -396,6 +398,15 @@ describe('ReadReceiptsService', () => {
           channelId,
           sentAt: { gt: lastReadMessage.sentAt },
           ...EXCLUDE_THREAD_REPLIES,
+        },
+      });
+      expect(mockDatabase.notification.count).toHaveBeenCalledWith({
+        where: {
+          userId,
+          read: false,
+          dismissed: false,
+          channelId,
+          type: { in: ['USER_MENTION', 'SPECIAL_MENTION'] },
         },
       });
     });
@@ -416,6 +427,7 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(lastReadMessage);
       mockDatabase.message.count.mockResolvedValue(3);
+      mockDatabase.notification.count.mockResolvedValue(1);
 
       const result = await service.getUnreadCount(userId, undefined, dmGroupId);
 
@@ -423,14 +435,25 @@ describe('ReadReceiptsService', () => {
         channelId: undefined,
         directMessageGroupId: dmGroupId,
         unreadCount: 3,
+        mentionCount: 1,
         lastReadMessageId,
         lastReadAt: readReceipt.lastReadAt,
+      });
+      expect(mockDatabase.notification.count).toHaveBeenCalledWith({
+        where: {
+          userId,
+          read: false,
+          dismissed: false,
+          directMessageGroupId: dmGroupId,
+          type: { in: ['USER_MENTION', 'SPECIAL_MENTION', 'DIRECT_MESSAGE'] },
+        },
       });
     });
 
     it('should return total message count when no read receipt exists', async () => {
       mockDatabase.readReceipt.findUnique.mockResolvedValue(null);
       mockDatabase.message.count.mockResolvedValue(10);
+      mockDatabase.notification.count.mockResolvedValue(0);
 
       const result = await service.getUnreadCount(userId, channelId);
 
@@ -438,6 +461,7 @@ describe('ReadReceiptsService', () => {
         channelId,
         directMessageGroupId: undefined,
         unreadCount: 10,
+        mentionCount: 0,
       });
       expect(mockDatabase.message.count).toHaveBeenCalledWith({
         where: { channelId, ...EXCLUDE_THREAD_REPLIES },
@@ -455,6 +479,7 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(null);
       mockDatabase.message.count.mockResolvedValue(15);
+      mockDatabase.notification.count.mockResolvedValue(3);
 
       const result = await service.getUnreadCount(userId, channelId);
 
@@ -462,6 +487,7 @@ describe('ReadReceiptsService', () => {
         channelId,
         directMessageGroupId: undefined,
         unreadCount: 15,
+        mentionCount: 3,
       });
     });
 
@@ -493,6 +519,7 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(lastReadMessage);
       mockDatabase.message.count.mockResolvedValue(3);
+      mockDatabase.notification.count.mockResolvedValue(0);
 
       await service.getUnreadCount(userId, channelId);
 
@@ -546,6 +573,14 @@ describe('ReadReceiptsService', () => {
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([
         { userId, groupId: dmGroupId1, group: dmGroup } as any,
       ]);
+      // notification.groupBy for mention counts
+      mockDatabase.notification.groupBy
+        .mockResolvedValueOnce([
+          { channelId: channelId1, _count: { channelId: 1 } },
+        ])
+        .mockResolvedValueOnce([
+          { directMessageGroupId: dmGroupId1, _count: { directMessageGroupId: 2 } },
+        ]);
       mockDatabase.message.findMany.mockResolvedValue([lastReadMessage1]);
       mockDatabase.message.groupBy
         .mockResolvedValueOnce([
@@ -565,10 +600,12 @@ describe('ReadReceiptsService', () => {
       expect(result).toContainEqual({
         channelId: channelId2,
         unreadCount: 5,
+        mentionCount: 0,
       });
       expect(result).toContainEqual({
         directMessageGroupId: dmGroupId1,
         unreadCount: 3,
+        mentionCount: 2,
       });
       expect(mockDatabase.message.groupBy).toHaveBeenCalledTimes(2);
     });
@@ -591,6 +628,8 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findMany.mockResolvedValue([]);
       mockDatabase.membership.findMany.mockResolvedValue([membership]);
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.notification.groupBy
+        .mockResolvedValueOnce([{ channelId, _count: { channelId: 1 } }]);
       mockDatabase.message.findMany.mockResolvedValue([]);
       mockDatabase.message.groupBy
         .mockResolvedValueOnce([{ channelId, _count: { channelId: 10 } }])
@@ -601,6 +640,7 @@ describe('ReadReceiptsService', () => {
       expect(result).toContainEqual({
         channelId,
         unreadCount: 10,
+        mentionCount: 1,
       });
     });
 
@@ -613,6 +653,10 @@ describe('ReadReceiptsService', () => {
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([
         { userId, groupId: dmGroupId, group: dmGroup } as any,
       ]);
+      mockDatabase.notification.groupBy
+        .mockResolvedValueOnce([
+          { directMessageGroupId: dmGroupId, _count: { directMessageGroupId: 4 } },
+        ]);
       mockDatabase.message.findMany.mockResolvedValue([]);
       // Since there are no channels, the first groupBy won't be called
       // Only the DM groupBy will be called
@@ -628,6 +672,7 @@ describe('ReadReceiptsService', () => {
       expect(result).toContainEqual({
         directMessageGroupId: dmGroupId,
         unreadCount: 7,
+        mentionCount: 4,
       });
     });
 
@@ -654,6 +699,8 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findMany.mockResolvedValue([readReceipt]);
       mockDatabase.membership.findMany.mockResolvedValue([membership]);
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.notification.groupBy
+        .mockResolvedValueOnce([{ channelId, _count: { channelId: 2 } }]);
       mockDatabase.message.findMany.mockResolvedValue([]); // No last read message found
       // The channel HAS a read receipt, so channelsWithoutReceipt is empty.
       // The Promise.all groupBy calls skip (empty arrays → Promise.resolve([])).
@@ -667,6 +714,7 @@ describe('ReadReceiptsService', () => {
       expect(result).toContainEqual({
         channelId,
         unreadCount: 20,
+        mentionCount: 2,
       });
     });
 
@@ -688,6 +736,8 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findMany.mockResolvedValue([]);
       mockDatabase.membership.findMany.mockResolvedValue([membership]);
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
+      mockDatabase.notification.groupBy
+        .mockResolvedValueOnce([]);
       mockDatabase.message.findMany.mockResolvedValue([]);
       mockDatabase.message.groupBy
         .mockResolvedValueOnce(

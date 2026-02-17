@@ -41,6 +41,7 @@ const ChannelContainer = styled(ListItem, {
   marginRight: theme.spacing(1),
   marginBottom: theme.spacing(0.25),
   borderRadius: theme.spacing(1),
+  position: "relative",
   display: "flex",
   alignItems: "center",
   width: "auto",
@@ -71,8 +72,10 @@ export function Channel({ channel }: ChannelProps) {
   }>();
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
   const { showNotification } = useNotification();
-  const { unreadCount } = useReadReceipts();
-  const count = channel.type === ChannelKind.TEXT ? unreadCount(channel.id) : 0;
+  const { hasUnread, mentionCount } = useReadReceipts();
+  const isSelected = channelId === channel.id;
+  const isUnread = channel.type === ChannelKind.TEXT && !isSelected && hasUnread(channel.id);
+  const mentions = channel.type === ChannelKind.TEXT ? mentionCount(channel.id) : 0;
 
   const handleClick = useCallback(async () => {
     if (channel.type === ChannelKind.TEXT) {
@@ -113,7 +116,6 @@ export function Channel({ channel }: ChannelProps) {
     navigate,
     voiceState.currentChannelId,
     voiceState.isConnected,
-    voiceState.showVideoTiles,
     voiceActions,
     showNotification,
   ]);
@@ -121,26 +123,56 @@ export function Channel({ channel }: ChannelProps) {
   return (
     <Box>
       <ChannelContainer
-        isSelected={channelId === channel.id}
+        isSelected={isSelected}
         sx={{ pl: 2, cursor: "pointer" }}
         onClick={handleClick}
       >
-        <ListItemIcon sx={{ minWidth: 28, color: "inherit" }}>
+        {/* Unread dot indicator — Discord-style pill on the left */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: 0,
+            width: 4,
+            height: isUnread ? 8 : 0,
+            borderRadius: "0 4px 4px 0",
+            bgcolor: "text.primary",
+            transition: "height 0.15s ease-in-out",
+          }}
+        />
+        <ListItemIcon sx={{ minWidth: 28, color: isUnread ? "text.primary" : "inherit" }}>
           {channel.type === ChannelKind.TEXT ? (
             <TagIcon sx={{ fontSize: 18 }} />
           ) : (
             <VolumeUpIcon sx={{ fontSize: 18 }} />
           )}
         </ListItemIcon>
-        <Badge
-          badgeContent={count}
-          color="primary"
-          max={99}
-          invisible={count === 0}
-          sx={{ "& .MuiBadge-badge": { fontSize: 10, height: 16, minWidth: 16 } }}
-        >
-          <ChannelName primary={channel.name} />
-        </Badge>
+        <ChannelName
+          primary={channel.name}
+          sx={{
+            "& .MuiListItemText-primary": {
+              fontWeight: isUnread ? 700 : 500,
+              color: isUnread ? "text.primary" : undefined,
+            },
+          }}
+        />
+        {/* Mention count badge */}
+        {mentions > 0 && !isSelected && (
+          <Badge
+            badgeContent={mentions}
+            color="error"
+            max={99}
+            sx={{
+              ml: "auto",
+              "& .MuiBadge-badge": {
+                fontSize: 10,
+                height: 16,
+                minWidth: 16,
+                position: "static",
+                transform: "none",
+              },
+            }}
+          />
+        )}
       </ChannelContainer>
 
       {/* Discord-style voice users nested under the channel */}
