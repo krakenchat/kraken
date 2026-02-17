@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:24-slim
 
 # Install procps to provide 'ps' command (for local dev)
 # Install ffmpeg for video clip processing

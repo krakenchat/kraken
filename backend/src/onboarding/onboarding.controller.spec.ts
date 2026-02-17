@@ -11,9 +11,8 @@ describe('OnboardingController', () => {
   let service: Mocked<OnboardingService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      OnboardingController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(OnboardingController).compile();
 
     controller = unit;
     service = unitRef.get(OnboardingService);

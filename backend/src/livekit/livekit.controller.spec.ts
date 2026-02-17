@@ -15,9 +15,8 @@ describe('LivekitController', () => {
   } as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      LivekitController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(LivekitController).compile();
 
     controller = unit;
     service = unitRef.get(LivekitService);

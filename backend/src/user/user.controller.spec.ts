@@ -18,9 +18,7 @@ describe('UserController', () => {
   } as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      UserController,
-    ).compile();
+    const { unit, unitRef } = await TestBed.solitary(UserController).compile();
 
     controller = unit;
     service = unitRef.get(UserService);

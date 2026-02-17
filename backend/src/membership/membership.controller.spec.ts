@@ -16,9 +16,8 @@ describe('MembershipController', () => {
   } as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      MembershipController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(MembershipController).compile();
 
     controller = unit;
     service = unitRef.get(MembershipService);

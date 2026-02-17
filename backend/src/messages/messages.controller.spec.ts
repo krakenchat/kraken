@@ -24,9 +24,8 @@ describe('MessagesController', () => {
   } as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      MessagesController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(MessagesController).compile();
 
     controller = unit;
     service = unitRef.get(MessagesService);

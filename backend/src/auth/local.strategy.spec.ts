@@ -104,9 +104,7 @@ describe('LocalStrategy', () => {
     });
 
     it('should throw UnauthorizedException on service error', async () => {
-      authService.validateUser.mockRejectedValue(
-        new Error('Database error'),
-      );
+      authService.validateUser.mockRejectedValue(new Error('Database error'));
 
       await expect(strategy.validate('user', 'pass')).rejects.toThrow();
     });

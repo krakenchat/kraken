@@ -250,12 +250,10 @@ describe('ReplayClipAccessStrategy', () => {
           };
 
           mockDatabase.message.findMany.mockResolvedValue([message]);
-          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
-            {
-              groupId: 'dm-group-1',
-              userId: 'user-123',
-            },
-          );
+          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue({
+            groupId: 'dm-group-1',
+            userId: 'user-123',
+          });
 
           const result = await strategy.checkAccess(
             'user-123',
@@ -397,9 +395,10 @@ describe('ReplayClipAccessStrategy', () => {
             new Error('Database error'),
           );
           // Second check succeeds
-          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
-            { groupId: 'dm-group-1', userId: 'user-123' },
-          );
+          mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue({
+            groupId: 'dm-group-1',
+            userId: 'user-123',
+          });
 
           const result = await strategy.checkAccess(
             'user-123',

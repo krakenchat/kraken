@@ -8,9 +8,8 @@ describe('InviteController', () => {
   let service: Mocked<InviteService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      InviteController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(InviteController).compile();
 
     controller = unit;
     service = unitRef.get(InviteService);
@@ -138,10 +137,7 @@ describe('InviteController', () => {
       const result = await controller.deleteInvite(mockReq, code);
 
       expect(result).toBeUndefined();
-      expect(service.deleteInvite).toHaveBeenCalledWith(
-        mockUser,
-        code,
-      );
+      expect(service.deleteInvite).toHaveBeenCalledWith(mockUser, code);
     });
   });
 });

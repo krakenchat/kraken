@@ -16,9 +16,7 @@ describe('MessageAttachmentStrategy', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit, unitRef } = await TestBed.solitary(
-      MessageAttachmentStrategy,
-    )
+    const { unit, unitRef } = await TestBed.solitary(MessageAttachmentStrategy)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
@@ -203,9 +201,7 @@ describe('MessageAttachmentStrategy', () => {
       };
 
       mockDatabase.message.findUnique.mockResolvedValue(message);
-      mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(
-        null,
-      );
+      mockDatabase.directMessageGroupMember.findUnique.mockResolvedValue(null);
 
       await expect(
         strategy.checkAccess('user-1', 'message-1', 'file-1'),

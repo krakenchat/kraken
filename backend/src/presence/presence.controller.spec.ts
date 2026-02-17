@@ -15,9 +15,8 @@ describe('PresenceController', () => {
   ];
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      PresenceController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(PresenceController).compile();
 
     controller = unit;
     presenceService = unitRef.get(PresenceService);

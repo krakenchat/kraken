@@ -8,9 +8,8 @@ describe('CommunityController', () => {
   let service: Mocked<CommunityService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      CommunityController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(CommunityController).compile();
 
     controller = unit;
     service = unitRef.get(CommunityService);

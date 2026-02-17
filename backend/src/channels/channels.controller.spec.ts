@@ -8,9 +8,8 @@ describe('ChannelsController', () => {
   let channelsService: Mocked<ChannelsService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      ChannelsController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(ChannelsController).compile();
 
     controller = unit;
     channelsService = unitRef.get(ChannelsService);
@@ -44,10 +43,7 @@ describe('ChannelsController', () => {
       const result = await controller.create(createDto as any, mockReq);
 
       expect(result).toEqual(createdChannel);
-      expect(channelsService.create).toHaveBeenCalledWith(
-        createDto,
-        mockUser,
-      );
+      expect(channelsService.create).toHaveBeenCalledWith(createDto, mockUser);
     });
   });
 
@@ -75,7 +71,9 @@ describe('ChannelsController', () => {
       const mockReq = { user: mockUser } as any;
       const channels = [{ id: 'channel-1', name: 'general' }];
 
-      channelsService.findMentionableChannels.mockResolvedValue(channels as any);
+      channelsService.findMentionableChannels.mockResolvedValue(
+        channels as any,
+      );
 
       const result = await controller.getMentionableChannels(
         communityId,
@@ -115,10 +113,7 @@ describe('ChannelsController', () => {
       const result = await controller.update(channelId, updateDto as any);
 
       expect(result).toEqual(updatedChannel);
-      expect(channelsService.update).toHaveBeenCalledWith(
-        channelId,
-        updateDto,
-      );
+      expect(channelsService.update).toHaveBeenCalledWith(channelId, updateDto);
     });
   });
 

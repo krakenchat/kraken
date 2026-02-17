@@ -78,18 +78,14 @@ describe('StorageService', () => {
     it('should delegate ensureDirectory to provider', async () => {
       localProvider.ensureDirectory.mockResolvedValue(undefined);
       await service.ensureDirectory('/test/path');
-      expect(localProvider.ensureDirectory).toHaveBeenCalledWith(
-        '/test/path',
-      );
+      expect(localProvider.ensureDirectory).toHaveBeenCalledWith('/test/path');
     });
 
     it('should delegate directoryExists to provider', async () => {
       localProvider.directoryExists.mockResolvedValue(true);
       const result = await service.directoryExists('/test/path');
       expect(result).toBe(true);
-      expect(localProvider.directoryExists).toHaveBeenCalledWith(
-        '/test/path',
-      );
+      expect(localProvider.directoryExists).toHaveBeenCalledWith('/test/path');
     });
 
     it('should delegate deleteDirectory to provider', async () => {
@@ -98,18 +94,16 @@ describe('StorageService', () => {
         recursive: true,
         force: true,
       });
-      expect(localProvider.deleteDirectory).toHaveBeenCalledWith(
-        '/test/path',
-        { recursive: true, force: true },
-      );
+      expect(localProvider.deleteDirectory).toHaveBeenCalledWith('/test/path', {
+        recursive: true,
+        force: true,
+      });
     });
 
     it('should delegate deleteFile to provider', async () => {
       localProvider.deleteFile.mockResolvedValue(undefined);
       await service.deleteFile('/test/file.txt');
-      expect(localProvider.deleteFile).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.deleteFile).toHaveBeenCalledWith('/test/file.txt');
     });
 
     it('should delegate fileExists to provider', async () => {
@@ -122,10 +116,7 @@ describe('StorageService', () => {
     });
 
     it('should delegate listFiles to provider', async () => {
-      localProvider.listFiles.mockResolvedValue([
-        'file1.ts',
-        'file2.ts',
-      ]);
+      localProvider.listFiles.mockResolvedValue(['file1.ts', 'file2.ts']);
       const result = await service.listFiles('/test/dir');
       expect(result).toEqual(['file1.ts', 'file2.ts']);
       expect(localProvider.listFiles).toHaveBeenCalledWith(
@@ -138,10 +129,9 @@ describe('StorageService', () => {
       const filterFn = (f: string) => f.endsWith('.ts');
       localProvider.listFiles.mockResolvedValue(['file1.ts']);
       await service.listFiles('/test/dir', { filter: filterFn });
-      expect(localProvider.listFiles).toHaveBeenCalledWith(
-        '/test/dir',
-        { filter: filterFn },
-      );
+      expect(localProvider.listFiles).toHaveBeenCalledWith('/test/dir', {
+        filter: filterFn,
+      });
     });
 
     it('should delegate getFileStats to provider', async () => {
@@ -153,9 +143,7 @@ describe('StorageService', () => {
       localProvider.getFileStats.mockResolvedValue(stats);
       const result = await service.getFileStats('/test/file.txt');
       expect(result).toEqual(stats);
-      expect(localProvider.getFileStats).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.getFileStats).toHaveBeenCalledWith('/test/file.txt');
     });
 
     it('should delegate readFile to provider', async () => {
@@ -163,9 +151,7 @@ describe('StorageService', () => {
       localProvider.readFile.mockResolvedValue(buffer);
       const result = await service.readFile('/test/file.txt');
       expect(result).toBe(buffer);
-      expect(localProvider.readFile).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.readFile).toHaveBeenCalledWith('/test/file.txt');
     });
 
     it('should delegate writeFile to provider', async () => {
@@ -212,9 +198,7 @@ describe('StorageService', () => {
       localProvider.getFileUrl.mockResolvedValue('/test/file.txt');
       const result = await service.getFileUrl('/test/file.txt');
       expect(result).toBe('/test/file.txt');
-      expect(localProvider.getFileUrl).toHaveBeenCalledWith(
-        '/test/file.txt',
-      );
+      expect(localProvider.getFileUrl).toHaveBeenCalledWith('/test/file.txt');
     });
   });
 });

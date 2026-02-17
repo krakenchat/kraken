@@ -9,5 +9,9 @@
   "scripts": {
     "build:shared": "npm run build --workspace=shared",
     "prepare": "npm run build:shared"
+  },
+  "dependencies": {
+    "class-validator": "^0.14.3",
+    "class-transformer": "^0.5.1"
   }
 }

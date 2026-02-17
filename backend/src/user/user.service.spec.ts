@@ -257,9 +257,7 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(
-        memberRole as any,
-      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
       rolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
@@ -290,9 +288,7 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(
-        memberRole as any,
-      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
       rolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
@@ -321,9 +317,7 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(
-        memberRole as any,
-      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
       rolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
@@ -388,9 +382,7 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockRejectedValue(
         new Error('Channel error'),
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(
-        memberRole as any,
-      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
       rolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );

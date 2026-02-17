@@ -162,12 +162,8 @@ describe('FileService', () => {
         },
       });
 
-      expect(storageService.deleteFile).toHaveBeenCalledWith(
-        '/tmp/file1.png',
-      );
-      expect(storageService.deleteFile).toHaveBeenCalledWith(
-        '/tmp/file2.png',
-      );
+      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/file1.png');
+      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/file2.png');
       expect(storageService.deleteFile).toHaveBeenCalledTimes(2);
 
       expect(databaseService.file.delete).toHaveBeenCalledWith({
@@ -238,9 +234,7 @@ describe('FileService', () => {
       await service.cleanupOldFiles();
 
       // Should have attempted both files
-      expect(storageService.deleteFile).toHaveBeenCalledWith(
-        '/tmp/error.png',
-      );
+      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/error.png');
       expect(storageService.deleteFile).toHaveBeenCalledWith(
         '/tmp/success.png',
       );
@@ -279,9 +273,7 @@ describe('FileService', () => {
       // Should not throw - just logs error
       await expect(service.cleanupOldFiles()).resolves.toBeUndefined();
 
-      expect(storageService.deleteFile).toHaveBeenCalledWith(
-        '/tmp/file.png',
-      );
+      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/file.png');
     });
   });
 });

@@ -19,9 +19,7 @@ describe('MessagesGateway', () => {
   let readReceiptsService: Mocked<ReadReceiptsService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      MessagesGateway,
-    ).compile();
+    const { unit, unitRef } = await TestBed.solitary(MessagesGateway).compile();
 
     gateway = unit;
     messagesService = unitRef.get(MessagesService);
@@ -172,13 +170,10 @@ describe('MessagesGateway', () => {
 
       await gateway.handleMessage(payload as any, mockClient);
 
-      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith(
-        'user-123',
-        {
-          lastReadMessageId: 'msg-123',
-          channelId: 'channel-123',
-        },
-      );
+      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith('user-123', {
+        lastReadMessageId: 'msg-123',
+        channelId: 'channel-123',
+      });
     });
 
     it('should throw error when channelId is missing', async () => {
@@ -262,13 +257,10 @@ describe('MessagesGateway', () => {
 
       await gateway.handleDirectMessageWithRBAC(payload as any, mockClient);
 
-      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith(
-        'user-456',
-        {
-          lastReadMessageId: 'msg-456',
-          directMessageGroupId: 'dm-group-456',
-        },
-      );
+      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith('user-456', {
+        lastReadMessageId: 'msg-456',
+        directMessageGroupId: 'dm-group-456',
+      });
     });
 
     it('should throw error when directMessageGroupId is missing', async () => {

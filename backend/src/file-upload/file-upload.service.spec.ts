@@ -37,9 +37,8 @@ describe('FileUploadService', () => {
   };
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      FileUploadService,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(FileUploadService).compile();
 
     service = unit;
     databaseService = unitRef.get(DatabaseService);
@@ -262,7 +261,9 @@ describe('FileUploadService', () => {
           resourceId: 'msg-123',
         };
 
-        databaseService.file.create.mockResolvedValue({ id: 'file-123' } as any);
+        databaseService.file.create.mockResolvedValue({
+          id: 'file-123',
+        } as any);
 
         const {
           ResourceTypeFileValidator,
@@ -302,7 +303,9 @@ describe('FileUploadService', () => {
           resourceId: 'msg-123',
         };
 
-        databaseService.file.create.mockResolvedValue({ id: 'file-123' } as any);
+        databaseService.file.create.mockResolvedValue({
+          id: 'file-123',
+        } as any);
 
         const {
           ResourceTypeFileValidator,
@@ -340,9 +343,7 @@ describe('FileUploadService', () => {
 
       await service.uploadFile(mockFile, createDto, mockUser);
 
-      expect(storageService.readFile).toHaveBeenCalledWith(
-        '/tmp/test-123.png',
-      );
+      expect(storageService.readFile).toHaveBeenCalledWith('/tmp/test-123.png');
       expect(crypto.createHash).toHaveBeenCalledWith('sha256');
       expect(databaseService.file.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -405,9 +406,7 @@ describe('FileUploadService', () => {
         'File not found',
       );
       expect(databaseService.file.update).not.toHaveBeenCalled();
-      expect(
-        storageQuotaService.decrementUserStorage,
-      ).not.toHaveBeenCalled();
+      expect(storageQuotaService.decrementUserStorage).not.toHaveBeenCalled();
     });
 
     it('should decrement storage quota after soft deleting a file', async () => {
@@ -446,9 +445,7 @@ describe('FileUploadService', () => {
 
       await service.remove(fileId, userId);
 
-      expect(
-        storageQuotaService.decrementUserStorage,
-      ).not.toHaveBeenCalled();
+      expect(storageQuotaService.decrementUserStorage).not.toHaveBeenCalled();
     });
 
     it('should handle multiple file removals', async () => {

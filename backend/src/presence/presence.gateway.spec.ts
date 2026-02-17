@@ -11,9 +11,7 @@ describe('PresenceGateway', () => {
   let websocketService: Mocked<WebsocketService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      PresenceGateway,
-    ).compile();
+    const { unit, unitRef } = await TestBed.solitary(PresenceGateway).compile();
 
     gateway = unit;
     presenceService = unitRef.get(PresenceService);

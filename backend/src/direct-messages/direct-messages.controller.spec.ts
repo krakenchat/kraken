@@ -80,9 +80,7 @@ describe('DirectMessagesController', () => {
         isGroup: true,
       });
 
-      directMessagesService.createDmGroup.mockResolvedValue(
-        mockDmGroup as any,
-      );
+      directMessagesService.createDmGroup.mockResolvedValue(mockDmGroup as any);
 
       const result = await controller.createDmGroup(createDto, mockRequest);
 
@@ -104,9 +102,7 @@ describe('DirectMessagesController', () => {
         name: null,
       });
 
-      directMessagesService.createDmGroup.mockResolvedValue(
-        mockDmGroup as any,
-      );
+      directMessagesService.createDmGroup.mockResolvedValue(mockDmGroup as any);
 
       const result = await controller.createDmGroup(createDto, mockRequest);
 

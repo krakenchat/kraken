@@ -220,9 +220,7 @@ describe('ClipLibraryService', () => {
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
       mockDatabaseService.replayClip.delete.mockResolvedValue(clip);
       mockDatabaseService.file.delete.mockResolvedValue(clip.file);
-      storageService.deleteFile.mockRejectedValue(
-        new Error('File not found'),
-      );
+      storageService.deleteFile.mockRejectedValue(new Error('File not found'));
 
       // Should not throw, file might already be deleted
       await expect(

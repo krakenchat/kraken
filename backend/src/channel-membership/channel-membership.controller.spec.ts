@@ -58,9 +58,7 @@ describe('ChannelMembershipController', () => {
         channelId: 'channel-456',
       };
 
-      service.create.mockResolvedValue(
-        ChannelMembershipFactory.build() as any,
-      );
+      service.create.mockResolvedValue(ChannelMembershipFactory.build() as any);
 
       await controller.create(createDto, mockRequest);
 

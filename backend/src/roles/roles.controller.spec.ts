@@ -8,9 +8,7 @@ describe('RolesController', () => {
   let service: Mocked<RolesService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      RolesController,
-    ).compile();
+    const { unit, unitRef } = await TestBed.solitary(RolesController).compile();
 
     controller = unit;
     service = unitRef.get(RolesService);
@@ -34,9 +32,7 @@ describe('RolesController', () => {
       const req = { user: { id: 'user-123' } } as any;
       const expectedRoles = { roles: [], permissions: [] };
 
-      service.getUserRolesForCommunity.mockResolvedValue(
-        expectedRoles as any,
-      );
+      service.getUserRolesForCommunity.mockResolvedValue(expectedRoles as any);
 
       const result = await controller.getMyRolesForCommunity(communityId, req);
 
@@ -76,9 +72,7 @@ describe('RolesController', () => {
       const result = await controller.getMyInstanceRoles(req);
 
       expect(result).toEqual(expectedRoles);
-      expect(service.getUserInstanceRoles).toHaveBeenCalledWith(
-        'user-789',
-      );
+      expect(service.getUserInstanceRoles).toHaveBeenCalledWith('user-789');
     });
   });
 
@@ -88,9 +82,7 @@ describe('RolesController', () => {
       const communityId = 'community-456';
       const expectedRoles = { roles: [], permissions: [] };
 
-      service.getUserRolesForCommunity.mockResolvedValue(
-        expectedRoles as any,
-      );
+      service.getUserRolesForCommunity.mockResolvedValue(expectedRoles as any);
 
       const result = await controller.getUserRolesForCommunity(
         userId,
@@ -133,9 +125,7 @@ describe('RolesController', () => {
       const result = await controller.getUserInstanceRoles(userId);
 
       expect(result).toEqual(expectedRoles);
-      expect(service.getUserInstanceRoles).toHaveBeenCalledWith(
-        userId,
-      );
+      expect(service.getUserInstanceRoles).toHaveBeenCalledWith(userId);
     });
   });
 
@@ -149,9 +139,7 @@ describe('RolesController', () => {
       const result = await controller.getCommunityRoles(communityId);
 
       expect(result).toEqual(expectedRoles);
-      expect(service.getCommunityRoles).toHaveBeenCalledWith(
-        communityId,
-      );
+      expect(service.getCommunityRoles).toHaveBeenCalledWith(communityId);
     });
   });
 
@@ -213,10 +201,7 @@ describe('RolesController', () => {
       const result = await controller.deleteRole(communityId, roleId);
 
       expect(result).toBeUndefined();
-      expect(service.deleteRole).toHaveBeenCalledWith(
-        roleId,
-        communityId,
-      );
+      expect(service.deleteRole).toHaveBeenCalledWith(roleId, communityId);
     });
   });
 
@@ -278,10 +263,7 @@ describe('RolesController', () => {
       const result = await controller.getUsersForRole(communityId, roleId);
 
       expect(result).toEqual(expectedUsers);
-      expect(service.getUsersForRole).toHaveBeenCalledWith(
-        roleId,
-        communityId,
-      );
+      expect(service.getUsersForRole).toHaveBeenCalledWith(roleId, communityId);
     });
   });
 });

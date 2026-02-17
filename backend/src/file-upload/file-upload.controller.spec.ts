@@ -8,9 +8,8 @@ describe('FileUploadController', () => {
   let service: Mocked<FileUploadService>;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      FileUploadController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(FileUploadController).compile();
 
     controller = unit;
     service = unitRef.get(FileUploadService);
@@ -81,10 +80,7 @@ describe('FileUploadController', () => {
       const result = await controller.remove(fileId, mockReq);
 
       expect(result).toEqual({ deleted: true });
-      expect(service.remove).toHaveBeenCalledWith(
-        fileId,
-        'user-123',
-      );
+      expect(service.remove).toHaveBeenCalledWith(fileId, 'user-123');
     });
   });
 });

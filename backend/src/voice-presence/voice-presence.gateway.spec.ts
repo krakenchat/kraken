@@ -23,9 +23,8 @@ describe('VoicePresenceGateway', () => {
   };
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      VoicePresenceGateway,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(VoicePresenceGateway).compile();
 
     gateway = unit;
     service = unitRef.get(VoicePresenceService);
