@@ -4565,6 +4565,32 @@
         ]
       }
     },
+    "/api/livekit/channels/{channelId}/mute-participant": {
+      "post": {
+        "operationId": "LivekitController_muteParticipant",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Participant muted/unmuted successfully"
+          },
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
     "/api/livekit/connection-info": {
       "get": {
         "operationId": "LivekitController_getConnectionInfo",
@@ -5101,6 +5127,46 @@
             }
           }
         ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/voice-presence/deafen": {
+      "post": {
+        "operationId": "VoicePresenceController_updateDeafenState",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDeafenStateDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "",
@@ -7109,7 +7175,8 @@
                 "UNPIN_MESSAGE",
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
-                "VIEW_MODERATION_LOGS"
+                "VIEW_MODERATION_LOGS",
+                "MUTE_PARTICIPANT"
               ]
             }
           },
@@ -7250,7 +7317,8 @@
                 "UNPIN_MESSAGE",
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
-                "VIEW_MODERATION_LOGS"
+                "VIEW_MODERATION_LOGS",
+                "MUTE_PARTICIPANT"
               ]
             }
           },
@@ -7328,7 +7396,8 @@
                 "UNPIN_MESSAGE",
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
-                "VIEW_MODERATION_LOGS"
+                "VIEW_MODERATION_LOGS",
+                "MUTE_PARTICIPANT"
               ]
             }
           },
@@ -8601,6 +8670,10 @@
             "nullable": true
           },
           "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "communityId": {
             "type": "string",
             "nullable": true
           },
@@ -10144,6 +10217,17 @@
           "success",
           "message",
           "channelId"
+        ]
+      },
+      "UpdateDeafenStateDto": {
+        "type": "object",
+        "properties": {
+          "isDeafened": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isDeafened"
         ]
       },
       "UserVoiceChannelsResponseDto": {

@@ -95,19 +95,27 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       // Add local participant
       const local = room.localParticipant;
       if (local && local.identity) {
+        let localMeta: { avatarUrl?: string; isDeafened?: boolean } = {};
+        try {
+          if (local.metadata) {
+            localMeta = JSON.parse(local.metadata);
+          }
+        } catch {
+          // Ignore parse errors
+        }
         participants.push({
           id: local.identity,
           username: local.name || local.identity,
           displayName: local.name || undefined,
-          avatarUrl: local.metadata ? JSON.parse(local.metadata).avatarUrl : undefined,
+          avatarUrl: localMeta.avatarUrl,
           joinedAt: new Date().toISOString(), // LiveKit doesn't track join time, use now
-          isDeafened: false, // Will be updated by component
+          isDeafened: localMeta.isDeafened ?? false,
         });
       }
 
       // Add remote participants
       room.remoteParticipants.forEach((participant: Participant) => {
-        let metadata: { avatarUrl?: string } = {};
+        let metadata: { avatarUrl?: string; isDeafened?: boolean } = {};
         try {
           if (participant.metadata) {
             metadata = JSON.parse(participant.metadata);
@@ -122,7 +130,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           displayName: participant.name || undefined,
           avatarUrl: metadata.avatarUrl,
           joinedAt: new Date().toISOString(),
-          isDeafened: false,
+          isDeafened: metadata.isDeafened ?? false,
         });
       });
 
@@ -136,11 +144,13 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     room.on(RoomEvent.ParticipantConnected, updateParticipants);
     room.on(RoomEvent.ParticipantDisconnected, updateParticipants);
     room.on(RoomEvent.Connected, updateParticipants);
+    room.on(RoomEvent.ParticipantMetadataChanged, updateParticipants);
 
     return () => {
       room.off(RoomEvent.ParticipantConnected, updateParticipants);
       room.off(RoomEvent.ParticipantDisconnected, updateParticipants);
       room.off(RoomEvent.Connected, updateParticipants);
+      room.off(RoomEvent.ParticipantMetadataChanged, updateParticipants);
     };
   }, [isConnectedToThisChannel, voiceState.room]);
 
@@ -193,7 +203,9 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       isMuted: livekitState.participant
         ? !livekitState.isMicrophoneEnabled
         : Boolean(user.isMuted),
-      isDeafened: Boolean(user.isDeafened), // Custom state - only in server
+      isDeafened: livekitState.participant
+        ? livekitState.isDeafened
+        : Boolean(user.isDeafened),
       isVideoEnabled: livekitState.participant
         ? livekitState.isCameraEnabled
         : Boolean(user.isVideoEnabled),
@@ -332,7 +344,9 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     const isMuted = livekitState.participant
       ? !livekitState.isMicrophoneEnabled
       : Boolean(user.isMuted);
-    const isDeafened = Boolean(user.isDeafened); // Custom state - only in server
+    const isDeafened = livekitState.participant
+      ? livekitState.isDeafened
+      : Boolean(user.isDeafened);
     const isVideoEnabled = livekitState.participant
       ? livekitState.isCameraEnabled
       : Boolean(user.isVideoEnabled);

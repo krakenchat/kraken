@@ -1,6 +1,6 @@
 import { Room, VideoCaptureOptions } from "livekit-client";
 import type { VoiceAction, VoiceState } from "../../contexts/VoiceContext";
-import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence } from "../../api-client/sdk.gen";
+import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from "../../api-client/sdk.gen";
 import { queryClient } from "../../main";
 
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
@@ -566,6 +566,17 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
       metadata.isDeafened = newDeafenedState;
       await room.localParticipant.setMetadata(JSON.stringify(metadata));
       logger.info('[Voice] Updated LiveKit metadata with isDeafened:', newDeafenedState);
+    }
+
+    // Notify backend so non-connected viewers see the deafen state change
+    const channelId = currentChannelId;
+    if (channelId) {
+      voicePresenceControllerUpdateDeafenState({
+        path: { channelId },
+        body: { isDeafened: newDeafenedState },
+      }).catch((err) => {
+        logger.warn('[Voice] Failed to update deafen state on backend:', err);
+      });
     }
 
     if (newDeafenedState && room) {

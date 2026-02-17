@@ -552,6 +552,50 @@ export class VoicePresenceService {
   }
 
   /**
+   * Update a user's deafen state in a voice channel
+   * Updates Redis and broadcasts the change to all clients in the channel
+   */
+  async updateDeafenState(
+    channelId: string,
+    userId: string,
+    isDeafened: boolean,
+  ): Promise<void> {
+    const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
+    const userDataStr = await this.redis.get(userDataKey);
+
+    if (!userDataStr) {
+      this.logger.warn(
+        `User ${userId} not found in voice channel ${channelId} for deafen update`,
+      );
+      return;
+    }
+
+    const userData = JSON.parse(userDataStr) as VoicePresenceUser;
+    userData.isDeafened = isDeafened;
+
+    await this.redis.set(
+      userDataKey,
+      JSON.stringify(userData),
+      'EX',
+      this.VOICE_PRESENCE_TTL,
+    );
+
+    this.websocketService.sendToRoom(
+      channelId,
+      ServerEvents.VOICE_CHANNEL_USER_UPDATED,
+      {
+        channelId,
+        userId,
+        user: userData,
+      },
+    );
+
+    this.logger.debug(
+      `User ${userId} deafen state updated to ${isDeafened} in channel ${channelId}`,
+    );
+  }
+
+  /**
    * Get all channels where a user is currently in voice
    */
   async getUserVoiceChannels(userId: string): Promise<string[]> {

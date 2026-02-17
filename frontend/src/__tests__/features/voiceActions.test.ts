@@ -41,6 +41,7 @@ vi.mock('../../api-client/sdk.gen', () => ({
   livekitControllerGenerateDmToken: vi.fn().mockResolvedValue({ data: { token: 'mock-dm-token' } }),
   voicePresenceControllerJoinPresence: vi.fn().mockResolvedValue(undefined),
   voicePresenceControllerLeavePresence: vi.fn().mockResolvedValue(undefined),
+  voicePresenceControllerUpdateDeafenState: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../main', () => ({
@@ -79,7 +80,7 @@ import {
   switchAudioInputDevice,
   switchAudioOutputDevice,
 } from '../../features/voice/voiceActions';
-import { livekitControllerGenerateToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence } from '../../api-client/sdk.gen';
+import { livekitControllerGenerateToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from '../../api-client/sdk.gen';
 import { getCachedItem } from '../../utils/storage';
 
 function createMockDeps(overrides: Partial<{
@@ -293,6 +294,23 @@ describe('voiceActions', () => {
       await toggleDeafenUnified(deps);
 
       expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
+    });
+
+    it('calls voicePresenceControllerUpdateDeafenState when in a channel', async () => {
+      const deps = createMockDeps({ isDeafened: false });
+      await toggleDeafenUnified(deps);
+
+      expect(voicePresenceControllerUpdateDeafenState).toHaveBeenCalledWith({
+        path: { channelId: 'ch-1' },
+        body: { isDeafened: true },
+      });
+    });
+
+    it('does not call deafen API when in DM (no channelId)', async () => {
+      const deps = createMockDeps({ isDeafened: false, channelId: null, dmGroupId: 'dm-1' });
+      await toggleDeafenUnified(deps);
+
+      expect(voicePresenceControllerUpdateDeafenState).not.toHaveBeenCalled();
     });
 
     it('rolls back deafen state on error', async () => {
