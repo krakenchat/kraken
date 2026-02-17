@@ -5,10 +5,14 @@
  * It handles window creation, auto-updates, and IPC communication.
  */
 
-import { app, BrowserWindow, ipcMain, session, desktopCapturer, Notification } from 'electron';
+import {
+  app, BrowserWindow, ipcMain, session, desktopCapturer, Notification,
+  Tray, Menu, nativeImage, screen, dialog,
+} from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
 import * as path from 'path';
+import * as fs from 'fs';
 
 // Enable PipeWire-based screen capture for Wayland (must be before initMain()
 // so electron-audio-loopback picks it up in its feature flag merging)
@@ -42,9 +46,230 @@ function isWayland(): boolean {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 
 // Track active notifications
 const activeNotifications = new Map<string, Notification>();
+
+// ─── Window State Persistence ───────────────────────────────────────────────
+
+interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
+
+function getWindowStatePath(): string {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function loadWindowState(): WindowState {
+  const defaults: WindowState = { width: 1280, height: 800, isMaximized: false };
+  try {
+    const data = fs.readFileSync(getWindowStatePath(), 'utf-8');
+    const state: WindowState = JSON.parse(data);
+
+    // Validate that the stored position is on a visible display
+    if (state.x !== undefined && state.y !== undefined) {
+      const displays = screen.getAllDisplays();
+      const visible = displays.some(display => {
+        const { x, y, width, height } = display.bounds;
+        return (
+          state.x! >= x &&
+          state.x! < x + width &&
+          state.y! >= y &&
+          state.y! < y + height
+        );
+      });
+      if (!visible) {
+        // Position is off-screen, reset to default (centered)
+        delete state.x;
+        delete state.y;
+      }
+    }
+
+    return { ...defaults, ...state };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveWindowState(): void {
+  if (!mainWindow) return;
+  const isMaximized = mainWindow.isMaximized();
+  // Save the normal (non-maximized) bounds so restore works properly
+  const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
+  const state: WindowState = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    isMaximized,
+  };
+  try {
+    fs.writeFileSync(getWindowStatePath(), JSON.stringify(state));
+  } catch (err) {
+    console.error('Failed to save window state:', err);
+  }
+}
+
+// ─── System Tray ────────────────────────────────────────────────────────────
+
+function setupTray(): void {
+  const iconPath = path.join(app.getAppPath(), 'public', 'apple-touch-icon.png');
+  let trayIcon: Electron.NativeImage;
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath);
+    // Resize for tray (16x16 on most platforms, 22x22 on Linux)
+    trayIcon = trayIcon.resize({ width: 16, height: 16 });
+  } catch {
+    // Fallback to empty icon if file not found
+    trayIcon = nativeImage.createEmpty();
+  }
+
+  tray = new Tray(trayIcon);
+  tray.setToolTip('Kraken');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show/Hide Kraken',
+      click: () => {
+        if (!mainWindow) return;
+        if (mainWindow.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Check for Updates',
+      click: () => {
+        autoUpdater.checkForUpdates().catch((err: Error) => {
+          console.error('Failed to check for updates:', err);
+        });
+      },
+    },
+    {
+      label: 'Quit',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // On Linux/Windows, clicking the tray icon toggles window visibility
+  tray.on('click', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+// ─── Application Menu ───────────────────────────────────────────────────────
+
+function setupApplicationMenu(): void {
+  const isMac = process.platform === 'darwin';
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    // macOS app menu
+    ...(isMac ? [{
+      label: app.name,
+      submenu: [
+        { role: 'about' as const },
+        { type: 'separator' as const },
+        { role: 'hide' as const },
+        { role: 'hideOthers' as const },
+        { role: 'unhide' as const },
+        { type: 'separator' as const },
+        {
+          label: 'Quit',
+          accelerator: 'CmdOrCtrl+Q',
+          click: () => { isQuitting = true; app.quit(); },
+        },
+      ],
+    }] : []),
+    // File menu (non-macOS)
+    ...(!isMac ? [{
+      label: 'File',
+      submenu: [
+        {
+          label: 'Quit',
+          accelerator: 'CmdOrCtrl+Q',
+          click: () => { isQuitting = true; app.quit(); },
+        },
+      ],
+    }] : []),
+    // Edit menu
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' as const },
+        { role: 'redo' as const },
+        { type: 'separator' as const },
+        { role: 'cut' as const },
+        { role: 'copy' as const },
+        { role: 'paste' as const },
+        { role: 'selectAll' as const },
+      ],
+    },
+    // View menu
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' as const },
+        { role: 'forceReload' as const },
+        { role: 'toggleDevTools' as const },
+        { type: 'separator' as const },
+        { role: 'resetZoom' as const },
+        { role: 'zoomIn' as const },
+        { role: 'zoomOut' as const },
+        { type: 'separator' as const },
+        { role: 'togglefullscreen' as const },
+      ],
+    },
+    // Help menu
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About Kraken',
+          click: () => {
+            dialog.showMessageBox({
+              type: 'info',
+              title: 'About Kraken',
+              message: `Kraken v${app.getVersion()}`,
+              detail: 'A Discord-like voice chat application.',
+            });
+          },
+        },
+        {
+          label: 'Check for Updates',
+          click: () => {
+            autoUpdater.checkForUpdates().catch((err: Error) => {
+              console.error('Failed to check for updates:', err);
+            });
+          },
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 /**
  * Configure auto-updater
@@ -184,8 +409,11 @@ function setupIpcHandlers() {
 
       // Handle notification click
       notification.on('click', () => {
-        // Focus the main window
+        // Show and focus the main window (may be hidden to tray)
         if (mainWindow) {
+          if (!mainWindow.isVisible()) {
+            mainWindow.show();
+          }
           if (mainWindow.isMinimized()) {
             mainWindow.restore();
           }
@@ -226,9 +454,14 @@ function setupIpcHandlers() {
  * Create the main application window
  */
 function createWindow() {
+  const windowState = loadWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: windowState.width,
+    height: windowState.height,
+    ...(windowState.x !== undefined && windowState.y !== undefined
+      ? { x: windowState.x, y: windowState.y }
+      : {}),
     minWidth: 800,
     minHeight: 600,
     webPreferences: {
@@ -246,6 +479,11 @@ function createWindow() {
     show: false, // Don't show until ready
   });
 
+  // Restore maximized state after window is created
+  if (windowState.isMaximized) {
+    mainWindow.maximize();
+  }
+
   // Show window when ready to prevent flashing
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
@@ -262,7 +500,28 @@ function createWindow() {
     mainWindow.loadFile(indexPath);
   }
 
-  // Handle window closed
+  // Debounced window state save for resize/move events
+  let saveTimeout: NodeJS.Timeout | null = null;
+  const debouncedSave = () => {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveWindowState, 500);
+  };
+
+  mainWindow.on('resize', debouncedSave);
+  mainWindow.on('move', debouncedSave);
+
+  // Hide to tray instead of closing (unless quitting)
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      saveWindowState();
+      mainWindow?.hide();
+    } else {
+      saveWindowState();
+    }
+  });
+
+  // Handle window destroyed
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -421,20 +680,28 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  setupTray();
+  setupApplicationMenu();
   setupAutoUpdater();
   setupIpcHandlers();
 });
 
-// Quit when all windows are closed (except on macOS)
+// Tray keeps the app alive — don't quit when windows are hidden
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // No-op: app stays alive in tray
 });
 
-// On macOS, re-create window when dock icon is clicked
+// Set isQuitting flag before the app starts closing windows
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
+// On macOS, show existing window when dock icon is clicked
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
     createWindow();
   }
 });
@@ -446,8 +713,11 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    // Focus the main window if user tries to open another instance
+    // Show and focus the main window if user tries to open another instance
     if (mainWindow) {
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
       if (mainWindow.isMinimized()) {
         mainWindow.restore();
       }
