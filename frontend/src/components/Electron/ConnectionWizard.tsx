@@ -41,11 +41,8 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
 
   const testConnection = async (url: string): Promise<boolean> => {
     try {
-      // Normalize URL
-      const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-
       // Test connection to /api/onboarding/status endpoint
-      const response = await fetch(`${normalizedUrl}/api/onboarding/status`, {
+      const response = await fetch(`${url}/api/onboarding/status`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -57,6 +54,19 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
       logger.error('Connection test failed:', error);
       return false;
     }
+  };
+
+  const normalizeUrl = (url: string): string => {
+    let normalized = url.trim();
+    try {
+      const parsed = new URL(normalized);
+      // Strip hash fragment and search params — keep only origin + pathname
+      normalized = parsed.origin + parsed.pathname;
+    } catch {
+      return normalized;
+    }
+    // Remove trailing slash
+    return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
   };
 
   const handleNext = async () => {
@@ -74,9 +84,13 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
         return;
       }
 
+      // Normalize: strip hash/search params (users may paste full app URLs like https://server.com/#/invite/code)
+      const cleanUrl = normalizeUrl(serverUrl);
+      setServerUrl(cleanUrl);
+
       // Test connection
       setTesting(true);
-      const connectionOk = await testConnection(serverUrl);
+      const connectionOk = await testConnection(cleanUrl);
       setTesting(false);
 
       if (!connectionOk) {
@@ -87,18 +101,16 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
       // Auto-generate server name if not provided
       if (!serverName.trim()) {
         try {
-          const url = new URL(serverUrl);
+          const url = new URL(cleanUrl);
           setServerName(url.hostname);
         } catch {
           setServerName('My Server');
         }
       }
-    }
 
-    if (activeStep === steps.length - 2) {
-      // Save server before going to complete step
+      // Save server (activeStep 1 === steps.length - 2, so save happens here)
       try {
-        addServer(serverName || 'My Server', serverUrl);
+        addServer(serverName || new URL(cleanUrl).hostname || 'My Server', cleanUrl);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to save server');
         return;
