@@ -24,4 +24,17 @@ describe('formatFileSize', () => {
   it('formats gigabytes', () => {
     expect(formatFileSize(1073741824)).toBe('1 GB');
   });
+
+  it('formats terabytes', () => {
+    expect(formatFileSize(1024 ** 4)).toBe('1 TB');
+  });
+
+  it('returns "0 Bytes" for negative values', () => {
+    expect(formatFileSize(-1024)).toBe('0 Bytes');
+  });
+
+  it('returns "0 Bytes" for NaN and Infinity', () => {
+    expect(formatFileSize(NaN)).toBe('0 Bytes');
+    expect(formatFileSize(Infinity)).toBe('0 Bytes');
+  });
 });
