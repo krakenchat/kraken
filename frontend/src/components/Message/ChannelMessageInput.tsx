@@ -5,7 +5,7 @@
  * Uses advanced mention autocomplete with community member search.
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Box, IconButton, CircularProgress } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -13,6 +13,8 @@ import { StyledPaper, StyledTextField } from "./MessageInputStyles";
 import { FilePreview } from "./FilePreview";
 import { MentionDropdown } from "./MentionDropdown";
 import { useFileAttachments } from "./useFileAttachments";
+import { useDropZone } from "./useDropZone";
+import { DropZoneOverlay } from "./DropZoneOverlay";
 import { useMentionHandling } from "./useMentionHandling";
 import { useMentionAutocomplete } from "../../hooks/useMentionAutocomplete";
 import {
@@ -67,12 +69,34 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
     filePreviews,
     fileInputRef,
     handleFileSelect,
+    handleFileDrop,
     handleRemoveFile,
     handleFileButtonClick,
     clearFiles,
     validationError,
     clearValidationError,
   } = useFileAttachments();
+
+  const { isDragOver, dropZoneProps } = useDropZone({ onDrop: handleFileDrop });
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        handleFileDrop(files);
+      }
+    },
+    [handleFileDrop]
+  );
 
   useEffect(() => {
     if (validationError) {
@@ -193,7 +217,8 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
   };
 
   return (
-    <Box sx={{ position: "relative", width: "100%" }}>
+    <Box sx={{ position: "relative", width: "100%" }} {...dropZoneProps}>
+      <DropZoneOverlay visible={isDragOver} />
       {mentionHook.state.isOpen && (
         <MentionDropdown
           suggestions={mentionHook.state.suggestions}
@@ -236,11 +261,14 @@ export const ChannelMessageInput: React.FC<ChannelMessageInputProps> = ({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyPress}
+            onPaste={handlePaste}
             onClick={updateCursorPosition}
             onSelect={updateCursorPosition}
             sx={{ flex: 1 }}
             inputRef={inputRef}
             autoComplete="off"
+            multiline
+            maxRows={4}
           />
           <IconButton
             onClick={handleFileButtonClick}

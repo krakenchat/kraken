@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   findMentions,
+  getCodeRegions,
   parseMessageWithMentions,
   spansToText,
   getCurrentMention,
@@ -68,6 +69,48 @@ describe('findMentions', () => {
     expect(result).toHaveLength(2);
     expect(result[0].query).toBe('my-user');
     expect(result[1].query).toBe('my_user');
+  });
+
+  it('excludes @mentions inside inline code', () => {
+    const result = findMentions('use `@alice` in code');
+    expect(result).toHaveLength(0);
+  });
+
+  it('excludes @mentions inside fenced code blocks', () => {
+    const result = findMentions('```\n@alice\n```');
+    expect(result).toHaveLength(0);
+  });
+
+  it('excludes #channel mentions inside inline code', () => {
+    const result = findMentions('type `#general` to reference');
+    expect(result).toHaveLength(0);
+  });
+
+  it('finds mentions outside code but skips mentions inside code', () => {
+    const result = findMentions('@bob said `@alice` is great');
+    expect(result).toHaveLength(1);
+    expect(result[0].query).toBe('bob');
+  });
+
+  it('excludes mentions inside fenced code blocks with language', () => {
+    const result = findMentions('```js\n@alice\n```');
+    expect(result).toHaveLength(0);
+  });
+});
+
+describe('getCodeRegions', () => {
+  it('finds inline code regions', () => {
+    const regions = getCodeRegions('hello `code` world');
+    expect(regions).toEqual([[6, 12]]);
+  });
+
+  it('finds fenced code block regions', () => {
+    const regions = getCodeRegions('before ```\ncode\n``` after');
+    expect(regions).toEqual([[7, 19]]);
+  });
+
+  it('returns empty array for text without code', () => {
+    expect(getCodeRegions('no code here')).toEqual([]);
   });
 });
 

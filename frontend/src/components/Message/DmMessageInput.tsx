@@ -13,6 +13,8 @@ import { StyledPaper, StyledTextField } from "./MessageInputStyles";
 import { FilePreview } from "./FilePreview";
 import { MentionDropdown } from "./MentionDropdown";
 import { useFileAttachments } from "./useFileAttachments";
+import { useDropZone } from "./useDropZone";
+import { DropZoneOverlay } from "./DropZoneOverlay";
 import { useMentionHandling } from "./useMentionHandling";
 import type { MentionSuggestion } from "./useMentionHandling";
 import {
@@ -66,12 +68,34 @@ export const DmMessageInput: React.FC<DmMessageInputProps> = ({
     filePreviews,
     fileInputRef,
     handleFileSelect,
+    handleFileDrop,
     handleRemoveFile,
     handleFileButtonClick,
     clearFiles,
     validationError,
     clearValidationError,
   } = useFileAttachments();
+
+  const { isDragOver, dropZoneProps } = useDropZone({ onDrop: handleFileDrop });
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        handleFileDrop(files);
+      }
+    },
+    [handleFileDrop]
+  );
 
   const { showNotification } = useNotification();
 
@@ -239,7 +263,8 @@ export const DmMessageInput: React.FC<DmMessageInputProps> = ({
   };
 
   return (
-    <Box sx={{ position: "relative", width: "100%" }}>
+    <Box sx={{ position: "relative", width: "100%" }} {...dropZoneProps}>
+      <DropZoneOverlay visible={isDragOver} />
       {mentionState.isOpen && (
         <MentionDropdown
           suggestions={mentionState.suggestions}
@@ -275,6 +300,7 @@ export const DmMessageInput: React.FC<DmMessageInputProps> = ({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyPress}
+          onPaste={handlePaste}
           multiline
           maxRows={4}
           disabled={sending}
