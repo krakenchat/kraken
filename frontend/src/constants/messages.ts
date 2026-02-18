@@ -11,8 +11,8 @@
 export const MAX_MESSAGES = 1000;
 
 /**
- * Maximum file size for uploads (in bytes)
- * Default: 10MB
+ * Fallback maximum file size for uploads (in bytes) when server settings are unavailable.
+ * The actual limit is fetched from the server's instance settings (maxFileSizeBytes).
  */
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 

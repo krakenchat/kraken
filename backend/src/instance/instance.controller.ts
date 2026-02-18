@@ -33,7 +33,10 @@ export class InstanceController {
   @ApiOkResponse({ type: PublicSettingsResponseDto })
   async getPublicSettings(): Promise<PublicSettingsResponseDto> {
     const settings = await this.instanceService.getSettings();
-    return { registrationMode: settings.registrationMode };
+    return {
+      registrationMode: settings.registrationMode,
+      maxFileSizeBytes: Number(settings.maxFileSizeBytes),
+    };
   }
 
   /**

@@ -5,6 +5,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import AudioFileIcon from "@mui/icons-material/AudioFile";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
 import { FileMetadata } from "../../types/message.type";
+import { formatFileSize } from "../../utils/format";
 
 const AudioCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -50,13 +51,7 @@ interface AudioPlayerProps {
   metadata: FileMetadata;
 }
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-};
+
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ metadata }) => {
   const { blobUrl, isLoading, error } = useAuthenticatedFile(metadata.id, {

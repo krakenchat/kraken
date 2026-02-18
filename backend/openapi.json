@@ -10882,10 +10882,14 @@
               "INVITE_ONLY",
               "CLOSED"
             ]
+          },
+          "maxFileSizeBytes": {
+            "type": "number"
           }
         },
         "required": [
-          "registrationMode"
+          "registrationMode",
+          "maxFileSizeBytes"
         ]
       },
       "InstanceSettingsResponseDto": {
