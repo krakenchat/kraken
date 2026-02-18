@@ -26,24 +26,53 @@ export interface AliasMention {
 }
 
 /**
+ * Find regions in text that are inside code blocks or inline code.
+ * Returns array of [start, end] ranges that should be excluded from mention parsing.
+ */
+export function getCodeRegions(text: string): [number, number][] {
+  const regions: [number, number][] = [];
+
+  // Match fenced code blocks (```...```) first, then inline code (`...`)
+  const codeRegex = /```[\s\S]*?```|`[^`]+`/g;
+  let match;
+  while ((match = codeRegex.exec(text)) !== null) {
+    regions.push([match.index, match.index + match[0].length]);
+  }
+
+  return regions;
+}
+
+/**
+ * Check if a position falls inside any code region
+ */
+function isInsideCodeRegion(position: number, end: number, regions: [number, number][]): boolean {
+  return regions.some(([start, regionEnd]) => position >= start && end <= regionEnd);
+}
+
+/**
  * Parse message text for potential mentions (@user, @here, @channel, #channel)
- * Returns array of mention objects with positions
+ * Returns array of mention objects with positions.
+ * Mentions inside code blocks/inline code are excluded.
  */
 export function findMentions(text: string): MentionMatch[] {
   const mentions: MentionMatch[] = [];
+  const codeRegions = getCodeRegions(text);
 
   // User mentions pattern: @word (word can contain letters, numbers, underscore, hyphen)
   const userMentionRegex = /@(\w[\w\-_]*)/g;
   let match;
 
   while ((match = userMentionRegex.exec(text)) !== null) {
+    const matchEnd = match.index + match[0].length;
+    if (isInsideCodeRegion(match.index, matchEnd, codeRegions)) continue;
+
     const query = match[1];
     // Check if this is a special mention
     if (query === 'here' || query === 'channel') {
       mentions.push({
         type: 'special',
         start: match.index,
-        end: match.index + match[0].length,
+        end: matchEnd,
         text: match[0],
         query: query,
       });
@@ -51,7 +80,7 @@ export function findMentions(text: string): MentionMatch[] {
       mentions.push({
         type: 'user',
         start: match.index,
-        end: match.index + match[0].length,
+        end: matchEnd,
         text: match[0],
         query: query,
       });
@@ -62,11 +91,14 @@ export function findMentions(text: string): MentionMatch[] {
   const channelMentionRegex = /#(\w[\w\-_]*)/g;
 
   while ((match = channelMentionRegex.exec(text)) !== null) {
+    const matchEnd = match.index + match[0].length;
+    if (isInsideCodeRegion(match.index, matchEnd, codeRegions)) continue;
+
     const query = match[1];
     mentions.push({
       type: 'channel',
       start: match.index,
-      end: match.index + match[0].length,
+      end: matchEnd,
       text: match[0],
       query: query,
     });

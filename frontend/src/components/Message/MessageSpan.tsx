@@ -8,6 +8,7 @@
 import React from "react";
 import { useTheme } from "@mui/material/styles";
 import { Span, SpanType } from "../../types/message.type";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 
 export interface MessageSpanProps {
   span: Span;
@@ -47,7 +48,7 @@ export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index }) => {
       );
     case SpanType.PLAINTEXT:
     default:
-      return <span key={index}>{span.text}</span>;
+      return <MarkdownRenderer key={index} text={span.text || ""} />;
   }
 };
 

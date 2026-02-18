@@ -11,7 +11,7 @@ import { styled } from "@mui/material/styles";
 export const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
   display: "flex",
-  alignItems: "center",
+  alignItems: "flex-end",
   gap: theme.spacing(1),
   background: theme.palette.background.paper,
 }));

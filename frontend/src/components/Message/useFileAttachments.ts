@@ -13,6 +13,7 @@ export interface UseFileAttachmentsReturn {
   filePreviews: Map<number, string>;
   fileInputRef: React.RefObject<HTMLInputElement>;
   handleFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleFileDrop: (files: File[]) => void;
   handleRemoveFile: (index: number) => void;
   handleFileButtonClick: () => void;
   clearFiles: () => void;
@@ -93,6 +94,42 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     }
   }, []);
 
+  const handleFileDrop = useCallback((files: File[]) => {
+    if (files.length === 0) return;
+
+    // Validate file sizes
+    const oversizedFile = files.find(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFile) {
+      setValidationError(`File "${oversizedFile.name}" exceeds the 10MB size limit`);
+      return;
+    }
+
+    // Validate total file count
+    const currentCount = fileCountRef.current;
+    if (currentCount + files.length > MAX_FILES_PER_MESSAGE) {
+      setValidationError(`Maximum ${MAX_FILES_PER_MESSAGE} files per message`);
+      return;
+    }
+
+    const startIndex = fileCountRef.current;
+
+    // Generate previews for image files
+    files.forEach((file, idx) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            setFilePreviews(prev => new Map(prev).set(startIndex + idx, e.target!.result as string));
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    fileCountRef.current += files.length;
+    setSelectedFiles(prev => [...prev, ...files]);
+  }, []);
+
   const handleRemoveFile = useCallback((index: number) => {
     fileCountRef.current = Math.max(0, fileCountRef.current - 1);
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -118,6 +155,7 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     filePreviews,
     fileInputRef,
     handleFileSelect,
+    handleFileDrop,
     handleRemoveFile,
     handleFileButtonClick,
     clearFiles,
