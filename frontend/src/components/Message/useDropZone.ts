@@ -37,7 +37,8 @@ export function useDropZone({ onDrop }: UseDropZoneOptions): UseDropZoneReturn {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current--;
-    if (dragCounter.current === 0) {
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
       setIsDragOver(false);
     }
   }, []);

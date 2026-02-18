@@ -2,10 +2,17 @@ import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import type { Components } from "react-markdown";
 import { SpoilerText } from "./SpoilerText";
+
+/** Allow only the custom <spoiler> tag through sanitization */
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames || []), "spoiler"],
+};
 
 interface MarkdownRendererProps {
   text: string;
@@ -31,51 +38,44 @@ const MarkdownRendererInner: React.FC<MarkdownRendererProps> = ({ text }) => {
         <span style={{ display: "block", margin: 0 }}>{children}</span>
       ),
 
-      // Styled code blocks and inline code
-      code: ({ children, className }) => {
-        const isBlock = className?.startsWith("language-");
-        if (isBlock) {
-          return (
-            <Box
-              component="code"
-              sx={{
-                display: "block",
-                backgroundColor: theme.palette.mode === "dark"
-                  ? "rgba(0,0,0,0.4)"
-                  : "rgba(0,0,0,0.06)",
-                borderRadius: "4px",
-                padding: "8px 12px",
-                fontFamily: "monospace",
-                fontSize: "0.85em",
-                overflowX: "auto",
-                whiteSpace: "pre",
-                my: 0.5,
-              }}
-            >
-              {children}
-            </Box>
-          );
-        }
-        return (
-          <Box
-            component="code"
-            sx={{
-              backgroundColor: theme.palette.mode === "dark"
-                ? "rgba(0,0,0,0.4)"
-                : "rgba(0,0,0,0.06)",
-              borderRadius: "3px",
-              padding: "1px 4px",
-              fontFamily: "monospace",
-              fontSize: "0.85em",
-            }}
-          >
-            {children}
-          </Box>
-        );
-      },
+      // Inline code only — block code is styled via pre
+      code: ({ children }) => (
+        <Box
+          component="code"
+          sx={{
+            backgroundColor: theme.palette.mode === "dark"
+              ? "rgba(0,0,0,0.4)"
+              : "rgba(0,0,0,0.06)",
+            borderRadius: "3px",
+            padding: "1px 4px",
+            fontFamily: "monospace",
+            fontSize: "0.85em",
+          }}
+        >
+          {children}
+        </Box>
+      ),
 
+      // Fenced code blocks (```...```) — wraps <code> element
       pre: ({ children }) => (
-        <Box component="pre" sx={{ m: 0 }}>
+        <Box
+          component="pre"
+          sx={{
+            m: 0,
+            my: 0.5,
+            backgroundColor: theme.palette.mode === "dark"
+              ? "rgba(0,0,0,0.4)"
+              : "rgba(0,0,0,0.06)",
+            borderRadius: "4px",
+            padding: "8px 12px",
+            overflowX: "auto",
+            "& code": {
+              backgroundColor: "transparent",
+              padding: 0,
+              borderRadius: 0,
+            },
+          }}
+        >
           {children}
         </Box>
       ),
@@ -95,17 +95,22 @@ const MarkdownRendererInner: React.FC<MarkdownRendererProps> = ({ text }) => {
         </Box>
       ),
 
-      // Links open in new tab
-      a: ({ href, children }) => (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: theme.palette.primary.main }}
-        >
-          {children}
-        </a>
-      ),
+      // Links open in new tab — block dangerous protocols
+      a: ({ href, children }) => {
+        const safeHref =
+          href && /^https?:\/\//i.test(href) ? href : undefined;
+        if (!safeHref) return <>{children}</>;
+        return (
+          <a
+            href={safeHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: theme.palette.primary.main }}
+          >
+            {children}
+          </a>
+        );
+      },
 
       // Disable image rendering
       img: () => null,
@@ -135,7 +140,7 @@ const MarkdownRendererInner: React.FC<MarkdownRendererProps> = ({ text }) => {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
         components={components}
       >
         {processed}

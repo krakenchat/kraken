@@ -10,10 +10,23 @@ export const SpoilerText: React.FC<SpoilerTextProps> = ({ children }) => {
   const [revealed, setRevealed] = useState(false);
   const theme = useTheme();
 
+  const handleReveal = () => setRevealed(true);
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLSpanElement> = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleReveal();
+    }
+  };
+
   return (
     <Box
       component="span"
-      onClick={() => setRevealed(true)}
+      role="button"
+      tabIndex={0}
+      aria-pressed={revealed}
+      onClick={handleReveal}
+      onKeyDown={handleKeyDown}
       sx={{
         backgroundColor: revealed
           ? theme.palette.action.hover
