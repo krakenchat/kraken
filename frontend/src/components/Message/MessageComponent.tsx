@@ -165,7 +165,7 @@ function MessageComponentInner({
           />
         ) : (
           <>
-            <Typography variant="body1">
+            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
               {renderMessageSpans(message.spans)}
             </Typography>
             <MessageAttachments attachments={message.attachments} />
