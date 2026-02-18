@@ -65,7 +65,7 @@
     "@openobserve/browser-logs": "^0.2.11",
     "@openobserve/browser-rum": "^0.2.11",
     "@tanstack/react-query": "^5.90.20",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "date-fns": "^4.1.0",
     "electron-audio-loopback": "^1.0.6",
     "electron-updater": "^6.3.9",
