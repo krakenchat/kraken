@@ -48,7 +48,7 @@ function setStoredVolume(userId: string, volume: number): void {
 }
 
 interface VoiceUserContextMenuProps {
-  anchorEl: HTMLElement | null;
+  anchorPosition: { top: number; left: number } | null;
   open: boolean;
   onClose: () => void;
   user: VoicePresenceUserDto;
@@ -57,7 +57,7 @@ interface VoiceUserContextMenuProps {
 }
 
 const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
-  anchorEl,
+  anchorPosition,
   open,
   onClose,
   user,
@@ -183,11 +183,10 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
   return (
     <>
       <Menu
-        anchorEl={anchorEl}
+        anchorReference="anchorPosition"
+        anchorPosition={anchorPosition ?? undefined}
         open={open}
         onClose={onClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         <MenuItem onClick={handleViewProfile}>
           <ListItemIcon>

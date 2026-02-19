@@ -47,7 +47,7 @@ const MemberListSkeleton: React.FC = () => (
 );
 
 interface ContextMenuState {
-  anchorEl: HTMLElement | null;
+  position: { top: number; left: number } | null;
   member: MemberData | null;
 }
 
@@ -62,20 +62,20 @@ const MemberList: React.FC<MemberListProps> = ({
   const theme = useTheme();
   const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    anchorEl: null,
+    position: null,
     member: null,
   });
 
   const handleContextMenu = (event: React.MouseEvent<HTMLElement>, member: MemberData) => {
     event.preventDefault();
     setContextMenu({
-      anchorEl: event.currentTarget,
+      position: { top: event.clientY, left: event.clientX },
       member,
     });
   };
 
   const handleCloseContextMenu = () => {
-    setContextMenu({ anchorEl: null, member: null });
+    setContextMenu({ position: null, member: null });
   };
 
   if (error) {
@@ -204,14 +204,19 @@ const MemberList: React.FC<MemberListProps> = ({
       </Box>
 
       {/* Moderation Context Menu */}
-      {communityId && contextMenu.member && (
+      {contextMenu.member && (
         <UserModerationMenu
-          anchorEl={contextMenu.anchorEl}
-          open={Boolean(contextMenu.anchorEl)}
+          anchorEl={null}
+          anchorPosition={contextMenu.position ?? undefined}
+          open={Boolean(contextMenu.position)}
           onClose={handleCloseContextMenu}
           targetUserId={contextMenu.member.id}
           targetUserName={contextMenu.member.username}
-          communityId={communityId}
+          communityId={communityId || ""}
+          onViewProfile={() => {
+            handleCloseContextMenu();
+            openProfile(contextMenu.member!.id);
+          }}
         />
       )}
     </Box>

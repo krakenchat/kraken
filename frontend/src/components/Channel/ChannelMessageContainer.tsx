@@ -214,7 +214,9 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     // Await the send so callers (MessageInput) can catch failures
     const result = await sendMessage(msg);
     if (!result.success) {
-      throw result.error || new Error("Failed to send message");
+      const errorMessage = result.error instanceof Error ? result.error.message : "Failed to send message";
+      showNotification(errorMessage, "error");
+      return;
     }
   };
 

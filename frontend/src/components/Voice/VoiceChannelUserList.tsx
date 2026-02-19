@@ -49,17 +49,17 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUserDto[]>([]);
   const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<{
-    anchorEl: HTMLElement | null;
+    position: { top: number; left: number } | null;
     user: VoicePresenceUserDto | null;
-  }>({ anchorEl: null, user: null });
+  }>({ position: null, user: null });
 
   const handleContextMenu = (event: React.MouseEvent<HTMLElement>, user: VoicePresenceUserDto) => {
     event.preventDefault();
-    setContextMenu({ anchorEl: event.currentTarget, user });
+    setContextMenu({ position: { top: event.clientY, left: event.clientX }, user });
   };
 
   const handleCloseContextMenu = () => {
-    setContextMenu({ anchorEl: null, user: null });
+    setContextMenu({ position: null, user: null });
   };
 
   // Check if we're connected to this specific channel
@@ -474,8 +474,8 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         </Box>
         {contextMenu.user && (
           <VoiceUserContextMenu
-            anchorEl={contextMenu.anchorEl}
-            open={Boolean(contextMenu.anchorEl)}
+            anchorPosition={contextMenu.position}
+            open={Boolean(contextMenu.position)}
             onClose={handleCloseContextMenu}
             user={contextMenu.user}
             communityId={channel.communityId}
@@ -497,8 +497,8 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         </Box>
         {contextMenu.user && (
           <VoiceUserContextMenu
-            anchorEl={contextMenu.anchorEl}
-            open={Boolean(contextMenu.anchorEl)}
+            anchorPosition={contextMenu.position}
+            open={Boolean(contextMenu.position)}
             onClose={handleCloseContextMenu}
             user={contextMenu.user}
             communityId={channel.communityId}
@@ -540,8 +540,8 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       </Paper>
       {contextMenu.user && (
         <VoiceUserContextMenu
-          anchorEl={contextMenu.anchorEl}
-          open={Boolean(contextMenu.anchorEl)}
+          anchorPosition={contextMenu.position}
+          open={Boolean(contextMenu.position)}
           onClose={handleCloseContextMenu}
           user={contextMenu.user}
           communityId={channel.communityId}

@@ -25,6 +25,7 @@ import KickConfirmDialog from "./KickConfirmDialog";
 
 export interface UserModerationMenuProps {
   anchorEl: HTMLElement | null;
+  anchorPosition?: { top: number; left: number };
   open: boolean;
   onClose: () => void;
   communityId: string;
@@ -35,6 +36,7 @@ export interface UserModerationMenuProps {
 
 const UserModerationMenu: React.FC<UserModerationMenuProps> = ({
   anchorEl,
+  anchorPosition,
   open,
   onClose,
   communityId,
@@ -76,16 +78,12 @@ const UserModerationMenu: React.FC<UserModerationMenuProps> = ({
     <>
       <Menu
         anchorEl={anchorEl}
+        {...(anchorPosition ? { anchorReference: "anchorPosition" as const, anchorPosition } : {
+          anchorOrigin: { vertical: "bottom" as const, horizontal: "left" as const },
+          transformOrigin: { vertical: "top" as const, horizontal: "left" as const },
+        })}
         open={open}
         onClose={onClose}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "left",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "left",
-        }}
       >
         {onViewProfile && (
           <MenuItem onClick={handleViewProfile}>

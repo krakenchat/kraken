@@ -11,6 +11,8 @@ import CreateCommunityButton from "./CreateCommunityButton";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tooltip, Button, Avatar } from "@mui/material";
 import ChatIcon from "@mui/icons-material/Chat";
+import { useCanPerformAction } from "../../features/roles/useUserPermissions";
+import { RBAC_ACTIONS } from "../../constants/rbacActions";
 
 export interface Community {
   id: string;
@@ -83,6 +85,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { communityId } = useParams();
   const navigate = useNavigate();
+  const canCreateCommunity = useCanPerformAction("INSTANCE", undefined, RBAC_ACTIONS.CREATE_COMMUNITY);
 
   const handleCreateCommunity = () => {
     // Navigate to create community page (you may need to adjust this route)
@@ -191,10 +194,12 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
                 No communities
               </Box>
             )}
-        <CreateCommunityButton
-          isExpanded={isExpanded}
-          onClick={handleCreateCommunity}
-        />
+        {canCreateCommunity && (
+          <CreateCommunityButton
+            isExpanded={isExpanded}
+            onClick={handleCreateCommunity}
+          />
+        )}
       </CommunityList>
     </Sidebar>
   );

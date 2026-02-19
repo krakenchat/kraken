@@ -6,6 +6,7 @@ import {
   ServerToClientEvents,
   ClientToServerEvents,
 } from "./SocketContext";
+import { getAccessToken } from "./tokenService";
 import { logger } from "./logger";
 
 const MAX_RETRY_COUNT = 3;
@@ -45,10 +46,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initial connection + cleanup
+  // Re-read token on every render to detect login/logout transitions.
+  // After login, HashRouter re-renders SocketProvider, so this picks up
+  // the newly stored token and triggers a connection attempt.
+  const hasToken = Boolean(getAccessToken());
+
+  // Connect when token becomes available; skip when no token (pre-login)
   useEffect(() => {
     mountedRef.current = true;
-    connectSocket(0);
+
+    if (hasToken && !socket) {
+      connectSocket(0);
+    }
 
     return () => {
       mountedRef.current = false;
@@ -57,7 +66,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         retryTimeoutRef.current = null;
       }
     };
-  }, [connectSocket]);
+  }, [hasToken, socket, connectSocket]);
 
   // Track connection state via socket events
   useEffect(() => {
