@@ -1,17 +1,28 @@
 {
   "name": "kraken",
   "private": true,
-  "workspaces": [
-    "shared",
-    "backend",
-    "frontend"
-  ],
+  "packageManager": "pnpm@10.30.0",
   "scripts": {
-    "build:shared": "npm run build --workspace=shared",
-    "prepare": "npm run build:shared"
+    "build:shared": "pnpm --filter shared run build",
+    "prepare": "pnpm run build:shared"
   },
   "dependencies": {
     "class-validator": "^0.14.3",
     "class-transformer": "^0.5.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "@suites/di.nestjs",
+      "@suites/doubles.jest",
+      "@swc/core",
+      "bcrypt",
+      "electron",
+      "esbuild",
+      "msw",
+      "prisma"
+    ]
   }
 }

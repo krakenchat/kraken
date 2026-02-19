@@ -11,10 +11,10 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "prisma": "npm run prisma:generate && npm run prisma:push",
+    "prisma": "pnpm run prisma:generate && pnpm run prisma:push",
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
     "prisma:push": "prisma db push --schema=prisma/schema.prisma",
-    "postinstall": "npm run prisma:generate",
+    "postinstall": "pnpm run prisma:generate",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -30,7 +30,7 @@
     "generate:openapi": "nest build && node dist/src/generate-openapi.js"
   },
   "dependencies": {
-    "@kraken/shared": "*",
+    "@kraken/shared": "workspace:*",
     "@nestjs/common": "^11.1.11",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",

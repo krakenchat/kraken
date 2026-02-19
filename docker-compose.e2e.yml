@@ -40,7 +40,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    command: npm run start:dev
+    command: pnpm run start:dev
     ports:
       - "3001:3000"  # Different port to avoid conflicts
     environment:
@@ -75,7 +75,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    command: npm run dev -- --host 0.0.0.0
+    command: pnpm run dev -- --host 0.0.0.0
     ports:
       - "5174:5173"  # Different port to avoid conflicts
     environment:
