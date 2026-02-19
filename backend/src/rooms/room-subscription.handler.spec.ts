@@ -298,11 +298,11 @@ describe('RoomSubscriptionHandler', () => {
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledTimes(2);
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
         'user-1',
-        'alias:alias-123',
+        'alias-123',
       );
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
         'user-2',
-        'alias:alias-123',
+        'alias-123',
       );
     });
   });
@@ -316,7 +316,7 @@ describe('RoomSubscriptionHandler', () => {
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
         'user-456',
-        'alias:alias-123',
+        'alias-123',
       );
     });
   });
@@ -330,7 +330,7 @@ describe('RoomSubscriptionHandler', () => {
 
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
         'user-456',
-        'alias:alias-123',
+        'alias-123',
       );
     });
   });
@@ -344,11 +344,11 @@ describe('RoomSubscriptionHandler', () => {
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledTimes(2);
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
         'user-1',
-        'alias:alias-123',
+        'alias-123',
       );
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
         'user-2',
-        'alias:alias-123',
+        'alias-123',
       );
     });
   });
@@ -363,11 +363,11 @@ describe('RoomSubscriptionHandler', () => {
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
         'user-new',
-        'alias:alias-123',
+        'alias-123',
       );
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
         'user-old',
-        'alias:alias-123',
+        'alias-123',
       );
     });
 

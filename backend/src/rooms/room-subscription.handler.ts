@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
 import { ServerEvents } from '@kraken/shared';
+import { RoomName } from '@/common/utils/room-name.util';
 import {
   RoomEvents,
   MembershipCreatedEvent,
@@ -54,15 +55,15 @@ export class RoomSubscriptionHandler {
     });
 
     const roomsToJoin = [
-      `community:${communityId}`,
-      ...publicChannels.map((ch) => ch.id),
+      RoomName.community(communityId),
+      ...publicChannels.map((ch) => RoomName.channel(ch.id)),
     ];
 
-    this.websocketService.joinSocketsToRoom(userId, roomsToJoin);
+    this.websocketService.joinSocketsToRoom(RoomName.user(userId), roomsToJoin);
 
     // Notify the user's UI to refresh the community list
     this.websocketService.sendToRoom(
-      userId,
+      RoomName.user(userId),
       ServerEvents.MEMBER_ADDED_TO_COMMUNITY,
       { communityId, userId },
     );
@@ -83,11 +84,14 @@ export class RoomSubscriptionHandler {
     });
 
     const roomsToLeave = [
-      `community:${communityId}`,
-      ...channels.map((ch) => ch.id),
+      RoomName.community(communityId),
+      ...channels.map((ch) => RoomName.channel(ch.id)),
     ];
 
-    this.websocketService.removeSocketsFromRoom(userId, roomsToLeave);
+    this.websocketService.removeSocketsFromRoom(
+      RoomName.user(userId),
+      roomsToLeave,
+    );
 
     this.logger.debug(
       `User ${userId} left rooms for community ${communityId} (${roomsToLeave.length} rooms)`,
@@ -129,8 +133,8 @@ export class RoomSubscriptionHandler {
     if (!isPrivate) {
       // All community members should join the new public channel room
       this.websocketService.joinSocketsToRoom(
-        `community:${communityId}`,
-        channelId,
+        RoomName.community(communityId),
+        RoomName.channel(channelId),
       );
       this.logger.debug(
         `All members of community ${communityId} joined public channel ${channelId}`,
@@ -141,7 +145,10 @@ export class RoomSubscriptionHandler {
   @OnEvent(RoomEvents.CHANNEL_DELETED)
   onChannelDeleted({ channelId }: ChannelDeletedEvent): void {
     // Remove all sockets from the deleted channel's room
-    this.websocketService.removeSocketsFromRoom(channelId, channelId);
+    this.websocketService.removeSocketsFromRoom(
+      RoomName.channel(channelId),
+      RoomName.channel(channelId),
+    );
     this.logger.debug(`All sockets removed from deleted channel ${channelId}`);
   }
 
@@ -154,7 +161,10 @@ export class RoomSubscriptionHandler {
     userId,
     channelId,
   }: ChannelMembershipCreatedEvent): void {
-    this.websocketService.joinSocketsToRoom(userId, channelId);
+    this.websocketService.joinSocketsToRoom(
+      RoomName.user(userId),
+      RoomName.channel(channelId),
+    );
     this.logger.debug(
       `User ${userId} joined private channel room ${channelId}`,
     );
@@ -165,7 +175,10 @@ export class RoomSubscriptionHandler {
     userId,
     channelId,
   }: ChannelMembershipRemovedEvent): void {
-    this.websocketService.removeSocketsFromRoom(userId, channelId);
+    this.websocketService.removeSocketsFromRoom(
+      RoomName.user(userId),
+      RoomName.channel(channelId),
+    );
     this.logger.debug(`User ${userId} left private channel room ${channelId}`);
   }
 
@@ -176,7 +189,10 @@ export class RoomSubscriptionHandler {
   @OnEvent(RoomEvents.DM_GROUP_CREATED)
   onDmGroupCreated({ groupId, memberIds }: DmGroupCreatedEvent): void {
     for (const userId of memberIds) {
-      this.websocketService.joinSocketsToRoom(userId, groupId);
+      this.websocketService.joinSocketsToRoom(
+        RoomName.user(userId),
+        RoomName.dmGroup(groupId),
+      );
     }
     this.logger.debug(
       `${memberIds.length} members joined DM group room ${groupId}`,
@@ -186,7 +202,10 @@ export class RoomSubscriptionHandler {
   @OnEvent(RoomEvents.DM_GROUP_MEMBER_ADDED)
   onDmGroupMemberAdded({ groupId, userIds }: DmGroupMemberAddedEvent): void {
     for (const userId of userIds) {
-      this.websocketService.joinSocketsToRoom(userId, groupId);
+      this.websocketService.joinSocketsToRoom(
+        RoomName.user(userId),
+        RoomName.dmGroup(groupId),
+      );
     }
     this.logger.debug(
       `${userIds.length} members added to DM group room ${groupId}`,
@@ -195,7 +214,10 @@ export class RoomSubscriptionHandler {
 
   @OnEvent(RoomEvents.DM_GROUP_MEMBER_LEFT)
   onDmGroupMemberLeft({ groupId, userId }: DmGroupMemberLeftEvent): void {
-    this.websocketService.removeSocketsFromRoom(userId, groupId);
+    this.websocketService.removeSocketsFromRoom(
+      RoomName.user(userId),
+      RoomName.dmGroup(groupId),
+    );
     this.logger.debug(`User ${userId} left DM group room ${groupId}`);
   }
 
@@ -209,7 +231,10 @@ export class RoomSubscriptionHandler {
     memberIds,
   }: AliasGroupCreatedEvent): void {
     for (const userId of memberIds) {
-      this.websocketService.joinSocketsToRoom(userId, `alias:${aliasGroupId}`);
+      this.websocketService.joinSocketsToRoom(
+        RoomName.user(userId),
+        RoomName.aliasGroup(aliasGroupId),
+      );
     }
     this.logger.debug(
       `${memberIds.length} members joined alias group room ${aliasGroupId}`,
@@ -221,7 +246,10 @@ export class RoomSubscriptionHandler {
     aliasGroupId,
     userId,
   }: AliasGroupMemberAddedEvent): void {
-    this.websocketService.joinSocketsToRoom(userId, `alias:${aliasGroupId}`);
+    this.websocketService.joinSocketsToRoom(
+      RoomName.user(userId),
+      RoomName.aliasGroup(aliasGroupId),
+    );
     this.logger.debug(`User ${userId} joined alias group room ${aliasGroupId}`);
   }
 
@@ -231,8 +259,8 @@ export class RoomSubscriptionHandler {
     userId,
   }: AliasGroupMemberRemovedEvent): void {
     this.websocketService.removeSocketsFromRoom(
-      userId,
-      `alias:${aliasGroupId}`,
+      RoomName.user(userId),
+      RoomName.aliasGroup(aliasGroupId),
     );
     this.logger.debug(`User ${userId} left alias group room ${aliasGroupId}`);
   }
@@ -244,8 +272,8 @@ export class RoomSubscriptionHandler {
   }: AliasGroupDeletedEvent): void {
     for (const userId of memberIds) {
       this.websocketService.removeSocketsFromRoom(
-        userId,
-        `alias:${aliasGroupId}`,
+        RoomName.user(userId),
+        RoomName.aliasGroup(aliasGroupId),
       );
     }
     this.logger.debug(
@@ -260,12 +288,15 @@ export class RoomSubscriptionHandler {
     removedUserIds,
   }: AliasGroupMembersUpdatedEvent): void {
     for (const userId of addedUserIds) {
-      this.websocketService.joinSocketsToRoom(userId, `alias:${aliasGroupId}`);
+      this.websocketService.joinSocketsToRoom(
+        RoomName.user(userId),
+        RoomName.aliasGroup(aliasGroupId),
+      );
     }
     for (const userId of removedUserIds) {
       this.websocketService.removeSocketsFromRoom(
-        userId,
-        `alias:${aliasGroupId}`,
+        RoomName.user(userId),
+        RoomName.aliasGroup(aliasGroupId),
       );
     }
     this.logger.debug(

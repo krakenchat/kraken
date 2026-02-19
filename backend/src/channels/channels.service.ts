@@ -14,6 +14,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { RoomEvents } from '@/rooms/room-subscription.events';
+import { RoomName } from '@/common/utils/room-name.util';
 
 @Injectable()
 export class ChannelsService {
@@ -305,7 +306,7 @@ export class ChannelsService {
 
       // Emit WebSocket event for real-time updates
       this.websocketService.sendToRoom(
-        `community:${communityId}`,
+        RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
         { communityId, channels: updatedChannels },
       );
@@ -355,7 +356,7 @@ export class ChannelsService {
 
       // Emit WebSocket event for real-time updates
       this.websocketService.sendToRoom(
-        `community:${communityId}`,
+        RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
         { communityId, channels: updatedChannels },
       );

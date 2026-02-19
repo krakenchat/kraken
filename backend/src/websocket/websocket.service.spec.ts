@@ -245,4 +245,106 @@ describe('WebsocketService', () => {
       expect(mockEmit).toHaveBeenCalledWith('complex-event', complexPayload);
     });
   });
+
+  describe('joinSocketsToRoom', () => {
+    it('should join sockets from source room to target room', () => {
+      const mockSocketsJoin = jest.fn();
+      const mockIn = jest
+        .fn()
+        .mockReturnValue({ socketsJoin: mockSocketsJoin });
+      const mockServer = { in: mockIn } as any;
+
+      service.setServer(mockServer);
+      service.joinSocketsToRoom('user-123', 'channel-456');
+
+      expect(mockIn).toHaveBeenCalledWith('user-123');
+      expect(mockSocketsJoin).toHaveBeenCalledWith('channel-456');
+    });
+
+    it('should join sockets to multiple rooms', () => {
+      const mockSocketsJoin = jest.fn();
+      const mockIn = jest
+        .fn()
+        .mockReturnValue({ socketsJoin: mockSocketsJoin });
+      const mockServer = { in: mockIn } as any;
+
+      service.setServer(mockServer);
+      service.joinSocketsToRoom('user-123', ['room-1', 'room-2', 'room-3']);
+
+      expect(mockIn).toHaveBeenCalledWith('user-123');
+      expect(mockSocketsJoin).toHaveBeenCalledWith([
+        'room-1',
+        'room-2',
+        'room-3',
+      ]);
+    });
+
+    it('should not throw when server is not initialized', () => {
+      expect(() => {
+        service.joinSocketsToRoom('user-123', 'channel-456');
+      }).not.toThrow();
+    });
+
+    it('should not throw on error', () => {
+      const mockIn = jest.fn().mockImplementation(() => {
+        throw new Error('Socket error');
+      });
+      const mockServer = { in: mockIn } as any;
+
+      service.setServer(mockServer);
+
+      expect(() => {
+        service.joinSocketsToRoom('user-123', 'channel-456');
+      }).not.toThrow();
+    });
+  });
+
+  describe('removeSocketsFromRoom', () => {
+    it('should remove sockets from source room from target room', () => {
+      const mockSocketsLeave = jest.fn();
+      const mockIn = jest
+        .fn()
+        .mockReturnValue({ socketsLeave: mockSocketsLeave });
+      const mockServer = { in: mockIn } as any;
+
+      service.setServer(mockServer);
+      service.removeSocketsFromRoom('user-123', 'channel-456');
+
+      expect(mockIn).toHaveBeenCalledWith('user-123');
+      expect(mockSocketsLeave).toHaveBeenCalledWith('channel-456');
+    });
+
+    it('should remove sockets from multiple rooms', () => {
+      const mockSocketsLeave = jest.fn();
+      const mockIn = jest
+        .fn()
+        .mockReturnValue({ socketsLeave: mockSocketsLeave });
+      const mockServer = { in: mockIn } as any;
+
+      service.setServer(mockServer);
+      service.removeSocketsFromRoom('user-123', ['room-1', 'room-2']);
+
+      expect(mockIn).toHaveBeenCalledWith('user-123');
+      expect(mockSocketsLeave).toHaveBeenCalledWith(['room-1', 'room-2']);
+    });
+
+    it('should not throw when server is not initialized', () => {
+      expect(() => {
+        service.removeSocketsFromRoom('user-123', 'channel-456');
+      }).not.toThrow();
+    });
+
+    it('should not throw on error', () => {
+      const mockIn = jest.fn().mockImplementation(() => {
+        throw new Error('Socket error');
+      });
+      const mockServer = { in: mockIn } as any;
+
+      service.setServer(mockServer);
+
+      expect(() => {
+        service.removeSocketsFromRoom('user-123', 'channel-456');
+      }).not.toThrow();
+    });
+  });
 });

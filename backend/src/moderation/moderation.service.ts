@@ -12,6 +12,7 @@ import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { RoomEvents } from '@/rooms/room-subscription.events';
+import { RoomName } from '@/common/utils/room-name.util';
 import {
   ModerationAction,
   Prisma,
@@ -190,13 +191,17 @@ export class ModerationService {
     );
 
     // Emit WebSocket event to community
-    this.websocketService.sendToRoom(communityId, ServerEvents.USER_BANNED, {
-      communityId,
-      userId,
-      moderatorId,
-      reason,
-      expiresAt: expiresAt?.toISOString(),
-    });
+    this.websocketService.sendToRoom(
+      RoomName.community(communityId),
+      ServerEvents.USER_BANNED,
+      {
+        communityId,
+        userId,
+        moderatorId,
+        reason,
+        expiresAt: expiresAt?.toISOString(),
+      },
+    );
   }
 
   async unbanUser(
@@ -325,12 +330,16 @@ export class ModerationService {
     );
 
     // Emit WebSocket event to community
-    this.websocketService.sendToRoom(communityId, ServerEvents.USER_KICKED, {
-      communityId,
-      userId,
-      moderatorId,
-      reason,
-    });
+    this.websocketService.sendToRoom(
+      RoomName.community(communityId),
+      ServerEvents.USER_KICKED,
+      {
+        communityId,
+        userId,
+        moderatorId,
+        reason,
+      },
+    );
   }
 
   /**
@@ -419,14 +428,18 @@ export class ModerationService {
     );
 
     // Emit WebSocket event to community
-    this.websocketService.sendToRoom(communityId, ServerEvents.USER_TIMED_OUT, {
-      communityId,
-      userId,
-      moderatorId,
-      reason,
-      durationSeconds,
-      expiresAt: expiresAt.toISOString(),
-    });
+    this.websocketService.sendToRoom(
+      RoomName.community(communityId),
+      ServerEvents.USER_TIMED_OUT,
+      {
+        communityId,
+        userId,
+        moderatorId,
+        reason,
+        durationSeconds,
+        expiresAt: expiresAt.toISOString(),
+      },
+    );
   }
 
   async removeTimeout(
@@ -462,7 +475,7 @@ export class ModerationService {
 
     // Emit WebSocket event to community
     this.websocketService.sendToRoom(
-      communityId,
+      RoomName.community(communityId),
       ServerEvents.TIMEOUT_REMOVED,
       {
         communityId,

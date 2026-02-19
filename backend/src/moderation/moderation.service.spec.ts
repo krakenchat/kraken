@@ -18,6 +18,7 @@ import {
 } from '@/test-utils';
 import { ModerationAction } from '@prisma/client';
 import { RoomEvents } from '@/rooms/room-subscription.events';
+import { RoomName } from '@/common/utils/room-name.util';
 
 describe('ModerationService', () => {
   let service: ModerationService;
@@ -115,7 +116,11 @@ describe('ModerationService', () => {
         RoomEvents.MODERATION_USER_BANNED,
         { userId, communityId },
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower role', async () => {
@@ -304,7 +309,11 @@ describe('ModerationService', () => {
         RoomEvents.MODERATION_USER_KICKED,
         { userId, communityId },
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower role', async () => {
@@ -346,7 +355,11 @@ describe('ModerationService', () => {
           }),
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower role', async () => {
@@ -379,7 +392,11 @@ describe('ModerationService', () => {
           }),
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw NotFoundException when timeout does not exist', async () => {

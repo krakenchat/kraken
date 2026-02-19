@@ -9,24 +9,24 @@
 // Event Name Constants
 // =============================================================================
 
-export const RoomEvents = {
-  MEMBERSHIP_CREATED: 'membership.created',
-  MEMBERSHIP_REMOVED: 'membership.removed',
-  MODERATION_USER_BANNED: 'moderation.user-banned',
-  MODERATION_USER_KICKED: 'moderation.user-kicked',
-  CHANNEL_CREATED: 'channel.created',
-  CHANNEL_DELETED: 'channel.deleted',
-  CHANNEL_MEMBERSHIP_CREATED: 'channel-membership.created',
-  CHANNEL_MEMBERSHIP_REMOVED: 'channel-membership.removed',
-  DM_GROUP_CREATED: 'dm-group.created',
-  DM_GROUP_MEMBER_ADDED: 'dm-group.member-added',
-  DM_GROUP_MEMBER_LEFT: 'dm-group.member-left',
-  ALIAS_GROUP_CREATED: 'alias-group.created',
-  ALIAS_GROUP_MEMBER_ADDED: 'alias-group.member-added',
-  ALIAS_GROUP_MEMBER_REMOVED: 'alias-group.member-removed',
-  ALIAS_GROUP_DELETED: 'alias-group.deleted',
-  ALIAS_GROUP_MEMBERS_UPDATED: 'alias-group.members-updated',
-} as const;
+export enum RoomEvents {
+  MEMBERSHIP_CREATED = 'membership.created',
+  MEMBERSHIP_REMOVED = 'membership.removed',
+  MODERATION_USER_BANNED = 'moderation.user-banned',
+  MODERATION_USER_KICKED = 'moderation.user-kicked',
+  CHANNEL_CREATED = 'channel.created',
+  CHANNEL_DELETED = 'channel.deleted',
+  CHANNEL_MEMBERSHIP_CREATED = 'channel-membership.created',
+  CHANNEL_MEMBERSHIP_REMOVED = 'channel-membership.removed',
+  DM_GROUP_CREATED = 'dm-group.created',
+  DM_GROUP_MEMBER_ADDED = 'dm-group.member-added',
+  DM_GROUP_MEMBER_LEFT = 'dm-group.member-left',
+  ALIAS_GROUP_CREATED = 'alias-group.created',
+  ALIAS_GROUP_MEMBER_ADDED = 'alias-group.member-added',
+  ALIAS_GROUP_MEMBER_REMOVED = 'alias-group.member-removed',
+  ALIAS_GROUP_DELETED = 'alias-group.deleted',
+  ALIAS_GROUP_MEMBERS_UPDATED = 'alias-group.members-updated',
+}
 
 // =============================================================================
 // Event Payload Interfaces
