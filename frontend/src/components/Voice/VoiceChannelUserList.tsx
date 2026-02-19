@@ -31,7 +31,8 @@ import UserAvatar from "../Common/UserAvatar";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import VoiceUserContextMenu from "./VoiceUserContextMenu";
-import { RoomEvent, Participant } from "livekit-client";
+import { RoomEvent } from "livekit-client";
+import { getUserInfo } from "../../features/users/userApiHelpers";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -74,7 +75,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   } = useQuery({
     ...voicePresenceControllerGetChannelPresenceOptions({ path: { channelId: channel.id } }),
     enabled: channel.type === ChannelType.VOICE && !isConnectedToThisChannel,
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
 
   // Hook for real-time speaking detection via LiveKit
@@ -89,13 +90,13 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 
     const room = voiceState.room;
 
-    const updateParticipants = () => {
+    const updateParticipants = async () => {
       const participants: VoicePresenceUserDto[] = [];
 
       // Add local participant
       const local = room.localParticipant;
       if (local && local.identity) {
-        let localMeta: { avatarUrl?: string; isDeafened?: boolean } = {};
+        let localMeta: { isDeafened?: boolean } = {};
         try {
           if (local.metadata) {
             localMeta = JSON.parse(local.metadata);
@@ -103,19 +104,21 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         } catch {
           // Ignore parse errors
         }
+        const userInfo = await getUserInfo(local.identity);
         participants.push({
           id: local.identity,
           username: local.name || local.identity,
           displayName: local.name || undefined,
-          avatarUrl: localMeta.avatarUrl,
+          avatarUrl: userInfo?.avatarUrl ?? undefined,
           joinedAt: new Date().toISOString(), // LiveKit doesn't track join time, use now
           isDeafened: localMeta.isDeafened ?? false,
         });
       }
 
       // Add remote participants
-      room.remoteParticipants.forEach((participant: Participant) => {
-        let metadata: { avatarUrl?: string; isDeafened?: boolean } = {};
+      const remoteEntries = Array.from(room.remoteParticipants.values());
+      for (const participant of remoteEntries) {
+        let metadata: { isDeafened?: boolean } = {};
         try {
           if (participant.metadata) {
             metadata = JSON.parse(participant.metadata);
@@ -123,16 +126,16 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         } catch {
           // Ignore parse errors
         }
-
+        const userInfo = await getUserInfo(participant.identity);
         participants.push({
           id: participant.identity,
           username: participant.name || participant.identity,
           displayName: participant.name || undefined,
-          avatarUrl: metadata.avatarUrl,
+          avatarUrl: userInfo?.avatarUrl ?? undefined,
           joinedAt: new Date().toISOString(),
           isDeafened: metadata.isDeafened ?? false,
         });
-      });
+      }
 
       setLivekitParticipants(participants);
     };

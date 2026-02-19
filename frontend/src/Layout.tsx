@@ -26,6 +26,8 @@ import { VideoOverlayProvider, useVideoOverlay } from "./contexts/VideoOverlayCo
 import { SocketHubProvider } from "./socket-hub";
 import { setTelemetryUser, clearTelemetryUser } from "./services/telemetry";
 import { useThemeSync } from "./hooks/useThemeSync";
+import { disconnectSocket } from "./utils/socketSingleton";
+import { clearSavedConnection } from "./features/voice/voiceActions";
 
 const settings = ["My Profile", "Settings", "Logout"];
 
@@ -77,7 +79,7 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const { data: userData, isLoading, isError } = useQuery(userControllerGetProfileOptions());
   const { mutateAsync: logout, isPending: logoutLoading } = useMutation(authControllerLogoutMutation());
-  const { state: voiceState } = useVoiceConnection();
+  const { state: voiceState, actions: voiceActions } = useVoiceConnection();
   const { isMobile, isTablet } = useResponsive();
 
   // Sync theme settings with server (server wins on initial load)
@@ -123,6 +125,16 @@ const Layout: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    // Disconnect voice if connected
+    if (voiceState.isConnected) {
+      try {
+        await voiceActions.leaveVoiceChannel();
+      } catch {
+        // Best effort — don't block logout
+      }
+    }
+    clearSavedConnection();
+    disconnectSocket();
     await logout({});
     localStorage.removeItem("accessToken");
     clearTelemetryUser();

@@ -7,6 +7,7 @@ export interface VoiceSettings {
   inputMode: VoiceInputMode;
   pushToTalkKey: string;        // KeyboardEvent.code, e.g., 'Space', 'KeyV'
   pushToTalkKeyDisplay: string; // Human-readable display, e.g., 'Space', 'V'
+  voiceActivityThreshold: number; // 0-100, default 25 (lower = more sensitive)
 }
 
 const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
@@ -15,6 +16,7 @@ const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   inputMode: 'voice_activity',
   pushToTalkKey: 'Backquote',
   pushToTalkKeyDisplay: '`',
+  voiceActivityThreshold: 25,
 };
 
 /**
@@ -106,6 +108,11 @@ export const useVoiceSettings = () => {
     });
   }, [saveVoiceSettings]);
 
+  // Set voice activity threshold
+  const setVoiceActivityThreshold = useCallback((threshold: number) => {
+    saveVoiceSettings({ voiceActivityThreshold: threshold });
+  }, [saveVoiceSettings]);
+
   return {
     // Current settings
     settings: voiceSettings,
@@ -114,12 +121,14 @@ export const useVoiceSettings = () => {
     inputMode: voiceSettings.inputMode,
     pushToTalkKey: voiceSettings.pushToTalkKey,
     pushToTalkKeyDisplay: voiceSettings.pushToTalkKeyDisplay,
+    voiceActivityThreshold: voiceSettings.voiceActivityThreshold,
     isPushToTalk: voiceSettings.inputMode === 'push_to_talk',
 
     // Setters
     setInputMode,
     setPushToTalkKey,
     setPushToTalkKeyDirect,
+    setVoiceActivityThreshold,
     saveVoiceSettings,
   };
 };

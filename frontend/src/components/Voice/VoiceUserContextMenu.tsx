@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Menu,
   MenuItem,
@@ -26,6 +26,7 @@ import TimeoutDialog from "../Moderation/TimeoutDialog";
 import KickConfirmDialog from "../Moderation/KickConfirmDialog";
 import { getApiBaseUrl } from "../../config/env";
 import { getAuthToken } from "../../utils/auth";
+import { useNotification } from "../../contexts/NotificationContext";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 
 const VOLUME_STORAGE_PREFIX = "voiceUserVolume:";
@@ -67,6 +68,7 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
   const { state: voiceState } = useVoiceConnection();
   const { participant } = useParticipantTracks(user.id);
   const isLocalUser = voiceState.room?.localParticipant?.identity === user.id;
+  const { showNotification } = useNotification();
 
   // Volume state (0-200, stored as 0-2.0)
   const [volume, setVolume] = useState<number>(() => {
@@ -79,6 +81,18 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
 
   const isLocallyMuted = volume === 0;
+
+  // Web Audio GainNode for >100% amplification
+  const gainNodesRef = useRef<Map<string, { gainNode: GainNode; source: MediaStreamAudioSourceNode; context: AudioContext }>>(new Map());
+
+  // Cleanup gain nodes on unmount
+  useEffect(() => {
+    const nodes = gainNodesRef.current;
+    return () => {
+      nodes.forEach(({ context }) => context.close());
+      nodes.clear();
+    };
+  }, []);
 
   const canMuteParticipant = useCanPerformAction(
     "COMMUNITY",
@@ -101,18 +115,50 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
     RBAC_ACTIONS.BAN_USER,
   );
 
-  // Apply volume to LiveKit participant tracks
+  // Apply volume to LiveKit participant tracks (with GainNode for >100%)
   const applyVolume = useCallback(
     (vol: number) => {
       if (!participant || isLocalUser) return;
-      const livekitVolume = vol / 100; // Convert 0-200 to 0-2.0
+
       participant.audioTrackPublications.forEach((pub) => {
         if (pub.track && (pub.source === Track.Source.Microphone || pub.source === Track.Source.ScreenShareAudio)) {
-          pub.track.setVolume(livekitVolume);
+          const key = `${user.id}:${pub.source}`;
+
+          if (vol <= 100) {
+            // Standard range: use track.setVolume (0-1.0)
+            pub.track.setVolume(vol / 100);
+            // Remove gain node if exists (no longer boosting)
+            const entry = gainNodesRef.current.get(key);
+            if (entry) {
+              entry.source.disconnect();
+              entry.context.close();
+              gainNodesRef.current.delete(key);
+            }
+          } else {
+            // Boost range: set track to full, apply gain > 1.0 via Web Audio
+            pub.track.setVolume(1.0);
+
+            const mediaStream = pub.track.mediaStream;
+            if (mediaStream) {
+              let entry = gainNodesRef.current.get(key);
+
+              if (!entry) {
+                const context = new AudioContext();
+                const source = context.createMediaStreamSource(mediaStream);
+                const gainNode = context.createGain();
+                source.connect(gainNode);
+                gainNode.connect(context.destination);
+                entry = { gainNode, source, context };
+                gainNodesRef.current.set(key, entry);
+              }
+
+              entry.gainNode.gain.value = vol / 100; // 1.0 - 2.0
+            }
+          }
         }
       });
     },
-    [participant, isLocalUser],
+    [participant, isLocalUser, user.id],
   );
 
   // Apply stored volume when participant joins/changes
@@ -139,12 +185,14 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
       setVolume(restored);
       applyVolume(restored);
       setStoredVolume(user.id, restored / 100);
+      showNotification(`Unmuted ${user.displayName || user.username}`, "info");
     } else {
       // Mute: save current volume and set to 0
       setPreviousVolume(volume);
       setVolume(0);
       applyVolume(0);
       setStoredVolume(user.id, 0);
+      showNotification(`Muted ${user.displayName || user.username}`, "info");
     }
     onClose();
   };

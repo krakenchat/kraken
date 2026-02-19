@@ -8,6 +8,7 @@ import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/scre
 import { logger } from "../../utils/logger";
 import { isElectron } from "../../utils/platform";
 import { getCachedItem, setCachedItem, removeCachedItem } from "../../utils/storage";
+import { refreshToken as refreshAuthToken } from "../../utils/tokenService";
 
 // Storage key must match useDeviceSettings.ts
 const DEVICE_PREFERENCES_KEY = 'kraken_device_preferences';
@@ -197,10 +198,27 @@ export async function joinVoiceChannel(
     dispatch({ type: 'SET_CONNECTING', payload: true });
 
     logger.info('[Voice] Requesting LiveKit token...');
-    const { data: tokenResponse } = await livekitControllerGenerateToken({
-      body: { roomId: channelId, identity: user.id, name: user.displayName || user.username },
-      throwOnError: true,
-    });
+    let tokenResponse;
+    try {
+      const { data } = await livekitControllerGenerateToken({
+        body: { roomId: channelId, identity: user.id, name: user.displayName || user.username },
+        throwOnError: true,
+      });
+      tokenResponse = data;
+    } catch (error) {
+      // If 401, try refreshing the access token and retry once
+      if (error instanceof Error && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
+        logger.warn('[Voice] Token may be stale, attempting refresh...');
+        await refreshAuthToken();
+        const { data } = await livekitControllerGenerateToken({
+          body: { roomId: channelId, identity: user.id, name: user.displayName || user.username },
+          throwOnError: true,
+        });
+        tokenResponse = data;
+      } else {
+        throw error;
+      }
+    }
     logger.info('[Voice] Got LiveKit token');
 
     logger.info('[Voice] Connecting to LiveKit room...');
@@ -302,10 +320,26 @@ export async function joinDmVoice(
   try {
     dispatch({ type: 'SET_CONNECTING', payload: true });
 
-    const { data: tokenResponse } = await livekitControllerGenerateDmToken({
-      body: { roomId: dmGroupId, identity: user.id, name: user.displayName || user.username },
-      throwOnError: true,
-    });
+    let tokenResponse;
+    try {
+      const { data } = await livekitControllerGenerateDmToken({
+        body: { roomId: dmGroupId, identity: user.id, name: user.displayName || user.username },
+        throwOnError: true,
+      });
+      tokenResponse = data;
+    } catch (error) {
+      if (error instanceof Error && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
+        logger.warn('[Voice] DM token may be stale, attempting refresh...');
+        await refreshAuthToken();
+        const { data } = await livekitControllerGenerateDmToken({
+          body: { roomId: dmGroupId, identity: user.id, name: user.displayName || user.username },
+          throwOnError: true,
+        });
+        tokenResponse = data;
+      } else {
+        throw error;
+      }
+    }
 
     await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
 
@@ -581,8 +615,15 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
 
     if (newDeafenedState && room) {
       const isMicEnabled = room.localParticipant.isMicrophoneEnabled;
+      dispatch({ type: 'SET_WAS_MUTED_BEFORE_DEAFEN', payload: !isMicEnabled });
       if (isMicEnabled) {
         await room.localParticipant.setMicrophoneEnabled(false);
+      }
+    } else if (!newDeafenedState && room) {
+      // Restore mic state from before deafen
+      const { wasMutedBeforeDeafen } = getVoiceState();
+      if (!wasMutedBeforeDeafen) {
+        await room.localParticipant.setMicrophoneEnabled(true);
       }
     }
   } catch (error) {

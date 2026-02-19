@@ -17,6 +17,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   IconButton,
+  Slider,
 } from '@mui/material';
 import {
   Mic,
@@ -66,8 +67,10 @@ const VoiceSettings: React.FC = () => {
   const {
     inputMode,
     pushToTalkKeyDisplay,
+    voiceActivityThreshold,
     setInputMode,
     setPushToTalkKey,
+    setVoiceActivityThreshold,
   } = useVoiceSettings();
 
   // Stop audio test
@@ -279,6 +282,32 @@ const VoiceSettings: React.FC = () => {
               : 'Hold a key to transmit audio'}
           </Typography>
         </Box>
+
+        {/* Input Sensitivity (only shown when voice_activity mode is selected) */}
+        {inputMode === 'voice_activity' && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Input Sensitivity
+            </Typography>
+            <Slider
+              value={voiceActivityThreshold}
+              onChange={(_, val) => setVoiceActivityThreshold(val as number)}
+              min={0}
+              max={100}
+              marks={[
+                { value: 0, label: 'High' },
+                { value: 50, label: 'Medium' },
+                { value: 100, label: 'Low' },
+              ]}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(v) => `${100 - v}%`}
+              size="small"
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Lower threshold = more sensitive (picks up quieter sounds)
+            </Typography>
+          </Box>
+        )}
 
         {/* Push to Talk Key (only shown when PTT mode is selected) */}
         {inputMode === 'push_to_talk' && (
