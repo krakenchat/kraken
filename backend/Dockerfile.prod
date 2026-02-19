@@ -71,8 +71,11 @@ COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./backend/prisma
 
 WORKDIR /app/backend
 
-# Rebuild bcrypt for Alpine's musl libc to prevent segfaults
+# Rebuild bcrypt for Alpine's musl libc to prevent segfaults.
+# The builder stage downloads a glibc prebuilt binary; pnpm sees it and skips
+# the rebuild. Delete it first to force recompilation against musl.
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
+    find /app -name "bcrypt_lib.node" -delete && \
     pnpm rebuild bcrypt && \
     apk del .build-deps
 
