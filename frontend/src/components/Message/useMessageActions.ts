@@ -25,8 +25,6 @@ import { channelMessagesQueryKey, dmMessagesQueryKey } from "../../utils/message
 import {
   updateMessageInInfinite,
   deleteMessageFromInfinite,
-  updateMessageInFlat,
-  deleteMessageFromFlat,
 } from "../../utils/messageCacheUpdaters";
 import { removeMessageContext } from "../../utils/messageIndex";
 import { logger } from "../../utils/logger";
@@ -56,17 +54,15 @@ function updateCache(
   queryClient: ReturnType<typeof useQueryClient>,
   msg: MessageType,
 ) {
-  if (msg.channelId) {
-    const queryKey = channelMessagesQueryKey(msg.channelId);
-    queryClient.setQueryData(queryKey, (old: unknown) =>
-      updateMessageInInfinite(old as never, msg)
-    );
-  } else if (msg.directMessageGroupId) {
-    const queryKey = dmMessagesQueryKey(msg.directMessageGroupId);
-    queryClient.setQueryData(queryKey, (old: unknown) =>
-      updateMessageInFlat(old as never, msg)
-    );
-  }
+  const queryKey = msg.channelId
+    ? channelMessagesQueryKey(msg.channelId)
+    : msg.directMessageGroupId
+      ? dmMessagesQueryKey(msg.directMessageGroupId)
+      : undefined;
+  if (!queryKey) return;
+  queryClient.setQueryData(queryKey, (old: unknown) =>
+    updateMessageInInfinite(old as never, msg)
+  );
 }
 
 /** Delete a message from the TQ cache (handles both channel and DM contexts) */
@@ -74,17 +70,15 @@ function deleteFromCache(
   queryClient: ReturnType<typeof useQueryClient>,
   msg: MessageType,
 ) {
-  if (msg.channelId) {
-    const queryKey = channelMessagesQueryKey(msg.channelId);
-    queryClient.setQueryData(queryKey, (old: unknown) =>
-      deleteMessageFromInfinite(old as never, msg.id)
-    );
-  } else if (msg.directMessageGroupId) {
-    const queryKey = dmMessagesQueryKey(msg.directMessageGroupId);
-    queryClient.setQueryData(queryKey, (old: unknown) =>
-      deleteMessageFromFlat(old as never, msg.id)
-    );
-  }
+  const queryKey = msg.channelId
+    ? channelMessagesQueryKey(msg.channelId)
+    : msg.directMessageGroupId
+      ? dmMessagesQueryKey(msg.directMessageGroupId)
+      : undefined;
+  if (!queryKey) return;
+  queryClient.setQueryData(queryKey, (old: unknown) =>
+    deleteMessageFromInfinite(old as never, msg.id)
+  );
   removeMessageContext(msg.id);
 }
 

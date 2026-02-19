@@ -31,6 +31,9 @@ export type MockWebsocketService = {
   leaveRoom: jest.Mock;
   getRoomMembers: jest.Mock;
   disconnectUser: jest.Mock;
+  joinSocketsToRoom: jest.Mock;
+  setServer: jest.Mock;
+  sendToAll: jest.Mock;
 };
 
 export function createMockWebsocketService(): MockWebsocketService {
@@ -90,6 +93,9 @@ export function createMockWebsocketService(): MockWebsocketService {
     disconnectUser: jest.fn((userId: string) => {
       userSockets.delete(userId);
     }),
+    joinSocketsToRoom: jest.fn().mockResolvedValue(undefined),
+    setServer: jest.fn(),
+    sendToAll: jest.fn(),
   } as unknown as MockWebsocketService;
 }
 

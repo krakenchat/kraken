@@ -11,7 +11,6 @@ import ChannelMessageContainer from "../components/Channel/ChannelMessageContain
 import { VoiceChannelUserList } from "../components/Voice";
 import EditCommunityButton from "../components/Community/EditCommunityButton";
 import { styled } from "@mui/material/styles";
-import { useCommunityJoin } from "../hooks/useCommunityJoin";
 import { ChannelType } from "../types/channel.type";
 import { useVoiceConnection } from "../hooks/useVoiceConnection";
 import { useAuthenticatedImage } from "../hooks/useAuthenticatedImage";
@@ -21,8 +20,6 @@ import { useVideoOverlay } from "../contexts/VideoOverlayContext";
 const CommunityPage: React.FC = () => {
   const { isMobile } = useResponsive();
   const { communityId } = useParams<{ communityId: string }>();
-
-  useCommunityJoin(communityId);
 
   // Mobile version is handled by MobileLayout with panel navigation
   if (isMobile) {

@@ -208,6 +208,10 @@ export const handlers = [
     return HttpResponse.json(dmMessagesResponse);
   }),
 
+  http.get(`${BASE_URL}/api/messages/group/:groupId`, () => {
+    return HttpResponse.json(dmMessagesResponse);
+  }),
+
   http.get(`${BASE_URL}/api/threads/:parentMessageId/replies`, () => {
     return HttpResponse.json(threadRepliesResponse);
   }),

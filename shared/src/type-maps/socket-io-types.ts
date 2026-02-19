@@ -117,12 +117,7 @@ export type ServerToClientEvents = {
  */
 export type ClientToServerEvents = {
   // Connection & Room Management
-  [ClientEvents.JOIN_ALL]: (communityId: string) => void;
-  [ClientEvents.LEAVE_ALL]: (communityId: string) => void;
-  [ClientEvents.JOIN_ROOM]: (channelId: string) => void;
-  [ClientEvents.LEAVE_ROOM]: (channelId: string) => void;
-  [ClientEvents.JOIN_DM_ROOM]: (dmGroupId: string) => void;
-  [ClientEvents.LEAVE_DM_ROOM]: (dmGroupId: string) => void;
+  [ClientEvents.SUBSCRIBE_ALL]: () => void;
   [ClientEvents.PRESENCE_ONLINE]: () => void;
 
   // Messaging: Channels

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["src/*"],
+      "@kraken/shared": ["../shared/src"],
+      "@kraken/shared/*": ["../shared/src/*"]
+    }
+  }
+}

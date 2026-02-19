@@ -14,7 +14,7 @@ import {
   ThreadReplyCountUpdatedPayload,
   ReadReceiptUpdatedPayload,
 } from "@kraken/shared";
-import { channelMessagesQueryKey } from "../utils/messageQueryKeys";
+import { messageQueryKeyForContext, channelMessagesQueryKey } from "../utils/messageQueryKeys";
 import {
   readReceiptsControllerGetUnreadCountsQueryKey,
   userControllerGetProfileQueryKey,
@@ -32,7 +32,12 @@ import {
   removeMessageContext,
 } from "../utils/messageIndex";
 
-export function useChannelWebSocket() {
+/**
+ * Unified WebSocket hook for both channel and DM message events.
+ * Handles NEW_MESSAGE, NEW_DM, UPDATE_MESSAGE, DELETE_MESSAGE, reactions,
+ * pins, thread reply counts, read receipts, and reconnect invalidation.
+ */
+export function useMessageWebSocket() {
   const socket = useSocket();
   const queryClient = useQueryClient();
 
@@ -40,18 +45,18 @@ export function useChannelWebSocket() {
     if (!socket) return;
 
     const handleNewMessage = async ({ message }: NewMessagePayload) => {
+      const queryKey = messageQueryKeyForContext(message);
+      if (!queryKey) return;
       const contextId = message.channelId || message.directMessageGroupId;
       if (!contextId) return;
-      const queryKey = channelMessagesQueryKey(contextId);
-      // Cancel in-flight fetchNextPage to prevent it from overwriting this
-      // WebSocket update when it resolves. See: TanStack Query issue #3579
+
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, (old: unknown) =>
         prependMessageToInfinite(old as never, message as Message)
       );
       setMessageContext(message.id, contextId);
 
-      // Increment unread count for this channel/DM — skip for own messages
+      // Increment unread count — skip for own messages
       const currentUser = queryClient.getQueryData<UserControllerGetProfileResponse>(
         userControllerGetProfileQueryKey()
       );
@@ -68,7 +73,6 @@ export function useChannelWebSocket() {
           next[index] = { ...next[index], unreadCount: next[index].unreadCount + 1 };
           return next;
         }
-        // New entry for a channel/DM not yet tracked
         return [
           ...old,
           {
@@ -82,9 +86,8 @@ export function useChannelWebSocket() {
     };
 
     const handleUpdateMessage = async ({ message }: UpdateMessagePayload) => {
-      const contextId = message.channelId || message.directMessageGroupId;
-      if (!contextId) return;
-      const queryKey = channelMessagesQueryKey(contextId);
+      const queryKey = messageQueryKeyForContext(message);
+      if (!queryKey) return;
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, (old: unknown) =>
         updateMessageInInfinite(old as never, message as Message)
@@ -96,9 +99,8 @@ export function useChannelWebSocket() {
       channelId,
       directMessageGroupId,
     }: DeleteMessagePayload) => {
-      const contextId = channelId || directMessageGroupId;
-      if (!contextId) return;
-      const queryKey = channelMessagesQueryKey(contextId);
+      const queryKey = messageQueryKeyForContext({ channelId, directMessageGroupId });
+      if (!queryKey) return;
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, (old: unknown) =>
         deleteMessageFromInfinite(old as never, messageId)
@@ -114,8 +116,13 @@ export function useChannelWebSocket() {
       if (!contextId) return;
 
       const queryKey = channelMessagesQueryKey(contextId);
-      await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, (old: unknown) => {
+      // Try channel key first; if not found, the message may be in a DM
+      const data = queryClient.getQueryData(queryKey);
+      const effectiveKey = data ? queryKey : messageQueryKeyForContext({ directMessageGroupId: contextId });
+      if (!effectiveKey) return;
+
+      await queryClient.cancelQueries({ queryKey: effectiveKey });
+      queryClient.setQueryData(effectiveKey, (old: unknown) => {
         const msg = findMessageInInfinite(old as never, messageId);
         if (!msg) return old;
 
@@ -144,8 +151,12 @@ export function useChannelWebSocket() {
       if (!contextId) return;
 
       const queryKey = channelMessagesQueryKey(contextId);
-      await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, (old: unknown) => {
+      const data = queryClient.getQueryData(queryKey);
+      const effectiveKey = data ? queryKey : messageQueryKeyForContext({ directMessageGroupId: contextId });
+      if (!effectiveKey) return;
+
+      await queryClient.cancelQueries({ queryKey: effectiveKey });
+      queryClient.setQueryData(effectiveKey, (old: unknown) => {
         const msg = findMessageInInfinite(old as never, messageId);
         if (!msg) return old;
         return updateMessageInInfinite(old as never, {
@@ -161,8 +172,7 @@ export function useChannelWebSocket() {
       pinnedBy,
       pinnedAt,
     }: MessagePinnedPayload) => {
-      const contextId = channelId;
-      const queryKey = channelMessagesQueryKey(contextId);
+      const queryKey = channelMessagesQueryKey(channelId);
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, (old: unknown) => {
         const msg = findMessageInInfinite(old as never, messageId);
@@ -180,8 +190,7 @@ export function useChannelWebSocket() {
       messageId,
       channelId,
     }: MessageUnpinnedPayload) => {
-      const contextId = channelId;
-      const queryKey = channelMessagesQueryKey(contextId);
+      const queryKey = channelMessagesQueryKey(channelId);
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, (old: unknown) => {
         const msg = findMessageInInfinite(old as never, messageId);
@@ -246,17 +255,20 @@ export function useChannelWebSocket() {
       });
     };
 
-    // After reconnect, we may have missed WebSocket events while disconnected.
-    // Invalidate message queries to re-fetch and catch up.
+    // After reconnect, invalidate all message queries to catch up
     const handleReconnect = () => {
       queryClient.invalidateQueries({
         queryKey: [{ _id: 'messagesControllerFindAllForChannel' }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ _id: 'messagesControllerFindAllForGroup' }],
       });
       queryClient.invalidateQueries({
         queryKey: readReceiptsControllerGetUnreadCountsQueryKey(),
       });
     };
 
+    // Channel events
     socket.on(ServerEvents.NEW_MESSAGE, handleNewMessage);
     socket.on(ServerEvents.UPDATE_MESSAGE, handleUpdateMessage);
     socket.on(ServerEvents.DELETE_MESSAGE, handleDeleteMessage);
@@ -266,6 +278,10 @@ export function useChannelWebSocket() {
     socket.on(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
     socket.on(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
     socket.on(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
+
+    // DM events — reuse the same handler since the payload shape is identical
+    socket.on(ServerEvents.NEW_DM, handleNewMessage);
+
     socket.on('connect', handleReconnect);
 
     return () => {
@@ -278,6 +294,7 @@ export function useChannelWebSocket() {
       socket.off(ServerEvents.MESSAGE_UNPINNED, handleMessageUnpinned);
       socket.off(ServerEvents.THREAD_REPLY_COUNT_UPDATED, handleThreadReplyCountUpdated);
       socket.off(ServerEvents.READ_RECEIPT_UPDATED, handleReadReceiptUpdated);
+      socket.off(ServerEvents.NEW_DM, handleNewMessage);
       socket.off('connect', handleReconnect);
     };
   }, [socket, queryClient]);

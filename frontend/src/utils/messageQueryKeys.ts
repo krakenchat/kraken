@@ -1,6 +1,6 @@
 import {
   messagesControllerFindAllForChannelQueryKey,
-  directMessagesControllerGetDmMessagesQueryKey,
+  messagesControllerFindAllForGroupQueryKey,
 } from '../api-client/@tanstack/react-query.gen';
 
 // WebSocket events keep message data fresh — disable TanStack Query
@@ -18,7 +18,18 @@ export function channelMessagesQueryKey(channelId: string) {
 }
 
 export function dmMessagesQueryKey(dmGroupId: string) {
-  return directMessagesControllerGetDmMessagesQueryKey({
-    path: { id: dmGroupId },
+  return messagesControllerFindAllForGroupQueryKey({
+    path: { groupId: dmGroupId },
+    query: { limit: 25, continuationToken: '' },
   });
+}
+
+/**
+ * Returns the correct query key for a message based on its context.
+ * Used by WebSocket handlers that receive messages and need to update the right cache.
+ */
+export function messageQueryKeyForContext(message: { channelId?: string | null; directMessageGroupId?: string | null }) {
+  if (message.channelId) return channelMessagesQueryKey(message.channelId);
+  if (message.directMessageGroupId) return dmMessagesQueryKey(message.directMessageGroupId);
+  return undefined;
 }

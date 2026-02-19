@@ -3,12 +3,7 @@
  */
 export enum ClientEvents {
   // Connection & Room Management
-  JOIN_ALL = 'joinAll',
-  JOIN_ROOM = 'joinRoom',
-  LEAVE_ROOM = 'leaveRoom',
-  LEAVE_ALL = 'leaveAll',
-  JOIN_DM_ROOM = 'joinDmRoom',
-  LEAVE_DM_ROOM = 'leaveDmRoom',
+  SUBSCRIBE_ALL = 'subscribeAll',
   PRESENCE_ONLINE = 'presenceOnline',
 
   // Messaging: Channels

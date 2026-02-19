@@ -30,6 +30,28 @@ export class WebsocketService {
     }
   }
 
+  /**
+   * Join all sockets in `sourceRoom` to the given rooms.
+   * Typically sourceRoom is a userId (every user joins their own room on connect).
+   */
+  joinSocketsToRoom(sourceRoom: string, rooms: string | string[]): void {
+    if (!this.server) {
+      this.logger.error(
+        'Attempted to join sockets before server was initialized',
+      );
+      return;
+    }
+
+    try {
+      this.server.in(sourceRoom).socketsJoin(rooms);
+    } catch (error) {
+      this.logger.error(
+        `Failed to join sockets in "${sourceRoom}" to rooms`,
+        error,
+      );
+    }
+  }
+
   sendToAll(event: string, payload: any): boolean {
     if (!this.server) {
       this.logger.error(

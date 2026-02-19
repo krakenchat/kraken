@@ -53,6 +53,7 @@ describe('MembershipService', () => {
       mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(null);
       mockDatabase.membership.create.mockResolvedValue(membership);
+      mockDatabase.channel.findMany.mockResolvedValue([]);
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
@@ -148,6 +149,7 @@ describe('MembershipService', () => {
       mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(null);
       mockDatabase.membership.create.mockResolvedValue(membership);
+      mockDatabase.channel.findMany.mockResolvedValue([]);
       communityService.addMemberToGeneralChannel.mockRejectedValue(
         new Error('Channel not found'),
       );
@@ -185,6 +187,7 @@ describe('MembershipService', () => {
       mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(null);
       mockDatabase.membership.create.mockResolvedValue(membership);
+      mockDatabase.channel.findMany.mockResolvedValue([]);
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
@@ -228,6 +231,7 @@ describe('MembershipService', () => {
       mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(null);
       mockDatabase.membership.create.mockResolvedValue(membership);
+      mockDatabase.channel.findMany.mockResolvedValue([]);
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
@@ -264,6 +268,7 @@ describe('MembershipService', () => {
       mockDatabase.user.findUniqueOrThrow.mockResolvedValue(user);
       mockDatabase.membership.findUnique.mockResolvedValue(null);
       mockDatabase.membership.create.mockResolvedValue(membership);
+      mockDatabase.channel.findMany.mockResolvedValue([]);
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
