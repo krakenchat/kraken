@@ -71,11 +71,12 @@ COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./backend/prisma
 WORKDIR /app/backend
 
 # Rebuild bcrypt for Alpine's musl libc to prevent segfaults.
-# The builder stage downloads a glibc prebuilt binary. Neither pnpm rebuild
-# nor find-delete + pnpm rebuild work reliably (missing workspace context).
-# Bypass package managers entirely and run node-gyp directly in bcrypt's dir.
+# The builder stage downloads a glibc prebuilt binary. bcrypt's binding.gyp
+# uses node-pre-gyp template variables (module_name, etc.), so raw node-gyp
+# fails with "Undefined variable module_name". Use node-pre-gyp which resolves
+# those variables and drives the native compilation correctly.
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    cd /app/node_modules/bcrypt && npx node-gyp rebuild && \
+    cd /app/node_modules/bcrypt && npx @mapbox/node-pre-gyp install --build-from-source && \
     apk del .build-deps
 
 # Add OCI labels for GHCR integration (including creation timestamp)
