@@ -60,7 +60,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
 
   const handleAccept = async (friendshipId: string) => {
     try {
-      await acceptRequest({ path: { friendshipId } });
+      await acceptRequest({ path: { id: friendshipId } });
     } catch (err) {
       logger.error("Failed to accept friend request:", err);
     }
@@ -68,7 +68,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
 
   const handleDecline = async (friendshipId: string) => {
     try {
-      await declineRequest({ path: { friendshipId } });
+      await declineRequest({ path: { id: friendshipId } });
     } catch (err) {
       logger.error("Failed to decline friend request:", err);
     }
@@ -76,7 +76,7 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
 
   const handleCancel = async (friendshipId: string) => {
     try {
-      await cancelRequest({ path: { friendshipId } });
+      await cancelRequest({ path: { id: friendshipId } });
     } catch (err) {
       logger.error("Failed to cancel friend request:", err);
     }
