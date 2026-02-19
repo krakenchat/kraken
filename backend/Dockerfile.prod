@@ -51,7 +51,8 @@ ARG GITHUB_REPOSITORY=user/kraken
 ARG BUILD_DATE
 
 # Install OpenSSL for Prisma and FFmpeg for video processing (replay clips)
-RUN apk add --no-cache openssl ffmpeg
+RUN apk add --no-cache openssl ffmpeg && \
+    corepack enable && corepack prepare pnpm@10.30.0 --activate
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -72,7 +73,7 @@ WORKDIR /app/backend
 
 # Rebuild bcrypt for Alpine's musl libc to prevent segfaults
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    npm rebuild bcrypt --build-from-source && \
+    pnpm rebuild bcrypt && \
     apk del .build-deps
 
 # Add OCI labels for GHCR integration (including creation timestamp)
