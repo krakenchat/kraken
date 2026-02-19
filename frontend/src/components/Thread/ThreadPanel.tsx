@@ -27,7 +27,6 @@ import {
 import { Message } from "../../types/message.type";
 import MessageComponent from "../Message/MessageComponent";
 import ThreadMessageInput from "./ThreadMessageInput";
-import useThreadWebSocket from "../../hooks/useThreadWebSocket";
 import { useThreadPanel } from "../../contexts/ThreadPanelContext";
 import { useThreadReplies } from "../../hooks/useThreadReplies";
 import { useThreadSubscription } from "../../hooks/useThreadSubscription";
@@ -49,10 +48,6 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   const theme = useTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
-
-  // Listen for real-time thread updates
-  useThreadWebSocket();
-
   const parentMessageId = parentMessage.id;
   const { closeThread } = useThreadPanel();
 
