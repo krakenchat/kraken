@@ -1,0 +1,74 @@
+import type { QueryClient } from '@tanstack/react-query';
+import type { ServerEvents } from '@kraken/shared';
+import { voicePresenceControllerGetChannelPresenceQueryKey } from '../../api-client/@tanstack/react-query.gen';
+import type { VoicePresenceUserDto, ChannelVoicePresenceResponseDto } from '../../api-client/types.gen';
+import type { SocketEventHandler } from './types';
+
+function invalidateVoiceQueries(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'userVoicePresenceControllerGetMyVoiceChannels' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
+}
+
+export const handleVoiceUserJoined: SocketEventHandler<typeof ServerEvents.VOICE_CHANNEL_USER_JOINED> = (
+  data: { channelId: string; user: VoicePresenceUserDto },
+  queryClient: QueryClient,
+) => {
+  const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
+  const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+
+  if (existing) {
+    queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
+      if (!draft) return draft;
+      const existingIndex = draft.users.findIndex((u) => u.id === data.user.id);
+      if (existingIndex === -1) {
+        const newUsers = [...draft.users, data.user];
+        return { ...draft, users: newUsers, count: newUsers.length };
+      }
+      return draft;
+    });
+  } else {
+    invalidateVoiceQueries(queryClient);
+  }
+};
+
+export const handleVoiceUserLeft: SocketEventHandler<typeof ServerEvents.VOICE_CHANNEL_USER_LEFT> = (
+  data: { channelId: string; userId: string },
+  queryClient: QueryClient,
+) => {
+  const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
+  const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+
+  if (existing) {
+    queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
+      if (!draft) return draft;
+      const newUsers = draft.users.filter((u) => u.id !== data.userId);
+      return { ...draft, users: newUsers, count: newUsers.length };
+    });
+  } else {
+    invalidateVoiceQueries(queryClient);
+  }
+};
+
+export const handleVoiceUserUpdated: SocketEventHandler<typeof ServerEvents.VOICE_CHANNEL_USER_UPDATED> = (
+  data: { channelId: string; user: VoicePresenceUserDto },
+  queryClient: QueryClient,
+) => {
+  const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
+  const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+
+  if (existing) {
+    queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
+      if (!draft) return draft;
+      const index = draft.users.findIndex((u) => u.id === data.user.id);
+      if (index !== -1) {
+        const newUsers = [...draft.users];
+        newUsers[index] = data.user;
+        return { ...draft, users: newUsers };
+      }
+      return draft;
+    });
+  } else {
+    invalidateVoiceQueries(queryClient);
+  }
+};

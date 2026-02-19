@@ -20,15 +20,14 @@ import {
   livekitControllerStartReplayBufferMutation,
   livekitControllerStopReplayBufferMutation,
 } from '../api-client/@tanstack/react-query.gen';
-import { useSocket } from './useSocket';
 import { ServerEvents } from '@kraken/shared';
 import { useNotification } from '../contexts/NotificationContext';
+import { useServerEvent } from '../socket-hub/useServerEvent';
 import { useVoiceConnection } from './useVoiceConnection';
 
 export const useReplayBuffer = () => {
   const { state } = useVoiceConnection();
   const room = state.room;
-  const socket = useSocket();
   const { mutateAsync: startReplayBuffer } = useMutation(livekitControllerStartReplayBufferMutation());
   const { mutateAsync: stopReplayBuffer } = useMutation(livekitControllerStopReplayBufferMutation());
   const { showNotification } = useNotification();
@@ -165,40 +164,19 @@ export const useReplayBuffer = () => {
   ]);
 
   // Listen for WebSocket events when egress stops automatically (disconnect, track end, etc.)
-  useEffect(() => {
-    if (!socket) return;
+  useServerEvent(ServerEvents.REPLAY_BUFFER_STOPPED, (data) => {
+    logger.dev('[ReplayBuffer] Egress stopped by LiveKit:', data);
+    showNotification('Replay ended', 'info');
+    isActiveRef.current = false;
+    setIsReplayBufferActive(false);
+  });
 
-    const handleReplayBufferStopped = (data: {
-      sessionId: string;
-      egressId: string;
-      channelId: string;
-    }) => {
-      logger.dev('[ReplayBuffer] Egress stopped by LiveKit:', data);
-      showNotification('Replay ended', 'info');
-      isActiveRef.current = false;
-      setIsReplayBufferActive(false);
-    };
-
-    const handleReplayBufferFailed = (data: {
-      sessionId: string;
-      egressId: string;
-      channelId: string;
-      error: string;
-    }) => {
-      logger.error('[ReplayBuffer] Egress failed:', data);
-      showNotification('Replay unavailable', 'error');
-      isActiveRef.current = false;
-      setIsReplayBufferActive(false);
-    };
-
-    socket.on(ServerEvents.REPLAY_BUFFER_STOPPED, handleReplayBufferStopped);
-    socket.on(ServerEvents.REPLAY_BUFFER_FAILED, handleReplayBufferFailed);
-
-    return () => {
-      socket.off(ServerEvents.REPLAY_BUFFER_STOPPED, handleReplayBufferStopped);
-      socket.off(ServerEvents.REPLAY_BUFFER_FAILED, handleReplayBufferFailed);
-    };
-  }, [socket, showNotification]);
+  useServerEvent(ServerEvents.REPLAY_BUFFER_FAILED, (data) => {
+    logger.error('[ReplayBuffer] Egress failed:', data);
+    showNotification('Replay unavailable', 'error');
+    isActiveRef.current = false;
+    setIsReplayBufferActive(false);
+  });
 
   // Cleanup: stop replay buffer when component unmounts if still active
   useEffect(() => {

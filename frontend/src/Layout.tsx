@@ -12,23 +12,18 @@ import { VoiceBottomBar, AudioRenderer } from "./components/Voice";
 import { PersistentVideoOverlay } from "./components/Voice/PersistentVideoOverlay";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import { useVoiceRecovery } from "./hooks/useVoiceRecovery";
-import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
-import { usePresenceEvents } from "./hooks/usePresenceEvents";
-import { useVoiceEvents } from "./hooks/useVoiceEvents";
-import { useMessageWebSocket } from "./hooks/useMessageWebSocket";
-import { useCommunityEvents } from "./hooks/useCommunityEvents";
-import { useAutoSubscribe } from "./hooks/useAutoSubscribe";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
 import { useResponsive } from "./hooks/useResponsive";
 import type { User } from "./types/auth.type";
 import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from "./constants/layout";
-import { useNotifications } from "./hooks/useNotifications";
 import { usePushNotifications } from "./hooks/usePushNotifications";
+import { useNotificationSideEffects } from "./hooks/useNotificationSideEffects";
 import NotificationBadge from "./components/Notifications/NotificationBadge";
 import NotificationCenter from "./components/Notifications/NotificationCenter";
 import { ReplayBufferProvider } from "./contexts/ReplayBufferContext";
 import { VideoOverlayProvider, useVideoOverlay } from "./contexts/VideoOverlayContext";
+import { SocketHubProvider } from "./socket-hub";
 import { setTelemetryUser, clearTelemetryUser } from "./services/telemetry";
 import { useThemeSync } from "./hooks/useThemeSync";
 
@@ -63,40 +58,27 @@ const LayoutContentArea: React.FC<{ voiceConnected: boolean; isMenuExpanded: boo
   );
 };
 
+/** Inner component that uses hooks requiring SocketHubProvider context */
+const LayoutHooksBridge: React.FC = () => {
+  // Check push subscription status to avoid duplicate desktop notifications
+  const { isSubscribed: isPushSubscribed } = usePushNotifications();
+
+  // Notification side effects (sounds, desktop notifications, Electron click)
+  useNotificationSideEffects({
+    showDesktopNotifications: true,
+    playSound: true,
+    isPushSubscribed,
+  });
+
+  return null;
+};
+
 const Layout: React.FC = () => {
   const navigate = useNavigate();
   const { data: userData, isLoading, isError } = useQuery(userControllerGetProfileOptions());
   const { mutateAsync: logout, isPending: logoutLoading } = useMutation(authControllerLogoutMutation());
   const { state: voiceState } = useVoiceConnection();
   const { isMobile, isTablet } = useResponsive();
-
-  // Send presence heartbeat to keep user marked as online
-  usePresenceHeartbeat(userData !== undefined && !isLoading && !isError);
-
-  // Listen for real-time presence events
-  usePresenceEvents();
-
-  // Listen for real-time voice presence events globally
-  useVoiceEvents();
-
-  // Subscribe to all rooms on connect/reconnect (replaces per-community JOIN_ALL)
-  useAutoSubscribe();
-
-  // Listen for channel/DM message events globally (not page-scoped)
-  useMessageWebSocket();
-
-  // Listen for community membership changes (e.g., being added to a community)
-  useCommunityEvents();
-
-  // Check push subscription status to avoid duplicate desktop notifications
-  const { isSubscribed: isPushSubscribed } = usePushNotifications();
-
-  // Initialize notification WebSocket listeners and desktop notifications
-  useNotifications({
-    showDesktopNotifications: true,
-    playSound: true,
-    isPushSubscribed,
-  });
 
   // Sync theme settings with server (server wins on initial load)
   useThemeSync();
@@ -159,7 +141,10 @@ const Layout: React.FC = () => {
   if (isMobile) {
     return (
       <ReplayBufferProvider>
-        <MobileLayout />
+        <SocketHubProvider>
+          <LayoutHooksBridge />
+          <MobileLayout />
+        </SocketHubProvider>
       </ReplayBufferProvider>
     );
   }
@@ -168,7 +153,10 @@ const Layout: React.FC = () => {
   if (isTablet) {
     return (
       <ReplayBufferProvider>
-        <TabletLayout />
+        <SocketHubProvider>
+          <LayoutHooksBridge />
+          <TabletLayout />
+        </SocketHubProvider>
       </ReplayBufferProvider>
     );
   }
@@ -176,70 +164,73 @@ const Layout: React.FC = () => {
   // Desktop layout (original)
   return (
     <ReplayBufferProvider>
-      <VideoOverlayProvider>
-        <AppBar position="fixed">
-          <Toolbar sx={{ minHeight: APPBAR_HEIGHT }}>
-            <div
-              style={{
-                flexGrow: 1,
-                flexDirection: "row",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.25em",
-              }}
-            >
-              <IconButton
-                size="large"
-                edge="start"
-                aria-label="menu"
-                onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-                sx={{ mr: 2, color: "text.primary" }}
+      <SocketHubProvider>
+        <LayoutHooksBridge />
+        <VideoOverlayProvider>
+          <AppBar position="fixed">
+            <Toolbar sx={{ minHeight: APPBAR_HEIGHT }}>
+              <div
+                style={{
+                  flexGrow: 1,
+                  flexDirection: "row",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.25em",
+                }}
               >
-                <MenuIcon />
-              </IconButton>
-              <Typography variant="h6" sx={{ color: "text.primary" }}>Kraken</Typography>
-            </div>
-            <NavigationLinks
-              isLoading={isLoading}
-              isError={isError}
-              userData={userData as User | undefined}
-              handleLogout={handleLogout}
-              logoutLoading={logoutLoading}
-            />
-            <ThemeToggle />
-            &nbsp;
-            {!isLoading && (
-              <>
-                <NotificationBadge
-                  onClick={() => setNotificationCenterOpen(true)}
-                />
-                <ProfileIcon
-                  userData={profileUserData}
-                  anchorElUser={anchorElUser}
-                  handleOpenUserMenu={handleOpenUserMenu}
-                  handleCloseUserMenu={handleCloseUserMenu}
-                  settings={settings}
-                  onSettingClick={handleSettingClick}
-                />
-              </>
-            )}
-          </Toolbar>
-        </AppBar>
-        <NotificationCenter
-          open={notificationCenterOpen}
-          onClose={() => setNotificationCenterOpen(false)}
-        />
-        <CommunityToggle
-          isExpanded={isMenuExpanded}
-          appBarHeight={APPBAR_HEIGHT}
-        />
-        <LayoutContentArea voiceConnected={voiceState.isConnected} isMenuExpanded={isMenuExpanded} />
+                <IconButton
+                  size="large"
+                  edge="start"
+                  aria-label="menu"
+                  onClick={() => setIsMenuExpanded(!isMenuExpanded)}
+                  sx={{ mr: 2, color: "text.primary" }}
+                >
+                  <MenuIcon />
+                </IconButton>
+                <Typography variant="h6" sx={{ color: "text.primary" }}>Kraken</Typography>
+              </div>
+              <NavigationLinks
+                isLoading={isLoading}
+                isError={isError}
+                userData={userData as User | undefined}
+                handleLogout={handleLogout}
+                logoutLoading={logoutLoading}
+              />
+              <ThemeToggle />
+              &nbsp;
+              {!isLoading && (
+                <>
+                  <NotificationBadge
+                    onClick={() => setNotificationCenterOpen(true)}
+                  />
+                  <ProfileIcon
+                    userData={profileUserData}
+                    anchorElUser={anchorElUser}
+                    handleOpenUserMenu={handleOpenUserMenu}
+                    handleCloseUserMenu={handleCloseUserMenu}
+                    settings={settings}
+                    onSettingClick={handleSettingClick}
+                  />
+                </>
+              )}
+            </Toolbar>
+          </AppBar>
+          <NotificationCenter
+            open={notificationCenterOpen}
+            onClose={() => setNotificationCenterOpen(false)}
+          />
+          <CommunityToggle
+            isExpanded={isMenuExpanded}
+            appBarHeight={APPBAR_HEIGHT}
+          />
+          <LayoutContentArea voiceConnected={voiceState.isConnected} isMenuExpanded={isMenuExpanded} />
 
-        {/* Voice Components */}
-        <VoiceBottomBar />
-        <AudioRenderer />
-        <PersistentVideoOverlay />
-      </VideoOverlayProvider>
+          {/* Voice Components */}
+          <VoiceBottomBar />
+          <AudioRenderer />
+          <PersistentVideoOverlay />
+        </VideoOverlayProvider>
+      </SocketHubProvider>
     </ReplayBufferProvider>
   );
 };
