@@ -6,7 +6,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { instanceControllerGetPublicSettingsOptions } from "../../api-client/@tanstack/react-query.gen";
 import { MAX_FILE_SIZE, MAX_FILES_PER_MESSAGE } from "../../constants/messages";
+import { formatFileSize } from "../../utils/format";
 
 export interface UseFileAttachmentsReturn {
   selectedFiles: File[];
@@ -25,6 +28,9 @@ export interface UseFileAttachmentsReturn {
  * Custom hook for managing file attachments in message inputs
  */
 export function useFileAttachments(): UseFileAttachmentsReturn {
+  const { data: publicSettings } = useQuery(instanceControllerGetPublicSettingsOptions());
+  const maxFileSize = publicSettings?.maxFileSizeBytes ?? MAX_FILE_SIZE;
+
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [filePreviews, setFilePreviews] = useState<Map<number, string>>(new Map());
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -49,9 +55,9 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
       const fileArray = Array.from(files);
 
       // Validate file sizes
-      const oversizedFile = fileArray.find(file => file.size > MAX_FILE_SIZE);
+      const oversizedFile = fileArray.find(file => file.size > maxFileSize);
       if (oversizedFile) {
-        setValidationError(`File "${oversizedFile.name}" exceeds the 10MB size limit`);
+        setValidationError(`File "${oversizedFile.name}" exceeds the ${formatFileSize(maxFileSize)} size limit`);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -92,15 +98,15 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, []);
+  }, [maxFileSize]);
 
   const handleFileDrop = useCallback((files: File[]) => {
     if (files.length === 0) return;
 
     // Validate file sizes
-    const oversizedFile = files.find(file => file.size > MAX_FILE_SIZE);
+    const oversizedFile = files.find(file => file.size > maxFileSize);
     if (oversizedFile) {
-      setValidationError(`File "${oversizedFile.name}" exceeds the 10MB size limit`);
+      setValidationError(`File "${oversizedFile.name}" exceeds the ${formatFileSize(maxFileSize)} size limit`);
       return;
     }
 
@@ -128,7 +134,7 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
 
     fileCountRef.current += files.length;
     setSelectedFiles(prev => [...prev, ...files]);
-  }, []);
+  }, [maxFileSize]);
 
   const handleRemoveFile = useCallback((index: number) => {
     fileCountRef.current = Math.max(0, fileCountRef.current - 1);

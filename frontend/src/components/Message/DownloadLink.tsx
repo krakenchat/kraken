@@ -9,6 +9,7 @@ import CodeIcon from "@mui/icons-material/Code";
 import ArchiveIcon from "@mui/icons-material/Archive";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
 import { FileMetadata } from "../../types/message.type";
+import { formatFileSize } from "../../utils/format";
 
 const DownloadCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -59,13 +60,7 @@ const getFileIcon = (mimeType: string) => {
   return <InsertDriveFileIcon fontSize="large" />;
 };
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-};
+
 
 export const DownloadLink: React.FC<DownloadLinkProps> = ({ metadata }) => {
   const { blobUrl, isLoading, error } = useAuthenticatedFile(metadata.id, {

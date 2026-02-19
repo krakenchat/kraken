@@ -49,6 +49,7 @@ import type { ClipResponseDto as ClipResponse } from '../../api-client/types.gen
 import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
+import { formatFileSize } from '../../utils/format';
 import { logger } from '../../utils/logger';
 import EmptyState from '../Common/EmptyState';
 import type { Community } from '../../types/community.type';
@@ -83,10 +84,7 @@ const formatDuration = (seconds: number) => {
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 };
 
-const formatFileSize = (bytes: number) => {
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(1)} MB`;
-};
+
 
 // Skeleton card for loading state
 const ClipCardSkeleton: React.FC = memo(() => (
