@@ -139,6 +139,8 @@ export class ThreadsGateway
           parentMessageId: payload.parentMessageId,
           replyCount: parentMessage.replyCount,
           lastReplyAt: parentMessage.lastReplyAt,
+          channelId: parentMessage.channelId ?? null,
+          directMessageGroupId: parentMessage.directMessageGroupId ?? null,
         },
       );
     }

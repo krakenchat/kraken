@@ -1,23 +1,28 @@
 import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChannelsService } from './channels.service';
 import { DatabaseService } from '@/database/database.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ChannelType } from '@prisma/client';
 import { createMockDatabase, UserFactory, ChannelFactory } from '@/test-utils';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 describe('ChannelsService', () => {
   let service: ChannelsService;
   let mockDatabase: any;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit } = await TestBed.solitary(ChannelsService)
+    const { unit, unitRef } = await TestBed.solitary(ChannelsService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
 
     service = unit;
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -56,6 +61,14 @@ describe('ChannelsService', () => {
           channelId: channel.id,
         },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.CHANNEL_CREATED,
+        {
+          channelId: channel.id,
+          communityId: channel.communityId,
+          isPrivate: channel.isPrivate,
+        },
+      );
     });
 
     it('should throw ConflictException for duplicate channel name', async () => {
@@ -296,6 +309,10 @@ describe('ChannelsService', () => {
       expect(mockDatabase.channel.delete).toHaveBeenCalledWith({
         where: { id: channel.id },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.CHANNEL_DELETED,
+        { channelId: channel.id },
+      );
     });
 
     it('should throw NotFoundException when channel not found', async () => {

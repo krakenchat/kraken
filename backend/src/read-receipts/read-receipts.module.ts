@@ -11,7 +11,13 @@ import { NotificationsModule } from '@/notifications/notifications.module';
 @Module({
   controllers: [ReadReceiptsController],
   providers: [ReadReceiptsService, ReadReceiptsGateway],
-  imports: [DatabaseModule, WebsocketModule, AuthModule, UserModule, NotificationsModule],
+  imports: [
+    DatabaseModule,
+    WebsocketModule,
+    AuthModule,
+    UserModule,
+    NotificationsModule,
+  ],
   exports: [ReadReceiptsService],
 })
 export class ReadReceiptsModule {}

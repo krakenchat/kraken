@@ -5,6 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 import { DatabaseService } from '@/database/database.service';
@@ -12,8 +13,7 @@ import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
-import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@kraken/shared';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 @Injectable()
 export class MembershipService {
@@ -23,7 +23,7 @@ export class MembershipService {
     private readonly databaseService: DatabaseService,
     private readonly communityService: CommunityService,
     private readonly rolesService: RolesService,
-    private readonly websocketService: WebsocketService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(
@@ -134,24 +134,12 @@ export class MembershipService {
         // Don't fail the membership creation for this
       }
 
-      // Join the user's sockets directly to the new community's rooms
-      // (no client round-trip needed)
-      const publicChannels = await this.databaseService.channel.findMany({
-        where: { communityId, isPrivate: false },
-        select: { id: true },
-      });
-      const roomsToJoin = [
-        `community:${communityId}`,
-        ...publicChannels.map((ch) => ch.id),
-      ];
-      this.websocketService.joinSocketsToRoom(userId, roomsToJoin);
-
-      // Notify the user's UI to refresh the community list
-      this.websocketService.sendToRoom(
+      // Emit domain event — the RoomSubscriptionHandler will join sockets
+      // and notify the user's UI
+      this.eventEmitter.emit(RoomEvents.MEMBERSHIP_CREATED, {
         userId,
-        ServerEvents.MEMBER_ADDED_TO_COMMUNITY,
-        { communityId, userId },
-      );
+        communityId,
+      });
 
       return new MembershipResponseDto(membership);
     } catch (error) {
@@ -269,6 +257,12 @@ export class MembershipService {
             },
           },
         });
+      });
+
+      // Emit domain event — the RoomSubscriptionHandler will remove sockets
+      this.eventEmitter.emit(RoomEvents.MEMBERSHIP_REMOVED, {
+        userId,
+        communityId,
       });
 
       this.logger.log(`Removed user ${userId} from community ${communityId}`);

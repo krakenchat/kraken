@@ -328,14 +328,11 @@ export class ReadReceiptsService {
 
     const channelMentionMap = new Map<string, number>();
     for (const c of channelMentionCounts) {
-      channelMentionMap.set(c.channelId!, c._count.channelId as number);
+      channelMentionMap.set(c.channelId!, c._count.channelId);
     }
     const dmMentionMap = new Map<string, number>();
     for (const c of dmMentionCounts) {
-      dmMentionMap.set(
-        c.directMessageGroupId!,
-        c._count.directMessageGroupId as number,
-      );
+      dmMentionMap.set(c.directMessageGroupId!, c._count.directMessageGroupId);
     }
 
     // Batch fetch all last read message timestamps
@@ -399,8 +396,7 @@ export class ReadReceiptsService {
       unreadCounts.push({
         directMessageGroupId: count.directMessageGroupId!,
         unreadCount: count._count.directMessageGroupId,
-        mentionCount:
-          dmMentionMap.get(count.directMessageGroupId!) ?? 0,
+        mentionCount: dmMentionMap.get(count.directMessageGroupId!) ?? 0,
       });
     }
 
@@ -536,8 +532,7 @@ export class ReadReceiptsService {
           return {
             directMessageGroupId: receipt.directMessageGroupId,
             unreadCount: count,
-            mentionCount:
-              dmMentionMap.get(receipt.directMessageGroupId) ?? 0,
+            mentionCount: dmMentionMap.get(receipt.directMessageGroupId) ?? 0,
             lastReadMessageId: receipt.lastReadMessageId,
             lastReadAt: receipt.lastReadAt,
           };

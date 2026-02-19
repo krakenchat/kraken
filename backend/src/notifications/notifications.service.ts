@@ -527,7 +527,11 @@ export class NotificationsService {
     if (!channelId && !directMessageGroupId) return 0;
 
     const mentionTypes: NotificationType[] = directMessageGroupId
-      ? [NotificationType.USER_MENTION, NotificationType.SPECIAL_MENTION, NotificationType.DIRECT_MESSAGE]
+      ? [
+          NotificationType.USER_MENTION,
+          NotificationType.SPECIAL_MENTION,
+          NotificationType.DIRECT_MESSAGE,
+        ]
       : [NotificationType.USER_MENTION, NotificationType.SPECIAL_MENTION];
 
     const result = await this.databaseService.notification.updateMany({

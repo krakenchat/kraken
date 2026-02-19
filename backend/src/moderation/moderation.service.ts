@@ -5,11 +5,13 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 import {
   ModerationAction,
   Prisma,
@@ -35,6 +37,7 @@ export class ModerationService {
     private readonly rolesService: RolesService,
     private readonly membershipService: MembershipService,
     private readonly websocketService: WebsocketService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -176,6 +179,12 @@ export class ModerationService {
       });
     });
 
+    // Remove user's sockets from community rooms
+    this.eventEmitter.emit(RoomEvents.MODERATION_USER_BANNED, {
+      userId,
+      communityId,
+    });
+
     this.logger.log(
       `User ${userId} banned from community ${communityId} by ${moderatorId}`,
     );
@@ -303,6 +312,12 @@ export class ModerationService {
           reason,
         },
       });
+    });
+
+    // Remove user's sockets from community rooms
+    this.eventEmitter.emit(RoomEvents.MODERATION_USER_KICKED, {
+      userId,
+      communityId,
     });
 
     this.logger.log(

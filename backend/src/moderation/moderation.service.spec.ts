@@ -1,5 +1,6 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ModerationService } from './moderation.service';
 import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
@@ -16,6 +17,7 @@ import {
   MessageFactory,
 } from '@/test-utils';
 import { ModerationAction } from '@prisma/client';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 describe('ModerationService', () => {
   let service: ModerationService;
@@ -23,6 +25,7 @@ describe('ModerationService', () => {
   let rolesService: Mocked<RolesService>;
   let membershipService: Mocked<MembershipService>;
   let websocketService: Mocked<WebsocketService>;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   const moderatorId = 'moderator-123';
   const userId = 'user-456';
@@ -42,6 +45,7 @@ describe('ModerationService', () => {
     rolesService = unitRef.get(RolesService);
     membershipService = unitRef.get(MembershipService);
     websocketService = unitRef.get(WebsocketService);
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -106,6 +110,10 @@ describe('ModerationService', () => {
             targetUserId: userId,
           }),
         }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.MODERATION_USER_BANNED,
+        { userId, communityId },
       );
       expect(websocketService.sendToRoom).toHaveBeenCalled();
     });
@@ -291,6 +299,10 @@ describe('ModerationService', () => {
             action: ModerationAction.KICK_USER,
           }),
         }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.MODERATION_USER_KICKED,
+        { userId, communityId },
       );
       expect(websocketService.sendToRoom).toHaveBeenCalled();
     });

@@ -308,6 +308,8 @@ describe('MessagesGateway', () => {
         {
           messageId: 'msg-789',
           reaction: { emoji: '👍', count: 1, users: ['user-789'] },
+          channelId: 'channel-789',
+          directMessageGroupId: null,
         },
       );
     });
@@ -395,6 +397,8 @@ describe('MessagesGateway', () => {
           messageId: 'msg-222',
           emoji: '👍',
           reactions: [],
+          channelId: 'channel-222',
+          directMessageGroupId: null,
         },
       );
     });

@@ -1,4 +1,6 @@
 import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DirectMessagesService } from './direct-messages.service';
 import { DatabaseService } from '@/database/database.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -8,20 +10,23 @@ import {
   DirectMessageGroupFactory,
   MessageFactory,
 } from '@/test-utils';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 describe('DirectMessagesService', () => {
   let service: DirectMessagesService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit } = await TestBed.solitary(DirectMessagesService)
+    const { unit, unitRef } = await TestBed.solitary(DirectMessagesService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
 
     service = unit;
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -192,6 +197,13 @@ describe('DirectMessagesService', () => {
         },
         include: expect.any(Object),
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.DM_GROUP_CREATED,
+        {
+          groupId: 'dm-new',
+          memberIds: expect.arrayContaining([creator.id, otherUser.id]),
+        },
+      );
     });
 
     it('should return existing 1:1 DM if it already exists', async () => {
@@ -487,6 +499,10 @@ describe('DirectMessagesService', () => {
         },
       );
       expect(result.members).toHaveLength(2);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.DM_GROUP_MEMBER_ADDED,
+        { groupId, userIds: [newUser.id] },
+      );
     });
 
     it('should throw ForbiddenException when user is not a member', async () => {
@@ -613,6 +629,10 @@ describe('DirectMessagesService', () => {
             },
           },
         },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.DM_GROUP_MEMBER_LEFT,
+        { groupId, userId: user.id },
       );
     });
 

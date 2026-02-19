@@ -579,7 +579,10 @@ describe('ReadReceiptsService', () => {
           { channelId: channelId1, _count: { channelId: 1 } },
         ])
         .mockResolvedValueOnce([
-          { directMessageGroupId: dmGroupId1, _count: { directMessageGroupId: 2 } },
+          {
+            directMessageGroupId: dmGroupId1,
+            _count: { directMessageGroupId: 2 },
+          },
         ]);
       mockDatabase.message.findMany.mockResolvedValue([lastReadMessage1]);
       mockDatabase.message.groupBy
@@ -628,8 +631,9 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findMany.mockResolvedValue([]);
       mockDatabase.membership.findMany.mockResolvedValue([membership]);
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
-      mockDatabase.notification.groupBy
-        .mockResolvedValueOnce([{ channelId, _count: { channelId: 1 } }]);
+      mockDatabase.notification.groupBy.mockResolvedValueOnce([
+        { channelId, _count: { channelId: 1 } },
+      ]);
       mockDatabase.message.findMany.mockResolvedValue([]);
       mockDatabase.message.groupBy
         .mockResolvedValueOnce([{ channelId, _count: { channelId: 10 } }])
@@ -653,10 +657,12 @@ describe('ReadReceiptsService', () => {
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([
         { userId, groupId: dmGroupId, group: dmGroup } as any,
       ]);
-      mockDatabase.notification.groupBy
-        .mockResolvedValueOnce([
-          { directMessageGroupId: dmGroupId, _count: { directMessageGroupId: 4 } },
-        ]);
+      mockDatabase.notification.groupBy.mockResolvedValueOnce([
+        {
+          directMessageGroupId: dmGroupId,
+          _count: { directMessageGroupId: 4 },
+        },
+      ]);
       mockDatabase.message.findMany.mockResolvedValue([]);
       // Since there are no channels, the first groupBy won't be called
       // Only the DM groupBy will be called
@@ -699,8 +705,9 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findMany.mockResolvedValue([readReceipt]);
       mockDatabase.membership.findMany.mockResolvedValue([membership]);
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
-      mockDatabase.notification.groupBy
-        .mockResolvedValueOnce([{ channelId, _count: { channelId: 2 } }]);
+      mockDatabase.notification.groupBy.mockResolvedValueOnce([
+        { channelId, _count: { channelId: 2 } },
+      ]);
       mockDatabase.message.findMany.mockResolvedValue([]); // No last read message found
       // The channel HAS a read receipt, so channelsWithoutReceipt is empty.
       // The Promise.all groupBy calls skip (empty arrays → Promise.resolve([])).
@@ -736,8 +743,7 @@ describe('ReadReceiptsService', () => {
       mockDatabase.readReceipt.findMany.mockResolvedValue([]);
       mockDatabase.membership.findMany.mockResolvedValue([membership]);
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([]);
-      mockDatabase.notification.groupBy
-        .mockResolvedValueOnce([]);
+      mockDatabase.notification.groupBy.mockResolvedValueOnce([]);
       mockDatabase.message.findMany.mockResolvedValue([]);
       mockDatabase.message.groupBy
         .mockResolvedValueOnce(

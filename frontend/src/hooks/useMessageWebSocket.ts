@@ -26,11 +26,6 @@ import {
   deleteMessageFromInfinite,
   findMessageInInfinite,
 } from "../utils/messageCacheUpdaters";
-import {
-  setMessageContext,
-  getMessageContext,
-  removeMessageContext,
-} from "../utils/messageIndex";
 
 /**
  * Unified WebSocket hook for both channel and DM message events.
@@ -54,7 +49,6 @@ export function useMessageWebSocket() {
       queryClient.setQueryData(queryKey, (old: unknown) =>
         prependMessageToInfinite(old as never, message as Message)
       );
-      setMessageContext(message.id, contextId);
 
       // Increment unread count — skip for own messages
       const currentUser = queryClient.getQueryData<UserControllerGetProfileResponse>(
@@ -105,24 +99,19 @@ export function useMessageWebSocket() {
       queryClient.setQueryData(queryKey, (old: unknown) =>
         deleteMessageFromInfinite(old as never, messageId)
       );
-      removeMessageContext(messageId);
     };
 
     const handleReactionAdded = async ({
       messageId,
       reaction,
+      channelId,
+      directMessageGroupId,
     }: ReactionAddedPayload) => {
-      const contextId = getMessageContext(messageId);
-      if (!contextId) return;
+      const queryKey = messageQueryKeyForContext({ channelId, directMessageGroupId });
+      if (!queryKey) return;
 
-      const queryKey = channelMessagesQueryKey(contextId);
-      // Try channel key first; if not found, the message may be in a DM
-      const data = queryClient.getQueryData(queryKey);
-      const effectiveKey = data ? queryKey : messageQueryKeyForContext({ directMessageGroupId: contextId });
-      if (!effectiveKey) return;
-
-      await queryClient.cancelQueries({ queryKey: effectiveKey });
-      queryClient.setQueryData(effectiveKey, (old: unknown) => {
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) => {
         const msg = findMessageInInfinite(old as never, messageId);
         if (!msg) return old;
 
@@ -146,17 +135,14 @@ export function useMessageWebSocket() {
     const handleReactionRemoved = async ({
       messageId,
       reactions,
+      channelId,
+      directMessageGroupId,
     }: ReactionRemovedPayload) => {
-      const contextId = getMessageContext(messageId);
-      if (!contextId) return;
+      const queryKey = messageQueryKeyForContext({ channelId, directMessageGroupId });
+      if (!queryKey) return;
 
-      const queryKey = channelMessagesQueryKey(contextId);
-      const data = queryClient.getQueryData(queryKey);
-      const effectiveKey = data ? queryKey : messageQueryKeyForContext({ directMessageGroupId: contextId });
-      if (!effectiveKey) return;
-
-      await queryClient.cancelQueries({ queryKey: effectiveKey });
-      queryClient.setQueryData(effectiveKey, (old: unknown) => {
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData(queryKey, (old: unknown) => {
         const msg = findMessageInInfinite(old as never, messageId);
         if (!msg) return old;
         return updateMessageInInfinite(old as never, {
@@ -208,11 +194,12 @@ export function useMessageWebSocket() {
       parentMessageId,
       replyCount,
       lastReplyAt,
+      channelId,
+      directMessageGroupId,
     }: ThreadReplyCountUpdatedPayload) => {
-      const contextId = getMessageContext(parentMessageId);
-      if (!contextId) return;
+      const queryKey = messageQueryKeyForContext({ channelId, directMessageGroupId });
+      if (!queryKey) return;
 
-      const queryKey = channelMessagesQueryKey(contextId);
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, (old: unknown) => {
         const msg = findMessageInInfinite(old as never, parentMessageId);

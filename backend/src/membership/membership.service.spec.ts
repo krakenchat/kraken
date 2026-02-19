@@ -1,5 +1,6 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MembershipService } from './membership.service';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
@@ -14,12 +15,14 @@ import {
   RoleFactory,
 } from '@/test-utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 describe('MembershipService', () => {
   let service: MembershipService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let communityService: Mocked<CommunityService>;
   let rolesService: Mocked<RolesService>;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -32,6 +35,7 @@ describe('MembershipService', () => {
     service = unit;
     communityService = unitRef.get(CommunityService);
     rolesService = unitRef.get(RolesService);
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -82,6 +86,10 @@ describe('MembershipService', () => {
         user.id,
         community.id,
         memberRole.id,
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.MEMBERSHIP_CREATED,
+        { userId: user.id, communityId: community.id },
       );
     });
 
@@ -542,6 +550,10 @@ describe('MembershipService', () => {
           },
         },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.MEMBERSHIP_REMOVED,
+        { userId: user.id, communityId: community.id },
+      );
     });
 
     it('should throw NotFoundException when membership not found', async () => {
