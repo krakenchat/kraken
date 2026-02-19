@@ -129,11 +129,15 @@ describe('RoomsService', () => {
 
       await service.joinAllUserRooms(client);
 
-      expect(mockDatabase.directMessageGroupMember.findMany).toHaveBeenCalledWith({
+      expect(
+        mockDatabase.directMessageGroupMember.findMany,
+      ).toHaveBeenCalledWith({
         where: { userId },
+        select: { groupId: true },
       });
       expect(mockDatabase.aliasGroupMember.findMany).toHaveBeenCalledWith({
         where: { userId },
+        select: { aliasGroupId: true },
       });
       expect(client.join).toHaveBeenCalledWith('dm-1');
       expect(client.join).toHaveBeenCalledWith('dm-2');
@@ -258,5 +262,4 @@ describe('RoomsService', () => {
       expect(client.join).toHaveBeenCalledWith('alias-1');
     });
   });
-
 });

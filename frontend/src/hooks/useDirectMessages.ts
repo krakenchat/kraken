@@ -58,7 +58,8 @@ export const useDirectMessages = (dmGroupId: string) => {
   }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
 
   // Derive continuationToken from last page for backward compatibility
-  const continuationToken = data?.pages[data.pages.length - 1]?.continuationToken;
+  const lastPage = data?.pages[data.pages.length - 1];
+  const continuationToken = lastPage?.continuationToken;
 
   return {
     messages,

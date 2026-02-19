@@ -144,7 +144,7 @@ export class MembershipService {
         `community:${communityId}`,
         ...publicChannels.map((ch) => ch.id),
       ];
-      await this.websocketService.joinSocketsToRoom(userId, roomsToJoin);
+      this.websocketService.joinSocketsToRoom(userId, roomsToJoin);
 
       // Notify the user's UI to refresh the community list
       this.websocketService.sendToRoom(

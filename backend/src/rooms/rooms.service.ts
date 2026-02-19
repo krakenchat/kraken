@@ -61,6 +61,7 @@ export class RoomsService {
     const directMessages =
       await this.databaseService.directMessageGroupMember.findMany({
         where: { userId },
+        select: { groupId: true },
       });
     for (const dm of directMessages) {
       await client.join(dm.groupId);
@@ -69,6 +70,7 @@ export class RoomsService {
     // Join all alias groups
     const aliasGroups = await this.databaseService.aliasGroupMember.findMany({
       where: { userId },
+      select: { aliasGroupId: true },
     });
     for (const ag of aliasGroups) {
       await client.join(ag.aliasGroupId);

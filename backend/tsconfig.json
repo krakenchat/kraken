@@ -12,9 +12,7 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"],
-      "@kraken/shared": ["../shared/src"],
-      "@kraken/shared/*": ["../shared/src/*"]
+      "@/*": ["src/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

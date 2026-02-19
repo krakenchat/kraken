@@ -34,10 +34,7 @@ export class WebsocketService {
    * Join all sockets in `sourceRoom` to the given rooms.
    * Typically sourceRoom is a userId (every user joins their own room on connect).
    */
-  async joinSocketsToRoom(
-    sourceRoom: string,
-    rooms: string | string[],
-  ): Promise<void> {
+  joinSocketsToRoom(sourceRoom: string, rooms: string | string[]): void {
     if (!this.server) {
       this.logger.error(
         'Attempted to join sockets before server was initialized',
@@ -46,7 +43,7 @@ export class WebsocketService {
     }
 
     try {
-      await this.server.in(sourceRoom).socketsJoin(rooms);
+      this.server.in(sourceRoom).socketsJoin(rooms);
     } catch (error) {
       this.logger.error(
         `Failed to join sockets in "${sourceRoom}" to rooms`,
