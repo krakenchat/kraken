@@ -51,8 +51,7 @@ ARG GITHUB_REPOSITORY=user/kraken
 ARG BUILD_DATE
 
 # Install OpenSSL for Prisma and FFmpeg for video processing (replay clips)
-RUN apk add --no-cache openssl ffmpeg && \
-    corepack enable && corepack prepare pnpm@10.30.0 --activate
+RUN apk add --no-cache openssl ffmpeg
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -72,11 +71,11 @@ COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./backend/prisma
 WORKDIR /app/backend
 
 # Rebuild bcrypt for Alpine's musl libc to prevent segfaults.
-# The builder stage downloads a glibc prebuilt binary; pnpm sees it and skips
-# the rebuild. Delete it first to force recompilation against musl.
+# The builder stage downloads a glibc prebuilt binary. Neither pnpm rebuild
+# nor find-delete + pnpm rebuild work reliably (missing workspace context).
+# Bypass package managers entirely and run node-gyp directly in bcrypt's dir.
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    find /app -name "bcrypt_lib.node" -delete && \
-    pnpm rebuild bcrypt && \
+    cd /app/node_modules/bcrypt && npx node-gyp rebuild && \
     apk del .build-deps
 
 # Add OCI labels for GHCR integration (including creation timestamp)
