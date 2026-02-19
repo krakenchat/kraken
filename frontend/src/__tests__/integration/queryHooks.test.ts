@@ -53,9 +53,9 @@ describe('MSW integration: channel messages', () => {
 describe('MSW integration: DM messages', () => {
   it('fetches DM messages successfully', async () => {
     const data = await queryClient.fetchQuery({
-      queryKey: [{ _id: 'directMessagesControllerGetDmMessages', baseUrl: 'http://localhost:3000', path: { id: 'dm-msw' } }],
+      queryKey: [{ _id: 'messagesControllerFindAllForGroup', baseUrl: 'http://localhost:3000', path: { groupId: 'dm-msw' }, query: { limit: 25, continuationToken: '' } }],
       queryFn: async () => {
-        const res = await fetch('http://localhost:3000/api/direct-messages/dm-msw/messages');
+        const res = await fetch('http://localhost:3000/api/messages/group/dm-msw?limit=25&continuationToken=');
         return res.json();
       },
     });

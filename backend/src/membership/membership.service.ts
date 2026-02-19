@@ -134,7 +134,19 @@ export class MembershipService {
         // Don't fail the membership creation for this
       }
 
-      // Notify the user in real-time that they've been added to a community
+      // Join the user's sockets directly to the new community's rooms
+      // (no client round-trip needed)
+      const publicChannels = await this.databaseService.channel.findMany({
+        where: { communityId, isPrivate: false },
+        select: { id: true },
+      });
+      const roomsToJoin = [
+        `community:${communityId}`,
+        ...publicChannels.map((ch) => ch.id),
+      ];
+      await this.websocketService.joinSocketsToRoom(userId, roomsToJoin);
+
+      // Notify the user's UI to refresh the community list
       this.websocketService.sendToRoom(
         userId,
         ServerEvents.MEMBER_ADDED_TO_COMMUNITY,

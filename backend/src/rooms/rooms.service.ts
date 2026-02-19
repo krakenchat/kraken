@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Socket } from 'socket.io';
 import { DatabaseService } from '@/database/database.service';
 import { AuthenticatedSocket } from '@/common/utils/socket.utils';
 
@@ -8,126 +7,75 @@ export class RoomsService {
   private readonly logger = new Logger(RoomsService.name);
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async joinAll(client: AuthenticatedSocket, communityId: string) {
-    await client.join(client.handshake.user.id);
+  /**
+   * Join ALL rooms for a user across every community they belong to.
+   * Called on socket connect/reconnect via SUBSCRIBE_ALL, and again
+   * when mid-session changes occur (e.g., added to a new community).
+   *
+   * Socket.IO join() is idempotent — joining a room you're already in is a no-op.
+   */
+  async joinAllUserRooms(client: AuthenticatedSocket) {
+    const userId = client.handshake.user.id;
+    await client.join(userId);
 
-    // Get all public channels in the community (user joins automatically if they're a community member)
-    const publicChannels = await this.databaseService.channel.findMany({
-      where: {
-        communityId,
-        isPrivate: false,
-      },
+    // Get all community IDs the user is a member of
+    const memberships = await this.databaseService.membership.findMany({
+      where: { userId },
+      select: { communityId: true },
     });
+    const communityIds = memberships.map((m) => m.communityId);
 
-    // Join all public channels
-    for (const channel of publicChannels) {
-      await client.join(channel.id);
+    // Join community rooms (for community-wide events like CHANNELS_REORDERED)
+    for (const communityId of communityIds) {
+      await client.join(`community:${communityId}`);
     }
 
-    // Get private channels the user has explicit membership to
+    // Join all public channels across all communities
+    if (communityIds.length > 0) {
+      const publicChannels = await this.databaseService.channel.findMany({
+        where: {
+          communityId: { in: communityIds },
+          isPrivate: false,
+        },
+        select: { id: true },
+      });
+      for (const channel of publicChannels) {
+        await client.join(channel.id);
+      }
+    }
+
+    // Join all private channels the user has membership to (across all communities)
     const privateChannelMemberships =
       await this.databaseService.channelMembership.findMany({
         where: {
-          userId: client.handshake.user.id,
-          channel: {
-            communityId,
-            isPrivate: true,
-          },
+          userId,
+          channel: { isPrivate: true },
         },
-        include: {
-          channel: true,
-        },
+        select: { channelId: true },
       });
-
-    // Join private channels based on membership
     for (const membership of privateChannelMemberships) {
       await client.join(membership.channelId);
     }
 
-    // Get all direct messages for the user
+    // Join all DM groups
     const directMessages =
       await this.databaseService.directMessageGroupMember.findMany({
-        where: {
-          userId: client.handshake.user.id,
-        },
+        where: { userId },
       });
-
-    // Join all direct messages
-    for (const directMessage of directMessages) {
-      await client.join(directMessage.groupId);
+    for (const dm of directMessages) {
+      await client.join(dm.groupId);
     }
-
-    const aliasGroups = await this.databaseService.aliasGroupMember.findMany({
-      where: {
-        userId: client.handshake.user.id,
-      },
-    });
 
     // Join all alias groups
-    for (const aliasGroup of aliasGroups) {
-      await client.join(aliasGroup.aliasGroupId);
-    }
-
-    this.logger.debug(
-      `User ${client.handshake.user.id} joined ${client.rooms.size} rooms`,
-    );
-  }
-
-  async join(client: Socket, id: string) {
-    await client.join(id);
-  }
-
-  /**
-   * Leave a specific room
-   */
-  async leave(client: Socket, id: string) {
-    await client.leave(id);
-    this.logger.debug(`Client ${client.id} left room ${id}`);
-  }
-
-  /**
-   * Leave all community-related rooms (channels, private channels, DMs, alias groups)
-   * Called when switching communities or navigating away
-   */
-  async leaveAll(client: AuthenticatedSocket, communityId: string) {
-    // Get all public channels in the community
-    const publicChannels = await this.databaseService.channel.findMany({
-      where: {
-        communityId,
-        isPrivate: false,
-      },
+    const aliasGroups = await this.databaseService.aliasGroupMember.findMany({
+      where: { userId },
     });
-
-    // Leave all public channels
-    for (const channel of publicChannels) {
-      await client.leave(channel.id);
+    for (const ag of aliasGroups) {
+      await client.join(ag.aliasGroupId);
     }
-
-    // Get private channels the user has membership to
-    const privateChannelMemberships =
-      await this.databaseService.channelMembership.findMany({
-        where: {
-          userId: client.handshake.user.id,
-          channel: {
-            communityId,
-            isPrivate: true,
-          },
-        },
-        include: {
-          channel: true,
-        },
-      });
-
-    // Leave private channels
-    for (const membership of privateChannelMemberships) {
-      await client.leave(membership.channelId);
-    }
-
-    // Note: We don't leave DM rooms on community change since DMs are community-independent
-    // DM rooms are left when the user explicitly leaves a DM conversation
 
     this.logger.debug(
-      `User ${client.handshake.user.id} left community ${communityId} rooms (now in ${client.rooms.size} rooms)`,
+      `User ${userId} subscribed to all rooms (${client.rooms.size} rooms)`,
     );
   }
 }

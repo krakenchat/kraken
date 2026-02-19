@@ -39,13 +39,20 @@ describe('channelMessagesQueryKey', () => {
 describe('dmMessagesQueryKey', () => {
   it('produces a key with the correct _id', () => {
     const key = dmMessagesQueryKey('dm-456');
-    expect(key[0]).toEqual(expect.objectContaining({ _id: 'directMessagesControllerGetDmMessages' }));
+    expect(key[0]).toEqual(expect.objectContaining({ _id: 'messagesControllerFindAllForGroup' }));
   });
 
   it('includes the dmGroupId in path', () => {
     const key = dmMessagesQueryKey('dm-456');
     expect(key[0]).toEqual(expect.objectContaining({
-      path: { id: 'dm-456' },
+      path: { groupId: 'dm-456' },
+    }));
+  });
+
+  it('includes default query params', () => {
+    const key = dmMessagesQueryKey('dm-456');
+    expect(key[0]).toEqual(expect.objectContaining({
+      query: { limit: 25, continuationToken: '' },
     }));
   });
 });

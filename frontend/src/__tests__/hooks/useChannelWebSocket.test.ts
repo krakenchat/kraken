@@ -10,8 +10,8 @@ vi.mock('../../api-client/client.gen', () => ({
   },
 }));
 
-import { useChannelWebSocket } from '../../hooks/useChannelWebSocket';
-import { channelMessagesQueryKey } from '../../utils/messageQueryKeys';
+import { useMessageWebSocket } from '../../hooks/useMessageWebSocket';
+import { channelMessagesQueryKey, dmMessagesQueryKey } from '../../utils/messageQueryKeys';
 import {
   readReceiptsControllerGetUnreadCountsQueryKey,
   userControllerGetProfileQueryKey,
@@ -38,16 +38,17 @@ beforeEach(() => {
   clearContextIndex('channel-2');
 });
 
-function renderChannelWebSocket() {
-  return renderHook(() => useChannelWebSocket(), {
+function renderMessageWebSocket() {
+  return renderHook(() => useMessageWebSocket(), {
     wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
   });
 }
 
-describe('useChannelWebSocket', () => {
+describe('useMessageWebSocket', () => {
   it('registers event handlers on mount', () => {
-    renderChannelWebSocket();
+    renderMessageWebSocket();
     expect(mockSocket.on).toHaveBeenCalledWith('newMessage', expect.any(Function));
+    expect(mockSocket.on).toHaveBeenCalledWith('newDirectMessage', expect.any(Function));
     expect(mockSocket.on).toHaveBeenCalledWith('updateMessage', expect.any(Function));
     expect(mockSocket.on).toHaveBeenCalledWith('deleteMessage', expect.any(Function));
     expect(mockSocket.on).toHaveBeenCalledWith('reactionAdded', expect.any(Function));
@@ -60,9 +61,10 @@ describe('useChannelWebSocket', () => {
   });
 
   it('unregisters event handlers on unmount', () => {
-    const { unmount } = renderChannelWebSocket();
+    const { unmount } = renderMessageWebSocket();
     unmount();
     expect(mockSocket.off).toHaveBeenCalledWith('newMessage', expect.any(Function));
+    expect(mockSocket.off).toHaveBeenCalledWith('newDirectMessage', expect.any(Function));
     expect(mockSocket.off).toHaveBeenCalledWith('updateMessage', expect.any(Function));
     expect(mockSocket.off).toHaveBeenCalledWith('deleteMessage', expect.any(Function));
     expect(mockSocket.off).toHaveBeenCalledWith('connect', expect.any(Function));
@@ -74,7 +76,7 @@ describe('useChannelWebSocket', () => {
       const existingMsg = createEnrichedMessage({ id: 'existing', channelId: 'channel-1' });
       queryClient.setQueryData(key, createInfiniteData([existingMsg]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const newMsg = createMessage({ id: 'new-msg', channelId: 'channel-1' });
       await act(() => mockSocket.simulateEvent('newMessage', { message: newMsg }));
@@ -85,7 +87,7 @@ describe('useChannelWebSocket', () => {
     });
 
     it('skips message with no contextId', async () => {
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const msg = createMessage({ id: 'no-ctx', channelId: undefined, directMessageGroupId: undefined });
       await act(() => mockSocket.simulateEvent('newMessage', { message: msg }));
@@ -105,7 +107,7 @@ describe('useChannelWebSocket', () => {
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const newMsg = createMessage({ id: 'new-msg', channelId: 'channel-1', authorId: 'other-user' });
       await act(() => mockSocket.simulateEvent('newMessage', { message: newMsg }));
@@ -127,7 +129,7 @@ describe('useChannelWebSocket', () => {
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const ownMsg = createMessage({ id: 'own-msg', channelId: 'channel-1', authorId: 'current-user' });
       await act(() => mockSocket.simulateEvent('newMessage', { message: ownMsg }));
@@ -145,7 +147,7 @@ describe('useChannelWebSocket', () => {
       const key = channelMessagesQueryKey('channel-new');
       queryClient.setQueryData(key, createInfiniteData([]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const newMsg = createMessage({ id: 'new-msg', channelId: 'channel-new', authorId: 'other-user' });
       await act(() => mockSocket.simulateEvent('newMessage', { message: newMsg }));
@@ -165,7 +167,7 @@ describe('useChannelWebSocket', () => {
         createEnrichedMessage({ id: 'msg-1', channelId: 'channel-1', authorId: 'old' }),
       ]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const updated = createMessage({ id: 'msg-1', channelId: 'channel-1', authorId: 'new' });
       await act(() => mockSocket.simulateEvent('updateMessage', { message: updated }));
@@ -183,7 +185,7 @@ describe('useChannelWebSocket', () => {
         createEnrichedMessage({ id: 'remove', channelId: 'channel-1' }),
       ]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('deleteMessage', {
@@ -206,7 +208,7 @@ describe('useChannelWebSocket', () => {
       queryClient.setQueryData(key, createInfiniteData([msg]));
       setMessageContext('msg-1', 'channel-1');
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const reaction = createReaction({ emoji: '🎉', userIds: ['user-2'] });
       await act(() =>
@@ -226,7 +228,7 @@ describe('useChannelWebSocket', () => {
       queryClient.setQueryData(key, createInfiniteData([msg]));
       setMessageContext('msg-1', 'channel-1');
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       const updatedReaction = createReaction({ emoji: '👍', userIds: ['user-1', 'user-2'] });
       await act(() =>
@@ -239,7 +241,7 @@ describe('useChannelWebSocket', () => {
     });
 
     it('skips when message context is unknown', async () => {
-      renderChannelWebSocket();
+      renderMessageWebSocket();
       // Don't call setMessageContext - no context for this messageId
       const reaction = createReaction();
       await act(() =>
@@ -260,7 +262,7 @@ describe('useChannelWebSocket', () => {
       queryClient.setQueryData(key, createInfiniteData([msg]));
       setMessageContext('msg-1', 'channel-1');
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       // After removal, only one reaction remains
       const remaining = [createReaction({ emoji: '🎉' })];
@@ -284,7 +286,7 @@ describe('useChannelWebSocket', () => {
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([msg]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('messagePinned', {
@@ -315,7 +317,7 @@ describe('useChannelWebSocket', () => {
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([msg]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('messageUnpinned', {
@@ -345,7 +347,7 @@ describe('useChannelWebSocket', () => {
       queryClient.setQueryData(key, createInfiniteData([msg]));
       setMessageContext('parent-1', 'channel-1');
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('threadReplyCountUpdated', {
@@ -367,7 +369,7 @@ describe('useChannelWebSocket', () => {
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([createEnrichedMessage({ id: 'msg-1', channelId: 'channel-1' })]));
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() => mockSocket.simulateEvent('connect'));
 
@@ -382,7 +384,7 @@ describe('useChannelWebSocket', () => {
       ];
       queryClient.setQueryData(unreadKey, existing);
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() => mockSocket.simulateEvent('connect'));
 
@@ -400,7 +402,7 @@ describe('useChannelWebSocket', () => {
       ];
       queryClient.setQueryData(unreadKey, existing);
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('readReceiptUpdated', {
@@ -427,7 +429,7 @@ describe('useChannelWebSocket', () => {
       ];
       queryClient.setQueryData(unreadKey, existing);
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('readReceiptUpdated', {
@@ -451,7 +453,7 @@ describe('useChannelWebSocket', () => {
       ];
       queryClient.setQueryData(unreadKey, existing);
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('readReceiptUpdated', {
@@ -474,7 +476,7 @@ describe('useChannelWebSocket', () => {
       ];
       queryClient.setQueryData(unreadKey, existing);
 
-      renderChannelWebSocket();
+      renderMessageWebSocket();
 
       await act(() =>
         mockSocket.simulateEvent('readReceiptUpdated', {
@@ -486,6 +488,42 @@ describe('useChannelWebSocket', () => {
 
       const data = queryClient.getQueryData<UnreadCountDto[]>(unreadKey);
       expect(data).toEqual(existing);
+    });
+  });
+
+  describe('NEW_DM', () => {
+    it('prepends a new DM to the infinite cache', async () => {
+      const key = dmMessagesQueryKey('dm-1');
+      queryClient.setQueryData(key, createInfiniteData([
+        createEnrichedMessage({ id: 'existing', channelId: null, directMessageGroupId: 'dm-1' }),
+      ]));
+
+      renderMessageWebSocket();
+
+      const newMsg = createMessage({ id: 'new-dm', channelId: null, directMessageGroupId: 'dm-1' });
+      await act(() =>
+        mockSocket.simulateEvent('newDirectMessage', { message: newMsg }),
+      );
+
+      const data = queryClient.getQueryData(key) as InfiniteData<PaginatedMessagesResponseDto>;
+      expect(data.pages[0].messages).toHaveLength(2);
+      expect(data.pages[0].messages[0]).toMatchObject({ id: 'new-dm' });
+    });
+  });
+
+  describe('connect (DM reconnect)', () => {
+    it('invalidates DM message queries on reconnect', async () => {
+      const key = dmMessagesQueryKey('dm-1');
+      queryClient.setQueryData(key, createInfiniteData([
+        createEnrichedMessage({ id: 'dm-msg', channelId: null, directMessageGroupId: 'dm-1' }),
+      ]));
+
+      renderMessageWebSocket();
+
+      await act(() => mockSocket.simulateEvent('connect'));
+
+      const query = queryClient.getQueryCache().find({ queryKey: key });
+      expect(query?.isStale()).toBe(true);
     });
   });
 });

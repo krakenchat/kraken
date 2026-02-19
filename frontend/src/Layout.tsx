@@ -15,9 +15,9 @@ import { useVoiceRecovery } from "./hooks/useVoiceRecovery";
 import { usePresenceHeartbeat } from "./hooks/usePresenceHeartbeat";
 import { usePresenceEvents } from "./hooks/usePresenceEvents";
 import { useVoiceEvents } from "./hooks/useVoiceEvents";
-import { useChannelWebSocket } from "./hooks/useChannelWebSocket";
+import { useMessageWebSocket } from "./hooks/useMessageWebSocket";
 import { useCommunityEvents } from "./hooks/useCommunityEvents";
-import { useDirectMessageWebSocket } from "./hooks/useDirectMessageWebSocket";
+import { useAutoSubscribe } from "./hooks/useAutoSubscribe";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
 import { useResponsive } from "./hooks/useResponsive";
@@ -79,9 +79,11 @@ const Layout: React.FC = () => {
   // Listen for real-time voice presence events globally
   useVoiceEvents();
 
+  // Subscribe to all rooms on connect/reconnect (replaces per-community JOIN_ALL)
+  useAutoSubscribe();
+
   // Listen for channel/DM message events globally (not page-scoped)
-  useChannelWebSocket();
-  useDirectMessageWebSocket();
+  useMessageWebSocket();
 
   // Listen for community membership changes (e.g., being added to a community)
   useCommunityEvents();

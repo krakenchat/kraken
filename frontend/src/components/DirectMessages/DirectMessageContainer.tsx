@@ -10,7 +10,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { messagesControllerAddAttachmentMutation } from "../../api-client/@tanstack/react-query.gen";
 import { useNotification } from "../../contexts/NotificationContext";
 import { dmMessagesQueryKey } from "../../utils/messageQueryKeys";
-import { updateMessageInFlat } from "../../utils/messageCacheUpdaters";
+import { updateMessageInInfinite } from "../../utils/messageCacheUpdaters";
 import { useSendMessage } from "../../hooks/useSendMessage";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import type { UserMention } from "../../utils/mentionParser";
@@ -34,7 +34,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
       if (updatedMessage.directMessageGroupId) {
         const queryKey = dmMessagesQueryKey(updatedMessage.directMessageGroupId);
         queryClient.setQueryData(queryKey, (old: unknown) =>
-          updateMessageInFlat(old as never, updatedMessage as import("../../types/message.type").Message)
+          updateMessageInInfinite(old as never, updatedMessage as import("../../types/message.type").Message)
         );
       }
     },

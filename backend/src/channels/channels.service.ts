@@ -51,6 +51,21 @@ export class ChannelsService {
         });
         return channel;
       });
+      // For public channels, join all community members' sockets to the new channel room
+      if (!result.isPrivate) {
+        try {
+          await this.websocketService.joinSocketsToRoom(
+            `community:${result.communityId}`,
+            result.id,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Failed to join community sockets to new channel ${result.id}`,
+            error,
+          );
+        }
+      }
+
       return result;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {

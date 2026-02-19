@@ -6,7 +6,7 @@ import type { Message } from '../types/message.type';
 // structurally identical but TypeScript treats them as distinct. `as never` is the
 // minimal assertion to bridge between WebSocket payloads and the TQ cache type.
 
-// --- Channel (InfiniteData) updaters ---
+// --- InfiniteData updaters (used by both channel and DM caches) ---
 
 export function prependMessageToInfinite(
   old: InfiniteData<PaginatedMessagesResponseDto> | undefined,
@@ -66,42 +66,3 @@ export function findMessageInInfinite(
   return undefined;
 }
 
-// --- DM (flat PaginatedMessagesResponseDto) updaters ---
-
-export function prependMessageToFlat(
-  old: PaginatedMessagesResponseDto | undefined,
-  message: Message,
-): PaginatedMessagesResponseDto | undefined {
-  if (!old) return old;
-  if (old.messages.some(m => m.id === message.id)) return old;
-  return { ...old, messages: [message as never, ...old.messages] };
-}
-
-export function updateMessageInFlat(
-  old: PaginatedMessagesResponseDto | undefined,
-  message: Message,
-): PaginatedMessagesResponseDto | undefined {
-  if (!old) return old;
-  return {
-    ...old,
-    messages: old.messages.map(m => m.id === message.id ? message as never : m),
-  };
-}
-
-export function deleteMessageFromFlat(
-  old: PaginatedMessagesResponseDto | undefined,
-  messageId: string,
-): PaginatedMessagesResponseDto | undefined {
-  if (!old) return old;
-  return { ...old, messages: old.messages.filter(m => m.id !== messageId) };
-}
-
-/** Find a message in a flat paginated response */
-export function findMessageInFlat(
-  data: PaginatedMessagesResponseDto | undefined,
-  messageId: string,
-): Message | undefined {
-  if (!data) return undefined;
-  const found = data.messages.find(m => m.id === messageId);
-  return found as unknown as Message | undefined;
-}

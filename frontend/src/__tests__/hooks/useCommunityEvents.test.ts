@@ -70,7 +70,7 @@ describe('useCommunityEvents', () => {
     });
   });
 
-  it('emits JOIN_ALL with communityId on event', async () => {
+  it('does not emit any events back to server on event', async () => {
     renderCommunityEvents();
 
     await act(() =>
@@ -80,6 +80,7 @@ describe('useCommunityEvents', () => {
       }),
     );
 
-    expect(mockSocket.emit).toHaveBeenCalledWith('joinAll', 'community-1');
+    // Server handles room joining directly — no client round-trip needed
+    expect(mockSocket.emit).not.toHaveBeenCalled();
   });
 });
