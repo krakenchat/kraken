@@ -39,7 +39,7 @@ RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 RUN pnpm run build
 
 # Prune dev dependencies - keep only production
-RUN pnpm prune --prod
+RUN CI=true pnpm prune --prod
 
 # ============================================
 # Stage 2: Production Runtime

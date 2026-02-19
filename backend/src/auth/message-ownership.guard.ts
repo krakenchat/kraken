@@ -23,7 +23,7 @@ export class MessageOwnershipGuard implements CanActivate {
       .switchToHttp()
       .getRequest();
     const user: UserEntity = request.user;
-    const messageId = request.params?.id;
+    const messageId = request.params?.id as string | undefined;
 
     // If no message ID in params, fall back to RBAC
     if (!messageId) {

@@ -72,7 +72,7 @@ export class FileAccessGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request: Request = context.switchToHttp().getRequest();
     const user = request.user as UserEntity | undefined;
-    const fileId = request.params?.id;
+    const fileId = request.params?.id as string | undefined;
 
     if (!fileId) {
       throw new NotFoundException('File ID not provided');

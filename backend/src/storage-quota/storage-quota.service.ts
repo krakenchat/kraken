@@ -214,7 +214,6 @@ export class StorageQuotaService {
       totalUsers,
       storageByTypeRaw,
       userDistribution,
-      serverStats,
     ] = await Promise.all([
       this.getInstanceStorageSettings(),
       this.db.file.aggregate({
@@ -225,8 +224,9 @@ export class StorageQuotaService {
       this.db.user.count(),
       this.getStorageByType(),
       this.getUserStorageDistribution(),
-      this.getServerStats(),
     ]);
+
+    const serverStats = this.getServerStats();
 
     const totalStorageUsedBytes = totalFiles._sum.size || 0;
     const totalFileCount = totalFiles._count;
