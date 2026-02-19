@@ -3,7 +3,7 @@ import { createEventBus } from './emitter';
 import { SocketHubContext } from './SocketHubContext';
 import { useSocketHub } from './useSocketHub';
 
-function SocketHubInner({ children }: { children: React.ReactNode }) {
+export function SocketHubProvider({ children }: { children: React.ReactNode }) {
   const eventBus = useMemo(() => createEventBus(), []);
 
   useSocketHub(eventBus);
@@ -13,8 +13,4 @@ function SocketHubInner({ children }: { children: React.ReactNode }) {
       {children}
     </SocketHubContext.Provider>
   );
-}
-
-export function SocketHubProvider({ children }: { children: React.ReactNode }) {
-  return <SocketHubInner>{children}</SocketHubInner>;
 }

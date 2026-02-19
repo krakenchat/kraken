@@ -11,7 +11,7 @@ import { SocketHubContext } from './SocketHubContext';
  */
 export function useServerEvent<E extends keyof ServerEventPayloads>(
   event: E,
-  callback: (payload: ServerEventPayloads[E]) => void,
+  callback: (payload: ServerEventPayloads[E]) => void | Promise<void>,
 ): void {
   const eventBus = useContext(SocketHubContext);
   const callbackRef = useRef(callback);
