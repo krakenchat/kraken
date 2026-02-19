@@ -1,4 +1,6 @@
 import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChannelMembershipService } from './channel-membership.service';
 import { DatabaseService } from '@/database/database.service';
 import {
@@ -15,20 +17,23 @@ import {
   ChannelMembershipFactory,
 } from '@/test-utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 describe('ChannelMembershipService', () => {
   let service: ChannelMembershipService;
   let mockDatabase: any;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit } = await TestBed.solitary(ChannelMembershipService)
+    const { unit, unitRef } = await TestBed.solitary(ChannelMembershipService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
 
     service = unit;
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -74,6 +79,10 @@ describe('ChannelMembershipService', () => {
           addedBy: undefined,
         },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.CHANNEL_MEMBERSHIP_CREATED,
+        { userId: user.id, channelId: channel.id },
+      );
     });
 
     it('should create channel membership with addedBy', async () => {
@@ -508,6 +517,10 @@ describe('ChannelMembershipService', () => {
           },
         },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.CHANNEL_MEMBERSHIP_REMOVED,
+        { userId: user.id, channelId: channel.id },
+      );
     });
 
     it('should throw ForbiddenException for public channel', async () => {

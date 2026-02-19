@@ -52,6 +52,28 @@ export class WebsocketService {
     }
   }
 
+  /**
+   * Remove all sockets in `sourceRoom` from the given rooms.
+   * Symmetric counterpart to `joinSocketsToRoom()`.
+   */
+  removeSocketsFromRoom(sourceRoom: string, rooms: string | string[]): void {
+    if (!this.server) {
+      this.logger.error(
+        'Attempted to remove sockets before server was initialized',
+      );
+      return;
+    }
+
+    try {
+      this.server.in(sourceRoom).socketsLeave(rooms);
+    } catch (error) {
+      this.logger.error(
+        `Failed to remove sockets in "${sourceRoom}" from rooms`,
+        error,
+      );
+    }
+  }
+
   sendToAll(event: string, payload: any): boolean {
     if (!this.server) {
       this.logger.error(

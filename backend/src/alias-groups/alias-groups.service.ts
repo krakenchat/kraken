@@ -6,6 +6,8 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 import { CreateAliasGroupDto } from './dto/create-alias-group.dto';
 import { UpdateAliasGroupDto } from './dto/update-alias-group.dto';
 
@@ -54,7 +56,10 @@ interface AliasGroupQueryResult {
 export class AliasGroupsService {
   private readonly logger = new Logger(AliasGroupsService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   /**
    * Helper to transform Prisma result to our interface
@@ -202,6 +207,15 @@ export class AliasGroupsService {
     });
 
     const typedGroup = group as AliasGroupQueryResult;
+
+    // Emit domain event — the RoomSubscriptionHandler will join members
+    if (dto.memberIds && dto.memberIds.length > 0) {
+      this.eventEmitter.emit(RoomEvents.ALIAS_GROUP_CREATED, {
+        aliasGroupId: group.id,
+        memberIds: dto.memberIds,
+      });
+    }
+
     this.logger.log(
       `Created alias group "${dto.name}" in community ${communityId} with ${typedGroup.members.length} members`,
     );
@@ -280,6 +294,13 @@ export class AliasGroupsService {
       throw new NotFoundException('Alias group not found');
     }
 
+    // Query member IDs before deletion for room cleanup
+    const members = await this.databaseService.aliasGroupMember.findMany({
+      where: { aliasGroupId: groupId },
+      select: { userId: true },
+    });
+    const memberIds = members.map((m) => m.userId);
+
     // Delete all members first (cascade should handle this, but be explicit)
     await this.databaseService.aliasGroupMember.deleteMany({
       where: { aliasGroupId: groupId },
@@ -288,6 +309,14 @@ export class AliasGroupsService {
     await this.databaseService.aliasGroup.delete({
       where: { id: groupId },
     });
+
+    // Emit domain event — the RoomSubscriptionHandler will remove sockets
+    if (memberIds.length > 0) {
+      this.eventEmitter.emit(RoomEvents.ALIAS_GROUP_DELETED, {
+        aliasGroupId: groupId,
+        memberIds,
+      });
+    }
 
     this.logger.log(
       `Deleted alias group "${group.name}" (${groupId}) from community ${group.communityId}`,
@@ -341,6 +370,12 @@ export class AliasGroupsService {
       },
     });
 
+    // Emit domain event — the RoomSubscriptionHandler will join sockets
+    this.eventEmitter.emit(RoomEvents.ALIAS_GROUP_MEMBER_ADDED, {
+      aliasGroupId: groupId,
+      userId,
+    });
+
     this.logger.log(`Added user ${userId} to alias group ${groupId}`);
   }
 
@@ -363,6 +398,12 @@ export class AliasGroupsService {
 
     await this.databaseService.aliasGroupMember.delete({
       where: { id: member.id },
+    });
+
+    // Emit domain event — the RoomSubscriptionHandler will remove sockets
+    this.eventEmitter.emit(RoomEvents.ALIAS_GROUP_MEMBER_REMOVED, {
+      aliasGroupId: groupId,
+      userId,
     });
 
     this.logger.log(`Removed user ${userId} from alias group ${groupId}`);
@@ -400,6 +441,21 @@ export class AliasGroupsService {
       }
     }
 
+    // Query current members to compute diff for room subscription changes
+    const currentMembers = await this.databaseService.aliasGroupMember.findMany(
+      {
+        where: { aliasGroupId: groupId },
+        select: { userId: true },
+      },
+    );
+    const currentMemberIds = new Set(currentMembers.map((m) => m.userId));
+    const newMemberIds = new Set(memberIds);
+
+    const addedUserIds = memberIds.filter((id) => !currentMemberIds.has(id));
+    const removedUserIds = [...currentMemberIds].filter(
+      (id) => !newMemberIds.has(id),
+    );
+
     // Delete all existing members and create new ones
     await this.databaseService.$transaction([
       this.databaseService.aliasGroupMember.deleteMany({
@@ -414,6 +470,15 @@ export class AliasGroupsService {
         }),
       ),
     ]);
+
+    // Emit domain event — the RoomSubscriptionHandler will update rooms
+    if (addedUserIds.length > 0 || removedUserIds.length > 0) {
+      this.eventEmitter.emit(RoomEvents.ALIAS_GROUP_MEMBERS_UPDATED, {
+        aliasGroupId: groupId,
+        addedUserIds,
+        removedUserIds,
+      });
+    }
 
     this.logger.log(
       `Updated alias group ${groupId} members: now has ${memberIds.length} members`,

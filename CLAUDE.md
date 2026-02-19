@@ -142,7 +142,7 @@ docs/
 
 ## 🐳 **CRITICAL**: ALL DEVELOPMENT USES DOCKER
 
-**Never run npm/yarn/node commands directly on the host. Always use Docker containers as shown in the Development Commands section below.**
+**Never run pnpm/npm/yarn/node commands directly on the host. Always use Docker containers as shown in the Development Commands section below.**
 
 ## Project Overview
 
@@ -316,25 +316,25 @@ import { isElectron, hasElectronFeature } from './utils/platform';
 ### Backend Development (NestJS in Docker)
 
 - **Backend shell**: `docker compose run backend bash`
-- **Run tests**: `docker compose run backend npm run test`
-- **Run e2e tests**: `docker compose run backend npm run test:e2e`
-- **Lint code**: `docker compose run backend npm run lint`
-- **Build**: `docker compose run backend npm run build`
-- **Single test**: `docker compose run backend jest <test-pattern>`
+- **Run tests**: `docker compose run backend pnpm run test`
+- **Run e2e tests**: `docker compose run backend pnpm run test:e2e`
+- **Lint code**: `docker compose run backend pnpm run lint`
+- **Build**: `docker compose run backend pnpm run build`
+- **Single test**: `docker compose run backend pnpm exec jest <test-pattern>`
 
 ### Frontend Development (React + Vite in Docker)
 
 - **Frontend shell**: `docker compose run frontend bash`
-- **Lint frontend**: `docker compose run frontend npm run lint`
-- **Build frontend**: `docker compose run frontend npm run build`
-- **Type check**: `docker compose run frontend npm run type-check`
+- **Lint frontend**: `docker compose run frontend pnpm run lint`
+- **Build frontend**: `docker compose run frontend pnpm run build`
+- **Type check**: `docker compose run frontend pnpm run type-check`
 
 ### Database Operations (Prisma in Docker)
 
-- **Generate Prisma client**: `docker compose run backend npm run prisma:generate`
-- **Push schema to DB**: `docker compose run backend npm run prisma:push`
-- **Full setup**: `docker compose run backend npm run prisma` (generates + pushes)
-- **Prisma studio**: `docker compose run -p 5555:5555 backend npx prisma studio`
+- **Generate Prisma client**: `docker compose run backend pnpm run prisma:generate`
+- **Push schema to DB**: `docker compose run backend pnpm run prisma:push`
+- **Full setup**: `docker compose run backend pnpm run prisma` (generates + pushes)
+- **Prisma studio**: `docker compose run -p 5555:5555 backend pnpm exec prisma studio`
 
 ### OpenAPI SDK Client Regeneration
 
@@ -342,10 +342,10 @@ When backend controllers or DTOs change (new endpoints, modified responses), reg
 
 ```bash
 # 1. Generate the OpenAPI spec from the backend
-docker compose run --rm backend npm run generate:openapi
+docker compose run --rm backend pnpm run generate:openapi
 
 # 2. Regenerate the frontend SDK (must run inside frontend container)
-docker compose run --rm frontend sh -c 'OPENAPI_SPEC_PATH=/spec/openapi.json npx openapi-ts'
+docker compose run --rm frontend sh -c 'OPENAPI_SPEC_PATH=/spec/openapi.json pnpm exec openapi-ts'
 ```
 
 The backend dir is mounted at `/spec` inside the frontend container (see `docker-compose.yml`). The generated client goes to `frontend/src/api-client/`. Always use generated SDK functions (`voicePresenceControllerJoinPresence(...)`) instead of raw `client.post()` calls.
@@ -387,7 +387,7 @@ docker-compose down && docker-compose up
 
 ### 🚨 **Important Notes**
 
-- **Never run npm commands directly on host** - always use Docker containers
+- **Never run pnpm/npm commands directly on host** - always use Docker containers
 - **Hot reload is enabled** - file changes automatically update in containers
 - **Ports**: Frontend (5173), Backend (3000), MongoDB (27017), Redis (6379)
 - **Data persistence**: MongoDB and Redis data is persisted in Docker volumes
@@ -399,13 +399,13 @@ docker-compose down && docker-compose up
 docker-compose up
 
 # 2. In separate terminal: Run backend tests
-docker compose run backend npm run test
+docker compose run backend pnpm run test
 
 # 3. In separate terminal: Check backend linting
-docker compose run backend npm run lint
+docker compose run backend pnpm run lint
 
 # 4. In separate terminal: Update database schema
-docker compose run backend npm run prisma:push
+docker compose run backend pnpm run prisma:push
 
 # 5. View logs for specific service
 docker-compose logs backend -f
@@ -575,13 +575,13 @@ When implementing a feature, fixing a bug, or modifying behavior in either the b
 - Uses Jest with `@suites/unit` TestBed automocks
 - Test files follow `*.spec.ts` pattern alongside source files
 - E2E tests in `backend/test/` directory
-- Run: `docker compose run --rm backend npm run test`
+- Run: `docker compose run --rm backend pnpm run test`
 
 #### Frontend Tests
 
 - Uses Vitest + jsdom + `@testing-library/react` + MSW v2
 - Test files live in `frontend/src/__tests__/` organized by type: `components/`, `hooks/`, `features/`
-- Run: `docker compose run --rm frontend npm run test` (or `npm run test:cov` for coverage)
+- Run: `docker compose run --rm frontend pnpm run test` (or `pnpm run test:cov` for coverage)
 - CI runs automatically on PRs touching `frontend/**` or `shared/**`
 
 **Test infrastructure** (in `frontend/src/__tests__/test-utils/`):

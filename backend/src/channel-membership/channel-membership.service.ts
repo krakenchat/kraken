@@ -5,16 +5,21 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateChannelMembershipDto } from './dto/create-channel-membership.dto';
 import { ChannelMembershipResponseDto } from './dto/channel-membership-response.dto';
 import { DatabaseService } from '@/database/database.service';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 @Injectable()
 export class ChannelMembershipService {
   private readonly logger = new Logger(ChannelMembershipService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async create(
     createChannelMembershipDto: CreateChannelMembershipDto,
@@ -88,6 +93,12 @@ export class ChannelMembershipService {
           addedBy: addedById,
         },
       });
+
+    // Emit domain event — the RoomSubscriptionHandler will join sockets
+    this.eventEmitter.emit(RoomEvents.CHANNEL_MEMBERSHIP_CREATED, {
+      userId,
+      channelId,
+    });
 
     this.logger.log(
       `Added user ${userId} to private channel ${channelId}${addedById ? ` by ${addedById}` : ''}`,
@@ -221,6 +232,12 @@ export class ChannelMembershipService {
           channelId,
         },
       },
+    });
+
+    // Emit domain event — the RoomSubscriptionHandler will remove sockets
+    this.eventEmitter.emit(RoomEvents.CHANNEL_MEMBERSHIP_REMOVED, {
+      userId,
+      channelId,
     });
 
     this.logger.log(`Removed user ${userId} from private channel ${channelId}`);

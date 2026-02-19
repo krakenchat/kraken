@@ -1,5 +1,6 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ModerationService } from './moderation.service';
 import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
@@ -16,6 +17,8 @@ import {
   MessageFactory,
 } from '@/test-utils';
 import { ModerationAction } from '@prisma/client';
+import { RoomEvents } from '@/rooms/room-subscription.events';
+import { RoomName } from '@/common/utils/room-name.util';
 
 describe('ModerationService', () => {
   let service: ModerationService;
@@ -23,6 +26,7 @@ describe('ModerationService', () => {
   let rolesService: Mocked<RolesService>;
   let membershipService: Mocked<MembershipService>;
   let websocketService: Mocked<WebsocketService>;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   const moderatorId = 'moderator-123';
   const userId = 'user-456';
@@ -42,6 +46,7 @@ describe('ModerationService', () => {
     rolesService = unitRef.get(RolesService);
     membershipService = unitRef.get(MembershipService);
     websocketService = unitRef.get(WebsocketService);
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -107,7 +112,15 @@ describe('ModerationService', () => {
           }),
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.MODERATION_USER_BANNED,
+        { userId, communityId },
+      );
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower role', async () => {
@@ -292,7 +305,15 @@ describe('ModerationService', () => {
           }),
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.MODERATION_USER_KICKED,
+        { userId, communityId },
+      );
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower role', async () => {
@@ -334,7 +355,11 @@ describe('ModerationService', () => {
           }),
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower role', async () => {
@@ -367,7 +392,11 @@ describe('ModerationService', () => {
           }),
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalled();
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        RoomName.community(communityId),
+        expect.any(String),
+        expect.objectContaining({ communityId, userId }),
+      );
     });
 
     it('should throw NotFoundException when timeout does not exist', async () => {

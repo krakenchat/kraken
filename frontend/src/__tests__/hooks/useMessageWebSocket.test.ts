@@ -16,7 +16,6 @@ import {
   readReceiptsControllerGetUnreadCountsQueryKey,
   userControllerGetProfileQueryKey,
 } from '../../api-client/@tanstack/react-query.gen';
-import { setMessageContext, clearContextIndex } from '../../utils/messageIndex';
 import {
   createTestQueryClient,
   createMockSocket,
@@ -34,8 +33,6 @@ let mockSocket: MockSocket;
 beforeEach(() => {
   queryClient = createTestQueryClient();
   mockSocket = createMockSocket();
-  clearContextIndex('channel-1');
-  clearContextIndex('channel-2');
 });
 
 function renderMessageWebSocket() {
@@ -206,13 +203,17 @@ describe('useMessageWebSocket', () => {
       const msg = createEnrichedMessage({ id: 'msg-1', channelId: 'channel-1', reactions: [] });
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([msg]));
-      setMessageContext('msg-1', 'channel-1');
 
       renderMessageWebSocket();
 
       const reaction = createReaction({ emoji: '🎉', userIds: ['user-2'] });
       await act(() =>
-        mockSocket.simulateEvent('reactionAdded', { messageId: 'msg-1', reaction }),
+        mockSocket.simulateEvent('reactionAdded', {
+          messageId: 'msg-1',
+          reaction,
+          channelId: 'channel-1',
+          directMessageGroupId: null,
+        }),
       );
 
       const data = queryClient.getQueryData(key) as InfiniteData<PaginatedMessagesResponseDto>;
@@ -226,13 +227,17 @@ describe('useMessageWebSocket', () => {
       const msg = createEnrichedMessage({ id: 'msg-1', channelId: 'channel-1', reactions: [existingReaction] });
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([msg]));
-      setMessageContext('msg-1', 'channel-1');
 
       renderMessageWebSocket();
 
       const updatedReaction = createReaction({ emoji: '👍', userIds: ['user-1', 'user-2'] });
       await act(() =>
-        mockSocket.simulateEvent('reactionAdded', { messageId: 'msg-1', reaction: updatedReaction }),
+        mockSocket.simulateEvent('reactionAdded', {
+          messageId: 'msg-1',
+          reaction: updatedReaction,
+          channelId: 'channel-1',
+          directMessageGroupId: null,
+        }),
       );
 
       const data = queryClient.getQueryData(key) as InfiniteData<PaginatedMessagesResponseDto>;
@@ -240,12 +245,16 @@ describe('useMessageWebSocket', () => {
       expect(data.pages[0].messages[0].reactions[0].userIds).toEqual(['user-1', 'user-2']);
     });
 
-    it('skips when message context is unknown', async () => {
+    it('skips when no channelId or directMessageGroupId in payload', async () => {
       renderMessageWebSocket();
-      // Don't call setMessageContext - no context for this messageId
       const reaction = createReaction();
       await act(() =>
-        mockSocket.simulateEvent('reactionAdded', { messageId: 'unknown', reaction }),
+        mockSocket.simulateEvent('reactionAdded', {
+          messageId: 'unknown',
+          reaction,
+          channelId: null,
+          directMessageGroupId: null,
+        }),
       );
       // Should not throw
     });
@@ -260,7 +269,6 @@ describe('useMessageWebSocket', () => {
       });
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([msg]));
-      setMessageContext('msg-1', 'channel-1');
 
       renderMessageWebSocket();
 
@@ -271,6 +279,8 @@ describe('useMessageWebSocket', () => {
           messageId: 'msg-1',
           emoji: '👍',
           reactions: remaining,
+          channelId: 'channel-1',
+          directMessageGroupId: null,
         }),
       );
 
@@ -345,7 +355,6 @@ describe('useMessageWebSocket', () => {
       });
       const key = channelMessagesQueryKey('channel-1');
       queryClient.setQueryData(key, createInfiniteData([msg]));
-      setMessageContext('parent-1', 'channel-1');
 
       renderMessageWebSocket();
 
@@ -354,6 +363,8 @@ describe('useMessageWebSocket', () => {
           parentMessageId: 'parent-1',
           replyCount: 5,
           lastReplyAt: '2025-01-02T12:00:00Z',
+          channelId: 'channel-1',
+          directMessageGroupId: null,
         }),
       );
 

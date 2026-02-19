@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { AuthenticatedSocket } from '@/common/utils/socket.utils';
+import { RoomName } from '@/common/utils/room-name.util';
 
 @Injectable()
 export class RoomsService {
@@ -16,7 +17,7 @@ export class RoomsService {
    */
   async joinAllUserRooms(client: AuthenticatedSocket) {
     const userId = client.handshake.user.id;
-    await client.join(userId);
+    await client.join(RoomName.user(userId));
 
     // Get all community IDs the user is a member of
     const memberships = await this.databaseService.membership.findMany({
@@ -27,7 +28,7 @@ export class RoomsService {
 
     // Join community rooms (for community-wide events like CHANNELS_REORDERED)
     for (const communityId of communityIds) {
-      await client.join(`community:${communityId}`);
+      await client.join(RoomName.community(communityId));
     }
 
     // Join all public channels across all communities
@@ -40,7 +41,7 @@ export class RoomsService {
         select: { id: true },
       });
       for (const channel of publicChannels) {
-        await client.join(channel.id);
+        await client.join(RoomName.channel(channel.id));
       }
     }
 
@@ -54,7 +55,7 @@ export class RoomsService {
         select: { channelId: true },
       });
     for (const membership of privateChannelMemberships) {
-      await client.join(membership.channelId);
+      await client.join(RoomName.channel(membership.channelId));
     }
 
     // Join all DM groups
@@ -64,7 +65,7 @@ export class RoomsService {
         select: { groupId: true },
       });
     for (const dm of directMessages) {
-      await client.join(dm.groupId);
+      await client.join(RoomName.dmGroup(dm.groupId));
     }
 
     // Join all alias groups
@@ -73,7 +74,7 @@ export class RoomsService {
       select: { aliasGroupId: true },
     });
     for (const ag of aliasGroups) {
-      await client.join(ag.aliasGroupId);
+      await client.join(RoomName.aliasGroup(ag.aliasGroupId));
     }
 
     this.logger.debug(

@@ -9,6 +9,7 @@ import { RolesModule } from './roles/roles.module';
 import { InviteModule } from './invite/invite.module';
 import { CommunityModule } from './community/community.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
 import {
   ThrottlerGuard,
@@ -49,6 +50,7 @@ import { AliasGroupsModule } from './alias-groups/alias-groups.module';
     DatabaseModule,
     InviteModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     RolesModule,
     UserModule,

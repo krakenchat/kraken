@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { messagesControllerFindAllForGroup } from "../api-client/sdk.gen";
 import { dmMessagesQueryKey, MESSAGE_STALE_TIME, MESSAGE_MAX_PAGES } from "../utils/messageQueryKeys";
-import { indexMessages, clearContextIndex } from "../utils/messageIndex";
 import type { Message } from "../types/message.type";
 
 export const useDirectMessages = (dmGroupId: string) => {
@@ -40,16 +39,6 @@ export const useDirectMessages = (dmGroupId: string) => {
     () => data?.pages.flatMap(page => page.messages) as unknown as Message[] ?? [],
     [data],
   );
-
-  // Index messages for O(1) lookup by messageId → contextId
-  useEffect(() => {
-    if (messages.length > 0) {
-      indexMessages(messages, dmGroupId);
-    }
-    return () => {
-      clearContextIndex(dmGroupId);
-    };
-  }, [messages, dmGroupId]);
 
   const handleLoadMore = useCallback(async () => {
     if (!isFetchingNextPage && hasNextPage) {

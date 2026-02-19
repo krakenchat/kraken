@@ -270,6 +270,8 @@ export class MessagesGateway
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
         messageId: result.id,
         reaction: reaction,
+        channelId: result.channelId ?? null,
+        directMessageGroupId: result.directMessageGroupId ?? null,
       });
     }
   }
@@ -299,6 +301,8 @@ export class MessagesGateway
         messageId: result.id,
         emoji: payload.emoji,
         reactions: result.reactions,
+        channelId: result.channelId ?? null,
+        directMessageGroupId: result.directMessageGroupId ?? null,
       });
     }
   }

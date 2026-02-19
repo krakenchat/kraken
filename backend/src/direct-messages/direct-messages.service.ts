@@ -4,16 +4,21 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '@/database/database.service';
 import { CreateDmGroupDto } from './dto/create-dm-group.dto';
 import { AddMembersDto } from './dto/add-members.dto';
 import { DmGroupResponseDto } from './dto/dm-group-response.dto';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 @Injectable()
 export class DirectMessagesService {
   private readonly logger = new Logger(DirectMessagesService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async findUserDmGroups(userId: string): Promise<DmGroupResponseDto[]> {
     // Step 1: Get user's DM group memberships (just group IDs)
@@ -158,6 +163,12 @@ export class DirectMessagesService {
       },
     });
 
+    // Emit domain event — the RoomSubscriptionHandler will join all members
+    this.eventEmitter.emit(RoomEvents.DM_GROUP_CREATED, {
+      groupId: dmGroup.id,
+      memberIds: allUserIds,
+    });
+
     return this.formatDmGroupResponse(dmGroup);
   }
 
@@ -253,6 +264,12 @@ export class DirectMessagesService {
       }
     }
 
+    // Emit domain event — the RoomSubscriptionHandler will join new members
+    this.eventEmitter.emit(RoomEvents.DM_GROUP_MEMBER_ADDED, {
+      groupId,
+      userIds: addMembersDto.userIds,
+    });
+
     return this.findDmGroup(groupId, userId);
   }
 
@@ -264,6 +281,12 @@ export class DirectMessagesService {
           userId,
         },
       },
+    });
+
+    // Emit domain event — the RoomSubscriptionHandler will remove sockets
+    this.eventEmitter.emit(RoomEvents.DM_GROUP_MEMBER_LEFT, {
+      groupId,
+      userId,
     });
   }
 

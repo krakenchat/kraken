@@ -195,6 +195,8 @@ export class MessagesController {
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
         messageId: result.id,
         reaction: reaction,
+        channelId: result.channelId ?? null,
+        directMessageGroupId: result.directMessageGroupId ?? null,
       });
     }
 
@@ -230,6 +232,8 @@ export class MessagesController {
         messageId: result.id,
         emoji: removeReactionDto.emoji,
         reactions: reactions,
+        channelId: result.channelId ?? null,
+        directMessageGroupId: result.directMessageGroupId ?? null,
       });
     }
 

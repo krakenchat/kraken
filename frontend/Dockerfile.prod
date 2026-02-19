@@ -6,10 +6,12 @@
 # ============================================
 FROM node:24-slim AS builder
 
+RUN corepack enable && corepack prepare pnpm@10.30.0 --activate
+
 WORKDIR /app
 
 # Copy root workspace config + shared and frontend package files
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY shared/package.json ./shared/
 COPY frontend/package.json ./frontend/
 
@@ -17,7 +19,7 @@ COPY frontend/package.json ./frontend/
 COPY shared/ ./shared/
 
 # Install dependencies
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy backend OpenAPI spec (needed for API client generation)
 COPY backend/openapi.json ./backend/openapi.json
@@ -28,7 +30,7 @@ COPY frontend/ ./frontend/
 WORKDIR /app/frontend
 
 # Generate typed API client from OpenAPI spec
-RUN npx openapi-ts
+RUN pnpm exec openapi-ts
 
 # Build arguments for environment variables (injected at build time)
 ARG VITE_API_URL=/api
@@ -42,7 +44,7 @@ ENV VITE_APP_VERSION=__VITE_APP_VERSION__
 
 # Build the web application with Vite (not electron-vite)
 # Uses vite.config.ts and outputs to dist/
-RUN npm run build:renderer
+RUN pnpm run build:renderer
 
 # ============================================
 # Stage 2: Production with Nginx

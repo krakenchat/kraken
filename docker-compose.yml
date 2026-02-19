@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    command: npm run start:dev
+    command: pnpm run start:dev
     ports:
       - "3000:3000"
     environment:

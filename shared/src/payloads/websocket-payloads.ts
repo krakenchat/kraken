@@ -72,12 +72,16 @@ export interface DeleteMessagePayload {
 export interface ReactionAddedPayload {
   messageId: string;
   reaction: Reaction;
+  channelId?: string | null;
+  directMessageGroupId?: string | null;
 }
 
 export interface ReactionRemovedPayload {
   messageId: string;
   emoji: string;
   reactions: Reaction[];
+  channelId?: string | null;
+  directMessageGroupId?: string | null;
 }
 
 // =============================================================================
@@ -252,6 +256,8 @@ export interface ThreadReplyCountUpdatedPayload {
   parentMessageId: string;
   replyCount: number;
   lastReplyAt: string | null;
+  channelId?: string | null;
+  directMessageGroupId?: string | null;
 }
 
 // =============================================================================

@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import { DatabaseService } from '@/database/database.service';
@@ -12,6 +13,8 @@ import { ChannelType, Prisma } from '@prisma/client';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { isPrismaError } from '@/common/utils/prisma.utils';
+import { RoomEvents } from '@/rooms/room-subscription.events';
+import { RoomName } from '@/common/utils/room-name.util';
 
 @Injectable()
 export class ChannelsService {
@@ -20,6 +23,7 @@ export class ChannelsService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly websocketService: WebsocketService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(createChannelDto: CreateChannelDto, user: UserEntity) {
@@ -51,13 +55,12 @@ export class ChannelsService {
         });
         return channel;
       });
-      // For public channels, join all community members' sockets to the new channel room
-      if (!result.isPrivate) {
-        this.websocketService.joinSocketsToRoom(
-          `community:${result.communityId}`,
-          result.id,
-        );
-      }
+      // Emit domain event — the RoomSubscriptionHandler will join sockets
+      this.eventEmitter.emit(RoomEvents.CHANNEL_CREATED, {
+        channelId: result.id,
+        communityId: result.communityId,
+        isPrivate: result.isPrivate,
+      });
 
       return result;
     } catch (error) {
@@ -158,6 +161,9 @@ export class ChannelsService {
         where: { id },
       });
     });
+
+    // Emit domain event — the RoomSubscriptionHandler will remove sockets
+    this.eventEmitter.emit(RoomEvents.CHANNEL_DELETED, { channelId: id });
   }
 
   async createDefaultGeneralChannel(
@@ -300,7 +306,7 @@ export class ChannelsService {
 
       // Emit WebSocket event for real-time updates
       this.websocketService.sendToRoom(
-        `community:${communityId}`,
+        RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
         { communityId, channels: updatedChannels },
       );
@@ -350,7 +356,7 @@ export class ChannelsService {
 
       // Emit WebSocket event for real-time updates
       this.websocketService.sendToRoom(
-        `community:${communityId}`,
+        RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
         { communityId, channels: updatedChannels },
       );

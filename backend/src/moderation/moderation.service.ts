@@ -5,11 +5,14 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
+import { RoomEvents } from '@/rooms/room-subscription.events';
+import { RoomName } from '@/common/utils/room-name.util';
 import {
   ModerationAction,
   Prisma,
@@ -35,6 +38,7 @@ export class ModerationService {
     private readonly rolesService: RolesService,
     private readonly membershipService: MembershipService,
     private readonly websocketService: WebsocketService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -176,18 +180,28 @@ export class ModerationService {
       });
     });
 
+    // Remove user's sockets from community rooms
+    this.eventEmitter.emit(RoomEvents.MODERATION_USER_BANNED, {
+      userId,
+      communityId,
+    });
+
     this.logger.log(
       `User ${userId} banned from community ${communityId} by ${moderatorId}`,
     );
 
     // Emit WebSocket event to community
-    this.websocketService.sendToRoom(communityId, ServerEvents.USER_BANNED, {
-      communityId,
-      userId,
-      moderatorId,
-      reason,
-      expiresAt: expiresAt?.toISOString(),
-    });
+    this.websocketService.sendToRoom(
+      RoomName.community(communityId),
+      ServerEvents.USER_BANNED,
+      {
+        communityId,
+        userId,
+        moderatorId,
+        reason,
+        expiresAt: expiresAt?.toISOString(),
+      },
+    );
   }
 
   async unbanUser(
@@ -305,17 +319,27 @@ export class ModerationService {
       });
     });
 
+    // Remove user's sockets from community rooms
+    this.eventEmitter.emit(RoomEvents.MODERATION_USER_KICKED, {
+      userId,
+      communityId,
+    });
+
     this.logger.log(
       `User ${userId} kicked from community ${communityId} by ${moderatorId}`,
     );
 
     // Emit WebSocket event to community
-    this.websocketService.sendToRoom(communityId, ServerEvents.USER_KICKED, {
-      communityId,
-      userId,
-      moderatorId,
-      reason,
-    });
+    this.websocketService.sendToRoom(
+      RoomName.community(communityId),
+      ServerEvents.USER_KICKED,
+      {
+        communityId,
+        userId,
+        moderatorId,
+        reason,
+      },
+    );
   }
 
   /**
@@ -404,14 +428,18 @@ export class ModerationService {
     );
 
     // Emit WebSocket event to community
-    this.websocketService.sendToRoom(communityId, ServerEvents.USER_TIMED_OUT, {
-      communityId,
-      userId,
-      moderatorId,
-      reason,
-      durationSeconds,
-      expiresAt: expiresAt.toISOString(),
-    });
+    this.websocketService.sendToRoom(
+      RoomName.community(communityId),
+      ServerEvents.USER_TIMED_OUT,
+      {
+        communityId,
+        userId,
+        moderatorId,
+        reason,
+        durationSeconds,
+        expiresAt: expiresAt.toISOString(),
+      },
+    );
   }
 
   async removeTimeout(
@@ -447,7 +475,7 @@ export class ModerationService {
 
     // Emit WebSocket event to community
     this.websocketService.sendToRoom(
-      communityId,
+      RoomName.community(communityId),
       ServerEvents.TIMEOUT_REMOVED,
       {
         communityId,

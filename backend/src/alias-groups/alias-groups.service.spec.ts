@@ -1,4 +1,6 @@
 import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AliasGroupsService } from './alias-groups.service';
 import { DatabaseService } from '@/database/database.service';
 import {
@@ -14,20 +16,23 @@ import {
   AliasGroupFactory,
   AliasGroupMemberFactory,
 } from '@/test-utils';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 
 describe('AliasGroupsService', () => {
   let service: AliasGroupsService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit } = await TestBed.solitary(AliasGroupsService)
+    const { unit, unitRef } = await TestBed.solitary(AliasGroupsService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
 
     service = unit;
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -181,6 +186,13 @@ describe('AliasGroupsService', () => {
       });
 
       expect(result.memberCount).toBe(2);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.ALIAS_GROUP_CREATED,
+        {
+          aliasGroupId: group.id,
+          memberIds: [user1.id, user2.id],
+        },
+      );
     });
 
     it('should throw ConflictException when group name already exists', async () => {
@@ -259,6 +271,10 @@ describe('AliasGroupsService', () => {
       const group = AliasGroupFactory.build();
 
       mockDatabase.aliasGroup.findUnique.mockResolvedValue(group);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue([
+        { userId: 'user-1' },
+        { userId: 'user-2' },
+      ]);
       mockDatabase.aliasGroupMember.deleteMany.mockResolvedValue({ count: 3 });
       mockDatabase.aliasGroup.delete.mockResolvedValue(group);
 
@@ -270,6 +286,13 @@ describe('AliasGroupsService', () => {
       expect(mockDatabase.aliasGroup.delete).toHaveBeenCalledWith({
         where: { id: group.id },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.ALIAS_GROUP_DELETED,
+        {
+          aliasGroupId: group.id,
+          memberIds: ['user-1', 'user-2'],
+        },
+      );
     });
 
     it('should throw NotFoundException when group not found', async () => {
@@ -306,6 +329,10 @@ describe('AliasGroupsService', () => {
       expect(mockDatabase.aliasGroupMember.create).toHaveBeenCalledWith({
         data: { aliasGroupId: group.id, userId: user.id },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.ALIAS_GROUP_MEMBER_ADDED,
+        { aliasGroupId: group.id, userId: user.id },
+      );
     });
 
     it('should throw NotFoundException when group not found', async () => {
@@ -368,6 +395,10 @@ describe('AliasGroupsService', () => {
       expect(mockDatabase.aliasGroupMember.delete).toHaveBeenCalledWith({
         where: { id: member.id },
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.ALIAS_GROUP_MEMBER_REMOVED,
+        { aliasGroupId: group.id, userId: user.id },
+      );
     });
 
     it('should throw NotFoundException when member not found', async () => {
@@ -396,11 +427,20 @@ describe('AliasGroupsService', () => {
           userId: user2.id,
         }),
       ]);
+      mockDatabase.aliasGroupMember.findMany.mockResolvedValue([]);
       mockDatabase.$transaction.mockResolvedValue(undefined);
 
       await service.updateMembers(group.id, [user1.id, user2.id]);
 
       expect(mockDatabase.$transaction).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomEvents.ALIAS_GROUP_MEMBERS_UPDATED,
+        {
+          aliasGroupId: group.id,
+          addedUserIds: [user1.id, user2.id],
+          removedUserIds: [],
+        },
+      );
     });
 
     it('should throw NotFoundException when group not found', async () => {

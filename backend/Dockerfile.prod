@@ -11,10 +11,12 @@ RUN apt-get update -y && \
     apt-get install -y openssl && \
     rm -rf /var/lib/apt/lists/*
 
+RUN corepack enable && corepack prepare pnpm@10.30.0 --activate
+
 WORKDIR /app
 
 # Copy root workspace config + shared and backend package files
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY shared/package.json ./shared/
 COPY backend/package.json ./backend/
 COPY backend/prisma ./backend/prisma
@@ -23,7 +25,7 @@ COPY backend/prisma ./backend/prisma
 COPY shared/ ./shared/
 
 # Install ALL dependencies (including dev dependencies for build)
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy backend source code
 COPY backend/ ./backend/
@@ -31,13 +33,13 @@ COPY backend/ ./backend/
 WORKDIR /app/backend
 
 # Generate Prisma Client
-RUN npx prisma generate --schema=prisma/schema.prisma
+RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 
 # Build the application
-RUN npm run build
+RUN pnpm run build
 
 # Prune dev dependencies - keep only production
-RUN npm prune --production
+RUN CI=true pnpm prune --prod
 
 # ============================================
 # Stage 2: Production Runtime
@@ -58,12 +60,12 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 
 # Preserve workspace directory structure so Node's module resolution works naturally:
-#   /app/backend/dist/src/main.js → finds /app/backend/node_modules/ then /app/node_modules/
+#   /app/backend/dist/src/main.js -> finds /app/backend/node_modules/ then /app/node_modules/
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/shared ./shared
 COPY --from=builder --chown=nestjs:nodejs /app/backend/dist ./backend/dist
 COPY --from=builder --chown=nestjs:nodejs /app/backend/node_modules ./backend/node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/backend/package*.json ./backend/
+COPY --from=builder --chown=nestjs:nodejs /app/backend/package.json ./backend/
 COPY --from=builder --chown=nestjs:nodejs /app/backend/prisma ./backend/prisma
 
 WORKDIR /app/backend

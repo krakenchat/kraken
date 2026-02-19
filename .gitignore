@@ -90,5 +90,8 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
+# pnpm store
+.pnpm-store/
+
 # MkDocs build output
 docs-site/site/

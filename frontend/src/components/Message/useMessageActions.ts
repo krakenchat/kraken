@@ -26,7 +26,6 @@ import {
   updateMessageInInfinite,
   deleteMessageFromInfinite,
 } from "../../utils/messageCacheUpdaters";
-import { removeMessageContext } from "../../utils/messageIndex";
 import { logger } from "../../utils/logger";
 
 export interface UseMessageActionsReturn {
@@ -79,7 +78,6 @@ function deleteFromCache(
   queryClient.setQueryData(queryKey, (old: unknown) =>
     deleteMessageFromInfinite(old as never, msg.id)
   );
-  removeMessageContext(msg.id);
 }
 
 /**
