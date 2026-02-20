@@ -92,7 +92,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
-    "electron": "^38.0.0",
+    "electron": "38.8.2",
     "electron-builder": "^24.13.3",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.2",
