@@ -7,7 +7,6 @@
 
 import axios from "axios";
 import { getApiUrl } from "../config/env";
-import { setCachedItem, getCachedItem, removeCachedItem } from "./storage";
 import { isElectron } from "./platform";
 import { logger } from "./logger";
 
@@ -19,25 +18,107 @@ const listeners: Set<TokenRefreshListener> = new Set();
 let refreshPromise: Promise<string | null> | null = null;
 
 /**
- * Get the current access token
+ * Get the current access token from localStorage.
+ *
+ * Handles backwards-compatible reading:
+ * - Plain string (current format)
+ * - JSON-encoded string (legacy: JSON.stringify wrapping)
+ * - JSON object with `value` key (legacy: setCachedItem wrapping)
  */
 export function getAccessToken(): string | null {
-  return getCachedItem("accessToken");
+  const raw = localStorage.getItem("accessToken");
+  if (!raw) return null;
+
+  // Try JSON.parse for backwards compat with old formats
+  try {
+    const parsed = JSON.parse(raw);
+
+    // Handle { value: "token" } format from old setCachedItem
+    if (parsed && typeof parsed === "object" && "value" in parsed) {
+      return parsed.value || null;
+    }
+
+    // Handle JSON-encoded string: JSON.stringify("token") → '"token"'
+    if (typeof parsed === "string") {
+      return parsed;
+    }
+
+    // Unknown object format
+    logger.warn("[TokenService] Unexpected token format in localStorage:", typeof parsed);
+    return null;
+  } catch {
+    // Not valid JSON — treat as plain string (current format)
+    return raw;
+  }
 }
 
 /**
- * Set the access token
+ * Set the access token in localStorage as a plain string.
  */
 export function setAccessToken(token: string): void {
-  setCachedItem("accessToken", token);
+  localStorage.setItem("accessToken", token);
 }
 
 /**
- * Clear all auth tokens
+ * Clear all auth tokens from localStorage.
  */
 export function clearTokens(): void {
-  removeCachedItem("accessToken");
+  localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+}
+
+/**
+ * Check if a JWT token is expired (or will expire within `bufferSeconds`).
+ *
+ * Decodes the payload without verifying the signature — this is purely
+ * a client-side convenience check before making network requests.
+ *
+ * @param token - The JWT string
+ * @param bufferSeconds - Consider expired if within this many seconds of expiry (default 30)
+ * @returns true if expired or unparseable, false if still valid
+ */
+export function isTokenExpired(token: string, bufferSeconds = 30): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+
+    const payload = JSON.parse(atob(parts[1]));
+    if (typeof payload.exp !== "number") return true;
+
+    const nowSeconds = Date.now() / 1000;
+    return payload.exp - bufferSeconds <= nowSeconds;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Append authentication token to a URL as a query parameter.
+ *
+ * Needed for embedded resources (<img>, <video>, <source> tags) that
+ * cannot use Authorization headers.
+ */
+export function getAuthenticatedUrl(url: string): string {
+  const token = getAccessToken();
+
+  if (!token) {
+    logger.warn("[TokenService] No token available for authenticated URL");
+    return url;
+  }
+
+  try {
+    const urlObj = new URL(url, window.location.origin);
+
+    if (urlObj.searchParams.has("token")) {
+      return url;
+    }
+
+    urlObj.searchParams.set("token", token);
+    return urlObj.toString();
+  } catch (error) {
+    logger.error("[TokenService] Error creating authenticated URL:", error);
+    return url;
+  }
 }
 
 /**

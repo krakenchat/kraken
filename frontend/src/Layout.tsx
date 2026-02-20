@@ -27,6 +27,7 @@ import { setTelemetryUser, clearTelemetryUser } from "./services/telemetry";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { disconnectSocket } from "./utils/socketSingleton";
 import { clearSavedConnection } from "./features/voice/voiceActions";
+import { clearTokens } from "./utils/tokenService";
 
 const settings = ["My Profile", "Settings", "Logout"];
 
@@ -131,7 +132,7 @@ const Layout: React.FC = () => {
     clearSavedConnection();
     disconnectSocket();
     await logout({});
-    localStorage.removeItem("accessToken");
+    clearTokens();
     clearTelemetryUser();
     navigate("/login");
   };

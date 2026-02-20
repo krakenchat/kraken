@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/system";
 import { useNavigate, Link } from "react-router-dom";
+import { setAccessToken } from "../utils/tokenService";
 import { useMutation } from "@tanstack/react-query";
 import { userControllerRegisterMutation, authControllerLoginMutation } from "../api-client/@tanstack/react-query.gen";
 
@@ -46,7 +47,7 @@ const RegisterPage: React.FC = () => {
     try {
       await register({ body: { username, email, password, code } });
       const response = await login({ body: { username, password } });
-      localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
+      setAccessToken(response.accessToken);
       if (response.refreshToken) {
         localStorage.setItem('refreshToken', response.refreshToken);
       }

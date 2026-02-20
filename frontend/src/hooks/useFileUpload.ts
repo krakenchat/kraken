@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { getCachedItem } from "../utils/storage";
 import { getApiUrl } from "../config/env";
+import { getAccessToken } from "../utils/tokenService";
 
 export type ResourceType =
   | "USER_AVATAR"
@@ -58,7 +58,7 @@ export const useFileUpload = (): UseFileUploadReturn => {
         formData.append("resourceId", options.resourceId || "");
       }
 
-      const token = getCachedItem<string>("accessToken");
+      const token = getAccessToken();
       if (!token) {
         throw new Error("No authentication token found");
       }

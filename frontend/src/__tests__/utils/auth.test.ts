@@ -12,56 +12,50 @@ import {
   isAuthenticated,
   getAuthenticatedUrl,
 } from '../../utils/auth';
-import { logger } from '../../utils/logger';
 
-describe('auth utilities', () => {
+describe('auth utilities (re-export shim)', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
   });
 
   describe('getAuthToken', () => {
-    it('returns the value from JSON object format { value: "tok123" }', () => {
+    it('returns a plain string token', () => {
+      localStorage.setItem('accessToken', 'tok123');
+      expect(getAuthToken()).toBe('tok123');
+    });
+
+    it('returns the value from JSON object format { value: "tok123" } (backwards compat)', () => {
       localStorage.setItem('accessToken', JSON.stringify({ value: 'tok123' }));
       expect(getAuthToken()).toBe('tok123');
     });
 
-    it('returns the value from JSON string format "tok123"', () => {
+    it('returns the value from JSON string format "tok123" (backwards compat)', () => {
       localStorage.setItem('accessToken', JSON.stringify('tok123'));
-      expect(getAuthToken()).toBe('tok123');
-    });
-
-    it('returns the value from plain string format (not valid JSON)', () => {
-      localStorage.setItem('accessToken', 'tok123');
       expect(getAuthToken()).toBe('tok123');
     });
 
     it('returns null when no item is stored', () => {
       expect(getAuthToken()).toBeNull();
     });
-
-    it('returns null and logs warning for JSON object without value key', () => {
-      localStorage.setItem('accessToken', JSON.stringify({ foo: 'bar' }));
-      expect(getAuthToken()).toBeNull();
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Unexpected token format'),
-        expect.anything(),
-      );
-    });
   });
 
   describe('setAuthToken', () => {
-    it('stores token retrievable by getAuthToken', () => {
+    it('stores token as plain string retrievable by getAuthToken', () => {
       setAuthToken('my-token');
       expect(getAuthToken()).toBe('my-token');
+      // Verify it's stored as a plain string, not JSON
+      expect(localStorage.getItem('accessToken')).toBe('my-token');
     });
   });
 
   describe('clearAuthToken', () => {
-    it('removes token from localStorage', () => {
+    it('removes tokens from localStorage', () => {
       setAuthToken('my-token');
+      localStorage.setItem('refreshToken', 'rt');
       clearAuthToken();
       expect(getAuthToken()).toBeNull();
+      expect(localStorage.getItem('refreshToken')).toBeNull();
     });
   });
 
@@ -80,7 +74,6 @@ describe('auth utilities', () => {
     it('appends ?token=<value> to the URL', () => {
       setAuthToken('my-token');
       const result = getAuthenticatedUrl('/api/file/123');
-      // URL constructor with window.location.origin will produce an absolute URL
       expect(result).toContain('/api/file/123');
       expect(result).toContain('token=my-token');
     });

@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/system";
 import { useParams, useNavigate } from "react-router-dom";
+import { setAccessToken } from "../utils/tokenService";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   inviteControllerGetPublicInviteOptions,
@@ -75,7 +76,7 @@ const JoinInvitePage: React.FC = () => {
       await register({ body: { username, email, password, code: inviteCode } });
 
       const response = await login({ body: { username, password } });
-      localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
+      setAccessToken(response.accessToken);
       if (response.refreshToken) {
         localStorage.setItem('refreshToken', response.refreshToken);
       }

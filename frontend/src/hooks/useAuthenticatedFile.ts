@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { getCachedItem } from "../utils/storage";
 import { useFileCache } from "../contexts/AvatarCacheContext";
+import { getAccessToken } from "../utils/tokenService";
 import { getApiUrl } from "../config/env";
 import type { FileMetadata } from "../types/message.type";
 
@@ -58,7 +58,7 @@ export const useAuthenticatedFile = (
         if (fetchMetadata) {
           setIsLoadingMetadata(true);
 
-          const token = getCachedItem<string>("accessToken");
+          const token = getAccessToken();
           if (!token) {
             throw new Error("No authentication token found");
           }
