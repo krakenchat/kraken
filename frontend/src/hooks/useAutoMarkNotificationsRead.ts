@@ -53,6 +53,7 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
   // Subscribe to notifications cache — effect re-runs when data arrives or updates
   const { data: notificationsData } = useQuery({
     ...notificationsControllerGetNotificationsOptions({ query: { limit: 50 } }),
+    enabled: enabled && !!contextId,
   });
 
   const markAsReadRef = useRef(markAsRead);
@@ -90,9 +91,16 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
       );
 
       if (!isCancelled) {
-        const failures = results.filter((r) => r.status === 'rejected');
-        if (failures.length > 0) {
-          logger.error(`[Auto-mark] Failed: ${failures.length}/${unread.length}`);
+        let failureCount = 0;
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            failureCount += 1;
+            // Remove failed IDs so they can be retried on the next effect run
+            processedIdsRef.current.delete(unread[index].id);
+          }
+        });
+        if (failureCount > 0) {
+          logger.error(`[Auto-mark] Failed: ${failureCount}/${unread.length}`);
         }
       }
     })();
