@@ -20,14 +20,13 @@ import {
   isNotificationPermissionGranted,
   getNotificationPermission,
 } from '../utils/notifications';
-import { markNotificationAsShown } from '../utils/notificationTracking';
+import { isNotificationShown, markNotificationAsShown } from '../utils/notificationTracking';
 import { isElectron, getElectronAPI } from '../utils/platform';
 import { logger } from '../utils/logger';
 
 export interface UseNotificationSideEffectsOptions {
   showDesktopNotifications?: boolean;
   playSound?: boolean;
-  isPushSubscribed?: boolean;
   onNotificationReceived?: (notification: NewNotificationPayload) => void;
   onNotificationClick?: (notificationId: string) => void;
 }
@@ -36,7 +35,6 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
   const {
     showDesktopNotifications = true,
     playSound = true,
-    isPushSubscribed = false,
     onNotificationReceived,
     onNotificationClick,
   } = options;
@@ -49,7 +47,7 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
   // Initialize notification sound
   useEffect(() => {
     if (playSound && typeof Audio !== 'undefined') {
-      const audio = new Audio('/sounds/notification.mp3');
+      const audio = new Audio('./sounds/notification.mp3');
       audio.addEventListener('canplaythrough', () => {
         audioRef.current = audio;
         soundEnabledRef.current = true;
@@ -114,8 +112,8 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
       playNotificationSound();
     }
 
-    // Desktop notification (skip when push is subscribed)
-    if (showDesktopNotifications && isNotificationPermissionGranted() && !isPushSubscribed) {
+    // Desktop notification (skip if already shown via push handler)
+    if (showDesktopNotifications && isNotificationPermissionGranted() && !isNotificationShown(payload.notificationId)) {
       const messageText = payload.message?.spans
         .filter((span) => span.type === 'PLAINTEXT')
         .map((span) => span.text)

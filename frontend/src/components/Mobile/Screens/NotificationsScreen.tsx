@@ -31,6 +31,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   notificationsControllerGetNotificationsOptions,
+  notificationsControllerGetNotificationsQueryKey,
+  notificationsControllerGetUnreadCountQueryKey,
   notificationsControllerMarkAsReadMutation,
   notificationsControllerMarkAllAsReadMutation,
   notificationsControllerDismissNotificationMutation,
@@ -221,24 +223,24 @@ export const NotificationsScreen: React.FC = () => {
   const { mutateAsync: markAsRead } = useMutation({
     ...notificationsControllerMarkAsReadMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
     },
   });
 
   const { mutateAsync: markAllAsRead, isPending: isMarkingAllRead } = useMutation({
     ...notificationsControllerMarkAllAsReadMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
     },
   });
 
   const { mutateAsync: dismissNotification } = useMutation({
     ...notificationsControllerDismissNotificationMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
     },
   });
 
