@@ -1,7 +1,6 @@
 import { client } from './api-client/client.gen';
 import { getApiBaseUrl } from './config/env';
-import { getAuthToken } from './utils/auth';
-import { refreshToken, redirectToLogin } from './utils/tokenService';
+import { getAccessToken, refreshToken, redirectToLogin } from './utils/tokenService';
 
 export function configureApiClient() {
   // The generated SDK URLs already include the /api prefix (e.g. /api/auth/login),
@@ -12,7 +11,7 @@ export function configureApiClient() {
   client.setConfig({ baseUrl: clientBaseUrl });
 
   client.interceptors.request.use((request) => {
-    const token = getAuthToken();
+    const token = getAccessToken();
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`);
     }

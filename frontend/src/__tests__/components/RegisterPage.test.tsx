@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../msw/server';
 import { renderWithProviders } from '../test-utils';
 import RegisterPage from '../../pages/RegisterPage';
+import { getAccessToken } from '../../utils/tokenService';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
   const { createClient, createConfig } = await import('../../api-client/client');
@@ -47,9 +48,25 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: /register/i }));
 
     await waitFor(() => {
-      expect(localStorage.getItem('accessToken')).toBe(JSON.stringify('mock-access-token'));
+      expect(localStorage.getItem('accessToken')).toBe('mock-access-token');
     });
     expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('stores token as plain string readable by getAccessToken() (cross-module contract)', async () => {
+    const { user } = renderWithProviders(<RegisterPage />);
+
+    await user.type(screen.getByLabelText(/username/i), 'newuser');
+    await user.type(screen.getByLabelText(/email/i), 'new@test.com');
+    await user.type(screen.getByLabelText(/password/i), 'pass123');
+    await user.type(screen.getByLabelText(/code/i), 'INVITE');
+    await user.click(screen.getByRole('button', { name: /register/i }));
+
+    await waitFor(() => {
+      expect(getAccessToken()).toBe('mock-access-token');
+    });
+    // Verify it's NOT JSON-wrapped (the old bug)
+    expect(localStorage.getItem('accessToken')!.startsWith('"')).toBe(false);
   });
 
   it('shows error alert on registration failure', async () => {

@@ -22,6 +22,7 @@ import { OnboardingData } from './OnboardingWizard';
 import { useMutation } from '@tanstack/react-query';
 import { onboardingControllerSetupInstanceMutation, authControllerLoginMutation } from '../../api-client/@tanstack/react-query.gen';
 import { logger } from '../../utils/logger';
+import { setAccessToken } from '../../utils/tokenService';
 
 interface CompletionStepProps {
   data: OnboardingData;
@@ -67,7 +68,7 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
           });
 
           // Store the tokens
-          localStorage.setItem('accessToken', JSON.stringify(response.accessToken));
+          setAccessToken(response.accessToken);
           if (response.refreshToken) {
             localStorage.setItem('refreshToken', response.refreshToken);
           }

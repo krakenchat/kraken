@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./App.tsx";
 import { HashRouter } from "react-router-dom";
-import { SocketProvider } from "./utils/SocketProvider";
 import { initTelemetry } from "./services/telemetry";
 import { configureApiClient } from "./api-client-config";
 import { isElectron } from "./utils/platform";
@@ -37,9 +36,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <HashRouter>
-        <SocketProvider>
-          <App />
-        </SocketProvider>
+        <App />
       </HashRouter>
     </QueryClientProvider>
   </StrictMode>

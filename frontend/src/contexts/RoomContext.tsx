@@ -3,7 +3,7 @@ import { Room } from "livekit-client";
 import { useVoice } from "./VoiceContext";
 import { RoomContext, RoomContextType } from "./RoomContextDef";
 import { getApiBaseUrl } from "../config/env";
-import { getCachedItem } from "../utils/storage";
+import { getAccessToken } from "../utils/tokenService";
 
 interface RoomProviderProps {
   children: React.ReactNode;
@@ -34,7 +34,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   // Handle page unload - notify backend before disconnect
   useEffect(() => {
     const handleBeforeUnload = () => {
-      const token = getCachedItem<string>("accessToken");
+      const token = getAccessToken();
       const baseUrl = getApiBaseUrl();
       const channelId = channelIdRef.current;
       const dmGroupId = dmGroupIdRef.current;
