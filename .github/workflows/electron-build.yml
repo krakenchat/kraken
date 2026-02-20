@@ -115,7 +115,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install platform-specific Rollup binary
-        run: pnpm add @rollup/rollup-win32-x64-msvc
+        run: pnpm add -w @rollup/rollup-win32-x64-msvc
 
       - name: Generate API client
         working-directory: frontend

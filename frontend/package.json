@@ -19,7 +19,7 @@
     "clean": "rimraf dist electron/dist release",
     "build": "vite build",
     "build-electron": "tsc --project electron/tsconfig.electron.json && mv electron/dist/main.js electron/dist/main.cjs",
-    "build-preload": "tsc electron/preload.ts --outDir electron/dist --module commonjs --target es2020 --esModuleInterop && mv electron/dist/preload.js electron/dist/preload.cjs",
+    "build-preload": "tsc electron/preload.ts --outDir electron/dist --module commonjs --target es2020 --esModuleInterop --skipLibCheck && mv electron/dist/preload.js electron/dist/preload.cjs",
     "build:all": "pnpm run clean && pnpm run build && pnpm run build-electron && pnpm run build-preload",
     "build:renderer": "vite build",
     "package": "pnpm run build:all && electron-builder --dir",
