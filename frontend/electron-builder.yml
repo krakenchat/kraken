@@ -11,16 +11,21 @@ directories:
   output: release
 
 # Files to include in the build
-# electron-vite outputs to out/ directory
 files:
-  - out/**/*
+  - dist/**/*
+  - electron/dist/**/*
   - package.json
+
+# Copy the app icon into resources/ for tray and window icons at runtime
+extraResources:
+  - from: public/pwa-512x512.png
+    to: icon.png
 
 # Auto-update configuration
 publish:
   provider: github
-  owner: ${env.GITHUB_OWNER}  # Set via environment variable
-  repo: ${env.GITHUB_REPO}     # Set via environment variable
+  owner: krakenchat
+  repo: kraken
 
 # Windows configuration
 win:

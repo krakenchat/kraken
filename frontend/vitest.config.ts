@@ -5,6 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@kraken/shared': path.resolve(__dirname, '../shared/src'),
+      'virtual:pwa-register': path.resolve(__dirname, 'src/__tests__/mocks/virtual-pwa-register.ts'),
     },
   },
   test: {

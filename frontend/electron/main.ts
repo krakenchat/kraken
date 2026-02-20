@@ -45,6 +45,18 @@ function isWayland(): boolean {
   );
 }
 
+/**
+ * Get the path to the app icon, handling both development and packaged builds.
+ * In production, electron-builder's extraResources copies pwa-512x512.png to
+ * process.resourcesPath/icon.png. In development, we use public/ directly.
+ */
+function getIconPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'icon.png');
+  }
+  return path.join(app.getAppPath(), 'public', 'pwa-512x512.png');
+}
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
@@ -119,7 +131,7 @@ function saveWindowState(): void {
 // ─── System Tray ────────────────────────────────────────────────────────────
 
 function setupTray(): void {
-  const iconPath = path.join(app.getAppPath(), 'public', 'apple-touch-icon.png');
+  const iconPath = getIconPath();
   let trayIcon: Electron.NativeImage;
   try {
     trayIcon = nativeImage.createFromPath(iconPath);
@@ -467,6 +479,7 @@ function createWindow() {
       : {}),
     minWidth: 800,
     minHeight: 600,
+    icon: getIconPath(),
     webPreferences: {
       // Security: disable node integration
       nodeIntegration: false,
