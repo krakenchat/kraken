@@ -46,8 +46,31 @@ export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index }) => {
         </span>
       );
     case SpanType.PLAINTEXT:
-    default:
-      return <span key={index}>{span.text}</span>;
+    default: {
+      // Split text into segments: plain text and URLs
+      const urlPattern = /(https?:\/\/[^\s<>)"']*[^\s<>)"'.,!?;:])/g;
+      const parts = span.text.split(urlPattern);
+
+      return (
+        <span key={index}>
+          {parts.map((part, i) =>
+            /^https?:\/\//.test(part) ? (
+              <a
+                key={i}
+                href={part}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: theme.palette.primary.main, textDecoration: 'underline' }}
+              >
+                {part}
+              </a>
+            ) : (
+              <React.Fragment key={i}>{part}</React.Fragment>
+            )
+          )}
+        </span>
+      );
+    }
   }
 };
 

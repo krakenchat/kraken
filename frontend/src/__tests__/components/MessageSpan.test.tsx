@@ -43,6 +43,45 @@ describe('MessageSpan', () => {
   });
 });
 
+describe('MessageSpan URL rendering', () => {
+  it('renders a URL as a clickable link', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'Visit https://example.com for info' };
+    renderWithProviders(<MessageSpan span={span} index={0} />);
+    const link = screen.getByRole('link', { name: 'https://example.com' });
+    expect(link).toHaveAttribute('href', 'https://example.com');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('renders multiple URLs in one span', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'See https://a.com and http://b.com here' };
+    renderWithProviders(<MessageSpan span={span} index={0} />);
+    expect(screen.getByRole('link', { name: 'https://a.com' })).toHaveAttribute('href', 'https://a.com');
+    expect(screen.getByRole('link', { name: 'http://b.com' })).toHaveAttribute('href', 'http://b.com');
+  });
+
+  it('does not render non-URL text as a link', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'no links here' };
+    renderWithProviders(<MessageSpan span={span} index={0} />);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('no links here')).toBeInTheDocument();
+  });
+
+  it('strips trailing sentence punctuation from URLs', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'Check https://example.com.' };
+    renderWithProviders(<MessageSpan span={span} index={0} />);
+    const link = screen.getByRole('link', { name: 'https://example.com' });
+    expect(link).toHaveAttribute('href', 'https://example.com');
+  });
+
+  it('preserves dots within URL paths', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'See https://example.com/page.html for details' };
+    renderWithProviders(<MessageSpan span={span} index={0} />);
+    const link = screen.getByRole('link', { name: 'https://example.com/page.html' });
+    expect(link).toHaveAttribute('href', 'https://example.com/page.html');
+  });
+});
+
 describe('renderMessageSpans', () => {
   it('renders an array of multiple spans correctly', () => {
     const spans: Span[] = [

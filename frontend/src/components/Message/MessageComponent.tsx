@@ -218,7 +218,6 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
   // Compare message properties that would require a re-render
   return (
     prevMsg.id === nextMsg.id &&
-    prevMsg.spans === nextMsg.spans &&
     prevMsg.editedAt === nextMsg.editedAt &&
     prevMsg.authorId === nextMsg.authorId &&
     prevMsg.sentAt === nextMsg.sentAt &&
@@ -230,11 +229,18 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevProps.isThreadReply === nextProps.isThreadReply &&
     prevProps.isAuthor === nextProps.isAuthor &&
     prevProps.contextType === nextProps.contextType &&
-    // Deep compare reactions array
+    // Deep compare spans array (content equality, not reference)
+    prevMsg.spans.length === nextMsg.spans.length &&
+    prevMsg.spans.every((s, i) =>
+      s.type === nextMsg.spans[i]?.type &&
+      s.text === nextMsg.spans[i]?.text
+    ) &&
+    // Deep compare reactions array (including userIds content)
     prevMsg.reactions.length === nextMsg.reactions.length &&
     prevMsg.reactions.every((r, i) =>
       r.emoji === nextMsg.reactions[i]?.emoji &&
-      r.userIds.length === nextMsg.reactions[i]?.userIds.length
+      r.userIds.length === nextMsg.reactions[i]?.userIds.length &&
+      r.userIds.every((uid, j) => uid === nextMsg.reactions[i]?.userIds[j])
     ) &&
     // Deep compare attachments array
     prevMsg.attachments?.length === nextMsg.attachments?.length &&

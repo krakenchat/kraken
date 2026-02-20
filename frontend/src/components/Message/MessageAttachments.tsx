@@ -65,7 +65,7 @@ const ImageLightboxManager: React.FC<{
   );
 };
 
-export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
+export const MessageAttachments: React.FC<MessageAttachmentsProps> = React.memo(({
   attachments,
 }) => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -147,4 +147,7 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({
       )}
     </>
   );
-};
+}, (prev, next) =>
+  prev.attachments?.length === next.attachments?.length &&
+  (prev.attachments?.every((a, i) => a.id === next.attachments?.[i]?.id) ?? true)
+);

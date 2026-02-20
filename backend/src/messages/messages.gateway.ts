@@ -248,7 +248,7 @@ export class MessagesGateway
   @SubscribeMessage(ClientEvents.ADD_REACTION)
   @RequiredActions(RbacActions.CREATE_REACTION)
   @RbacResource({
-    type: RbacResourceType.CHANNEL,
+    type: RbacResourceType.MESSAGE,
     idKey: 'messageId',
     source: ResourceIdSource.PAYLOAD,
   })
@@ -279,7 +279,7 @@ export class MessagesGateway
   @SubscribeMessage(ClientEvents.REMOVE_REACTION)
   @RequiredActions(RbacActions.DELETE_REACTION)
   @RbacResource({
-    type: RbacResourceType.CHANNEL,
+    type: RbacResourceType.MESSAGE,
     idKey: 'messageId',
     source: ResourceIdSource.PAYLOAD,
   })

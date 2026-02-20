@@ -28,6 +28,8 @@ import { updateMessageInInfinite } from "../../utils/messageCacheUpdaters";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import { useThreadPanel } from "../../contexts/ThreadPanelContext";
+import { useVoice } from "../../contexts/VoiceContext";
+import { VOICE_BAR_HEIGHT } from "../../constants/layout";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 import { logger } from "../../utils/logger";
 import type { Message } from "../../types/message.type";
@@ -47,6 +49,8 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 }) => {
   const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
+
+  const { isConnected: voiceConnected } = useVoice();
 
   // Get communityId from props (mobile) or URL params (desktop)
   const { communityId: communityIdParam } = useParams<{
@@ -317,7 +321,12 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         open={!!openThreadId && !!threadParentMessage}
         onClose={handleCloseThread}
         PaperProps={{
-          sx: { width: 400, height: '100dvh', overflow: 'hidden' },
+          sx: {
+            width: 400,
+            height: '100dvh',
+            overflow: 'hidden',
+            paddingBottom: voiceConnected ? `${VOICE_BAR_HEIGHT}px` : 0,
+          },
         }}
       >
         {threadParentMessage && (
