@@ -28,8 +28,7 @@ import { getApiBaseUrl } from "../../config/env";
 import { getAuthToken } from "../../utils/auth";
 import { useNotification } from "../../contexts/NotificationContext";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
-
-const VOLUME_STORAGE_PREFIX = "voiceUserVolume:";
+import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
 
 function getStoredVolume(userId: string): number | null {
   try {
@@ -126,17 +125,18 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
 
           if (vol <= 100) {
             // Standard range: use track.setVolume (0-1.0)
-            pub.track.setVolume(vol / 100);
-            // Remove gain node if exists (no longer boosting)
-            const entry = gainNodesRef.current.get(key);
-            if (entry) {
-              entry.source.disconnect();
-              entry.context.close();
+            // Clean up any existing GainNode first
+            const existingEntry = gainNodesRef.current.get(key);
+            if (existingEntry) {
+              existingEntry.source.disconnect();
+              existingEntry.context.close();
               gainNodesRef.current.delete(key);
             }
+            pub.track.setVolume(vol / 100);
           } else {
-            // Boost range: set track to full, apply gain > 1.0 via Web Audio
-            pub.track.setVolume(1.0);
+            // Boost range: mute LiveKit track output to prevent double audio,
+            // route through GainNode for amplification
+            pub.track.setVolume(0);
 
             const mediaStream = pub.track.mediaStream;
             if (mediaStream) {

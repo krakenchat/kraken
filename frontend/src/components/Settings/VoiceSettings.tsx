@@ -300,11 +300,11 @@ const VoiceSettings: React.FC = () => {
                 { value: 100, label: 'Low' },
               ]}
               valueLabelDisplay="auto"
-              valueLabelFormat={(v) => `${100 - v}%`}
+              valueLabelFormat={(v) => `Sensitivity: ${100 - v}%`}
               size="small"
             />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Lower threshold = more sensitive (picks up quieter sounds)
+              Move the slider left for higher sensitivity (picks up quieter sounds), right for lower sensitivity.
             </Typography>
           </Box>
         )}

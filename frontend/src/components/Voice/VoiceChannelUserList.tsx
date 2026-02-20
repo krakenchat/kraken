@@ -89,71 +89,78 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     }
 
     const room = voiceState.room;
+    let updateVersion = 0;
 
     const updateParticipants = async () => {
-      const participants: VoicePresenceUserDto[] = [];
+      const version = ++updateVersion;
 
-      // Add local participant
+      // Collect all participants and their metadata synchronously
+      const allParticipants: { identity: string; name: string | undefined; isDeafened: boolean }[] = [];
+
       const local = room.localParticipant;
       if (local && local.identity) {
         let localMeta: { isDeafened?: boolean } = {};
-        try {
-          if (local.metadata) {
-            localMeta = JSON.parse(local.metadata);
-          }
-        } catch {
-          // Ignore parse errors
-        }
-        const userInfo = await getUserInfo(local.identity);
-        participants.push({
-          id: local.identity,
-          username: local.name || local.identity,
-          displayName: local.name || undefined,
-          avatarUrl: userInfo?.avatarUrl ?? undefined,
-          joinedAt: new Date().toISOString(), // LiveKit doesn't track join time, use now
+        try { if (local.metadata) localMeta = JSON.parse(local.metadata); } catch { /* ignore */ }
+        allParticipants.push({
+          identity: local.identity,
+          name: local.name || undefined,
           isDeafened: localMeta.isDeafened ?? false,
         });
       }
 
-      // Add remote participants
-      const remoteEntries = Array.from(room.remoteParticipants.values());
-      for (const participant of remoteEntries) {
+      room.remoteParticipants.forEach((participant) => {
         let metadata: { isDeafened?: boolean } = {};
-        try {
-          if (participant.metadata) {
-            metadata = JSON.parse(participant.metadata);
-          }
-        } catch {
-          // Ignore parse errors
-        }
-        const userInfo = await getUserInfo(participant.identity);
-        participants.push({
-          id: participant.identity,
-          username: participant.name || participant.identity,
-          displayName: participant.name || undefined,
-          avatarUrl: userInfo?.avatarUrl ?? undefined,
-          joinedAt: new Date().toISOString(),
+        try { if (participant.metadata) metadata = JSON.parse(participant.metadata); } catch { /* ignore */ }
+        allParticipants.push({
+          identity: participant.identity,
+          name: participant.name || undefined,
           isDeafened: metadata.isDeafened ?? false,
         });
-      }
+      });
+
+      // Fetch all user info in parallel
+      const userInfos = await Promise.all(
+        allParticipants.map((p) => getUserInfo(p.identity))
+      );
+
+      // Discard stale updates if a newer one was started
+      if (version !== updateVersion) return;
+
+      const participants: VoicePresenceUserDto[] = allParticipants.map((p, i) => ({
+        id: p.identity,
+        username: p.name || p.identity,
+        displayName: p.name || undefined,
+        avatarUrl: userInfos[i]?.avatarUrl ?? undefined,
+        joinedAt: new Date().toISOString(),
+        isDeafened: p.isDeafened,
+      }));
 
       setLivekitParticipants(participants);
     };
 
-    // Initial update
+    // Debounce rapid event bursts (e.g. multiple participants joining at once)
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedUpdate = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => updateParticipants(), 100);
+    };
+
+    // Initial update (immediate)
     updateParticipants();
 
-    // Listen for participant changes
-    room.on(RoomEvent.ParticipantConnected, updateParticipants);
-    room.on(RoomEvent.ParticipantDisconnected, updateParticipants);
-    room.on(RoomEvent.Connected, updateParticipants);
-    room.on(RoomEvent.ParticipantMetadataChanged, updateParticipants);
+    // Listen for participant changes (debounced)
+    room.on(RoomEvent.ParticipantConnected, debouncedUpdate);
+    room.on(RoomEvent.ParticipantDisconnected, debouncedUpdate);
+    room.on(RoomEvent.Connected, debouncedUpdate);
+    room.on(RoomEvent.ParticipantMetadataChanged, debouncedUpdate);
 
     return () => {
-      room.off(RoomEvent.ParticipantConnected, updateParticipants);
-      room.off(RoomEvent.ParticipantDisconnected, updateParticipants);
-      room.off(RoomEvent.Connected, updateParticipants);
-      room.off(RoomEvent.ParticipantMetadataChanged, updateParticipants);
+      updateVersion++; // Invalidate any in-flight async updates
+      if (debounceTimer) clearTimeout(debounceTimer);
+      room.off(RoomEvent.ParticipantConnected, debouncedUpdate);
+      room.off(RoomEvent.ParticipantDisconnected, debouncedUpdate);
+      room.off(RoomEvent.Connected, debouncedUpdate);
+      room.off(RoomEvent.ParticipantMetadataChanged, debouncedUpdate);
     };
   }, [isConnectedToThisChannel, voiceState.room]);
 

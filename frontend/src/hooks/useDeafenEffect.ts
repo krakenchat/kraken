@@ -3,8 +3,7 @@ import { logger } from '../utils/logger';
 import { useVoice } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { Track } from 'livekit-client';
-
-const VOLUME_STORAGE_PREFIX = "voiceUserVolume:";
+import { VOLUME_STORAGE_PREFIX } from '../constants/voice';
 
 /**
  * Hook that implements proper deafen functionality by muting received audio tracks

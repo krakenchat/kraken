@@ -75,7 +75,7 @@ export const useVoiceConnection = () => {
           },
           connectionInfo,
         },
-        getDeps()
+        deps
       );
       logger.info('[useVoiceConnection] joinVoiceChannel completed');
     },
@@ -111,7 +111,7 @@ export const useVoiceConnection = () => {
           },
           connectionInfo,
         },
-        getDeps()
+        deps
       );
     },
     [user, connectionInfo, getDeps]

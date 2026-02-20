@@ -29,6 +29,8 @@ export const useSpeakingDetection = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const localAnalysisActiveRef = useRef(false);
+  const localTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Read threshold from settings
   const getThreshold = useCallback((): number => {
@@ -95,7 +97,6 @@ export const useSpeakingDetection = () => {
     // Local participant: custom audio level analysis with threshold
     // ---------------------------------------------------------------
     const local = room.localParticipant;
-    let localAnalysisActive = false;
 
     const startLocalAnalysis = () => {
       // Find the local microphone track's MediaStream
@@ -116,12 +117,12 @@ export const useSpeakingDetection = () => {
 
         audioContextRef.current = ctx;
         analyserRef.current = analyser;
-        localAnalysisActive = true;
+        localAnalysisActiveRef.current = true;
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         const tick = () => {
-          if (!localAnalysisActive || !analyserRef.current) return;
+          if (!localAnalysisActiveRef.current || !analyserRef.current) return;
 
           analyser.getByteFrequencyData(dataArray);
 
@@ -162,7 +163,11 @@ export const useSpeakingDetection = () => {
     };
 
     const stopLocalAnalysis = () => {
-      localAnalysisActive = false;
+      localAnalysisActiveRef.current = false;
+      if (localTrackTimeoutRef.current) {
+        clearTimeout(localTrackTimeoutRef.current);
+        localTrackTimeoutRef.current = null;
+      }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -181,7 +186,7 @@ export const useSpeakingDetection = () => {
     const handleLocalTrackPublished = () => {
       stopLocalAnalysis();
       // Small delay to let the track stabilize
-      setTimeout(() => startLocalAnalysis(), 200);
+      localTrackTimeoutRef.current = setTimeout(() => startLocalAnalysis(), 200);
     };
     const handleLocalTrackUnpublished = () => {
       stopLocalAnalysis();
