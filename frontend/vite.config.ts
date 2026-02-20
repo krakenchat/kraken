@@ -9,6 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
       // Use injectManifest for custom service worker with push notification handling
       strategies: "injectManifest",
       srcDir: "src",

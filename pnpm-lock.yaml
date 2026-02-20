@@ -278,7 +278,7 @@ importers:
         version: 4.1.0
       electron-audio-loopback:
         specifier: ^1.0.6
-        version: 1.0.6(electron@35.7.5)
+        version: 1.0.6(electron@38.8.2)
       electron-updater:
         specifier: ^6.3.9
         version: 6.8.3
@@ -347,8 +347,8 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
       electron:
-        specifier: ^35.1.5
-        version: 35.7.5
+        specifier: 38.8.2
+        version: 38.8.2
       electron-builder:
         specifier: ^24.13.3
         version: 24.13.3(electron-builder-squirrel-windows@24.13.3)
@@ -3128,8 +3128,8 @@ packages:
     peerDependencies:
       acorn: ^6.0.0 || ^7.0.0 || ^8.0.0
 
-  acorn-walk@8.3.4:
-    resolution: {integrity: sha512-ueEepnujpqee2o5aIYnvHU6C0A42MNdsIDeqy5BydrkuC5R1ZuUFnm27EeFJGoEHJQgn3uleRvmTXaJgfXbt4g==}
+  acorn-walk@8.3.5:
+    resolution: {integrity: sha512-HEHNfbars9v4pgpW6SO1KSPkfoS0xVOM/9UzkJltjlsHZmJasxg8aXkuZa7SMf8vKGIBhpUsPluQSqhJFCqebw==}
     engines: {node: '>=0.4.0'}
 
   acorn@8.15.0:
@@ -3328,8 +3328,8 @@ packages:
   axios@1.13.5:
     resolution: {integrity: sha512-cz4ur7Vb0xS4/KUN0tPWe44eqxrIu31me+fbang3ijiNscE129POzipJJA6zniq2C/Z6sJCjMimjS8Lc/GAs8Q==}
 
-  b4a@1.7.5:
-    resolution: {integrity: sha512-iEsKNwDh1wiWTps1/hdkNdmBgDlDVZP5U57ZVOlt+dNFqpc/lpPouCIxZw+DYBgc4P9NDfIZMPNR4CHNhzwLIA==}
+  b4a@1.8.0:
+    resolution: {integrity: sha512-qRuSmNSkGQaHwNbM7J78Wwy+ghLEYF1zNrSeMxj4Kgw6y33O3mXcQ6Ie9fRvfU/YnxWkOchPXbaLb73TkIsfdg==}
     peerDependencies:
       react-native-b4a: '*'
     peerDependenciesMeta:
@@ -4118,8 +4118,8 @@ packages:
       '@swc/core':
         optional: true
 
-  electron@35.7.5:
-    resolution: {integrity: sha512-dnL+JvLraKZl7iusXTVTGYs10TKfzUi30uEDTqsmTm0guN9V2tbOjTzyIZbh9n3ygUjgEYyo+igAwMRXIi3IPw==}
+  electron@38.8.2:
+    resolution: {integrity: sha512-EvXHgoy7NJ/O1mg6ZIEq5jgYnm1LHy4dNDMh/jhiJz6rAOH9VKDfXhx7Y65LYaTyntukNQhS90KBY3zk4t4+ow==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
@@ -10558,7 +10558,7 @@ snapshots:
     dependencies:
       acorn: 8.15.0
 
-  acorn-walk@8.3.4:
+  acorn-walk@8.3.5:
     dependencies:
       acorn: 8.15.0
 
@@ -10796,7 +10796,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  b4a@1.7.5: {}
+  b4a@1.8.0: {}
 
   babel-jest@29.7.0(@babel/core@7.29.0):
     dependencies:
@@ -11596,9 +11596,9 @@ snapshots:
     dependencies:
       jake: 10.9.4
 
-  electron-audio-loopback@1.0.6(electron@35.7.5):
+  electron-audio-loopback@1.0.6(electron@38.8.2):
     dependencies:
-      electron: 35.7.5
+      electron: 38.8.2
 
   electron-builder-squirrel-windows@24.13.3(dmg-builder@24.13.3):
     dependencies:
@@ -11668,7 +11668,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@35.7.5:
+  electron@38.8.2:
     dependencies:
       '@electron/get': 2.0.3
       '@types/node': 22.19.11
@@ -12039,7 +12039,7 @@ snapshots:
 
   ext-list@2.2.2:
     dependencies:
-      mime-db: 1.54.0
+      mime-db: 1.52.0
 
   ext-name@5.0.0:
     dependencies:
@@ -14733,7 +14733,7 @@ snapshots:
 
   tar-stream@3.1.7:
     dependencies:
-      b4a: 1.7.5
+      b4a: 1.8.0
       fast-fifo: 1.3.2
       streamx: 2.23.0
     transitivePeerDependencies:
@@ -14789,7 +14789,7 @@ snapshots:
 
   text-decoder@1.2.7:
     dependencies:
-      b4a: 1.7.5
+      b4a: 1.8.0
     transitivePeerDependencies:
       - react-native-b4a
 
@@ -14903,7 +14903,7 @@ snapshots:
       '@tsconfig/node16': 1.0.4
       '@types/node': 22.19.11
       acorn: 8.15.0
-      acorn-walk: 8.3.4
+      acorn-walk: 8.3.5
       arg: 4.1.3
       create-require: 1.1.1
       diff: 4.0.4

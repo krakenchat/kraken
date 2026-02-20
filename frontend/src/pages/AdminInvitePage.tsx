@@ -48,6 +48,7 @@ import {
   communityControllerFindAllMineOptions,
 } from "../api-client/@tanstack/react-query.gen";
 
+import { copyToClipboard } from "../utils/clipboard";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../types/invite.type";
 
@@ -134,7 +135,7 @@ const AdminInvitePage: React.FC = () => {
   const handleCopyInvite = async (code: string) => {
     const inviteUrl = getInviteUrl(code);
     try {
-      await navigator.clipboard.writeText(inviteUrl);
+      await copyToClipboard(inviteUrl);
       setCopiedInvite(code);
       setTimeout(() => setCopiedInvite(null), 2000);
     } catch (error) {

@@ -9,6 +9,7 @@ import {
   hasElectronFeature,
   getElectronAPI,
   supportsScreenCapture,
+  supportsSystemAudio,
   supportsMediaDevices,
   isSecureContext,
   Platform,
@@ -173,6 +174,27 @@ describe('platform utilities', () => {
         value: originalMediaDevices,
         configurable: true,
       });
+    });
+  });
+
+  describe('supportsSystemAudio', () => {
+    it('returns false when not in electron (web browser)', () => {
+      expect(supportsSystemAudio()).toBe(false);
+    });
+
+    it('returns true in electron on non-linux platform', () => {
+      window.electronAPI = { isElectron: true, platform: 'win32' };
+      expect(supportsSystemAudio()).toBe(true);
+    });
+
+    it('returns true in electron on macOS', () => {
+      window.electronAPI = { isElectron: true, platform: 'darwin' };
+      expect(supportsSystemAudio()).toBe(true);
+    });
+
+    it('returns false in electron on linux', () => {
+      window.electronAPI = { isElectron: true, platform: 'linux' };
+      expect(supportsSystemAudio()).toBe(false);
     });
   });
 

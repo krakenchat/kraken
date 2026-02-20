@@ -11,9 +11,11 @@
 interface ElectronAPI {
   isElectron?: boolean;
   isWayland?: boolean;
+  platform?: string;
   getDesktopSources?: (types: string[]) => Promise<unknown[]>;
   getScreenStream?: (sourceId: string) => Promise<MediaStream | null>;
   getAppVersion?: () => Promise<string>;
+  writeClipboard?: (text: string) => void;
   [key: string]: unknown;
 }
 
@@ -115,6 +117,18 @@ export const supportsScreenCapture = (): boolean => {
 };
 
 /**
+ * Whether the platform supports system audio capture for screen sharing.
+ * - Web browsers: no (getDisplayMedia doesn't support system audio for desktop capture)
+ * - Electron Windows/macOS: yes (loopback + restrictOwnAudio in Chromium 140+)
+ * - Electron Linux: no (restrictOwnAudio not supported by OS)
+ */
+export const supportsSystemAudio = (): boolean => {
+  if (!isElectron()) return false;
+  if (window.electronAPI?.platform === 'linux') return false;
+  return true;
+};
+
+/**
  * Feature detection for getUserMedia (camera/microphone)
  */
 export const supportsMediaDevices = (): boolean => {
@@ -149,6 +163,7 @@ export const platformUtils = {
   hasElectronFeature,
   getElectronAPI,
   supportsScreenCapture,
+  supportsSystemAudio,
   supportsMediaDevices,
   isSecureContext,
 } as const;

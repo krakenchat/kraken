@@ -17,12 +17,14 @@ import {
   MenuItem,
   Switch,
   FormControlLabel,
+  Tooltip,
 } from '@mui/material';
 import {
   Monitor,
   Window as WindowIcon,
 } from '@mui/icons-material';
 import { logger } from '../../utils/logger';
+import { supportsSystemAudio } from '../../utils/platform';
 
 // TypeScript types for screen share settings
 export type ResolutionPreset = 'native' | '4k' | '1440p' | '1080p' | '720p' | '480p';
@@ -98,8 +100,17 @@ export const ScreenSourcePicker: React.FC<ScreenSourcePickerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
 
-  // Settings state
-  const [settings, setSettings] = useState<ScreenShareSettings>(loadScreenShareSettings());
+  // Check platform capability for system audio
+  const systemAudioSupported = supportsSystemAudio();
+
+  // Settings state — force enableAudio off when system audio is not supported
+  const [settings, setSettings] = useState<ScreenShareSettings>(() => {
+    const saved = loadScreenShareSettings();
+    if (!systemAudioSupported) {
+      saved.enableAudio = false;
+    }
+    return saved;
+  });
 
   // Fetch desktop sources when dialog opens
   useEffect(() => {
@@ -379,17 +390,23 @@ export const ScreenSourcePicker: React.FC<ScreenSourcePickerProps> = ({
             </Select>
           </FormControl>
 
-          <FormControlLabel
-            control={
-              <Switch
-                checked={settings.enableAudio}
-                onChange={(e) => handleAudioToggle(e.target.checked)}
-                color="primary"
-                size="small"
-              />
-            }
-            label="System Audio"
-          />
+          <Tooltip
+            title={systemAudioSupported ? '' : 'System audio sharing is not supported on this platform'}
+            placement="top"
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={settings.enableAudio}
+                  onChange={(e) => handleAudioToggle(e.target.checked)}
+                  color="primary"
+                  size="small"
+                  disabled={!systemAudioSupported}
+                />
+              }
+              label="System Audio"
+            />
+          </Tooltip>
         </Box>
 
         {/* Action Buttons - Right Aligned */}

@@ -7,7 +7,7 @@
  * Security: nodeIntegration is disabled, contextIsolation is enabled
  */
 
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent, clipboard } from 'electron';
 
 /**
  * Update information passed from main process
@@ -156,6 +156,11 @@ const electronAPI = {
       console.error('Failed to get screen stream:', error);
       return null;
     }
+  },
+
+  // Clipboard
+  writeClipboard: (text: string) => {
+    clipboard.writeText(text);
   },
 
   // Notifications

@@ -68,5 +68,6 @@ export function getScreenShareAudioConfig(enableAudio: boolean) {
     noiseSuppression: false,
     sampleRate: 48000,
     channelCount: 2,
-  };
+    restrictOwnAudio: true,
+  } as MediaTrackConstraints;
 }
