@@ -12,6 +12,7 @@ import { FileType, StorageType } from '@prisma/client';
 import { createHash } from 'crypto';
 import { StorageService } from '@/storage/storage.service';
 import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
+import { ThumbnailService } from '@/file/thumbnail.service';
 import { ResourceTypeFileValidator } from './validators';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
@@ -23,6 +24,7 @@ export class FileUploadService {
     private readonly databaseService: DatabaseService,
     private readonly storageService: StorageService,
     private readonly storageQuotaService: StorageQuotaService,
+    private readonly thumbnailService: ThumbnailService,
   ) {}
 
   async uploadFile(
@@ -84,6 +86,11 @@ export class FileUploadService {
         // Increment user's storage usage
         await this.storageQuotaService.incrementUserStorage(user.id, file.size);
 
+        // Generate thumbnail for video files (fire-and-forget — failure won't block upload)
+        if (fileType === FileType.VIDEO) {
+          this.generateThumbnailAsync(file.path, fileRecord.id);
+        }
+
         return fileRecord;
       } catch (dbError) {
         // If DB insert fails, clean up the file
@@ -104,6 +111,29 @@ export class FileUploadService {
       this.logger.error(`Error processing file upload: ${error}`);
       throw error;
     }
+  }
+
+  /**
+   * Fire-and-forget thumbnail generation for video uploads.
+   * Errors are logged but never propagate to the upload response.
+   */
+  private generateThumbnailAsync(filePath: string, fileId: string): void {
+    void (async () => {
+      try {
+        const thumbnailPath =
+          await this.thumbnailService.generateVideoThumbnail(filePath, fileId);
+        if (thumbnailPath) {
+          await this.databaseService.file.update({
+            where: { id: fileId },
+            data: { thumbnailPath },
+          });
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    })();
   }
 
   /**

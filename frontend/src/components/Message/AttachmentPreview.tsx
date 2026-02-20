@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Box, Card, CircularProgress, Alert, styled } from "@mui/material";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
 import { AudioPlayer } from "./AudioPlayer";
 import { DownloadLink } from "./DownloadLink";
+import { VideoPreview } from "./VideoPreview";
 
 const AttachmentCard = styled(Card)(({ theme }) => ({
   position: "relative",
@@ -32,18 +33,20 @@ const StyledImage = styled("img")({
   },
 });
 
-const StyledVideo = styled("video")({
-  width: "100%",
-  maxHeight: 400,
-  objectFit: "contain",
-  display: "block",
-});
-
 interface AttachmentPreviewProps {
   metadata: import("../../types/message.type").FileMetadata;
   alt?: string;
   onClick?: () => void;
   onImageClick?: () => void;
+}
+
+function getMediaType(mimeType?: string): "image" | "video" | "audio" | "other" {
+  if (!mimeType) return "other";
+  const lower = mimeType.toLowerCase();
+  if (lower.startsWith("image/")) return "image";
+  if (lower.startsWith("video/")) return "video";
+  if (lower.startsWith("audio/")) return "audio";
+  return "other";
 }
 
 export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
@@ -52,50 +55,11 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
   onClick,
   onImageClick,
 }) => {
-  const { blobUrl, isLoading, error } = useAuthenticatedFile(metadata.id, {
-    fetchBlob: true,
-    fetchMetadata: false, // We already have metadata!
-  });
-  const [mediaType, setMediaType] = useState<"image" | "video" | "audio" | "other" | null>(null);
+  const mediaType = getMediaType(metadata?.mimeType);
 
-  // Detect media type from metadata
-  useEffect(() => {
-    if (!metadata?.mimeType) {
-      setMediaType(null);
-      return;
-    }
-
-    const mimeType = metadata.mimeType.toLowerCase();
-
-    if (mimeType.startsWith("image/")) {
-      setMediaType("image");
-    } else if (mimeType.startsWith("video/")) {
-      setMediaType("video");
-    } else if (mimeType.startsWith("audio/")) {
-      setMediaType("audio");
-    } else {
-      setMediaType("other");
-    }
-  }, [metadata?.mimeType]);
-
-  if (error) {
-    return (
-      <AttachmentCard>
-        <Alert severity="error" sx={{ m: 1 }}>
-          Failed to load attachment
-        </Alert>
-      </AttachmentCard>
-    );
-  }
-
-  if (isLoading || !blobUrl || !mediaType) {
-    return (
-      <AttachmentCard>
-        <LoadingContainer>
-          <CircularProgress size={32} />
-        </LoadingContainer>
-      </AttachmentCard>
-    );
+  // Videos get their own component — no blob download needed
+  if (mediaType === "video") {
+    return <VideoPreview metadata={metadata} />;
   }
 
   // Audio files get their own specialized player
@@ -108,20 +72,56 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     return <DownloadLink metadata={metadata} />;
   }
 
-  // Images and videos are displayed inline
+  // Images need the blob fetched
+  return (
+    <ImagePreview
+      metadata={metadata}
+      alt={alt}
+      onClick={onClick}
+      onImageClick={onImageClick}
+    />
+  );
+};
+
+/** Internal image preview that fetches the blob */
+const ImagePreview: React.FC<AttachmentPreviewProps> = ({
+  metadata,
+  alt = "Attachment",
+  onClick,
+  onImageClick,
+}) => {
+  const { blobUrl, isLoading, error } = useAuthenticatedFile(metadata.id, {
+    fetchBlob: true,
+    fetchMetadata: false,
+  });
+
+  if (error) {
+    return (
+      <AttachmentCard>
+        <Alert severity="error" sx={{ m: 1 }}>
+          Failed to load attachment
+        </Alert>
+      </AttachmentCard>
+    );
+  }
+
+  if (isLoading || !blobUrl) {
+    return (
+      <AttachmentCard>
+        <LoadingContainer>
+          <CircularProgress size={32} />
+        </LoadingContainer>
+      </AttachmentCard>
+    );
+  }
+
   return (
     <AttachmentCard>
-      {mediaType === "video" ? (
-        <StyledVideo src={blobUrl} controls>
-          Your browser does not support the video tag.
-        </StyledVideo>
-      ) : (
-        <StyledImage
-          src={blobUrl}
-          alt={alt}
-          onClick={onImageClick || onClick}
-        />
-      )}
+      <StyledImage
+        src={blobUrl}
+        alt={alt}
+        onClick={onImageClick || onClick}
+      />
     </AttachmentCard>
   );
 };

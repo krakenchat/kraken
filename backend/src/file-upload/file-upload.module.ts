@@ -6,10 +6,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@/database/database.module';
 import { StorageModule } from '@/storage/storage.module';
 import { StorageQuotaModule } from '@/storage-quota/storage-quota.module';
+import { LivekitModule } from '@/livekit/livekit.module';
+import { ThumbnailService } from '@/file/thumbnail.service';
 
 @Module({
   controllers: [FileUploadController],
-  providers: [FileUploadService],
+  providers: [FileUploadService, ThumbnailService],
   imports: [
     MulterModule.registerAsync({
       imports: [ConfigModule],
@@ -21,9 +23,11 @@ import { StorageQuotaModule } from '@/storage-quota/storage-quota.module';
       }),
       inject: [ConfigService],
     }),
+    ConfigModule,
     DatabaseModule,
     StorageModule,
     StorageQuotaModule,
+    LivekitModule,
   ],
 })
 export class FileUploadModule {}

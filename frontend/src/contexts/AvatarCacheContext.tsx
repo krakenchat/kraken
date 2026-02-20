@@ -16,6 +16,7 @@ interface FileCacheContextType {
   setBlob: (fileId: string, blobUrl: string) => void;
   hasBlob: (fileId: string) => boolean;
   fetchBlob: (fileId: string) => Promise<string>;
+  fetchThumbnail: (fileId: string) => Promise<string>;
 }
 
 const FileCacheContext = createContext<FileCacheContextType | null>(null);
@@ -161,6 +162,61 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({
     return fetchPromise;
   }, [evictIfNeeded]);
 
+  const fetchThumbnail = useCallback(async (fileId: string): Promise<string> => {
+    const cacheKey = `thumb:${fileId}`;
+
+    // 1. Return cached thumbnail if exists
+    const cached = cacheRef.current.get(cacheKey);
+    if (cached) {
+      cached.lastAccessed = Date.now();
+      return cached.blobUrl;
+    }
+
+    // 2. Return in-flight promise if already fetching
+    const pending = pendingRef.current.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
+
+    // 3. Start new fetch
+    const fetchPromise = (async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
+
+        const response = await fetch(getApiUrl(`/file/${fileId}/thumbnail`), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch thumbnail: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        cacheRef.current.set(cacheKey, {
+          blobUrl,
+          lastAccessed: Date.now(),
+        });
+
+        pendingRef.current.delete(cacheKey);
+        evictIfNeeded();
+        return blobUrl;
+      } catch (error) {
+        pendingRef.current.delete(cacheKey);
+        throw error;
+      }
+    })();
+
+    pendingRef.current.set(cacheKey, fetchPromise);
+    return fetchPromise;
+  }, [evictIfNeeded]);
+
   // Cleanup: Revoke all blob URLs when provider unmounts
   useEffect(() => {
     // Capture ref values for cleanup
@@ -181,6 +237,7 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({
     setBlob,
     hasBlob,
     fetchBlob,
+    fetchThumbnail,
   };
 
   return (

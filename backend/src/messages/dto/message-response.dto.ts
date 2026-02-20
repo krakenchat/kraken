@@ -24,6 +24,7 @@ export class EnrichedAttachment {
   @ApiProperty({ enum: FileTypeValues })
   fileType: FileType;
   size: number;
+  hasThumbnail: boolean;
 }
 
 export class EnrichedMessageDto {

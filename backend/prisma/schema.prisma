@@ -453,7 +453,8 @@ model File {
 
   // Storage configuration
   storageType StorageType @default(LOCAL)
-  storagePath String // Local path or cloud key
+  storagePath    String // Local path or cloud key
+  thumbnailPath  String? // Path to generated thumbnail image (for videos)
 
   // Relations
   replayClips ReplayClip[]

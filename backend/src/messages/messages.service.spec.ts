@@ -4,7 +4,7 @@ import { MessagesService } from './messages.service';
 import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
 import { NotFoundException } from '@nestjs/common';
-import { SpanType } from '@prisma/client';
+import { SpanType, FileType } from '@prisma/client';
 import { createMockDatabase, MessageFactory, FileFactory } from '@/test-utils';
 
 describe('MessagesService', () => {
@@ -370,7 +370,24 @@ describe('MessagesService', () => {
 
       const result = await service.findAllForChannel(channelId);
 
-      expect(result.messages[0].attachments).toEqual([file1, file2]);
+      expect(result.messages[0].attachments).toEqual([
+        {
+          id: file1.id,
+          filename: file1.filename,
+          mimeType: file1.mimeType,
+          fileType: file1.fileType,
+          size: file1.size,
+          hasThumbnail: false,
+        },
+        {
+          id: file2.id,
+          filename: file2.filename,
+          mimeType: file2.mimeType,
+          fileType: file2.fileType,
+          size: file2.size,
+          hasThumbnail: false,
+        },
+      ]);
     });
 
     it('should filter out missing files from attachments', async () => {
@@ -495,7 +512,25 @@ describe('MessagesService', () => {
         message as any,
       );
 
-      expect(result.attachments).toEqual([file1, file2]);
+      // toFileMetadata strips thumbnailPath and adds hasThumbnail
+      expect(result.attachments).toEqual([
+        {
+          id: file1.id,
+          filename: file1.filename,
+          mimeType: file1.mimeType,
+          fileType: file1.fileType,
+          size: file1.size,
+          hasThumbnail: false,
+        },
+        {
+          id: file2.id,
+          filename: file2.filename,
+          mimeType: file2.mimeType,
+          fileType: file2.fileType,
+          size: file2.size,
+          hasThumbnail: false,
+        },
+      ]);
       expect(mockDatabase.file.findMany).toHaveBeenCalledWith({
         where: { id: { in: ['file-1', 'file-2'] } },
         select: {
@@ -504,6 +539,7 @@ describe('MessagesService', () => {
           mimeType: true,
           fileType: true,
           size: true,
+          thumbnailPath: true,
         },
       });
     });
@@ -519,6 +555,38 @@ describe('MessagesService', () => {
       expect(mockDatabase.file.findMany).not.toHaveBeenCalled();
     });
 
+    it('should set hasThumbnail to true when file has thumbnailPath', async () => {
+      const videoFile = FileFactory.build({
+        id: 'vid-1',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        thumbnailPath: '/uploads/thumbnails/vid-1.jpg',
+      });
+      const imageFile = FileFactory.build({
+        id: 'img-1',
+        filename: 'photo.jpg',
+        thumbnailPath: null,
+      });
+      const message = MessageFactory.build({
+        attachments: ['vid-1', 'img-1'],
+      });
+
+      mockDatabase.file.findMany.mockResolvedValue([videoFile, imageFile]);
+
+      const result = await service.enrichMessageWithFileMetadata(
+        message as any,
+      );
+
+      expect(result.attachments).toHaveLength(2);
+      expect(
+        (result.attachments[0] as { hasThumbnail: boolean }).hasThumbnail,
+      ).toBe(true);
+      expect(
+        (result.attachments[1] as { hasThumbnail: boolean }).hasThumbnail,
+      ).toBe(false);
+    });
+
     it('should filter out missing files', async () => {
       const file1 = FileFactory.build({ id: 'file-1' });
       const message = MessageFactory.build({
@@ -532,7 +600,7 @@ describe('MessagesService', () => {
       );
 
       expect(result.attachments).toHaveLength(1);
-      expect(result.attachments[0].id).toBe('file-1');
+      expect((result.attachments[0] as { id: string }).id).toBe('file-1');
     });
   });
 });

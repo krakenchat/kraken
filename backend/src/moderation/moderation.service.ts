@@ -694,6 +694,7 @@ export class ModerationService {
               mimeType: true,
               fileType: true,
               size: true,
+              thumbnailPath: true,
             },
           })
         : [];
@@ -708,7 +709,15 @@ export class ModerationService {
       author: authorMap.get(message.authorId) || null,
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined),
+        .filter((file): file is NonNullable<typeof file> => file !== undefined)
+        .map((file) => ({
+          id: file.id,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          fileType: file.fileType,
+          size: file.size,
+          hasThumbnail: !!file.thumbnailPath,
+        })),
     }));
   }
 

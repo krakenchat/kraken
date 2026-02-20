@@ -5,6 +5,7 @@ import { FileUploadService } from './file-upload.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
+import { ThumbnailService } from '@/file/thumbnail.service';
 import { UnprocessableEntityException } from '@nestjs/common';
 import { ResourceType, FileType, StorageType } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -16,6 +17,7 @@ describe('FileUploadService', () => {
   let databaseService: Mocked<DatabaseService>;
   let storageService: Mocked<StorageService>;
   let storageQuotaService: Mocked<StorageQuotaService>;
+  let thumbnailService: Mocked<ThumbnailService>;
 
   const mockUser = {
     id: 'user-123',
@@ -44,6 +46,7 @@ describe('FileUploadService', () => {
     databaseService = unitRef.get(DatabaseService);
     storageService = unitRef.get(StorageService);
     storageQuotaService = unitRef.get(StorageQuotaService);
+    thumbnailService = unitRef.get(ThumbnailService);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -324,6 +327,104 @@ describe('FileUploadService', () => {
 
         jest.clearAllMocks();
       }
+    });
+
+    it('should generate thumbnail for video uploads (fire-and-forget)', async () => {
+      const videoFile = {
+        ...mockFile,
+        originalname: 'clip.mp4',
+        mimetype: 'video/mp4',
+        path: '/tmp/clip.mp4',
+      };
+      const createDto = {
+        resourceType: ResourceType.MESSAGE_ATTACHMENT,
+        resourceId: 'msg-123',
+      };
+
+      databaseService.file.create.mockResolvedValue({
+        id: 'file-video-1',
+      } as any);
+      databaseService.file.update.mockResolvedValue({} as any);
+      thumbnailService.generateVideoThumbnail.mockResolvedValue(
+        '/uploads/thumbnails/file-video-1.jpg',
+      );
+
+      const {
+        ResourceTypeFileValidator,
+      } = require('./validators/resource-type-file.validator');
+      ResourceTypeFileValidator.mockImplementation(() => ({
+        isValid: jest.fn().mockResolvedValue(true),
+      }));
+
+      await service.uploadFile(videoFile, createDto, mockUser);
+
+      // Flush the fire-and-forget microtask
+      await new Promise(process.nextTick);
+
+      expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledWith(
+        '/tmp/clip.mp4',
+        'file-video-1',
+      );
+      expect(databaseService.file.update).toHaveBeenCalledWith({
+        where: { id: 'file-video-1' },
+        data: { thumbnailPath: '/uploads/thumbnails/file-video-1.jpg' },
+      });
+    });
+
+    it('should not generate thumbnail for image uploads', async () => {
+      const createDto = {
+        resourceType: ResourceType.MESSAGE_ATTACHMENT,
+        resourceId: 'msg-123',
+      };
+
+      databaseService.file.create.mockResolvedValue({
+        id: 'file-img-1',
+      } as any);
+
+      const {
+        ResourceTypeFileValidator,
+      } = require('./validators/resource-type-file.validator');
+      ResourceTypeFileValidator.mockImplementation(() => ({
+        isValid: jest.fn().mockResolvedValue(true),
+      }));
+
+      await service.uploadFile(mockFile, createDto, mockUser);
+
+      expect(thumbnailService.generateVideoThumbnail).not.toHaveBeenCalled();
+    });
+
+    it('should not update file record when thumbnail generation fails', async () => {
+      const videoFile = {
+        ...mockFile,
+        originalname: 'bad.mp4',
+        mimetype: 'video/mp4',
+      };
+      const createDto = {
+        resourceType: ResourceType.MESSAGE_ATTACHMENT,
+        resourceId: 'msg-123',
+      };
+
+      databaseService.file.create.mockResolvedValue({
+        id: 'file-bad-1',
+      } as any);
+      thumbnailService.generateVideoThumbnail.mockResolvedValue(null);
+
+      const {
+        ResourceTypeFileValidator,
+      } = require('./validators/resource-type-file.validator');
+      ResourceTypeFileValidator.mockImplementation(() => ({
+        isValid: jest.fn().mockResolvedValue(true),
+      }));
+
+      const result = await service.uploadFile(videoFile, createDto, mockUser);
+
+      // Flush the fire-and-forget microtask
+      await new Promise(process.nextTick);
+
+      expect(result).toBeDefined();
+      expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalled();
+      // Should NOT update the file record with null thumbnailPath
+      expect(databaseService.file.update).not.toHaveBeenCalled();
     });
 
     it('should generate correct checksum', async () => {
