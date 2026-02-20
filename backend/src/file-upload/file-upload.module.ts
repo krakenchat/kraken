@@ -16,7 +16,7 @@ import { StorageQuotaModule } from '@/storage-quota/storage-quota.module';
       useFactory: (configService: ConfigService) => ({
         dest: configService.get<string>('FILE_UPLOAD_DEST') || './uploads',
         limits: {
-          fileSize: 500 * 1024 * 1024, // 500MB hard limit (prevents DOS)
+          fileSize: 1024 * 1024 * 1024, // 1GB hard limit (per-type limits enforced by validation strategies)
         },
       }),
       inject: [ConfigService],
