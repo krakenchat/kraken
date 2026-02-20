@@ -48,7 +48,7 @@ export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index }) => {
     case SpanType.PLAINTEXT:
     default: {
       // Split text into segments: plain text and URLs
-      const urlPattern = /(https?:\/\/[^\s<>)"']+)/g;
+      const urlPattern = /(https?:\/\/[^\s<>)"']*[^\s<>)"'.,!?;:])/g;
       const parts = span.text.split(urlPattern);
 
       return (
