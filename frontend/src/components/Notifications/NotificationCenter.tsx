@@ -27,6 +27,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   notificationsControllerGetNotificationsOptions,
+  notificationsControllerGetNotificationsQueryKey,
+  notificationsControllerGetUnreadCountQueryKey,
   notificationsControllerMarkAsReadMutation,
   notificationsControllerMarkAllAsReadMutation,
   notificationsControllerDeleteNotificationMutation,
@@ -61,24 +63,24 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const { mutateAsync: markAsRead } = useMutation({
     ...notificationsControllerMarkAsReadMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
     },
   });
 
   const { mutateAsync: markAllAsRead } = useMutation({
     ...notificationsControllerMarkAllAsReadMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
     },
   });
 
   const { mutateAsync: deleteNotification } = useMutation({
     ...notificationsControllerDeleteNotificationMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetNotifications' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'notificationsControllerGetUnreadCount' }] });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
     },
   });
 

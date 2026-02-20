@@ -17,7 +17,6 @@ import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
 import { useResponsive } from "./hooks/useResponsive";
 import type { User } from "./types/auth.type";
 import { APPBAR_HEIGHT, SIDEBAR_WIDTH, VOICE_BAR_HEIGHT } from "./constants/layout";
-import { usePushNotifications } from "./hooks/usePushNotifications";
 import { useNotificationSideEffects } from "./hooks/useNotificationSideEffects";
 import NotificationBadge from "./components/Notifications/NotificationBadge";
 import NotificationCenter from "./components/Notifications/NotificationCenter";
@@ -62,14 +61,10 @@ const LayoutContentArea: React.FC<{ voiceConnected: boolean; isMenuExpanded: boo
 
 /** Inner component that uses hooks requiring SocketHubProvider context */
 const LayoutHooksBridge: React.FC = () => {
-  // Check push subscription status to avoid duplicate desktop notifications
-  const { isSubscribed: isPushSubscribed } = usePushNotifications();
-
   // Notification side effects (sounds, desktop notifications, Electron click)
   useNotificationSideEffects({
     showDesktopNotifications: true,
     playSound: true,
-    isPushSubscribed,
   });
 
   return null;
