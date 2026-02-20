@@ -21,6 +21,7 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { Link } from "react-router-dom";
+import { copyToClipboard } from "../utils/clipboard";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -95,7 +96,7 @@ const DesktopHomePage: React.FC = () => {
 
       // Auto-copy the invite link
       const inviteUrl = `${window.location.origin}/#/join/${newInvite.code}`;
-      await navigator.clipboard.writeText(inviteUrl);
+      await copyToClipboard(inviteUrl);
       setSnackbarOpen(true);
     } catch (error) {
       logger.error("Failed to create invite:", error);
@@ -105,7 +106,7 @@ const DesktopHomePage: React.FC = () => {
   const handleCopyInvite = async () => {
     if (lastCreatedInvite) {
       const inviteUrl = `${window.location.origin}/#/join/${lastCreatedInvite}`;
-      await navigator.clipboard.writeText(inviteUrl);
+      await copyToClipboard(inviteUrl);
       setSnackbarOpen(true);
     }
   };

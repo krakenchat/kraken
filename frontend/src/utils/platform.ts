@@ -14,6 +14,7 @@ interface ElectronAPI {
   getDesktopSources?: (types: string[]) => Promise<unknown[]>;
   getScreenStream?: (sourceId: string) => Promise<MediaStream | null>;
   getAppVersion?: () => Promise<string>;
+  writeClipboard?: (text: string) => void;
   [key: string]: unknown;
 }
 

@@ -34,6 +34,7 @@ import {
 } from "../../api-client/@tanstack/react-query.gen";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../../types/invite.type";
+import { copyToClipboard } from "../../utils/clipboard";
 import { logger } from "../../utils/logger";
 
 interface InviteManagementProps {
@@ -91,7 +92,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
   const handleCopyInvite = async (code: string) => {
     const inviteUrl = getInviteUrl(code);
     try {
-      await navigator.clipboard.writeText(inviteUrl);
+      await copyToClipboard(inviteUrl);
       setCopiedInvite(code);
       setTimeout(() => setCopiedInvite(null), 2000);
     } catch (error) {

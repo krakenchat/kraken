@@ -8,12 +8,20 @@ import { HashRouter } from "react-router-dom";
 import { SocketProvider } from "./utils/SocketProvider";
 import { initTelemetry } from "./services/telemetry";
 import { configureApiClient } from "./api-client-config";
+import { isElectron } from "./utils/platform";
 
 // Initialize telemetry before app renders
 initTelemetry();
 
 // Configure the generated API client (auth interceptors, base URL)
 configureApiClient();
+
+// Register service worker only in web browser (not Electron file:// context)
+if (!isElectron()) {
+  import("virtual:pwa-register").then(({ registerSW }) => {
+    registerSW({ immediate: true });
+  });
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
