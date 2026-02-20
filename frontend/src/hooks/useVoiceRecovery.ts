@@ -40,6 +40,9 @@ export function useVoiceRecovery() {
     // Mark as attempted so we don't retry
     recoveryAttempted.current = true;
 
+    // Clear immediately to prevent double-recovery on rapid refresh
+    clearSavedConnection();
+
     const attemptRecovery = async () => {
       logger.info('[VoiceRecovery] Attempting to recover connection:', savedConnection);
       setIsRecovering(true);
@@ -78,9 +81,6 @@ export function useVoiceRecovery() {
         const message = error instanceof Error ? error.message : 'Failed to recover voice connection';
         logger.error('[VoiceRecovery] ✗ Failed to recover connection:', message);
         setRecoveryError(message);
-
-        // Clear saved connection on failure
-        clearSavedConnection();
       } finally {
         setIsRecovering(false);
       }

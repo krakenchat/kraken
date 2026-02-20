@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { useVoice } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { Track } from 'livekit-client';
+import { VOLUME_STORAGE_PREFIX } from '../constants/voice';
 
 /**
  * Hook that implements proper deafen functionality by muting received audio tracks
@@ -12,7 +13,8 @@ import { Track } from 'livekit-client';
  * - Also mutes the user's microphone (Discord-style behavior)
  *
  * When isDeafened is false:
- * - Restores volume to 1.0 for all remote audio tracks
+ * - Restores each participant's per-user stored volume (from localStorage)
+ * - Falls back to 1.0 if no stored volume exists
  *
  * This hook should be used once at the app level or in a persistent voice component.
  *
@@ -28,12 +30,28 @@ export const useDeafenEffect = () => {
   useEffect(() => {
     if (!room) return;
 
-    // Function to mute/unmute all remote audio tracks
-    const updateRemoteAudioVolume = (volume: number) => {
+    // Mute all remote audio tracks (volume = 0)
+    const muteAllRemoteAudio = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
           if (publication.track && (publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio)) {
-            publication.track.setVolume(volume);
+            publication.track.setVolume(0);
+          }
+        });
+      });
+    };
+
+    // Restore per-user stored volumes for all remote audio tracks
+    const restoreRemoteAudioVolumes = () => {
+      room.remoteParticipants.forEach((participant) => {
+        const storedRaw = localStorage.getItem(`${VOLUME_STORAGE_PREFIX}${participant.identity}`);
+        const storedVolume = storedRaw !== null ? parseFloat(storedRaw) : 1.0;
+        // Cap at 1.0 for track.setVolume; GainNode handles boost >1.0 via context menu
+        const trackVolume = Math.min(storedVolume, 1.0);
+
+        participant.audioTrackPublications.forEach((publication) => {
+          if (publication.track && (publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio)) {
+            publication.track.setVolume(trackVolume);
           }
         });
       });
@@ -41,20 +59,17 @@ export const useDeafenEffect = () => {
 
     // Apply current deafen state
     if (isDeafened) {
-      // Mute all remote audio (volume = 0)
-      updateRemoteAudioVolume(0);
+      muteAllRemoteAudio();
       logger.dev('[Voice] Deafened: muted all remote audio tracks');
     } else {
-      // Restore audio (volume = 1.0)
-      updateRemoteAudioVolume(1.0);
-      logger.dev('[Voice] Undeafened: restored all remote audio tracks');
+      restoreRemoteAudioVolumes();
+      logger.dev('[Voice] Undeafened: restored per-user remote audio volumes');
     }
 
     // Handle new participants joining while deafened
     const handleParticipantConnected = () => {
       if (isDeafened) {
-        // Mute new participant's audio immediately
-        const t = setTimeout(() => updateRemoteAudioVolume(0), 100);
+        const t = setTimeout(() => muteAllRemoteAudio(), 100);
         timeoutRefs.current.push(t);
       }
     };
@@ -62,8 +77,7 @@ export const useDeafenEffect = () => {
     // Handle new track publications while deafened
     const handleTrackSubscribed = () => {
       if (isDeafened) {
-        // Mute newly subscribed tracks
-        const t = setTimeout(() => updateRemoteAudioVolume(0), 100);
+        const t = setTimeout(() => muteAllRemoteAudio(), 100);
         timeoutRefs.current.push(t);
       }
     };

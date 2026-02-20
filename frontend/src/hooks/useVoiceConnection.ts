@@ -48,6 +48,18 @@ export const useVoiceConnection = () => {
         throw new Error("User or connection info not available");
       }
 
+      // Leave current channel/DM before joining a new one
+      const deps = getDeps();
+      const currentState = deps.getVoiceState();
+      if (currentState.isConnected) {
+        logger.info('[useVoiceConnection] Already connected, leaving current channel first');
+        if (currentState.contextType === 'dm') {
+          await leaveDmVoice(deps);
+        } else {
+          await leaveVoiceChannel(deps);
+        }
+      }
+
       logger.info('[useVoiceConnection] Calling joinVoiceChannel...');
       await joinVoiceChannel(
         {
@@ -63,7 +75,7 @@ export const useVoiceConnection = () => {
           },
           connectionInfo,
         },
-        getDeps()
+        deps
       );
       logger.info('[useVoiceConnection] joinVoiceChannel completed');
     },
@@ -74,6 +86,18 @@ export const useVoiceConnection = () => {
     async (dmGroupId: string, dmGroupName: string) => {
       if (!user || !connectionInfo) {
         throw new Error("User or connection info not available");
+      }
+
+      // Leave current channel/DM before joining a new one
+      const deps = getDeps();
+      const currentState = deps.getVoiceState();
+      if (currentState.isConnected) {
+        logger.info('[useVoiceConnection] Already connected, leaving current channel/DM first');
+        if (currentState.contextType === 'dm') {
+          await leaveDmVoice(deps);
+        } else {
+          await leaveVoiceChannel(deps);
+        }
       }
 
       await joinDmVoice(
@@ -87,7 +111,7 @@ export const useVoiceConnection = () => {
           },
           connectionInfo,
         },
-        getDeps()
+        deps
       );
     },
     [user, connectionInfo, getDeps]
