@@ -105,9 +105,13 @@ const DesktopHomePage: React.FC = () => {
 
   const handleCopyInvite = async () => {
     if (lastCreatedInvite) {
-      const inviteUrl = `${window.location.origin}/#/join/${lastCreatedInvite}`;
-      await copyToClipboard(inviteUrl);
-      setSnackbarOpen(true);
+      try {
+        const inviteUrl = `${window.location.origin}/#/join/${lastCreatedInvite}`;
+        await copyToClipboard(inviteUrl);
+        setSnackbarOpen(true);
+      } catch (error) {
+        logger.error("Failed to copy invite link:", error);
+      }
     }
   };
 

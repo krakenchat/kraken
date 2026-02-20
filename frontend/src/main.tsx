@@ -18,9 +18,13 @@ configureApiClient();
 
 // Register service worker only in web browser (not Electron file:// context)
 if (!isElectron()) {
-  import("virtual:pwa-register").then(({ registerSW }) => {
-    registerSW({ immediate: true });
-  });
+  import("virtual:pwa-register")
+    .then(({ registerSW }) => {
+      registerSW({ immediate: true });
+    })
+    .catch((error) => {
+      console.error("Failed to register service worker:", error);
+    });
 }
 
 export const queryClient = new QueryClient({
