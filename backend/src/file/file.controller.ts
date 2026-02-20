@@ -13,7 +13,7 @@ import { ApiOkResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { FileService } from './file.service';
 import { StorageType } from '@prisma/client';
-import { createReadStream, statSync } from 'fs';
+import { createReadStream } from 'fs';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -60,11 +60,12 @@ export class FileController {
       throw new NotFoundException('No thumbnail available for this file');
     }
 
-    const stream = createReadStream(file.thumbnailPath);
+    const thumbnailPath = file.thumbnailPath as string;
+    const stream = createReadStream(thumbnailPath);
 
     res.set({
       'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=86400', // Thumbnails are immutable, cache 24h
+      'Cache-Control': 'private, max-age=86400', // Thumbnails are immutable, cache 24h in user's browser
     });
 
     return new StreamableFile(stream);
@@ -92,7 +93,7 @@ export class FileController {
     const sanitizedFilename = file.filename.replace(/["\\\n\r]/g, '_');
     const encodedFilename = encodeURIComponent(file.filename);
 
-    const fileSize = statSync(file.storagePath).size;
+    const fileSize = file.size;
     const rangeHeader = req.headers.range;
 
     res.set({
@@ -107,20 +108,25 @@ export class FileController {
         const start = parseInt(match[1], 10);
         const end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
 
-        // Validate range
-        if (start >= fileSize || end >= fileSize || start > end) {
+        // Validate range: reject only when start is beyond EOF or inverted
+        if (start >= fileSize || start > end) {
           res.status(416).set({
             'Content-Range': `bytes */${fileSize}`,
           });
           return new StreamableFile(Buffer.alloc(0));
         }
 
-        const chunkSize = end - start + 1;
-        const stream = createReadStream(file.storagePath, { start, end });
+        // Clamp end to file boundary (per RFC 7233 §2.1)
+        const clampedEnd = Math.min(end, fileSize - 1);
+        const chunkSize = clampedEnd - start + 1;
+        const stream = createReadStream(file.storagePath, {
+          start,
+          end: clampedEnd,
+        });
 
         res.status(206).set({
           'Content-Type': file.mimeType,
-          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Content-Range': `bytes ${start}-${clampedEnd}/${fileSize}`,
           'Content-Length': chunkSize,
         });
 

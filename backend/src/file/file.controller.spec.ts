@@ -18,9 +18,7 @@ describe('FileController', () => {
     status: jest.fn().mockReturnThis(),
   } as unknown as Response;
 
-  const mockRequest = (
-    rangeHeader?: string,
-  ): Request =>
+  const mockRequest = (rangeHeader?: string): Request =>
     ({
       headers: rangeHeader ? { range: rangeHeader } : {},
     }) as unknown as Request;
@@ -40,9 +38,6 @@ describe('FileController', () => {
       pipe: jest.fn(),
     };
     (fs.createReadStream as jest.Mock).mockReturnValue(mockStream);
-
-    // Mock statSync for Range request support
-    (fs.statSync as jest.Mock).mockReturnValue({ size: 10000 });
   });
 
   afterEach(() => {
@@ -109,9 +104,9 @@ describe('FileController', () => {
     it('should throw NotFoundException if file not found', async () => {
       service.findOne.mockResolvedValue(null as any);
 
-      await expect(
-        controller.getFileMetadata('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.getFileMetadata('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should propagate service errors', async () => {
@@ -142,7 +137,7 @@ describe('FileController', () => {
       );
       expect(mockResponse.set).toHaveBeenCalledWith({
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=86400',
+        'Cache-Control': 'private, max-age=86400',
       });
       expect(result).toBeDefined();
     });
@@ -219,7 +214,7 @@ describe('FileController', () => {
           Object.assign(acc, call[0]),
         {},
       );
-      expect(allHeaders['Content-Length']).toBe(10000); // From statSync mock
+      expect(allHeaders['Content-Length']).toBe(1024); // From file.size
     });
 
     it('should handle Range requests with 206 Partial Content', async () => {
@@ -294,6 +289,38 @@ describe('FileController', () => {
       await controller.getFile('file-bad-range', req, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(416);
+    });
+
+    it('should clamp end to file boundary when Range end exceeds file size', async () => {
+      const mockFile = {
+        id: 'file-clamp',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest('bytes=0-999999');
+
+      await controller.getFile('file-clamp', req, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(206);
+      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
+        start: 0,
+        end: 9999,
+      });
+
+      const setCalls = (mockResponse.set as jest.Mock).mock.calls;
+      const allHeaders = setCalls.reduce(
+        (acc: Record<string, unknown>, call: unknown[]) =>
+          Object.assign(acc, call[0]),
+        {},
+      );
+      expect(allHeaders['Content-Range']).toBe('bytes 0-9999/10000');
+      expect(allHeaders['Content-Length']).toBe(10000);
     });
 
     it('should handle single-byte Range request', async () => {

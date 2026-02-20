@@ -284,7 +284,7 @@ export class MessagesService {
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
         .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map(MessagesService.toFileMetadata),
+        .map((file) => MessagesService.toFileMetadata(file)),
     };
   }
 
@@ -345,7 +345,7 @@ export class MessagesService {
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
         .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map(MessagesService.toFileMetadata),
+        .map((file) => MessagesService.toFileMetadata(file)),
     }));
 
     const nextToken =
@@ -572,7 +572,7 @@ export class MessagesService {
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
         .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map(MessagesService.toFileMetadata),
+        .map((file) => MessagesService.toFileMetadata(file)),
     }));
   }
 

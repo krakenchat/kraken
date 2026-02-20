@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Box, Card, CircularProgress, Alert, styled } from "@mui/material";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
 import { AudioPlayer } from "./AudioPlayer";
@@ -40,33 +40,22 @@ interface AttachmentPreviewProps {
   onImageClick?: () => void;
 }
 
+function getMediaType(mimeType?: string): "image" | "video" | "audio" | "other" {
+  if (!mimeType) return "other";
+  const lower = mimeType.toLowerCase();
+  if (lower.startsWith("image/")) return "image";
+  if (lower.startsWith("video/")) return "video";
+  if (lower.startsWith("audio/")) return "audio";
+  return "other";
+}
+
 export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
   metadata,
   alt = "Attachment",
   onClick,
   onImageClick,
 }) => {
-  const [mediaType, setMediaType] = useState<"image" | "video" | "audio" | "other" | null>(null);
-
-  // Detect media type from metadata
-  useEffect(() => {
-    if (!metadata?.mimeType) {
-      setMediaType(null);
-      return;
-    }
-
-    const mimeType = metadata.mimeType.toLowerCase();
-
-    if (mimeType.startsWith("image/")) {
-      setMediaType("image");
-    } else if (mimeType.startsWith("video/")) {
-      setMediaType("video");
-    } else if (mimeType.startsWith("audio/")) {
-      setMediaType("audio");
-    } else {
-      setMediaType("other");
-    }
-  }, [metadata?.mimeType]);
+  const mediaType = getMediaType(metadata?.mimeType);
 
   // Videos get their own component — no blob download needed
   if (mediaType === "video") {

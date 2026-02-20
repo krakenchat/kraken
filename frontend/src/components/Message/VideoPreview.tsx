@@ -159,6 +159,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({ metadata }) => {
         <PlayOverlay className="play-overlay">
           <IconButton
             className="play-button"
+            aria-label="Play video"
             sx={{
               color: "#fff",
               backgroundColor: "rgba(255, 255, 255, 0.15)",

@@ -329,7 +329,7 @@ describe('FileUploadService', () => {
       }
     });
 
-    it('should generate thumbnail for video uploads', async () => {
+    it('should generate thumbnail for video uploads (fire-and-forget)', async () => {
       const videoFile = {
         ...mockFile,
         originalname: 'clip.mp4',
@@ -357,6 +357,9 @@ describe('FileUploadService', () => {
       }));
 
       await service.uploadFile(videoFile, createDto, mockUser);
+
+      // Flush the fire-and-forget microtask
+      await new Promise(process.nextTick);
 
       expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledWith(
         '/tmp/clip.mp4',
@@ -414,6 +417,9 @@ describe('FileUploadService', () => {
       }));
 
       const result = await service.uploadFile(videoFile, createDto, mockUser);
+
+      // Flush the fire-and-forget microtask
+      await new Promise(process.nextTick);
 
       expect(result).toBeDefined();
       expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalled();

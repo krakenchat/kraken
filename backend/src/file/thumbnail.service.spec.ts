@@ -2,7 +2,10 @@ import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { ThumbnailService } from './thumbnail.service';
 import { StorageService } from '@/storage/storage.service';
-import { FfmpegProvider, FfmpegCommand } from '@/livekit/providers/ffmpeg.provider';
+import {
+  FfmpegProvider,
+  FfmpegCommand,
+} from '@/livekit/providers/ffmpeg.provider';
 
 describe('ThumbnailService', () => {
   let service: ThumbnailService;
@@ -87,9 +90,7 @@ describe('ThumbnailService', () => {
       mockCommand.run.mockImplementationOnce(() => {
         process.nextTick(() => {
           if (allCallbacks.error) {
-            allCallbacks.error.forEach((cb) =>
-              cb(new Error('FFmpeg crashed')),
-            );
+            allCallbacks.error.forEach((cb) => cb(new Error('FFmpeg crashed')));
           }
         });
       });
@@ -121,10 +122,14 @@ describe('ThumbnailService', () => {
       await service.generateVideoThumbnail(filePath, fileId);
 
       expect(mockCommand.outputOptions).toHaveBeenCalledWith(
-        '-vframes', '1',
-        '-vf', 'scale=480:-1',
-        '-f', 'image2',
-        '-q:v', '5',
+        '-vframes',
+        '1',
+        '-vf',
+        'scale=480:-1',
+        '-f',
+        'image2',
+        '-q:v',
+        '5',
       );
       expect(mockCommand.output).toHaveBeenCalledWith(
         'uploads/thumbnails/file-abc-123.jpg',

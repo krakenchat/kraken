@@ -86,19 +86,9 @@ export class FileUploadService {
         // Increment user's storage usage
         await this.storageQuotaService.incrementUserStorage(user.id, file.size);
 
-        // Generate thumbnail for video files (non-blocking — failure won't break upload)
+        // Generate thumbnail for video files (fire-and-forget — failure won't block upload)
         if (fileType === FileType.VIDEO) {
-          const thumbnailPath =
-            await this.thumbnailService.generateVideoThumbnail(
-              file.path,
-              fileRecord.id,
-            );
-          if (thumbnailPath) {
-            await this.databaseService.file.update({
-              where: { id: fileRecord.id },
-              data: { thumbnailPath },
-            });
-          }
+          this.generateThumbnailAsync(file.path, fileRecord.id);
         }
 
         return fileRecord;
@@ -121,6 +111,29 @@ export class FileUploadService {
       this.logger.error(`Error processing file upload: ${error}`);
       throw error;
     }
+  }
+
+  /**
+   * Fire-and-forget thumbnail generation for video uploads.
+   * Errors are logged but never propagate to the upload response.
+   */
+  private generateThumbnailAsync(filePath: string, fileId: string): void {
+    void (async () => {
+      try {
+        const thumbnailPath =
+          await this.thumbnailService.generateVideoThumbnail(filePath, fileId);
+        if (thumbnailPath) {
+          await this.databaseService.file.update({
+            where: { id: fileId },
+            data: { thumbnailPath },
+          });
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    })();
   }
 
   /**

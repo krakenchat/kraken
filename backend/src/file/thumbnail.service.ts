@@ -42,7 +42,7 @@ export class ThumbnailService {
       return thumbnailPath;
     } catch (error) {
       this.logger.warn(
-        `Failed to generate thumbnail for file ${fileId}: ${error}`,
+        `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }
@@ -70,7 +70,11 @@ export class ThumbnailService {
         .output(outputPath)
         .on('end', () => resolve())
         .on('error', (err) => {
-          reject(new Error(`FFmpeg thumbnail extraction failed: ${err}`));
+          reject(
+            new Error(
+              `FFmpeg thumbnail extraction failed: ${err instanceof Error ? err.message : String(err)}`,
+            ),
+          );
         });
 
       // Timeout: 30 seconds should be more than enough for a single frame
