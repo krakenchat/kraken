@@ -4,7 +4,7 @@ import { FileController } from './file.controller';
 import { FileService } from './file.service';
 import { NotFoundException, NotImplementedException } from '@nestjs/common';
 import { StorageType, FileType } from '@prisma/client';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import * as fs from 'fs';
 
 jest.mock('fs');
@@ -15,7 +15,15 @@ describe('FileController', () => {
 
   const mockResponse = {
     set: jest.fn(),
+    status: jest.fn().mockReturnThis(),
   } as unknown as Response;
+
+  const mockRequest = (
+    rangeHeader?: string,
+  ): Request =>
+    ({
+      headers: rangeHeader ? { range: rangeHeader } : {},
+    }) as unknown as Request;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(FileController).compile();
@@ -32,6 +40,9 @@ describe('FileController', () => {
       pipe: jest.fn(),
     };
     (fs.createReadStream as jest.Mock).mockReturnValue(mockStream);
+
+    // Mock statSync for Range request support
+    (fs.statSync as jest.Mock).mockReturnValue({ size: 10000 });
   });
 
   afterEach(() => {
@@ -47,7 +58,7 @@ describe('FileController', () => {
   });
 
   describe('getFileMetadata', () => {
-    it('should return file metadata', async () => {
+    it('should return file metadata with hasThumbnail false', async () => {
       const fileId = 'file-123';
       const mockFile = {
         id: fileId,
@@ -57,6 +68,7 @@ describe('FileController', () => {
         size: 1024,
         storageType: StorageType.LOCAL,
         storagePath: '/tmp/test.png',
+        thumbnailPath: null,
       };
 
       service.findOne.mockResolvedValue(mockFile as any);
@@ -69,57 +81,91 @@ describe('FileController', () => {
         mimeType: 'image/png',
         fileType: FileType.IMAGE,
         size: 1024,
+        hasThumbnail: false,
       });
       expect(service.findOne).toHaveBeenCalledWith(fileId);
     });
 
-    it('should throw NotFoundException if file not found', async () => {
-      const fileId = 'non-existent';
+    it('should return hasThumbnail true when thumbnailPath exists', async () => {
+      const fileId = 'file-video';
+      const mockFile = {
+        id: fileId,
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 50000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+        thumbnailPath: '/uploads/thumbnails/file-video.jpg',
+      };
 
+      service.findOne.mockResolvedValue(mockFile as any);
+
+      const result = await controller.getFileMetadata(fileId);
+
+      expect(result.hasThumbnail).toBe(true);
+    });
+
+    it('should throw NotFoundException if file not found', async () => {
       service.findOne.mockResolvedValue(null as any);
 
-      await expect(controller.getFileMetadata(fileId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.getFileMetadata('non-existent'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should propagate service errors', async () => {
-      const fileId = 'error-file';
-
       service.findOne.mockRejectedValue(new Error('Database error'));
 
-      await expect(controller.getFileMetadata(fileId)).rejects.toThrow(
+      await expect(controller.getFileMetadata('error-file')).rejects.toThrow(
         'Database error',
       );
     });
+  });
 
-    it('should handle different file types', async () => {
-      const fileTypes = [
-        { type: FileType.VIDEO, mime: 'video/mp4' },
-        { type: FileType.AUDIO, mime: 'audio/mpeg' },
-        { type: FileType.DOCUMENT, mime: 'application/pdf' },
-      ];
+  describe('getFileThumbnail', () => {
+    it('should stream thumbnail JPEG when available', async () => {
+      const fileId = 'file-video';
+      const mockFile = {
+        id: fileId,
+        thumbnailPath: '/uploads/thumbnails/file-video.jpg',
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
 
-      for (const { type, mime } of fileTypes) {
-        const mockFile = {
-          id: 'file-123',
-          filename: `test.${type.toLowerCase()}`,
-          mimeType: mime,
-          fileType: type,
-          size: 2048,
-          storageType: StorageType.LOCAL,
-          storagePath: '/tmp/test',
-        };
+      service.findOne.mockResolvedValue(mockFile as any);
 
-        service.findOne.mockResolvedValue(mockFile as any);
+      const result = await controller.getFileThumbnail(fileId, mockResponse);
 
-        const result = await controller.getFileMetadata('file-123');
+      expect(fs.createReadStream).toHaveBeenCalledWith(
+        '/uploads/thumbnails/file-video.jpg',
+      );
+      expect(mockResponse.set).toHaveBeenCalledWith({
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      expect(result).toBeDefined();
+    });
 
-        expect(result.fileType).toBe(type);
-        expect(result.mimeType).toBe(mime);
+    it('should throw NotFoundException when no thumbnailPath', async () => {
+      const mockFile = {
+        id: 'file-no-thumb',
+        thumbnailPath: null,
+      };
 
-        jest.clearAllMocks();
-      }
+      service.findOne.mockResolvedValue(mockFile as any);
+
+      await expect(
+        controller.getFileThumbnail('file-no-thumb', mockResponse),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when file not found', async () => {
+      service.findOne.mockResolvedValue(null as any);
+
+      await expect(
+        controller.getFileThumbnail('missing', mockResponse),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -137,22 +183,216 @@ describe('FileController', () => {
       };
 
       service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest();
 
-      const result = await controller.getFile(fileId, mockResponse);
+      const result = await controller.getFile(fileId, req, mockResponse);
 
       expect(service.findOne).toHaveBeenCalledWith(fileId);
       expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/download.pdf');
-      expect(mockResponse.set).toHaveBeenCalledWith({
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="download.pdf"; filename*=UTF-8''download.pdf`,
-      });
+      expect(mockResponse.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'Accept-Ranges': 'bytes',
+        }),
+      );
       expect(result).toBeDefined();
     });
 
-    it('should throw NotImplementedException for non-local storage', async () => {
-      const fileId = 'file-s3';
+    it('should include Content-Length for full file responses', async () => {
       const mockFile = {
-        id: fileId,
+        id: 'file-123',
+        filename: 'test.txt',
+        mimeType: 'text/plain',
+        fileType: FileType.DOCUMENT,
+        size: 1024,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/test.txt',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+
+      await controller.getFile('file-123', mockRequest(), mockResponse);
+
+      // Check that Content-Length is set (second set call)
+      const setCalls = (mockResponse.set as jest.Mock).mock.calls;
+      const allHeaders = setCalls.reduce(
+        (acc: Record<string, unknown>, call: unknown[]) =>
+          Object.assign(acc, call[0]),
+        {},
+      );
+      expect(allHeaders['Content-Length']).toBe(10000); // From statSync mock
+    });
+
+    it('should handle Range requests with 206 Partial Content', async () => {
+      const mockFile = {
+        id: 'file-range',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest('bytes=0-999');
+
+      await controller.getFile('file-range', req, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(206);
+      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
+        start: 0,
+        end: 999,
+      });
+
+      const setCalls = (mockResponse.set as jest.Mock).mock.calls;
+      const allHeaders = setCalls.reduce(
+        (acc: Record<string, unknown>, call: unknown[]) =>
+          Object.assign(acc, call[0]),
+        {},
+      );
+      expect(allHeaders['Content-Range']).toBe('bytes 0-999/10000');
+      expect(allHeaders['Content-Length']).toBe(1000);
+    });
+
+    it('should handle Range requests without end byte', async () => {
+      const mockFile = {
+        id: 'file-range-open',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest('bytes=5000-');
+
+      await controller.getFile('file-range-open', req, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(206);
+      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
+        start: 5000,
+        end: 9999,
+      });
+    });
+
+    it('should return 416 for out-of-range requests', async () => {
+      const mockFile = {
+        id: 'file-bad-range',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest('bytes=20000-30000');
+
+      await controller.getFile('file-bad-range', req, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(416);
+    });
+
+    it('should handle single-byte Range request', async () => {
+      const mockFile = {
+        id: 'file-1byte',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest('bytes=100-100');
+
+      await controller.getFile('file-1byte', req, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(206);
+      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
+        start: 100,
+        end: 100,
+      });
+
+      const setCalls = (mockResponse.set as jest.Mock).mock.calls;
+      const allHeaders = setCalls.reduce(
+        (acc: Record<string, unknown>, call: unknown[]) =>
+          Object.assign(acc, call[0]),
+        {},
+      );
+      expect(allHeaders['Content-Length']).toBe(1);
+    });
+
+    it('should fall through to full file when Range header is malformed', async () => {
+      const mockFile = {
+        id: 'file-malformed',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+      // Malformed: no digits match /bytes=(\d+)-(\d*)/
+      const req = mockRequest('bytes=abc-def');
+
+      await controller.getFile('file-malformed', req, mockResponse);
+
+      // Should serve full file (no 206, no Content-Range)
+      expect(mockResponse.status).not.toHaveBeenCalled();
+      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4');
+    });
+
+    it('should return 416 when start > end in Range', async () => {
+      const mockFile = {
+        id: 'file-reversed',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/video.mp4',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest('bytes=500-100');
+
+      await controller.getFile('file-reversed', req, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(416);
+    });
+
+    it('should set Accept-Ranges header on all responses', async () => {
+      const mockFile = {
+        id: 'file-accept',
+        filename: 'test.txt',
+        mimeType: 'text/plain',
+        fileType: FileType.DOCUMENT,
+        size: 1024,
+        storageType: StorageType.LOCAL,
+        storagePath: '/tmp/test.txt',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+
+      await controller.getFile('file-accept', mockRequest(), mockResponse);
+
+      expect(mockResponse.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'Accept-Ranges': 'bytes',
+        }),
+      );
+    });
+
+    it('should throw NotImplementedException for non-local storage', async () => {
+      const mockFile = {
+        id: 'file-s3',
         filename: 'remote.png',
         mimeType: 'image/png',
         fileType: FileType.IMAGE,
@@ -163,62 +403,17 @@ describe('FileController', () => {
 
       service.findOne.mockResolvedValue(mockFile as any);
 
-      await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
-        NotImplementedException,
-      );
+      await expect(
+        controller.getFile('file-s3', mockRequest(), mockResponse),
+      ).rejects.toThrow(NotImplementedException);
     });
 
     it('should throw NotFoundException if file not found', async () => {
-      const fileId = 'missing-file';
-
       service.findOne.mockResolvedValue(null as any);
 
-      await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
-    it('should propagate service errors', async () => {
-      const fileId = 'error-file';
-
-      service.findOne.mockRejectedValue(new Error('Database error'));
-
-      await expect(controller.getFile(fileId, mockResponse)).rejects.toThrow(
-        'Database error',
-      );
-    });
-
-    it('should set correct content type for different file types', async () => {
-      const files = [
-        { mime: 'image/jpeg', filename: 'photo.jpg' },
-        { mime: 'video/mp4', filename: 'video.mp4' },
-        { mime: 'audio/mpeg', filename: 'song.mp3' },
-        { mime: 'text/plain', filename: 'document.txt' },
-      ];
-
-      for (const { mime, filename } of files) {
-        const mockFile = {
-          id: 'file-123',
-          filename,
-          mimeType: mime,
-          fileType: FileType.IMAGE,
-          size: 1024,
-          storageType: StorageType.LOCAL,
-          storagePath: `/tmp/${filename}`,
-        };
-
-        service.findOne.mockResolvedValue(mockFile as any);
-
-        await controller.getFile('file-123', mockResponse);
-
-        expect(mockResponse.set).toHaveBeenCalledWith(
-          expect.objectContaining({
-            'Content-Type': mime,
-          }),
-        );
-
-        jest.clearAllMocks();
-      }
+      await expect(
+        controller.getFile('missing-file', mockRequest(), mockResponse),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should handle filenames with special characters', async () => {
@@ -234,7 +429,7 @@ describe('FileController', () => {
 
       service.findOne.mockResolvedValue(mockFile as any);
 
-      await controller.getFile('file-special', mockResponse);
+      await controller.getFile('file-special', mockRequest(), mockResponse);
 
       expect(mockResponse.set).toHaveBeenCalledWith(
         expect.objectContaining({

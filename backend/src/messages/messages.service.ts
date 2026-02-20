@@ -9,7 +9,7 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
 import { flattenSpansToText } from '@/common/utils/text.utils';
-import { Message, Prisma } from '@prisma/client';
+import { FileType, Message, Prisma } from '@prisma/client';
 
 /**
  * Raw MongoDB document structure returned by aggregateRaw
@@ -271,6 +271,7 @@ export class MessagesService {
         mimeType: true,
         fileType: true,
         size: true,
+        thumbnailPath: true,
       },
     });
 
@@ -282,7 +283,8 @@ export class MessagesService {
       ...message,
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined),
+        .filter((file): file is NonNullable<typeof file> => file !== undefined)
+        .map(MessagesService.toFileMetadata),
     };
   }
 
@@ -329,6 +331,7 @@ export class MessagesService {
               mimeType: true,
               fileType: true,
               size: true,
+              thumbnailPath: true,
             },
           })
         : [];
@@ -341,7 +344,8 @@ export class MessagesService {
       ...message,
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined), // Filter out any missing files
+        .filter((file): file is NonNullable<typeof file> => file !== undefined)
+        .map(MessagesService.toFileMetadata),
     }));
 
     const nextToken =
@@ -554,6 +558,7 @@ export class MessagesService {
               mimeType: true,
               fileType: true,
               size: true,
+              thumbnailPath: true,
             },
           })
         : [];
@@ -566,7 +571,30 @@ export class MessagesService {
       ...message,
       attachments: message.attachments
         .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined),
+        .filter((file): file is NonNullable<typeof file> => file !== undefined)
+        .map(MessagesService.toFileMetadata),
     }));
+  }
+
+  /**
+   * Transform a Prisma file select result into the FileMetadata shape
+   * sent to clients. Converts `thumbnailPath` (internal) to `hasThumbnail` (boolean).
+   */
+  private static toFileMetadata(file: {
+    id: string;
+    filename: string;
+    mimeType: string;
+    fileType: FileType;
+    size: number;
+    thumbnailPath: string | null;
+  }) {
+    return {
+      id: file.id,
+      filename: file.filename,
+      mimeType: file.mimeType,
+      fileType: file.fileType,
+      size: file.size,
+      hasThumbnail: !!file.thumbnailPath,
+    };
   }
 }

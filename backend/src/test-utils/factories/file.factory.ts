@@ -21,6 +21,7 @@ export class FileFactory {
       resourceId: overrides.resourceId || null,
       storageType: overrides.storageType || StorageType.LOCAL,
       storagePath: overrides.storagePath || `/uploads/${filename}`,
+      thumbnailPath: overrides.thumbnailPath || null,
       ...overrides,
     } as File;
   }

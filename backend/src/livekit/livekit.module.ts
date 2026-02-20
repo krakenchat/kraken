@@ -43,6 +43,6 @@ import { RolesModule } from '@/roles/roles.module';
     RoomServiceProvider,
     EgressClientProvider,
   ],
-  exports: [LivekitService, LivekitReplayService, ClipLibraryService],
+  exports: [LivekitService, LivekitReplayService, ClipLibraryService, FfmpegProvider],
 })
 export class LivekitModule {}

@@ -12,6 +12,7 @@ import { FileType, StorageType } from '@prisma/client';
 import { createHash } from 'crypto';
 import { StorageService } from '@/storage/storage.service';
 import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
+import { ThumbnailService } from '@/file/thumbnail.service';
 import { ResourceTypeFileValidator } from './validators';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
@@ -23,6 +24,7 @@ export class FileUploadService {
     private readonly databaseService: DatabaseService,
     private readonly storageService: StorageService,
     private readonly storageQuotaService: StorageQuotaService,
+    private readonly thumbnailService: ThumbnailService,
   ) {}
 
   async uploadFile(
@@ -83,6 +85,21 @@ export class FileUploadService {
 
         // Increment user's storage usage
         await this.storageQuotaService.incrementUserStorage(user.id, file.size);
+
+        // Generate thumbnail for video files (non-blocking — failure won't break upload)
+        if (fileType === FileType.VIDEO) {
+          const thumbnailPath =
+            await this.thumbnailService.generateVideoThumbnail(
+              file.path,
+              fileRecord.id,
+            );
+          if (thumbnailPath) {
+            await this.databaseService.file.update({
+              where: { id: fileRecord.id },
+              data: { thumbnailPath },
+            });
+          }
+        }
 
         return fileRecord;
       } catch (dbError) {

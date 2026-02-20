@@ -9,4 +9,5 @@ export class FileMetadataResponseDto {
   @ApiProperty({ enum: FileTypeValues })
   fileType: FileType;
   size: number;
+  hasThumbnail: boolean;
 }

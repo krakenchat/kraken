@@ -26,6 +26,7 @@ export interface FileMetadata {
   mimeType: string;
   fileType: string;
   size: number;
+  hasThumbnail?: boolean;
 }
 
 export interface Message {

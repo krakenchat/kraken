@@ -199,18 +199,27 @@ export class ThreadsService {
               mimeType: true,
               fileType: true,
               size: true,
+              thumbnailPath: true,
             },
           })
         : [];
 
     const fileMap = new Map(files.map((file) => [file.id, file]));
 
-    // Transform replies to include file metadata
+    // Transform replies to include file metadata (convert thumbnailPath to hasThumbnail)
     const repliesWithMetadata = replies.map((reply) => ({
       ...reply,
       attachments: reply.attachments
         .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined),
+        .filter((file): file is NonNullable<typeof file> => file !== undefined)
+        .map((file) => ({
+          id: file.id,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          fileType: file.fileType,
+          size: file.size,
+          hasThumbnail: !!file.thumbnailPath,
+        })),
     }));
 
     return { replies: repliesWithMetadata, continuationToken: nextToken };
