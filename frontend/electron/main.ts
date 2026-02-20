@@ -619,7 +619,9 @@ app.whenReady().then(() => {
           // DEBUG: Set to true to test video-only capture (bypasses audio loopback)
           const DEBUG_VIDEO_ONLY = false;
 
-          const audioConfig = DEBUG_VIDEO_ONLY ? undefined : (enableAudio ? 'loopback' : undefined);
+          // Safety net: never attempt loopback on Linux (restrictOwnAudio not supported by OS)
+          const isLinux = process.platform === 'linux';
+          const audioConfig = (DEBUG_VIDEO_ONLY || isLinux) ? undefined : (enableAudio ? 'loopback' : undefined);
           log('Audio enabled from settings:', enableAudio);
           log('DEBUG_VIDEO_ONLY:', DEBUG_VIDEO_ONLY);
           log('Final audio config:', audioConfig);
