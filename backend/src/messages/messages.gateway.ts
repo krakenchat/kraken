@@ -308,7 +308,6 @@ export class MessagesGateway
     }
   }
 
-  // No @RequiredActions — typing is ephemeral, only requires authentication
   @SubscribeMessage(ClientEvents.TYPING_START)
   handleTypingStart(
     @MessageBody() payload: TypingEventDto,
@@ -317,6 +316,9 @@ export class MessagesGateway
     const userId = getSocketUserId(client);
     const roomId = payload.channelId || payload.directMessageGroupId;
     if (!roomId) return;
+
+    // Only allow typing in rooms the socket has joined (prevents channel probing)
+    if (!client.rooms.has(roomId)) return;
 
     // Broadcast to room, excluding sender
     client.to(roomId).emit(ServerEvents.USER_TYPING, {
@@ -335,6 +337,9 @@ export class MessagesGateway
     const userId = getSocketUserId(client);
     const roomId = payload.channelId || payload.directMessageGroupId;
     if (!roomId) return;
+
+    // Only allow typing in rooms the socket has joined (prevents channel probing)
+    if (!client.rooms.has(roomId)) return;
 
     client.to(roomId).emit(ServerEvents.USER_TYPING, {
       userId,

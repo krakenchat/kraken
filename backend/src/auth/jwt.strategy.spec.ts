@@ -2,11 +2,13 @@ import { TestBed } from '@suites/unit';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/database/database.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 import { createMockDatabase } from '@/test-utils';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
+  let mockTokenBlacklist: { isBlacklisted: jest.Mock; blacklist: jest.Mock };
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
@@ -17,12 +19,18 @@ describe('JwtStrategy', () => {
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
+    mockTokenBlacklist = {
+      isBlacklisted: jest.fn().mockResolvedValue(false),
+      blacklist: jest.fn().mockResolvedValue(undefined),
+    };
 
     const { unit } = await TestBed.solitary(JwtStrategy)
       .mock(ConfigService)
       .final(mockConfigService)
       .mock(DatabaseService)
       .final(mockDatabase)
+      .mock(TokenBlacklistService)
+      .final(mockTokenBlacklist)
       .compile();
 
     strategy = unit;
@@ -43,7 +51,11 @@ describe('JwtStrategy', () => {
       };
 
       expect(() => {
-        new JwtStrategy(badConfigService as any, mockDatabase as any);
+        new JwtStrategy(
+          badConfigService as any,
+          mockDatabase as any,
+          mockTokenBlacklist as any,
+        );
       }).toThrow('JWT_SECRET not set');
     });
 
@@ -113,6 +125,43 @@ describe('JwtStrategy', () => {
 
         jest.clearAllMocks();
       }
+    });
+
+    it('should reject blacklisted tokens', async () => {
+      const payload = {
+        sub: 'user-123',
+        username: 'testuser',
+        jti: 'blacklisted-jti',
+      };
+
+      mockTokenBlacklist.isBlacklisted.mockResolvedValue(true);
+
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        'Token has been revoked',
+      );
+      expect(mockTokenBlacklist.isBlacklisted).toHaveBeenCalledWith(
+        'blacklisted-jti',
+      );
+    });
+
+    it('should allow tokens that are not blacklisted', async () => {
+      const payload = {
+        sub: 'user-123',
+        username: 'testuser',
+        jti: 'valid-jti',
+      };
+
+      const mockUser = {
+        id: 'user-123',
+        username: 'testuser',
+        email: 'test@example.com',
+      };
+
+      mockTokenBlacklist.isBlacklisted.mockResolvedValue(false);
+      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(mockUser);
+
+      const result = await strategy.validate(payload);
+      expect(result).toEqual(mockUser);
     });
 
     it('should handle payload with only sub field', async () => {

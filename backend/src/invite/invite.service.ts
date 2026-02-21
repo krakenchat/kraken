@@ -153,7 +153,7 @@ export class InviteService {
     });
   }
 
-  private generateInviteCode(length: number = 6) {
+  private generateInviteCode(length: number = 12) {
     return randomBytes(length).toString('base64url').slice(0, length);
   }
 }

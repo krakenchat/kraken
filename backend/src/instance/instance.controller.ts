@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
+import { Public } from '@/auth/public.decorator';
 import { UpdateInstanceSettingsDto } from './dto/update-instance-settings.dto';
 import { InstanceSettingsResponseDto } from './dto/instance-settings-response.dto';
 import {
@@ -30,6 +31,7 @@ export class InstanceController {
    * Get instance settings (public - needed for registration mode)
    */
   @Get('settings/public')
+  @Public()
   @ApiOkResponse({ type: PublicSettingsResponseDto })
   async getPublicSettings(): Promise<PublicSettingsResponseDto> {
     const settings = await this.instanceService.getSettings();

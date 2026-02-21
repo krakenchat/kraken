@@ -12,6 +12,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ApiCreatedResponse } from '@nestjs/swagger';
+import { Public } from '@/auth/public.decorator';
 import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 import { ConfigService } from '@nestjs/config';
 import { WebhookReceiver } from 'livekit-server-sdk';
@@ -75,6 +76,7 @@ export class LivekitWebhookController {
    * @param body - Parsed webhook payload
    */
   @Post('webhook')
+  @Public()
   @ApiCreatedResponse({ type: SuccessResponseDto })
   async handleWebhook(
     @Req() req: RawBodyRequest<Request>,

@@ -2,7 +2,9 @@ import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 import { DatabaseService } from '@/database/database.service';
+import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
 import { UserFactory, createMockDatabase } from '@/test-utils';
 import { UserEntity } from '@/user/dto/user-response.dto';
@@ -10,6 +12,8 @@ import { UserEntity } from '@/user/dto/user-response.dto';
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: Mocked<AuthService>;
+  let tokenBlacklistService: Mocked<TokenBlacklistService>;
+  let jwtService: Mocked<JwtService>;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   const mockUser = new UserEntity(UserFactory.build());
@@ -26,6 +30,8 @@ describe('AuthController', () => {
 
     controller = unit;
     authService = unitRef.get(AuthService);
+    tokenBlacklistService = unitRef.get(TokenBlacklistService);
+    jwtService = unitRef.get(JwtService);
   });
 
   afterEach(() => {
@@ -67,7 +73,7 @@ describe('AuthController', () => {
         mockRefreshToken,
         expect.objectContaining({
           httpOnly: true,
-          sameSite: true,
+          sameSite: 'strict',
           path: '/',
         }),
       );
@@ -97,7 +103,7 @@ describe('AuthController', () => {
         mockRefreshToken,
         expect.objectContaining({
           httpOnly: true,
-          sameSite: true,
+          sameSite: 'strict',
           secure: process.env.NODE_ENV === 'production',
           maxAge: 30 * 24 * 60 * 60 * 1000,
           path: '/',
@@ -340,6 +346,87 @@ describe('AuthController', () => {
 
       expect(result).toEqual({ message: 'Logged out successfully' });
       expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token');
+    });
+
+    it('should blacklist access token from cookie on logout', async () => {
+      const mockJti = 'access-token-jti';
+      const mockExp = Math.floor(Date.now() / 1000) + 3600;
+      const req = {
+        ...mockReq,
+        cookies: { access_token: mockAccessToken },
+        headers: {},
+      };
+
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
+        jti: mockJti,
+        exp: mockExp,
+      });
+      jest
+        .spyOn(tokenBlacklistService, 'blacklist')
+        .mockResolvedValue(undefined);
+
+      await controller.logout(req, mockRes);
+
+      expect(jwtService.verifyAsync).toHaveBeenCalledWith(mockAccessToken);
+      expect(tokenBlacklistService.blacklist).toHaveBeenCalledWith(
+        mockJti,
+        mockExp,
+      );
+    });
+
+    it('should blacklist access token from Authorization header on logout', async () => {
+      const mockJti = 'header-token-jti';
+      const mockExp = Math.floor(Date.now() / 1000) + 3600;
+      const req = {
+        ...mockReq,
+        cookies: {},
+        headers: { authorization: `Bearer ${mockAccessToken}` },
+      };
+
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
+        jti: mockJti,
+        exp: mockExp,
+      });
+      jest
+        .spyOn(tokenBlacklistService, 'blacklist')
+        .mockResolvedValue(undefined);
+
+      await controller.logout(req, mockRes);
+
+      expect(tokenBlacklistService.blacklist).toHaveBeenCalledWith(
+        mockJti,
+        mockExp,
+      );
+    });
+
+    it('should not fail logout if access token blacklisting fails', async () => {
+      const req = {
+        ...mockReq,
+        cookies: { access_token: 'expired-or-invalid-token' },
+        headers: {},
+      };
+
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockRejectedValue(new Error('Token expired'));
+
+      const result = await controller.logout(req, mockRes);
+
+      expect(result).toEqual({ message: 'Logged out successfully' });
+      expect(tokenBlacklistService.blacklist).not.toHaveBeenCalled();
+    });
+
+    it('should skip blacklisting when no access token is present', async () => {
+      const req = {
+        ...mockReq,
+        cookies: {},
+        headers: {},
+      };
+
+      await controller.logout(req, mockRes);
+
+      expect(jwtService.verifyAsync).not.toHaveBeenCalled();
+      expect(tokenBlacklistService.blacklist).not.toHaveBeenCalled();
     });
   });
 });

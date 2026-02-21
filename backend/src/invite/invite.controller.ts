@@ -9,12 +9,14 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { InviteService } from './invite.service';
 import { RbacActions } from '@prisma/client';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { InviteResponseDto } from './dto/invite-response.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { Public } from '@/auth/public.decorator';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
@@ -53,6 +55,8 @@ export class InviteController {
   }
 
   @Get('public/:code')
+  @Public()
+  @Throttle({ short: { limit: 5, ttl: 1000 }, long: { limit: 20, ttl: 60000 } })
   @ApiOkResponse({ type: InviteResponseDto })
   async getPublicInvite(
     @Param('code') code: string,
