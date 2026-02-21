@@ -40,6 +40,9 @@ Optional: **cert-manager** for automatic TLS, **metrics-server** for autoscaling
 ```bash
 export JWT_SECRET=$(openssl rand -base64 32)
 export JWT_REFRESH_SECRET=$(openssl rand -base64 32)
+export MONGO_ROOT_PASSWORD=$(openssl rand -base64 32)
+export MONGO_PASSWORD=$(openssl rand -base64 32)
+export REDIS_PASSWORD=$(openssl rand -base64 32)
 ```
 
 ### 2. Install the chart
@@ -50,6 +53,9 @@ The simplest install uses bundled MongoDB and Redis:
 helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set secrets.jwtSecret="$JWT_SECRET" \
   --set secrets.jwtRefreshSecret="$JWT_REFRESH_SECRET" \
+  --set mongodb.auth.rootPassword="$MONGO_ROOT_PASSWORD" \
+  --set mongodb.auth.password="$MONGO_PASSWORD" \
+  --set redis.auth.password="$REDIS_PASSWORD" \
   --set ingress.hosts[0].host=kraken.yourdomain.com \
   --set livekit.url=wss://your-livekit-server.com \
   --set livekit.apiKey=YOUR_KEY \
