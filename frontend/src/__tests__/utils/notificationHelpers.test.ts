@@ -102,7 +102,7 @@ describe('getNotificationText', () => {
     expect(getNotificationText(notification)).toBe('Someone: hi');
   });
 
-  it('uses "New message" fallback when message has no spans', () => {
+  it('uses "New message" fallback for DM when message has no spans', () => {
     const notification = createNotification({
       type: NotificationType.DIRECT_MESSAGE,
       author: { id: 'a1', username: 'eve' },
@@ -111,12 +111,29 @@ describe('getNotificationText', () => {
     expect(getNotificationText(notification)).toBe('eve: New message');
   });
 
-  it('uses "New message" fallback when there is no message at all', () => {
+  it('uses "New message" fallback for channel message when there is no message at all', () => {
     const notification = createNotification({
       type: NotificationType.CHANNEL_MESSAGE,
       author: { id: 'a1', username: 'frank' },
     });
     expect(getNotificationText(notification)).toBe('frank: New message');
+  });
+
+  it('omits trailing colon for mention with no message preview', () => {
+    const notification = createNotification({
+      type: NotificationType.USER_MENTION,
+      author: { id: 'a1', username: 'grace' },
+      message: { id: 'm1', spans: [] },
+    });
+    expect(getNotificationText(notification)).toBe('grace mentioned you');
+  });
+
+  it('omits trailing colon for special mention with no message preview', () => {
+    const notification = createNotification({
+      type: NotificationType.SPECIAL_MENTION,
+      author: { id: 'a1', username: 'heidi' },
+    });
+    expect(getNotificationText(notification)).toBe('heidi mentioned everyone');
   });
 });
 

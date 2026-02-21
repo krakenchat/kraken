@@ -111,4 +111,15 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
     expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
   });
+
+  it('prevents dismissal via backdrop/escape when isLoading', async () => {
+    const { user } = renderWithProviders(
+      <ConfirmDialog {...defaultProps} isLoading />,
+    );
+
+    await user.keyboard('{Escape}');
+
+    expect(defaultProps.onCancel).not.toHaveBeenCalled();
+    expect(screen.getByText('Delete Item')).toBeInTheDocument();
+  });
 });

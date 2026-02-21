@@ -24,7 +24,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
   notificationsControllerDeleteNotificationMutation,
 } from '../../api-client/@tanstack/react-query.gen';
@@ -44,7 +44,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   open,
   onClose,
 }) => {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const {

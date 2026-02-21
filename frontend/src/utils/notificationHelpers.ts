@@ -34,9 +34,9 @@ export const getNotificationText = (notification: Notification): string => {
 
   switch (notification.type) {
     case NotificationType.USER_MENTION:
-      return `${authorName} mentioned you: ${messageText || ''}`;
+      return messageText ? `${authorName} mentioned you: ${messageText}` : `${authorName} mentioned you`;
     case NotificationType.SPECIAL_MENTION:
-      return `${authorName} mentioned everyone: ${messageText || ''}`;
+      return messageText ? `${authorName} mentioned everyone: ${messageText}` : `${authorName} mentioned everyone`;
     case NotificationType.DIRECT_MESSAGE:
       return `${authorName}: ${messageText || 'New message'}`;
     case NotificationType.CHANNEL_MESSAGE:

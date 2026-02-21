@@ -28,7 +28,7 @@ import {
   Chat as DmIcon,
   Tag as ChannelIcon,
 } from '@mui/icons-material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
   notificationsControllerDismissNotificationMutation,
 } from '../../../api-client/@tanstack/react-query.gen';
@@ -177,7 +177,6 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
  */
 export const NotificationsScreen: React.FC = () => {
   const { navigateToDmChat } = useMobileNavigation();
-  const queryClient = useQueryClient();
 
   const {
     notifications,

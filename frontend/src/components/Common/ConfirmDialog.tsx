@@ -31,7 +31,13 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancel,
 }) => {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={isLoading ? undefined : onCancel}
+      maxWidth="sm"
+      fullWidth
+      disableEscapeKeyDown={isLoading}
+    >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         {typeof description === 'string' ? (
