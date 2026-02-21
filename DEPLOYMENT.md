@@ -35,7 +35,7 @@ kraken/
 │           ├── deployment.yaml            # Frontend deployment
 │           ├── service.yaml               # Frontend service
 │           └── hpa.yaml                   # Frontend autoscaler
-├── docs/deployment/
+├── docs-site/docs/deployment/
 │   └── kubernetes.md                      # Kubernetes deployment guide
 ├── README.md                              # Updated with K8s section
 └── DEPLOYMENT.md                          # This file
@@ -277,7 +277,7 @@ kubectl create secret generic kraken-secrets \
 
 1. **[README.md](./README.md)** - Main project README with K8s section
 2. **[helm/kraken/README.md](./helm/kraken/README.md)** - Complete Helm chart documentation
-3. **[docs/deployment/kubernetes.md](./docs/deployment/kubernetes.md)** - Detailed deployment guide
+3. **[Kubernetes Deployment Guide](https://docs.krakenchat.app/deployment/kubernetes/)** - Detailed deployment guide
 4. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - This file
 
 ## 🆘 Getting Help

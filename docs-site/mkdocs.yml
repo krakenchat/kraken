@@ -41,11 +41,25 @@ nav:
       - Installation: getting-started/installation.md
       - Configuration: getting-started/configuration.md
       - First Run: getting-started/first-run.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Backend: architecture/backend.md
+      - Frontend: architecture/frontend.md
+      - Database Schema: architecture/database.md
+      - WebSocket Patterns: architecture/websocket-patterns.md
   - Deployment:
       - Docker Compose: deployment/docker-compose.md
+      - Kubernetes: deployment/kubernetes.md
+      - Release Process: deployment/release-process.md
+      - WebSocket Troubleshooting: deployment/websocket-troubleshooting.md
+  - Features:
+      - Overview: features/index.md
+      - Replay Buffer: features/replay-buffer.md
   - Contributing:
       - Overview: contributing/index.md
       - Development Setup: contributing/development-setup.md
+      - Testing Guide: contributing/testing.md
+      - Code Patterns: contributing/code-patterns.md
   - Security: security.md
   - License: license.md
 
@@ -81,4 +95,4 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/krakenchat/kraken
 
-copyright: Copyright &copy; 2025 Kraken Chat
+copyright: Copyright &copy; 2025-2026 Kraken Chat

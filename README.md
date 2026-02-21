@@ -170,7 +170,7 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 ### Documentation
 
 - **[Helm Chart README](./helm/kraken/README.md)** - Complete chart documentation
-- **[Kubernetes Deployment Guide](./docs/deployment/kubernetes.md)** - Step-by-step installation guide
+- **[Kubernetes Deployment Guide](https://docs.krakenchat.app/deployment/kubernetes/)** - Step-by-step installation guide
 - **[Docker Images](#)** - Available on GitHub Container Registry (GHCR)
   - `ghcr.io/krakenchat/kraken-backend`
   - `ghcr.io/krakenchat/kraken-frontend`

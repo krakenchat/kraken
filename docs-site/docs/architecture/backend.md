@@ -1,0 +1,161 @@
+# Backend Architecture
+
+The backend is a **NestJS** application in `backend/src/` using modular architecture with Prisma ORM, Socket.IO, and LiveKit integration.
+
+## Module Organization
+
+### Core Infrastructure
+
+| Module | Purpose |
+|--------|---------|
+| `auth/` | JWT authentication, Passport strategies, RBAC guards |
+| `database/` | Prisma service and connection management |
+| `redis/` | Redis connection, pub/sub |
+| `cache/` | Redis caching service |
+| `roles/` | Role definitions and permission checking |
+| `health/` | Health check endpoints |
+
+### User & Social
+
+| Module | Purpose |
+|--------|---------|
+| `user/` | User CRUD, profiles, avatars, banners |
+| `friends/` | Friend requests, accept/decline/block |
+| `presence/` | Online status tracking (multi-connection aware) |
+| `appearance-settings/` | Theme preferences (accent color, intensity) |
+
+### Community & Channels
+
+| Module | Purpose |
+|--------|---------|
+| `community/` | Community CRUD, settings, invites |
+| `channels/` | Text/voice channel management, reordering |
+| `membership/` | Community membership (join/leave) |
+| `channel-membership/` | Private channel access control |
+| `invite/` | Instance and community invitation system |
+| `onboarding/` | First-time instance setup wizard |
+| `alias-groups/` | Mention groups within communities |
+
+### Messaging
+
+| Module | Purpose |
+|--------|---------|
+| `messages/` | Message CRUD with spans, attachments, reactions |
+| `threads/` | Thread replies, subscription, notifications |
+| `direct-messages/` | 1:1 and group DM management |
+| `notifications/` | Notification creation and delivery |
+| `read-receipts/` | Message read tracking |
+
+### Voice & Media
+
+| Module | Purpose |
+|--------|---------|
+| `livekit/` | Token generation, room management, replay buffer |
+| `rooms/` | Room state for voice/video sessions |
+| `file/` | Authenticated file serving with range support |
+| `file-upload/` | File upload handling |
+| `storage/` | Storage abstraction layer |
+| `storage-quota/` | Per-user storage quota enforcement |
+
+### Moderation
+
+| Module | Purpose |
+|--------|---------|
+| `moderation/` | Ban, kick, timeout, moderation logs |
+| `instance/` | Instance-level settings and admin panel |
+
+---
+
+## Request Flow
+
+```
+HTTP Request
+    |
+Controller (route + decorators)
+    |-- @RequiredActions(RbacActions.CREATE_MESSAGE)
+    |-- @RbacResource({ type: CHANNEL, idKey: 'channelId', source: PAYLOAD })
+    |
+Guards (JwtAuthGuard -> RbacGuard)
+    |
+Service (business logic)
+    |
+Prisma (database operations)
+    |
+EventEmitter2 (domain events) --> RoomSubscriptionHandler --> WebsocketService
+```
+
+### Authentication Flow
+
+1. **Login**: `POST /auth/login` -> validates credentials -> returns JWT access + refresh tokens
+2. **Access**: Every request includes `Authorization: Bearer <token>` -> `JwtAuthGuard` validates
+3. **Refresh**: `POST /auth/refresh` -> validates refresh token -> issues new pair
+4. **RBAC**: `RbacGuard` checks user's roles against `@RequiredActions()` decorator
+
+### RBAC Pattern
+
+```typescript
+@RequiredActions(RbacActions.CREATE_MESSAGE)
+@RbacResource({
+  type: RbacResourceType.CHANNEL,
+  idKey: 'channelId',
+  source: ResourceIdSource.PAYLOAD,
+})
+@Post()
+async createMessage(@Body() dto: CreateMessageDto) { ... }
+```
+
+The guard resolves the resource (channel -> community), loads the user's roles for that community, and checks if any role includes the required action.
+
+---
+
+## WebSocket Architecture
+
+### Gateways
+
+- **MessagesGateway** -- `SEND_MESSAGE`, `EDIT_MESSAGE`, `DELETE_MESSAGE`, reactions, typing
+- **PresenceGateway** -- User connect/disconnect, online status
+
+Both gateways use `JwtWsGuard` for authentication.
+
+### WebsocketService
+
+Central service for broadcasting events to rooms:
+
+```typescript
+this.websocketService.sendToRoom(
+  RoomName.community(communityId),
+  ServerEvents.CHANNEL_CREATED,
+  payload,
+);
+```
+
+### Redis Adapter
+
+In multi-pod deployments, `RedisIoAdapter` ensures Socket.IO events reach all connected clients regardless of which pod they're connected to.
+
+### Event Emission
+
+Two patterns coexist:
+
+1. **EventEmitter2** -- Services emit domain events; `RoomSubscriptionHandler` translates to WebSocket broadcasts. Used when the service doesn't have `WebsocketService` injected.
+2. **Direct** -- Gateways and hybrid services call `websocketService.sendToRoom()` directly.
+
+See [WebSocket Patterns](websocket-patterns.md) for the full guide.
+
+---
+
+## Key Patterns
+
+### Sensitive User Fields
+
+Never return raw Prisma `User` objects. Always wrap in `new UserEntity(user)` which applies `@Exclude()` decorators. Use `PUBLIC_USER_SELECT` constant for database queries to avoid fetching sensitive fields.
+
+### OpenAPI/Swagger
+
+- Add `@ApiProperty({ enum: XxxValues })` for Prisma enums (NestJS Swagger plugin can't introspect them)
+- Import `PartialType` from `@nestjs/swagger`, **not** `@nestjs/mapped-types`
+- Add `@ApiOkResponse({ type: FooDto })` to controllers for typed responses
+
+### File Serving
+
+Files are served through authenticated endpoints with range request support for video streaming. The `FileService` validates access permissions before serving.
