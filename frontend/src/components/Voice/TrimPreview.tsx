@@ -75,6 +75,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   const { data: sessionInfo, isLoading: sessionLoading, refetch: refetchSessionInfo } = useQuery({
     ...livekitControllerGetSessionInfoOptions(),
     staleTime: 0, // Always refetch on mount
+    refetchInterval: 60_000, // Fallback polling in case WebSocket events are missed
   });
   const maxDuration = sessionInfo?.totalDurationSeconds || 0;
 
