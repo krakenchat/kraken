@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/database/database.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 import { Request } from 'express';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     configService: ConfigService,
     private readonly databaseService: DatabaseService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
   ) {
     const jwtSecret = configService.get<string>('JWT_SECRET');
     if (!jwtSecret) {
@@ -25,9 +27,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           const cookies = req?.cookies as Record<string, string> | undefined;
           return cookies?.access_token || null;
         },
-        // Fallback 2: Query parameter (for embedded <img>, <video> tags in Electron/cross-origin)
-        // This allows URLs like /api/file/123?token=<jwt> for embedded resources
+        // Fallback 2: Query parameter — ONLY for file-serving routes
+        // This allows URLs like /api/file/123?token=<jwt> for embedded <img>/<video> tags
+        // Restricted to /api/file/ to prevent token leakage via browser history, logs, and Referer headers
         (req: Request): string | null => {
+          const path = req?.path || '';
+          if (!path.startsWith('/api/file/') && !path.startsWith('/file/')) {
+            return null;
+          }
           const token = req?.query?.token;
           if (typeof token === 'string' && token.length > 0) {
             return token;
@@ -40,7 +47,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; username: string }) {
+  async validate(payload: { sub: string; username: string; jti?: string }) {
+    // Check if the access token has been revoked (e.g., after logout)
+    if (payload.jti) {
+      const isBlacklisted =
+        await this.tokenBlacklistService.isBlacklisted(payload.jti);
+      if (isBlacklisted) {
+        throw new UnauthorizedException('Token has been revoked');
+      }
+    }
+
     const user = await this.databaseService.user.findUniqueOrThrow({
       where: { id: payload.sub },
     });

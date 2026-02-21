@@ -11,7 +11,37 @@ import helmet from 'helmet';
 import { TimingInterceptor } from './timing/timing.interceptor';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
 
+const KNOWN_WEAK_SECRETS = [
+  'some long elaborate secret that you really need to change',
+  'a different long elaborate secret to change',
+];
+
+function validateSecrets() {
+  const jwtSecret = process.env.JWT_SECRET;
+  const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (
+    jwtSecret &&
+    jwtRefreshSecret &&
+    (KNOWN_WEAK_SECRETS.includes(jwtSecret) ||
+      KNOWN_WEAK_SECRETS.includes(jwtRefreshSecret))
+  ) {
+    const message =
+      'SECURITY: JWT secrets are set to default sample values. ' +
+      'Generate secure secrets with: openssl rand -base64 64';
+    if (isProduction) {
+      throw new Error(message + ' — refusing to start in production mode.');
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(`\n⚠️  WARNING: ${message}\n`);
+    }
+  }
+}
+
 async function bootstrap() {
+  validateSecrets();
+
   const app = await NestFactory.create(AppModule, {
     logger: new ConsoleLogger({
       prefix: 'KrakenChat',
@@ -47,7 +77,11 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  if (process.env.NODE_ENV !== 'production') {
+  const enableSwagger =
+    process.env.ENABLE_SWAGGER === 'true' ||
+    (process.env.ENABLE_SWAGGER === undefined &&
+      process.env.NODE_ENV !== 'production');
+  if (enableSwagger) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Kraken API')
       .setDescription('Kraken Chat Application API')

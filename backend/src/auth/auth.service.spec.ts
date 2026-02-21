@@ -143,11 +143,14 @@ describe('AuthService', () => {
       const result = service.login(user);
 
       expect(result).toBe(mockToken);
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        username: user.username,
-        sub: user.id,
-        role: user.role,
-      });
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: user.username,
+          sub: user.id,
+          role: user.role,
+          jti: expect.any(String),
+        }),
+      );
     });
   });
 

@@ -82,10 +82,23 @@ export class FileAccessGuard implements CanActivate {
       // Fetch file metadata
       const file = await this.fileService.findOne(fileId);
 
-      // If no resource ID, file is publicly accessible
+      // Files without a resourceId are only allowed for intentionally-public resource types.
+      // This prevents accidental public exposure if a code path creates a file without setting resourceId.
       if (!file.resourceId) {
-        this.logger.debug(`File ${fileId} has no resourceId, allowing access`);
-        return true;
+        const publicResourceTypes: ResourceType[] = [
+          ResourceType.USER_AVATAR,
+          ResourceType.USER_BANNER,
+        ];
+        if (publicResourceTypes.includes(file.resourceType)) {
+          this.logger.debug(
+            `File ${fileId} has no resourceId but is public type ${file.resourceType}, allowing access`,
+          );
+          return true;
+        }
+        this.logger.warn(
+          `File ${fileId} has no resourceId and non-public type ${file.resourceType}, denying access`,
+        );
+        throw new ForbiddenException('Access denied');
       }
 
       // User must be authenticated for resource-associated files

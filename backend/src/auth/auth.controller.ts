@@ -17,12 +17,14 @@ import { ApiOkResponse, ApiCreatedResponse, ApiBody } from '@nestjs/swagger';
 import { LocalAuthGuard } from './local-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService, DeviceInfo } from './auth.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
 import { AuthenticatedRequest } from '@/types';
 import { setAccessTokenCookie, clearAccessTokenCookie } from './cookie-helper';
 import { ParseObjectIdPipe } from 'nestjs-object-id';
+import { JwtService } from '@nestjs/jwt';
 import {
   LoginResponseDto,
   LogoutResponseDto,
@@ -31,6 +33,7 @@ import {
   RevokeAllSessionsResponseDto,
 } from './dto/auth-response.dto';
 import { LoginRequestDto, RefreshRequestDto } from './dto/auth-request.dto';
+import { Public } from './public.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -39,6 +42,8 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly databaseService: DatabaseService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly jwtService: JwtService,
   ) {}
 
   /**
@@ -56,6 +61,7 @@ export class AuthController {
     return { userAgent, ipAddress };
   }
 
+  @Public()
   @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -89,6 +95,7 @@ export class AuthController {
     return { accessToken };
   }
 
+  @Public()
   @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -153,6 +160,7 @@ export class AuthController {
     return { accessToken: newAccessToken };
   }
 
+  @Public()
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
   @Post('logout')
   @ApiCreatedResponse({ type: LogoutResponseDto })
@@ -184,16 +192,48 @@ export class AuthController {
       res.clearCookie(this.REFRESH_TOKEN_COOKIE_NAME);
     }
 
+    // Blacklist the access token so it can't be reused until expiry
+    await this.blacklistAccessToken(req);
+
     // Always clear access token cookie on logout
     clearAccessTokenCookie(res);
 
     return { message: 'Logged out successfully' };
   }
 
+  /**
+   * Extract and blacklist the current access token from the request.
+   * Reads the token from cookies or Authorization header, decodes it (without verification),
+   * and adds its JTI to the Redis blacklist with TTL matching the token's remaining lifetime.
+   */
+  private async blacklistAccessToken(req: Request): Promise<void> {
+    try {
+      // Try to get access token from cookie or Authorization header
+      const accessToken =
+        (req.cookies as Record<string, string>)?.access_token ||
+        req.headers.authorization?.replace('Bearer ', '');
+
+      if (!accessToken) return;
+
+      // Decode without verification — we just need jti and exp
+      const decoded = this.jwtService.decode(accessToken) as {
+        jti?: string;
+        exp?: number;
+      } | null;
+
+      if (decoded?.jti && decoded?.exp) {
+        await this.tokenBlacklistService.blacklist(decoded.jti, decoded.exp);
+      }
+    } catch {
+      // Best-effort: don't fail logout if blacklisting fails
+      this.logger.debug('Failed to blacklist access token during logout');
+    }
+  }
+
   private setRefreshCookie(res: Response, refreshToken: string) {
     res.cookie(this.REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
       httpOnly: true,
-      sameSite: true,
+      sameSite: 'strict',
       secure: process.env.NODE_ENV === 'production',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       path: '/',

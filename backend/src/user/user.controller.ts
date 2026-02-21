@@ -29,6 +29,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { BanUserDto } from './dto/ban-user.dto';
 import { Public } from '@/auth/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -45,6 +46,7 @@ export class UserController {
 
   @Post()
   @Public()
+  @Throttle({ short: { limit: 3, ttl: 1000 }, long: { limit: 10, ttl: 60000 } })
   @ApiCreatedResponse({ type: UserEntity })
   async register(@Body() dto: CreateUserDto): Promise<UserEntity> {
     const user = new UserEntity(

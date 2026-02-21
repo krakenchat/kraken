@@ -63,7 +63,13 @@ export class AuthService {
   }
 
   login(user: UserEntity) {
-    const payload = { username: user.username, sub: user.id, role: user.role };
+    const jti = new ObjectId().toHexString();
+    const payload = {
+      username: user.username,
+      sub: user.id,
+      role: user.role,
+      jti,
+    };
     return this.jwtService.sign(payload);
   }
 

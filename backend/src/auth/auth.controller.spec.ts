@@ -67,7 +67,7 @@ describe('AuthController', () => {
         mockRefreshToken,
         expect.objectContaining({
           httpOnly: true,
-          sameSite: true,
+          sameSite: 'strict',
           path: '/',
         }),
       );
@@ -97,7 +97,7 @@ describe('AuthController', () => {
         mockRefreshToken,
         expect.objectContaining({
           httpOnly: true,
-          sameSite: true,
+          sameSite: 'strict',
           secure: process.env.NODE_ENV === 'production',
           maxAge: 30 * 24 * 60 * 60 * 1000,
           path: '/',

@@ -141,7 +141,7 @@ describe('InviteService', () => {
       loggerWarnSpy.mockRestore();
     });
 
-    it('should generate 6-character code by default', async () => {
+    it('should generate 12-character code by default', async () => {
       const creator = UserFactory.build();
       const mockInvite = InstanceInviteFactory.build();
 
@@ -151,7 +151,7 @@ describe('InviteService', () => {
       await service.createInvite(creator);
 
       const createCall = mockDatabase.instanceInvite.create.mock.calls[0][0];
-      expect(createCall.data.code).toHaveLength(6);
+      expect(createCall.data.code).toHaveLength(12);
     });
   });
 

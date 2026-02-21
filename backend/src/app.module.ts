@@ -42,6 +42,7 @@ import { FriendsModule } from './friends/friends.module';
 import { ThreadsModule } from './threads/threads.module';
 import { StorageQuotaModule } from './storage-quota/storage-quota.module';
 import { AliasGroupsModule } from './alias-groups/alias-groups.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -110,6 +111,12 @@ import { AliasGroupsModule } from './alias-groups/alias-groups.module';
   controllers: [AppController],
   providers: [
     AppService,
+    // Global JwtAuthGuard — all routes require authentication by default.
+    // Use @Public() decorator to opt-out specific endpoints.
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
     // Conditionally provide ThrottlerGuard - skip in test mode
     ...(process.env.NODE_ENV === 'test'
       ? []
