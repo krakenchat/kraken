@@ -56,7 +56,7 @@ Kraken is an open-source communication platform that gives you full control over
 | Database | [MongoDB](https://www.mongodb.com/) with [Prisma ORM](https://www.prisma.io/) |
 | Real-time | [Socket.IO](https://socket.io/) with Redis adapter |
 | Voice/Video | [LiveKit](https://livekit.io/) |
-| State | [Redux Toolkit](https://redux-toolkit.js.org/) with RTK Query |
+| State | [TanStack Query v5](https://tanstack.com/query/latest) |
 | Auth | JWT with [Passport.js](https://www.passportjs.org/) |
 | Desktop | [Electron](https://www.electronjs.org/) |
 

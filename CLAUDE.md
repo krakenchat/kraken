@@ -2,143 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 📖 **CRITICAL**: DOCUMENTATION-FIRST DEVELOPMENT
+## Documentation
 
-**⚠️ STOP: Before implementing ANY feature, fixing ANY bug, or modifying ANY code, you MUST read the relevant documentation first.**
-
-### WHY THIS MATTERS
-
-Without documentation:
-- ❌ You'll reinvent patterns that already exist
-- ❌ You'll miss existing utilities and components
-- ❌ You'll break established conventions
-- ❌ You'll create duplicate implementations
-- ❌ Your code won't integrate properly
-- ❌ You'll waste time on already-solved problems
-
-With documentation:
-- ✅ You understand existing patterns and follow them
-- ✅ You reuse components and utilities
-- ✅ You integrate seamlessly with existing code
-- ✅ You maintain consistency across the codebase
-- ✅ You work 10x faster with complete context
-
-### MANDATORY PRE-IMPLEMENTATION CHECKLIST
-
-**Before writing ANY code, check these docs (in order):**
-
-1. **Feature Docs** → `docs/features/[feature-name].md`
-   - Understand the feature's architecture and flow
-   - Identify all related components and modules
-   - See complete examples of the feature in action
-
-2. **Component Docs** → `docs/components/[feature]/[ComponentName].md`
-   - Understand props, state, and integration points
-   - See usage examples and common patterns
-   - Identify dependencies and related components
-
-3. **Hook Docs** → `docs/hooks/[hookName].md`
-   - Understand hook APIs and return values
-   - See integration examples
-   - Identify existing hooks that solve your problem
-
-4. **Module Docs** → `docs/modules/[module-name].md`
-   - Understand backend services and DTOs
-   - Follow RBAC and permission patterns
-   - See database query patterns
-
-5. **API Docs** → `docs/api/[controller-name].md`
-   - Understand endpoint contracts
-   - Follow authentication patterns
-   - Identify WebSocket events
-
-6. **State Docs** → `docs/state/[entity]Api.md`
-   - Understand RTK Query endpoints
-   - Follow caching strategies
-   - See mutation patterns
-
-### DOCUMENTATION-FIRST WORKFLOW
-
-```
-User asks to implement feature X
-         ↓
-❌ WRONG: Start coding immediately
-         ↓
-✅ CORRECT: Search docs for related components
-         ↓
-Read feature docs (docs/features/)
-         ↓
-Read component docs (docs/components/)
-         ↓
-Read hook docs (docs/hooks/)
-         ↓
-Read module docs (docs/modules/)
-         ↓
-Read API docs (docs/api/)
-         ↓
-Read state docs (docs/state/)
-         ↓
-NOW you have complete context
-         ↓
-Implement following documented patterns
-         ↓
-Update docs to reflect your changes
-```
-
-### REAL EXAMPLES
-
-**❌ BAD: Ignoring docs**
-```
-User: "Add user avatars to messages"
-AI: *Immediately starts implementing avatar component*
-Result: Creates duplicate of existing UserAvatar component,
-        doesn't use FileCacheContext, causes 50x duplicate fetches,
-        breaks existing patterns, wastes 2 hours
-```
-
-**✅ GOOD: Using docs**
-```
-User: "Add user avatars to messages"
-AI: *Searches docs/components/common/* → finds UserAvatar.md
-AI: *Reads UserAvatar.md* → learns about sizes, caching, props
-AI: *Reads FileCacheContext.md* → understands performance optimization
-AI: *Implements in 5 minutes using existing UserAvatar component*
-Result: <UserAvatar user={message.author} size="small" />
-        Uses existing caching, follows patterns, works perfectly
-```
-
-### QUICK REFERENCE
-
-```bash
-# Find docs before coding
-find docs/ -name "*pattern*" -type f
-
-# Search docs for keywords
-grep -r "authentication" docs/
-
-# List all component docs
-ls docs/components/*/
-
-# List all hook docs
-ls docs/hooks/
-```
-
-### DOCUMENTATION STRUCTURE
-
-```
-docs/
-├── features/          # Feature overviews and flows (START HERE)
-├── components/        # React component docs with props and examples
-├── hooks/             # Custom hook docs with usage patterns
-├── modules/           # Backend module/service docs
-├── api/               # REST & WebSocket endpoint docs
-├── state/             # Redux/RTK Query docs
-├── contexts/          # React context docs
-├── templates/         # Templates for creating new docs
-└── architecture/      # High-level system design
-```
-
-**🔥 REMEMBER: Documentation is not optional. It's your roadmap to working effectively in this codebase.**
+Project documentation: [docs.krakenchat.app](https://docs.krakenchat.app) (source: `docs-site/`).
 
 ## 🐳 **CRITICAL**: ALL DEVELOPMENT USES DOCKER
 
@@ -216,7 +82,6 @@ Use hooks to encapsulate platform differences (see `src/hooks/`):
 
 - `useScreenShare()` - Platform-aware screen sharing (Electron picker vs browser native)
 - `useMediaDevices()` - Cross-platform media device management
-- More hooks in `docs/hooks/`
 
 **Example:**
 ```typescript
@@ -260,7 +125,7 @@ const MyComponent = () => {
 **What should be platform-agnostic:**
 - Voice/video connection logic (LiveKit works on both)
 - UI components (Material-UI works on both)
-- State management (Redux works on both)
+- State management (TanStack Query works on both)
 - WebSocket communication (works on both)
 - REST API calls (works on both)
 
@@ -429,7 +294,7 @@ docker-compose down
 - **Backend**: NestJS (TypeScript) with modular architecture
 - **Database**: MongoDB with Prisma ORM (no migrations, uses `db push`)
 - **Frontend**: React 19 + TypeScript + Vite + Material-UI
-- **State Management**: Redux Toolkit with RTK Query
+- **State Management**: TanStack Query (React Query) for server state
 - **Real-time**: WebSockets via Socket.IO with Redis adapter
 - **Authentication**: JWT with Passport.js strategies
 - **Video Calls**: LiveKit integration
@@ -472,14 +337,15 @@ The backend follows NestJS modular architecture in `backend/src/`:
 
 The frontend uses feature-based organization in `frontend/src/`:
 
-- **State Management** (`app/store.ts`):
+- **State Management**:
 
-  - Redux store with RTK Query APIs for each backend module
-  - Separate slice for local message state
+  - TanStack Query (React Query) for all server state
+  - Generated API client from OpenAPI spec (`api-client/`)
+  - WebSocket handlers sync cache via `setQueryData` or `invalidateQueries`
 
-- **Features** (`features/`):
+- **Features** (`components/`):
 
-  - Each feature has its own API slice using RTK Query
+  - Feature-organized component structure
   - Matches backend module structure (auth, community, channels, etc.)
   - Role-based component rendering system
 
@@ -604,28 +470,6 @@ When implementing a feature, fixing a bug, or modifying behavior in either the b
 - TypeScript strict mode enabled
 - Consistent import path aliases using `@/` for backend src
 
-### Documentation Updates
-
-- **ALWAYS update documentation when adding new features or modifying existing code**
-- Update relevant files in `docs/` after implementing new components, modules, or APIs
-- Create new documentation using templates in `docs/templates/` for new features
-- Keep cross-references updated between related components and modules
-
-## 📚 Comprehensive Documentation
-
-**Full documentation is available in the `docs/` folder:**
-
-### Architecture Documentation
-
-- **[Backend Architecture](docs/architecture/backend.md)** - NestJS modules, services, and design patterns
-- **[Frontend Architecture](docs/architecture/frontend.md)** - React components, Redux state management, and UI patterns
-- **[Database Schema](docs/architecture/database.md)** - MongoDB models, relationships, and query patterns
-
-### Feature Analysis
-
-- **[Discord Feature Parity](docs/features/discord-parity.md)** - Comprehensive comparison (~51% parity achieved)
-- **[Incomplete Features](docs/features/incomplete.md)** - Foundation features ready for completion
-
 ### Important Code Patterns
 
 #### RBAC Usage
@@ -639,40 +483,26 @@ When implementing a feature, fixing a bug, or modifying behavior in either the b
 })
 ```
 
-#### WebSocket Event Pattern
+#### WebSocket Event Patterns
 
-```typescript
-@SubscribeMessage(ClientEvents.SEND_MESSAGE)
-async handleMessage(@MessageBody() payload: CreateMessageDto) {
-  // Process message
-  this.websocketService.sendToRoom(channelId, ServerEvents.NEW_MESSAGE, data);
-}
-```
+**See [WebSocket Patterns](https://docs.krakenchat.app/architecture/websocket-patterns/) for the full guide.**
 
-#### Redux State Management
+Kraken uses three patterns for WebSocket events. Choosing the right one matters:
 
-```typescript
-// Feature-based API slices with RTK Query
-export const messagesApi = createApi({
-  reducerPath: 'messagesApi',
-  baseQuery: authedBaseQuery,
-  tagTypes: ['Messages'],
-  endpoints: (builder) => ({ ... })
-});
-```
+| Pattern | When | Example |
+|---------|------|---------|
+| **Direct cache update** (`setQueryData`) | High-frequency, full payload, instant UX needed | Messages, reactions, presence |
+| **Cache invalidation** (`invalidateQueries`) | Low-frequency, structural changes, complex cache | Roles, channels, communities |
+| **Ephemeral UI state** (`useServerEvent`) | Transient, no persistence needed | Typing indicators, sounds |
 
-## Documentation Templates
+**Quick rule**: If the event fires multiple times per second and carries a full object, use direct update. If it's an admin/structural change that happens rarely, use invalidation. When in doubt, default to invalidation.
 
-When creating new components, hooks, or modules, use these templates for documentation:
+**Backend emission**: Services use `EventEmitter2` domain events handled by `RoomSubscriptionHandler`. Gateways and services that already have `WebsocketService` can call `sendToRoom()` directly for broadcasts.
 
-- **React Component**: `docs/templates/component.template.md`
-- **NestJS Module**: `docs/templates/module.template.md`
-- **API Endpoints**: `docs/templates/api.template.md`
-- **Custom Hooks**: `docs/templates/hook.template.md`
-- **Redux Slices**: `docs/templates/slice.template.md`
-- **WebSocket Events**: `docs/templates/websocket.template.md`
+#### TanStack Query State Management
 
-**After creating new code, ALWAYS create corresponding documentation using these templates.**
+Frontend server state is managed entirely through TanStack Query (React Query). There is no Redux store — all API data flows through `useQuery` / `useMutation` hooks with the generated API client.
+
 - Remove orphan containers when using docker to run commands
 
 ## Sensitive User Fields Policy

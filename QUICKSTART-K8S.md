@@ -196,7 +196,7 @@ kubectl delete namespace kraken
 ## Full Documentation
 
 - **Helm Chart README**: [helm/kraken/README.md](./helm/kraken/README.md)
-- **Kubernetes Guide**: [docs/deployment/kubernetes.md](./docs/deployment/kubernetes.md)
+- **Kubernetes Guide**: [docs.krakenchat.app/deployment/kubernetes](https://docs.krakenchat.app/deployment/kubernetes/)
 - **Deployment Summary**: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## Getting Help

@@ -1,6 +1,6 @@
 # Development Setup
 
-All development is done through Docker — never run `npm` commands directly on the host.
+All development is done through Docker — never run `pnpm`/`npm` commands directly on the host.
 
 ## Prerequisites
 
@@ -34,16 +34,16 @@ This starts all services with hot reload — changes to `backend/` and `frontend
 docker compose run --rm backend bash
 
 # Run tests
-docker compose run --rm backend npm run test
+docker compose run --rm backend pnpm run test
 
 # Run a single test file
-docker compose run --rm backend npx jest <test-pattern>
+docker compose run --rm backend pnpm exec jest <test-pattern>
 
 # Lint
-docker compose run --rm backend npm run lint
+docker compose run --rm backend pnpm run lint
 
 # Build
-docker compose run --rm backend npm run build
+docker compose run --rm backend pnpm run build
 ```
 
 ### Frontend
@@ -53,26 +53,26 @@ docker compose run --rm backend npm run build
 docker compose run --rm frontend bash
 
 # Lint
-docker compose run --rm frontend npm run lint
+docker compose run --rm frontend pnpm run lint
 
 # Build
-docker compose run --rm frontend npm run build
+docker compose run --rm frontend pnpm run build
 
 # Run tests
-docker compose run --rm frontend npm run test
+docker compose run --rm frontend pnpm run test
 ```
 
 ### Database (Prisma)
 
 ```bash
 # Generate Prisma client + push schema (combined)
-docker compose run --rm backend npm run prisma
+docker compose run --rm backend pnpm run prisma
 
 # Generate Prisma client only
-docker compose run --rm backend npm run prisma:generate
+docker compose run --rm backend pnpm run prisma:generate
 
 # Push schema to database only
-docker compose run --rm backend npm run prisma:push
+docker compose run --rm backend pnpm run prisma:push
 
 # Open Prisma Studio (database browser)
 docker compose run --rm -p 5555:5555 backend npx prisma studio
@@ -103,10 +103,10 @@ When backend controllers or DTOs change, regenerate the frontend API client:
 
 ```bash
 # 1. Generate the OpenAPI spec
-docker compose run --rm backend npm run generate:openapi
+docker compose run --rm backend pnpm run generate:openapi
 
 # 2. Regenerate the frontend SDK
-docker compose run --rm frontend sh -c 'OPENAPI_SPEC_PATH=/spec/openapi.json npx openapi-ts'
+docker compose run --rm frontend sh -c 'OPENAPI_SPEC_PATH=/spec/openapi.json pnpm exec openapi-ts'
 ```
 
 The backend directory is mounted at `/spec` inside the frontend container. The generated client goes to `frontend/src/api-client/` (gitignored — regenerated at build time).
@@ -123,9 +123,9 @@ The backend directory is mounted at `/spec` inside the frontend container. The g
 - E2E tests: `backend/test/` directory
 
 ```bash
-docker compose run --rm backend npm run test        # All unit tests
-docker compose run --rm backend npm run test:e2e     # E2E tests
-docker compose run --rm backend npm run test -- --coverage  # With coverage
+docker compose run --rm backend pnpm run test        # All unit tests
+docker compose run --rm backend pnpm run test:e2e     # E2E tests
+docker compose run --rm backend pnpm run test -- --coverage  # With coverage
 ```
 
 ### Frontend tests
@@ -134,8 +134,8 @@ docker compose run --rm backend npm run test -- --coverage  # With coverage
 - Test files: `frontend/src/__tests__/`
 
 ```bash
-docker compose run --rm frontend npm run test       # All tests
-docker compose run --rm frontend npm run test:cov   # With coverage
+docker compose run --rm frontend pnpm run test       # All tests
+docker compose run --rm frontend pnpm run test:cov   # With coverage
 ```
 
 ## Project structure
@@ -151,7 +151,7 @@ kraken/
 │   └── electron/      # Electron desktop app
 ├── shared/            # Shared types and utilities (mounted in both containers)
 ├── helm/              # Kubernetes Helm chart
-├── docs/              # Internal developer documentation
+├── docs-site/         # Documentation site (MkDocs Material)
 └── docker-compose.yml
 ```
 
