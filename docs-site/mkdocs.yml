@@ -49,9 +49,7 @@ nav:
       - Frontend: architecture/frontend.md
       - Database Schema: architecture/database.md
       - WebSocket Patterns: architecture/websocket-patterns.md
-  - Features:
-      - Overview: features/index.md
-      - Replay Buffer: features/replay-buffer.md
+      - Replay Buffer: architecture/replay-buffer.md
   - Operations:
       - Release Process: operations/release-process.md
       - WebSocket Troubleshooting: operations/websocket-troubleshooting.md
