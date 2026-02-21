@@ -32,6 +32,7 @@ theme:
     - content.code.copy
     - content.code.annotate
     - content.action.edit
+    - content.tabs.link
   icon:
     repo: fontawesome/brands/github
 
