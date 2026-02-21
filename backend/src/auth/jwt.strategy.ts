@@ -29,10 +29,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
         // Fallback 2: Query parameter — ONLY for file-serving routes
         // This allows URLs like /api/file/123?token=<jwt> for embedded <img>/<video> tags
-        // Restricted to /api/file/ to prevent token leakage via browser history, logs, and Referer headers
+        // Restricted to /file/ to prevent token leakage via browser history, logs, and Referer headers
+        // Note: req.path is relative to the global prefix (/api), so /api/file/... becomes /file/...
         (req: Request): string | null => {
           const path = req?.path || '';
-          if (!path.startsWith('/api/file/') && !path.startsWith('/file/')) {
+          if (!path.startsWith('/file/')) {
             return null;
           }
           const token = req?.query?.token;
@@ -50,8 +51,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub: string; username: string; jti?: string }) {
     // Check if the access token has been revoked (e.g., after logout)
     if (payload.jti) {
-      const isBlacklisted =
-        await this.tokenBlacklistService.isBlacklisted(payload.jti);
+      const isBlacklisted = await this.tokenBlacklistService.isBlacklisted(
+        payload.jti,
+      );
       if (isBlacklisted) {
         throw new UnauthorizedException('Token has been revoked');
       }

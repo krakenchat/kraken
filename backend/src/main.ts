@@ -33,7 +33,6 @@ function validateSecrets() {
     if (isProduction) {
       throw new Error(message + ' — refusing to start in production mode.');
     } else {
-      // eslint-disable-next-line no-console
       console.warn(`\n⚠️  WARNING: ${message}\n`);
     }
   }

@@ -359,7 +359,9 @@ export class RoomSubscriptionHandler {
       ServerEvents.ROLE_UPDATED,
       event,
     );
-    this.logger.debug(`Role ${event.roleId} updated in community ${event.communityId}`);
+    this.logger.debug(
+      `Role ${event.roleId} updated in community ${event.communityId}`,
+    );
   }
 
   @OnEvent(RoomEvents.ROLE_DELETED)
@@ -369,7 +371,9 @@ export class RoomSubscriptionHandler {
       ServerEvents.ROLE_DELETED,
       event,
     );
-    this.logger.debug(`Role ${event.roleId} deleted from community ${event.communityId}`);
+    this.logger.debug(
+      `Role ${event.roleId} deleted from community ${event.communityId}`,
+    );
   }
 
   @OnEvent(RoomEvents.ROLE_ASSIGNED)

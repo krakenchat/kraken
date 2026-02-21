@@ -160,7 +160,6 @@ export class AuthController {
     return { accessToken: newAccessToken };
   }
 
-  @Public()
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
   @Post('logout')
   @ApiCreatedResponse({ type: LogoutResponseDto })
@@ -203,8 +202,8 @@ export class AuthController {
 
   /**
    * Extract and blacklist the current access token from the request.
-   * Reads the token from cookies or Authorization header, decodes it (without verification),
-   * and adds its JTI to the Redis blacklist with TTL matching the token's remaining lifetime.
+   * Verifies the token signature before blacklisting to prevent attackers
+   * from injecting arbitrary JTIs/TTLs into Redis.
    */
   private async blacklistAccessToken(req: Request): Promise<void> {
     try {
@@ -215,17 +214,17 @@ export class AuthController {
 
       if (!accessToken) return;
 
-      // Decode without verification — we just need jti and exp
-      const decoded = this.jwtService.decode(accessToken) as {
+      // Verify the token — only blacklist tokens we actually issued
+      const payload = await this.jwtService.verifyAsync<{
         jti?: string;
         exp?: number;
-      } | null;
+      }>(accessToken);
 
-      if (decoded?.jti && decoded?.exp) {
-        await this.tokenBlacklistService.blacklist(decoded.jti, decoded.exp);
+      if (payload.jti && payload.exp) {
+        await this.tokenBlacklistService.blacklist(payload.jti, payload.exp);
       }
     } catch {
-      // Best-effort: don't fail logout if blacklisting fails
+      // Best-effort: don't fail logout if token is expired/invalid
       this.logger.debug('Failed to blacklist access token during logout');
     }
   }
