@@ -7,7 +7,9 @@ export const ROOM_SERVICE_CLIENT = 'ROOM_SERVICE_CLIENT';
 export const RoomServiceProvider: Provider = {
   provide: ROOM_SERVICE_CLIENT,
   useFactory: (configService: ConfigService): RoomServiceClient | null => {
-    const livekitUrl = configService.get<string>('LIVEKIT_URL');
+    const livekitUrl =
+      configService.get<string>('LIVEKIT_INTERNAL_URL') ||
+      configService.get<string>('LIVEKIT_URL');
     const apiKey = configService.get<string>('LIVEKIT_API_KEY');
     const apiSecret = configService.get<string>('LIVEKIT_API_SECRET');
 
