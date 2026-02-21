@@ -10,7 +10,8 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { Edit as EditIcon, ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import { useQuery } from "@tanstack/react-query";
-import { userControllerGetUserByIdOptions, userControllerGetProfileOptions } from "../api-client/@tanstack/react-query.gen";
+import { userControllerGetUserByIdOptions } from "../api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { ProfileHeader } from "../components/Profile";
 import { ClipLibrary } from "../components/Profile/ClipLibrary";
 
@@ -18,7 +19,7 @@ const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
 
-  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
+  const { user: currentUser } = useCurrentUser();
   const { data: profileUser, isLoading, error } = useQuery({
     ...userControllerGetUserByIdOptions({ path: { id: userId! } }),
     enabled: !!userId,

@@ -12,17 +12,6 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  RadioGroup,
-  Radio,
   Skeleton,
 } from '@mui/material';
 import {
@@ -39,10 +28,6 @@ import {
   livekitControllerGetUserPublicClipsOptions,
   livekitControllerUpdateClipMutation,
   livekitControllerDeleteClipMutation,
-  livekitControllerShareClipMutation,
-  communityControllerFindAllMineOptions,
-  channelsControllerFindAllForCommunityOptions,
-  directMessagesControllerFindUserDmGroupsOptions,
 } from '../../api-client/@tanstack/react-query.gen';
 
 import type { ClipResponseDto as ClipResponse } from '../../api-client/types.gen';
@@ -51,10 +36,9 @@ import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
 import { formatFileSize } from '../../utils/format';
 import { logger } from '../../utils/logger';
+import ConfirmDialog from '../Common/ConfirmDialog';
 import EmptyState from '../Common/EmptyState';
-import type { Community } from '../../types/community.type';
-import type { Channel } from '../../types/channel.type';
-import type { DirectMessageGroup } from '../../types/direct-message.type';
+import ShareClipDialog from './ShareClipDialog';
 
 interface ClipLibraryProps {
   userId: string;
@@ -83,8 +67,6 @@ const formatDuration = (seconds: number) => {
   const secs = seconds % 60;
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 };
-
-
 
 // Skeleton card for loading state
 const ClipCardSkeleton: React.FC = memo(() => (
@@ -248,15 +230,10 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
       queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetUserPublicClips' }] });
     },
   });
-  const { mutateAsync: shareClip } = useMutation(livekitControllerShareClipMutation());
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  const [shareDestination, setShareDestination] = useState<'channel' | 'dm'>('channel');
-  const [selectedCommunityId, setSelectedCommunityId] = useState('');
-  const [selectedChannelId, setSelectedChannelId] = useState('');
-  const [selectedDmGroupId, setSelectedDmGroupId] = useState('');
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -265,27 +242,6 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
   // Download state tracking
   const [downloadingClipId, setDownloadingClipId] = useState<string | null>(null);
-
-  // Fetch communities, channels, and DMs for sharing
-  const { data: communitiesData } = useQuery({
-    ...communityControllerFindAllMineOptions(),
-    enabled: shareDialogOpen && shareDestination === 'channel',
-  });
-  const { data: channelsData } = useQuery({
-    ...channelsControllerFindAllForCommunityOptions({ path: { communityId: selectedCommunityId } }),
-    enabled: !!selectedCommunityId && shareDialogOpen && shareDestination === 'channel',
-  });
-  const { data: dmsData } = useQuery({
-    ...directMessagesControllerFindUserDmGroupsOptions(),
-    enabled: shareDialogOpen && shareDestination === 'dm',
-  });
-
-  const textChannels = channelsData?.filter((ch: Channel) => ch.type !== 'VOICE') || [];
-
-  // Reset channel when community changes
-  React.useEffect(() => {
-    setSelectedChannelId('');
-  }, [selectedCommunityId]);
 
   const handleTogglePublic = useCallback(async (clipId: string, currentValue: boolean) => {
     try {
@@ -370,35 +326,6 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
     setShareDialogOpen(true);
   }, []);
 
-  const handleShare = async () => {
-    if (!selectedClipId) return;
-
-    if (shareDestination === 'channel' && !selectedChannelId) {
-      showNotification('Please select a channel', 'error');
-      return;
-    }
-    if (shareDestination === 'dm' && !selectedDmGroupId) {
-      showNotification('Please select a DM conversation', 'error');
-      return;
-    }
-
-    try {
-      await shareClip({
-        path: { clipId: selectedClipId },
-        body: {
-          destination: shareDestination,
-          ...(shareDestination === 'channel' && { targetChannelId: selectedChannelId }),
-          ...(shareDestination === 'dm' && { targetDirectMessageGroupId: selectedDmGroupId }),
-        },
-      });
-      showNotification('Clip shared successfully', 'success');
-      setShareDialogOpen(false);
-    } catch (err) {
-      logger.error('Failed to share clip:', err);
-      showNotification(getErrorMessage(err, 'Failed to share clip'), 'error');
-    }
-  };
-
   if (isLoading) {
     return (
       <Box>
@@ -466,109 +393,23 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
       </Grid>
 
       {/* Share Dialog */}
-      <Dialog open={shareDialogOpen} onClose={() => setShareDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Share Clip</DialogTitle>
-        <DialogContent>
-          <RadioGroup
-            value={shareDestination}
-            onChange={(e) => setShareDestination(e.target.value as 'channel' | 'dm')}
-            sx={{ mt: 1 }}
-          >
-            <FormControlLabel value="channel" control={<Radio />} label="Share to channel" />
-            <FormControlLabel value="dm" control={<Radio />} label="Share to DM" />
-          </RadioGroup>
-
-          {shareDestination === 'channel' && (
-            <>
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <InputLabel>Select Community</InputLabel>
-                <Select
-                  value={selectedCommunityId}
-                  onChange={(e) => setSelectedCommunityId(e.target.value)}
-                  label="Select Community"
-                >
-                  {communitiesData?.map((community: Community) => (
-                    <MenuItem key={community.id} value={community.id}>
-                      {community.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              {selectedCommunityId && (
-                <FormControl fullWidth sx={{ mt: 2 }}>
-                  <InputLabel>Select Channel</InputLabel>
-                  <Select
-                    value={selectedChannelId}
-                    onChange={(e) => setSelectedChannelId(e.target.value)}
-                    label="Select Channel"
-                  >
-                    {textChannels.map((channel: Channel) => (
-                      <MenuItem key={channel.id} value={channel.id}>
-                        #{channel.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            </>
-          )}
-
-          {shareDestination === 'dm' && (
-            <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Select DM</InputLabel>
-              <Select
-                value={selectedDmGroupId}
-                onChange={(e) => setSelectedDmGroupId(e.target.value)}
-                label="Select DM"
-              >
-                {dmsData?.map((dm: DirectMessageGroup) => (
-                  <MenuItem key={dm.id} value={dm.id}>
-                    {dm.members.map((member) => member.user.username).join(', ')}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShareDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleShare}>
-            Share
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ShareClipDialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        clipId={selectedClipId}
+      />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={deleteDialogOpen}
-        onClose={handleCloseDeleteDialog}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Delete Clip</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this clip? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={handleCloseDeleteDialog}
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleConfirmDelete}
-            disabled={isDeleting}
-            startIcon={isDeleting ? <CircularProgress size={16} /> : <Delete />}
-          >
-            {isDeleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Delete Clip"
+        description="Are you sure you want to delete this clip? This action cannot be undone."
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete'}
+        confirmColor="error"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCloseDeleteDialog}
+      />
     </Box>
   );
 };

@@ -10,11 +10,6 @@ import {
   Chip,
   Divider,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon } from "@mui/icons-material";
@@ -28,6 +23,8 @@ import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { userControllerFindAllUsersOptions } from "../../api-client/@tanstack/react-query.gen";
 import UserAvatar from "../Common/UserAvatar";
 import RoleAssignmentDialog from "./RoleAssignmentDialog";
+import ConfirmDialog from "../Common/ConfirmDialog";
+import { invalidateMemberQueries } from "../../utils/queryInvalidation";
 import { logger } from "../../utils/logger";
 
 interface MemberManagementProps {
@@ -58,23 +55,11 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
 
   const { mutateAsync: createMembership, isPending: addingMember } = useMutation({
     ...membershipControllerCreateMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForUser' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindMyMemberships' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerSearchCommunityMembers' }] });
-    },
+    onSuccess: () => invalidateMemberQueries(queryClient),
   });
   const { mutateAsync: removeMembership, isPending: removingMember } = useMutation({
     ...membershipControllerRemoveMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForUser' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindMyMemberships' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerSearchCommunityMembers' }] });
-    },
+    onSuccess: () => invalidateMemberQueries(queryClient),
   });
 
   const { hasPermissions: canCreateMembers } = useUserPermissions({
@@ -355,33 +340,16 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
       )}
 
       {/* Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={confirmRemoveOpen}
-        onClose={cancelRemoveMember}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Remove Member</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to remove <strong>{userToRemove?.name}</strong> from this community? 
-            This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={cancelRemoveMember}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={confirmRemoveMember} 
-            color="error" 
-            variant="contained"
-            disabled={removingMember}
-          >
-            {removingMember ? <CircularProgress size={20} /> : "Remove Member"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Remove Member"
+        description={<>Are you sure you want to remove <strong>{userToRemove?.name}</strong> from this community? This action cannot be undone.</>}
+        confirmLabel="Remove Member"
+        confirmColor="error"
+        isLoading={removingMember}
+        onConfirm={confirmRemoveMember}
+        onCancel={cancelRemoveMember}
+      />
 
       {/* Role Assignment Dialog */}
       {userForRoleAssignment && (

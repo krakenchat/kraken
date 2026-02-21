@@ -16,11 +16,6 @@ import {
   Paper,
   IconButton,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Tooltip,
 } from "@mui/material";
 import {
@@ -41,6 +36,7 @@ interface AliasGroupSummary {
   memberCount: number;
 }
 import AliasGroupEditor from "./AliasGroupEditor";
+import ConfirmDialog from "../Common/ConfirmDialog";
 
 interface AliasGroupManagementProps {
   communityId: string;
@@ -291,34 +287,16 @@ const AliasGroupManagement: React.FC<AliasGroupManagementProps> = ({ communityId
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={deleteConfirmOpen}
-        onClose={handleCloseDeleteDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Delete Mention Group</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete the group <strong>@{groupToDelete?.name}</strong>?
-            This action cannot be undone and the group will no longer be available for mentions.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteGroup}
-            color="error"
-            variant="contained"
-            disabled={deletingGroupLoading}
-          >
-            {deletingGroupLoading ? <CircularProgress size={20} /> : "Delete Group"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Delete Mention Group"
+        description={<>Are you sure you want to delete the group <strong>@{groupToDelete?.name}</strong>? This action cannot be undone and the group will no longer be available for mentions.</>}
+        confirmLabel="Delete Group"
+        confirmColor="error"
+        isLoading={deletingGroupLoading}
+        onConfirm={handleDeleteGroup}
+        onCancel={handleCloseDeleteDialog}
+      />
     </>
   );
 };

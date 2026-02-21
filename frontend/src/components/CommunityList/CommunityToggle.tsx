@@ -4,8 +4,7 @@ import { communityControllerFindAllMineOptions } from "../../api-client/@tanstac
 import Drawer from "@mui/material/Drawer";
 import Box from "@mui/material/Box";
 import { styled } from "@mui/system";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
+import { useResponsive } from "../../hooks/useResponsive";
 import CommunityListItem from "./CommunityListItem";
 import CreateCommunityButton from "./CreateCommunityButton";
 import { useParams, useNavigate } from "react-router-dom";
@@ -81,8 +80,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
   isExpanded,
 }) => {
   const { data: communities, isLoading, error } = useQuery(communityControllerFindAllMineOptions());
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { isMobile } = useResponsive();
   const { communityId } = useParams();
   const navigate = useNavigate();
   const canCreateCommunity = useCanPerformAction("INSTANCE", undefined, RBAC_ACTIONS.CREATE_COMMUNITY);

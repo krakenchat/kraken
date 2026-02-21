@@ -35,6 +35,7 @@ import {
 import type { CommunityTimeoutDto as CommunityTimeout } from "../../api-client/types.gen";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
+import { invalidateTimeoutQueries } from "../../utils/queryInvalidation";
 import UserAvatar from "../Common/UserAvatar";
 import { format, isPast, differenceInSeconds } from "date-fns";
 import { logger } from "../../utils/logger";
@@ -131,11 +132,7 @@ const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
   const { data: timeouts, isLoading, error } = useQuery(moderationControllerGetTimeoutListOptions({ path: { communityId } }));
   const { mutateAsync: removeTimeout, isPending: isRemoving } = useMutation({
     ...moderationControllerRemoveTimeoutMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetTimeoutList' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetTimeoutStatus' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetModerationLogs' }] });
-    },
+    onSuccess: () => invalidateTimeoutQueries(queryClient),
   });
   const [selectedTimeout, setSelectedTimeout] = useState<CommunityTimeout | null>(null);
   const [, setTick] = useState(0);

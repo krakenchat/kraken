@@ -43,6 +43,8 @@ import {
   rolesControllerGetInstanceRoleUsersOptions,
   rolesControllerRemoveInstanceRoleMutation,
 } from "../../api-client/@tanstack/react-query.gen";
+import { invalidateInstanceRoleQueries } from "../../utils/queryInvalidation";
+import ConfirmDialog from "../../components/Common/ConfirmDialog";
 
 import type { RoleDto as InstanceRole } from "../../api-client/types.gen";
 
@@ -74,24 +76,15 @@ const AdminRolesPage: React.FC = () => {
   const { data: roles, isLoading, error, refetch } = useQuery(rolesControllerGetInstanceRolesOptions());
   const { mutateAsync: createRole } = useMutation({
     ...rolesControllerCreateInstanceRoleMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
-    },
+    onSuccess: () => invalidateInstanceRoleQueries(queryClient),
   });
   const { mutateAsync: updateRole } = useMutation({
     ...rolesControllerUpdateInstanceRoleMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
-    },
+    onSuccess: () => invalidateInstanceRoleQueries(queryClient),
   });
   const { mutateAsync: deleteRole } = useMutation({
     ...rolesControllerDeleteInstanceRoleMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
-    },
+    onSuccess: () => invalidateInstanceRoleQueries(queryClient),
   });
 
   const [expandedRole, setExpandedRole] = useState<string | false>(false);
@@ -361,21 +354,15 @@ const AdminRolesPage: React.FC = () => {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
-        <DialogTitle>Delete Role</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete the role "{deleteConfirm?.name}"? This action cannot be
-            undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-          <Button onClick={handleDeleteRole} color="error" variant="contained">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title="Delete Role"
+        description={`Are you sure you want to delete the role "${deleteConfirm?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmColor="error"
+        onConfirm={handleDeleteRole}
+        onCancel={() => setDeleteConfirm(null)}
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar
@@ -404,10 +391,7 @@ const RoleUsers: React.FC<{ roleId: string; onRemoveUser: () => void }> = ({
   const { data: users, isLoading } = useQuery(rolesControllerGetInstanceRoleUsersOptions({ path: { roleId } }));
   const { mutateAsync: removeUser } = useMutation({
     ...rolesControllerRemoveInstanceRoleMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetInstanceRoleUsers' }] });
-    },
+    onSuccess: () => invalidateInstanceRoleQueries(queryClient),
   });
   const [removing, setRemoving] = useState<string | null>(null);
 

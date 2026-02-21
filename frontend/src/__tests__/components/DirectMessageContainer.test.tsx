@@ -34,22 +34,19 @@ vi.mock('../../components/Message/MemberListContainer', () => ({
 }));
 
 // Mock hooks that are hard to provide in test context
-vi.mock('../../hooks/useDirectMessages', () => ({
-  useDirectMessages: () => ({
+vi.mock('../../hooks/useMessages', () => ({
+  useMessages: () => ({
     messages: [],
     isLoading: false,
     error: null,
-    fetchNextPage: vi.fn(),
-    hasNextPage: false,
+    continuationToken: undefined,
+    isLoadingMore: false,
+    onLoadMore: vi.fn(),
   }),
 }));
 
-vi.mock('../../hooks/useFileUpload', () => ({
-  useFileUpload: () => ({ uploadFile: vi.fn() }),
-}));
-
-vi.mock('../../hooks/useSendMessage', () => ({
-  useSendMessage: () => ({ sendMessage: vi.fn().mockResolvedValue({ success: true }) }),
+vi.mock('../../hooks/useMessageFileUpload', () => ({
+  useMessageFileUpload: () => ({ handleSendMessage: vi.fn() }),
 }));
 
 vi.mock('../../hooks/useAutoMarkNotificationsRead', () => ({

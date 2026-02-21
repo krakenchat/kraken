@@ -1,7 +1,7 @@
 import { Room, VideoCaptureOptions } from "livekit-client";
 import type { VoiceAction, VoiceState } from "../../contexts/VoiceContext";
 import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from "../../api-client/sdk.gen";
-import { queryClient } from "../../main";
+import { queryClient } from "../../queryClient";
 
 import { getScreenShareSettings, DEFAULT_SCREEN_SHARE_SETTINGS } from "../../utils/screenShareState";
 import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/screenShareResolution";

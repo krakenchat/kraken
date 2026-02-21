@@ -31,25 +31,8 @@ import { useQuery } from '@tanstack/react-query';
 import { communityControllerFindAllMineOptions } from '../../../api-client/@tanstack/react-query.gen';
 import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { MOBILE_CONSTANTS, TOUCH_TARGETS, MOBILE_ANIMATIONS } from '../../../utils/breakpoints';
+import { stringToColor, getCommunityInitials } from '../../../utils/communityHelpers';
 import type { Community } from '../../../types/community.type';
-
-// Deterministic hash to color function
-function stringToColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 65%, 55%)`;
-}
-
-function getCommunityInitials(name: string): string {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() || '')
-    .join('');
-}
 
 // Community list item with authenticated image
 const CommunityDrawerItem: React.FC<{
@@ -82,7 +65,7 @@ const CommunityDrawerItem: React.FC<{
             sx={{
               width: 40,
               height: 40,
-              bgcolor: !community.avatar ? stringToColor(community.id) : undefined,
+              bgcolor: !community.avatar ? stringToColor(community.id).bg : undefined,
               fontSize: '1rem',
               fontWeight: 600,
             }}

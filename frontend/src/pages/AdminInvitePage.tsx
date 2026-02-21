@@ -48,7 +48,9 @@ import {
   communityControllerFindAllMineOptions,
 } from "../api-client/@tanstack/react-query.gen";
 
+import ConfirmDialog from "../components/Common/ConfirmDialog";
 import { copyToClipboard } from "../utils/clipboard";
+import { invalidateInviteQueries } from "../utils/queryInvalidation";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { CreateInviteDto, InstanceInvite } from "../types/invite.type";
 
@@ -86,17 +88,11 @@ const AdminInvitePage: React.FC = () => {
 
   const { mutateAsync: createInvite, isPending: creatingInvite } = useMutation({
     ...inviteControllerCreateInviteMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvites' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvite' }] });
-    },
+    onSuccess: () => invalidateInviteQueries(queryClient),
   });
   const { mutateAsync: deleteInvite, isPending: deletingInvite } = useMutation({
     ...inviteControllerDeleteInviteMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvites' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'inviteControllerGetInvite' }] });
-    },
+    onSuccess: () => invalidateInviteQueries(queryClient),
   });
 
   const { hasPermissions: canCreateInvites } = useUserPermissions({
@@ -653,38 +649,26 @@ const AdminInvitePage: React.FC = () => {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={confirmDeleteOpen}
-        onClose={cancelDeleteInvite}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Delete Invite</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete the invite <strong>{inviteToDelete?.code}</strong>? 
+        title="Delete Invite"
+        description={
+          <>
+            Are you sure you want to delete the invite <strong>{inviteToDelete?.code}</strong>?{" "}
             This action cannot be undone and the invite link will no longer work.
             {inviteToDelete && inviteToDelete.uses > 0 && (
               <Box component="span" sx={{ color: 'warning.main', fontWeight: 'medium' }}>
                 <br /><br />This invite has been used {inviteToDelete.uses} time(s).
               </Box>
             )}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={cancelDeleteInvite}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={confirmDeleteInvite}
-            color="error" 
-            variant="contained"
-            disabled={deletingInvite}
-          >
-            {deletingInvite ? <CircularProgress size={20} /> : "Delete Invite"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </>
+        }
+        confirmLabel="Delete Invite"
+        confirmColor="error"
+        isLoading={deletingInvite}
+        onConfirm={confirmDeleteInvite}
+        onCancel={cancelDeleteInvite}
+      />
     </Container>
   );
 };

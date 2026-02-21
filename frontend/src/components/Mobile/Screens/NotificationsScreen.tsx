@@ -28,13 +28,8 @@ import {
   Chat as DmIcon,
   Tag as ChannelIcon,
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  notificationsControllerGetNotificationsOptions,
-  notificationsControllerGetNotificationsQueryKey,
-  notificationsControllerGetUnreadCountQueryKey,
-  notificationsControllerMarkAsReadMutation,
-  notificationsControllerMarkAllAsReadMutation,
   notificationsControllerDismissNotificationMutation,
 } from '../../../api-client/@tanstack/react-query.gen';
 
@@ -42,8 +37,9 @@ import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { TOUCH_TARGETS } from '../../../utils/breakpoints';
 import { NotificationType, Notification } from '../../../types/notification.type';
 import MobileAppBar from '../MobileAppBar';
-import { formatDistanceToNow } from 'date-fns';
 import { logger } from '../../../utils/logger';
+import { useNotifications } from '../../../hooks/useNotifications';
+import { getMessagePreview, getNotificationTypeLabel, getTimeAgo } from '../../../utils/notificationHelpers';
 
 /**
  * Get icon for notification type
@@ -62,39 +58,6 @@ const getNotificationIcon = (type: NotificationType) => {
   }
 };
 
-/**
- * Get display text for notification type
- */
-const getNotificationTypeLabel = (type: NotificationType): string => {
-  switch (type) {
-    case NotificationType.USER_MENTION:
-      return 'Mentioned you';
-    case NotificationType.SPECIAL_MENTION:
-      return 'Mentioned @everyone/@here';
-    case NotificationType.DIRECT_MESSAGE:
-      return 'Sent a message';
-    case NotificationType.CHANNEL_MESSAGE:
-      return 'New message';
-    default:
-      return 'Notification';
-  }
-};
-
-/**
- * Extract preview text from message spans
- */
-const getMessagePreview = (notification: Notification): string => {
-  if (!notification.message?.spans) return '';
-
-  const textSpans = notification.message.spans.filter((s) => s.type === 'PLAINTEXT');
-  const text = textSpans.map((s) => s.text || '').join(' ').trim();
-
-  if (text.length > 100) {
-    return text.substring(0, 100) + '...';
-  }
-  return text;
-};
-
 interface NotificationItemProps {
   notification: Notification;
   onMarkRead: (id: string) => void;
@@ -109,7 +72,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
   onClick,
 }) => {
   const preview = getMessagePreview(notification);
-  const timeAgo = formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true });
+  const timeAgo = getTimeAgo(notification.createdAt);
 
   return (
     <ListItem
@@ -216,44 +179,21 @@ export const NotificationsScreen: React.FC = () => {
   const { navigateToDmChat } = useMobileNavigation();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, refetch } = useQuery(
-    notificationsControllerGetNotificationsOptions({ query: { limit: 50 } })
-  );
-
-  const { mutateAsync: markAsRead } = useMutation({
-    ...notificationsControllerMarkAsReadMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
-    },
-  });
-
-  const { mutateAsync: markAllAsRead, isPending: isMarkingAllRead } = useMutation({
-    ...notificationsControllerMarkAllAsReadMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
-    },
-  });
+  const {
+    notifications,
+    unreadCount,
+    isLoading,
+    isMarkingAllRead,
+    refetch,
+    handleMarkAsRead,
+    handleMarkAllAsRead,
+    invalidateNotifications,
+  } = useNotifications();
 
   const { mutateAsync: dismissNotification } = useMutation({
     ...notificationsControllerDismissNotificationMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
-    },
+    onSuccess: () => invalidateNotifications(),
   });
-
-  const notifications = data?.notifications || [];
-  const unreadCount = data?.unreadCount || 0;
-
-  const handleMarkRead = async (notificationId: string) => {
-    try {
-      await markAsRead({ path: { id: notificationId } });
-    } catch (error) {
-      logger.error('Failed to mark notification as read:', error);
-    }
-  };
 
   const handleDismiss = async (notificationId: string) => {
     try {
@@ -263,18 +203,10 @@ export const NotificationsScreen: React.FC = () => {
     }
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      await markAllAsRead({});
-    } catch (error) {
-      logger.error('Failed to mark all as read:', error);
-    }
-  };
-
   const handleNotificationClick = (notification: Notification) => {
     // Mark as read when clicked
     if (!notification.read) {
-      handleMarkRead(notification.id);
+      handleMarkAsRead(notification.id);
     }
 
     // Navigate to the source
@@ -283,8 +215,6 @@ export const NotificationsScreen: React.FC = () => {
     } else if (notification.channelId) {
       // For channel notifications, we'd need the communityId
       // This is a limitation - we may need to enhance the notification API
-      // For now, we could fetch the channel to get the community ID
-      // Or we could add communityId to the notification payload
       logger.dev('Navigate to channel:', notification.channelId);
     }
   };
@@ -311,7 +241,7 @@ export const NotificationsScreen: React.FC = () => {
         <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             size="small"
-            onClick={handleMarkAllRead}
+            onClick={handleMarkAllAsRead}
             disabled={isMarkingAllRead}
             startIcon={isMarkingAllRead ? <CircularProgress size={16} /> : <CheckIcon />}
           >
@@ -369,7 +299,7 @@ export const NotificationsScreen: React.FC = () => {
               <NotificationItem
                 key={notification.id}
                 notification={notification}
-                onMarkRead={handleMarkRead}
+                onMarkRead={handleMarkAsRead}
                 onDismiss={handleDismiss}
                 onClick={handleNotificationClick}
               />

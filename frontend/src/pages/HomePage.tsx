@@ -27,8 +27,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   inviteControllerCreateInviteMutation,
   communityControllerFindAllMineOptions,
-  userControllerGetProfileOptions,
 } from "../api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 import { CreateInviteDto } from "../types/invite.type";
 import { useResponsive } from "../hooks/useResponsive";
@@ -48,7 +48,7 @@ const HomePage: React.FC = () => {
 
 const DesktopHomePage: React.FC = () => {
   const theme = useTheme();
-  const { data, isLoading, isError } = useQuery(userControllerGetProfileOptions());
+  const { user: data, isLoading, isError } = useCurrentUser();
   const queryClient = useQueryClient();
   const { data: communities = [] } = useQuery(communityControllerFindAllMineOptions());
   const { mutateAsync: createInvite, isPending: creatingInvite } = useMutation({

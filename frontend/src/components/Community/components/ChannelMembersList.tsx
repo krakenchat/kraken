@@ -4,22 +4,18 @@ import {
   Card,
   CardContent,
   Typography,
-  Button,
   CircularProgress,
   Avatar,
   Divider,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import ConfirmDialog from "../../Common/ConfirmDialog";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelMembershipControllerRemoveMutation } from "../../../api-client/@tanstack/react-query.gen";
+import { invalidateChannelMembershipQueries } from "../../../utils/queryInvalidation";
 import { logger } from "../../../utils/logger";
 
 interface ChannelMember {
@@ -57,12 +53,7 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: removeChannelMembership, isPending: isRemoving } = useMutation({
     ...channelMembershipControllerRemoveMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForUser' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindMyChannelMemberships' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindOne' }] });
-    },
+    onSuccess: () => invalidateChannelMembershipQueries(queryClient),
   });
 
   const handleRemoveMember = (userId: string, username: string) => {
@@ -197,34 +188,16 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={confirmRemoveOpen}
-        onClose={cancelRemoveMember}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Remove Member</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to remove <strong>{userToRemove?.name}</strong> from #{channelName}? 
-            This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={cancelRemoveMember}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={confirmRemoveMember} 
-            color="error" 
-            variant="contained"
-            disabled={isRemoving}
-          >
-            {isRemoving ? <CircularProgress size={20} /> : "Remove Member"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Remove Member"
+        description={<>Are you sure you want to remove <strong>{userToRemove?.name}</strong> from #{channelName}? This action cannot be undone.</>}
+        confirmLabel="Remove Member"
+        confirmColor="error"
+        isLoading={isRemoving}
+        onConfirm={confirmRemoveMember}
+        onCancel={cancelRemoveMember}
+      />
     </>
   );
 };

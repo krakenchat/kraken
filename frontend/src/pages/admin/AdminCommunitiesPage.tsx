@@ -16,12 +16,6 @@ import {
   InputAdornment,
   CircularProgress,
   Alert,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Tooltip,
   Avatar,
 } from "@mui/material";
@@ -30,12 +24,14 @@ import {
   Delete as DeleteIcon,
   OpenInNew as OpenIcon,
 } from "@mui/icons-material";
+import ConfirmDialog from "../../components/Common/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   communityControllerFindAllWithStatsOptions,
   communityControllerForceRemoveMutation,
 } from "../../api-client/@tanstack/react-query.gen";
+import { invalidateCommunityQueries } from "../../utils/queryInvalidation";
 
 import type { CommunityStatsDetailDto as AdminCommunity } from "../../api-client/types.gen";
 
@@ -54,10 +50,7 @@ const AdminCommunitiesPage: React.FC = () => {
 
   const { mutateAsync: forceDeleteCommunity } = useMutation({
     ...communityControllerForceRemoveMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllWithStats' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOneWithStats' }] });
-    },
+    onSuccess: () => invalidateCommunityQueries(queryClient),
   });
 
   const handleDelete = (community: AdminCommunity) => {
@@ -215,30 +208,24 @@ const AdminCommunitiesPage: React.FC = () => {
       )}
 
       {/* Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={confirmDialog.open}
-        onClose={() => setConfirmDialog({ open: false, community: null })}
-      >
-        <DialogTitle>Delete Community</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
+        title="Delete Community"
+        description={
+          <>
             Are you sure you want to delete{" "}
             <strong>{confirmDialog.community?.name}</strong>? This will permanently
             remove all channels, messages, and members from this community.
-          </DialogContentText>
-          <Typography color="error" sx={{ mt: 2 }}>
-            This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialog({ open: false, community: null })}>
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDelete} color="error" variant="contained">
-            Delete Community
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <Typography color="error" sx={{ mt: 2 }}>
+              This action cannot be undone.
+            </Typography>
+          </>
+        }
+        confirmLabel="Delete Community"
+        confirmColor="error"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDialog({ open: false, community: null })}
+      />
     </Box>
   );
 };

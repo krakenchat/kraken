@@ -35,6 +35,7 @@ import {
 import type { CommunityBanDto as CommunityBan } from "../../api-client/types.gen";
 import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
+import { invalidateModerationQueries } from "../../utils/queryInvalidation";
 import UserAvatar from "../Common/UserAvatar";
 import { formatDistanceToNow, format, isPast } from "date-fns";
 import { logger } from "../../utils/logger";
@@ -115,10 +116,7 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
   const { data: bans, isLoading, error } = useQuery(moderationControllerGetBanListOptions({ path: { communityId } }));
   const { mutateAsync: unbanUser, isPending: isUnbanning } = useMutation({
     ...moderationControllerUnbanUserMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetBanList' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetModerationLogs' }] });
-    },
+    onSuccess: () => invalidateModerationQueries(queryClient),
   });
   const [selectedBan, setSelectedBan] = useState<CommunityBan | null>(null);
 

@@ -11,8 +11,9 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { userControllerGetProfileOptions, userControllerUpdateProfileMutation } from "../api-client/@tanstack/react-query.gen";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { userControllerUpdateProfileMutation } from "../api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 import { useFileUpload } from "../hooks/useFileUpload";
 import { useProfileForm } from "../hooks/useProfileForm";
@@ -21,7 +22,7 @@ import { ProfileEditForm } from "../components/Profile";
 const ProfileEditPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: currentUser, isLoading: isLoadingProfile } = useQuery(userControllerGetProfileOptions());
+  const { user: currentUser, isLoading: isLoadingProfile } = useCurrentUser();
   const { mutateAsync: updateProfile, isPending: isUpdating, error: updateError } = useMutation({
     ...userControllerUpdateProfileMutation(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetProfile' }] }),

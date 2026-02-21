@@ -5,22 +5,10 @@ import {
   CardContent,
   Typography,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  TextField,
-  FormControlLabel,
-  Switch,
   Alert,
   CircularProgress,
   IconButton,
   Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -33,8 +21,6 @@ import { ChannelType } from "../../types/channel.type";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   channelsControllerFindAllForCommunityOptions,
-  channelsControllerCreateMutation,
-  channelsControllerUpdateMutation,
   channelsControllerRemoveMutation,
   channelsControllerMoveUpMutation,
   channelsControllerMoveDownMutation,
@@ -42,16 +28,13 @@ import {
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import type { Channel } from "../../types/channel.type";
 import { logger } from "../../utils/logger";
+import { invalidateChannelQueries } from "../../utils/queryInvalidation";
+import ConfirmDialog from "../Common/ConfirmDialog";
+import CreateChannelDialog from "./CreateChannelDialog";
+import EditChannelDialog from "./EditChannelDialog";
 
 interface ChannelManagementProps {
   communityId: string;
-}
-
-interface ChannelFormData {
-  name: string;
-  type: "TEXT" | "VOICE";
-  description: string;
-  isPrivate: boolean;
 }
 
 const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) => {
@@ -60,12 +43,6 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
   const [channelToDelete, setChannelToDelete] = useState<{id: string, name: string} | null>(null);
-  const [formData, setFormData] = useState<ChannelFormData>({
-    name: "",
-    description: "",
-    type: "TEXT",
-    isPrivate: false,
-  });
 
   const queryClient = useQueryClient();
 
@@ -75,45 +52,17 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
     error: channelsError,
   } = useQuery(channelsControllerFindAllForCommunityOptions({ path: { communityId } }));
 
-  const { mutateAsync: createChannel, isPending: creatingChannel } = useMutation({
-    ...channelsControllerCreateMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
-    },
-  });
-  const { mutateAsync: updateChannel, isPending: updatingChannel } = useMutation({
-    ...channelsControllerUpdateMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
-    },
-  });
   const { mutateAsync: deleteChannel, isPending: deletingChannel } = useMutation({
     ...channelsControllerRemoveMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
-    },
+    onSuccess: () => invalidateChannelQueries(queryClient),
   });
   const { mutateAsync: moveUp, isPending: movingUp } = useMutation({
     ...channelsControllerMoveUpMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
-    },
+    onSuccess: () => invalidateChannelQueries(queryClient),
   });
   const { mutateAsync: moveDown, isPending: movingDown } = useMutation({
     ...channelsControllerMoveDownMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindAllForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelsControllerGetMentionableChannels' }] });
-    },
+    onSuccess: () => invalidateChannelQueries(queryClient),
   });
 
   // Sort channels by type (TEXT first) then by position
@@ -151,68 +100,10 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
 
   const canManageChannels = canCreateChannels || canUpdateChannels || canDeleteChannels;
 
-  const handleCreateChannel = useCallback(async () => {
-    if (!formData.name.trim()) return;
-
-    try {
-      await createChannel({
-        body: {
-          name: formData.name.trim(),
-          description: formData.description.trim() || undefined,
-          type: formData.type,
-          communityId,
-          isPrivate: formData.isPrivate,
-        },
-      });
-
-      setCreateDialogOpen(false);
-      setFormData({
-        name: "",
-        description: "",
-        type: "TEXT",
-        isPrivate: false,
-      });
-    } catch (error) {
-      logger.error("Failed to create channel:", error);
-    }
-  }, [formData, communityId, createChannel]);
-
   const handleEditChannel = useCallback((channel: Channel) => {
     setEditingChannel(channel);
-    setFormData({
-      name: channel.name,
-      type: channel.type,
-      description: channel.description || "",
-      isPrivate: channel.isPrivate,
-    });
     setEditDialogOpen(true);
   }, []);
-
-  const handleUpdateChannel = useCallback(async () => {
-    if (!editingChannel || !formData.name.trim()) return;
-
-    try {
-      await updateChannel({
-        path: { id: editingChannel.id },
-        body: {
-          name: formData.name.trim(),
-          description: formData.description.trim() || undefined,
-          isPrivate: formData.isPrivate,
-        },
-      });
-
-      setEditDialogOpen(false);
-      setEditingChannel(null);
-      setFormData({
-        name: "",
-        description: "",
-        type: "TEXT",
-        isPrivate: false,
-      });
-    } catch (error) {
-      logger.error("Failed to update channel:", error);
-    }
-  }, [editingChannel, formData, updateChannel]);
 
   const handleDeleteChannel = useCallback((channelId: string, channelName: string) => {
     setChannelToDelete({ id: channelId, name: channelName });
@@ -258,27 +149,6 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
     },
     [moveDown, communityId]
   );
-
-  const handleCloseCreateDialog = useCallback(() => {
-    setCreateDialogOpen(false);
-    setFormData({
-      name: "",
-      description: "",
-      type: "TEXT",
-      isPrivate: false,
-    });
-  }, []);
-
-  const handleCloseEditDialog = useCallback(() => {
-    setEditDialogOpen(false);
-    setEditingChannel(null);
-    setFormData({
-      name: "",
-      description: "",
-      type: "TEXT",
-      isPrivate: false,
-    });
-  }, []);
 
   if (loadingChannels) {
     return (
@@ -480,146 +350,32 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
           </Box>
         )}
 
-        {/* Create Channel Dialog */}
-        <Dialog
+        <CreateChannelDialog
           open={createDialogOpen}
-          onClose={handleCloseCreateDialog}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Create New Channel</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              label="Channel Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              fullWidth
-              margin="normal"
-              placeholder="general, announcements, etc."
-            />
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Channel Type</InputLabel>
-              <Select
-                value={formData.type}
-                label="Channel Type"
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as "TEXT" | "VOICE" })}
-              >
-                <MenuItem value="TEXT">Text Channel</MenuItem>
-                <MenuItem value="VOICE">Voice Channel</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              label="Description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              fullWidth
-              margin="normal"
-              multiline
-              rows={2}
-              placeholder="What is this channel about?"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isPrivate}
-                  onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
-                />
-              }
-              label="Private Channel"
-            />
-            <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-              Private channels require explicit membership management
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseCreateDialog}>Cancel</Button>
-            <Button
-              onClick={handleCreateChannel}
-              variant="contained"
-              disabled={!formData.name.trim() || creatingChannel}
-            >
-              {creatingChannel ? <CircularProgress size={20} /> : "Create Channel"}
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onClose={() => setCreateDialogOpen(false)}
+          communityId={communityId}
+        />
 
-        {/* Edit Channel Dialog */}
-        <Dialog
+        <EditChannelDialog
           open={editDialogOpen}
-          onClose={handleCloseEditDialog}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Edit Channel</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              label="Channel Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              fullWidth
-              margin="normal"
-            />
-            <TextField
-              label="Description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              fullWidth
-              margin="normal"
-              multiline
-              rows={2}
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isPrivate}
-                  onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
-                />
-              }
-              label="Private Channel"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseEditDialog}>Cancel</Button>
-            <Button
-              onClick={handleUpdateChannel}
-              variant="contained"
-              disabled={!formData.name.trim() || updatingChannel}
-            >
-              {updatingChannel ? <CircularProgress size={20} /> : "Update Channel"}
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onClose={() => {
+            setEditDialogOpen(false);
+            setEditingChannel(null);
+          }}
+          channel={editingChannel}
+        />
 
         {/* Delete Confirmation Dialog */}
-        <Dialog
+        <ConfirmDialog
           open={confirmDeleteOpen}
-          onClose={cancelDeleteChannel}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Delete Channel</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to delete the channel <strong>"{channelToDelete?.name}"</strong>? 
-              This action cannot be undone and all messages in this channel will be permanently lost.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={cancelDeleteChannel}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={confirmDeleteChannel} 
-              color="error" 
-              variant="contained"
-              disabled={deletingChannel}
-            >
-              {deletingChannel ? <CircularProgress size={20} /> : "Delete Channel"}
-            </Button>
-          </DialogActions>
-        </Dialog>
+          title="Delete Channel"
+          description={<>Are you sure you want to delete the channel <strong>"{channelToDelete?.name}"</strong>? This action cannot be undone and all messages in this channel will be permanently lost.</>}
+          confirmLabel="Delete Channel"
+          confirmColor="error"
+          isLoading={deletingChannel}
+          onConfirm={confirmDeleteChannel}
+          onCancel={cancelDeleteChannel}
+        />
       </CardContent>
     </Card>
   );

@@ -8,30 +8,22 @@ import MessageSearch from "../Message/MessageSearch";
 import { PinnedMessagesPanel } from "../Moderation";
 import { ThreadPanel } from "../Thread";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { useChannelMessages } from "../../hooks/useChannelMessages";
-import { useSendMessage } from "../../hooks/useSendMessage";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useMessages } from "../../hooks/useMessages";
+import { useMessageFileUpload } from "../../hooks/useMessageFileUpload";
+import { useQuery } from "@tanstack/react-query";
 import {
   membershipControllerFindAllForCommunityOptions,
   channelsControllerGetMentionableChannelsOptions,
   channelsControllerFindOneOptions,
-} from "../../api-client/@tanstack/react-query.gen";
-import {
-  userControllerGetProfileOptions,
   moderationControllerGetPinnedMessagesOptions,
-  messagesControllerAddAttachmentMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import { useFileUpload } from "../../hooks/useFileUpload";
-import { useNotification } from "../../contexts/NotificationContext";
-import { channelMessagesQueryKey } from "../../utils/messageQueryKeys";
-import { updateMessageInInfinite } from "../../utils/messageCacheUpdaters";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import { useThreadPanel } from "../../contexts/ThreadPanelContext";
 import { useVoice } from "../../contexts/VoiceContext";
 import { VOICE_BAR_HEIGHT } from "../../constants/layout";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
-import { logger } from "../../utils/logger";
 import type { Message } from "../../types/message.type";
 
 interface ChannelMessageContainerProps {
@@ -47,7 +39,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   hideHeader = false,
   communityId: communityIdProp,
 }) => {
-  const { data: user } = useQuery(userControllerGetProfileOptions());
+  const { user } = useCurrentUser();
   const authorId = user?.id || "";
 
   const { isConnected: voiceConnected } = useVoice();
@@ -75,22 +67,11 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
     }
   }, [highlightMessageId, communityId, channelId, navigate]);
 
-  const queryClient = useQueryClient();
-
-  const { uploadFile } = useFileUpload();
-  const { mutateAsync: addAttachment } = useMutation({
-    ...messagesControllerAddAttachmentMutation(),
-    onSuccess: (updatedMessage) => {
-      if (updatedMessage.channelId) {
-        const queryKey = channelMessagesQueryKey(updatedMessage.channelId);
-        queryClient.setQueryData(queryKey, (old: unknown) =>
-          updateMessageInInfinite(old as never, updatedMessage as import("../../types/message.type").Message)
-        );
-      }
-    },
+  const { handleSendMessage } = useMessageFileUpload({
+    contextType: 'channel',
+    contextId: channelId,
+    authorId,
   });
-  const { showNotification } = useNotification();
-  const pendingFilesRef = React.useRef<File[] | null>(null);
 
   // Search state
   const [searchAnchorEl, setSearchAnchorEl] = useState<HTMLElement | null>(null);
@@ -152,77 +133,8 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       name: channel.name,
     })), [channelData]);
 
-  // Get messages using the hook directly (not in callback)
-  const messagesHookResult = useChannelMessages(channelId);
-
-  // Setup unified send message hook with callback
-  const { sendMessage } = useSendMessage("channel", async (messageId: string) => {
-    const files = pendingFilesRef.current;
-    if (!files || files.length === 0) return;
-
-    try {
-      // Upload all files in parallel
-      const uploadPromises = files.map(file =>
-        uploadFile(file, {
-          resourceType: "MESSAGE_ATTACHMENT",
-          resourceId: messageId,
-        })
-      );
-
-      const uploadedFiles = await Promise.all(uploadPromises);
-
-      // Add each uploaded file to the message
-      for (const uploadedFile of uploadedFiles) {
-        await addAttachment({
-          path: { id: messageId },
-          body: { fileId: uploadedFile.id },
-        });
-      }
-    } catch (error) {
-      logger.error("Failed to upload files:", error);
-
-      // Show error notification to user
-      const errorMessage = error instanceof Error
-        ? error.message
-        : "Failed to upload file(s)";
-      showNotification(errorMessage, "error");
-
-      // Call addAttachment without fileId to decrement pendingAttachments
-      for (let i = 0; i < files.length; i++) {
-        await addAttachment({
-          path: { id: messageId },
-          body: {},
-        });
-      }
-    } finally {
-      // Clear pending files
-      pendingFilesRef.current = null;
-    }
-  });
-
-  const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[]) => {
-    // Create message with pendingAttachments count
-    const msg = {
-      channelId,
-      authorId,
-      spans,
-      attachments: [],
-      pendingAttachments: files?.length || 0,
-      reactions: [],
-      sentAt: new Date().toISOString(),
-    };
-
-    // Store files in ref for callback
-    pendingFilesRef.current = files || null;
-
-    // Await the send so callers (MessageInput) can catch failures
-    const result = await sendMessage(msg);
-    if (!result.success) {
-      const errorMessage = result.error instanceof Error ? result.error.message : "Failed to send message";
-      showNotification(errorMessage, "error");
-      return;
-    }
-  };
+  // Get messages using the unified hook
+  const messagesHookResult = useMessages('channel', channelId);
 
   // Create member list component for the channel
   const memberListComponent = (
