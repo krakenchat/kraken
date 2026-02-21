@@ -34,6 +34,7 @@ import { aliasGroupsControllerGetCommunityAliasGroupsOptions } from "../../api-c
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
 import { useNotification } from "../../contexts/NotificationContext";
+import { useTypingEmitter } from "../../hooks/useTypingEmitter";
 import type { Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
 
@@ -59,6 +60,7 @@ interface SimpleMentionState {
 
 export default function MessageInput({
   contextType,
+  contextId,
   userMentions,
   channelMentions = [],
   onSendMessage,
@@ -70,6 +72,13 @@ export default function MessageInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { showNotification } = useNotification();
+
+  // Typing indicator emitter
+  const { handleKeyPress: emitTypingKeyPress, sendTypingStop } = useTypingEmitter(
+    contextType === 'channel'
+      ? { channelId: contextId }
+      : { directMessageGroupId: contextId },
+  );
 
   const isChannel = contextType === 'channel' && !!communityId;
 
@@ -311,6 +320,7 @@ export default function MessageInput({
       }
 
       await onSendMessage(messageText, spans, selectedFiles);
+      sendTypingStop();
       setText("");
       clearFiles();
       if (isChannel) {
@@ -404,7 +414,10 @@ export default function MessageInput({
             variant="outlined"
             placeholder={placeholder}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              emitTypingKeyPress();
+            }}
             onKeyDown={handleKeyPress}
             onPaste={handlePaste}
             onClick={updateCursorPosition}

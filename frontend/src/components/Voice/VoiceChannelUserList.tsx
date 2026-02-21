@@ -75,7 +75,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   } = useQuery({
     ...voicePresenceControllerGetChannelPresenceOptions({ path: { channelId: channel.id } }),
     enabled: channel.type === ChannelType.VOICE && !isConnectedToThisChannel,
-    refetchInterval: 10_000,
+    refetchInterval: 120_000,
   });
 
   // Hook for real-time speaking detection via LiveKit

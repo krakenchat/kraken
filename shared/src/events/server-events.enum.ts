@@ -61,6 +61,28 @@ export enum ServerEvents {
   // Community Membership
   MEMBER_ADDED_TO_COMMUNITY = 'memberAddedToCommunity',
 
+  // Channel Lifecycle
+  CHANNEL_CREATED = 'channelCreated',
+  CHANNEL_UPDATED = 'channelUpdated',
+  CHANNEL_DELETED = 'channelDeleted',
+
+  // Community Lifecycle
+  COMMUNITY_UPDATED = 'communityUpdated',
+  COMMUNITY_DELETED = 'communityDeleted',
+
+  // Role Management
+  ROLE_CREATED = 'roleCreated',
+  ROLE_UPDATED = 'roleUpdated',
+  ROLE_DELETED = 'roleDeleted',
+  ROLE_ASSIGNED = 'roleAssigned',
+  ROLE_UNASSIGNED = 'roleUnassigned',
+
+  // User Profile
+  USER_PROFILE_UPDATED = 'userProfileUpdated',
+
+  // Egress
+  EGRESS_SEGMENTS_READY = 'egressSegmentsReady',
+
   // Acknowledgments & Errors
   ACK = 'ack',
   ERROR = 'error',

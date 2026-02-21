@@ -180,6 +180,21 @@ export class ModerationService {
       });
     });
 
+    // Emit to user's personal room BEFORE removing from community rooms
+    // so the banned user receives the event
+    const banPayload = {
+      communityId,
+      userId,
+      moderatorId,
+      reason,
+      expiresAt: expiresAt?.toISOString(),
+    };
+    this.websocketService.sendToRoom(
+      RoomName.user(userId),
+      ServerEvents.USER_BANNED,
+      banPayload,
+    );
+
     // Remove user's sockets from community rooms
     this.eventEmitter.emit(RoomEvents.MODERATION_USER_BANNED, {
       userId,
@@ -190,17 +205,11 @@ export class ModerationService {
       `User ${userId} banned from community ${communityId} by ${moderatorId}`,
     );
 
-    // Emit WebSocket event to community
+    // Emit WebSocket event to community (for other members)
     this.websocketService.sendToRoom(
       RoomName.community(communityId),
       ServerEvents.USER_BANNED,
-      {
-        communityId,
-        userId,
-        moderatorId,
-        reason,
-        expiresAt: expiresAt?.toISOString(),
-      },
+      banPayload,
     );
   }
 
@@ -319,6 +328,20 @@ export class ModerationService {
       });
     });
 
+    // Emit to user's personal room BEFORE removing from community rooms
+    // so the kicked user receives the event
+    const kickPayload = {
+      communityId,
+      userId,
+      moderatorId,
+      reason,
+    };
+    this.websocketService.sendToRoom(
+      RoomName.user(userId),
+      ServerEvents.USER_KICKED,
+      kickPayload,
+    );
+
     // Remove user's sockets from community rooms
     this.eventEmitter.emit(RoomEvents.MODERATION_USER_KICKED, {
       userId,
@@ -329,16 +352,11 @@ export class ModerationService {
       `User ${userId} kicked from community ${communityId} by ${moderatorId}`,
     );
 
-    // Emit WebSocket event to community
+    // Emit WebSocket event to community (for other members)
     this.websocketService.sendToRoom(
       RoomName.community(communityId),
       ServerEvents.USER_KICKED,
-      {
-        communityId,
-        userId,
-        moderatorId,
-        reason,
-      },
+      kickPayload,
     );
   }
 

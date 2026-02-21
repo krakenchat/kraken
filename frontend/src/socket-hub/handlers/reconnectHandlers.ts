@@ -30,4 +30,12 @@ export function handleReconnect(queryClient: QueryClient): void {
   queryClient.invalidateQueries({
     queryKey: notificationsControllerGetNotificationsQueryKey(),
   });
+
+  // Voice presence (safety net for missed events during disconnect)
+  queryClient.invalidateQueries({
+    queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }],
+  });
+  queryClient.invalidateQueries({
+    queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }],
+  });
 }

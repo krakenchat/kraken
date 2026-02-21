@@ -20,7 +20,9 @@ import Hls from 'hls.js';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
 import { useQuery } from '@tanstack/react-query';
+import { ServerEvents } from '@kraken/shared';
 import { livekitControllerGetSessionInfoOptions } from '../../api-client/@tanstack/react-query.gen';
+import { useServerEvent } from '../../socket-hub/useServerEvent';
 import { logger } from '../../utils/logger';
 import { useResponsive } from '../../hooks/useResponsive';
 import TrimTimeline, { formatTime } from './TrimTimeline';
@@ -68,19 +70,29 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
     loopEnabledRef.current = loopEnabled;
   }, [loopEnabled]);
 
-  // Fetch session info to get buffer duration
-  // refetchOnMountOrArgChange ensures fresh data when component mounts
+  // Snapshot maxDuration so the timeline doesn't shift while the user is trimming.
+  // Only updated on initial load or when the user clicks "Refresh segments".
+  const [maxDuration, setMaxDuration] = useState(0);
+
   const { data: sessionInfo, isLoading: sessionLoading, refetch: refetchSessionInfo } = useQuery({
     ...livekitControllerGetSessionInfoOptions(),
     staleTime: 0, // Always refetch on mount
-    refetchInterval: isInitialized ? false : 15_000,
+    refetchOnWindowFocus: false, // Don't refetch when user returns to tab (would shift timeline)
+    refetchInterval: false, // No polling — use WebSocket event + manual refresh
   });
-  const maxDuration = sessionInfo?.totalDurationSeconds || 0;
 
-  // Initialize range when session info first loads (polling updates extend timeline only)
+  // Listen for WebSocket push when segments become available (initial load only)
+  useServerEvent(ServerEvents.EGRESS_SEGMENTS_READY, useCallback(() => {
+    if (!isInitializedRef.current) {
+      refetchSessionInfo();
+    }
+  }, [refetchSessionInfo]));
+
+  // Initialize range and snapshot maxDuration when session info first loads
   useEffect(() => {
     if (sessionInfo?.totalDurationSeconds && !isInitializedRef.current) {
       const maxDur = sessionInfo.totalDurationSeconds;
+      setMaxDuration(maxDur);
       // Default to last 60 seconds or full buffer if less
       const defaultStart = Math.max(0, maxDur - 60);
       setStartTime(defaultStart);
@@ -352,13 +364,17 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   }, []);
 
   // Refresh segments - manually refetch session info and reload HLS
+  // This is the ONLY path that updates maxDuration after initialization,
+  // so the timeline stays stable while the user is actively trimming.
   const handleRefreshSegments = useCallback(async () => {
     const { data: updated } = await refetchSessionInfo();
     if (updated?.totalDurationSeconds) {
+      const newMax = updated.totalDurationSeconds;
+      setMaxDuration(newMax);
       // If end time was at the previous max, extend it to the new max
       setEndTime((prev) => {
         const wasAtMax = prev >= maxDuration;
-        const newEnd = wasAtMax ? updated.totalDurationSeconds : prev;
+        const newEnd = wasAtMax ? newMax : prev;
         onRangeChange(startTime, newEnd);
         return newEnd;
       });

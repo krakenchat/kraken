@@ -9,6 +9,8 @@ import { UpdateCommunityDto } from './dto/update-community.dto';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { RolesService } from '@/roles/roles.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { RoomEvents } from '@/rooms/room-subscription.events';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 
 @Injectable()
@@ -18,6 +20,7 @@ export class CommunityService {
     private readonly databaseService: DatabaseService,
     private readonly channelsService: ChannelsService,
     private readonly rolesService: RolesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
   async create(createCommunityDto: CreateCommunityDto, creatorId: string) {
     try {
@@ -91,7 +94,7 @@ export class CommunityService {
   }
 
   async update(id: string, updateCommunityDto: UpdateCommunityDto) {
-    return this.databaseService.$transaction(async (tx) => {
+    const updated = await this.databaseService.$transaction(async (tx) => {
       const currentCommunity = await tx.community.findUnique({
         where: { id },
       });
@@ -129,6 +132,16 @@ export class CommunityService {
         data: updateCommunityDto,
       });
     });
+
+    this.eventEmitter.emit(RoomEvents.COMMUNITY_UPDATED, {
+      communityId: id,
+      name: updated.name,
+      description: updated.description,
+      avatar: updated.avatar,
+      banner: updated.banner,
+    });
+
+    return updated;
   }
 
   async addMemberToGeneralChannel(communityId: string, userId: string) {
@@ -151,6 +164,9 @@ export class CommunityService {
     if (!community) {
       throw new NotFoundException('Community not found');
     }
+
+    // Notify members before deletion so they still have the room subscription
+    this.eventEmitter.emit(RoomEvents.COMMUNITY_DELETED, { communityId: id });
 
     await this.cascadeDeleteCommunity(id);
   }

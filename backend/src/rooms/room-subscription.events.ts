@@ -26,6 +26,14 @@ export enum RoomEvents {
   ALIAS_GROUP_MEMBER_REMOVED = 'alias-group.member-removed',
   ALIAS_GROUP_DELETED = 'alias-group.deleted',
   ALIAS_GROUP_MEMBERS_UPDATED = 'alias-group.members-updated',
+  COMMUNITY_UPDATED = 'community.updated',
+  COMMUNITY_DELETED = 'community.deleted',
+  ROLE_CREATED = 'role.created',
+  ROLE_UPDATED = 'role.updated',
+  ROLE_DELETED = 'role.deleted',
+  ROLE_ASSIGNED = 'role.assigned',
+  ROLE_UNASSIGNED = 'role.unassigned',
+  USER_PROFILE_UPDATED = 'user.profile-updated',
 }
 
 // =============================================================================
@@ -111,4 +119,54 @@ export interface AliasGroupMembersUpdatedEvent {
   aliasGroupId: string;
   addedUserIds: string[];
   removedUserIds: string[];
+}
+
+export interface CommunityUpdatedEvent {
+  communityId: string;
+  name: string;
+  description: string | null;
+  avatar: string | null;
+  banner: string | null;
+}
+
+export interface CommunityDeletedEvent {
+  communityId: string;
+}
+
+export interface RoleCreatedEvent {
+  communityId: string;
+  roleId: string;
+  roleName: string;
+}
+
+export interface RoleUpdatedEvent {
+  communityId: string;
+  roleId: string;
+  roleName: string;
+}
+
+export interface RoleDeletedEvent {
+  communityId: string;
+  roleId: string;
+}
+
+export interface RoleAssignedEvent {
+  communityId: string;
+  userId: string;
+  roleId: string;
+  roleName: string;
+}
+
+export interface RoleUnassignedEvent {
+  communityId: string;
+  userId: string;
+  roleId: string;
+}
+
+export interface UserProfileUpdatedEvent {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  bio: string | null;
 }

@@ -22,6 +22,14 @@ import {
   AliasGroupMemberRemovedEvent,
   AliasGroupDeletedEvent,
   AliasGroupMembersUpdatedEvent,
+  CommunityUpdatedEvent,
+  CommunityDeletedEvent,
+  RoleCreatedEvent,
+  RoleUpdatedEvent,
+  RoleDeletedEvent,
+  RoleAssignedEvent,
+  RoleUnassignedEvent,
+  UserProfileUpdatedEvent,
 } from './room-subscription.events';
 
 /**
@@ -302,5 +310,103 @@ export class RoomSubscriptionHandler {
     this.logger.debug(
       `Alias group ${aliasGroupId} updated: +${addedUserIds.length} -${removedUserIds.length} members`,
     );
+  }
+
+  // =========================================================================
+  // Community Lifecycle
+  // =========================================================================
+
+  @OnEvent(RoomEvents.COMMUNITY_UPDATED)
+  onCommunityUpdated(event: CommunityUpdatedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.community(event.communityId),
+      ServerEvents.COMMUNITY_UPDATED,
+      event,
+    );
+    this.logger.debug(`Community ${event.communityId} updated`);
+  }
+
+  @OnEvent(RoomEvents.COMMUNITY_DELETED)
+  onCommunityDeleted({ communityId }: CommunityDeletedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.community(communityId),
+      ServerEvents.COMMUNITY_DELETED,
+      { communityId },
+    );
+    this.logger.debug(`Community ${communityId} deleted`);
+  }
+
+  // =========================================================================
+  // Roles
+  // =========================================================================
+
+  @OnEvent(RoomEvents.ROLE_CREATED)
+  onRoleCreated(event: RoleCreatedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.community(event.communityId),
+      ServerEvents.ROLE_CREATED,
+      event,
+    );
+    this.logger.debug(
+      `Role "${event.roleName}" created in community ${event.communityId}`,
+    );
+  }
+
+  @OnEvent(RoomEvents.ROLE_UPDATED)
+  onRoleUpdated(event: RoleUpdatedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.community(event.communityId),
+      ServerEvents.ROLE_UPDATED,
+      event,
+    );
+    this.logger.debug(`Role ${event.roleId} updated in community ${event.communityId}`);
+  }
+
+  @OnEvent(RoomEvents.ROLE_DELETED)
+  onRoleDeleted(event: RoleDeletedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.community(event.communityId),
+      ServerEvents.ROLE_DELETED,
+      event,
+    );
+    this.logger.debug(`Role ${event.roleId} deleted from community ${event.communityId}`);
+  }
+
+  @OnEvent(RoomEvents.ROLE_ASSIGNED)
+  onRoleAssigned(event: RoleAssignedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.community(event.communityId),
+      ServerEvents.ROLE_ASSIGNED,
+      event,
+    );
+    this.logger.debug(
+      `User ${event.userId} assigned role ${event.roleId} in community ${event.communityId}`,
+    );
+  }
+
+  @OnEvent(RoomEvents.ROLE_UNASSIGNED)
+  onRoleUnassigned(event: RoleUnassignedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.community(event.communityId),
+      ServerEvents.ROLE_UNASSIGNED,
+      event,
+    );
+    this.logger.debug(
+      `User ${event.userId} unassigned role ${event.roleId} in community ${event.communityId}`,
+    );
+  }
+
+  // =========================================================================
+  // User Profile
+  // =========================================================================
+
+  @OnEvent(RoomEvents.USER_PROFILE_UPDATED)
+  onUserProfileUpdated(event: UserProfileUpdatedEvent): void {
+    this.websocketService.sendToRoom(
+      RoomName.user(event.userId),
+      ServerEvents.USER_PROFILE_UPDATED,
+      event,
+    );
+    this.logger.debug(`User ${event.userId} profile updated`);
   }
 }
