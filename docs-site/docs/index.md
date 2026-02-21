@@ -27,17 +27,17 @@ Kraken is an open-source communication platform that gives you full control over
 
 <div class="grid cards" markdown>
 
-- :material-rocket-launch: **[Installation](getting-started/installation.md)**
+- :material-rocket-launch: **[Installation](installation/docker-compose.md)**
 
-    Get Kraken running locally in under 5 minutes with Docker Compose.
+    Get Kraken running with Docker Compose — from first launch to production.
 
-- :material-cog: **[Configuration](getting-started/configuration.md)**
+- :material-cog: **[Configuration](installation/configuration.md)**
 
     Environment variables reference for backend and frontend.
 
-- :material-server: **[Deployment](deployment/docker-compose.md)**
+- :material-ship-wheel: **[Kubernetes](installation/kubernetes.md)**
 
-    Self-host Kraken in production with Docker Compose or Kubernetes.
+    Deploy Kraken to a Kubernetes cluster with the official Helm chart.
 
 - :material-account-group: **[Contributing](contributing/index.md)**
 

@@ -1,4 +1,4 @@
-# Kubernetes Deployment
+# Kubernetes
 
 Deploy Kraken to a Kubernetes cluster using the official Helm chart.
 
@@ -348,7 +348,7 @@ kubectl logs -n kraken -l app.kubernetes.io/component=frontend -f
 
 ## Troubleshooting
 
-For WebSocket and LiveKit connectivity issues, see the dedicated [WebSocket Troubleshooting](websocket-troubleshooting.md) guide.
+For WebSocket and LiveKit connectivity issues, see the dedicated [WebSocket Troubleshooting](../operations/websocket-troubleshooting.md) guide.
 
 ### Pods stuck in Pending
 

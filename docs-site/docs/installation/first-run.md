@@ -1,6 +1,6 @@
 # First Run
 
-After [installing](installation.md) Kraken, follow these steps to set up your instance.
+After [installing](docker-compose.md) Kraken, follow these steps to set up your instance.
 
 ## 1. Register your account
 
@@ -39,10 +39,9 @@ Inside your community:
 
 ## Optional: Set up voice and video
 
-If you haven't configured LiveKit yet, voice channels will be visible but non-functional. See the [LiveKit setup instructions](installation.md#voice-and-video-optional) to enable voice and video calls, including screen sharing and replay buffer features.
+If you haven't configured LiveKit yet, voice channels will be visible but non-functional. See the [LiveKit setup instructions](docker-compose.md#connecting-your-livekit-server) to enable voice and video calls, including screen sharing and replay buffer features.
 
 ## Next steps
 
 - [Configuration](configuration.md) — Tune environment variables
-- [Deployment](../deployment/docker-compose.md) — Self-host in production
 - [Contributing](../contributing/index.md) — Help improve Kraken

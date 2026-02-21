@@ -1,12 +1,12 @@
-# Installation
+# Docker Compose
 
-Get Kraken running locally with Docker Compose. No need to clone the repository — create two files and you're up.
+Deploy Kraken with Docker Compose — from first launch to production.
 
 ## Prerequisites
 
 - **[Docker](https://docs.docker.com/get-docker/)** (v20+) and **Docker Compose** (v2+)
 
-## Choose your setup
+## Choose your LiveKit setup
 
 Kraken uses [LiveKit](https://livekit.io/) for voice and video. Pick the option that fits your situation:
 
@@ -18,7 +18,7 @@ Kraken uses [LiveKit](https://livekit.io/) for voice and video. Pick the option 
 
     Use this if you already run LiveKit (self-hosted or [LiveKit Cloud](https://cloud.livekit.io/)). Voice/video are disabled until you add your credentials.
 
-## Quick start
+## Install
 
 ### 1. Create the Compose file
 
@@ -313,6 +313,102 @@ If you chose the "Bring your own LiveKit" setup, follow these steps to enable vo
 !!! tip "When browser and backend URLs differ"
     If the backend can't reach LiveKit at the same URL the browser uses (e.g., different networks), set `LIVEKIT_INTERNAL_URL` to the backend-reachable address. The backend uses this for server-to-server API calls while `LIVEKIT_URL` is returned to browsers. See the [Configuration](configuration.md) page for details.
 
+## Going to production
+
+### Architecture overview
+
+```mermaid
+graph LR
+    Client[Browser] --> Proxy[Reverse Proxy<br/>nginx / Caddy]
+    Proxy -->|/| Frontend[Frontend<br/>React + Nginx<br/>:5173]
+    Proxy -->|/api, /socket.io| Backend[Backend<br/>NestJS<br/>:3000]
+    Backend --> MongoDB[(MongoDB<br/>:27017)]
+    Backend --> Redis[(Redis<br/>:6379)]
+    Backend --> LiveKit[LiveKit Server]
+```
+
+For production, update your Compose file with `restart: unless-stopped` on every service, and start in detached mode:
+
+```bash
+docker compose up -d
+```
+
+!!! danger "Change all default secrets"
+    Generate unique random values for **every** secret. Never commit `.env` files to version control.
+
+### Reverse proxy and HTTPS
+
+Place a reverse proxy (nginx, Caddy, or Traefik) in front of Kraken to handle TLS termination:
+
+- Proxy `your-domain.com` to the frontend (port 5173)
+- Proxy `your-domain.com/api` to the backend (port 3000)
+- Ensure WebSocket upgrade headers are forwarded for Socket.IO
+
+### Data persistence
+
+Docker Compose uses named volumes for MongoDB and Redis data. These persist across container restarts.
+
+- **Backup MongoDB** regularly: `docker compose exec mongo mongodump --out /backup`
+- **Monitor disk usage** — MongoDB and uploads can grow over time
+
+### Resource limits
+
+For production, consider adding resource limits in a `docker-compose.override.yml`:
+
+```yaml
+services:
+  backend:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  frontend:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+```
+
+### Networking
+
+- **MongoDB** and **Redis** should not be exposed to the public internet — remove their `ports` mappings or bind to `127.0.0.1`
+- Only expose the frontend and backend through your reverse proxy
+- Consider Docker networks to isolate services
+
+### Replay capture (LiveKit egress)
+
+The replay/clip capture feature requires LiveKit egress to write HLS segments to a location that the Kraken backend can also read from. Both services need access to the same storage path.
+
+Mount a shared volume into both the LiveKit egress container and the Kraken backend:
+
+```yaml
+services:
+  backend:
+    volumes:
+      - egress-data:/out
+    environment:
+      REPLAY_EGRESS_OUTPUT_PATH: /out
+      REPLAY_SEGMENTS_PATH: /out
+
+  # Your LiveKit egress service must also mount egress-data:/out
+
+volumes:
+  egress-data:
+```
+
+!!! note "LiveKit Cloud"
+    LiveKit Cloud writes egress output to cloud storage (S3/GCS/Azure Blob), which Kraken can't read from yet. Replay capture is not available with LiveKit Cloud until cloud storage support is added. See [#227](https://github.com/krakenchat/kraken/issues/227) for progress.
+
+## Updating
+
+```bash
+docker compose pull
+docker compose up -d
+
+# Run any database schema updates
+docker compose exec backend npx prisma db push --schema=prisma/schema.prisma
+```
+
 ## Troubleshooting
 
 ### "Replica set not initialized"
@@ -368,4 +464,4 @@ docker compose up
 
 - [Configuration](configuration.md) — Full environment variable reference
 - [First Run](first-run.md) — Create your first user, community, and channels
-- [Development Setup](../contributing/development-setup.md) — Set up for contributing
+- [Kubernetes](kubernetes.md) — Deploy to a Kubernetes cluster

@@ -38,24 +38,23 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Installation: getting-started/installation.md
-      - Configuration: getting-started/configuration.md
-      - First Run: getting-started/first-run.md
+  - Installation:
+      - Docker Compose: installation/docker-compose.md
+      - Kubernetes: installation/kubernetes.md
+      - Configuration: installation/configuration.md
+      - First Run: installation/first-run.md
   - Architecture:
       - Overview: architecture/overview.md
       - Backend: architecture/backend.md
       - Frontend: architecture/frontend.md
       - Database Schema: architecture/database.md
       - WebSocket Patterns: architecture/websocket-patterns.md
-  - Deployment:
-      - Docker Compose: deployment/docker-compose.md
-      - Kubernetes: deployment/kubernetes.md
-      - Release Process: deployment/release-process.md
-      - WebSocket Troubleshooting: deployment/websocket-troubleshooting.md
   - Features:
       - Overview: features/index.md
       - Replay Buffer: features/replay-buffer.md
+  - Operations:
+      - Release Process: operations/release-process.md
+      - WebSocket Troubleshooting: operations/websocket-troubleshooting.md
   - Contributing:
       - Overview: contributing/index.md
       - Development Setup: contributing/development-setup.md
