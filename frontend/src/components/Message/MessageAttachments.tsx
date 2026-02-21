@@ -7,15 +7,13 @@ import { FileMetadata } from "../../types/message.type";
 
 const AttachmentsGrid = styled(Box)(({ theme }) => ({
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fill, minmax(min(250px, 100%), 1fr))",
   gap: theme.spacing(1),
   marginTop: theme.spacing(1),
-  maxWidth: "100%",
 }));
 
 const SingleAttachmentContainer = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(1),
-  maxWidth: 500,
 }));
 
 interface MessageAttachmentsProps {

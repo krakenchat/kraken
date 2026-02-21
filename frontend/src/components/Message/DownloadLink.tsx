@@ -19,7 +19,7 @@ const DownloadCard = styled(Card)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: theme.spacing(1),
-  maxWidth: 400,
+  maxWidth: "100%",
   cursor: "pointer",
   transition: "background-color 0.2s",
   "&:hover": {

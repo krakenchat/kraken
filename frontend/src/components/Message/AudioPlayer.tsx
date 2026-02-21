@@ -12,7 +12,7 @@ const AudioCard = styled(Card)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: theme.spacing(1),
-  maxWidth: 500,
+  maxWidth: "100%",
 }));
 
 const AudioHeader = styled(Box)(({ theme }) => ({

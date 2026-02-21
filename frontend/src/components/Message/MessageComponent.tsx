@@ -108,7 +108,7 @@ function MessageComponentInner({
           clickable
         />
       </div>
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Link
             component="button"
