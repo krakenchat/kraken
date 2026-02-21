@@ -62,6 +62,13 @@ export class ChannelsService {
         isPrivate: result.isPrivate,
       });
 
+      // Notify all community members about the new channel
+      this.websocketService.sendToRoom(
+        RoomName.community(result.communityId),
+        ServerEvents.CHANNEL_CREATED,
+        { communityId: result.communityId, channel: result },
+      );
+
       return result;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
@@ -104,10 +111,19 @@ export class ChannelsService {
 
   async update(id: string, updateChannelDto: UpdateChannelDto) {
     try {
-      return await this.databaseService.channel.update({
+      const updated = await this.databaseService.channel.update({
         where: { id },
         data: updateChannelDto,
       });
+
+      // Notify all community members about the channel update
+      this.websocketService.sendToRoom(
+        RoomName.community(updated.communityId),
+        ServerEvents.CHANNEL_UPDATED,
+        { communityId: updated.communityId, channel: updated },
+      );
+
+      return updated;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
         this.logger.warn(
@@ -130,6 +146,13 @@ export class ChannelsService {
     if (!channel) {
       throw new NotFoundException('Channel not found');
     }
+
+    // Notify before deletion so clients still have the room subscription
+    this.websocketService.sendToRoom(
+      RoomName.community(channel.communityId),
+      ServerEvents.CHANNEL_DELETED,
+      { communityId: channel.communityId, channelId: id },
+    );
 
     await this.databaseService.$transaction(async (tx) => {
       // Delete records that depend on channel messages

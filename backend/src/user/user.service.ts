@@ -12,6 +12,9 @@ import { DatabaseService } from '../database/database.service';
 import { InviteService } from '../invite/invite.service';
 import { ChannelsService } from '../channels/channels.service';
 import { RolesService } from '../roles/roles.service';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@kraken/shared';
+import { RoomName } from '@/common/utils/room-name.util';
 import { UserEntity } from './dto/user-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -24,6 +27,7 @@ export class UserService {
     private instanceInviteService: InviteService,
     private channelsService: ChannelsService,
     private rolesService: RolesService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   async findByUsername(username: string): Promise<User | null> {
@@ -268,6 +272,19 @@ export class UserService {
       where: { id: userId },
       data: updateData,
     });
+
+    // Notify the user's own sessions about profile changes
+    this.websocketService.sendToRoom(
+      RoomName.user(userId),
+      ServerEvents.USER_PROFILE_UPDATED,
+      {
+        userId,
+        displayName: updatedUser.displayName,
+        avatarUrl: updatedUser.avatarUrl,
+        bannerUrl: updatedUser.bannerUrl,
+        bio: updatedUser.bio,
+      },
+    );
 
     return new UserEntity(updatedUser);
   }

@@ -61,3 +61,14 @@ export const handleUserOffline: SocketEventHandler<typeof ServerEvents.USER_OFFL
     },
   });
 };
+
+// =============================================================================
+// User Profile Update
+// =============================================================================
+
+export const handleUserProfileUpdated: SocketEventHandler<typeof ServerEvents.USER_PROFILE_UPDATED> = (
+  _payload,
+  queryClient: QueryClient,
+) => {
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetProfile' }] });
+};

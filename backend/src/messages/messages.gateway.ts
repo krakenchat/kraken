@@ -30,6 +30,7 @@ import { ReactionsService } from './reactions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
+import { TypingEventDto } from './dto/typing-event.dto';
 import { Server, Socket } from 'socket.io';
 import { ClientEvents, ServerEvents } from '@kraken/shared';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -305,5 +306,41 @@ export class MessagesGateway
         directMessageGroupId: result.directMessageGroupId ?? null,
       });
     }
+  }
+
+  // No @RequiredActions — typing is ephemeral, only requires authentication
+  @SubscribeMessage(ClientEvents.TYPING_START)
+  handleTypingStart(
+    @MessageBody() payload: TypingEventDto,
+    @ConnectedSocket() client: Socket,
+  ): void {
+    const userId = getSocketUserId(client);
+    const roomId = payload.channelId || payload.directMessageGroupId;
+    if (!roomId) return;
+
+    // Broadcast to room, excluding sender
+    client.to(roomId).emit(ServerEvents.USER_TYPING, {
+      userId,
+      channelId: payload.channelId,
+      directMessageGroupId: payload.directMessageGroupId,
+      isTyping: true,
+    });
+  }
+
+  @SubscribeMessage(ClientEvents.TYPING_STOP)
+  handleTypingStop(
+    @MessageBody() payload: TypingEventDto,
+    @ConnectedSocket() client: Socket,
+  ): void {
+    const userId = getSocketUserId(client);
+    const roomId = payload.channelId || payload.directMessageGroupId;
+    if (!roomId) return;
+
+    client.to(roomId).emit(ServerEvents.USER_TYPING, {
+      userId,
+      channelId: payload.channelId,
+      directMessageGroupId: payload.directMessageGroupId,
+      isTyping: false,
+    });
   }
 }

@@ -1,5 +1,8 @@
 import { RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { DatabaseService } from '@/database/database.service';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@kraken/shared';
+import { RoomName } from '@/common/utils/room-name.util';
 import {
   Injectable,
   Logger,
@@ -31,7 +34,10 @@ import {
 export class RolesService implements OnModuleInit {
   private readonly logger = new Logger(RolesService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly websocketService: WebsocketService,
+  ) {}
 
   /**
    * Called when the module is initialized.
@@ -360,6 +366,21 @@ export class RolesService implements OnModuleInit {
         isInstanceRole: false,
       },
     });
+
+    // Only emit when not called within a transaction (e.g., community creation)
+    if (!tx) {
+      // Fetch role name for the event payload
+      const role = await this.databaseService.role.findUnique({
+        where: { id: roleId },
+        select: { name: true },
+      });
+
+      this.websocketService.sendToRoom(
+        RoomName.community(communityId),
+        ServerEvents.ROLE_ASSIGNED,
+        { communityId, userId, roleId, roleName: role?.name ?? '' },
+      );
+    }
   }
 
   /**
@@ -562,6 +583,15 @@ export class RolesService implements OnModuleInit {
       `Created custom role "${createRoleDto.name}" for community ${communityId}`,
     );
 
+    // Only emit when not called within a transaction (e.g., community creation)
+    if (!tx) {
+      this.websocketService.sendToRoom(
+        RoomName.community(communityId),
+        ServerEvents.ROLE_CREATED,
+        { communityId, roleId: role.id, roleName: role.name },
+      );
+    }
+
     return {
       id: role.id,
       name: role.name,
@@ -653,6 +683,14 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Updated role ${roleId}`);
 
+    if (!tx) {
+      this.websocketService.sendToRoom(
+        RoomName.community(communityId),
+        ServerEvents.ROLE_UPDATED,
+        { communityId, roleId, roleName: updatedRole.name },
+      );
+    }
+
     return {
       id: updatedRole.id,
       name: updatedRole.name,
@@ -708,6 +746,14 @@ export class RolesService implements OnModuleInit {
     });
 
     this.logger.log(`Deleted role ${roleId}`);
+
+    if (!tx) {
+      this.websocketService.sendToRoom(
+        RoomName.community(communityId),
+        ServerEvents.ROLE_DELETED,
+        { communityId, roleId },
+      );
+    }
   }
 
   /**
@@ -742,6 +788,14 @@ export class RolesService implements OnModuleInit {
     this.logger.log(
       `Removed user ${userId} from role ${roleId} in community ${communityId}`,
     );
+
+    if (!tx) {
+      this.websocketService.sendToRoom(
+        RoomName.community(communityId),
+        ServerEvents.ROLE_UNASSIGNED,
+        { communityId, userId, roleId },
+      );
+    }
   }
 
   /**

@@ -20,7 +20,9 @@ import Hls from 'hls.js';
 import { getApiUrl } from '../../config/env';
 import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
 import { useQuery } from '@tanstack/react-query';
+import { ServerEvents } from '@kraken/shared';
 import { livekitControllerGetSessionInfoOptions } from '../../api-client/@tanstack/react-query.gen';
+import { useServerEvent } from '../../socket-hub/useServerEvent';
 import { logger } from '../../utils/logger';
 import { useResponsive } from '../../hooks/useResponsive';
 import TrimTimeline, { formatTime } from './TrimTimeline';
@@ -73,9 +75,13 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   const { data: sessionInfo, isLoading: sessionLoading, refetch: refetchSessionInfo } = useQuery({
     ...livekitControllerGetSessionInfoOptions(),
     staleTime: 0, // Always refetch on mount
-    refetchInterval: isInitialized ? false : 15_000,
   });
   const maxDuration = sessionInfo?.totalDurationSeconds || 0;
+
+  // Listen for WebSocket push when segments become available (replaces polling)
+  useServerEvent(ServerEvents.EGRESS_SEGMENTS_READY, useCallback(() => {
+    refetchSessionInfo();
+  }, [refetchSessionInfo]));
 
   // Initialize range when session info first loads (polling updates extend timeline only)
   useEffect(() => {

@@ -9,6 +9,9 @@ import { UpdateCommunityDto } from './dto/update-community.dto';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { RolesService } from '@/roles/roles.service';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@kraken/shared';
+import { RoomName } from '@/common/utils/room-name.util';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 
 @Injectable()
@@ -18,6 +21,7 @@ export class CommunityService {
     private readonly databaseService: DatabaseService,
     private readonly channelsService: ChannelsService,
     private readonly rolesService: RolesService,
+    private readonly websocketService: WebsocketService,
   ) {}
   async create(createCommunityDto: CreateCommunityDto, creatorId: string) {
     try {
@@ -91,7 +95,7 @@ export class CommunityService {
   }
 
   async update(id: string, updateCommunityDto: UpdateCommunityDto) {
-    return this.databaseService.$transaction(async (tx) => {
+    const updated = await this.databaseService.$transaction(async (tx) => {
       const currentCommunity = await tx.community.findUnique({
         where: { id },
       });
@@ -129,6 +133,21 @@ export class CommunityService {
         data: updateCommunityDto,
       });
     });
+
+    // Notify all community members about the update
+    this.websocketService.sendToRoom(
+      RoomName.community(id),
+      ServerEvents.COMMUNITY_UPDATED,
+      {
+        communityId: id,
+        name: updated.name,
+        description: updated.description,
+        avatar: updated.avatar,
+        banner: updated.banner,
+      },
+    );
+
+    return updated;
   }
 
   async addMemberToGeneralChannel(communityId: string, userId: string) {
@@ -151,6 +170,13 @@ export class CommunityService {
     if (!community) {
       throw new NotFoundException('Community not found');
     }
+
+    // Notify members before deletion so they still have the room subscription
+    this.websocketService.sendToRoom(
+      RoomName.community(id),
+      ServerEvents.COMMUNITY_DELETED,
+      { communityId: id },
+    );
 
     await this.cascadeDeleteCommunity(id);
   }

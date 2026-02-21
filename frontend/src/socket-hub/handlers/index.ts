@@ -5,6 +5,8 @@ import * as messageHandlers from './messageHandlers';
 import * as presenceHandlers from './presenceHandlers';
 import * as voiceHandlers from './voiceHandlers';
 import * as communityHandlers from './communityHandlers';
+import * as moderationHandlers from './moderationHandlers';
+import * as roleHandlers from './roleHandlers';
 import * as notificationHandlers from './notificationHandlers';
 import * as threadHandlers from './threadHandlers';
 
@@ -58,4 +60,36 @@ export const handlerRegistry: {
   [ServerEvents.NEW_THREAD_REPLY]: [threadHandlers.handleNewThreadReply],
   [ServerEvents.UPDATE_THREAD_REPLY]: [threadHandlers.handleUpdateThreadReply],
   [ServerEvents.DELETE_THREAD_REPLY]: [threadHandlers.handleDeleteThreadReply],
+
+  // DM Voice
+  [ServerEvents.DM_VOICE_CALL_STARTED]: [voiceHandlers.handleDmVoiceCallStarted],
+  [ServerEvents.DM_VOICE_USER_JOINED]: [voiceHandlers.handleDmVoiceUserJoined],
+  [ServerEvents.DM_VOICE_USER_LEFT]: [voiceHandlers.handleDmVoiceUserLeft],
+  [ServerEvents.DM_VOICE_USER_UPDATED]: [voiceHandlers.handleDmVoiceUserUpdated],
+
+  // Moderation
+  [ServerEvents.USER_BANNED]: [moderationHandlers.handleUserBanned],
+  [ServerEvents.USER_KICKED]: [moderationHandlers.handleUserKicked],
+  [ServerEvents.USER_TIMED_OUT]: [moderationHandlers.handleUserTimedOut],
+  [ServerEvents.TIMEOUT_REMOVED]: [moderationHandlers.handleTimeoutRemoved],
+
+  // Channel lifecycle & reorder
+  [ServerEvents.CHANNELS_REORDERED]: [communityHandlers.handleChannelsReordered],
+  [ServerEvents.CHANNEL_CREATED]: [communityHandlers.handleChannelCreated],
+  [ServerEvents.CHANNEL_UPDATED]: [communityHandlers.handleChannelUpdated],
+  [ServerEvents.CHANNEL_DELETED]: [communityHandlers.handleChannelDeleted],
+
+  // Community lifecycle
+  [ServerEvents.COMMUNITY_UPDATED]: [communityHandlers.handleCommunityUpdated],
+  [ServerEvents.COMMUNITY_DELETED]: [communityHandlers.handleCommunityDeleted],
+
+  // Roles
+  [ServerEvents.ROLE_CREATED]: [roleHandlers.handleRoleCreated],
+  [ServerEvents.ROLE_UPDATED]: [roleHandlers.handleRoleUpdated],
+  [ServerEvents.ROLE_DELETED]: [roleHandlers.handleRoleDeleted],
+  [ServerEvents.ROLE_ASSIGNED]: [roleHandlers.handleRoleAssigned],
+  [ServerEvents.ROLE_UNASSIGNED]: [roleHandlers.handleRoleUnassigned],
+
+  // User profile
+  [ServerEvents.USER_PROFILE_UPDATED]: [presenceHandlers.handleUserProfileUpdated],
 };

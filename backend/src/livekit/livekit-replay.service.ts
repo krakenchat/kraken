@@ -26,6 +26,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { MessagesService } from '@/messages/messages.service';
 import { CreateMessageDto } from '@/messages/dto/create-message.dto';
 import { ServerEvents } from '@kraken/shared';
+import { RoomName } from '@/common/utils/room-name.util';
 import { getErrorMessage } from '@/common/utils/error.utils';
 import { FfmpegService } from './ffmpeg.service';
 import * as ffmpegModule from 'fluent-ffmpeg';
@@ -240,6 +241,16 @@ export class LivekitReplayService {
         },
       });
 
+      // Schedule a delayed check to notify the client when segments are available
+      setTimeout(() => {
+        this.checkAndNotifySegmentsReady(session.id, userId, channelId).catch(
+          (err) =>
+            this.logger.warn(
+              `Segment readiness check failed: ${getErrorMessage(err)}`,
+            ),
+        );
+      }, 15_000);
+
       return {
         sessionId: session.id,
         egressId: session.egressId,
@@ -250,6 +261,31 @@ export class LivekitReplayService {
         `Failed to start egress for user ${userId}: ${getErrorMessage(error)}`,
       );
       throw new BadRequestException('Failed to start replay buffer egress');
+    }
+  }
+
+  /**
+   * Check if segments are available and notify the user via WebSocket.
+   */
+  private async checkAndNotifySegmentsReady(
+    sessionId: string,
+    userId: string,
+    channelId: string,
+  ): Promise<void> {
+    const session = await this.databaseService.egressSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session || session.status !== 'active') return;
+
+    // Check if segments exist on disk
+    const segments = await this.storageService.listFiles(session.segmentPath);
+    if (segments.length > 0) {
+      this.websocketService.sendToRoom(
+        RoomName.user(userId),
+        ServerEvents.EGRESS_SEGMENTS_READY,
+        { sessionId, channelId },
+      );
     }
   }
 
