@@ -8,38 +8,12 @@ import { Button } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
+import { stringToColor, getCommunityInitials } from "../../utils/communityHelpers";
 
 interface CommunityListItemProps {
   community: Community;
   isExpanded: boolean;
   selected?: boolean;
-}
-
-// Deterministic hash to color function
-function stringToColor(str: string): { bg: string; text: string } {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  // Generate color in HSL for better distribution
-  const hue = Math.abs(hash) % 360;
-  const saturation = 65;
-  const lightness = 45; // Slightly darker for better contrast with white text
-  return {
-    bg: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
-    text: '#ffffff', // White text contrasts well with 45% lightness backgrounds
-  };
-}
-
-function getCommunityAvatar(community: Community): string {
-  return (
-    community.avatar ||
-    community.name
-      .split(" ")
-      .slice(0, 2)
-      .map((char) => char[0].toUpperCase())
-      .join("")
-  );
 }
 
 const CommunityListItem: React.FC<CommunityListItemProps> = ({
@@ -95,7 +69,7 @@ const CommunityListItem: React.FC<CommunityListItemProps> = ({
           src={avatarUrl || undefined}
           alt={community.name}
         >
-          {getCommunityAvatar(community)}
+          {getCommunityInitials(community.name)}
         </Avatar>
         {isExpanded && (
           <Box

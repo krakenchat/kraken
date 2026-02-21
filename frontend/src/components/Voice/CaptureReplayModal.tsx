@@ -17,8 +17,6 @@ import {
   FormControl,
   InputLabel,
   Collapse,
-  useMediaQuery,
-  useTheme,
 } from '@mui/material';
 import { VideocamOutlined, Download, Send, VideoLibrary, ContentCut } from '@mui/icons-material';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -36,6 +34,7 @@ import { TrimPreview } from './TrimPreview';
 import type { Channel } from '../../types/channel.type';
 import type { DirectMessageGroup } from '../../types/direct-message.type';
 import { logger } from '../../utils/logger';
+import { useResponsive } from '../../hooks/useResponsive';
 
 interface CaptureReplayModalProps {
   open: boolean;
@@ -59,8 +58,7 @@ export const CaptureReplayModal: React.FC<CaptureReplayModalProps> = ({
   open,
   onClose,
 }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { isMobile } = useResponsive();
 
   const [selectedDuration, setSelectedDuration] = useState<1 | 2 | 5 | 10>(5);
   const [destination, setDestination] = useState<'library' | 'channel' | 'dm' | 'download'>('library');

@@ -19,7 +19,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogContentText,
   DialogActions,
   Tooltip,
 } from "@mui/material";
@@ -42,6 +41,8 @@ import {
   rolesControllerResetDefaultCommunityRolesMutation,
 } from "../../api-client/@tanstack/react-query.gen";
 import type { RoleDto } from "../../api-client/types.gen";
+import { invalidateRoleQueries, invalidateAllRoleQueries } from "../../utils/queryInvalidation";
+import ConfirmDialog from "../Common/ConfirmDialog";
 import RoleEditor from "./RoleEditor";
 import { ACTION_LABELS } from "../../constants/rbacActions";
 
@@ -102,40 +103,22 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
   const { mutateAsync: createRole, isPending: creatingRoleLoading, error: createRoleError } = useMutation({
     ...rolesControllerCreateCommunityRoleMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
-    },
+    onSuccess: () => invalidateRoleQueries(queryClient),
   });
 
   const { mutateAsync: updateRole, isPending: updatingRoleLoading, error: updateRoleError } = useMutation({
     ...rolesControllerUpdateRoleMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
-    },
+    onSuccess: () => invalidateRoleQueries(queryClient),
   });
 
   const { mutateAsync: deleteRole, isPending: deletingRoleLoading } = useMutation({
     ...rolesControllerDeleteRoleMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
-    },
+    onSuccess: () => invalidateRoleQueries(queryClient),
   });
 
   const { mutateAsync: resetDefaults, isPending: resettingDefaults } = useMutation({
     ...rolesControllerResetDefaultCommunityRolesMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyInstanceRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserInstanceRoles' }] });
-    },
+    onSuccess: () => invalidateAllRoleQueries(queryClient),
   });
 
   const handleCreateRole = useCallback(async (data: { name?: string; actions: string[] }) => {
@@ -412,64 +395,27 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={deleteConfirmOpen}
-        onClose={handleCloseDeleteDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Delete Role</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete the role <strong>{roleToDelete?.name}</strong>?
-            This action cannot be undone and will remove the role from all users who have it assigned.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteRole}
-            color="error"
-            variant="contained"
-            disabled={deletingRoleLoading}
-          >
-            {deletingRoleLoading ? <CircularProgress size={20} /> : "Delete Role"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Delete Role"
+        description={<>Are you sure you want to delete the role <strong>{roleToDelete?.name}</strong>? This action cannot be undone and will remove the role from all users who have it assigned.</>}
+        confirmLabel="Delete Role"
+        confirmColor="error"
+        isLoading={deletingRoleLoading}
+        onConfirm={handleDeleteRole}
+        onCancel={handleCloseDeleteDialog}
+      />
 
-      {/* Reset Defaults Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={resetConfirmOpen}
-        onClose={() => setResetConfirmOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Reset Default Roles</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This will restore the default roles (Community Admin, Moderator, Member) to their
-            original permissions. Missing default roles will be recreated. Custom roles and user
-            assignments will not be affected.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setResetConfirmOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleResetDefaults}
-            color="primary"
-            variant="contained"
-            disabled={resettingDefaults}
-          >
-            {resettingDefaults ? <CircularProgress size={20} /> : "Reset Defaults"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Reset Default Roles"
+        description="This will restore the default roles (Community Admin, Moderator, Member) to their original permissions. Missing default roles will be recreated. Custom roles and user assignments will not be affected."
+        confirmLabel="Reset Defaults"
+        confirmColor="primary"
+        isLoading={resettingDefaults}
+        onConfirm={handleResetDefaults}
+        onCancel={() => setResetConfirmOpen(false)}
+      />
 
       {/* Role Users Dialog */}
       <Dialog

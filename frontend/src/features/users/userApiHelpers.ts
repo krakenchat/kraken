@@ -1,6 +1,6 @@
 import { getCachedItem, setCachedItem } from "../../utils/storage";
 import type { User } from "../../types/auth.type";
-import { queryClient } from "../../main";
+import { queryClient } from "../../queryClient";
 import { userControllerGetUserByIdQueryKey } from "../../api-client/@tanstack/react-query.gen";
 import { userControllerGetUserById } from "../../api-client/sdk.gen";
 

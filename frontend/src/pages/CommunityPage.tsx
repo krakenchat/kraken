@@ -5,11 +5,12 @@ import {
   communityControllerFindOneOptions,
   channelsControllerFindOneOptions,
 } from "../api-client/@tanstack/react-query.gen";
-import { Avatar, Box, Typography, Paper } from "@mui/material";
+import { Avatar, Box, Typography } from "@mui/material";
 import ChannelList from "../components/Channel/ChannelList";
 import ChannelMessageContainer from "../components/Channel/ChannelMessageContainer";
 import { VoiceChannelUserList } from "../components/Voice";
 import EditCommunityButton from "../components/Community/EditCommunityButton";
+import TwoColumnLayout from "../components/Common/TwoColumnLayout";
 import { styled } from "@mui/material/styles";
 import { ChannelType } from "../types/channel.type";
 import { useVoiceConnection } from "../hooks/useVoiceConnection";
@@ -19,7 +20,6 @@ import { useVideoOverlay } from "../contexts/VideoOverlayContext";
 
 const CommunityPage: React.FC = () => {
   const { isMobile } = useResponsive();
-  const { communityId } = useParams<{ communityId: string }>();
 
   // Mobile version is handled by MobileLayout with panel navigation
   if (isMobile) {
@@ -126,60 +126,37 @@ const DesktopCommunityPage: React.FC = () => {
   };
 
   return (
-    <Root>
-      <Sidebar>
-        <CommunityHeader>
-          <CommunityInfo>
-            <Avatar
-              src={communityAvatarUrl || undefined}
-              alt={`${data.name} logo`}
-              sx={{ width: 40, height: 40 }}
-            >
-              {data.name.charAt(0).toUpperCase()}
-            </Avatar>
-            <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
-              {data.name}
-            </Typography>
-          </CommunityInfo>
-          <EditCommunityButton communityId={communityId} />
-        </CommunityHeader>
-        <ChannelList communityId={communityId} />
-      </Sidebar>
-      <Content ref={setPageContainer}>
-        {renderChannelContent()}
-      </Content>
-    </Root>
+    <TwoColumnLayout
+      sidebar={
+        <>
+          <CommunityHeader>
+            <CommunityInfo>
+              <Avatar
+                src={communityAvatarUrl || undefined}
+                alt={`${data.name} logo`}
+                sx={{ width: 40, height: 40 }}
+              >
+                {data.name.charAt(0).toUpperCase()}
+              </Avatar>
+              <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
+                {data.name}
+              </Typography>
+            </CommunityInfo>
+            <EditCommunityButton communityId={communityId} />
+          </CommunityHeader>
+          <ChannelList communityId={communityId} />
+        </>
+      }
+      contentRef={setPageContainer}
+      contentSx={{
+        flexDirection: "column-reverse",
+        alignItems: "center",
+      }}
+    >
+      {renderChannelContent()}
+    </TwoColumnLayout>
   );
 };
-
-const Root = styled(Box)({
-  display: "flex",
-  height: "100%",
-  width: "100%",
-  position: "absolute",
-  top: 0,
-  left: 0,
-  bottom: 0,
-  right: 0,
-});
-
-const Sidebar = styled(Paper)(({ theme }) => ({
-  position: "absolute",
-  top: 0,
-  left: 0,
-  bottom: 0,
-  width: 280,
-  minWidth: 220,
-  maxWidth: 320,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "stretch",
-  borderRadius: 0,
-  // Let theme control boxShadow for vibrant mode glow effects
-  padding: theme.spacing(2, 0, 0, 0),
-  overflowY: "auto",
-  zIndex: 2,
-}));
 
 const CommunityHeader = styled(Box)(({ theme }) => ({
   display: "flex",
@@ -196,17 +173,6 @@ const CommunityInfo = styled(Box)(({ theme }) => ({
   gap: theme.spacing(1.5),
   flex: 1,
   minWidth: 0, // Allow text to truncate
-}));
-
-const Content = styled(Box)(() => ({
-  flex: 1,
-  display: "flex",
-  flexDirection: "column-reverse",
-  alignItems: "center",
-  justifyContent: "flex-start",
-  overflowY: "auto",
-  marginLeft: 280, // match Sidebar width
-  height: "100%",
 }));
 
 export default CommunityPage;

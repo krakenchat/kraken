@@ -4,8 +4,8 @@ import {
   rolesControllerGetMyRolesForCommunityOptions,
   rolesControllerGetMyRolesForChannelOptions,
   rolesControllerGetMyInstanceRolesOptions,
-  userControllerGetProfileOptions,
 } from "../../api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { UserRoles, ResourceType } from "../../types/roles.type";
 
 export interface UseUserPermissionsOptions {
@@ -29,7 +29,7 @@ export function useUserPermissions({
   actions,
 }: UseUserPermissionsOptions): UseUserPermissionsResult {
   // Get user profile to check if they're an OWNER (which bypasses all RBAC checks)
-  const { data: userProfile, isLoading: isProfileLoading } = useQuery(userControllerGetProfileOptions());
+  const { user: userProfile, isLoading: isProfileLoading } = useCurrentUser();
 
   // Conditionally call the appropriate query based on resource type
   const { data: communityRoles, isLoading: isCommunityLoading } =

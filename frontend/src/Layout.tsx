@@ -2,8 +2,9 @@ import React, { useEffect } from "react";
 import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Outlet, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { userControllerGetProfileOptions, authControllerLogoutMutation } from "./api-client/@tanstack/react-query.gen";
+import { useMutation } from "@tanstack/react-query";
+import { authControllerLogoutMutation } from "./api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
 import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
@@ -73,7 +74,7 @@ const LayoutHooksBridge: React.FC = () => {
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();
-  const { data: userData, isLoading, isError } = useQuery(userControllerGetProfileOptions());
+  const { user: userData, isLoading, isError } = useCurrentUser();
   const { mutateAsync: logout, isPending: logoutLoading } = useMutation(authControllerLogoutMutation());
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
   const { isMobile, isTablet } = useResponsive();

@@ -23,7 +23,8 @@ import ChatIcon from "@mui/icons-material/Chat";
 import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { userControllerGetUserByIdOptions, userControllerGetProfileOptions, directMessagesControllerCreateDmGroupMutation } from "../../api-client/@tanstack/react-query.gen";
+import { userControllerGetUserByIdOptions, directMessagesControllerCreateDmGroupMutation } from "../../api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 import { logger } from "../../utils/logger";
 
@@ -77,7 +78,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
 }) => {
   const navigate = useNavigate();
-  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
+  const { user: currentUser } = useCurrentUser();
   const { data: user, isLoading } = useQuery({
     ...userControllerGetUserByIdOptions({ path: { id: userId! } }),
     enabled: !!userId && open,

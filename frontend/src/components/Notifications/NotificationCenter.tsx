@@ -24,20 +24,16 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
-  notificationsControllerGetNotificationsOptions,
-  notificationsControllerGetNotificationsQueryKey,
-  notificationsControllerGetUnreadCountQueryKey,
-  notificationsControllerMarkAsReadMutation,
-  notificationsControllerMarkAllAsReadMutation,
   notificationsControllerDeleteNotificationMutation,
 } from '../../api-client/@tanstack/react-query.gen';
 
-import { Notification, NotificationType } from '../../types/notification.type';
-import { formatDistanceToNow } from 'date-fns';
+import { Notification } from '../../types/notification.type';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '../../utils/logger';
+import { useNotifications } from '../../hooks/useNotifications';
+import { getNotificationText, getTimeAgo } from '../../utils/notificationHelpers';
 
 interface NotificationCenterProps {
   open: boolean;
@@ -48,40 +44,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   open,
   onClose,
 }) => {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const {
-    data: notificationsData,
+    notifications,
+    hasUnread,
     isLoading,
     error,
     refetch,
-  } = useQuery({
-    ...notificationsControllerGetNotificationsOptions({ query: { limit: 50, unreadOnly: false } }),
-  });
-
-  const { mutateAsync: markAsRead } = useMutation({
-    ...notificationsControllerMarkAsReadMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
-    },
-  });
-
-  const { mutateAsync: markAllAsRead } = useMutation({
-    ...notificationsControllerMarkAllAsReadMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
-    },
-  });
+    handleMarkAsRead,
+    handleMarkAllAsRead,
+    invalidateNotifications,
+  } = useNotifications();
 
   const { mutateAsync: deleteNotification } = useMutation({
     ...notificationsControllerDeleteNotificationMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetNotificationsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: notificationsControllerGetUnreadCountQueryKey() });
-    },
+    onSuccess: () => invalidateNotifications(),
   });
 
   // Refetch notifications when drawer opens
@@ -91,27 +69,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   }, [open, refetch]);
 
-  const handleMarkAsRead = async (notificationId: string) => {
-    try {
-      await markAsRead({ path: { id: notificationId } });
-    } catch (error) {
-      logger.error('Failed to mark notification as read:', error);
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    try {
-      await markAllAsRead({});
-    } catch (error) {
-      logger.error('Failed to mark all as read:', error);
-    }
-  };
-
   const handleDelete = async (notificationId: string) => {
     try {
       await deleteNotification({ path: { id: notificationId } });
-    } catch (error) {
-      logger.error('Failed to delete notification:', error);
+    } catch (err) {
+      logger.error('Failed to delete notification:', err);
     }
   };
 
@@ -135,39 +97,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
     onClose();
   };
-
-  const getNotificationText = (notification: Notification): string => {
-    const authorName = notification.author?.username || 'Someone';
-    const messageText = notification.message?.spans
-      ?.filter((span) => span.type === 'PLAINTEXT')
-      .map((span) => span.text)
-      .join('')
-      .substring(0, 100);
-
-    switch (notification.type) {
-      case NotificationType.USER_MENTION:
-        return `${authorName} mentioned you: ${messageText || ''}`;
-      case NotificationType.SPECIAL_MENTION:
-        return `${authorName} mentioned everyone: ${messageText || ''}`;
-      case NotificationType.DIRECT_MESSAGE:
-        return `${authorName}: ${messageText || 'New message'}`;
-      case NotificationType.CHANNEL_MESSAGE:
-        return `${authorName}: ${messageText || 'New message'}`;
-      default:
-        return 'New notification';
-    }
-  };
-
-  const getTimeAgo = (createdAt: string): string => {
-    try {
-      return formatDistanceToNow(new Date(createdAt), { addSuffix: true });
-    } catch {
-      return 'Recently';
-    }
-  };
-
-  const notifications = notificationsData?.notifications || [];
-  const hasUnread = notifications.some((n) => !n.read);
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>

@@ -21,7 +21,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogContentText,
   DialogActions,
   Menu,
   MenuItem,
@@ -57,6 +56,7 @@ import {
 
 import type { AdminUserEntity as AdminUser, RoleDto as InstanceRole } from "../../api-client/types.gen";
 import UserAvatar from "../../components/Common/UserAvatar";
+import ConfirmDialog from "../../components/Common/ConfirmDialog";
 
 const AdminUsersPage: React.FC = () => {
   const [search, setSearch] = useState("");
@@ -395,10 +395,11 @@ const AdminUsersPage: React.FC = () => {
       </Menu>
 
       {/* Confirmation Dialog */}
-      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}>
-        <DialogTitle>Confirm Action</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Confirm Action"
+        description={
+          <>
             Are you sure you want to {getActionText(confirmDialog.action)}
             {confirmDialog.user && (
               <strong> {confirmDialog.user.displayName || confirmDialog.user.username}</strong>
@@ -409,19 +410,13 @@ const AdminUsersPage: React.FC = () => {
                 This action cannot be undone.
               </Typography>
             )}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}>Cancel</Button>
-          <Button
-            onClick={handleConfirmAction}
-            color={confirmDialog.action === "delete" || confirmDialog.action === "ban" ? "error" : "primary"}
-            variant="contained"
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </>
+        }
+        confirmLabel="Confirm"
+        confirmColor={confirmDialog.action === "delete" || confirmDialog.action === "ban" ? "error" : "primary"}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+      />
 
       {/* Instance Role Management Dialog */}
       <Dialog open={!!roleDialogUser} onClose={handleCloseRoleDialog} maxWidth="sm" fullWidth>

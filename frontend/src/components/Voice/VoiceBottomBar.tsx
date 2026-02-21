@@ -53,8 +53,7 @@ import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import { useVoicePresenceHeartbeat } from "../../hooks/useVoicePresenceHeartbeat";
-import { useQuery } from "@tanstack/react-query";
-import { userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 export const VoiceBottomBar: React.FC = () => {
   const theme = useTheme();
@@ -63,13 +62,14 @@ export const VoiceBottomBar: React.FC = () => {
   const screenShare = useScreenShare();
   const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
   const { isMobile } = useResponsive();
-  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
+  const { user: currentUser } = useCurrentUser();
   const { isSpeaking } = useSpeakingDetection();
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(
     null
   );
   const [showUserList, setShowUserList] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [deviceSettingsTab, setDeviceSettingsTab] = useState<'audio' | 'video'>('audio');
   const [showCaptureModal, setShowCaptureModal] = useState(false);
   const [isSpeakerphone, setIsSpeakerphone] = useState(false);
 
@@ -114,7 +114,8 @@ export const VoiceBottomBar: React.FC = () => {
     }
   }, [actions, isCameraEnabled]);
 
-  const handleDeviceSettingsOpen = useCallback(() => {
+  const handleDeviceSettingsOpen = useCallback((initialTab?: 'audio' | 'video') => {
+    setDeviceSettingsTab(initialTab ?? 'audio');
     setShowDeviceSettings(true);
     setSettingsAnchor(null);
   }, []);
@@ -589,6 +590,7 @@ export const VoiceBottomBar: React.FC = () => {
           open={showDeviceSettings}
           onClose={handleDeviceSettingsClose}
           onDeviceChange={handleDeviceChange}
+          initialTab={deviceSettingsTab}
         />
 
         {/* Screen Source Picker Dialog */}

@@ -2,7 +2,8 @@ import { useCallback } from "react";
 import { useVoice, useVoiceDispatch } from "../contexts/VoiceContext";
 import { useRoom } from "./useRoom";
 import { useQuery } from "@tanstack/react-query";
-import { userControllerGetProfileOptions, livekitControllerGetConnectionInfoOptions } from "../api-client/@tanstack/react-query.gen";
+import { livekitControllerGetConnectionInfoOptions } from "../api-client/@tanstack/react-query.gen";
+import { useCurrentUser } from "./useCurrentUser";
 import { logger } from "../utils/logger";
 import {
   joinVoiceChannel,
@@ -22,7 +23,7 @@ export const useVoiceConnection = () => {
   const voiceState = useVoice();
   const { dispatch, stateRef } = useVoiceDispatch();
   const { room, setRoom, getRoom } = useRoom();
-  const { data: user } = useQuery(userControllerGetProfileOptions());
+  const { user } = useCurrentUser();
   const { data: connectionInfo } = useQuery(livekitControllerGetConnectionInfoOptions());
 
   const getDeps = useCallback(() => ({

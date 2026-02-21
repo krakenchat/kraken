@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import MessageComponent from "./MessageComponent";
-import { Typography, Fab, useMediaQuery, useTheme } from "@mui/material";
+import { Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
 import { UnreadMessageDivider } from "./UnreadMessageDivider";
 import type { Message } from "../../types/message.type";
 import { useMessageVisibility } from "../../hooks/useMessageVisibility";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
+import { useResponsive } from "../../hooks/useResponsive";
 
 interface MessageContainerProps {
   // Data
@@ -62,8 +63,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   channelId,
   directMessageGroupId,
 }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { isMobile } = useResponsive();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);

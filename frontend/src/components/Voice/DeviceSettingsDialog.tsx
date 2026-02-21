@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -29,12 +29,13 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useDeviceSettings } from '../../hooks/useDeviceSettings';
-import { logger } from '../../utils/logger';
+import { useDeviceTest, getDeviceLabel } from '../../hooks/useDeviceTest';
 
 interface DeviceSettingsDialogProps {
   open: boolean;
   onClose: () => void;
   onDeviceChange?: (type: 'audio' | 'video', deviceId: string) => void;
+  initialTab?: 'audio' | 'video';
 }
 
 interface TabPanelProps {
@@ -59,17 +60,11 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
   open,
   onClose,
   onDeviceChange,
+  initialTab,
 }) => {
-  const [tabValue, setTabValue] = useState(0);
-  const [testingAudio, setTestingAudio] = useState(false);
-  const [testingVideo, setTestingVideo] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
+  const [tabValue, setTabValue] = useState(initialTab === 'video' ? 1 : 0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const testStreamRef = useRef<MediaStream | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  
+
   const {
     audioInputDevices,
     audioOutputDevices,
@@ -88,56 +83,35 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
     getVideoConstraints,
   } = useDeviceSettings();
 
-  const stopAudioTest = useCallback(() => {
-    // Stop animation frame
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+  const {
+    testingAudio,
+    testingVideo,
+    audioLevel,
+    testAudioInput,
+    testVideoInput,
+    stopAudioTest,
+    stopVideoTest,
+  } = useDeviceTest({ videoRef, getAudioConstraints, getVideoConstraints });
+
+  // Sync tab when initialTab changes (e.g., dialog opens to a different tab)
+  useEffect(() => {
+    if (open) {
+      setTabValue(initialTab === 'video' ? 1 : 0);
     }
+  }, [open, initialTab]);
 
-    // Close audio context
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-
-    // Stop audio stream
-    if (testStreamRef.current && testingAudio) {
-      testStreamRef.current.getTracks().forEach(track => track.stop());
-      testStreamRef.current = null;
-    }
-
-    // Clear analyser reference
-    analyserRef.current = null;
-
-    // Reset audio level
-    setAudioLevel(0);
-    setTestingAudio(false);
-  }, [testingAudio]);
-
-  const stopTestStream = useCallback(() => {
-    if (testStreamRef.current) {
-      testStreamRef.current.getTracks().forEach(track => track.stop());
-      testStreamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setTestingVideo(false);
-  }, []);
-
-  // Clean up test stream when dialog closes
+  // Clean up tests when dialog closes
   useEffect(() => {
     if (!open) {
       stopAudioTest();
-      stopTestStream();
+      stopVideoTest();
     }
-  }, [open, stopAudioTest, stopTestStream]);
+  }, [open, stopAudioTest, stopVideoTest]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
     stopAudioTest();
-    stopTestStream();
+    stopVideoTest();
   };
 
   const handleAudioInputChange = (deviceId: string) => {
@@ -151,104 +125,13 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
 
   const handleVideoInputChange = (deviceId: string) => {
     setSelectedVideoInput(deviceId);
-    stopTestStream();
+    stopVideoTest();
     onDeviceChange?.('video', deviceId);
-  };
-
-  const testAudioInput = async () => {
-    if (testingAudio) {
-      // Stop the current test
-      stopAudioTest();
-      return;
-    }
-
-    setTestingAudio(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: getAudioConstraints(),
-        video: false,
-      });
-
-      // Create audio context and analyser
-      const audioContext = new AudioContext();
-      const analyser = audioContext.createAnalyser();
-      const microphone = audioContext.createMediaStreamSource(stream);
-
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
-      microphone.connect(analyser);
-
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
-
-      // Store the stream so we can stop it later
-      testStreamRef.current = stream;
-
-      // Start analyzing audio levels
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-      const updateLevel = () => {
-        if (!analyserRef.current) return;
-
-        analyser.getByteFrequencyData(dataArray);
-
-        // Calculate average volume
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / dataArray.length;
-
-        // Convert to 0-100 scale
-        const level = Math.min(100, (average / 255) * 100 * 2); // Multiply by 2 for more sensitivity
-        setAudioLevel(level);
-
-        // Continue animation loop
-        animationFrameRef.current = requestAnimationFrame(updateLevel);
-      };
-
-      updateLevel();
-
-    } catch (error) {
-      logger.error('Failed to test audio:', error);
-      setTestingAudio(false);
-    }
-  };
-
-  const testVideoInput = async () => {
-    if (testingVideo) {
-      stopTestStream();
-      return;
-    }
-
-    setTestingVideo(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: getVideoConstraints(),
-      });
-
-      testStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (error) {
-      logger.error('Failed to test video:', error);
-      setTestingVideo(false);
-    }
   };
 
   const handleRefreshDevices = async () => {
     await requestPermissions();
     await enumerateDevices();
-  };
-
-  const getDeviceLabel = (device: MediaDeviceInfo) => {
-    if (!device.label || device.label === '') {
-      return `${device.kind} (${device.deviceId.slice(0, 8)}...)`;
-    }
-    return device.label;
   };
 
   return (

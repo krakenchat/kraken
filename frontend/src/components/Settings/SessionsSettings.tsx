@@ -14,10 +14,6 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Skeleton,
 } from '@mui/material';
 import {
@@ -37,6 +33,7 @@ import {
 } from '../../api-client/@tanstack/react-query.gen';
 
 import type { SessionInfoDto as SessionInfo } from '../../api-client/types.gen';
+import ConfirmDialog from '../Common/ConfirmDialog';
 import { useNotification } from '../../contexts/NotificationContext';
 import { logger } from '../../utils/logger';
 
@@ -238,36 +235,16 @@ const SessionsSettings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={confirmDialogOpen}
-        onClose={() => setConfirmDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Sign Out Other Sessions?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            This will sign you out of {otherSessionsCount} other{' '}
-            {otherSessionsCount === 1 ? 'session' : 'sessions'}. You'll remain
-            signed in on this device.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialogOpen(false)} disabled={isRevokingAll}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleRevokeAllOther}
-            color="error"
-            variant="contained"
-            disabled={isRevokingAll}
-            startIcon={isRevokingAll && <CircularProgress size={16} />}
-          >
-            {isRevokingAll ? 'Signing out...' : 'Sign Out All'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Sign Out Other Sessions?"
+        description={`This will sign you out of ${otherSessionsCount} other ${otherSessionsCount === 1 ? 'session' : 'sessions'}. You'll remain signed in on this device.`}
+        confirmLabel={isRevokingAll ? 'Signing out...' : 'Sign Out All'}
+        confirmColor="error"
+        isLoading={isRevokingAll}
+        onConfirm={handleRevokeAllOther}
+        onCancel={() => setConfirmDialogOpen(false)}
+      />
     </>
   );
 };
