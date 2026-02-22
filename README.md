@@ -1,5 +1,6 @@
 [![License: AGPL v3 + Commercial](https://img.shields.io/badge/license-AGPL%20v3%20%2F%20Commercial-blue)](LICENSE.md)
-[![Backend Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/krakenchat/kraken/actions/workflows/backend-tests.yml)
+[![Backend Coverage](https://raw.githubusercontent.com/krakenchat/kraken/badges/backend-coverage.svg)](https://github.com/krakenchat/kraken/actions/workflows/backend-tests.yml)
+[![Frontend Coverage](https://raw.githubusercontent.com/krakenchat/kraken/badges/frontend-coverage.svg)](https://github.com/krakenchat/kraken/actions/workflows/frontend-tests.yml)
 
 # Kraken Chat Backend — Developer Setup
 
