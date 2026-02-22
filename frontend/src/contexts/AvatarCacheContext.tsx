@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useRef, useCallback, useEffect } from "react";
 import { getApiUrl } from "../config/env";
 import { getAuthToken } from "../utils/auth";
+import { logger } from "../utils/logger";
 
 // Maximum number of cached blob URLs to prevent memory leaks
 const MAX_CACHE_SIZE = 100;
@@ -70,8 +71,9 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({
     }
 
     if (entriesToRemove.length > 0) {
-      console.debug(
-        `[FileCache] Evicted ${entriesToRemove.length} entries, cache size: ${cache.size}`
+      logger.debug(
+        'FileCache',
+        `Evicted ${entriesToRemove.length} entries, cache size: ${cache.size}`
       );
     }
   }, [maxCacheSize]);

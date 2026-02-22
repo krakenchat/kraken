@@ -11,13 +11,13 @@ keywords:
   - discord
   - websocket
   - livekit
-home: https://github.com/user/kraken
+home: https://github.com/krakenchat/kraken
 sources:
-  - https://github.com/user/kraken
+  - https://github.com/krakenchat/kraken
 maintainers:
   - name: Kraken Team
-    email: maintainers@example.com
-icon: https://raw.githubusercontent.com/user/kraken/main/logo.png
+    email: oss@krakenchat.app
+icon: https://raw.githubusercontent.com/krakenchat/kraken/main/logo.png
 
 # Optional dependencies (can be disabled via values.yaml)
 dependencies:

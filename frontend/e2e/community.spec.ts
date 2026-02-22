@@ -9,7 +9,7 @@ import { generateTestName, createTestCommunity, deleteCommunity } from './fixtur
 
 test.describe('Community Management', () => {
   test.describe('Switch Communities', () => {
-    test('can switch between communities', async ({ authenticatedPage, request }) => {
+    test('can switch between communities @smoke', async ({ authenticatedPage, request }) => {
       const { accessToken } = await loginViaApi(request, TEST_USER);
 
       // Create two test communities
@@ -51,7 +51,7 @@ test.describe('Community Management', () => {
   });
 
   test.describe('Community Invites', () => {
-    test('can generate and share invite link', async ({ authenticatedPage, request }) => {
+    test('can generate and share invite link @smoke', async ({ authenticatedPage, request }) => {
       const { accessToken } = await loginViaApi(request, TEST_USER);
 
       const community = await createTestCommunity(request, { name: generateTestName('invite-test') }, accessToken);

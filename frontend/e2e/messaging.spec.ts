@@ -37,7 +37,7 @@ test.describe('Messaging', () => {
   });
 
   test.describe('Send Messages', () => {
-    test('empty message is not sent', async ({ authenticatedPage }) => {
+    test('empty message is not sent @smoke', async ({ authenticatedPage }) => {
       await authenticatedPage.reload();
 
       const messageInput = authenticatedPage.locator(
@@ -74,7 +74,7 @@ test.describe('Channels', () => {
   });
 
   test.describe('Channel Navigation', () => {
-    test('can switch between channels', async ({ authenticatedPage, request }) => {
+    test('can switch between channels @smoke', async ({ authenticatedPage, request }) => {
       const channel1 = await createTestChannel(request, testCommunity.id, {
         name: 'channel-one',
         type: 'TEXT',
@@ -107,7 +107,7 @@ test.describe('Channels', () => {
   });
 
   test.describe('Create Channel', () => {
-    test('can create a text channel', async ({ authenticatedPage }) => {
+    test('can create a text channel @smoke', async ({ authenticatedPage }) => {
       await authenticatedPage.reload();
 
       const communityElement = authenticatedPage.getByText(testCommunity.name);

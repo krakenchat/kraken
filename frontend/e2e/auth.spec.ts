@@ -9,7 +9,7 @@ import { TEST_USER, setAuthToken, clearAuthToken, isAuthenticated, loginViaApi }
 
 test.describe('Authentication', () => {
   test.describe('Login Page', () => {
-    test('displays login form', async ({ page }) => {
+    test('displays login form @smoke', async ({ page }) => {
       await page.goto('/login');
 
       // Check form elements are visible
@@ -32,7 +32,7 @@ test.describe('Authentication', () => {
       await expect(page.getByRole('alert')).toContainText(/failed|error/i);
     });
 
-    test('successful login redirects to home', async ({ page }) => {
+    test('successful login redirects to home @smoke', async ({ page }) => {
       await page.goto('/login');
 
       await page.locator('#username').fill(TEST_USER.username);
@@ -102,7 +102,7 @@ test.describe('Authentication', () => {
   });
 
   test.describe('Session Management', () => {
-    test('authenticated user can access protected pages', async ({ page, request }) => {
+    test('authenticated user can access protected pages @smoke', async ({ page, request }) => {
       const { accessToken } = await loginViaApi(request, TEST_USER);
 
       await page.goto('/');
@@ -112,7 +112,7 @@ test.describe('Authentication', () => {
       await expect(page).not.toHaveURL(/\/login/);
     });
 
-    test('token persists after page reload', async ({ page, request }) => {
+    test('token persists after page reload @smoke', async ({ page, request }) => {
       const { accessToken } = await loginViaApi(request, TEST_USER);
 
       await page.goto('/');

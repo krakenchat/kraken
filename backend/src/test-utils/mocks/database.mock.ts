@@ -67,6 +67,7 @@ export type MockDatabaseService = {
   pushSubscription: MockPrismaModel;
   // Moderation models
   threadSubscriber: MockPrismaModel;
+  userBlock: MockPrismaModel;
   communityBan: MockPrismaModel;
   communityTimeout: MockPrismaModel;
   moderationLog: MockPrismaModel;
@@ -132,6 +133,7 @@ export function createMockDatabase(): MockDatabaseService {
     channelNotificationOverride: createMockPrismaModel(),
     pushSubscription: createMockPrismaModel(),
     threadSubscriber: createMockPrismaModel(),
+    userBlock: createMockPrismaModel(),
     // Moderation models
     communityBan: createMockPrismaModel(),
     communityTimeout: createMockPrismaModel(),

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -58,9 +55,13 @@ export class RedisIoAdapter extends IoAdapter {
     );
   }
 
-  createIOServer(port: number, options?: ServerOptions): any {
-    // TODO: figure out how to fix the eslint suppressions
+  createIOServer(port: number, options?: ServerOptions) {
+    // Socket.IO Redis adapter types are incomplete — the adapter constructor
+    // returns a type incompatible with the Server.adapter() signature, but
+    // this is the documented usage pattern from @socket.io/redis-adapter.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const server = super.createIOServer(port, options);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     server.adapter(this.adapterConstructor);
     return server;
   }

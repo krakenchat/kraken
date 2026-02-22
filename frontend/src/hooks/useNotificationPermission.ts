@@ -98,7 +98,7 @@ export function useNotificationPermission() {
         })
         .catch((error) => {
           // Permissions API not supported or query failed
-          console.debug('[Notifications] Permissions API not available:', error);
+          logger.debug('Notifications', 'Permissions API not available:', error);
         });
 
       // Cleanup: remove event listener on unmount
