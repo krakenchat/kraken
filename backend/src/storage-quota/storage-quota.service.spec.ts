@@ -329,8 +329,8 @@ describe('StorageQuotaService', () => {
 
       await service.recalculateAllUsersStorage();
 
-      // file.aggregate called once per user
-      expect(mockDatabase.file.aggregate).toHaveBeenCalledTimes(2);
+      // file.aggregate called twice per user (once in recalculateUserStorage, once in getUserStorageStats)
+      expect(mockDatabase.file.aggregate).toHaveBeenCalledTimes(4);
     });
 
     it('should continue on individual user errors', async () => {

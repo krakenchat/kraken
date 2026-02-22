@@ -67,9 +67,7 @@ services:
           chmod 400 /data/keyfile
           chown 999:999 /data/keyfile
         fi
-        exec mongod --replSet rs0 --bind_ip_all --port 27017
-        --keyFile /data/keyfile
-        --auth
+        exec mongod --replSet rs0 --bind_ip_all --port 27017 --keyFile /data/keyfile --auth
       '
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-kraken}

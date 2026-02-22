@@ -337,12 +337,12 @@ describe('ModerationController', () => {
         communityId,
         20,
         10,
-        ModerationAction.BAN,
+        ModerationAction.BAN_USER,
       );
 
       expect(moderationService.getModerationLogs).toHaveBeenCalledWith(
         communityId,
-        { limit: 20, offset: 10, action: ModerationAction.BAN },
+        { limit: 20, offset: 10, action: ModerationAction.BAN_USER },
       );
     });
   });

@@ -65,7 +65,16 @@ describe('ThreadsService', () => {
 
     const dto = {
       parentMessageId,
-      spans: [{ type: 'PLAINTEXT' as any, text: 'Hello thread' }],
+      spans: [
+        {
+          type: 'PLAINTEXT' as any,
+          text: 'Hello thread',
+          userId: null,
+          specialKind: null,
+          communityId: null,
+          aliasId: null,
+        },
+      ],
       attachments: [],
       pendingAttachments: 0,
     };

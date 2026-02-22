@@ -16,9 +16,11 @@ export class RedisIoAdapter extends IoAdapter {
   }
 
   async connectToRedis(): Promise<void> {
-    const redisHost = this.configService.get('REDIS_HOST') || 'localhost';
-    const redisPort = this.configService.get('REDIS_PORT') || '6379';
-    const redisPassword = this.configService.get('REDIS_PASSWORD');
+    const redisHost =
+      this.configService.get<string>('REDIS_HOST') || 'localhost';
+    const redisPort =
+      this.configService.get<string>('REDIS_PORT') || '6379';
+    const redisPassword = this.configService.get<string>('REDIS_PASSWORD');
 
     this.logger.log(
       `Connecting to Redis for Socket.IO adapter: ${redisHost}:${redisPort}`,
@@ -63,6 +65,7 @@ export class RedisIoAdapter extends IoAdapter {
     const server = super.createIOServer(port, options);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     server.adapter(this.adapterConstructor);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return server;
   }
 }
