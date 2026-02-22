@@ -128,6 +128,7 @@ jobs:
 
       - name: Push badge to badges branch
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -140,6 +141,7 @@ jobs:
           fi
           cp /tmp/backend-coverage.svg backend-coverage.svg
           git checkout badges -- frontend-coverage.svg 2>/dev/null || true
-          git add backend-coverage.svg frontend-coverage.svg
+          git add backend-coverage.svg
+          git add frontend-coverage.svg 2>/dev/null || true
           git commit -m "Update backend coverage badge" --allow-empty || true
           git push origin badges
