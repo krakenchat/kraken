@@ -46,6 +46,7 @@ export function configureApiClient() {
       if (!isPublicRoute) {
         notifyAuthFailure();
       }
+      return response;
     }
     return response;
   });

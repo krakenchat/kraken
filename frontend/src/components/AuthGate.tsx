@@ -60,8 +60,8 @@ export function AuthGate() {
   // notifyAuthFailure() instead of performing navigation/cleanup itself.
   useEffect(() => {
     return onAuthFailure(() => {
-      clearTokens();
       disconnectSocket();
+      clearTokens();
       setAuthState("unauthenticated");
     });
   }, []);
@@ -98,8 +98,8 @@ export function AuthGate() {
       // Refresh failed
     }
 
-    clearTokens();
     disconnectSocket();
+    clearTokens();
     setAuthState("unauthenticated");
   }
 
