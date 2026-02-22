@@ -48,7 +48,7 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
 
     services:
@@ -113,3 +113,29 @@ jobs:
             echo "Coverage summary:"
             cat coverage/coverage-summary.json
           fi
+
+      - name: Generate coverage badge
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ./backend
+        run: |
+          COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+          if (( $(echo "$COVERAGE < 50" | bc -l) )); then COLOR=red
+          elif (( $(echo "$COVERAGE < 70" | bc -l) )); then COLOR=yellow
+          elif (( $(echo "$COVERAGE < 80" | bc -l) )); then COLOR=orange
+          elif (( $(echo "$COVERAGE < 90" | bc -l) )); then COLOR=green
+          else COLOR=brightgreen; fi
+          curl -s "https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}" > badge.svg
+
+      - name: Push badge to badges branch
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin badges:badges 2>/dev/null || git checkout --orphan badges
+          git checkout badges || git checkout --orphan badges
+          git rm -rf . 2>/dev/null || true
+          cp backend/coverage/badge.svg backend-coverage.svg 2>/dev/null || true
+          git checkout badges -- frontend-coverage.svg 2>/dev/null || true
+          git add *.svg
+          git commit -m "Update backend coverage badge" --allow-empty || true
+          git push origin badges

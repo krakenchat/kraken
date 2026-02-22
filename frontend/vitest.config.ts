@@ -15,15 +15,9 @@ export default defineConfig({
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      include: [
-        'src/utils/messageCacheUpdaters.ts',
-        'src/utils/messageQueryKeys.ts',
-        'src/utils/messageIndex.ts',
-        'src/utils/queryInvalidation.ts',
-        'src/hooks/useChannelWebSocket.ts',
-        'src/hooks/useDirectMessageWebSocket.ts',
-        'src/hooks/useThreadWebSocket.ts',
-      ],
+      reporter: ['text', 'json-summary'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/__tests__/**', 'src/api-client/**', 'src/vite-env.d.ts'],
     },
   },
 });
