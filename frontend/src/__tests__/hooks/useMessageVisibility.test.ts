@@ -16,7 +16,6 @@ class MockIntersectionObserver {
   disconnect = vi.fn();
   constructor() {}
 }
-vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 
 describe('useMessageVisibility', () => {
   let queryClient: QueryClient;
@@ -24,6 +23,7 @@ describe('useMessageVisibility', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -32,6 +32,7 @@ describe('useMessageVisibility', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   function renderVisibility(options: {
@@ -247,6 +248,31 @@ describe('useMessageVisibility', () => {
       act(() => vi.advanceTimersByTime(1000));
 
       expect(mockSocket.emit).not.toHaveBeenCalled();
+    });
+
+    it('cancels pending debounce when channelId changes', () => {
+      const { result, rerender } = renderHook(
+        ({ channelId }: { channelId: string }) =>
+          useMessageVisibility({ channelId, messages: [] }),
+        {
+          wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
+          initialProps: { channelId: 'ch-1' },
+        },
+      );
+
+      // Start a debounce on ch-1
+      act(() => result.current.markAsRead('msg-1'));
+
+      // Switch channel before debounce fires
+      rerender({ channelId: 'ch-2' });
+
+      // Old timer fires — should NOT emit for ch-1
+      act(() => vi.advanceTimersByTime(1000));
+
+      expect(mockSocket.emit).not.toHaveBeenCalledWith(
+        ClientEvents.MARK_AS_READ,
+        expect.objectContaining({ channelId: 'ch-1' }),
+      );
     });
   });
 });

@@ -23,6 +23,7 @@ describe('WsThrottleGuard', () => {
   afterEach(() => {
     guard.onModuleDestroy();
     process.env.NODE_ENV = originalEnv;
+    jest.restoreAllMocks();
   });
 
   it('allows requests within the rate limit', () => {
@@ -63,7 +64,7 @@ describe('WsThrottleGuard', () => {
     const ctx = createMockContext('socket-1');
 
     const now = Date.now();
-    jest.spyOn(Date, 'now').mockReturnValue(now);
+    const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
 
     // Max out the limit
     for (let i = 0; i < 50; i++) {
@@ -72,12 +73,10 @@ describe('WsThrottleGuard', () => {
     expect(() => guard.canActivate(ctx)).toThrow(WsException);
 
     // Advance time past the 10s window
-    jest.spyOn(Date, 'now').mockReturnValue(now + 10001);
+    dateNowSpy.mockReturnValue(now + 10001);
 
     // Should work again
     expect(guard.canActivate(ctx)).toBe(true);
-
-    jest.restoreAllMocks();
   });
 
   it('bypasses rate limiting in test environment', () => {

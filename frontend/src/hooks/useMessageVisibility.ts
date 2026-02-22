@@ -39,14 +39,16 @@ export const useMessageVisibility = ({
     messagesRef.current = messages;
   }, [messages]);
 
-  // Clean up debounce timer on unmount
+  // Clean up debounce timer when deps change or on unmount,
+  // preventing stale closures from emitting to the wrong channel/socket.
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
       }
     };
-  }, []);
+  }, [socket, channelId, directMessageGroupId, enabled]);
 
   // Stable callback to mark messages as read
   // Optimistic cache update runs immediately; socket emit is debounced (1s trailing)
@@ -84,6 +86,7 @@ export const useMessageVisibility = ({
         clearTimeout(debounceTimerRef.current);
       }
       debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
         const pendingId = pendingMessageIdRef.current;
         if (!pendingId || lastMarkedMessageIdRef.current === pendingId) return;
 
