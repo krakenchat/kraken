@@ -1,3 +1,21 @@
+/**
+ * ============================================================
+ *  DEVELOPMENT ONLY — Seed Data
+ * ============================================================
+ *  This script creates test users (admin / user-0 … user-99),
+ *  roles, a default community, and a #general channel.
+ *
+ *  It must NEVER run in production.
+ * ============================================================
+ */
+
+if (process.env.NODE_ENV === 'production') {
+  console.error(
+    'ERROR: seed.ts must not be run in production. Aborting.',
+  );
+  process.exit(1);
+}
+
 import { PrismaClient, RbacActions } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import {

@@ -29,6 +29,7 @@ import { getAuthToken } from "../../utils/auth";
 import { useNotification } from "../../contexts/NotificationContext";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
+import { logger } from "../../utils/logger";
 
 function getStoredVolume(userId: string): number | null {
   try {
@@ -216,7 +217,7 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
       );
       if (!response.ok) throw new Error("Failed to mute");
     } catch (error) {
-      console.error("Failed to server mute participant:", error);
+      logger.error("Failed to server mute participant:", error);
     }
     onClose();
   };

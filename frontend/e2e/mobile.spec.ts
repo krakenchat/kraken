@@ -31,7 +31,7 @@ test.describe('Mobile UX', () => {
       await page.mouse.up();
     });
 
-    test('can open community drawer via menu button', async ({ page, request }) => {
+    test('can open community drawer via menu button @smoke', async ({ page, request }) => {
       const viewport = page.viewportSize();
       if (viewport && viewport.width >= 768) {
         test.skip();
@@ -129,7 +129,7 @@ test.describe('Mobile UX', () => {
   });
 
   test.describe('Responsive Layout', () => {
-    test('switches to mobile layout at correct breakpoint', async ({ page, request }) => {
+    test('switches to mobile layout at correct breakpoint @smoke', async ({ page, request }) => {
       const { accessToken } = await loginViaApi(request, TEST_USER);
       await page.goto('/');
       await setAuthToken(page, accessToken);

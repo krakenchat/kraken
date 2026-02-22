@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Daily full suite at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   e2e:
@@ -119,7 +123,16 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: frontend
-        run: pnpm exec playwright test
+        run: |
+          # Full suite: push to main, schedule, manual dispatch, or PR with "e2e-full" label
+          # Smoke only: PR without the label
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! echo "${{ join(github.event.pull_request.labels.*.name, ',') }}" | grep -q "e2e-full"; then
+            echo "Running smoke tests only (PR without e2e-full label)"
+            pnpm exec playwright test --grep @smoke
+          else
+            echo "Running full E2E suite (${{ github.event_name }} trigger)"
+            pnpm exec playwright test
+          fi
         env:
           E2E_BASE_URL: http://localhost:5174
           CI: true
