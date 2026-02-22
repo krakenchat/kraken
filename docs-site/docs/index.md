@@ -39,6 +39,10 @@ Kraken is an open-source communication platform that gives you full control over
 
     Deploy Kraken to a Kubernetes cluster with the official Helm chart.
 
+- :material-monitor-arrow-down: **[Desktop App](installation/desktop-app.md)**
+
+    Download the Electron desktop client for Windows and Linux.
+
 - :material-account-group: **[Contributing](contributing/index.md)**
 
     Help improve Kraken — bug reports, features, and code contributions.

@@ -22,7 +22,7 @@ const LoadingContainer = styled(Box)(({ theme }) => ({
 }));
 
 const StyledImage = styled("img")({
-  width: "100%",
+  maxWidth: "100%",
   maxHeight: 400,
   objectFit: "contain",
   display: "block",

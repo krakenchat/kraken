@@ -18,10 +18,12 @@ import {
   PersonAdd as PersonAddIcon,
   ContentCopy as CopyIcon,
   Settings as SettingsIcon,
+  DesktopWindows as DesktopIcon,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { Link } from "react-router-dom";
 import { copyToClipboard } from "../utils/clipboard";
+import { isElectron } from "../utils/platform";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -288,6 +290,40 @@ const DesktopHomePage: React.FC = () => {
             </Box>
           </CardContent>
         </Card>
+      )}
+
+      {/* Desktop App Download */}
+      {data && !isElectron() && (
+        <Paper
+          sx={{
+            p: 2.5,
+            width: "100%",
+            maxWidth: 400,
+            borderRadius: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <DesktopIcon color="primary" sx={{ fontSize: 28 }} />
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle2">
+              Get Kraken Desktop
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Available for Windows and Linux
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            href="https://docs.krakenchat.app/installation/desktop-app/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Download
+          </Button>
+        </Paper>
       )}
 
       {/* Snackbar for copy feedback */}
