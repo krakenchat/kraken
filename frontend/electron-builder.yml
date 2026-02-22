@@ -92,7 +92,7 @@ linux:
   desktop:
     Name: Kraken
     GenericName: Voice Chat Application
-    Comment: Discord-like voice chat application
+    Comment: Self-hosted voice and text chat application
     Categories: Network;InstantMessaging;AudioVideo;
     Keywords: chat;voice;video;messaging;
 

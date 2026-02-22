@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - Persistent voice connections across navigation
 
 - **Communities**
-  - Discord-like server organization
+  - Community-based server organization
   - Text and voice channels
   - Private channels with membership control
   - Community roles and permissions

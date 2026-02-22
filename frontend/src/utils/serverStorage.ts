@@ -2,7 +2,7 @@
  * Server Storage Utility
  *
  * Manages multiple Kraken server instances in localStorage.
- * Supports Discord-like multi-server switching.
+ * Supports multi-server switching.
  */
 
 import { logger } from './logger';

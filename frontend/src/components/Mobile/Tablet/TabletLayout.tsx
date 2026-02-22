@@ -3,7 +3,7 @@
  *
  * Split-view layout for tablets (768-1199px).
  * Shows channel list on left, content on right.
- * Similar to Discord iPad layout.
+ * Sidebar on left, main content on right.
  */
 
 import React from 'react';

@@ -266,7 +266,7 @@ function setupApplicationMenu(): void {
               type: 'info',
               title: 'About Kraken',
               message: `Kraken v${app.getVersion()}`,
-              detail: 'A Discord-like voice chat application.',
+              detail: 'Self-hosted voice and text chat.',
             });
           },
         },

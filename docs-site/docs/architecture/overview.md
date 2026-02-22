@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Kraken is a self-hosted Discord-like communication platform with real-time messaging, voice/video calls, and community management.
+Kraken is a self-hosted communication platform with real-time messaging, voice/video calls, and community management.
 
 ## System Architecture
 

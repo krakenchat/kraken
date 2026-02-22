@@ -7,7 +7,7 @@ interface UnreadMessageDividerProps {
 
 /**
  * Divider component that shows "NEW MESSAGES" between read and unread messages
- * Similar to Discord's unread message indicator
+ * Shows a visual separator between read and unread messages
  */
 export const UnreadMessageDivider: React.FC<UnreadMessageDividerProps> = ({
   unreadCount,

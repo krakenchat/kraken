@@ -1,6 +1,6 @@
 # Replay Buffer
 
-Continuous screen recording during screen share sessions, allowing users to retroactively capture highlights — similar to NVIDIA ShadowPlay or Discord Clipping.
+Continuous screen recording during screen share sessions, allowing users to retroactively capture highlights — similar to NVIDIA ShadowPlay or OBS Replay Buffer.
 
 ## How it works
 

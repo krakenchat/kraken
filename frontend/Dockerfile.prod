@@ -69,7 +69,7 @@ COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 # Add OCI labels for GHCR integration (including creation timestamp)
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
-LABEL org.opencontainers.image.description="Kraken Frontend - Discord-like voice chat application"
+LABEL org.opencontainers.image.description="Kraken Frontend - Self-hosted voice and text chat"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
 

@@ -5,7 +5,7 @@ hide:
 
 # Kraken
 
-**Self-hosted Discord-like voice and text chat.**
+**Self-hosted voice and text chat.**
 
 Kraken is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, MongoDB, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box.
 

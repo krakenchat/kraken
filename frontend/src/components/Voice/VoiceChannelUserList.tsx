@@ -37,13 +37,13 @@ import { getUserInfo } from "../../features/users/userApiHelpers";
 interface VoiceChannelUserListProps {
   channel: Channel;
   showInline?: boolean;
-  showDiscordStyle?: boolean;
+  showCompact?: boolean;
 }
 
 export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   channel,
   showInline = false,
-  showDiscordStyle = false,
+  showCompact = false,
 }) => {
   const theme = useTheme();
   const { state: voiceState } = useVoiceConnection();
@@ -199,7 +199,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     return null;
   }
 
-  const DiscordStyleUserItem: React.FC<{
+  const CompactUserItem: React.FC<{
     user: (typeof presence.users)[0];
   }> = React.memo(({ user }) => {
     // Real-time speaking detection from LiveKit
@@ -229,7 +229,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         sx={{
           px: 1,
           py: 0.5,
-          pl: 4, // Indent under voice channel like Discord
+          pl: 4, // Indent under voice channel
           minHeight: 40,
           cursor: "pointer",
           "&:hover": {
@@ -251,7 +251,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
               <UserAvatar user={user} size="small" />
             </Box>
             
-            {/* Audio status badge - Discord-style (deafen takes priority over mute) */}
+            {/* Audio status badge (deafen takes priority over mute) */}
             {userState.isDeafened ? (
               <Box
                 sx={{
@@ -308,7 +308,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                 {user.displayName || user.username}
               </Typography>
               
-              {/* Status indicators - Discord-style (deafen takes priority over mute) */}
+              {/* Status indicators (deafen takes priority over mute) */}
               <Box sx={{ display: "flex", gap: 0.5, ml: "auto", alignItems: "center" }}>
 
                 {/* Deafened state takes priority over muted */}
@@ -496,13 +496,13 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     );
   }
 
-  // Discord-style nested display under voice channels
-  if (showDiscordStyle) {
+  // Compact nested display under voice channels
+  if (showCompact) {
     return (
       <>
         <Box>
           {presence.users.map((user) => (
-            <DiscordStyleUserItem key={user.id} user={user} />
+            <CompactUserItem key={user.id} user={user} />
           ))}
         </Box>
         {contextMenu.user && (

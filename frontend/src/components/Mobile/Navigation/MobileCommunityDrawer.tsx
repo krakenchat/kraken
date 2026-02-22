@@ -2,7 +2,7 @@
  * MobileCommunityDrawer Component
  *
  * Swipeable drawer from left edge showing community list.
- * Discord-style community picker for mobile.
+ * Community picker for mobile.
  */
 
 import React from 'react';

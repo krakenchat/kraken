@@ -21,7 +21,7 @@ const UserStatusIndicator: React.FC<UserStatusIndicatorProps> = ({
         width: size,
         height: size,
         borderRadius: "50%",
-        backgroundColor: "#43b581", // Discord-style green
+        backgroundColor: "#43b581", // Online status green
         border: "2px solid",
         borderColor: "background.paper",
         zIndex: 1,

@@ -127,7 +127,7 @@ export function Channel({ channel }: ChannelProps) {
         sx={{ pl: 2, cursor: "pointer" }}
         onClick={handleClick}
       >
-        {/* Unread dot indicator — Discord-style pill on the left */}
+        {/* Unread dot indicator — pill on the left */}
         <Box
           sx={{
             position: "absolute",
@@ -176,9 +176,9 @@ export function Channel({ channel }: ChannelProps) {
         )}
       </ChannelContainer>
 
-      {/* Discord-style voice users nested under the channel */}
+      {/* Voice users nested under the channel */}
       {channel.type === ChannelKind.VOICE && (
-        <VoiceChannelUserList channel={channel} showDiscordStyle />
+        <VoiceChannelUserList channel={channel} showCompact />
       )}
     </Box>
   );

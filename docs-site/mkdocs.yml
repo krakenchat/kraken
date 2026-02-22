@@ -1,6 +1,6 @@
 site_name: Kraken Docs
 site_url: https://docs.krakenchat.app
-site_description: Documentation for Kraken — self-hosted Discord-like voice and text chat
+site_description: Documentation for Kraken — self-hosted voice and text chat
 repo_url: https://github.com/krakenchat/kraken
 repo_name: krakenchat/kraken
 edit_uri: edit/main/docs-site/docs/

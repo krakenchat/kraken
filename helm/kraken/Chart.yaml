@@ -1,6 +1,6 @@
 apiVersion: v2
 name: kraken
-description: A Discord-like voice and text chat application with video calling support
+description: A self-hosted voice and text chat application with video calling support
 type: application
 version: 0.0.1
 appVersion: "0.0.1"
@@ -8,7 +8,7 @@ keywords:
   - chat
   - voice
   - video
-  - discord
+  - communication
   - websocket
   - livekit
 home: https://github.com/krakenchat/kraken

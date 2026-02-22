@@ -12,7 +12,7 @@ Project documentation: [docs.krakenchat.app](https://docs.krakenchat.app) (sourc
 
 ## Project Overview
 
-**Kraken** is a Discord-like voice chat application built with NestJS backend and React frontend, designed to provide feature parity with popular voice chat platforms like Discord.
+**Kraken** is a self-hosted voice and text chat application built with NestJS backend and React frontend.
 
 ### Core Concepts
 
@@ -33,7 +33,7 @@ Project documentation: [docs.krakenchat.app](https://docs.krakenchat.app) (sourc
 
 - Real-time messaging via WebSockets with file attachments
 - Voice/video calls powered by LiveKit integration
-- Community-based organization similar to Discord servers
+- Community-based organization with channels and roles
 - Role-based permissions system (RBAC)
 - Private channels and direct messaging
 - User presence and online status
@@ -43,7 +43,7 @@ Project documentation: [docs.krakenchat.app](https://docs.krakenchat.app) (sourc
 ### Voice Channel Implementation Notes
 
 - **LiveKit Integration**: Channel IDs are used as LiveKit room IDs for voice/video sessions
-- **Persistent Connections**: Voice connections should persist across page navigation (similar to Discord)
+- **Persistent Connections**: Voice connections should persist across page navigation
 - **Presence System**: Track users currently in voice channels for REST API and real-time updates
 - **Channel Types**: `VOICE` channels support both audio-only and video modes with screen sharing
 - **UI Pattern**: Bottom persistent bar when connected + video tiles overlay when video enabled
@@ -365,7 +365,7 @@ The frontend uses feature-based organization in `frontend/src/`:
 MongoDB with Prisma schema defines:
 
 - **Users**: Authentication, profiles, instance roles
-- **Communities**: Discord-like servers with channels
+- **Communities**: Servers with channels, roles, and memberships
 - **Channels**: Text/voice channels with private channel support
 - **Messages**: Rich messages with spans (mentions, formatting), attachments, reactions
 - **Memberships**: Community and channel membership tracking

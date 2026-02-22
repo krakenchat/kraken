@@ -1,7 +1,7 @@
 /**
  * MobileLayout Component
  *
- * Main mobile layout with Discord-style navigation.
+ * Main mobile layout with drawer-based navigation.
  * Uses drawer + screens pattern instead of panel stack.
  *
  * Architecture:
@@ -25,7 +25,7 @@ import { MobileScreenContainer } from './Screens/MobileScreenContainer';
 import { LAYOUT_CONSTANTS } from '../../utils/breakpoints';
 
 /**
- * Main mobile layout with Discord-style navigation
+ * Main mobile layout with drawer-based navigation
  * Drawer + Screens pattern replaces the old panel stack
  */
 export const MobileLayout: React.FC = () => {

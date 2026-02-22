@@ -10,7 +10,7 @@ import { VOLUME_STORAGE_PREFIX } from '../constants/voice';
  *
  * When isDeafened is true:
  * - Sets volume to 0 for all remote audio tracks
- * - Also mutes the user's microphone (Discord-style behavior)
+ * - Also mutes the user's microphone (standard deafen behavior)
  *
  * When isDeafened is false:
  * - Restores each participant's per-user stored volume (from localStorage)

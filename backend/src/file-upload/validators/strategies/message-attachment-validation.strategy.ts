@@ -2,7 +2,7 @@ import { IFileValidationStrategy } from './file-validation-strategy.interface';
 
 /**
  * Validation strategy for message attachments
- * Supports images, videos, documents, and audio with generous limits (Discord Nitro-style)
+ * Supports images, videos, documents, and audio with generous limits
  */
 export class MessageAttachmentValidationStrategy implements IFileValidationStrategy {
   private readonly MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB

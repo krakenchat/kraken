@@ -1,7 +1,7 @@
 /**
  * MobileBottomNavigation Component
  *
- * Discord-style bottom navigation with 4 tabs.
+ * Bottom navigation with 4 tabs.
  * Integrates with screen-based navigation for clean tab switching.
  */
 

@@ -1,7 +1,7 @@
 {
   "name": "kraken",
   "productName": "Kraken",
-  "description": "A Discord-like voice chat application",
+  "description": "Self-hosted voice and text chat",
   "main": "electron/dist/main.cjs",
   "private": true,
   "license": "AGPL-3.0-only",

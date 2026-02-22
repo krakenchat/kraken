@@ -12,7 +12,7 @@ Open [http://localhost:5173](http://localhost:5173) and create a new account. Th
 2. Enter a community name and optional description
 3. Click **Create**
 
-Your new community appears in the sidebar — similar to a Discord server.
+Your new community appears in the sidebar.
 
 ## 3. Create channels
 

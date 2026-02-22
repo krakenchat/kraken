@@ -21,7 +21,7 @@ export default defineConfig({
       manifest: {
         name: "Kraken Chat",
         short_name: "Kraken",
-        description: "A Discord-like voice chat application",
+        description: "Self-hosted voice and text chat",
         theme_color: "#1a1a2e",
         background_color: "#1a1a2e",
         display: "standalone",

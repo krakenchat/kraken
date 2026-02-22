@@ -1,6 +1,6 @@
 # Kraken Helm Chart
 
-A production-ready Helm chart for deploying Kraken - a Discord-like voice and text chat application with video calling support.
+A production-ready Helm chart for deploying Kraken - a self-hosted voice and text chat application with video calling support.
 
 ## Prerequisites
 
