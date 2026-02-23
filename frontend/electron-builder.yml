@@ -97,7 +97,6 @@ linux:
 
 # AppImage configuration
 appImage:
-  license: LICENSE.txt
   category: Network
 
 # Debian package configuration
