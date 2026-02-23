@@ -33,7 +33,6 @@ win:
     - target: nsis
       arch:
         - x64
-  artifactName: ${productName}-Setup-${version}.${ext}
   # Self-signing for now (creates temporary certificate)
   # To add proper signing, uncomment and configure:
   # certificateFile: path/to/certificate.pfx
