@@ -215,46 +215,17 @@ docker compose run --rm frontend sh -c 'OPENAPI_SPEC_PATH=/spec/openapi.json pnp
 
 The backend dir is mounted at `/spec` inside the frontend container (see `docker-compose.yml`). The generated client goes to `frontend/src/api-client/`. Always use generated SDK functions (`voicePresenceControllerJoinPresence(...)`) instead of raw `client.post()` calls.
 
-### 📹 **LiveKit Egress Storage Setup (Optional)**
+### 📹 **LiveKit (Voice/Video & Egress)**
 
-For testing replay buffer / screen recording features, you need to configure storage for egress output:
+LiveKit Server and LiveKit Egress are included in the dev Docker Compose and start automatically with `docker-compose up`. Voice/video and replay capture work out of the box — no external LiveKit server needed.
 
-**Quick Start (Local Directory):**
-```bash
-# Copy the example override file
-cp docker-compose.override.yml.example docker-compose.override.yml
-
-# Edit and uncomment the "Quick Start" section (local bind mount)
-# Then restart Docker Compose
-docker-compose down && docker-compose up
-```
-
-**Available Storage Options:**
-
-1. **Local Bind Mount** (easiest for local dev)
-   - Files stored in `./egress-output/` directory
-   - Easy to inspect/delete files directly
-   - Good for: Local testing, debugging recordings
-
-2. **NFS Mount** (production-like)
-   - Files stored on NFS server
-   - Shared storage across multiple instances
-   - Good for: Testing production scenarios, shared dev environments
-
-3. **Docker Named Volume** (default, isolated)
-   - Files managed by Docker internally
-   - Persists across container restarts
-   - Good for: Simple testing without host filesystem clutter
-
-**See `docker-compose.override.yml.example` for detailed configuration examples.**
-
-**Note:** The override file is gitignored, so your local storage config won't affect other developers.
+**Egress storage** uses a shared Docker named volume (`egress-data`) between `livekit-egress` and `backend`. To use a local bind mount or NFS instead, see `docker-compose.override.yml.example`.
 
 ### 🚨 **Important Notes**
 
 - **Never run pnpm/npm commands directly on host** - always use Docker containers
 - **Hot reload is enabled** - file changes automatically update in containers
-- **Ports**: Frontend (5173), Backend (3000), MongoDB (27017), Redis (6379)
+- **Ports**: Frontend (5173), Backend (3000), MongoDB (27017), Redis (6379), LiveKit (7880)
 - **Data persistence**: MongoDB and Redis data is persisted in Docker volumes
 
 ### 📋 **Daily Development Workflow**
@@ -283,7 +254,7 @@ docker-compose down
 
 - **Services not starting**: Try `docker-compose down` then `docker-compose build --no-cache`
 - **Database connection issues**: Ensure MongoDB container is healthy with `docker-compose ps`
-- **Port conflicts**: Check if ports 3000, 5173, 27017, 6379 are available
+- **Port conflicts**: Check if ports 3000, 5173, 27017, 6379, 7880 are available
 - **Permission issues**: Use `docker compose run --rm backend bash` to debug
 - **Fresh start**: `docker-compose down -v && docker-compose build --no-cache && docker-compose up`
 

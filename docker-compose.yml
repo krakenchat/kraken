@@ -8,6 +8,13 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+      - LIVEKIT_URL=ws://localhost:7880
+      - LIVEKIT_INTERNAL_URL=http://livekit:7880
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=secret-that-is-at-least-32-characters-long
+      - LIVEKIT_WEBHOOK_SECRET=secret-that-is-at-least-32-characters-long
+      - REPLAY_SEGMENTS_PATH=/app/storage/replay-segments
+      - REPLAY_EGRESS_OUTPUT_PATH=/out
     env_file:
       - ./backend/.env
     volumes:
@@ -16,12 +23,15 @@ services:
       - /app/node_modules
       - /app/backend/node_modules
       - /app/shared/node_modules
+      - egress-data:/app/storage/replay-segments
     working_dir: /app/backend
     depends_on:
       mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
+      livekit:
+        condition: service_started
 
   frontend:
     build:
@@ -71,8 +81,63 @@ services:
     volumes:
       - "redisdata:/data"
 
+  livekit:
+    image: livekit/livekit-server:latest
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          port_range_start: 50000
+          port_range_end: 50060
+          use_external_ip: false
+        redis:
+          address: redis:6379
+        keys:
+          devkey: secret-that-is-at-least-32-characters-long
+        webhook:
+          api_key: devkey
+          urls:
+            - http://backend:3000/api/livekit/webhook
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50060:50000-50060/udp"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  egress-init:
+    image: busybox
+    volumes:
+      - egress-data:/out
+    command: chown -R 1001:0 /out
+    restart: "no"
+
+  livekit-egress:
+    image: livekit/egress:latest
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      EGRESS_CONFIG_BODY: |
+        api_key: devkey
+        api_secret: secret-that-is-at-least-32-characters-long
+        ws_url: ws://livekit:7880
+        redis:
+          address: redis:6379
+    volumes:
+      - egress-data:/out
+    depends_on:
+      egress-init:
+        condition: service_completed_successfully
+      livekit:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
 volumes:
   pgdata:
   mongodata:
   mongodb_config:
   redisdata:
+  egress-data:
