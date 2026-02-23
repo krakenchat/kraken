@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { renderWithProviders, createChannel, resetFactoryCounter } from '../test-utils';
 import ChannelCategoryList from '../../components/Channel/ChannelCategoryList';
 import type { Channel } from '../../types/channel.type';

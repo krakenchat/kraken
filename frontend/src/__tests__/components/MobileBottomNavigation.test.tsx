@@ -48,9 +48,7 @@ describe('MobileBottomNavigation', () => {
     renderWithProviders(<MobileBottomNavigation />, { queryClient });
 
     // MUI Badge hides when badgeContent is 0 by default
-    const badges = screen.queryAllByText('0');
-    // The "0" for Messages badge may or may not be visible depending on MUI version,
-    // but the notification count should not show a visible "0" badge
+    // MUI Badge hides when badgeContent is 0 by default — just verify no "7" appears
     expect(screen.queryByText('7')).not.toBeInTheDocument();
   });
 

@@ -25,7 +25,7 @@ import { livekitControllerGetSessionInfoOptions } from '../../api-client/@tansta
 import { useServerEvent } from '../../socket-hub/useServerEvent';
 import { logger } from '../../utils/logger';
 import { useResponsive } from '../../hooks/useResponsive';
-import TrimTimeline, { formatTime } from './TrimTimeline';
+import TrimTimeline from './TrimTimeline';
 
 interface TrimPreviewProps {
   onRangeChange: (startSeconds: number, endSeconds: number) => void;

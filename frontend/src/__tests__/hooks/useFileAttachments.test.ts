@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileAttachments } from '../../components/Message/useFileAttachments';
 import { createTestQueryClient, createTestWrapper } from '../test-utils';
-import { MAX_FILE_SIZE } from '../../constants/messages';
-
 // Mock the generated query options to return a controlled maxFileSizeBytes
 const mockPublicSettings = { registrationMode: 'OPEN', maxFileSizeBytes: 500 * 1024 * 1024 }; // 500MB
 

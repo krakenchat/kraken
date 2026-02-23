@@ -141,7 +141,7 @@ describe('useScreenShare', () => {
 
   it('clears config when sharing stops', async () => {
     mockIsScreenShareEnabled = true;
-    const { result, rerender } = renderUseScreenShare();
+    const { rerender } = renderUseScreenShare();
 
     // Simulate sharing stopping
     mockIsScreenShareEnabled = false;

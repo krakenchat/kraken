@@ -16,7 +16,7 @@ import {
   handleNotificationRead,
 } from '../../../socket-hub/handlers/notificationHandlers';
 import { NotificationType } from '../../../types/notification.type';
-import type { NewNotificationPayload, NotificationReadPayload } from '@kraken/shared';
+import type { NewNotificationPayload } from '@kraken/shared';
 
 // ---------------------------------------------------------------------------
 // Helpers
