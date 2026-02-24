@@ -201,7 +201,7 @@ describe('RolesService', () => {
           isPrivate: true,
         });
 
-        mockDatabase.channelMembership.findFirst.mockResolvedValue({
+        mockDatabase.channelMembership.findUnique.mockResolvedValue({
           userId: user.id,
           channelId: channel.id,
         });
@@ -224,8 +224,10 @@ describe('RolesService', () => {
         );
 
         expect(result).toBe(true);
-        expect(mockDatabase.channelMembership.findFirst).toHaveBeenCalledWith({
-          where: { userId: user.id, channelId: channel.id },
+        expect(mockDatabase.channelMembership.findUnique).toHaveBeenCalledWith({
+          where: {
+            userId_channelId: { userId: user.id, channelId: channel.id },
+          },
         });
       });
 
@@ -239,7 +241,7 @@ describe('RolesService', () => {
           isPrivate: true,
         });
 
-        mockDatabase.channelMembership.findFirst.mockResolvedValue(null);
+        mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
 
         const result = await service.verifyActionsForUserAndResource(
           user.id,
@@ -328,7 +330,7 @@ describe('RolesService', () => {
           },
         });
 
-        mockDatabase.channelMembership.findFirst.mockResolvedValue({
+        mockDatabase.channelMembership.findUnique.mockResolvedValue({
           userId: user.id,
           channelId: channel.id,
         });
@@ -351,8 +353,10 @@ describe('RolesService', () => {
         );
 
         expect(result).toBe(true);
-        expect(mockDatabase.channelMembership.findFirst).toHaveBeenCalledWith({
-          where: { userId: user.id, channelId: channel.id },
+        expect(mockDatabase.channelMembership.findUnique).toHaveBeenCalledWith({
+          where: {
+            userId_channelId: { userId: user.id, channelId: channel.id },
+          },
         });
       });
 
@@ -374,7 +378,7 @@ describe('RolesService', () => {
           },
         });
 
-        mockDatabase.channelMembership.findFirst.mockResolvedValue(null);
+        mockDatabase.channelMembership.findUnique.mockResolvedValue(null);
 
         const result = await service.verifyActionsForUserAndResource(
           user.id,

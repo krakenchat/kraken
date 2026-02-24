@@ -100,8 +100,8 @@ export class RolesService implements OnModuleInit {
       // Private channels require explicit channel membership
       if (channel.isPrivate) {
         const channelMembership =
-          await this.databaseService.channelMembership.findFirst({
-            where: { userId, channelId: resourceId },
+          await this.databaseService.channelMembership.findUnique({
+            where: { userId_channelId: { userId, channelId: resourceId! } },
           });
 
         if (!channelMembership) {
@@ -159,8 +159,10 @@ export class RolesService implements OnModuleInit {
       // Private channels require explicit channel membership
       if (message.channel.isPrivate && message.channelId) {
         const channelMembership =
-          await this.databaseService.channelMembership.findFirst({
-            where: { userId, channelId: message.channelId },
+          await this.databaseService.channelMembership.findUnique({
+            where: {
+              userId_channelId: { userId, channelId: message.channelId },
+            },
           });
 
         if (!channelMembership) {
