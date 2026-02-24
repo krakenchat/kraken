@@ -426,7 +426,7 @@ services:
   livekit-ip-watcher:
     image: alpine:latest
     profiles: ["dynamic-ip"]
-    command: sh -c 'apk add --no-cache curl >/dev/null 2>&1 && sh /scripts/livekit-ip-watcher.sh'
+    command: sh -c 'apk add --no-cache curl && sh /scripts/livekit-ip-watcher.sh'
     environment:
       - CHECK_INTERVAL=${IP_WATCHER_CHECK_INTERVAL:-300}
       - LIVEKIT_CONTAINER=livekit
@@ -452,8 +452,7 @@ Without the `--profile dynamic-ip` flag, the watcher does not start.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `IP_WATCHER_CHECK_INTERVAL` | `300` | Seconds between IP checks (set in `.env`) |
-| `CHECK_INTERVAL` | `300` | Same as above (set directly on the service) |
-| `IP_CHECK_URLS` | `https://api.ipify.org,...` | Comma-separated external IP lookup URLs |
+| `IP_CHECK_URLS` | `https://api.ipify.org,...` | Comma-separated external IP lookup URLs (set via `docker-compose.override.yml`) |
 
 **Verify it's running:**
 
