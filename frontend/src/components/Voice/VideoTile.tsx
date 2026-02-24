@@ -71,7 +71,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
         track.detach(videoElement);
       };
     }
-  }, [videoTrack]);
+  }, [videoTrack, videoTrack?.track]);
 
   // Handle screen share track
   useEffect(() => {
@@ -88,7 +88,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
         track.detach(screenElement);
       };
     }
-  }, [screenTrack]);
+  }, [screenTrack, screenTrack?.track]);
 
   const hasVideo = videoTrack && !videoTrack.isMuted;
   const hasScreen = screenTrack && !screenTrack.isMuted;
