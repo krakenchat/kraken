@@ -59,7 +59,7 @@ export const RbacActionsValues = [
   'CREATE_CHANNEL',
   'CREATE_COMMUNITY',
   'CREATE_INVITE',
-  'CREATE_USER',
+
   'CREATE_ROLE',
   'CREATE_ALIAS_GROUP',
   'CREATE_ALIAS_GROUP_MEMBER',
@@ -79,7 +79,7 @@ export const RbacActionsValues = [
   'READ_MEMBER',
   'UPDATE_COMMUNITY',
   'UPDATE_CHANNEL',
-  'UPDATE_MESSAGE',
+
   'UPDATE_USER',
   'UPDATE_ROLE',
   'UPDATE_ALIAS_GROUP',

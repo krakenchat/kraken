@@ -1083,7 +1083,7 @@ describe('RolesService', () => {
         name: 'Moderator',
         communityId,
         isDefault: true,
-        actions: [RbacActions.CREATE_MESSAGE, RbacActions.UPDATE_MESSAGE],
+        actions: [RbacActions.CREATE_MESSAGE, RbacActions.DELETE_MESSAGE],
       });
 
       mockDatabase.role.findFirst.mockResolvedValue(modRole);

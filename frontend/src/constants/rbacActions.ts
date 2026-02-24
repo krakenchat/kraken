@@ -12,8 +12,7 @@ export type RbacResource = typeof RBAC_RESOURCES[keyof typeof RBAC_RESOURCES];
 export const RBAC_ACTIONS = {
   // Message Management
   CREATE_MESSAGE: 'CREATE_MESSAGE',
-  UPDATE_MESSAGE: 'UPDATE_MESSAGE',
-  DELETE_MESSAGE: 'DELETE_MESSAGE', 
+  DELETE_MESSAGE: 'DELETE_MESSAGE',
   READ_MESSAGE: 'READ_MESSAGE',
 
   // Channel Management
@@ -43,7 +42,6 @@ export const RBAC_ACTIONS = {
   READ_ROLE: 'READ_ROLE',
 
   // User Management
-  CREATE_USER: 'CREATE_USER',
   DELETE_USER: 'DELETE_USER',
   READ_USER: 'READ_USER',
   UPDATE_USER: 'UPDATE_USER',
@@ -91,7 +89,6 @@ export type RbacAction = typeof RBAC_ACTIONS[keyof typeof RBAC_ACTIONS];
 export const PERMISSION_GROUPS = {
   'Messages': [
     RBAC_ACTIONS.CREATE_MESSAGE,
-    RBAC_ACTIONS.UPDATE_MESSAGE,
     RBAC_ACTIONS.DELETE_MESSAGE,
     RBAC_ACTIONS.READ_MESSAGE,
   ],
@@ -121,7 +118,6 @@ export const PERMISSION_GROUPS = {
     RBAC_ACTIONS.READ_ROLE,
   ],
   'Users': [
-    RBAC_ACTIONS.CREATE_USER,
     RBAC_ACTIONS.UPDATE_USER,
     RBAC_ACTIONS.DELETE_USER,
     RBAC_ACTIONS.READ_USER,
@@ -168,7 +164,6 @@ export const PERMISSION_GROUPS = {
 export const ACTION_LABELS: Record<RbacAction, string> = {
   // Messages
   [RBAC_ACTIONS.CREATE_MESSAGE]: 'Send messages',
-  [RBAC_ACTIONS.UPDATE_MESSAGE]: 'Edit messages',
   [RBAC_ACTIONS.DELETE_MESSAGE]: 'Delete messages',
   [RBAC_ACTIONS.READ_MESSAGE]: 'Read messages',
 
@@ -198,7 +193,6 @@ export const ACTION_LABELS: Record<RbacAction, string> = {
   [RBAC_ACTIONS.READ_ROLE]: 'View roles',
 
   // Users
-  [RBAC_ACTIONS.CREATE_USER]: 'Create users',
   [RBAC_ACTIONS.UPDATE_USER]: 'Edit users',
   [RBAC_ACTIONS.DELETE_USER]: 'Delete users',
   [RBAC_ACTIONS.READ_USER]: 'View users',

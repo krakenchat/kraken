@@ -78,7 +78,7 @@ async function main() {
         RbacActions.CREATE_CHANNEL,
         RbacActions.CREATE_COMMUNITY,
         RbacActions.CREATE_INVITE,
-        RbacActions.CREATE_USER,
+
         RbacActions.CREATE_ROLE,
         RbacActions.CREATE_ALIAS_GROUP,
         RbacActions.CREATE_ALIAS_GROUP_MEMBER,
