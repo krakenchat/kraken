@@ -13,7 +13,36 @@ import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
 import * as path from 'path';
 import * as fs from 'fs';
-import { loadSettings, getSetting, setSetting, AppSettings } from './settings';
+
+// ─── App Settings (single JSON file in userData) ────────────────────────────
+
+interface AppSettings {
+  closeToTray: boolean;
+}
+
+const settingsDefaults: AppSettings = { closeToTray: true };
+
+function getSettingsPath(): string {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+function loadSettings(): AppSettings {
+  try {
+    return { ...settingsDefaults, ...JSON.parse(fs.readFileSync(getSettingsPath(), 'utf-8')) };
+  } catch {
+    return { ...settingsDefaults };
+  }
+}
+
+function getSetting<K extends keyof AppSettings>(key: K): AppSettings[K] {
+  return loadSettings()[key];
+}
+
+function setSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void {
+  const settings = loadSettings();
+  settings[key] = value;
+  fs.writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2));
+}
 
 // Enable PipeWire-based screen capture for Wayland (must be before initMain()
 // so electron-audio-loopback picks it up in its feature flag merging)
