@@ -65,6 +65,48 @@ describe('JwtStrategy', () => {
     });
   });
 
+  describe('JWT extractor precedence', () => {
+    // Access the composite extractor that passport-jwt stores internally
+    const getExtractor = (s: JwtStrategy) =>
+      (s as any)._jwtFromRequest as (req: any) => string | null;
+
+    it('should prefer query token over cookie on /file/ routes', () => {
+      const extract = getExtractor(strategy);
+      const req = {
+        headers: {},
+        path: '/file/abc123',
+        query: { token: 'query-token' },
+        cookies: { access_token: 'cookie-token' },
+      };
+
+      expect(extract(req)).toBe('query-token');
+    });
+
+    it('should fall back to cookie on non-file routes', () => {
+      const extract = getExtractor(strategy);
+      const req = {
+        headers: {},
+        path: '/user/me',
+        query: { token: 'query-token' },
+        cookies: { access_token: 'cookie-token' },
+      };
+
+      expect(extract(req)).toBe('cookie-token');
+    });
+
+    it('should prefer Authorization header over both', () => {
+      const extract = getExtractor(strategy);
+      const req = {
+        headers: { authorization: 'Bearer header-token' },
+        path: '/file/abc123',
+        query: { token: 'query-token' },
+        cookies: { access_token: 'cookie-token' },
+      };
+
+      expect(extract(req)).toBe('header-token');
+    });
+  });
+
   describe('validate', () => {
     it('should validate JWT payload and return user', async () => {
       const payload = {

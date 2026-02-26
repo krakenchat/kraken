@@ -9,7 +9,6 @@ import { ServerEvents } from '@kraken/shared';
 import { EgressStatus } from 'livekit-server-sdk';
 import { ThumbnailService } from '@/file/thumbnail.service';
 import { FfmpegService } from './ffmpeg.service';
-import { MessagesService } from '@/messages/messages.service';
 import { EGRESS_CLIENT } from './providers/egress-client.provider';
 import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
@@ -49,8 +48,6 @@ describe('LivekitReplayService', () => {
   let thumbnailService: any;
 
   let ffmpegService: any;
-
-  let messagesService: any;
 
   const mockEgressClient = {
     startTrackCompositeEgress: jest.fn(),
@@ -94,7 +91,6 @@ describe('LivekitReplayService', () => {
 
     thumbnailService = unitRef.get(ThumbnailService);
     ffmpegService = unitRef.get(FfmpegService);
-    messagesService = unitRef.get(MessagesService);
 
     // Set up default return values for StorageService
     storageService.getSegmentsPrefix.mockReturnValue(
