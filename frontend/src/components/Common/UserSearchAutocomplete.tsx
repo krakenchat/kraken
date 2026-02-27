@@ -65,7 +65,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
   getOptionDisabled,
 }) => {
   const [inputValue, setInputValue] = useState("");
-  const debouncedQuery = useDebounce(inputValue, 300);
+  const debouncedQuery = useDebounce(inputValue.trim(), 300);
 
   const { data: usersData, isLoading } = useQuery({
     ...userControllerSearchUsersOptions({ query: { q: debouncedQuery, limit: 100 } }),

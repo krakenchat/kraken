@@ -329,6 +329,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                     {isConnectedToThisChannel ? (
                       <IconButton
                         size="small"
+                        aria-label="View camera"
                         onClick={(e) => {
                           e.stopPropagation();
                           voiceActions.setShowVideoTiles(true);
@@ -349,6 +350,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                     {isConnectedToThisChannel ? (
                       <IconButton
                         size="small"
+                        aria-label="View screen share"
                         onClick={(e) => {
                           e.stopPropagation();
                           voiceActions.setShowVideoTiles(true);
