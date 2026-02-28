@@ -4,7 +4,6 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../msw/server';
 import { renderWithProviders, createUser, createFriendship } from '../test-utils';
 import AddFriendDialog from '../../components/Friends/AddFriendDialog';
-import type { default as userEvent } from '@testing-library/user-event';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
   const { createClient, createConfig } = await import('../../api-client/client');
@@ -16,6 +15,54 @@ vi.mock('../../api-client/client.gen', async (importOriginal) => {
 
 vi.mock('../../components/Common/UserAvatar', () => ({
   default: ({ user }: { user: { username?: string } }) => <div data-testid="user-avatar">{user?.username}</div>,
+}));
+
+// Hoisted so the vi.mock factory can reference it
+const { mockSearchUsers } = vi.hoisted(() => ({
+  mockSearchUsers: [] as Array<{
+    id: string;
+    username: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  }>,
+}));
+
+// Deterministic mock — renders options immediately, no debounce/fetch/portals
+vi.mock('../../components/Common/UserSearchAutocomplete', () => ({
+  default: ({
+    onChange,
+    label,
+    getOptionDisabled,
+    renderOptionExtra,
+  }: {
+    onChange: (value: unknown) => void;
+    label: string;
+    getOptionDisabled?: (user: Record<string, unknown>) => boolean;
+    renderOptionExtra?: (user: Record<string, unknown>) => React.ReactNode;
+    [key: string]: unknown;
+  }) => (
+    <div>
+      <label>{label}</label>
+      <ul role="listbox">
+        {mockSearchUsers.map((user) => {
+          const disabled = getOptionDisabled?.(user as unknown as Record<string, unknown>) ?? false;
+          return (
+            <li
+              key={user.id}
+              aria-disabled={disabled || undefined}
+              onClick={() => {
+                if (!disabled) onChange(user);
+              }}
+            >
+              <span>{user.displayName || user.username}</span>
+              <span>@{user.username}</span>
+              {renderOptionExtra?.(user as unknown as Record<string, unknown>)}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  ),
 }));
 
 const BASE_URL = 'http://localhost:3000';
@@ -30,14 +77,10 @@ function setupHandlers({
   friends = [] as ReturnType<typeof createUser>[],
   pendingSent = [] as ReturnType<typeof createFriendship>[],
   pendingReceived = [] as ReturnType<typeof createFriendship>[],
-  users = [friendUser, sentRequestUser, receivedRequestUser, normalUser],
 } = {}) {
   server.use(
     http.get(`${BASE_URL}/api/users/profile`, () =>
       HttpResponse.json(currentUser),
-    ),
-    http.get(`${BASE_URL}/api/users/search`, () =>
-      HttpResponse.json([currentUser, ...users]),
     ),
     http.get(`${BASE_URL}/api/friends`, () =>
       HttpResponse.json(friends),
@@ -49,29 +92,6 @@ function setupHandlers({
       HttpResponse.json({ id: 'new-friendship', status: 'PENDING' }),
     ),
   );
-}
-
-/** Type a search query and wait for debounced results to appear in the listbox */
-async function typeAndWaitForResults(user: ReturnType<typeof userEvent.setup>, query: string) {
-  const input = screen.getByLabelText('Search for a user');
-  await user.click(input);
-  await user.type(input, query);
-  // Wait for debounce + query to resolve — options must be rendered in the listbox
-  await waitFor(() => {
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(screen.getByRole('listbox').children.length).toBeGreaterThan(0);
-  }, { timeout: 5000 });
-}
-
-/** Select a user from the search results and wait for the button to become enabled */
-async function selectUserAndWaitForButton(user: ReturnType<typeof userEvent.setup>, displayName: string) {
-  // Click the <li role="option"> directly — clicking inner text nodes doesn't
-  // reliably trigger MUI Autocomplete's selection handler in CI.
-  const option = await screen.findByRole('option', { name: new RegExp(displayName) });
-  await user.click(option);
-  await waitFor(() => {
-    expect(screen.getByRole('button', { name: /send friend request/i })).toBeEnabled();
-  }, { timeout: 5000 });
 }
 
 const defaultProps = {
@@ -86,24 +106,25 @@ afterEach(() => server.resetHandlers());
 describe('AddFriendDialog', () => {
   beforeEach(() => {
     defaultProps.onClose = vi.fn();
+    mockSearchUsers.length = 0;
+    mockSearchUsers.push(friendUser, sentRequestUser, receivedRequestUser, normalUser);
   });
 
-  it('shows "Friends" chip for accepted friends and disables the option', { timeout: 10000 }, async () => {
-    setupHandlers({
-      friends: [friendUser],
-    });
+  it('shows "Friends" chip for accepted friends and disables the option', async () => {
+    setupHandlers({ friends: [friendUser] });
 
-    const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
+    renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'friend');
-
-    const friendOption = await screen.findByText('Friend User');
+    const friendOption = screen.getByText('Friend User');
     const listItem = friendOption.closest('li')!;
-    expect(within(listItem).getByText('Friends')).toBeInTheDocument();
-    expect(listItem).toHaveAttribute('aria-disabled', 'true');
+
+    await waitFor(() => {
+      expect(within(listItem).getByText('Friends')).toBeInTheDocument();
+      expect(listItem).toHaveAttribute('aria-disabled', 'true');
+    });
   });
 
-  it('shows "Request Sent" chip for outgoing pending requests and disables the option', { timeout: 10000 }, async () => {
+  it('shows "Request Sent" chip for outgoing pending requests and disables the option', async () => {
     const sentFriendship = createFriendship({
       userA: currentUser,
       userAId: currentUser.id,
@@ -112,21 +133,20 @@ describe('AddFriendDialog', () => {
       status: 'PENDING',
     });
 
-    setupHandlers({
-      pendingSent: [sentFriendship],
-    });
+    setupHandlers({ pendingSent: [sentFriendship] });
 
-    const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
+    renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'sent');
-
-    const sentOption = await screen.findByText('Sent User');
+    const sentOption = screen.getByText('Sent User');
     const listItem = sentOption.closest('li')!;
-    expect(within(listItem).getByText('Request Sent')).toBeInTheDocument();
-    expect(listItem).toHaveAttribute('aria-disabled', 'true');
+
+    await waitFor(() => {
+      expect(within(listItem).getByText('Request Sent')).toBeInTheDocument();
+      expect(listItem).toHaveAttribute('aria-disabled', 'true');
+    });
   });
 
-  it('shows "Request Received" chip for incoming pending requests and disables the option', { timeout: 10000 }, async () => {
+  it('shows "Request Received" chip for incoming pending requests and disables the option', async () => {
     const receivedFriendship = createFriendship({
       userA: receivedRequestUser,
       userAId: receivedRequestUser.id,
@@ -135,35 +155,35 @@ describe('AddFriendDialog', () => {
       status: 'PENDING',
     });
 
-    setupHandlers({
-      pendingReceived: [receivedFriendship],
-    });
+    setupHandlers({ pendingReceived: [receivedFriendship] });
 
-    const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
+    renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'received');
-
-    const receivedOption = await screen.findByText('Received User');
+    const receivedOption = screen.getByText('Received User');
     const listItem = receivedOption.closest('li')!;
-    expect(within(listItem).getByText('Request Received')).toBeInTheDocument();
-    expect(listItem).toHaveAttribute('aria-disabled', 'true');
+
+    await waitFor(() => {
+      expect(within(listItem).getByText('Request Received')).toBeInTheDocument();
+      expect(listItem).toHaveAttribute('aria-disabled', 'true');
+    });
   });
 
   it('shows no chip for normal users and allows selection', async () => {
     setupHandlers();
 
-    const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
+    renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'normal');
-
-    const normalOption = await screen.findByText('Normal User');
+    const normalOption = screen.getByText('Normal User');
     const listItem = normalOption.closest('li')!;
-    expect(within(listItem).queryByRole('status')).not.toBeInTheDocument();
+
+    expect(within(listItem).queryByText('Friends')).not.toBeInTheDocument();
+    expect(within(listItem).queryByText('Request Sent')).not.toBeInTheDocument();
+    expect(within(listItem).queryByText('Request Received')).not.toBeInTheDocument();
     expect(listItem).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('shows friendly message on 409 "Already friends" error and invalidates caches', { timeout: 10000 }, async () => {
-    setupHandlers({ users: [normalUser] });
+  it('shows friendly message on 409 "Already friends" error', async () => {
+    setupHandlers();
     server.use(
       http.post(`${BASE_URL}/api/friends/request/:userId`, () =>
         HttpResponse.json(
@@ -175,8 +195,7 @@ describe('AddFriendDialog', () => {
 
     const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'normal');
-    await selectUserAndWaitForButton(user, 'Normal User');
+    await user.click(screen.getByText('Normal User').closest('li')!);
 
     await user.click(screen.getByRole('button', { name: /send friend request/i }));
 
@@ -187,8 +206,8 @@ describe('AddFriendDialog', () => {
     });
   });
 
-  it('shows friendly message on 409 "Friend request already sent" error', { timeout: 10000 }, async () => {
-    setupHandlers({ users: [normalUser] });
+  it('shows friendly message on 409 "Friend request already sent" error', async () => {
+    setupHandlers();
     server.use(
       http.post(`${BASE_URL}/api/friends/request/:userId`, () =>
         HttpResponse.json(
@@ -200,8 +219,7 @@ describe('AddFriendDialog', () => {
 
     const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'normal');
-    await selectUserAndWaitForButton(user, 'Normal User');
+    await user.click(screen.getByText('Normal User').closest('li')!);
 
     await user.click(screen.getByRole('button', { name: /send friend request/i }));
 
@@ -212,8 +230,8 @@ describe('AddFriendDialog', () => {
     });
   });
 
-  it('shows backend message for non-409 errors', { timeout: 10000 }, async () => {
-    setupHandlers({ users: [normalUser] });
+  it('shows backend message for non-409 errors', async () => {
+    setupHandlers();
     server.use(
       http.post(`${BASE_URL}/api/friends/request/:userId`, () =>
         HttpResponse.json(
@@ -225,8 +243,7 @@ describe('AddFriendDialog', () => {
 
     const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'normal');
-    await selectUserAndWaitForButton(user, 'Normal User');
+    await user.click(screen.getByText('Normal User').closest('li')!);
 
     await user.click(screen.getByRole('button', { name: /send friend request/i }));
 
@@ -235,13 +252,12 @@ describe('AddFriendDialog', () => {
     });
   });
 
-  it('shows success message and clears selection on successful request', { timeout: 10000 }, async () => {
-    setupHandlers({ users: [normalUser] });
+  it('shows success message and clears selection on successful request', async () => {
+    setupHandlers();
 
     const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
-    await typeAndWaitForResults(user, 'normal');
-    await selectUserAndWaitForButton(user, 'Normal User');
+    await user.click(screen.getByText('Normal User').closest('li')!);
 
     await user.click(screen.getByRole('button', { name: /send friend request/i }));
 
@@ -251,7 +267,7 @@ describe('AddFriendDialog', () => {
   });
 
   it('resets state when dialog is closed', async () => {
-    setupHandlers({ users: [normalUser] });
+    setupHandlers();
 
     const { user } = renderWithProviders(<AddFriendDialog {...defaultProps} />);
 
