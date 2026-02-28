@@ -51,24 +51,27 @@ function setupHandlers({
   );
 }
 
-/** Type a search query and wait for debounced results to appear */
+/** Type a search query and wait for debounced results to appear in the listbox */
 async function typeAndWaitForResults(user: ReturnType<typeof userEvent.setup>, query: string) {
   const input = screen.getByLabelText('Search for a user');
   await user.click(input);
   await user.type(input, query);
+  // Wait for debounce + query to resolve — options must be rendered in the listbox
   await waitFor(() => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-  }, { timeout: 3000 });
+    expect(screen.getByRole('listbox').children.length).toBeGreaterThan(0);
+  }, { timeout: 5000 });
 }
 
 /** Select a user from the search results and wait for the button to become enabled */
 async function selectUserAndWaitForButton(user: ReturnType<typeof userEvent.setup>, displayName: string) {
-  const option = await screen.findByText(displayName);
+  // Click the <li role="option"> directly — clicking inner text nodes doesn't
+  // reliably trigger MUI Autocomplete's selection handler in CI.
+  const option = await screen.findByRole('option', { name: new RegExp(displayName) });
   await user.click(option);
-  // Wait for the selection to be committed and button to become enabled
   await waitFor(() => {
     expect(screen.getByRole('button', { name: /send friend request/i })).toBeEnabled();
-  }, { timeout: 2000 });
+  }, { timeout: 5000 });
 }
 
 const defaultProps = {
