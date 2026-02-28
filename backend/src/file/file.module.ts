@@ -13,7 +13,7 @@ import {
   CommunityMembershipStrategy,
   MessageAttachmentStrategy,
 } from '@/file/file-access/strategies';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '@/auth/optional-jwt-auth.guard';
 
 @Module({
   controllers: [FileController],
@@ -21,7 +21,7 @@ import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
     FileService,
     SignedUrlService,
     FileAuthGuard,
-    JwtAuthGuard,
+    OptionalJwtAuthGuard,
     FileAccessGuard,
     PublicAccessStrategy,
     CommunityMembershipStrategy,

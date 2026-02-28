@@ -1,7 +1,6 @@
 import { FileAuthGuard } from './file-auth.guard';
 import { SignedUrlService } from './signed-url.service';
 import { DatabaseService } from '@/database/database.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { createMockDatabase } from '@/test-utils';
 
@@ -9,13 +8,16 @@ describe('FileAuthGuard', () => {
   let guard: FileAuthGuard;
   let signedUrlService: { sign: jest.Mock; verify: jest.Mock; generateSignedUrl: jest.Mock };
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let jwtAuthGuard: { canActivate: jest.Mock };
 
   const createContext = (
     query: Record<string, string> = {},
     params: Record<string, string> = {},
+    user?: Record<string, unknown>,
   ): ExecutionContext => {
-    const req = { query, params };
+    const req: Record<string, unknown> = { query, params };
+    if (user) {
+      req.user = user;
+    }
     return {
       switchToHttp: () => ({
         getRequest: () => req,
@@ -44,14 +46,9 @@ describe('FileAuthGuard', () => {
 
     mockDatabase = createMockDatabase();
 
-    jwtAuthGuard = {
-      canActivate: jest.fn().mockResolvedValue(true),
-    };
-
     guard = new FileAuthGuard(
       signedUrlService as unknown as SignedUrlService,
       mockDatabase as unknown as DatabaseService,
-      jwtAuthGuard as unknown as JwtAuthGuard,
     );
   });
 
@@ -178,45 +175,44 @@ describe('FileAuthGuard', () => {
     });
   });
 
-  describe('JWT fallback path', () => {
-    it('should delegate to JwtAuthGuard when no signed URL params', async () => {
-      const ctx = createContext({}, { id: 'file-1' });
+  describe('pre-authenticated path (req.user set by upstream guard)', () => {
+    it('should pass through when req.user is already set', async () => {
+      const user = { id: 'user-1', username: 'test' };
+      const ctx = createContext({}, { id: 'file-1' }, user);
 
       const result = await guard.canActivate(ctx);
 
       expect(result).toBe(true);
-      expect(jwtAuthGuard.canActivate).toHaveBeenCalledWith(ctx);
       expect(signedUrlService.verify).not.toHaveBeenCalled();
     });
 
-    it('should delegate to JwtAuthGuard when only some params are present (sig only)', async () => {
-      const ctx = createContext({ sig: 'abc' }, { id: 'file-1' });
-
-      await guard.canActivate(ctx);
-
-      expect(jwtAuthGuard.canActivate).toHaveBeenCalledWith(ctx);
-      expect(signedUrlService.verify).not.toHaveBeenCalled();
-    });
-
-    it('should delegate to JwtAuthGuard when only some params are present (sig + exp)', async () => {
-      const ctx = createContext({ sig: 'abc', exp: '123' }, { id: 'file-1' });
-
-      await guard.canActivate(ctx);
-
-      expect(jwtAuthGuard.canActivate).toHaveBeenCalledWith(ctx);
-      expect(signedUrlService.verify).not.toHaveBeenCalled();
-    });
-
-    it('should propagate JwtAuthGuard rejection', async () => {
-      jwtAuthGuard.canActivate.mockRejectedValue(
-        new UnauthorizedException('No JWT'),
-      );
-
+    it('should throw UnauthorizedException when no authentication provided', async () => {
       const ctx = createContext({}, { id: 'file-1' });
 
       await expect(guard.canActivate(ctx)).rejects.toThrow(
         UnauthorizedException,
       );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Authentication required',
+      );
+    });
+
+    it('should throw UnauthorizedException with partial signed URL params (sig only)', async () => {
+      const ctx = createContext({ sig: 'abc' }, { id: 'file-1' });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(signedUrlService.verify).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException with partial signed URL params (sig + exp)', async () => {
+      const ctx = createContext({ sig: 'abc', exp: '123' }, { id: 'file-1' });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(signedUrlService.verify).not.toHaveBeenCalled();
     });
   });
 });
