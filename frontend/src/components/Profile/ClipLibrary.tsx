@@ -33,7 +33,8 @@ import {
 import type { ClipResponseDto as ClipResponse } from '../../api-client/types.gen';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
-import { getAuthToken, getAuthenticatedUrl } from '../../utils/auth';
+import { getAccessToken } from '../../utils/tokenService';
+import { useVideoUrl } from '../../hooks/useVideoUrl';
 import { formatFileSize } from '../../utils/format';
 import { logger } from '../../utils/logger';
 import ConfirmDialog from '../Common/ConfirmDialog';
@@ -102,10 +103,11 @@ const ClipCard: React.FC<{
   onShare: (clipId: string) => void;
   onDelete: (clipId: string) => void;
 }> = memo(({ clip, isOwnProfile, isDownloading, onTogglePublic, onDownload, onShare, onDelete }) => {
+  const { url: videoUrl } = useVideoUrl(clip.fileId ?? null);
 
   return (
     <Card>
-      {/* Video Player - uses cookie-based auth for native browser video */}
+      {/* Video Player - web uses cookie auth, Electron uses signed URLs */}
       <Box
         sx={{
           position: 'relative',
@@ -119,8 +121,8 @@ const ClipCard: React.FC<{
           preload="metadata"
           crossOrigin="use-credentials"
           aria-label={`Video clip: ${clip.filename}`}
+          src={videoUrl ?? undefined}
         >
-          <source src={getAuthenticatedUrl(getApiUrl(clip.downloadUrl))} type="video/mp4" />
           Your browser does not support video playback.
         </video>
       </Box>
@@ -286,7 +288,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
   }, [isDeleting]);
 
   const handleDownload = useCallback(async (clip: ClipResponse) => {
-    const token = getAuthToken();
+    const token = getAccessToken();
     if (!token) {
       showNotification('Not authenticated', 'error');
       return;
