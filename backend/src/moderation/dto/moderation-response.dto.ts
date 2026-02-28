@@ -1,4 +1,9 @@
-import { FileType, ModerationAction, Prisma, InstanceRole } from '@prisma/client';
+import {
+  FileType,
+  ModerationAction,
+  Prisma,
+  InstanceRole,
+} from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   FileTypeValues,

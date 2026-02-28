@@ -631,8 +631,18 @@ describe('ModerationService', () => {
   describe('getModerationLogs', () => {
     it('should return logs with total count', async () => {
       const logs = [
-        { id: 'log-1', action: ModerationAction.BAN_USER, moderatorId: 'mod-1', targetUserId: null },
-        { id: 'log-2', action: ModerationAction.KICK_USER, moderatorId: 'mod-1', targetUserId: null },
+        {
+          id: 'log-1',
+          action: ModerationAction.BAN_USER,
+          moderatorId: 'mod-1',
+          targetUserId: null,
+        },
+        {
+          id: 'log-2',
+          action: ModerationAction.KICK_USER,
+          moderatorId: 'mod-1',
+          targetUserId: null,
+        },
       ];
       mockDatabase.moderationLog.findMany.mockResolvedValue(logs as any);
       mockDatabase.moderationLog.count.mockResolvedValue(2);

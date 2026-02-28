@@ -18,8 +18,7 @@ export class RedisIoAdapter extends IoAdapter {
   async connectToRedis(): Promise<void> {
     const redisHost =
       this.configService.get<string>('REDIS_HOST') || 'localhost';
-    const redisPort =
-      this.configService.get<string>('REDIS_PORT') || '6379';
+    const redisPort = this.configService.get<string>('REDIS_PORT') || '6379';
     const redisPassword = this.configService.get<string>('REDIS_PASSWORD');
 
     this.logger.log(
@@ -61,7 +60,7 @@ export class RedisIoAdapter extends IoAdapter {
     // Socket.IO Redis adapter types are incomplete — the adapter constructor
     // returns a type incompatible with the Server.adapter() signature, but
     // this is the documented usage pattern from @socket.io/redis-adapter.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const server = super.createIOServer(port, options);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     server.adapter(this.adapterConstructor);

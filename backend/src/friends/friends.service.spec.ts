@@ -329,9 +329,9 @@ describe('FriendsService', () => {
         status: FriendshipStatus.ACCEPTED,
       });
 
-      await expect(
-        service.removeFriend(userId, friendshipId),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.removeFriend(userId, friendshipId)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw ConflictException when not accepted', async () => {
@@ -342,9 +342,9 @@ describe('FriendsService', () => {
         status: FriendshipStatus.PENDING,
       });
 
-      await expect(
-        service.removeFriend(userId, friendshipId),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.removeFriend(userId, friendshipId)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 

@@ -14,9 +14,8 @@ describe('ModerationController', () => {
   const targetUserId = 'target-user-456';
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      ModerationController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(ModerationController).compile();
 
     controller = unit;
     moderationService = unitRef.get(ModerationService);

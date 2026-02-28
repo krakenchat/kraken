@@ -101,7 +101,7 @@ export class RolesService implements OnModuleInit {
       if (channel.isPrivate) {
         const channelMembership =
           await this.databaseService.channelMembership.findUnique({
-            where: { userId_channelId: { userId, channelId: resourceId! } },
+            where: { userId_channelId: { userId, channelId: resourceId } },
           });
 
         if (!channelMembership) {

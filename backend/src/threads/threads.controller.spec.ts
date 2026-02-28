@@ -11,9 +11,8 @@ describe('ThreadsController', () => {
   const mockReq = { user: { id: userId } } as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      ThreadsController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(ThreadsController).compile();
 
     controller = unit;
     threadsService = unitRef.get(ThreadsService);
@@ -64,9 +63,11 @@ describe('ThreadsController', () => {
       const result = await controller.getReplies(parentMessageId, 50);
 
       expect(result).toEqual(mockResponse);
-      expect(
-        threadsService.getThreadRepliesWithMetadata,
-      ).toHaveBeenCalledWith(parentMessageId, 50, undefined);
+      expect(threadsService.getThreadRepliesWithMetadata).toHaveBeenCalledWith(
+        parentMessageId,
+        50,
+        undefined,
+      );
     });
 
     it('should pass continuation token', async () => {
@@ -80,9 +81,11 @@ describe('ThreadsController', () => {
 
       await controller.getReplies(parentMessageId, 20, token);
 
-      expect(
-        threadsService.getThreadRepliesWithMetadata,
-      ).toHaveBeenCalledWith(parentMessageId, 20, token);
+      expect(threadsService.getThreadRepliesWithMetadata).toHaveBeenCalledWith(
+        parentMessageId,
+        20,
+        token,
+      );
     });
   });
 

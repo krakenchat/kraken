@@ -165,7 +165,11 @@ export class UserController {
       role: query.role,
       search: query.search,
     };
-    return this.userService.findAllAdmin(limit, query.continuationToken, filters);
+    return this.userService.findAllAdmin(
+      limit,
+      query.continuationToken,
+      filters,
+    );
   }
 
   /**

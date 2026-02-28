@@ -264,9 +264,9 @@ describe('NotificationsController', () => {
     });
 
     it('should throw ForbiddenException for non-owner', async () => {
-      await expect(
-        controller.getDebugSubscriptions(mockReq),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(controller.getDebugSubscriptions(mockReq)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 

@@ -28,7 +28,8 @@ describe('ReadReceiptsGateway', () => {
     }) as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(ReadReceiptsGateway).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(ReadReceiptsGateway).compile();
 
     gateway = unit;
     readReceiptsService = unitRef.get(ReadReceiptsService);
@@ -65,23 +66,26 @@ describe('ReadReceiptsGateway', () => {
         lastReadMessageId: 'msg-5',
         lastReadAt: '2024-06-01T00:00:00Z',
       });
-      notificationsService.markContextNotificationsAsRead = jest.fn().mockResolvedValue(undefined);
+      notificationsService.markContextNotificationsAsRead = jest
+        .fn()
+        .mockResolvedValue(undefined);
     });
 
     it('calls readReceiptsService.markAsRead with the correct userId and payload', async () => {
       await gateway.handleMarkAsRead(channelPayload as any, makeClient());
 
-      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith('user-1', channelPayload);
+      expect(readReceiptsService.markAsRead).toHaveBeenCalledWith(
+        'user-1',
+        channelPayload,
+      );
     });
 
     it('calls notificationsService.markContextNotificationsAsRead for the context', async () => {
       await gateway.handleMarkAsRead(channelPayload as any, makeClient());
 
-      expect(notificationsService.markContextNotificationsAsRead).toHaveBeenCalledWith(
-        'user-1',
-        'ch-1',
-        null,
-      );
+      expect(
+        notificationsService.markContextNotificationsAsRead,
+      ).toHaveBeenCalledWith('user-1', 'ch-1', null);
     });
 
     it('emits READ_RECEIPT_UPDATED to user room', async () => {
@@ -147,7 +151,9 @@ describe('ReadReceiptsGateway', () => {
     });
 
     it('wraps unknown errors in a generic WsException message', async () => {
-      readReceiptsService.markAsRead = jest.fn().mockRejectedValue('unexpected');
+      readReceiptsService.markAsRead = jest
+        .fn()
+        .mockRejectedValue('unexpected');
 
       await expect(
         gateway.handleMarkAsRead(channelPayload as any, makeClient()),
@@ -164,11 +170,9 @@ describe('ReadReceiptsGateway', () => {
 
       await gateway.handleMarkAsRead(dmPayload as any, makeClient());
 
-      expect(notificationsService.markContextNotificationsAsRead).toHaveBeenCalledWith(
-        'user-1',
-        null,
-        'dm-1',
-      );
+      expect(
+        notificationsService.markContextNotificationsAsRead,
+      ).toHaveBeenCalledWith('user-1', null, 'dm-1');
     });
   });
 
@@ -178,11 +182,15 @@ describe('ReadReceiptsGateway', () => {
     });
 
     it('handleConnection should not throw', () => {
-      expect(() => gateway.handleConnection({ id: 'test' } as any)).not.toThrow();
+      expect(() =>
+        gateway.handleConnection({ id: 'test' } as any),
+      ).not.toThrow();
     });
 
     it('handleDisconnect should not throw', () => {
-      expect(() => gateway.handleDisconnect({ id: 'test' } as any)).not.toThrow();
+      expect(() =>
+        gateway.handleDisconnect({ id: 'test' } as any),
+      ).not.toThrow();
     });
   });
 });

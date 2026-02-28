@@ -12,9 +12,8 @@ describe('FriendsController', () => {
   const mockReq = { user: { id: userId } } as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      FriendsController,
-    ).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(FriendsController).compile();
 
     controller = unit;
     friendsService = unitRef.get(FriendsService);

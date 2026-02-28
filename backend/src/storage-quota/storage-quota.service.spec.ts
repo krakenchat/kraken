@@ -295,8 +295,14 @@ describe('StorageQuotaService', () => {
         { resourceType: 'AVATAR', _sum: { size: 200000 }, _count: 10 },
       ]);
       mockDatabase.user.findMany.mockResolvedValue([
-        { storageQuotaBytes: BigInt(1000000), storageUsedBytes: BigInt(100000) },
-        { storageQuotaBytes: BigInt(1000000), storageUsedBytes: BigInt(500000) },
+        {
+          storageQuotaBytes: BigInt(1000000),
+          storageUsedBytes: BigInt(100000),
+        },
+        {
+          storageQuotaBytes: BigInt(1000000),
+          storageUsedBytes: BigInt(500000),
+        },
       ]);
 
       const result = await service.getInstanceStorageStats();
@@ -352,9 +358,7 @@ describe('StorageQuotaService', () => {
       mockDatabase.user.findUnique.mockResolvedValue(user);
 
       // Should not throw despite first user failing
-      await expect(
-        service.recalculateAllUsersStorage(),
-      ).resolves.not.toThrow();
+      await expect(service.recalculateAllUsersStorage()).resolves.not.toThrow();
     });
   });
 

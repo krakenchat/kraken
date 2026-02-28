@@ -211,9 +211,9 @@ describe('ThreadsService', () => {
       });
       mockDatabase.message.findUnique.mockResolvedValue(nestedParent);
 
-      await expect(
-        service.createThreadReply(dto, authorId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createThreadReply(dto, authorId)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -222,7 +222,9 @@ describe('ThreadsService', () => {
 
     it('should return paginated replies', async () => {
       const replies = MessageFactory.buildMany(3, { parentMessageId });
-      mockDatabase.message.findUnique.mockResolvedValue({ id: parentMessageId });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        id: parentMessageId,
+      });
       mockDatabase.message.findMany.mockResolvedValue(replies);
 
       const result = await service.getThreadReplies(parentMessageId, 50);
@@ -233,7 +235,9 @@ describe('ThreadsService', () => {
 
     it('should return continuation token when results equal limit', async () => {
       const replies = MessageFactory.buildMany(2, { parentMessageId });
-      mockDatabase.message.findUnique.mockResolvedValue({ id: parentMessageId });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        id: parentMessageId,
+      });
       mockDatabase.message.findMany.mockResolvedValue(replies);
 
       const result = await service.getThreadReplies(parentMessageId, 2);
@@ -243,7 +247,9 @@ describe('ThreadsService', () => {
 
     it('should use cursor when continuation token provided', async () => {
       const token = 'cursor-id-123';
-      mockDatabase.message.findUnique.mockResolvedValue({ id: parentMessageId });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        id: parentMessageId,
+      });
       mockDatabase.message.findMany.mockResolvedValue([]);
 
       await service.getThreadReplies(parentMessageId, 50, token);
@@ -259,9 +265,9 @@ describe('ThreadsService', () => {
     it('should throw NotFoundException when parent not found', async () => {
       mockDatabase.message.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.getThreadReplies('nonexistent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getThreadReplies('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -283,11 +289,14 @@ describe('ThreadsService', () => {
         thumbnailPath: '/thumbnails/test.png',
       });
 
-      mockDatabase.message.findUnique.mockResolvedValue({ id: parentMessageId });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        id: parentMessageId,
+      });
       mockDatabase.message.findMany.mockResolvedValue([reply]);
       mockDatabase.file.findMany.mockResolvedValue([file]);
 
-      const result = await service.getThreadRepliesWithMetadata(parentMessageId);
+      const result =
+        await service.getThreadRepliesWithMetadata(parentMessageId);
 
       expect(result.replies).toHaveLength(1);
       expect(result.replies[0].attachments).toEqual([
@@ -310,11 +319,14 @@ describe('ThreadsService', () => {
         thumbnailPath: null,
       });
 
-      mockDatabase.message.findUnique.mockResolvedValue({ id: parentMessageId });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        id: parentMessageId,
+      });
       mockDatabase.message.findMany.mockResolvedValue([reply]);
       mockDatabase.file.findMany.mockResolvedValue([fileNoThumb]);
 
-      const result = await service.getThreadRepliesWithMetadata(parentMessageId);
+      const result =
+        await service.getThreadRepliesWithMetadata(parentMessageId);
 
       expect(result.replies[0].attachments[0].hasThumbnail).toBe(false);
     });
@@ -325,7 +337,9 @@ describe('ThreadsService', () => {
         attachments: [],
       });
 
-      mockDatabase.message.findUnique.mockResolvedValue({ id: parentMessageId });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        id: parentMessageId,
+      });
       mockDatabase.message.findMany.mockResolvedValue([reply]);
 
       await service.getThreadRepliesWithMetadata(parentMessageId);
@@ -479,9 +493,9 @@ describe('ThreadsService', () => {
     it('should throw NotFoundException when message not found', async () => {
       mockDatabase.message.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.getThreadMetadata('nonexistent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getThreadMetadata('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

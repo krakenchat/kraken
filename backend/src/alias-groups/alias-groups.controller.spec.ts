@@ -37,7 +37,9 @@ describe('AliasGroupsController', () => {
 
   describe('getCommunityAliasGroups', () => {
     it('passes communityId to the service', async () => {
-      service.getCommunityAliasGroups = jest.fn().mockResolvedValue([mockGroup]);
+      service.getCommunityAliasGroups = jest
+        .fn()
+        .mockResolvedValue([mockGroup]);
 
       const result = await controller.getCommunityAliasGroups('comm-1');
 
@@ -71,7 +73,9 @@ describe('AliasGroupsController', () => {
 
   describe('updateAliasGroup', () => {
     it('passes groupId and dto to the service', async () => {
-      service.updateAliasGroup = jest.fn().mockResolvedValue({ ...mockGroup, name: 'Mods' });
+      service.updateAliasGroup = jest
+        .fn()
+        .mockResolvedValue({ ...mockGroup, name: 'Mods' });
       const dto = { name: 'Mods' };
 
       const result = await controller.updateAliasGroup('group-1', dto as any);

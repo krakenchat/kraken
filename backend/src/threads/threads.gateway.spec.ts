@@ -22,7 +22,16 @@ describe('ThreadsGateway', () => {
 
   const basePayload = {
     parentMessageId: 'parent-msg-1',
-    spans: [{ type: 'PLAINTEXT', text: 'hello', userId: null, specialKind: null, communityId: null, aliasId: null }],
+    spans: [
+      {
+        type: 'PLAINTEXT',
+        text: 'hello',
+        userId: null,
+        specialKind: null,
+        communityId: null,
+        aliasId: null,
+      },
+    ],
   };
 
   const mockReply = {
@@ -53,7 +62,9 @@ describe('ThreadsGateway', () => {
     (databaseService.message as any) = {
       findUnique: jest.fn().mockResolvedValue(mockParentMessage),
     };
-    notificationsService.processThreadReplyNotifications = jest.fn().mockResolvedValue(undefined);
+    notificationsService.processThreadReplyNotifications = jest
+      .fn()
+      .mockResolvedValue(undefined);
     websocketService.sendToRoom = jest.fn();
   });
 
@@ -127,11 +138,9 @@ describe('ThreadsGateway', () => {
     it('fires notification processing asynchronously (non-blocking)', async () => {
       await gateway.handleThreadReply(basePayload as any, mockClient);
 
-      expect(notificationsService.processThreadReplyNotifications).toHaveBeenCalledWith(
-        mockReply,
-        'parent-msg-1',
-        'user-1',
-      );
+      expect(
+        notificationsService.processThreadReplyNotifications,
+      ).toHaveBeenCalledWith(mockReply, 'parent-msg-1', 'user-1');
     });
 
     it('does not block the response if notification processing fails', async () => {
@@ -140,12 +149,18 @@ describe('ThreadsGateway', () => {
         .mockRejectedValue(new Error('notification failure'));
 
       // Should resolve without throwing — notification failure is swallowed
-      const result = await gateway.handleThreadReply(basePayload as any, mockClient);
+      const result = await gateway.handleThreadReply(
+        basePayload as any,
+        mockClient,
+      );
       expect(result).toBe('reply-1');
     });
 
     it('returns the reply ID on success', async () => {
-      const result = await gateway.handleThreadReply(basePayload as any, mockClient);
+      const result = await gateway.handleThreadReply(
+        basePayload as any,
+        mockClient,
+      );
 
       expect(result).toBe('reply-1');
     });
@@ -186,7 +201,10 @@ describe('ThreadsGateway', () => {
         pendingAttachments: 1,
       };
 
-      await gateway.handleThreadReply(payloadWithAttachments as any, mockClient);
+      await gateway.handleThreadReply(
+        payloadWithAttachments as any,
+        mockClient,
+      );
 
       expect(threadsService.createThreadReply).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -204,11 +222,15 @@ describe('ThreadsGateway', () => {
     });
 
     it('handleConnection should not throw', () => {
-      expect(() => gateway.handleConnection({ id: 'test' } as any)).not.toThrow();
+      expect(() =>
+        gateway.handleConnection({ id: 'test' } as any),
+      ).not.toThrow();
     });
 
     it('handleDisconnect should not throw', () => {
-      expect(() => gateway.handleDisconnect({ id: 'test' } as any)).not.toThrow();
+      expect(() =>
+        gateway.handleDisconnect({ id: 'test' } as any),
+      ).not.toThrow();
     });
   });
 });

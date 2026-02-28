@@ -73,7 +73,10 @@ describe('PushNotificationsController', () => {
     it('subscribes the user and returns success', async () => {
       service.subscribe = jest.fn().mockResolvedValue(undefined);
 
-      const dto = { endpoint: 'https://push.example.com', keys: { p256dh: 'key', auth: 'auth' } };
+      const dto = {
+        endpoint: 'https://push.example.com',
+        keys: { p256dh: 'key', auth: 'auth' },
+      };
       const result = await controller.subscribe(makeReq(), dto as any);
 
       expect(service.subscribe).toHaveBeenCalledWith('user-1', dto);
@@ -83,9 +86,9 @@ describe('PushNotificationsController', () => {
     it('throws NotFoundException when push notifications are not enabled', async () => {
       service.isEnabled = jest.fn().mockReturnValue(false);
 
-      await expect(
-        controller.subscribe(makeReq(), {} as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.subscribe(makeReq(), {} as any)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -115,10 +118,9 @@ describe('PushNotificationsController', () => {
 
   describe('getStatus', () => {
     it('returns enabled status and subscription count', async () => {
-      service.getUserSubscriptions = jest.fn().mockResolvedValue([
-        { endpoint: 'a' },
-        { endpoint: 'b' },
-      ]);
+      service.getUserSubscriptions = jest
+        .fn()
+        .mockResolvedValue([{ endpoint: 'a' }, { endpoint: 'b' }]);
 
       const result = await controller.getStatus(makeReq());
 
@@ -158,9 +160,9 @@ describe('PushNotificationsController', () => {
     it('throws NotFoundException when push is not enabled', async () => {
       service.isEnabled = jest.fn().mockReturnValue(false);
 
-      await expect(
-        controller.sendTestPushToSelf(makeReq()),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.sendTestPushToSelf(makeReq())).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('reports failure when no subscriptions exist', async () => {
