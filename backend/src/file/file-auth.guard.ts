@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { SignedUrlService } from './signed-url.service';
 import { DatabaseService } from '@/database/database.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { Request } from 'express';
 
 @Injectable()
@@ -14,7 +13,6 @@ export class FileAuthGuard implements CanActivate {
   constructor(
     private readonly signedUrlService: SignedUrlService,
     private readonly databaseService: DatabaseService,
-    private readonly jwtAuthGuard: JwtAuthGuard,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -50,6 +48,17 @@ export class FileAuthGuard implements CanActivate {
       return true;
     }
 
-    return this.jwtAuthGuard.canActivate(context) as Promise<boolean>;
+    // Partial signed URL params — likely a malformed signed URL
+    if (sig || exp || uid) {
+      throw new UnauthorizedException('Missing signed URL parameters');
+    }
+
+    // No signed URL params — require that an upstream guard (e.g. OptionalJwtAuthGuard)
+    // has already authenticated the user via JWT
+    if (req.user) {
+      return true;
+    }
+
+    throw new UnauthorizedException('Authentication required');
   }
 }
