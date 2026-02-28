@@ -59,6 +59,8 @@ services:
     ports:
       - "443:443"
       - "80:80"
+    environment:
+      HOST: ${HOST:?Set HOST in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -80,7 +82,14 @@ services:
       LIVEKIT_INTERNAL_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+      REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
+      REPLAY_EGRESS_OUTPUT_PATH: /out
+    volumes:
+      - uploads:/app/backend/uploads
+      - egress-data:/app/storage/replay-segments  # shared with livekit-egress
     depends_on:
+      volume-init:
+        condition: service_completed_successfully
       mongo:
         condition: service_healthy
       redis:
@@ -104,8 +113,10 @@ services:
         port: 7880
         rtc:
           tcp_port: 7881
-          udp_mux_port: 7882
+          udp_port: 7882
           use_external_ip: true
+        redis:
+          address: redis:6379
         keys:
           ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
         webhook:
@@ -115,6 +126,36 @@ services:
     ports:
       - "7881:7881"
       - "7882:7882/udp"
+
+  volume-init:
+    image: busybox
+    volumes:
+      - uploads:/uploads
+      - egress-data:/out
+    command: sh -c 'chown -R 1001:0 /uploads /out'
+    restart: "no"
+
+  livekit-egress:
+    image: livekit/egress:latest
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      EGRESS_CONFIG_BODY: |
+        api_key: ${LIVEKIT_API_KEY}
+        api_secret: ${LIVEKIT_API_SECRET}
+        ws_url: ws://livekit:7880
+        redis:
+          address: redis:6379
+    volumes:
+      - egress-data:/out
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+      livekit:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   livekit-ip-watcher:
     image: alpine:latest
@@ -161,6 +202,8 @@ volumes:
   mongodata:
   mongodb_config:
   redisdata:
+  uploads:
+  egress-data:
   caddy_data:
   caddy_config:
 ```
@@ -213,7 +256,14 @@ services:
       LIVEKIT_INTERNAL_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+      REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
+      REPLAY_EGRESS_OUTPUT_PATH: /out
+    volumes:
+      - uploads:/app/backend/uploads
+      - egress-data:/app/storage/replay-segments  # shared with livekit-egress
     depends_on:
+      volume-init:
+        condition: service_completed_successfully
       mongo:
         condition: service_healthy
       redis:
@@ -239,8 +289,10 @@ services:
         port: 7880
         rtc:
           tcp_port: 7881
-          udp_mux_port: 7882
+          udp_port: 7882
           use_external_ip: true
+        redis:
+          address: redis:6379
         keys:
           ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
         webhook:
@@ -251,6 +303,29 @@ services:
       - "7880:7880"
       - "7881:7881"
       - "7882:7882/udp"
+
+
+  livekit-egress:
+    image: livekit/egress:latest
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      EGRESS_CONFIG_BODY: |
+        api_key: ${LIVEKIT_API_KEY}
+        api_secret: ${LIVEKIT_API_SECRET}
+        ws_url: ws://livekit:7880
+        redis:
+          address: redis:6379
+    volumes:
+      - egress-data:/out
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+      livekit:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   livekit-ip-watcher:
     image: alpine:latest
@@ -297,6 +372,8 @@ volumes:
   mongodata:
   mongodb_config:
   redisdata:
+  uploads:
+  egress-data:
 ```
 
 #### Reverse proxy routing

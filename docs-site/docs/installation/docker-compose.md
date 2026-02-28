@@ -46,6 +46,8 @@ Copy the Compose file for your chosen setup:
         ports:
           - "443:443"
           - "80:80"
+        environment:
+          HOST: ${HOST:?Set HOST in .env}
         volumes:
           - ./Caddyfile:/etc/caddy/Caddyfile:ro
           - caddy_data:/data
@@ -67,7 +69,14 @@ Copy the Compose file for your chosen setup:
           LIVEKIT_INTERNAL_URL: http://livekit:7880
           LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
           LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+          REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
+          REPLAY_EGRESS_OUTPUT_PATH: /out
+        volumes:
+          - uploads:/app/backend/uploads
+          - egress-data:/app/storage/replay-segments  # shared with livekit-egress
         depends_on:
+          volume-init:
+            condition: service_completed_successfully
           mongo:
             condition: service_healthy
           redis:
@@ -89,8 +98,10 @@ Copy the Compose file for your chosen setup:
             port: 7880
             rtc:
               tcp_port: 7881
-              udp_mux_port: 7882
+              udp_port: 7882
               use_external_ip: true
+            redis:
+              address: redis:6379
             keys:
               ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
             webhook:
@@ -100,6 +111,36 @@ Copy the Compose file for your chosen setup:
         ports:
           - "7881:7881"
           - "7882:7882/udp"
+
+      volume-init:
+        image: busybox
+        volumes:
+          - uploads:/uploads
+          - egress-data:/out
+        command: sh -c 'chown -R 1001:0 /uploads /out'
+        restart: "no"
+
+      livekit-egress:
+        image: livekit/egress:latest
+        restart: unless-stopped
+        cap_add:
+          - SYS_ADMIN
+        environment:
+          EGRESS_CONFIG_BODY: |
+            api_key: ${LIVEKIT_API_KEY}
+            api_secret: ${LIVEKIT_API_SECRET}
+            ws_url: ws://livekit:7880
+            redis:
+              address: redis:6379
+        volumes:
+          - egress-data:/out
+        depends_on:
+          volume-init:
+            condition: service_completed_successfully
+          livekit:
+            condition: service_started
+          redis:
+            condition: service_healthy
 
       livekit-ip-watcher:
         image: alpine:latest
@@ -146,6 +187,8 @@ Copy the Compose file for your chosen setup:
       mongodata:
       mongodb_config:
       redisdata:
+      uploads:
+      egress-data:
       caddy_data:
       caddy_config:
     ```
@@ -167,7 +210,7 @@ Copy the Compose file for your chosen setup:
     **What's in this setup:**
 
     - **Caddy** handles TLS automatically via Let's Encrypt — routes `/api/*` and `/socket.io/*` to the backend, everything else to the frontend, and `lk.` subdomain to LiveKit signaling
-    - **LiveKit** uses `udp_mux_port` to multiplex all WebRTC UDP traffic through a single port (no user cap, no port range to forward)
+    - **LiveKit** uses `udp_port` to multiplex all WebRTC UDP traffic through a single port (no user cap, no port range to forward)
     - **`use_external_ip: true`** — LiveKit discovers its public IP via STUN
     - **IP watcher** — monitors your public IP and restarts LiveKit if it changes (important for dynamic IPs)
     - **`LIVEKIT_INTERNAL_URL`** — the backend uses this Docker-internal address for server-to-server API calls, while `LIVEKIT_URL` is the browser-facing address returned to clients
@@ -191,7 +234,14 @@ Copy the Compose file for your chosen setup:
           LIVEKIT_INTERNAL_URL: http://livekit:7880
           LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
           LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+          REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
+          REPLAY_EGRESS_OUTPUT_PATH: /out
+        volumes:
+          - uploads:/app/backend/uploads
+          - egress-data:/app/storage/replay-segments  # shared with livekit-egress
         depends_on:
+          volume-init:
+            condition: service_completed_successfully
           mongo:
             condition: service_healthy
           redis:
@@ -217,8 +267,10 @@ Copy the Compose file for your chosen setup:
             port: 7880
             rtc:
               tcp_port: 7881
-              udp_mux_port: 7882
+              udp_port: 7882
               use_external_ip: true
+            redis:
+              address: redis:6379
             keys:
               ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
             webhook:
@@ -229,6 +281,36 @@ Copy the Compose file for your chosen setup:
           - "7880:7880"
           - "7881:7881"
           - "7882:7882/udp"
+
+      volume-init:
+        image: busybox
+        volumes:
+          - uploads:/uploads
+          - egress-data:/out
+        command: sh -c 'chown -R 1001:0 /uploads /out'
+        restart: "no"
+
+      livekit-egress:
+        image: livekit/egress:latest
+        restart: unless-stopped
+        cap_add:
+          - SYS_ADMIN
+        environment:
+          EGRESS_CONFIG_BODY: |
+            api_key: ${LIVEKIT_API_KEY}
+            api_secret: ${LIVEKIT_API_SECRET}
+            ws_url: ws://livekit:7880
+            redis:
+              address: redis:6379
+        volumes:
+          - egress-data:/out
+        depends_on:
+          volume-init:
+            condition: service_completed_successfully
+          livekit:
+            condition: service_started
+          redis:
+            condition: service_healthy
 
       livekit-ip-watcher:
         image: alpine:latest
@@ -275,11 +357,13 @@ Copy the Compose file for your chosen setup:
       mongodata:
       mongodb_config:
       redisdata:
+      uploads:
+      egress-data:
     ```
 
     **What's in the LiveKit config:**
 
-    - `udp_mux_port: 7882` — multiplexes all WebRTC UDP traffic through a single port (no user cap, no port range to forward)
+    - `udp_port: 7882` — multiplexes all WebRTC UDP traffic through a single port (no user cap, no port range to forward)
     - `use_external_ip: true` — LiveKit discovers its public IP via STUN
     - `keys` — the API key/secret pair must match what the backend uses, and the **secret must be at least 32 characters** or LiveKit will refuse to start
     - `webhook` — pre-configured to send voice presence events back to the backend (requires `api_key` to sign payloads)
@@ -306,11 +390,22 @@ Copy the Compose file for your chosen setup:
           # LIVEKIT_URL: ${LIVEKIT_URL:-}
           # LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
           # LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+        volumes:
+          - uploads:/app/backend/uploads
         depends_on:
+          volume-init:
+            condition: service_completed_successfully
           mongo:
             condition: service_healthy
           redis:
             condition: service_healthy
+
+      volume-init:
+        image: busybox
+        volumes:
+          - uploads:/uploads
+        command: chown -R 1001:0 /uploads
+        restart: "no"
 
       frontend:
         image: ghcr.io/krakenchat/kraken-frontend:latest
@@ -352,6 +447,7 @@ Copy the Compose file for your chosen setup:
       mongodata:
       mongodb_config:
       redisdata:
+      uploads:
     ```
 
     To enable voice/video later, uncomment the `LIVEKIT_*` lines and add your credentials to `.env`. See [Connecting your LiveKit server](#connecting-your-livekit-server) below.
