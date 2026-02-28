@@ -171,7 +171,7 @@ describe('PushNotificationsService', () => {
       });
     });
 
-    it('should update existing settings when auto-generating keys', async () => {
+    it('should conditionally update existing settings when auto-generating keys', async () => {
       mockDatabase.instanceSettings.findFirst.mockResolvedValue({
         id: 'settings-1',
         vapidPublicKey: null,
@@ -184,20 +184,54 @@ describe('PushNotificationsService', () => {
         privateKey: 'generated-private-key',
       };
       (webpush.generateVAPIDKeys as jest.Mock).mockReturnValue(generatedKeys);
-      mockDatabase.instanceSettings.update.mockResolvedValue({
-        id: 'settings-1',
+      mockDatabase.instanceSettings.updateMany.mockResolvedValue({
+        count: 1,
       });
 
       await service.onModuleInit();
 
-      expect(mockDatabase.instanceSettings.update).toHaveBeenCalledWith({
-        where: { id: 'settings-1' },
+      expect(mockDatabase.instanceSettings.updateMany).toHaveBeenCalledWith({
+        where: { id: 'settings-1', vapidPublicKey: null },
         data: {
           vapidPublicKey: generatedKeys.publicKey,
           vapidPrivateKey: generatedKeys.privateKey,
           vapidSubject: 'mailto:admin@localhost',
         },
       });
+    });
+
+    it('should use existing keys when another instance wins the race', async () => {
+      mockDatabase.instanceSettings.findFirst
+        .mockResolvedValueOnce({
+          id: 'settings-1',
+          vapidPublicKey: null,
+          vapidPrivateKey: null,
+          vapidSubject: null,
+        })
+        // Second call (reload after race loss) returns the winner's keys
+        .mockResolvedValueOnce({
+          id: 'settings-1',
+          vapidPublicKey: 'winner-public-key',
+          vapidPrivateKey: 'winner-private-key',
+          vapidSubject: 'mailto:winner@example.com',
+        });
+
+      const generatedKeys = {
+        publicKey: 'loser-public-key',
+        privateKey: 'loser-private-key',
+      };
+      (webpush.generateVAPIDKeys as jest.Mock).mockReturnValue(generatedKeys);
+      // updateMany returns 0 — another instance already wrote keys
+      mockDatabase.instanceSettings.updateMany.mockResolvedValue({ count: 0 });
+
+      await service.onModuleInit();
+
+      expect(webpush.setVapidDetails).toHaveBeenCalledWith(
+        'mailto:winner@example.com',
+        'winner-public-key',
+        'winner-private-key',
+      );
+      expect(service.getVapidPublicKey()).toBe('winner-public-key');
     });
 
     it('should handle database errors gracefully', async () => {

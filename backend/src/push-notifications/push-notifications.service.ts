@@ -52,20 +52,44 @@ export class PushNotificationsService implements OnModuleInit {
         return;
       }
 
-      // Tier 3: Auto-generate and persist
+      // Tier 3: Auto-generate and persist (multi-instance safe)
       const generated = webpush.generateVAPIDKeys();
       const subject = envSubject || 'mailto:admin@localhost';
 
-      // Persist to database
+      // Persist using conditional write to handle concurrent pod startup.
+      // If another instance already wrote keys, updateMany matches 0 rows.
       if (settings) {
-        await this.databaseService.instanceSettings.update({
-          where: { id: settings.id },
-          data: {
-            vapidPublicKey: generated.publicKey,
-            vapidPrivateKey: generated.privateKey,
-            vapidSubject: subject,
-          },
-        });
+        const result =
+          await this.databaseService.instanceSettings.updateMany({
+            where: {
+              id: settings.id,
+              vapidPublicKey: null,
+            },
+            data: {
+              vapidPublicKey: generated.publicKey,
+              vapidPrivateKey: generated.privateKey,
+              vapidSubject: subject,
+            },
+          });
+
+        if (result.count === 0) {
+          // Another instance won the race — reload and use its keys
+          const reloaded =
+            await this.databaseService.instanceSettings.findFirst();
+          if (reloaded?.vapidPublicKey && reloaded?.vapidPrivateKey) {
+            const effectiveSubject =
+              envSubject ||
+              reloaded.vapidSubject ||
+              'mailto:admin@localhost';
+            this.applyVapidDetails(
+              effectiveSubject,
+              reloaded.vapidPublicKey,
+              reloaded.vapidPrivateKey,
+              'database (concurrent)',
+            );
+            return;
+          }
+        }
       } else {
         await this.databaseService.instanceSettings.create({
           data: {
