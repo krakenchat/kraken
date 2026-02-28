@@ -18,31 +18,91 @@ export interface PushNotificationPayload {
 export class PushNotificationsService implements OnModuleInit {
   private readonly logger = new Logger(PushNotificationsService.name);
   private isConfigured = false;
+  private vapidPublicKey: string | null = null;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly databaseService: DatabaseService,
   ) {}
 
-  onModuleInit() {
-    const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
-    const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-    const subject =
-      this.configService.get<string>('VAPID_SUBJECT') ||
-      'mailto:admin@localhost';
+  async onModuleInit() {
+    const envPublicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
+    const envPrivateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
+    const envSubject = this.configService.get<string>('VAPID_SUBJECT');
 
-    if (!publicKey || !privateKey) {
-      this.logger.warn(
-        'VAPID keys not configured. Push notifications are disabled. ' +
-          'Generate keys with: npx web-push generate-vapid-keys',
-      );
+    // Tier 1: Use env vars if both keys are present
+    if (envPublicKey && envPrivateKey) {
+      const subject = envSubject || 'mailto:admin@localhost';
+      this.applyVapidDetails(subject, envPublicKey, envPrivateKey, 'env vars');
       return;
     }
 
+    // Tier 2: Check database for stored keys
+    try {
+      const settings = await this.databaseService.instanceSettings.findFirst();
+      if (settings?.vapidPublicKey && settings?.vapidPrivateKey) {
+        const subject =
+          envSubject || settings.vapidSubject || 'mailto:admin@localhost';
+        this.applyVapidDetails(
+          subject,
+          settings.vapidPublicKey,
+          settings.vapidPrivateKey,
+          'database',
+        );
+        return;
+      }
+
+      // Tier 3: Auto-generate and persist
+      const generated = webpush.generateVAPIDKeys();
+      const subject = envSubject || 'mailto:admin@localhost';
+
+      // Persist to database
+      if (settings) {
+        await this.databaseService.instanceSettings.update({
+          where: { id: settings.id },
+          data: {
+            vapidPublicKey: generated.publicKey,
+            vapidPrivateKey: generated.privateKey,
+            vapidSubject: subject,
+          },
+        });
+      } else {
+        await this.databaseService.instanceSettings.create({
+          data: {
+            vapidPublicKey: generated.publicKey,
+            vapidPrivateKey: generated.privateKey,
+            vapidSubject: subject,
+          },
+        });
+      }
+
+      this.applyVapidDetails(
+        subject,
+        generated.publicKey,
+        generated.privateKey,
+        'auto-generated',
+      );
+    } catch (error) {
+      this.logger.error(
+        'Failed to initialize VAPID keys from database:',
+        error,
+      );
+    }
+  }
+
+  private applyVapidDetails(
+    subject: string,
+    publicKey: string,
+    privateKey: string,
+    source: string,
+  ) {
     try {
       webpush.setVapidDetails(subject, publicKey, privateKey);
+      this.vapidPublicKey = publicKey;
       this.isConfigured = true;
-      this.logger.log('Push notifications configured successfully');
+      this.logger.log(
+        `Push notifications configured successfully (source: ${source})`,
+      );
     } catch (error) {
       this.logger.error('Failed to configure VAPID details:', error);
     }
@@ -59,8 +119,7 @@ export class PushNotificationsService implements OnModuleInit {
    * Get the VAPID public key for client subscription
    */
   getVapidPublicKey(): string | null {
-    if (!this.isConfigured) return null;
-    return this.configService.get<string>('VAPID_PUBLIC_KEY') || null;
+    return this.vapidPublicKey;
   }
 
   /**

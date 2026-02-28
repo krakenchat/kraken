@@ -279,6 +279,11 @@ model InstanceSettings {
   // Storage settings
   defaultStorageQuotaBytes BigInt @default(53687091200) // 50GB default for new users
   maxFileSizeBytes         BigInt @default(524288000)   // 500MB max per file
+
+  // VAPID keys for push notifications (auto-generated if not set via env vars)
+  vapidPublicKey  String?
+  vapidPrivateKey String?
+  vapidSubject    String?
 }
 
 enum RegistrationMode {

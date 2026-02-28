@@ -10,6 +10,7 @@ import * as webpush from 'web-push';
 jest.mock('web-push', () => ({
   setVapidDetails: jest.fn(),
   sendNotification: jest.fn(),
+  generateVAPIDKeys: jest.fn(),
 }));
 
 describe('PushNotificationsService', () => {
@@ -31,19 +32,11 @@ describe('PushNotificationsService', () => {
     service = unit;
     configService = unitRef.get(ConfigService);
 
-    // Setup default config mock
-    configService.get.mockImplementation((key: string) => {
-      switch (key) {
-        case 'VAPID_PUBLIC_KEY':
-          return mockVapidPublicKey;
-        case 'VAPID_PRIVATE_KEY':
-          return mockVapidPrivateKey;
-        case 'VAPID_SUBJECT':
-          return 'mailto:test@example.com';
-        default:
-          return undefined;
-      }
-    });
+    // Default: no env vars set (so DB/auto-gen paths are tested by default)
+    configService.get.mockReturnValue(undefined);
+
+    // Default: no settings in DB
+    mockDatabase.instanceSettings.findFirst.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -51,8 +44,21 @@ describe('PushNotificationsService', () => {
   });
 
   describe('onModuleInit', () => {
-    it('should configure VAPID when keys are present', () => {
-      service.onModuleInit();
+    it('should use env vars when both VAPID keys are present (tier 1)', async () => {
+      configService.get.mockImplementation((key: string) => {
+        switch (key) {
+          case 'VAPID_PUBLIC_KEY':
+            return mockVapidPublicKey;
+          case 'VAPID_PRIVATE_KEY':
+            return mockVapidPrivateKey;
+          case 'VAPID_SUBJECT':
+            return 'mailto:test@example.com';
+          default:
+            return undefined;
+        }
+      });
+
+      await service.onModuleInit();
 
       expect(webpush.setVapidDetails).toHaveBeenCalledWith(
         'mailto:test@example.com',
@@ -60,25 +66,17 @@ describe('PushNotificationsService', () => {
         mockVapidPrivateKey,
       );
       expect(service.isEnabled()).toBe(true);
+      expect(mockDatabase.instanceSettings.findFirst).not.toHaveBeenCalled();
     });
 
-    it('should not configure VAPID when keys are missing', () => {
-      configService.get.mockReturnValue(undefined);
-
-      service.onModuleInit();
-
-      expect(webpush.setVapidDetails).not.toHaveBeenCalled();
-      expect(service.isEnabled()).toBe(false);
-    });
-
-    it('should use default subject when not configured', () => {
+    it('should use default subject when env var not set (tier 1)', async () => {
       configService.get.mockImplementation((key: string) => {
         if (key === 'VAPID_PUBLIC_KEY') return mockVapidPublicKey;
         if (key === 'VAPID_PRIVATE_KEY') return mockVapidPrivateKey;
         return undefined;
       });
 
-      service.onModuleInit();
+      await service.onModuleInit();
 
       expect(webpush.setVapidDetails).toHaveBeenCalledWith(
         'mailto:admin@localhost',
@@ -86,24 +84,167 @@ describe('PushNotificationsService', () => {
         mockVapidPrivateKey,
       );
     });
+
+    it('should load keys from database when env vars are absent (tier 2)', async () => {
+      const dbPublicKey = 'db-public-key';
+      const dbPrivateKey = 'db-private-key';
+
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue({
+        id: 'settings-1',
+        vapidPublicKey: dbPublicKey,
+        vapidPrivateKey: dbPrivateKey,
+        vapidSubject: 'mailto:db@example.com',
+      });
+
+      await service.onModuleInit();
+
+      expect(webpush.setVapidDetails).toHaveBeenCalledWith(
+        'mailto:db@example.com',
+        dbPublicKey,
+        dbPrivateKey,
+      );
+      expect(service.isEnabled()).toBe(true);
+      expect(webpush.generateVAPIDKeys).not.toHaveBeenCalled();
+    });
+
+    it('should prefer env VAPID_SUBJECT over DB subject (tier 2)', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'VAPID_SUBJECT') return 'mailto:env@example.com';
+        return undefined;
+      });
+
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue({
+        id: 'settings-1',
+        vapidPublicKey: 'db-public',
+        vapidPrivateKey: 'db-private',
+        vapidSubject: 'mailto:db@example.com',
+      });
+
+      await service.onModuleInit();
+
+      expect(webpush.setVapidDetails).toHaveBeenCalledWith(
+        'mailto:env@example.com',
+        'db-public',
+        'db-private',
+      );
+    });
+
+    it('should auto-generate keys when neither env vars nor DB keys exist (tier 3)', async () => {
+      const generatedKeys = {
+        publicKey: 'generated-public-key',
+        privateKey: 'generated-private-key',
+      };
+      (webpush.generateVAPIDKeys as jest.Mock).mockReturnValue(generatedKeys);
+      mockDatabase.instanceSettings.create.mockResolvedValue({
+        id: 'settings-1',
+      });
+
+      await service.onModuleInit();
+
+      expect(webpush.generateVAPIDKeys).toHaveBeenCalled();
+      expect(webpush.setVapidDetails).toHaveBeenCalledWith(
+        'mailto:admin@localhost',
+        generatedKeys.publicKey,
+        generatedKeys.privateKey,
+      );
+      expect(service.isEnabled()).toBe(true);
+    });
+
+    it('should persist auto-generated keys to new settings record', async () => {
+      const generatedKeys = {
+        publicKey: 'generated-public-key',
+        privateKey: 'generated-private-key',
+      };
+      (webpush.generateVAPIDKeys as jest.Mock).mockReturnValue(generatedKeys);
+      mockDatabase.instanceSettings.create.mockResolvedValue({
+        id: 'settings-1',
+      });
+
+      await service.onModuleInit();
+
+      expect(mockDatabase.instanceSettings.create).toHaveBeenCalledWith({
+        data: {
+          vapidPublicKey: generatedKeys.publicKey,
+          vapidPrivateKey: generatedKeys.privateKey,
+          vapidSubject: 'mailto:admin@localhost',
+        },
+      });
+    });
+
+    it('should update existing settings when auto-generating keys', async () => {
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue({
+        id: 'settings-1',
+        vapidPublicKey: null,
+        vapidPrivateKey: null,
+        vapidSubject: null,
+      });
+
+      const generatedKeys = {
+        publicKey: 'generated-public-key',
+        privateKey: 'generated-private-key',
+      };
+      (webpush.generateVAPIDKeys as jest.Mock).mockReturnValue(generatedKeys);
+      mockDatabase.instanceSettings.update.mockResolvedValue({
+        id: 'settings-1',
+      });
+
+      await service.onModuleInit();
+
+      expect(mockDatabase.instanceSettings.update).toHaveBeenCalledWith({
+        where: { id: 'settings-1' },
+        data: {
+          vapidPublicKey: generatedKeys.publicKey,
+          vapidPrivateKey: generatedKeys.privateKey,
+          vapidSubject: 'mailto:admin@localhost',
+        },
+      });
+    });
+
+    it('should handle database errors gracefully', async () => {
+      mockDatabase.instanceSettings.findFirst.mockRejectedValue(
+        new Error('DB connection failed'),
+      );
+
+      await service.onModuleInit();
+
+      expect(service.isEnabled()).toBe(false);
+    });
   });
 
   describe('getVapidPublicKey', () => {
-    it('should return public key when configured', () => {
-      service.onModuleInit();
+    it('should return cached public key when configured via env vars', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'VAPID_PUBLIC_KEY') return mockVapidPublicKey;
+        if (key === 'VAPID_PRIVATE_KEY') return mockVapidPrivateKey;
+        return undefined;
+      });
 
-      const result = service.getVapidPublicKey();
+      await service.onModuleInit();
 
-      expect(result).toBe(mockVapidPublicKey);
+      expect(service.getVapidPublicKey()).toBe(mockVapidPublicKey);
     });
 
-    it('should return null when not configured', () => {
-      configService.get.mockReturnValue(undefined);
-      service.onModuleInit();
+    it('should return cached public key when loaded from DB', async () => {
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue({
+        id: 'settings-1',
+        vapidPublicKey: 'db-public-key',
+        vapidPrivateKey: 'db-private-key',
+        vapidSubject: null,
+      });
 
-      const result = service.getVapidPublicKey();
+      await service.onModuleInit();
 
-      expect(result).toBeNull();
+      expect(service.getVapidPublicKey()).toBe('db-public-key');
+    });
+
+    it('should return null when not configured', async () => {
+      mockDatabase.instanceSettings.findFirst.mockRejectedValue(
+        new Error('DB error'),
+      );
+
+      await service.onModuleInit();
+
+      expect(service.getVapidPublicKey()).toBeNull();
     });
   });
 
@@ -196,17 +337,21 @@ describe('PushNotificationsService', () => {
       tag: 'test-tag',
     };
 
-    beforeEach(() => {
-      service.onModuleInit();
+    beforeEach(async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'VAPID_PUBLIC_KEY') return mockVapidPublicKey;
+        if (key === 'VAPID_PRIVATE_KEY') return mockVapidPrivateKey;
+        return undefined;
+      });
+      await service.onModuleInit();
     });
 
     it('should return early when not configured', async () => {
-      configService.get.mockReturnValue(undefined);
       const unconfiguredService = new PushNotificationsService(
         configService as unknown as ConfigService,
         mockDatabase as unknown as DatabaseService,
       );
-      unconfiguredService.onModuleInit();
+      // Don't call onModuleInit — service stays unconfigured
 
       const result = await unconfiguredService.sendToUser(userId, payload);
 
