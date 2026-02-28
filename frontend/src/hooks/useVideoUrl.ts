@@ -53,7 +53,7 @@ export function useVideoUrl(fileId: string | null): VideoUrlResult {
       // For Electron, the signed URL path is relative (/api/file/...) — prepend the base
       const baseUrl = getApiUrl('');
       const fullUrl = data.url.startsWith('/api/')
-        ? `${baseUrl.replace(/\/api$/, '')}${data.url}`
+        ? `${baseUrl.replace(/\/api\/?$/, '')}${data.url}`
         : data.url;
 
       setSignedUrl(fullUrl);
@@ -61,11 +61,16 @@ export function useVideoUrl(fileId: string | null): VideoUrlResult {
 
       // Schedule a refresh 5 minutes before expiry
       const msUntilRefresh = expiresAtRef.current - Date.now() - 5 * 60 * 1000;
+      clearTimeout(refreshTimerRef.current);
       if (msUntilRefresh > 0) {
-        clearTimeout(refreshTimerRef.current);
         refreshTimerRef.current = setTimeout(() => {
           fetchSignedUrl();
         }, msUntilRefresh);
+      } else {
+        // Already within the refresh window — refresh immediately
+        refreshTimerRef.current = setTimeout(() => {
+          fetchSignedUrl();
+        }, 0);
       }
     } catch (error) {
       logger.error('[useVideoUrl] Failed to fetch signed URL:', error);

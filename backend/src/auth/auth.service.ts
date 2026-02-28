@@ -214,11 +214,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Delete this token and all consumed tokens in the same family
+    // Delete this token and all tokens in the same family
     if (token.familyId) {
       await client.refreshToken.deleteMany({
         where: {
-          OR: [{ id: token.id }, { familyId: token.familyId, consumed: true }],
+          familyId: token.familyId,
         },
       });
     } else {

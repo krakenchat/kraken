@@ -436,7 +436,7 @@ describe('AuthService', () => {
   });
 
   describe('deleteRefreshToken', () => {
-    it('should delete token and consumed family tokens when familyId exists', async () => {
+    it('should delete all tokens in the family when familyId exists', async () => {
       const jti = 'token-jti-123';
       const refreshToken = 'valid-token';
       const mockToken = RefreshTokenFactory.build({
@@ -452,7 +452,7 @@ describe('AuthService', () => {
 
       expect(mockDatabase.refreshToken.deleteMany).toHaveBeenCalledWith({
         where: {
-          OR: [{ id: jti }, { familyId: 'family-1', consumed: true }],
+          familyId: 'family-1',
         },
       });
     });

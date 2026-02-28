@@ -190,7 +190,7 @@ export class AuthController {
 
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
   @Post('logout')
-  @ApiBody({ type: LogoutRequestDto })
+  @ApiBody({ type: LogoutRequestDto, required: false })
   @ApiCreatedResponse({ type: LogoutResponseDto })
   async logout(
     @Req() req: Request,

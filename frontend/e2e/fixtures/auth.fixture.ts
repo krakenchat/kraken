@@ -68,30 +68,58 @@ export async function registerViaApi(
 }
 
 /**
- * Set authentication token in browser storage
+ * Set authentication token in the browser context.
+ *
+ * After the security overhaul, access tokens live in memory (not localStorage).
+ * For E2E tests that inject tokens via API login (not UI login), we set the
+ * access_token cookie directly so the app's API interceptor can use it.
+ * We also keep the localStorage entry for backward compatibility.
  */
 export async function setAuthToken(page: Page, token: string): Promise<void> {
+  // Set the httpOnly access_token cookie (matches what the login endpoint sets)
+  const pageUrl = page.url() || 'http://localhost:5174';
+  const url = new URL(pageUrl);
+  await page.context().addCookies([{
+    name: 'access_token',
+    value: token,
+    domain: url.hostname,
+    path: '/',
+    httpOnly: true,
+    secure: false,
+    sameSite: 'Lax',
+  }]);
+
+  // Also set in localStorage as a fallback
   await page.evaluate((accessToken) => {
     localStorage.setItem('accessToken', accessToken);
   }, token);
 }
 
 /**
- * Clear authentication token from browser storage
+ * Clear authentication token from browser storage and cookies
  */
 export async function clearAuthToken(page: Page): Promise<void> {
+  await page.context().clearCookies();
   await page.evaluate(() => {
     localStorage.removeItem('accessToken');
   });
 }
 
 /**
- * Check if user is authenticated
+ * Check if user is authenticated.
+ *
+ * The access token is stored in memory (not localStorage) after the
+ * security overhaul. We check authentication by looking for the
+ * access_token httpOnly cookie set by the login endpoint, or by
+ * verifying the page didn't redirect to /login.
  */
 export async function isAuthenticated(page: Page): Promise<boolean> {
-  return page.evaluate(() => {
-    return localStorage.getItem('accessToken') !== null;
-  });
+  // The access_token cookie is httpOnly so we can read it via Playwright's
+  // cookie API (not page.evaluate which can't see httpOnly cookies).
+  const cookies = await page.context().cookies();
+  const hasAccessCookie = cookies.some(c => c.name === 'access_token');
+  const hasRefreshCookie = cookies.some(c => c.name === 'refresh_token');
+  return hasAccessCookie || hasRefreshCookie;
 }
 
 // Extended test fixtures

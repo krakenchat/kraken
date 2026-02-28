@@ -191,7 +191,7 @@ const electronAPI = {
   },
 
   // Secure token storage (OS keychain via safeStorage)
-  storeRefreshToken: (token: string): Promise<void> => {
+  storeRefreshToken: (token: string): Promise<true | null> => {
     return ipcRenderer.invoke('secure-storage:store', 'refreshToken', token);
   },
 

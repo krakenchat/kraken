@@ -51,7 +51,7 @@ export interface ElectronAPI {
   ) => (() => void);
   getSettings?: () => Promise<Record<string, unknown>>;
   setSetting?: (key: string, value: unknown) => Promise<unknown>;
-  storeRefreshToken?: (token: string) => Promise<void>;
+  storeRefreshToken?: (token: string) => Promise<true | null>;
   getRefreshToken?: () => Promise<string | null>;
   deleteRefreshToken?: () => Promise<void>;
   [key: string]: unknown;

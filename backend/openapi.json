@@ -89,7 +89,7 @@
         "operationId": "AuthController_logout",
         "parameters": [],
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "schema": {

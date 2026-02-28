@@ -138,11 +138,15 @@ export function notifyAuthFailure(): void {
  */
 export async function getElectronRefreshToken(): Promise<string | null> {
   // Try secure storage first
-  if (window.electronAPI?.getRefreshToken) {
-    const token = await window.electronAPI.getRefreshToken();
-    if (token) {
-      return token;
+  try {
+    if (window.electronAPI?.getRefreshToken) {
+      const token = await window.electronAPI.getRefreshToken();
+      if (token) {
+        return token;
+      }
     }
+  } catch {
+    logger.debug("[TokenService] Secure storage read failed, falling back to localStorage");
   }
   // Fall back to localStorage (migration path from older builds)
   return localStorage.getItem("refreshToken");
@@ -153,14 +157,21 @@ export async function getElectronRefreshToken(): Promise<string | null> {
  * Also cleans up the legacy localStorage entry if present.
  */
 export async function storeElectronRefreshToken(token: string): Promise<void> {
-  if (window.electronAPI?.storeRefreshToken) {
-    await window.electronAPI.storeRefreshToken(token);
-    // Clean up legacy localStorage entry after successful migration
-    localStorage.removeItem("refreshToken");
-  } else {
-    // Fallback for older Electron builds without safeStorage
-    localStorage.setItem("refreshToken", token);
+  try {
+    if (window.electronAPI?.storeRefreshToken) {
+      const result = await window.electronAPI.storeRefreshToken(token);
+      if (result !== null) {
+        // Clean up legacy localStorage entry after successful migration
+        localStorage.removeItem("refreshToken");
+        return;
+      }
+      // safeStorage unavailable — fall through to localStorage
+    }
+  } catch {
+    logger.debug("[TokenService] Secure storage write failed, falling back to localStorage");
   }
+  // Fallback for older Electron builds or when safeStorage is unavailable
+  localStorage.setItem("refreshToken", token);
 }
 
 async function performRefresh(): Promise<string | null> {

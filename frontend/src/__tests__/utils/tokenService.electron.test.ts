@@ -87,7 +87,7 @@ describe('tokenService — Electron secure storage', () => {
 
   describe('storeElectronRefreshToken', () => {
     it('should store in secure storage when available', async () => {
-      const mockStore = vi.fn().mockResolvedValue(undefined);
+      const mockStore = vi.fn().mockResolvedValue(true);
       window.electronAPI = {
         storeRefreshToken: mockStore,
       };
@@ -100,12 +100,32 @@ describe('tokenService — Electron secure storage', () => {
     it('should remove localStorage entry after storing in secure storage', async () => {
       localStorage.setItem('refreshToken', 'legacy-token');
       window.electronAPI = {
-        storeRefreshToken: vi.fn().mockResolvedValue(undefined),
+        storeRefreshToken: vi.fn().mockResolvedValue(true),
       };
 
       await storeElectronRefreshToken('new-token');
 
       expect(localStorage.getItem('refreshToken')).toBeNull();
+    });
+
+    it('should fall back to localStorage when safeStorage is unavailable (returns null)', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue(null),
+      };
+
+      await storeElectronRefreshToken('fallback-token');
+
+      expect(localStorage.getItem('refreshToken')).toBe('fallback-token');
+    });
+
+    it('should fall back to localStorage when storeRefreshToken rejects', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockRejectedValue(new Error('IPC error')),
+      };
+
+      await storeElectronRefreshToken('fallback-token');
+
+      expect(localStorage.getItem('refreshToken')).toBe('fallback-token');
     });
 
     it('should fall back to localStorage when storeRefreshToken is not available', async () => {
@@ -129,7 +149,7 @@ describe('tokenService — Electron secure storage', () => {
 
   describe('clearTokens with Electron', () => {
     it('should call deleteRefreshToken when available', () => {
-      const mockDelete = vi.fn().mockResolvedValue(undefined);
+      const mockDelete = vi.fn().mockResolvedValue(true);
 
       // Mock isElectron to return true
       window.electronAPI = {

@@ -103,9 +103,7 @@ const ClipCard: React.FC<{
   onShare: (clipId: string) => void;
   onDelete: (clipId: string) => void;
 }> = memo(({ clip, isOwnProfile, isDownloading, onTogglePublic, onDownload, onShare, onDelete }) => {
-  // Extract fileId from downloadUrl (format: /file/{fileId})
-  const fileId = clip.downloadUrl.split('/').pop() ?? null;
-  const { url: videoUrl } = useVideoUrl(fileId);
+  const { url: videoUrl } = useVideoUrl(clip.fileId ?? null);
 
   return (
     <Card>
@@ -123,8 +121,8 @@ const ClipCard: React.FC<{
           preload="metadata"
           crossOrigin="use-credentials"
           aria-label={`Video clip: ${clip.filename}`}
+          src={videoUrl ?? undefined}
         >
-          {videoUrl && <source src={videoUrl} type="video/mp4" />}
           Your browser does not support video playback.
         </video>
       </Box>

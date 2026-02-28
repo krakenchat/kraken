@@ -557,16 +557,18 @@ function setupIpcHandlers() {
   ipcMain.handle('secure-storage:store', async (_event, key: string, value: string) => {
     try {
       if (!safeStorage.isEncryptionAvailable()) {
-        throw new Error('Encryption not available');
+        console.warn('safeStorage encryption not available, falling back to renderer localStorage');
+        return null;
       }
       const encrypted = safeStorage.encryptString(value);
       if (!fs.existsSync(secureStoragePath)) {
         fs.mkdirSync(secureStoragePath, { recursive: true });
       }
       fs.writeFileSync(path.join(secureStoragePath, key), encrypted);
+      return true;
     } catch (error) {
       console.error('Failed to store secure token:', error);
-      throw error;
+      return null;
     }
   });
 
