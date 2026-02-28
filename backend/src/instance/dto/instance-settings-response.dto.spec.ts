@@ -78,6 +78,24 @@ describe('InstanceSettingsResponseDto', () => {
       expect(parsed.registrationMode).toBe('OPEN');
     });
 
+    it('should exclude vapidPrivateKey from serialized output', () => {
+      const settings = new InstanceSettingsResponseDto({
+        id: 'settings-123',
+        name: 'Kraken',
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        maxFileSizeBytes: BigInt(524288000),
+        vapidPublicKey: 'public-key-123',
+        vapidPrivateKey: 'secret-private-key',
+        vapidSubject: 'mailto:admin@example.com',
+      });
+
+      const plain = instanceToPlain(settings);
+
+      expect(plain.vapidPublicKey).toBe('public-key-123');
+      expect(plain.vapidSubject).toBe('mailto:admin@example.com');
+      expect(plain).not.toHaveProperty('vapidPrivateKey');
+    });
+
     it('should preserve all other fields correctly', () => {
       const createdAt = new Date('2024-01-01');
       const updatedAt = new Date('2024-01-02');
