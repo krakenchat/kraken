@@ -38,16 +38,13 @@ RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 # Build the application
 RUN pnpm run build
 
-# Save prisma CLI before pruning (it's a devDependency but needed at runtime for db push).
-# pnpm hoists it to the root node_modules in the workspace.
-RUN cp -r /app/node_modules/.bin/prisma /tmp/prisma-cli && \
-    cp -r /app/node_modules/prisma /tmp/prisma-pkg
-
-# Prune dev dependencies - keep only production
-RUN CI=true pnpm prune --prod
-
-# Restore prisma CLI after prune
-RUN mkdir -p /app/node_modules/.bin && \
+# Prune dev dependencies but preserve prisma CLI (devDependency needed at runtime for db push).
+# Done in a single RUN to guarantee /tmp persistence across the save/prune/restore cycle.
+# pnpm hoists prisma to /app/node_modules/; cp -rL dereferences the .bin symlink.
+RUN cp -rL /app/node_modules/.bin/prisma /tmp/prisma-cli && \
+    cp -r /app/node_modules/prisma /tmp/prisma-pkg && \
+    CI=true pnpm prune --prod && \
+    mkdir -p /app/node_modules/.bin && \
     cp /tmp/prisma-cli /app/node_modules/.bin/prisma && \
     cp -r /tmp/prisma-pkg /app/node_modules/prisma
 
