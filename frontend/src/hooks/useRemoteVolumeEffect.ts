@@ -41,16 +41,22 @@ export const useRemoteVolumeEffect = () => {
       // Skip when deafened — useDeafenEffect manages volume in that case
       if (isDeafenedRef.current) return;
 
-      const storedRaw = localStorage.getItem(
-        `${VOLUME_STORAGE_PREFIX}${participant.identity}`,
-      );
+      let storedRaw: string | null = null;
+      try {
+        storedRaw = localStorage.getItem(
+          `${VOLUME_STORAGE_PREFIX}${participant.identity}`,
+        );
+      } catch {
+        // localStorage may throw in sandboxed/private environments
+        return;
+      }
       if (storedRaw === null) return; // No stored volume, use default
 
       const storedVolume = parseFloat(storedRaw);
       if (isNaN(storedVolume)) return;
 
-      // Cap at 1.0 for track.setVolume; GainNode for >100% is managed by VoiceUserContextMenu
-      const trackVolume = Math.min(storedVolume, 1.0);
+      // Clamp to [0, 1] for track.setVolume; GainNode for >100% is managed by VoiceUserContextMenu
+      const trackVolume = Math.max(0, Math.min(storedVolume, 1.0));
 
       if (publication.track) {
         publication.track.setVolume(trackVolume);

@@ -35,6 +35,8 @@ import VoiceUserContextMenu from "./VoiceUserContextMenu";
 import { RoomEvent } from "livekit-client";
 import { getUserInfo } from "../../features/users/userApiHelpers";
 import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
+import { useServerEvent } from "../../socket-hub/useServerEvent";
+import { ServerEvents } from "@kraken/shared";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -165,6 +167,19 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       room.off(RoomEvent.ParticipantMetadataChanged, debouncedUpdate);
     };
   }, [isConnectedToThisChannel, voiceState.room]);
+
+  // Update isServerMuted for livekitParticipants from WS events
+  // (LiveKit metadata doesn't carry server mute state — it comes from backend via WS)
+  useServerEvent(ServerEvents.VOICE_CHANNEL_USER_UPDATED, (payload) => {
+    if (!isConnectedToThisChannel || payload.channelId !== channel.id) return;
+    setLivekitParticipants((prev) =>
+      prev.map((p) =>
+        p.id === payload.userId
+          ? { ...p, isServerMuted: payload.user.isServerMuted ?? false }
+          : p,
+      ),
+    );
+  });
 
   // Determine which data source to use
   const presence = isConnectedToThisChannel

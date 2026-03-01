@@ -290,13 +290,13 @@ describe('voiceActions', () => {
       expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
     });
 
-    it('allows mute when server-muted (already muted, toggle is a no-op unmute attempt)', async () => {
-      // User is already muted and server-muted; toggling would try to unmute -> blocked
-      mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
+    it('allows mute (self-mute) when server-muted and mic is on', async () => {
+      // User is server-muted but mic is still enabled — they should be able to self-mute
+      mockRoomInstance.localParticipant.isMicrophoneEnabled = true;
       const deps = createMockDeps({ isServerMuted: true });
       await toggleMicrophone(deps);
 
-      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
     });
   });
 
