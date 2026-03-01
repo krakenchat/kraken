@@ -1,0 +1,40 @@
+{{- if .Values.backend.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kraken.fullname" . }}-backend-migrate
+  labels:
+    {{- include "kraken.backend.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "kraken.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "kraken.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "kraken.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          securityContext:
+            {{- toYaml .Values.backend.securityContext | nindent 12 }}
+          image: {{ include "kraken.backend.image" . }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command: ["npx", "prisma", "migrate", "deploy", "--schema=prisma/schema.prisma"]
+          env:
+            - name: SKIP_PRISMA_MIGRATE
+              value: "true"
+          envFrom:
+            - configMapRef:
+                name: {{ include "kraken.fullname" . }}-backend-config
+            - secretRef:
+                name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "kraken.fullname" . }}-secrets{{ end }}
+{{- end }}

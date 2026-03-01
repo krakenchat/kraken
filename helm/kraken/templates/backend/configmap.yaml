@@ -16,6 +16,9 @@ data:
   LIVEKIT_URL: {{ .Values.livekit.url | quote }}
   LIVEKIT_API_KEY: {{ .Values.livekit.apiKey | quote }}
 
+  # Skip entrypoint migrations — handled by pre-install/pre-upgrade Job
+  SKIP_PRISMA_MIGRATE: "true"
+
   # Node environment
   NODE_ENV: "production"
 

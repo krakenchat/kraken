@@ -23,6 +23,10 @@ backend:
     pullPolicy: Always
     tag: "latest"
 
+  # Database migrations (runs as a Helm pre-install/pre-upgrade hook Job)
+  migrations:
+    enabled: true  # Set false to manage migrations externally
+
   # Service configuration
   service:
     type: ClusterIP
