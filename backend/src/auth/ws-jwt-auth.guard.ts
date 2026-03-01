@@ -23,6 +23,12 @@ export class WsJwtAuthGuard implements CanActivate {
 
     if (context.getType() !== 'ws') return true;
     const client = context.switchToWs().getClient<Socket>();
+
+    // Short-circuit: user already authenticated by connection middleware
+    if ((client.handshake as Record<string, any>).user) {
+      return true;
+    }
+
     let token: string | undefined =
       typeof client.handshake.auth?.token === 'string'
         ? client.handshake.auth.token
