@@ -11,14 +11,8 @@ export interface UnreadCount {
   lastReadAt?: Date;
 }
 
-/** Filter to exclude thread replies from message counts.
- *  Uses OR pattern for backward compat with messages that predate the field. */
-const EXCLUDE_THREAD_REPLIES = {
-  OR: [
-    { parentMessageId: null },
-    { NOT: { parentMessageId: { isSet: true } } },
-  ],
-};
+/** Filter to exclude thread replies from message counts. */
+const EXCLUDE_THREAD_REPLIES = { parentMessageId: null };
 
 @Injectable()
 export class ReadReceiptsService {

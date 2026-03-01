@@ -1,11 +1,10 @@
-import { IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 import { NotificationType } from '@prisma/client';
-import { IsObjectId } from 'nestjs-object-id';
 import { ApiProperty } from '@nestjs/swagger';
 import { NotificationTypeValues } from '@/common/enums/swagger-enums';
 
 export class CreateNotificationDto {
-  @IsObjectId()
+  @IsUUID()
   userId: string;
 
   @ApiProperty({ enum: NotificationTypeValues })
@@ -13,22 +12,22 @@ export class CreateNotificationDto {
   @IsEnum(NotificationType)
   type: NotificationType;
 
-  @IsObjectId()
+  @IsUUID()
   @IsOptional()
   messageId?: string;
 
-  @IsObjectId()
+  @IsUUID()
   @IsOptional()
   channelId?: string;
 
-  @IsObjectId()
+  @IsUUID()
   @IsOptional()
   directMessageGroupId?: string;
 
-  @IsObjectId()
+  @IsUUID()
   authorId: string;
 
-  @IsObjectId()
+  @IsUUID()
   @IsOptional()
   parentMessageId?: string;
 }

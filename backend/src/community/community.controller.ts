@@ -12,6 +12,7 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,7 +20,7 @@ import {
   ApiOkResponse,
   ApiCreatedResponse,
 } from '@nestjs/swagger';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { CommunityService } from './community.service';
 import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
@@ -84,7 +85,7 @@ export class CommunityController {
   })
   @ApiOkResponse({ type: CommunityResponseDto })
   findOne(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CommunityResponseDto> {
     return this.communityService.findOne(id);
   }
@@ -98,7 +99,7 @@ export class CommunityController {
   })
   @ApiOkResponse({ type: CommunityResponseDto })
   update(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateCommunityDto: UpdateCommunityDto,
   ): Promise<CommunityResponseDto> {
     return this.communityService.update(id, updateCommunityDto);
@@ -112,7 +113,7 @@ export class CommunityController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  remove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.communityService.remove(id);
   }
 
@@ -147,7 +148,7 @@ export class CommunityController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   @ApiOkResponse({ type: CommunityStatsDetailDto })
   findOneWithStats(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CommunityStatsDetailDto> {
     return this.communityService.findOneWithStats(id);
   }
@@ -159,7 +160,7 @@ export class CommunityController {
   @HttpCode(204)
   @RequiredActions(RbacActions.DELETE_COMMUNITY)
   @RbacResource({ type: RbacResourceType.INSTANCE })
-  forceRemove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
+  forceRemove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.communityService.forceRemove(id);
   }
 }

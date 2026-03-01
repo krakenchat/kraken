@@ -11,6 +11,7 @@ import {
   Req,
   DefaultValuePipe,
   ParseIntPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import { ThreadsService } from './threads.service';
@@ -24,7 +25,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { AuthenticatedRequest } from '@/types';
 import {
   ThreadReplyDto,
@@ -55,7 +56,7 @@ export class ThreadsController {
   })
   @ApiCreatedResponse({ type: ThreadReplyDto })
   async createReply(
-    @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
+    @Param('parentMessageId', ParseUUIDPipe) parentMessageId: string,
     @Body() body: Omit<CreateThreadReplyDto, 'parentMessageId'>,
     @Req() req: AuthenticatedRequest,
   ): Promise<ThreadReplyDto> {
@@ -78,7 +79,7 @@ export class ThreadsController {
   })
   @ApiOkResponse({ type: ThreadRepliesResponseDto })
   async getReplies(
-    @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
+    @Param('parentMessageId', ParseUUIDPipe) parentMessageId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ): Promise<ThreadRepliesResponseDto> {
@@ -101,7 +102,7 @@ export class ThreadsController {
   })
   @ApiOkResponse({ type: ThreadMetadataDto })
   async getMetadata(
-    @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
+    @Param('parentMessageId', ParseUUIDPipe) parentMessageId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<ThreadMetadataDto> {
     return this.threadsService.getThreadMetadata(parentMessageId, req.user.id);
@@ -119,7 +120,7 @@ export class ThreadsController {
     source: ResourceIdSource.PARAM,
   })
   async subscribe(
-    @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
+    @Param('parentMessageId', ParseUUIDPipe) parentMessageId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.threadsService.subscribeToThread(parentMessageId, req.user.id);
@@ -137,7 +138,7 @@ export class ThreadsController {
     source: ResourceIdSource.PARAM,
   })
   async unsubscribe(
-    @Param('parentMessageId', ParseObjectIdPipe) parentMessageId: string,
+    @Param('parentMessageId', ParseUUIDPipe) parentMessageId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.threadsService.unsubscribeFromThread(

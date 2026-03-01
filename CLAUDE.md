@@ -197,8 +197,9 @@ import { isElectron, hasElectronFeature } from './utils/platform';
 ### Database Operations (Prisma in Docker)
 
 - **Generate Prisma client**: `docker compose run backend pnpm run prisma:generate`
-- **Push schema to DB**: `docker compose run backend pnpm run prisma:push`
-- **Full setup**: `docker compose run backend pnpm run prisma` (generates + pushes)
+- **Run migrations**: `docker compose run backend pnpm run prisma:migrate`
+- **Create new migration**: `docker compose run backend pnpm run prisma:migrate:dev`
+- **Full setup**: `docker compose run backend pnpm run prisma` (generates + migrates)
 - **Prisma studio**: `docker compose run -p 5555:5555 backend pnpm exec prisma studio`
 
 ### OpenAPI SDK Client Regeneration
@@ -225,8 +226,8 @@ LiveKit Server and LiveKit Egress are included in the dev Docker Compose and sta
 
 - **Never run pnpm/npm commands directly on host** - always use Docker containers
 - **Hot reload is enabled** - file changes automatically update in containers
-- **Ports**: Frontend (5173), Backend (3000), MongoDB (27017), Redis (6379), LiveKit (7880)
-- **Data persistence**: MongoDB and Redis data is persisted in Docker volumes
+- **Ports**: Frontend (5173), Backend (3000), PostgreSQL (5432), Redis (6379), LiveKit (7880)
+- **Data persistence**: PostgreSQL and Redis data is persisted in Docker volumes
 
 ### 📋 **Daily Development Workflow**
 
@@ -240,8 +241,8 @@ docker compose run backend pnpm run test
 # 3. In separate terminal: Check backend linting
 docker compose run backend pnpm run lint
 
-# 4. In separate terminal: Update database schema
-docker compose run backend pnpm run prisma:push
+# 4. In separate terminal: Run database migrations
+docker compose run backend pnpm run prisma:migrate
 
 # 5. View logs for specific service
 docker-compose logs backend -f
@@ -253,8 +254,8 @@ docker-compose down
 ### 🔧 **Troubleshooting**
 
 - **Services not starting**: Try `docker-compose down` then `docker-compose build --no-cache`
-- **Database connection issues**: Ensure MongoDB container is healthy with `docker-compose ps`
-- **Port conflicts**: Check if ports 3000, 5173, 27017, 6379, 7880 are available
+- **Database connection issues**: Ensure PostgreSQL container is healthy with `docker-compose ps`
+- **Port conflicts**: Check if ports 3000, 5173, 5432, 6379, 7880 are available
 - **Permission issues**: Use `docker compose run --rm backend bash` to debug
 - **Fresh start**: `docker-compose down -v && docker-compose build --no-cache && docker-compose up`
 
@@ -263,7 +264,7 @@ docker-compose down
 ### Tech Stack
 
 - **Backend**: NestJS (TypeScript) with modular architecture
-- **Database**: MongoDB with Prisma ORM (no migrations, uses `db push`)
+- **Database**: PostgreSQL with Prisma ORM (uses migrations)
 - **Frontend**: React 19 + TypeScript + Vite + Material-UI
 - **State Management**: TanStack Query (React Query) for server state
 - **Real-time**: WebSockets via Socket.IO with Redis adapter
@@ -333,7 +334,7 @@ The frontend uses feature-based organization in `frontend/src/`:
 
 ### Database Schema
 
-MongoDB with Prisma schema defines:
+PostgreSQL with Prisma schema defines:
 
 - **Users**: Authentication, profiles, instance roles
 - **Communities**: Servers with channels, roles, and memberships
@@ -354,9 +355,8 @@ MongoDB with Prisma schema defines:
 
 ### Development Environment
 
-- Docker Compose orchestrates MongoDB (replica set), Redis, backend, and frontend
+- Docker Compose orchestrates PostgreSQL, Redis, backend, and frontend
 - Hot reload enabled for both frontend and backend
-- MongoDB requires replica set for change streams
 - Redis used for WebSocket scaling and caching
 
 ## OpenAPI / Swagger Patterns
@@ -391,15 +391,15 @@ Always import `PartialType` from `@nestjs/swagger`, **not** `@nestjs/mapped-type
 
 ### Database Operations
 
-- MongoDB uses `prisma db push` instead of migrations
+- PostgreSQL uses Prisma migrations (`prisma migrate deploy` for production, `prisma migrate dev` for development)
 - Always run `prisma generate` after schema changes
-- Database requires replica set configuration for real-time features
+- To create a new migration after schema changes: `docker compose run backend pnpm run prisma:migrate:dev`
 
 ### Environment Variables
 
 Copy `backend/env.sample` to `backend/.env` and configure:
 
-- MongoDB connection string
+- `DATABASE_URL` PostgreSQL connection string
 - JWT secrets (change defaults!)
 - Redis host configuration
 

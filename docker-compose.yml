@@ -25,7 +25,7 @@ services:
       - egress-data:/app/storage/replay-segments
     working_dir: /app/backend
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -52,21 +52,21 @@ services:
       - backend
       - redis
 
-  mongo:
-    image: mongo:7.0
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+  postgres:
+    image: postgres:17
     ports:
-      - 27017:27017
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: kraken
+      POSTGRES_PASSWORD: kraken
+      POSTGRES_DB: kraken
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" | mongosh --port 27017 --quiet
+      test: ["CMD-SHELL", "pg_isready -U kraken"]
       interval: 5s
-      timeout: 30s
-      start_period: 0s
-      start_interval: 1s
-      retries: 30
+      timeout: 5s
+      retries: 10
     volumes:
-      - "mongodata:/data/db"
-      - "mongodb_config:/data/configdb"
+      - pgdata:/var/lib/postgresql/data
 
   redis:
     image: redis:latest
@@ -149,7 +149,5 @@ services:
 
 volumes:
   pgdata:
-  mongodata:
-  mongodb_config:
   redisdata:
   egress-data:

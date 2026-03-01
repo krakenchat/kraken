@@ -40,8 +40,7 @@ helm install kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
   --set livekit.apiSecret=LIVEKIT_SECRET \
   --set secrets.jwtSecret="$(openssl rand -base64 32)" \
   --set secrets.jwtRefreshSecret="$(openssl rand -base64 32)" \
-  --set mongodb.auth.rootPassword="$(openssl rand -base64 24)" \
-  --set mongodb.auth.password="$(openssl rand -base64 24)" \
+  --set postgresql.auth.postgresPassword="$(openssl rand -base64 24)" \
   --set redis.auth.password="$(openssl rand -base64 24)"
 ```
 
@@ -135,14 +134,14 @@ helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
   --set frontend.autoscaling.enabled=true
 ```
 
-### Use External MongoDB/Redis
+### Use External PostgreSQL/Redis
 
 ```bash
 helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
   --namespace kraken \
   --reuse-values \
-  --set mongodb.bundled=false \
-  --set mongodb.external.uri="your-mongodb-connection-string" \
+  --set postgresql.bundled=false \
+  --set postgresql.external.uri="postgresql://user:pass@your-postgres-host:5432/kraken" \
   --set redis.bundled=false \
   --set redis.external.host=your-redis-host
 ```
@@ -173,11 +172,11 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 ### Database Connection Errors
 
 ```bash
-# Check MongoDB is running
-kubectl get pods -n kraken -l app.kubernetes.io/name=mongodb
+# Check PostgreSQL is running
+kubectl get pods -n kraken -l app.kubernetes.io/name=postgresql
 
-# View MongoDB logs
-kubectl logs -n kraken kraken-mongodb-0
+# View PostgreSQL logs
+kubectl logs -n kraken kraken-postgresql-0
 ```
 
 ## Uninstall

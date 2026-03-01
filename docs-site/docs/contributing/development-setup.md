@@ -22,7 +22,7 @@ This starts all services with hot reload — changes to `backend/` and `frontend
 |---------|-----|
 | Frontend | [http://localhost:5173](http://localhost:5173) |
 | Backend API | [http://localhost:3000](http://localhost:3000) |
-| MongoDB | `localhost:27017` |
+| PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
 
 ## Common commands
@@ -71,8 +71,11 @@ docker compose run --rm backend pnpm run prisma
 # Generate Prisma client only
 docker compose run --rm backend pnpm run prisma:generate
 
-# Push schema to database only
-docker compose run --rm backend pnpm run prisma:push
+# Run migrations
+docker compose run --rm backend pnpm run prisma:migrate
+
+# Create a new migration after schema changes
+docker compose run --rm backend pnpm run prisma:migrate:dev
 
 # Open Prisma Studio (database browser)
 docker compose run --rm -p 5555:5555 backend npx prisma studio
@@ -144,7 +147,7 @@ docker compose run --rm frontend pnpm run test:cov   # With coverage
 kraken/
 ├── backend/
 │   ├── src/           # NestJS application (modules, services, controllers)
-│   ├── prisma/        # Database schema (single schema.prisma for MongoDB)
+│   ├── prisma/        # Database schema (single schema.prisma for PostgreSQL)
 │   └── test/          # E2E tests
 ├── frontend/
 │   ├── src/           # React application
@@ -167,7 +170,7 @@ docker-compose up
 
 ### Database connection issues
 
-Check that the MongoDB container is healthy:
+Check that the PostgreSQL container is healthy:
 
 ```bash
 docker-compose ps
@@ -175,4 +178,4 @@ docker-compose ps
 
 ### Port conflicts
 
-Ensure ports 3000, 5173, 27017, and 6379 are available. Stop any conflicting services or change the ports in `docker-compose.yml`.
+Ensure ports 3000, 5173, 5432, and 6379 are available. Stop any conflicting services or change the ports in `docker-compose.yml`.

@@ -205,12 +205,15 @@ export class OnboardingService {
           data: {
             channelId: generalChannel.id,
             authorId: adminUser.id,
-            spans: [
-              {
-                type: 'PLAINTEXT',
-                text: `Welcome to ${dto.instanceName}! 🎉\n\nThis is your new Kraken instance. You can start by:\n• Inviting other users to join\n• Creating more communities and channels\n• Customizing your community settings\n\nEnjoy your new chat platform!`,
-              },
-            ],
+            spans: {
+              create: [
+                {
+                  position: 0,
+                  type: 'PLAINTEXT',
+                  text: `Welcome to ${dto.instanceName}! 🎉\n\nThis is your new Kraken instance. You can start by:\n• Inviting other users to join\n• Creating more communities and channels\n• Customizing your community settings\n\nEnjoy your new chat platform!`,
+                },
+              ],
+            },
           },
         });
 
@@ -240,7 +243,9 @@ export class OnboardingService {
         data: {
           code: `welcome-${randomUUID().slice(0, 8)}`,
           createdById: adminUser.id,
-          defaultCommunityId: defaultCommunity ? [defaultCommunity.id] : [],
+          defaultCommunities: defaultCommunity
+            ? { create: [{ communityId: defaultCommunity.id }] }
+            : undefined,
           maxUses: null, // Unlimited uses
           validUntil: null, // Never expires
           disabled: false,

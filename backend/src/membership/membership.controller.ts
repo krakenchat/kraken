@@ -12,6 +12,7 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { MembershipService } from './membership.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
@@ -25,7 +26,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { AuthenticatedRequest } from '@/types';
 
 @Controller('membership')
@@ -55,7 +56,7 @@ export class MembershipController {
     source: ResourceIdSource.PARAM,
   })
   findAllForCommunity(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<MembershipResponseDto[]> {
     return this.membershipService.findAllForCommunity(communityId);
   }
@@ -68,7 +69,7 @@ export class MembershipController {
     source: ResourceIdSource.PARAM,
   })
   searchCommunityMembers(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Query('query') query: string,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ): Promise<MembershipResponseDto[]> {
@@ -81,7 +82,7 @@ export class MembershipController {
 
   @Get('/user/:userId')
   findAllForUser(
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<MembershipResponseDto[]> {
     if (userId !== req.user.id) {
@@ -105,8 +106,8 @@ export class MembershipController {
     source: ResourceIdSource.PARAM,
   })
   findOne(
-    @Param('userId', ParseObjectIdPipe) userId: string,
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<MembershipResponseDto> {
     return this.membershipService.findOne(userId, communityId);
   }
@@ -120,8 +121,8 @@ export class MembershipController {
     source: ResourceIdSource.PARAM,
   })
   remove(
-    @Param('userId', ParseObjectIdPipe) userId: string,
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<void> {
     return this.membershipService.remove(userId, communityId);
   }
@@ -129,7 +130,7 @@ export class MembershipController {
   @Delete('/leave/:communityId')
   @HttpCode(204)
   leaveCommunity(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     return this.membershipService.remove(req.user.id, communityId);

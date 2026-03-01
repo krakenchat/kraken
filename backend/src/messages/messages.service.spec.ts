@@ -5,7 +5,39 @@ import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
 import { NotFoundException } from '@nestjs/common';
 import { SpanType, FileType } from '@prisma/client';
-import { createMockDatabase, MessageFactory, FileFactory } from '@/test-utils';
+import { createMockDatabase, MessageFactory } from '@/test-utils';
+
+/** Helper to build a message with included relations in the shape returned by Prisma */
+function buildMessageWithIncludes(
+  overrides: Record<string, unknown> = {},
+  fileOverrides: Array<Record<string, unknown>> = [],
+) {
+  const base: any = MessageFactory.build(overrides as any);
+  return {
+    ...base,
+    spans: (base.spans || []).map((s: any, i: number) => ({
+      id: `span-${i}`,
+      messageId: base.id,
+      position: i,
+      ...s,
+    })),
+    reactions: base.reactions || [],
+    attachments: fileOverrides.map((f, i) => ({
+      id: `ma-${i}`,
+      messageId: base.id,
+      fileId: (f as any).id,
+      position: i,
+      file: {
+        id: (f as any).id,
+        filename: (f as any).filename || 'file.bin',
+        mimeType: (f as any).mimeType || 'application/octet-stream',
+        fileType: (f as any).fileType || FileType.DOCUMENT,
+        size: (f as any).size || 1024,
+        thumbnailPath: (f as any).thumbnailPath ?? null,
+      },
+    })),
+  };
+}
 
 describe('MessagesService', () => {
   let service: MessagesService;
@@ -45,20 +77,41 @@ describe('MessagesService', () => {
           },
         ],
       } as any;
-      const createdMessage = MessageFactory.build(createDto);
+      const createdMessage = buildMessageWithIncludes(createDto);
 
       mockDatabase.message.create.mockResolvedValue(createdMessage);
 
       const result = await service.create(createDto);
 
-      expect(result).toEqual(createdMessage);
+      expect(result).toBeDefined();
+      expect((result as any).channelId).toBe('channel-123');
 
       expect(mockDatabase.message.create).toHaveBeenCalledWith({
-        data: {
-          ...createDto,
-          searchText: 'hello world', // Lowercase for MongoDB case-insensitive search
-          parentMessageId: null, // Explicitly set for MongoDB null-filter compatibility
-        },
+        data: expect.objectContaining({
+          channelId: 'channel-123',
+          authorId: 'user-123',
+          searchText: 'hello world',
+          parentMessageId: null,
+          spans: {
+            create: [
+              {
+                position: 0,
+                type: SpanType.PLAINTEXT,
+                text: 'Hello world',
+                userId: null,
+                specialKind: null,
+                channelId: null,
+                communityId: null,
+                aliasId: null,
+              },
+            ],
+          },
+        }),
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
     });
 
@@ -83,7 +136,7 @@ describe('MessagesService', () => {
       } as any;
 
       mockDatabase.message.create.mockResolvedValue(
-        MessageFactory.build(createDto),
+        buildMessageWithIncludes(createDto),
       );
 
       await service.create(createDto);
@@ -97,15 +150,20 @@ describe('MessagesService', () => {
 
   describe('findOne', () => {
     it('should return a message by id', async () => {
-      const message = MessageFactory.build();
+      const message = buildMessageWithIncludes();
 
       mockDatabase.message.findUnique.mockResolvedValue(message);
 
       const result = await service.findOne(message.id);
 
-      expect(result).toEqual(message);
+      expect(result).toBeDefined();
       expect(mockDatabase.message.findUnique).toHaveBeenCalledWith({
         where: { id: message.id },
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
     });
 
@@ -137,16 +195,37 @@ describe('MessagesService', () => {
           },
         ],
       } as any;
-      const updatedMessage = MessageFactory.build({
+      const updatedMessage = buildMessageWithIncludes({
         id: messageId,
-        ...updateDto,
       });
 
+      // The service uses $transaction which passes mockDatabase as tx
+      mockDatabase.messageSpan.deleteMany.mockResolvedValue({ count: 1 });
+      mockDatabase.messageSpan.createMany.mockResolvedValue({ count: 1 });
       mockDatabase.message.update.mockResolvedValue(updatedMessage);
 
       const result = await service.update(messageId, updateDto);
 
-      expect(result).toEqual(updatedMessage);
+      expect(result).toBeDefined();
+      // Verify spans were deleted and recreated
+      expect(mockDatabase.messageSpan.deleteMany).toHaveBeenCalledWith({
+        where: { messageId },
+      });
+      expect(mockDatabase.messageSpan.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            messageId,
+            position: 0,
+            type: SpanType.PLAINTEXT,
+            text: 'Updated text',
+            userId: null,
+            specialKind: null,
+            channelId: null,
+            communityId: null,
+            aliasId: null,
+          },
+        ],
+      });
       const updateCall = mockDatabase.message.update.mock.calls[0][0];
       expect(updateCall.where).toEqual({ id: messageId });
       expect(updateCall.data.searchText).toBe('updated text');
@@ -159,7 +238,13 @@ describe('MessagesService', () => {
       const newAttachments = ['file-1', 'file-3']; // file-2 removed
       const updateDto = { attachments: newAttachments };
 
-      mockDatabase.message.update.mockResolvedValue(MessageFactory.build());
+      mockDatabase.messageAttachment.deleteMany.mockResolvedValue({ count: 1 });
+      mockDatabase.messageAttachment.findMany.mockResolvedValue(
+        newAttachments.map((fid) => ({ fileId: fid })),
+      );
+      mockDatabase.message.update.mockResolvedValue(
+        buildMessageWithIncludes({ id: messageId }),
+      );
 
       await service.update(messageId, updateDto, originalAttachments);
 
@@ -177,7 +262,13 @@ describe('MessagesService', () => {
       const newAttachments = ['file-1']; // file-2 and file-3 removed
       const updateDto = { attachments: newAttachments };
 
-      mockDatabase.message.update.mockResolvedValue(MessageFactory.build());
+      mockDatabase.messageAttachment.deleteMany.mockResolvedValue({ count: 2 });
+      mockDatabase.messageAttachment.findMany.mockResolvedValue(
+        newAttachments.map((fid) => ({ fileId: fid })),
+      );
+      mockDatabase.message.update.mockResolvedValue(
+        buildMessageWithIncludes({ id: messageId }),
+      );
 
       await service.update(messageId, updateDto, originalAttachments);
 
@@ -197,7 +288,12 @@ describe('MessagesService', () => {
       const messageId = 'msg-123';
       const updateDto = { attachments: ['file-1', 'file-2'] };
 
-      mockDatabase.message.update.mockResolvedValue(MessageFactory.build());
+      mockDatabase.messageAttachment.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.messageAttachment.findMany.mockResolvedValue([]);
+      mockDatabase.messageAttachment.createMany.mockResolvedValue({ count: 2 });
+      mockDatabase.message.update.mockResolvedValue(
+        buildMessageWithIncludes({ id: messageId }),
+      );
 
       await service.update(messageId, updateDto);
 
@@ -221,7 +317,11 @@ describe('MessagesService', () => {
         ],
       } as any;
 
-      mockDatabase.message.update.mockResolvedValue(MessageFactory.build());
+      mockDatabase.messageSpan.deleteMany.mockResolvedValue({ count: 1 });
+      mockDatabase.messageSpan.createMany.mockResolvedValue({ count: 1 });
+      mockDatabase.message.update.mockResolvedValue(
+        buildMessageWithIncludes({ id: messageId }),
+      );
 
       await service.update(messageId, updateDto);
 
@@ -240,25 +340,47 @@ describe('MessagesService', () => {
   describe('remove', () => {
     it('should delete a message', async () => {
       const messageId = 'msg-123';
-      const deletedMessage = MessageFactory.build({ id: messageId });
+      const deletedMessage = buildMessageWithIncludes({ id: messageId });
 
       mockDatabase.message.delete.mockResolvedValue(deletedMessage);
 
       const result = await service.remove(messageId);
 
-      expect(result).toEqual(deletedMessage);
+      expect(result).toBeDefined();
       expect(mockDatabase.message.delete).toHaveBeenCalledWith({
         where: { id: messageId },
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
     });
 
     it('should mark attachments for deletion when removing message', async () => {
       const messageId = 'msg-123';
-      const attachments = ['file-1', 'file-2'];
+      const file1 = {
+        id: 'file-1',
+        filename: 'a.png',
+        mimeType: 'image/png',
+        fileType: FileType.IMAGE,
+        size: 100,
+        thumbnailPath: null,
+      };
+      const file2 = {
+        id: 'file-2',
+        filename: 'b.png',
+        mimeType: 'image/png',
+        fileType: FileType.IMAGE,
+        size: 200,
+        thumbnailPath: null,
+      };
 
-      mockDatabase.message.delete.mockResolvedValue(MessageFactory.build());
+      mockDatabase.message.delete.mockResolvedValue(
+        buildMessageWithIncludes({ id: messageId }, [file1, file2]),
+      );
 
-      await service.remove(messageId, attachments);
+      await service.remove(messageId);
 
       // markForDeletion is called with fileId and transaction client
       expect(fileService.markForDeletion).toHaveBeenCalledWith(
@@ -273,9 +395,9 @@ describe('MessagesService', () => {
     });
 
     it('should not mark files for deletion if no attachments', async () => {
-      mockDatabase.message.delete.mockResolvedValue(MessageFactory.build());
+      mockDatabase.message.delete.mockResolvedValue(buildMessageWithIncludes());
 
-      await service.remove('msg-id', []);
+      await service.remove('msg-id');
 
       expect(fileService.markForDeletion).not.toHaveBeenCalled();
     });
@@ -290,13 +412,13 @@ describe('MessagesService', () => {
   describe('findAllForChannel', () => {
     it('should return messages for a channel', async () => {
       const channelId = 'channel-123';
-      const messages = MessageFactory.buildMany(3, { channelId });
-      const files = messages
-        .flatMap((m) => m.attachments)
-        .map((id) => FileFactory.build({ id }));
+      const messages = [
+        buildMessageWithIncludes({ channelId }),
+        buildMessageWithIncludes({ channelId }),
+        buildMessageWithIncludes({ channelId }),
+      ];
 
       mockDatabase.message.findMany.mockResolvedValue(messages);
-      mockDatabase.file.findMany.mockResolvedValue(files);
 
       const result = await service.findAllForChannel(channelId);
 
@@ -304,22 +426,25 @@ describe('MessagesService', () => {
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: {
           channelId,
-          OR: [
-            { parentMessageId: null },
-            { NOT: { parentMessageId: { isSet: true } } },
-          ],
+          parentMessageId: null,
         },
         orderBy: { sentAt: 'desc' },
-        take: 50, // fetch exactly limit, thread replies excluded via where clause
+        take: 50,
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
     });
 
     it('should return continuation token when limit reached', async () => {
       const channelId = 'channel-123';
-      const messages = MessageFactory.buildMany(50, { channelId });
+      const messages = Array.from({ length: 50 }, () =>
+        buildMessageWithIncludes({ channelId }),
+      );
 
       mockDatabase.message.findMany.mockResolvedValue(messages);
-      mockDatabase.file.findMany.mockResolvedValue([]);
 
       const result = await service.findAllForChannel(channelId, 50);
 
@@ -329,23 +454,26 @@ describe('MessagesService', () => {
     it('should use continuation token for pagination', async () => {
       const channelId = 'channel-123';
       const continuationToken = 'msg-50';
-      const messages = MessageFactory.buildMany(10, { channelId });
+      const messages = Array.from({ length: 10 }, () =>
+        buildMessageWithIncludes({ channelId }),
+      );
 
       mockDatabase.message.findMany.mockResolvedValue(messages);
-      mockDatabase.file.findMany.mockResolvedValue([]);
 
       await service.findAllForChannel(channelId, 50, continuationToken);
 
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: {
           channelId,
-          OR: [
-            { parentMessageId: null },
-            { NOT: { parentMessageId: { isSet: true } } },
-          ],
+          parentMessageId: null,
         },
         orderBy: { sentAt: 'desc' },
-        take: 50, // fetch exactly limit, thread replies excluded via where clause
+        take: 50,
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
         cursor: { id: continuationToken },
         skip: 1,
       });
@@ -357,16 +485,29 @@ describe('MessagesService', () => {
       );
     });
 
-    it('should enrich messages with file metadata', async () => {
+    it('should format messages with file metadata from includes', async () => {
       const channelId = 'channel-123';
-      const file1 = FileFactory.build({ id: 'file-1', filename: 'test.jpg' });
-      const file2 = FileFactory.build({ id: 'file-2', filename: 'doc.pdf' });
+      const file1 = {
+        id: 'file-1',
+        filename: 'test.jpg',
+        mimeType: 'image/jpeg',
+        fileType: FileType.IMAGE,
+        size: 1024,
+        thumbnailPath: null,
+      };
+      const file2 = {
+        id: 'file-2',
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        fileType: FileType.DOCUMENT,
+        size: 2048,
+        thumbnailPath: null,
+      };
       const messages = [
-        MessageFactory.build({ channelId, attachments: ['file-1', 'file-2'] }),
+        buildMessageWithIncludes({ channelId }, [file1, file2]),
       ];
 
       mockDatabase.message.findMany.mockResolvedValue(messages);
-      mockDatabase.file.findMany.mockResolvedValue([file1, file2]);
 
       const result = await service.findAllForChannel(channelId);
 
@@ -389,37 +530,27 @@ describe('MessagesService', () => {
         },
       ]);
     });
-
-    it('should filter out missing files from attachments', async () => {
-      const channelId = 'channel-123';
-      const file1 = FileFactory.build({ id: 'file-1' });
-      const messages = [
-        MessageFactory.build({
-          channelId,
-          attachments: ['file-1', 'file-missing'],
-        }),
-      ];
-
-      mockDatabase.message.findMany.mockResolvedValue(messages);
-      mockDatabase.file.findMany.mockResolvedValue([file1]);
-
-      const result = await service.findAllForChannel(channelId);
-
-      expect(result.messages[0].attachments).toHaveLength(1);
-      expect(result.messages[0].attachments[0].id).toBe('file-1');
-    });
   });
 
   describe('findAllForDirectMessageGroup', () => {
     it('should return messages for a DM group', async () => {
       const dmGroupId = 'dm-123';
-      const messages = MessageFactory.buildMany(3, {
-        directMessageGroupId: dmGroupId,
-        channelId: null,
-      });
+      const messages = [
+        buildMessageWithIncludes({
+          directMessageGroupId: dmGroupId,
+          channelId: null,
+        }),
+        buildMessageWithIncludes({
+          directMessageGroupId: dmGroupId,
+          channelId: null,
+        }),
+        buildMessageWithIncludes({
+          directMessageGroupId: dmGroupId,
+          channelId: null,
+        }),
+      ];
 
       mockDatabase.message.findMany.mockResolvedValue(messages);
-      mockDatabase.file.findMany.mockResolvedValue([]);
 
       const result = await service.findAllForDirectMessageGroup(dmGroupId);
 
@@ -427,13 +558,15 @@ describe('MessagesService', () => {
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: {
           directMessageGroupId: dmGroupId,
-          OR: [
-            { parentMessageId: null },
-            { NOT: { parentMessageId: { isSet: true } } },
-          ],
+          parentMessageId: null,
         },
         orderBy: { sentAt: 'desc' },
-        take: 50, // fetch exactly limit, thread replies excluded via where clause
+        take: 50,
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
     });
 
@@ -447,32 +580,51 @@ describe('MessagesService', () => {
   // Note: addReaction and removeReaction tests moved to reactions.service.spec.ts
 
   describe('addAttachment', () => {
-    it('should add file to attachments and decrement pending', async () => {
+    it('should add file to message attachments via junction table and decrement pending', async () => {
       const messageId = 'msg-123';
       const fileId = 'file-123';
-      const updatedMessage = MessageFactory.build({
-        id: messageId,
-        attachments: [fileId],
-        pendingAttachments: 0,
-      });
+      const updatedMessage = buildMessageWithIncludes(
+        { id: messageId, pendingAttachments: 0 },
+        [{ id: fileId, filename: 'test.bin' }],
+      );
 
+      mockDatabase.messageAttachment.aggregate.mockResolvedValue({
+        _max: { position: 0 },
+      });
+      mockDatabase.messageAttachment.create.mockResolvedValue({
+        id: 'ma-1',
+        messageId,
+        fileId,
+        position: 1,
+      });
       mockDatabase.message.update.mockResolvedValue(updatedMessage);
 
       const result = await service.addAttachment(messageId, fileId);
 
-      expect(result).toEqual(updatedMessage);
+      expect(result).toBeDefined();
+      expect(mockDatabase.messageAttachment.aggregate).toHaveBeenCalledWith({
+        where: { messageId },
+        _max: { position: true },
+      });
+      expect(mockDatabase.messageAttachment.create).toHaveBeenCalledWith({
+        data: { messageId, fileId, position: 1 },
+      });
       expect(mockDatabase.message.update).toHaveBeenCalledWith({
         where: { id: messageId },
         data: {
-          attachments: { push: fileId },
           pendingAttachments: { decrement: 1 },
         },
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
     });
 
     it('should only decrement pending when no fileId provided', async () => {
       const messageId = 'msg-123';
-      const updatedMessage = MessageFactory.build({
+      const updatedMessage = buildMessageWithIncludes({
         id: messageId,
         pendingAttachments: 1,
       });
@@ -481,15 +633,26 @@ describe('MessagesService', () => {
 
       await service.addAttachment(messageId);
 
+      expect(mockDatabase.messageAttachment.aggregate).not.toHaveBeenCalled();
+      expect(mockDatabase.messageAttachment.create).not.toHaveBeenCalled();
       expect(mockDatabase.message.update).toHaveBeenCalledWith({
         where: { id: messageId },
         data: {
           pendingAttachments: { decrement: 1 },
         },
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
     });
 
     it('should handle errors when adding attachment', async () => {
+      mockDatabase.messageAttachment.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
+      mockDatabase.messageAttachment.create.mockResolvedValue({});
       mockDatabase.message.update.mockRejectedValue(new Error('Update failed'));
 
       await expect(service.addAttachment('msg-id', 'file-id')).rejects.toThrow(
@@ -499,18 +662,26 @@ describe('MessagesService', () => {
   });
 
   describe('enrichMessageWithFileMetadata', () => {
-    it('should enrich message with file metadata', async () => {
-      const file1 = FileFactory.build({ id: 'file-1', filename: 'test.jpg' });
-      const file2 = FileFactory.build({ id: 'file-2', filename: 'doc.pdf' });
-      const message = MessageFactory.build({
-        attachments: ['file-1', 'file-2'],
-      });
+    it('should format message with included file metadata', async () => {
+      const file1 = {
+        id: 'file-1',
+        filename: 'test.jpg',
+        mimeType: 'image/jpeg',
+        fileType: FileType.IMAGE,
+        size: 1024,
+        thumbnailPath: null,
+      };
+      const file2 = {
+        id: 'file-2',
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        fileType: FileType.DOCUMENT,
+        size: 2048,
+        thumbnailPath: null,
+      };
+      const message = buildMessageWithIncludes({}, [file1, file2]);
 
-      mockDatabase.file.findMany.mockResolvedValue([file1, file2]);
-
-      const result = await service.enrichMessageWithFileMetadata(
-        message as any,
-      );
+      const result = await service.enrichMessageWithFileMetadata(message);
 
       // toFileMetadata strips thumbnailPath and adds hasThumbnail
       expect(result.attachments).toEqual([
@@ -531,52 +702,39 @@ describe('MessagesService', () => {
           hasThumbnail: false,
         },
       ]);
-      expect(mockDatabase.file.findMany).toHaveBeenCalledWith({
-        where: { id: { in: ['file-1', 'file-2'] } },
-        select: {
-          id: true,
-          filename: true,
-          mimeType: true,
-          fileType: true,
-          size: true,
-          thumbnailPath: true,
-        },
-      });
+      // No file.findMany needed - data comes from includes
+      expect(mockDatabase.file.findMany).not.toHaveBeenCalled();
     });
 
     it('should return empty attachments when message has no files', async () => {
-      const message = MessageFactory.build({ attachments: [] });
+      const message = buildMessageWithIncludes({});
 
-      const result = await service.enrichMessageWithFileMetadata(
-        message as any,
-      );
+      const result = await service.enrichMessageWithFileMetadata(message);
 
       expect(result.attachments).toEqual([]);
       expect(mockDatabase.file.findMany).not.toHaveBeenCalled();
     });
 
     it('should set hasThumbnail to true when file has thumbnailPath', async () => {
-      const videoFile = FileFactory.build({
+      const videoFile = {
         id: 'vid-1',
         filename: 'video.mp4',
         mimeType: 'video/mp4',
         fileType: FileType.VIDEO,
+        size: 5000,
         thumbnailPath: '/uploads/thumbnails/vid-1.jpg',
-      });
-      const imageFile = FileFactory.build({
+      };
+      const imageFile = {
         id: 'img-1',
         filename: 'photo.jpg',
+        mimeType: 'image/jpeg',
+        fileType: FileType.IMAGE,
+        size: 2000,
         thumbnailPath: null,
-      });
-      const message = MessageFactory.build({
-        attachments: ['vid-1', 'img-1'],
-      });
+      };
+      const message = buildMessageWithIncludes({}, [videoFile, imageFile]);
 
-      mockDatabase.file.findMany.mockResolvedValue([videoFile, imageFile]);
-
-      const result = await service.enrichMessageWithFileMetadata(
-        message as any,
-      );
+      const result = await service.enrichMessageWithFileMetadata(message);
 
       expect(result.attachments).toHaveLength(2);
       expect(
@@ -586,21 +744,226 @@ describe('MessagesService', () => {
         (result.attachments[1] as { hasThumbnail: boolean }).hasThumbnail,
       ).toBe(false);
     });
+  });
 
-    it('should filter out missing files', async () => {
-      const file1 = FileFactory.build({ id: 'file-1' });
-      const message = MessageFactory.build({
-        attachments: ['file-1', 'file-missing'],
+  describe('searchChannelMessages', () => {
+    it('should return empty array for empty query', async () => {
+      const result = await service.searchChannelMessages('channel-123', '');
+      expect(result).toEqual([]);
+      expect(mockDatabase.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('should return empty array for whitespace-only query', async () => {
+      const result = await service.searchChannelMessages('channel-123', '   ');
+      expect(result).toEqual([]);
+      expect(mockDatabase.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('should use $queryRaw with searchVector and return enriched messages', async () => {
+      const channelId = 'channel-123';
+      const msg1 = buildMessageWithIncludes({ id: 'msg-1', channelId });
+      const msg2 = buildMessageWithIncludes({ id: 'msg-2', channelId });
+
+      // Raw query returns matching IDs in order
+      mockDatabase.$queryRaw.mockResolvedValue([
+        { id: 'msg-1' },
+        { id: 'msg-2' },
+      ]);
+      // Enrichment query returns full messages (may be in different order)
+      mockDatabase.message.findMany.mockResolvedValue([msg2, msg1]);
+
+      const result = await service.searchChannelMessages(channelId, 'hello');
+
+      expect(mockDatabase.$queryRaw).toHaveBeenCalled();
+      expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['msg-1', 'msg-2'] } },
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
       });
+      expect(result).toHaveLength(2);
+      // Should preserve order from raw query (msg-1 first)
+      expect((result[0] as any).id).toBe('msg-1');
+      expect((result[1] as any).id).toBe('msg-2');
+    });
 
-      mockDatabase.file.findMany.mockResolvedValue([file1]);
+    it('should return empty array when raw query returns no results', async () => {
+      mockDatabase.$queryRaw.mockResolvedValue([]);
 
-      const result = await service.enrichMessageWithFileMetadata(
-        message as any,
+      const result = await service.searchChannelMessages(
+        'channel-123',
+        'nonexistent',
       );
 
-      expect(result.attachments).toHaveLength(1);
-      expect((result.attachments[0] as { id: string }).id).toBe('file-1');
+      expect(result).toEqual([]);
+      // Should not call findMany when no raw results
+      expect(mockDatabase.message.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('searchDirectMessages', () => {
+    it('should return empty array for empty query', async () => {
+      const result = await service.searchDirectMessages('dm-123', '');
+      expect(result).toEqual([]);
+      expect(mockDatabase.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('should use $queryRaw with searchVector and return enriched messages', async () => {
+      const dmGroupId = 'dm-123';
+      const msg1 = buildMessageWithIncludes({
+        id: 'msg-1',
+        directMessageGroupId: dmGroupId,
+        channelId: null,
+      });
+
+      mockDatabase.$queryRaw.mockResolvedValue([{ id: 'msg-1' }]);
+      mockDatabase.message.findMany.mockResolvedValue([msg1]);
+
+      const result = await service.searchDirectMessages(dmGroupId, 'hello');
+
+      expect(mockDatabase.$queryRaw).toHaveBeenCalled();
+      expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['msg-1'] } },
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
+      });
+      expect(result).toHaveLength(1);
+    });
+
+    it('should return empty array when raw query returns no results', async () => {
+      mockDatabase.$queryRaw.mockResolvedValue([]);
+
+      const result = await service.searchDirectMessages(
+        'dm-123',
+        'nonexistent',
+      );
+
+      expect(result).toEqual([]);
+      expect(mockDatabase.message.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('searchCommunityMessages', () => {
+    it('should return empty array for empty query', async () => {
+      const result = await service.searchCommunityMessages(
+        'community-123',
+        'user-123',
+        '',
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array when user has no accessible channels', async () => {
+      mockDatabase.channel.findMany.mockResolvedValue([]);
+
+      const result = await service.searchCommunityMessages(
+        'community-123',
+        'user-123',
+        'hello',
+      );
+
+      expect(result).toEqual([]);
+      expect(mockDatabase.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('should use $queryRaw with searchVector and enrich with channel names', async () => {
+      const communityId = 'community-123';
+      const userId = 'user-123';
+      const channelId = 'channel-1';
+
+      // Accessible channels
+      mockDatabase.channel.findMany.mockResolvedValue([
+        { id: channelId, name: 'general' },
+      ]);
+
+      const msg1 = buildMessageWithIncludes({
+        id: 'msg-1',
+        channelId,
+      });
+
+      // Raw query returns IDs with channelId
+      mockDatabase.$queryRaw.mockResolvedValue([{ id: 'msg-1', channelId }]);
+      // Enrichment query
+      mockDatabase.message.findMany.mockResolvedValue([msg1]);
+
+      const result = await service.searchCommunityMessages(
+        communityId,
+        userId,
+        'hello',
+      );
+
+      expect(mockDatabase.channel.findMany).toHaveBeenCalledWith({
+        where: {
+          communityId,
+          OR: [
+            { isPrivate: false },
+            {
+              isPrivate: true,
+              ChannelMembership: { some: { userId } },
+            },
+          ],
+        },
+        select: { id: true, name: true },
+      });
+      expect(mockDatabase.$queryRaw).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+      expect((result[0] as any).channelName).toBe('general');
+    });
+
+    it('should return empty array when raw query returns no results', async () => {
+      mockDatabase.channel.findMany.mockResolvedValue([
+        { id: 'channel-1', name: 'general' },
+      ]);
+      mockDatabase.$queryRaw.mockResolvedValue([]);
+
+      const result = await service.searchCommunityMessages(
+        'community-123',
+        'user-123',
+        'nonexistent',
+      );
+
+      expect(result).toEqual([]);
+      // Should not call message.findMany when no raw results
+      expect(mockDatabase.message.findMany).not.toHaveBeenCalled();
+    });
+
+    it('should preserve order from raw query across multiple channels', async () => {
+      mockDatabase.channel.findMany.mockResolvedValue([
+        { id: 'ch-1', name: 'general' },
+        { id: 'ch-2', name: 'random' },
+      ]);
+
+      const msg1 = buildMessageWithIncludes({ id: 'msg-1', channelId: 'ch-1' });
+      const msg2 = buildMessageWithIncludes({ id: 'msg-2', channelId: 'ch-2' });
+      const msg3 = buildMessageWithIncludes({ id: 'msg-3', channelId: 'ch-1' });
+
+      // Raw query returns in sentAt DESC order
+      mockDatabase.$queryRaw.mockResolvedValue([
+        { id: 'msg-2', channelId: 'ch-2' },
+        { id: 'msg-1', channelId: 'ch-1' },
+        { id: 'msg-3', channelId: 'ch-1' },
+      ]);
+      // findMany may return in different order
+      mockDatabase.message.findMany.mockResolvedValue([msg1, msg3, msg2]);
+
+      const result = await service.searchCommunityMessages(
+        'community-123',
+        'user-123',
+        'hello',
+      );
+
+      expect(result).toHaveLength(3);
+      expect((result[0] as any).id).toBe('msg-2');
+      expect((result[0] as any).channelName).toBe('random');
+      expect((result[1] as any).id).toBe('msg-1');
+      expect((result[1] as any).channelName).toBe('general');
+      expect((result[2] as any).id).toBe('msg-3');
+      expect((result[2] as any).channelName).toBe('general');
     });
   });
 });

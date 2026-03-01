@@ -1,14 +1,14 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
-import { Message } from '@prisma/client';
-import { ObjectId } from 'bson';
+import { Message, MessageReaction } from '@prisma/client';
+
+type MessageWithReactions = Message & { reactions: MessageReaction[] };
 
 /**
  * Service for managing message reactions
  *
- * Extracted from MessagesService for better separation of concerns.
- * Uses atomic MongoDB operations ($push/$pull) to prevent race conditions
- * when multiple users react to the same message concurrently.
+ * Uses upsert/delete on the MessageReaction junction table.
+ * The unique constraint (messageId, emoji, userId) ensures idempotency.
  */
 @Injectable()
 export class ReactionsService {
@@ -17,90 +17,33 @@ export class ReactionsService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   /**
-   * Add a reaction to a message using atomic MongoDB operations.
+   * Add a reaction to a message.
    *
-   * Uses a two-step atomic approach:
-   * 1. Try to add userId to an existing reaction's userIds array
-   * 2. If no existing reaction for this emoji, push a new reaction entry
+   * Uses upsert with the compound unique key to be idempotent —
+   * if the user already reacted with this emoji, it's a no-op.
    *
    * @param messageId - ID of the message to react to
    * @param emoji - Emoji character/string
    * @param userId - ID of the user adding the reaction
-   * @returns Updated message with new reaction state
+   * @returns Updated message with reactions
    */
   async addReaction(
     messageId: string,
     emoji: string,
     userId: string,
-  ): Promise<Message> {
+  ): Promise<MessageWithReactions> {
     try {
-      // First, verify the message exists
       await this.findMessageOrThrow(messageId);
 
-      const oid = new ObjectId(messageId);
+      await this.databaseService.messageReaction.upsert({
+        where: {
+          messageId_emoji_userId: { messageId, emoji, userId },
+        },
+        create: { messageId, emoji, userId },
+        update: {},
+      });
 
-      // Step 1: Try to add userId to existing reaction for this emoji
-      // This atomically adds the user only if the emoji exists and user isn't already in the array
-      const updateExisting = (await this.databaseService.$runCommandRaw({
-        update: 'Message',
-        updates: [
-          {
-            q: {
-              _id: { $oid: oid.toHexString() },
-              reactions: {
-                $elemMatch: {
-                  emoji: emoji,
-                  userIds: { $ne: userId },
-                },
-              },
-            },
-            u: {
-              $push: { 'reactions.$.userIds': userId },
-            },
-          },
-        ],
-      })) as { nModified?: number; n?: number };
-
-      // If no document was modified, either the emoji doesn't exist yet or user already reacted
-      if (!updateExisting.nModified) {
-        // Step 2: Check if user already reacted with this emoji (idempotent)
-        const alreadyReacted = (await this.databaseService.$runCommandRaw({
-          find: 'Message',
-          filter: {
-            _id: { $oid: oid.toHexString() },
-            reactions: {
-              $elemMatch: { emoji, userIds: userId },
-            },
-          },
-          limit: 1,
-        })) as { cursor?: { firstBatch?: unknown[] } };
-
-        const hasExisting =
-          (alreadyReacted.cursor?.firstBatch?.length ?? 0) > 0;
-
-        if (!hasExisting) {
-          // Step 3: Emoji reaction doesn't exist yet - push a new reaction entry
-          await this.databaseService.$runCommandRaw({
-            update: 'Message',
-            updates: [
-              {
-                q: {
-                  _id: { $oid: oid.toHexString() },
-                  'reactions.emoji': { $ne: emoji },
-                },
-                u: {
-                  $push: {
-                    reactions: { emoji, userIds: [userId] },
-                  },
-                },
-              },
-            ],
-          });
-        }
-      }
-
-      // Return the updated message
-      return await this.findMessageOrThrow(messageId);
+      return await this.findMessageWithReactionsOrThrow(messageId);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -111,57 +54,28 @@ export class ReactionsService {
   }
 
   /**
-   * Remove a reaction from a message using atomic MongoDB operations.
+   * Remove a reaction from a message.
    *
-   * Atomically pulls the userId from the reaction's userIds array,
-   * then cleans up empty reaction entries.
+   * Deletes the reaction row if it exists; no-op if it doesn't.
    *
    * @param messageId - ID of the message
    * @param emoji - Emoji character/string to remove
    * @param userId - ID of the user removing their reaction
-   * @returns Updated message with new reaction state
+   * @returns Updated message with reactions
    */
   async removeReaction(
     messageId: string,
     emoji: string,
     userId: string,
-  ): Promise<Message> {
+  ): Promise<MessageWithReactions> {
     try {
       await this.findMessageOrThrow(messageId);
 
-      const oid = new ObjectId(messageId);
-
-      // Step 1: Atomically remove the userId from the reaction's userIds array
-      await this.databaseService.$runCommandRaw({
-        update: 'Message',
-        updates: [
-          {
-            q: {
-              _id: { $oid: oid.toHexString() },
-              'reactions.emoji': emoji,
-            },
-            u: {
-              $pull: { 'reactions.$.userIds': userId },
-            },
-          },
-        ],
+      await this.databaseService.messageReaction.deleteMany({
+        where: { messageId, emoji, userId },
       });
 
-      // Step 2: Clean up any reaction entries with empty userIds arrays
-      await this.databaseService.$runCommandRaw({
-        update: 'Message',
-        updates: [
-          {
-            q: { _id: { $oid: oid.toHexString() } },
-            u: {
-              $pull: { reactions: { userIds: { $size: 0 } } },
-            },
-          },
-        ],
-      });
-
-      // Return the updated message
-      return await this.findMessageOrThrow(messageId);
+      return await this.findMessageWithReactionsOrThrow(messageId);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -180,6 +94,24 @@ export class ReactionsService {
   private async findMessageOrThrow(messageId: string): Promise<Message> {
     const message = await this.databaseService.message.findUnique({
       where: { id: messageId },
+    });
+
+    if (!message) {
+      throw new NotFoundException(`Message ${messageId} not found`);
+    }
+
+    return message;
+  }
+
+  /**
+   * Find a message with reactions or throw NotFoundException
+   */
+  private async findMessageWithReactionsOrThrow(
+    messageId: string,
+  ): Promise<MessageWithReactions> {
+    const message = await this.databaseService.message.findUnique({
+      where: { id: messageId },
+      include: { reactions: true },
     });
 
     if (!message) {

@@ -422,12 +422,13 @@ const AdminInvitePage: React.FC = () => {
                             • Created: {formatDate(invite.createdAt)}
                           </Typography>
                         </Box>
-                        {invite.defaultCommunityId.length > 0 && (
+                        {invite.defaultCommunities?.length > 0 && (
                           <Box display="flex" gap={0.5} alignItems="center" flexWrap="wrap">
                             <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
                               Communities:
                             </Typography>
-                            {invite.defaultCommunityId.map(id => {
+                            {invite.defaultCommunities.map(dc => {
+                              const id = dc.communityId;
                               const community = communities.find(c => c.id === id);
                               return (
                                 <Chip

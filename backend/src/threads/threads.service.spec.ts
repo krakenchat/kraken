@@ -2,7 +2,7 @@ import { TestBed } from '@suites/unit';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ThreadsService } from './threads.service';
 import { DatabaseService } from '@/database/database.service';
-import { createMockDatabase, MessageFactory, FileFactory } from '@/test-utils';
+import { createMockDatabase, MessageFactory } from '@/test-utils';
 
 describe('ThreadsService', () => {
   let service: ThreadsService;
@@ -99,7 +99,10 @@ describe('ThreadsService', () => {
 
       const result = await service.createThreadReply(dto, authorId);
 
-      expect(result).toEqual(reply);
+      expect(result).toMatchObject(reply);
+      expect(result).toHaveProperty('spans');
+      expect(result).toHaveProperty('reactions');
+      expect(result).toHaveProperty('attachments');
       expect(mockDatabase.$transaction).toHaveBeenCalled();
       expect(mockDatabase.message.create).toHaveBeenCalled();
       expect(mockDatabase.message.update).toHaveBeenCalledWith(
@@ -136,7 +139,7 @@ describe('ThreadsService', () => {
         authorId,
       );
 
-      expect(result).toEqual(reply);
+      expect(result).toMatchObject(reply);
     });
 
     it('should auto-subscribe the replier to the thread', async () => {
@@ -192,9 +195,10 @@ describe('ThreadsService', () => {
       await service.createThreadReply(dtoWithExtraFields as any, authorId);
 
       const createCall = mockDatabase.message.create.mock.calls[0][0];
-      const spans = createCall.data.spans;
+      const spans = createCall.data.spans.create;
       expect(spans[0]).not.toHaveProperty('extraField');
       expect(spans[0]).toEqual({
+        position: 0,
         type: 'PLAINTEXT',
         text: 'Hello',
         userId: null,
@@ -276,24 +280,32 @@ describe('ThreadsService', () => {
 
     it('should enrich replies with file metadata', async () => {
       const fileId = 'file-123';
-      const reply = MessageFactory.build({
-        parentMessageId,
-        attachments: [fileId],
-      });
-      const file = FileFactory.build({
-        id: fileId,
-        filename: 'test.png',
-        mimeType: 'image/png',
-        fileType: 'IMAGE',
-        size: 1024,
-        thumbnailPath: '/thumbnails/test.png',
-      });
+      const reply = {
+        ...MessageFactory.build({ parentMessageId }),
+        spans: [],
+        reactions: [],
+        attachments: [
+          {
+            id: 'att-1',
+            messageId: 'msg-1',
+            fileId,
+            position: 0,
+            file: {
+              id: fileId,
+              filename: 'test.png',
+              mimeType: 'image/png',
+              fileType: 'IMAGE',
+              size: 1024,
+              thumbnailPath: '/thumbnails/test.png',
+            },
+          },
+        ],
+      };
 
       mockDatabase.message.findUnique.mockResolvedValue({
         id: parentMessageId,
       });
       mockDatabase.message.findMany.mockResolvedValue([reply]);
-      mockDatabase.file.findMany.mockResolvedValue([file]);
 
       const result =
         await service.getThreadRepliesWithMetadata(parentMessageId);
@@ -310,20 +322,32 @@ describe('ThreadsService', () => {
 
     it('should convert thumbnailPath to hasThumbnail boolean', async () => {
       const fileId = 'file-123';
-      const reply = MessageFactory.build({
-        parentMessageId,
-        attachments: [fileId],
-      });
-      const fileNoThumb = FileFactory.build({
-        id: fileId,
-        thumbnailPath: null,
-      });
+      const reply = {
+        ...MessageFactory.build({ parentMessageId }),
+        spans: [],
+        reactions: [],
+        attachments: [
+          {
+            id: 'att-1',
+            messageId: 'msg-1',
+            fileId,
+            position: 0,
+            file: {
+              id: fileId,
+              filename: 'test.png',
+              mimeType: 'image/png',
+              fileType: 'IMAGE',
+              size: 1024,
+              thumbnailPath: null,
+            },
+          },
+        ],
+      };
 
       mockDatabase.message.findUnique.mockResolvedValue({
         id: parentMessageId,
       });
       mockDatabase.message.findMany.mockResolvedValue([reply]);
-      mockDatabase.file.findMany.mockResolvedValue([fileNoThumb]);
 
       const result =
         await service.getThreadRepliesWithMetadata(parentMessageId);
@@ -331,20 +355,23 @@ describe('ThreadsService', () => {
       expect(result.replies[0].attachments[0].hasThumbnail).toBe(false);
     });
 
-    it('should not query files when no attachments', async () => {
-      const reply = MessageFactory.build({
-        parentMessageId,
+    it('should return empty attachments when no attachments', async () => {
+      const reply = {
+        ...MessageFactory.build({ parentMessageId }),
+        spans: [],
+        reactions: [],
         attachments: [],
-      });
+      };
 
       mockDatabase.message.findUnique.mockResolvedValue({
         id: parentMessageId,
       });
       mockDatabase.message.findMany.mockResolvedValue([reply]);
 
-      await service.getThreadRepliesWithMetadata(parentMessageId);
+      const result =
+        await service.getThreadRepliesWithMetadata(parentMessageId);
 
-      expect(mockDatabase.file.findMany).not.toHaveBeenCalled();
+      expect(result.replies[0].attachments).toEqual([]);
     });
   });
 

@@ -1,9 +1,9 @@
 dependencies:
-- name: mongodb
+- name: postgresql
   repository: https://charts.bitnami.com/bitnami
-  version: 15.6.22
+  version: 16.4.3
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 19.6.4
-digest: sha256:0a1b0ab390641c466f549cd41b2cf888eb0d899b0cd4bbecf515eb5c1718d64b
-generated: "2025-11-16T14:30:32.016617426-08:00"
+digest: sha256:PLACEHOLDER-run-helm-dependency-update-to-regenerate
+generated: "2026-03-01T00:00:00.000000000+00:00"

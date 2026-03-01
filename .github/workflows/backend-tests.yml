@@ -52,17 +52,19 @@ jobs:
       pull-requests: write
 
     services:
-      mongodb:
-        image: mongo:7
+      postgres:
+        image: postgres:17
         env:
-          MONGO_INITDB_DATABASE: test
+          POSTGRES_USER: kraken
+          POSTGRES_PASSWORD: kraken
+          POSTGRES_DB: test
         options: >-
-          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-cmd "pg_isready -U kraken"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 27017:27017
+          - 5432:5432
 
       redis:
         image: redis:7-alpine
@@ -99,7 +101,7 @@ jobs:
         working-directory: ./backend
         run: pnpm run test:cov
         env:
-          DATABASE_URL: mongodb://localhost:27017/test
+          DATABASE_URL: postgresql://kraken:kraken@localhost:5432/test
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_SECRET: test-secret-key

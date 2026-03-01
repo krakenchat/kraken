@@ -9,14 +9,14 @@ graph LR
     Browser["Browser / Electron"]
     Frontend["Frontend<br/>(React + Vite)"]
     Backend["Backend<br/>(NestJS)"]
-    MongoDB[(MongoDB)]
+    PostgreSQL[(PostgreSQL)]
     Redis[(Redis)]
     LiveKit["LiveKit Server"]
 
     Browser -->|HTTP/WS| Frontend
     Browser -->|REST + Socket.IO| Backend
     Browser -->|WebRTC| LiveKit
-    Backend --> MongoDB
+    Backend --> PostgreSQL
     Backend --> Redis
     Backend --> LiveKit
     Frontend -.->|Static assets| Browser
@@ -61,9 +61,9 @@ LiveKit handles all media transport. The backend generates LiveKit tokens and ma
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Database | MongoDB + Prisma | Document model fits nested data (messages, spans, reactions); Prisma provides type safety |
+| Database | PostgreSQL + Prisma | Relational model with strong consistency and referential integrity; Prisma provides type safety |
 | State management | TanStack Query v5 | Server state only -- no client-side store needed; cache invalidation via WebSocket |
 | Real-time | Socket.IO + Redis adapter | Multi-pod scaling, automatic reconnection, room-based broadcasting |
 | Voice/Video | LiveKit | Open-source SFU with WebRTC, supports screen sharing and recording |
 | Auth | JWT + Passport | Stateless tokens, refresh token rotation, works with WebSocket |
-| Schema management | `prisma db push` | No migration files; direct schema sync for MongoDB |
+| Schema management | Prisma Migrate | SQL migration files for reproducible schema changes |

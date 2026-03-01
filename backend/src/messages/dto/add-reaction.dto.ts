@@ -1,10 +1,9 @@
-import { IsString, IsNotEmpty } from 'class-validator';
-import { IsObjectId } from 'nestjs-object-id';
+import { IsString, IsNotEmpty, IsUUID } from 'class-validator';
 
 export class AddReactionDto {
   @IsNotEmpty()
   @IsString()
-  @IsObjectId()
+  @IsUUID()
   messageId: string;
 
   @IsString()

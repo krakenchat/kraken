@@ -1,9 +1,14 @@
-import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
-import { IsObjectId } from 'nestjs-object-id';
+import {
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateDmGroupDto {
   @IsArray()
-  @IsObjectId({ each: true })
+  @IsUUID('all', { each: true })
   userIds: string[];
 
   @IsOptional()

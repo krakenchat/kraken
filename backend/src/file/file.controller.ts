@@ -8,6 +8,7 @@ import {
   Res,
   StreamableFile,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
@@ -15,7 +16,7 @@ import { FileService } from './file.service';
 import { SignedUrlService } from './signed-url.service';
 import { StorageType } from '@prisma/client';
 import { createReadStream } from 'fs';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
 import { FileAuthGuard } from '@/file/file-auth.guard';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -34,7 +35,7 @@ export class FileController {
   @Get(':id/signed-url')
   @UseGuards(JwtAuthGuard, FileAccessGuard)
   async getSignedUrl(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<{ url: string; expiresAt: string }> {
     const file = await this.fileService.findOne(id);
@@ -56,7 +57,7 @@ export class FileController {
   @UseGuards(OptionalJwtAuthGuard, FileAuthGuard, FileAccessGuard)
   @ApiOkResponse({ type: FileMetadataResponseDto })
   async getFileMetadata(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<FileMetadataResponseDto> {
     const file = await this.fileService.findOne(id);
     if (!file) {
@@ -77,7 +78,7 @@ export class FileController {
   @Get(':id/thumbnail')
   @UseGuards(OptionalJwtAuthGuard, FileAuthGuard, FileAccessGuard)
   async getFileThumbnail(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const file = await this.fileService.findOne(id);
@@ -104,7 +105,7 @@ export class FileController {
   @Get(':id')
   @UseGuards(OptionalJwtAuthGuard, FileAuthGuard, FileAccessGuard)
   async getFile(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {

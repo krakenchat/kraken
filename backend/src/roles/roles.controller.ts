@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
   HttpCode,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
@@ -21,7 +22,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { UserRolesResponseDto, RoleDto } from './dto/user-roles-response.dto';
 import { RoleUserDto } from './dto/role-users-response.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -38,7 +39,7 @@ export class RolesController {
 
   @Get('my/community/:communityId')
   async getMyRolesForCommunity(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserRolesForCommunity(req.user.id, communityId);
@@ -46,7 +47,7 @@ export class RolesController {
 
   @Get('my/channel/:channelId')
   async getMyRolesForChannel(
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserRolesForChannel(req.user.id, channelId);
@@ -68,8 +69,8 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async getUserRolesForCommunity(
-    @Param('userId', ParseObjectIdPipe) userId: string,
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserRolesForCommunity(userId, communityId);
   }
@@ -83,8 +84,8 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async getUserRolesForChannel(
-    @Param('userId', ParseObjectIdPipe) userId: string,
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserRolesForChannel(userId, channelId);
   }
@@ -94,7 +95,7 @@ export class RolesController {
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async getUserInstanceRoles(
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<UserRolesResponseDto> {
     return this.rolesService.getUserInstanceRoles(userId);
   }
@@ -110,7 +111,7 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async getCommunityRoles(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<CommunityRolesResponseDto> {
     return this.rolesService.getCommunityRoles(communityId);
   }
@@ -126,7 +127,7 @@ export class RolesController {
   })
   @ApiOkResponse({ type: CommunityRolesResponseDto })
   async resetDefaultCommunityRoles(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<CommunityRolesResponseDto> {
     return this.rolesService.resetDefaultCommunityRoles(communityId);
   }
@@ -140,7 +141,7 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async createCommunityRole(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Body() createRoleDto: CreateRoleDto,
   ): Promise<RoleDto> {
     return this.rolesService.createCommunityRole(communityId, createRoleDto);
@@ -158,8 +159,8 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async updateRole(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
   ): Promise<RoleDto> {
     return this.rolesService.updateRole(roleId, communityId, updateRoleDto);
@@ -175,8 +176,8 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async deleteRole(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
   ): Promise<void> {
     return this.rolesService.deleteRole(roleId, communityId);
   }
@@ -193,7 +194,7 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async assignRoleToUser(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Body() assignRoleDto: AssignRoleDto,
   ): Promise<void> {
     return this.rolesService.assignUserToCommunityRole(
@@ -213,9 +214,9 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async removeRoleFromUser(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
   ): Promise<void> {
     return this.rolesService.removeUserFromCommunityRole(
       userId,
@@ -234,8 +235,8 @@ export class RolesController {
     source: ResourceIdSource.PARAM,
   })
   async getUsersForRole(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
   ): Promise<RoleUserDto[]> {
     return this.rolesService.getUsersForRole(roleId, communityId);
   }
@@ -277,7 +278,7 @@ export class RolesController {
   @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async updateInstanceRole(
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
   ): Promise<RoleDto> {
     return this.rolesService.updateInstanceRole(roleId, updateRoleDto);
@@ -292,7 +293,7 @@ export class RolesController {
   @RequiredActions(RbacActions.UPDATE_INSTANCE_SETTINGS)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async deleteInstanceRole(
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
   ): Promise<void> {
     return this.rolesService.deleteInstanceRole(roleId);
   }
@@ -306,7 +307,7 @@ export class RolesController {
   @RequiredActions(RbacActions.UPDATE_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async assignInstanceRole(
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
     @Body() dto: AssignInstanceRoleDto,
   ): Promise<void> {
     return this.rolesService.assignUserToInstanceRole(dto.userId, roleId);
@@ -321,8 +322,8 @@ export class RolesController {
   @RequiredActions(RbacActions.UPDATE_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async removeInstanceRole(
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<void> {
     return this.rolesService.removeUserFromInstanceRole(userId, roleId);
   }
@@ -336,7 +337,7 @@ export class RolesController {
   @RequiredActions(RbacActions.READ_USER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   async getInstanceRoleUsers(
-    @Param('roleId', ParseObjectIdPipe) roleId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
   ): Promise<RoleUserDto[]> {
     return this.rolesService.getInstanceRoleUsers(roleId);
   }

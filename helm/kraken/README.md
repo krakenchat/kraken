@@ -14,7 +14,7 @@ A production-ready Helm chart for deploying Kraken - a self-hosted voice and tex
 
 ### Install with Default Configuration
 
-This will deploy Kraken with bundled MongoDB and Redis:
+This will deploy Kraken with bundled PostgreSQL and Redis:
 
 ```bash
 helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
@@ -82,17 +82,16 @@ helm uninstall kraken
 | `ingress.tls.certManager.issuer` | cert-manager issuer name | `letsencrypt-prod` |
 | `ingress.tls.secretName` | Manual TLS secret name | `""` |
 
-### MongoDB Configuration
+### PostgreSQL Configuration
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `mongodb.bundled` | Deploy MongoDB with chart | `true` |
-| `mongodb.architecture` | MongoDB architecture | `replicaset` |
-| `mongodb.replicaCount` | Number of MongoDB replicas | `3` |
-| `mongodb.auth.rootPassword` | MongoDB root password | `changeme-root-password` |
-| `mongodb.auth.password` | MongoDB app user password | `changeme-kraken-password` |
-| `mongodb.persistence.size` | MongoDB PVC size | `20Gi` |
-| `mongodb.external.uri` | External MongoDB URI (if bundled=false) | `""` |
+| `postgresql.bundled` | Deploy PostgreSQL with chart | `true` |
+| `postgresql.auth.username` | PostgreSQL username | `kraken` |
+| `postgresql.auth.password` | PostgreSQL password | `""` (set via --set or secrets) |
+| `postgresql.auth.database` | PostgreSQL database name | `kraken` |
+| `postgresql.primary.persistence.size` | PostgreSQL PVC size | `10Gi` |
+| `postgresql.external.uri` | External PostgreSQL URI (if bundled=false) | `""` |
 
 ### Redis Configuration
 
@@ -186,12 +185,12 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 
 ### Scenario 3: External Database & Redis
 
-Use your own managed MongoDB and Redis:
+Use your own managed PostgreSQL and Redis:
 
 ```bash
 helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
-  --set mongodb.bundled=false \
-  --set mongodb.external.uri="mongodb://user:pass@mongo.example.com:27017/kraken?replicaSet=rs0" \
+  --set postgresql.bundled=false \
+  --set postgresql.external.uri="postgresql://user:pass@postgres.example.com:5432/kraken" \
   --set redis.bundled=false \
   --set redis.external.host=redis.example.com \
   --set redis.external.port=6379 \
@@ -255,7 +254,7 @@ openssl rand -hex 32
 
 ### Updating Dependencies
 
-When updating MongoDB or Redis subchart versions:
+When updating PostgreSQL or Redis subchart versions:
 
 ```bash
 cd helm/kraken
@@ -290,16 +289,16 @@ kubectl logs -l app.kubernetes.io/component=backend -f
 # Frontend logs
 kubectl logs -l app.kubernetes.io/component=frontend -f
 
-# MongoDB logs
-kubectl logs -l app.kubernetes.io/name=mongodb -f
+# PostgreSQL logs
+kubectl logs -l app.kubernetes.io/name=postgresql -f
 ```
 
-### Access MongoDB
+### Access PostgreSQL
 
 ```bash
-kubectl run --namespace default kraken-mongodb-client --rm --tty -i --restart='Never' \
-  --env="MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace default kraken-mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 -d)" \
-  --image docker.io/bitnami/mongodb:7.0 --command -- bash
+kubectl run --namespace default kraken-postgresql-client --rm --tty -i --restart='Never' \
+  --env="PGPASSWORD=$(kubectl get secret --namespace default kraken-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)" \
+  --image docker.io/bitnami/postgresql:16 --command -- psql -h kraken-postgresql -U kraken
 ```
 
 ## Troubleshooting
@@ -317,14 +316,14 @@ kubectl get events --sort-by='.lastTimestamp'
 ### Database Connection Issues
 
 ```bash
-# Verify MongoDB is running
-kubectl get pods -l app.kubernetes.io/name=mongodb
+# Verify PostgreSQL is running
+kubectl get pods -l app.kubernetes.io/name=postgresql
 
-# Check MongoDB logs
-kubectl logs -l app.kubernetes.io/name=mongodb
+# Check PostgreSQL logs
+kubectl logs -l app.kubernetes.io/name=postgresql
 
-# Test MongoDB connection from backend pod
-kubectl exec -it deploy/kraken-backend -- sh -c 'mongosh "$MONGODB_URL"'
+# Test PostgreSQL connection from backend pod
+kubectl exec -it deploy/kraken-backend -- sh -c 'psql "$DATABASE_URL"'
 ```
 
 ### Ingress Not Working
@@ -339,27 +338,29 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 
 ## Backup and Restore
 
-### Backup MongoDB
+### Backup PostgreSQL
 
 ```bash
 # Create a backup job
-kubectl run mongodb-backup --rm -i --tty --restart=Never \
-  --image=bitnami/mongodb:7.0 \
-  -- mongodump --uri="mongodb://user:pass@kraken-mongodb:27017/kraken" --gzip --archive=/backup.gz
+kubectl run postgresql-backup --rm -i --tty --restart=Never \
+  --image=bitnami/postgresql:16 \
+  --env="PGPASSWORD=your-password" \
+  -- pg_dump -h kraken-postgresql -U kraken -d kraken -Fc -f /backup.dump
 ```
 
-### Restore MongoDB
+### Restore PostgreSQL
 
 ```bash
 # Restore from backup
-kubectl run mongodb-restore --rm -i --tty --restart=Never \
-  --image=bitnami/mongodb:7.0 \
-  -- mongorestore --uri="mongodb://user:pass@kraken-mongodb:27017/kraken" --gzip --archive=/backup.gz
+kubectl run postgresql-restore --rm -i --tty --restart=Never \
+  --image=bitnami/postgresql:16 \
+  --env="PGPASSWORD=your-password" \
+  -- pg_restore -h kraken-postgresql -U kraken -d kraken /backup.dump
 ```
 
 ## Security Best Practices
 
-1. **Change Default Passwords**: Always set custom passwords for MongoDB, Redis, and JWT secrets
+1. **Change Default Passwords**: Always set custom passwords for PostgreSQL, Redis, and JWT secrets
 2. **Use TLS**: Enable TLS/HTTPS in production with cert-manager or manual certificates
 3. **Limit Resource**: Configure resource limits to prevent resource exhaustion
 4. **Network Policies**: Consider enabling network policies for pod-to-pod communication

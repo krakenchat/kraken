@@ -8,6 +8,7 @@ import {
 import { DatabaseService } from '@/database/database.service';
 import {
   Message,
+  MessageSpan,
   SpanType,
   NotificationType,
   Notification,
@@ -37,7 +38,11 @@ export class NotificationsService {
    * Process a message to detect mentions and create notifications
    * This is the main entry point called after a message is created
    */
-  async processMessageForNotifications(message: Message): Promise<void> {
+  async processMessageForNotifications(
+    message: Message & {
+      spans: Pick<MessageSpan, 'type' | 'userId' | 'specialKind' | 'aliasId'>[];
+    },
+  ): Promise<void> {
     try {
       // Don't create notifications for deleted messages
       if (message.deletedAt) {

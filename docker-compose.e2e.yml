@@ -1,24 +1,23 @@
-version: '3.8'
-
 # Docker Compose configuration for E2E tests
 # Uses separate test database to isolate from development data
 
 services:
-  # MongoDB for E2E tests (separate from dev)
-  mongo-test:
-    image: mongo:7.0
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+  # PostgreSQL for E2E tests (separate from dev)
+  postgres-test:
+    image: postgres:17
     ports:
-      - "27018:27017"  # Different port to avoid conflicts
+      - "5433:5432"  # Different port to avoid conflicts
+    environment:
+      POSTGRES_USER: kraken
+      POSTGRES_PASSWORD: kraken
+      POSTGRES_DB: kraken_e2e_test
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo-test:27017'}]}) }" | mongosh --port 27017 --quiet
+      test: ["CMD-SHELL", "pg_isready -U kraken"]
       interval: 5s
-      timeout: 30s
-      start_period: 0s
-      start_interval: 1s
-      retries: 30
+      timeout: 5s
+      retries: 10
     volumes:
-      - mongo-test-data:/data/db
+      - postgres-test-data:/var/lib/postgresql/data
     networks:
       - e2e-network
 
@@ -45,7 +44,7 @@ services:
       - "3001:3000"  # Different port to avoid conflicts
     environment:
       - NODE_ENV=test
-      - MONGODB_URL=mongodb://mongo-test:27017/kraken_e2e_test?replicaSet=rs0
+      - DATABASE_URL=postgresql://kraken:kraken@postgres-test:5432/kraken_e2e_test
       - REDIS_HOST=redis-test
       - REDIS_PORT=6379
       - JWT_SECRET=e2e-test-jwt-secret-change-in-production
@@ -63,7 +62,7 @@ services:
       - /app/shared/node_modules
     working_dir: /app/backend
     depends_on:
-      mongo-test:
+      postgres-test:
         condition: service_healthy
       redis-test:
         condition: service_healthy
@@ -119,4 +118,4 @@ networks:
     driver: bridge
 
 volumes:
-  mongo-test-data:
+  postgres-test-data:

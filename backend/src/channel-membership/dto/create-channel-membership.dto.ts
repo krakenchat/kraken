@@ -1,19 +1,18 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
-import { IsObjectId } from 'nestjs-object-id';
+import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateChannelMembershipDto {
   @IsNotEmpty()
   @IsString()
-  @IsObjectId()
+  @IsUUID()
   userId: string;
 
   @IsNotEmpty()
   @IsString()
-  @IsObjectId()
+  @IsUUID()
   channelId: string;
 
   @IsOptional()
   @IsString()
-  @IsObjectId()
+  @IsUUID()
   addedBy?: string;
 }

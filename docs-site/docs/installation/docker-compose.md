@@ -24,7 +24,7 @@ Three options depending on your existing infrastructure:
     No reverse proxy, no LiveKit — use this if you already run both. Voice/video are disabled until you add your LiveKit credentials.
 
 !!! tip "Mixing and matching"
-    These are starting points. The core services (backend, frontend, mongo, redis) are the same across all three. The differences are whether Caddy and/or LiveKit are included. You can add Caddy from the first tab to either of the other setups, or remove LiveKit from the first tab if you bring your own.
+    These are starting points. The core services (backend, frontend, postgres, redis) are the same across all three. The differences are whether Caddy and/or LiveKit are included. You can add Caddy from the first tab to either of the other setups, or remove LiveKit from the first tab if you bring your own.
 
 ## Install
 
@@ -68,7 +68,7 @@ Copy the Compose file for your chosen setup:
         image: ghcr.io/krakenchat/kraken-backend:latest
         restart: unless-stopped
         environment:
-          MONGODB_URL: mongodb://mongo:27017/kraken?replicaSet=rs0&retryWrites=true&w=majority&directConnection=true
+          DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
           REDIS_HOST: redis
           JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
           JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -84,7 +84,7 @@ Copy the Compose file for your chosen setup:
         depends_on:
           volume-init:
             condition: service_completed_successfully
-          mongo:
+          postgres:
             condition: service_healthy
           redis:
             condition: service_healthy
@@ -163,20 +163,20 @@ Copy the Compose file for your chosen setup:
           livekit:
             condition: service_started
 
-      mongo:
-        image: mongo:7.0
+      postgres:
+        image: postgres:17-alpine
         restart: unless-stopped
-        command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+        environment:
+          POSTGRES_USER: kraken
+          POSTGRES_PASSWORD: kraken
+          POSTGRES_DB: kraken
         healthcheck:
-          test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" | mongosh --port 27017 --quiet
+          test: ["CMD-SHELL", "pg_isready -U kraken"]
           interval: 5s
-          timeout: 30s
-          start_period: 0s
-          start_interval: 1s
-          retries: 30
+          timeout: 5s
+          retries: 10
         volumes:
-          - mongodata:/data/db
-          - mongodb_config:/data/configdb
+          - pgdata:/var/lib/postgresql/data
 
       redis:
         image: redis:latest
@@ -190,8 +190,7 @@ Copy the Compose file for your chosen setup:
           - redisdata:/data
 
     volumes:
-      mongodata:
-      mongodb_config:
+      pgdata:
       redisdata:
       uploads:
       egress-data:
@@ -232,7 +231,7 @@ Copy the Compose file for your chosen setup:
         ports:
           - "3000:3000"
         environment:
-          MONGODB_URL: mongodb://mongo:27017/kraken?replicaSet=rs0&retryWrites=true&w=majority&directConnection=true
+          DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
           REDIS_HOST: redis
           JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
           JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -248,7 +247,7 @@ Copy the Compose file for your chosen setup:
         depends_on:
           volume-init:
             condition: service_completed_successfully
-          mongo:
+          postgres:
             condition: service_healthy
           redis:
             condition: service_healthy
@@ -332,20 +331,20 @@ Copy the Compose file for your chosen setup:
           livekit:
             condition: service_started
 
-      mongo:
-        image: mongo:7.0
+      postgres:
+        image: postgres:17-alpine
         restart: unless-stopped
-        command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+        environment:
+          POSTGRES_USER: kraken
+          POSTGRES_PASSWORD: kraken
+          POSTGRES_DB: kraken
         healthcheck:
-          test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" | mongosh --port 27017 --quiet
+          test: ["CMD-SHELL", "pg_isready -U kraken"]
           interval: 5s
-          timeout: 30s
-          start_period: 0s
-          start_interval: 1s
-          retries: 30
+          timeout: 5s
+          retries: 10
         volumes:
-          - mongodata:/data/db
-          - mongodb_config:/data/configdb
+          - pgdata:/var/lib/postgresql/data
 
       redis:
         image: redis:latest
@@ -359,8 +358,7 @@ Copy the Compose file for your chosen setup:
           - redisdata:/data
 
     volumes:
-      mongodata:
-      mongodb_config:
+      pgdata:
       redisdata:
       uploads:
       egress-data:
@@ -387,7 +385,7 @@ Copy the Compose file for your chosen setup:
         ports:
           - "3000:3000"
         environment:
-          MONGODB_URL: mongodb://mongo:27017/kraken?replicaSet=rs0&retryWrites=true&w=majority&directConnection=true
+          DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
           REDIS_HOST: redis
           JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
           JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -400,7 +398,7 @@ Copy the Compose file for your chosen setup:
         depends_on:
           volume-init:
             condition: service_completed_successfully
-          mongo:
+          postgres:
             condition: service_healthy
           redis:
             condition: service_healthy
@@ -422,20 +420,20 @@ Copy the Compose file for your chosen setup:
         depends_on:
           - backend
 
-      mongo:
-        image: mongo:7.0
+      postgres:
+        image: postgres:17-alpine
         restart: unless-stopped
-        command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+        environment:
+          POSTGRES_USER: kraken
+          POSTGRES_PASSWORD: kraken
+          POSTGRES_DB: kraken
         healthcheck:
-          test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" | mongosh --port 27017 --quiet
+          test: ["CMD-SHELL", "pg_isready -U kraken"]
           interval: 5s
-          timeout: 30s
-          start_period: 0s
-          start_interval: 1s
-          retries: 30
+          timeout: 5s
+          retries: 10
         volumes:
-          - mongodata:/data/db
-          - mongodb_config:/data/configdb
+          - pgdata:/var/lib/postgresql/data
 
       redis:
         image: redis:latest
@@ -449,8 +447,7 @@ Copy the Compose file for your chosen setup:
           - redisdata:/data
 
     volumes:
-      mongodata:
-      mongodb_config:
+      pgdata:
       redisdata:
       uploads:
     ```
@@ -524,7 +521,7 @@ docker compose up -d
     | **Frontend** | React app (behind Caddy) | — |
     | **Backend** | NestJS API (behind Caddy) | — |
     | **LiveKit** | Voice/video media server | `wss://lk.your-domain.com` |
-    | **MongoDB** | Database (replica set) | internal only |
+    | **PostgreSQL** | Database | internal only |
     | **Redis** | Cache and pub/sub | internal only |
 
     **Port forwarding** — forward these on your router:
@@ -543,7 +540,7 @@ docker compose up -d
     | **Frontend** | Nginx serving the React app | `http://localhost:5173` |
     | **Backend** | NestJS API | `http://localhost:3000` |
     | **LiveKit** | Voice/video media server | `wss://lk.your-domain.com` |
-    | **MongoDB** | Database (replica set) | internal only |
+    | **PostgreSQL** | Database | internal only |
     | **Redis** | Cache and pub/sub | internal only |
 
     **Port forwarding** — forward these on your router:
@@ -570,7 +567,7 @@ docker compose up -d
     |---------|------------|-----|
     | **Frontend** | Nginx serving the React app | `http://localhost:5173` |
     | **Backend** | NestJS API | `http://localhost:3000` |
-    | **MongoDB** | Database (replica set) | internal only |
+    | **PostgreSQL** | Database | internal only |
     | **Redis** | Cache and pub/sub | internal only |
 
 ### 4. Open Kraken
@@ -634,7 +631,7 @@ graph LR
     Client[Browser] --> Proxy[Reverse Proxy<br/>nginx / Caddy]
     Proxy -->|/| Frontend[Frontend<br/>React + Nginx<br/>:5173]
     Proxy -->|/api, /socket.io| Backend[Backend<br/>NestJS<br/>:3000]
-    Backend --> MongoDB[(MongoDB<br/>:27017)]
+    Backend --> PostgreSQL[(PostgreSQL<br/>:5432)]
     Backend --> Redis[(Redis<br/>:6379)]
     Backend --> LiveKit[LiveKit Server]
 ```
@@ -652,10 +649,10 @@ If you chose the "With Caddy" setup, this is already handled. For the other setu
 
 ### Data persistence
 
-Docker Compose uses named volumes for MongoDB and Redis data. These persist across container restarts.
+Docker Compose uses named volumes for PostgreSQL and Redis data. These persist across container restarts.
 
-- **Backup MongoDB** regularly: `docker compose exec mongo mongodump --out /backup`
-- **Monitor disk usage** — MongoDB and uploads can grow over time
+- **Backup PostgreSQL** regularly: `docker compose exec postgres pg_dump -U kraken kraken > backup.sql`
+- **Monitor disk usage** — PostgreSQL and uploads can grow over time
 
 ### Resource limits
 
@@ -721,12 +718,13 @@ The database schema is automatically updated on container startup.
 
 ## Troubleshooting
 
-### "Replica set not initialized"
+### Database connection errors
 
-The Docker Compose setup automatically configures the MongoDB replica set. If you see this error, restart the containers:
+If containers fail to connect to PostgreSQL, ensure the `postgres` service is healthy:
 
 ```bash
-docker compose down && docker compose up -d
+docker compose ps
+docker compose logs postgres
 ```
 
 ### "Port already in use"

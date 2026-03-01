@@ -64,7 +64,6 @@ describe('MessagesController', () => {
         deletedAt: null,
         id: '',
         searchText: null,
-        reactions: [],
         pinned: false,
         pinnedAt: null,
         pinnedBy: null,
@@ -73,7 +72,7 @@ describe('MessagesController', () => {
         parentMessageId: null,
         replyCount: 0,
         lastReplyAt: null,
-      };
+      } as any;
 
       const mockMessage = MessageFactory.build({
         channelId: createDto.channelId,
@@ -83,7 +82,7 @@ describe('MessagesController', () => {
       const enrichedMessage = { ...mockMessage, attachments: [] };
 
       service.create.mockResolvedValue(mockMessage as any);
-      service.enrichMessageWithFileMetadata.mockResolvedValue(
+      service.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -115,7 +114,6 @@ describe('MessagesController', () => {
         deletedAt: null,
         id: '',
         searchText: null,
-        reactions: [],
         pinned: false,
         pinnedAt: null,
         pinnedBy: null,
@@ -124,11 +122,11 @@ describe('MessagesController', () => {
         parentMessageId: null,
         replyCount: 0,
         lastReplyAt: null,
-      };
+      } as any;
 
       const mockMessage = {};
       service.create.mockResolvedValue(mockMessage as any);
-      service.enrichMessageWithFileMetadata.mockResolvedValue({
+      service.enrichMessageWithFileMetadata.mockReturnValue({
         attachments: [],
       } as any);
 
@@ -229,8 +227,8 @@ describe('MessagesController', () => {
       const mockMessage = MessageFactory.build({
         id: 'msg-123',
         channelId: 'channel-123',
-        reactions: [{ emoji: '👍', userIds: [mockUser.id] }],
-      });
+        reactions: [{ emoji: '👍', userId: mockUser.id }],
+      } as any);
 
       reactionsService.addReaction.mockResolvedValue(mockMessage as any);
 
@@ -264,8 +262,8 @@ describe('MessagesController', () => {
         id: 'msg-456',
         channelId: null,
         directMessageGroupId: 'dm-group-123',
-        reactions: [{ emoji: '❤️', userIds: [mockUser.id] }],
-      });
+        reactions: [{ emoji: '❤️', userId: mockUser.id }],
+      } as any);
 
       reactionsService.addReaction.mockResolvedValue(mockMessage as any);
 
@@ -290,7 +288,7 @@ describe('MessagesController', () => {
         channelId: null,
         directMessageGroupId: null,
         reactions: [],
-      });
+      } as any);
 
       reactionsService.addReaction.mockResolvedValue(mockMessage as any);
 
@@ -311,7 +309,7 @@ describe('MessagesController', () => {
         id: 'msg-123',
         channelId: 'channel-123',
         reactions: [],
-      });
+      } as any);
 
       reactionsService.removeReaction.mockResolvedValue(mockMessage as any);
 
@@ -349,7 +347,7 @@ describe('MessagesController', () => {
         channelId: null,
         directMessageGroupId: 'dm-group-123',
         reactions: [],
-      });
+      } as any);
 
       reactionsService.removeReaction.mockResolvedValue(mockMessage as any);
 
@@ -379,13 +377,13 @@ describe('MessagesController', () => {
         ...originalMessage,
         attachments: ['file-abc'],
         pendingAttachments: 0,
-      });
+      } as any);
 
       const enrichedMessage = { ...updatedMessage, fileMetadata: {} };
 
       service.findOne.mockResolvedValue(originalMessage as any);
       service.addAttachment.mockResolvedValue(updatedMessage as any);
-      service.enrichMessageWithFileMetadata.mockResolvedValue(
+      service.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -420,7 +418,7 @@ describe('MessagesController', () => {
 
       service.findOne.mockResolvedValue(originalMessage as any);
       service.addAttachment.mockResolvedValue(updatedMessage as any);
-      service.enrichMessageWithFileMetadata.mockResolvedValue(
+      service.enrichMessageWithFileMetadata.mockReturnValue(
         updatedMessage as any,
       );
 
@@ -437,7 +435,7 @@ describe('MessagesController', () => {
       const enrichedMessage = { ...mockMessage, attachments: [] };
 
       service.findOne.mockResolvedValue(mockMessage as any);
-      service.enrichMessageWithFileMetadata.mockResolvedValue(
+      service.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -470,8 +468,8 @@ describe('MessagesController', () => {
       const originalMessage = MessageFactory.build({
         id: messageId,
         channelId: 'channel-123',
-        attachments: ['old-file'],
-      });
+        attachments: [{ id: 'old-file', filename: 'test.png' }],
+      } as any);
 
       const updatedMessage = MessageFactory.build({
         id: messageId,
@@ -481,7 +479,7 @@ describe('MessagesController', () => {
 
       service.findOne.mockResolvedValue(originalMessage as any);
       service.update.mockResolvedValue(updatedMessage as any);
-      service.enrichMessageWithFileMetadata.mockResolvedValue(
+      service.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -512,14 +510,14 @@ describe('MessagesController', () => {
         channelId: null,
         directMessageGroupId: 'dm-group-123',
         attachments: [],
-      });
+      } as any);
 
       const updatedMessage = MessageFactory.build();
       const enrichedMessage = { ...updatedMessage, attachments: [] };
 
       service.findOne.mockResolvedValue(originalMessage as any);
       service.update.mockResolvedValue(updatedMessage as any);
-      service.enrichMessageWithFileMetadata.mockResolvedValue(
+      service.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -540,7 +538,7 @@ describe('MessagesController', () => {
         id: messageId,
         channelId: 'channel-123',
         attachments: ['file-1', 'file-2'],
-      });
+      } as any);
 
       service.findOne.mockResolvedValue(mockMessage as any);
       service.remove.mockResolvedValue(void 0 as any);
@@ -548,10 +546,7 @@ describe('MessagesController', () => {
       await controller.remove(messageId);
 
       expect(service.findOne).toHaveBeenCalledWith(messageId);
-      expect(service.remove).toHaveBeenCalledWith(messageId, [
-        'file-1',
-        'file-2',
-      ]);
+      expect(service.remove).toHaveBeenCalledWith(messageId);
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
         'channel-123',
         ServerEvents.DELETE_MESSAGE,
@@ -570,7 +565,7 @@ describe('MessagesController', () => {
         channelId: null,
         directMessageGroupId: 'dm-group-123',
         attachments: [],
-      });
+      } as any);
 
       service.findOne.mockResolvedValue(mockMessage as any);
       service.remove.mockResolvedValue(void 0 as any);
@@ -587,23 +582,18 @@ describe('MessagesController', () => {
       );
     });
 
-    it('should pass attachments for cleanup when deleting', async () => {
+    it('should call remove with just the message ID', async () => {
       const messageId = 'msg-789';
       const mockMessage = MessageFactory.build({
         channelId: 'channel-123',
-        attachments: ['file-a', 'file-b', 'file-c'],
-      });
+      } as any);
 
       service.findOne.mockResolvedValue(mockMessage as any);
       service.remove.mockResolvedValue(void 0 as any);
 
       await controller.remove(messageId);
 
-      expect(service.remove).toHaveBeenCalledWith(messageId, [
-        'file-a',
-        'file-b',
-        'file-c',
-      ]);
+      expect(service.remove).toHaveBeenCalledWith(messageId);
     });
   });
 });

@@ -21,10 +21,10 @@ icon: https://raw.githubusercontent.com/krakenchat/kraken/main/logo.png
 
 # Optional dependencies (can be disabled via values.yaml)
 dependencies:
-  - name: mongodb
-    version: "15.6.22"
+  - name: postgresql
+    version: "16.4.3"
     repository: "https://charts.bitnami.com/bitnami"
-    condition: mongodb.bundled
+    condition: postgresql.bundled
     tags:
       - database
   - name: redis

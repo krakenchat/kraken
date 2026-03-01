@@ -3,7 +3,7 @@
 # Usage:
 #   1. Copy backend/env.sample to .env.prod — fill in JWT secrets, LiveKit config, etc.
 #   2. Add these extra vars to .env.prod for the database and cache:
-#        MONGO_PASSWORD=<strong-password>
+#        POSTGRES_PASSWORD=<strong-password>
 #        REDIS_PASSWORD=<strong-password>
 #   3. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 #
@@ -19,13 +19,13 @@ services:
       - .env.prod
     environment:
       - NODE_ENV=production
-      - MONGODB_URL=mongodb://${MONGO_USERNAME:-kraken}:${MONGO_PASSWORD:?MONGO_PASSWORD required}@mongo:27017/kraken?replicaSet=rs0&authSource=admin&retryWrites=true&w=majority&directConnection=true
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-kraken}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/${POSTGRES_DB:-kraken}
       - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD required}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -57,32 +57,19 @@ services:
       start_period: 10s
       retries: 3
 
-  mongo:
-    image: mongo:7.0
-    command: >
-      bash -c '
-        # Generate keyfile for replica set authentication if it doesn't exist
-        if [ ! -f /data/keyfile ]; then
-          openssl rand -base64 756 > /data/keyfile
-          chmod 400 /data/keyfile
-          chown 999:999 /data/keyfile
-        fi
-        exec mongod --replSet rs0 --bind_ip_all --port 27017 --keyFile /data/keyfile --auth
-      '
+  postgres:
+    image: postgres:17-alpine
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-kraken}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD required}
+      POSTGRES_USER: ${POSTGRES_USER:-kraken}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-kraken}
     healthcheck:
-      test: >
-        echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" |
-        mongosh --port 27017 -u ${MONGO_USERNAME:-kraken} -p ${MONGO_PASSWORD} --authenticationDatabase admin --quiet
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kraken}"]
       interval: 10s
-      timeout: 30s
-      start_period: 30s
+      timeout: 5s
       retries: 10
     volumes:
-      - mongodata:/data/db
-      - mongodb_config:/data/configdb
+      - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
   redis:
@@ -98,6 +85,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  mongodata:
-  mongodb_config:
+  pgdata:
   redisdata:

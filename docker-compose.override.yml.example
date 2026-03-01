@@ -89,6 +89,6 @@
 #     ports:
 #       - "8080:5173"  # Use different port
 #
-#   mongo:
+#   postgres:
 #     volumes:
-#       - ~/mongo-data:/data/db  # Use custom data location
+#       - ~/pg-data:/var/lib/postgresql/data  # Use custom data location

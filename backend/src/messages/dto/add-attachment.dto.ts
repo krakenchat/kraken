@@ -1,9 +1,8 @@
-import { IsString, IsOptional } from 'class-validator';
-import { IsObjectId } from 'nestjs-object-id';
+import { IsString, IsOptional, IsUUID } from 'class-validator';
 
 export class AddAttachmentDto {
   @IsOptional()
   @IsString()
-  @IsObjectId()
+  @IsUUID()
   fileId?: string; // Optional - if not provided, just decrements pendingAttachments
 }

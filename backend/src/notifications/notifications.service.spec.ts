@@ -72,7 +72,7 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
       const settings = UserNotificationSettingsFactory.build();
       mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
@@ -99,7 +99,7 @@ describe('NotificationsService', () => {
         }),
       );
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       // Should create 2 notifications (one for each mentioned user)
       expect(mockDatabase.notification.create).toHaveBeenCalledTimes(2);
@@ -139,9 +139,9 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(mockDatabase.notification.create).not.toHaveBeenCalled();
     });
@@ -161,7 +161,7 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
       const members = [
         { userId: 'user-1' },
@@ -181,7 +181,7 @@ describe('NotificationsService', () => {
         Promise.resolve(NotificationFactory.build(args.data)),
       );
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       // Should create 3 notifications
       expect(mockDatabase.notification.create).toHaveBeenCalledTimes(3);
@@ -202,7 +202,7 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
       const now = new Date();
       const fourMinutesAgo = new Date(now.getTime() - 4 * 60 * 1000);
@@ -240,7 +240,7 @@ describe('NotificationsService', () => {
         }),
       );
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       // Should create only 1 notification (for online user)
       expect(mockDatabase.notification.create).toHaveBeenCalledTimes(1);
@@ -260,7 +260,7 @@ describe('NotificationsService', () => {
         directMessageGroupId: dmGroupId,
         authorId: 'author-1',
         spans: [],
-      });
+      } as any);
 
       const members = [{ userId: 'user-1' }, { userId: 'user-2' }];
 
@@ -273,7 +273,7 @@ describe('NotificationsService', () => {
         Promise.resolve(NotificationFactory.build(args.data)),
       );
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(mockDatabase.notification.create).toHaveBeenCalledTimes(2);
     });
@@ -290,7 +290,7 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
       mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
         UserNotificationSettingsFactory.build(),
@@ -299,7 +299,7 @@ describe('NotificationsService', () => {
 
       // Should not throw
       await expect(
-        service.processMessageForNotifications(message),
+        service.processMessageForNotifications(message as any),
       ).resolves.toBeUndefined();
     });
   });
@@ -831,9 +831,9 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
         'target-user',
@@ -868,9 +868,9 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
         'target-user',
@@ -920,13 +920,13 @@ describe('NotificationsService', () => {
         directMessageGroupId: 'dm-group-1',
         authorId,
         spans: [],
-      });
+      } as any);
 
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([
         { userId: 'recipient-1' },
       ]);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
         'recipient-1',
@@ -966,13 +966,13 @@ describe('NotificationsService', () => {
         directMessageGroupId: 'dm-group-1',
         authorId,
         spans: [],
-      });
+      } as any);
 
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue([
         { userId: 'recipient-1' },
       ]);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
         'recipient-1',
@@ -1037,7 +1037,7 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
       await service.processThreadReplyNotifications(
         reply,
@@ -1089,9 +1089,9 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
         'target-user',
@@ -1136,9 +1136,9 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
         'target-user',
@@ -1191,9 +1191,9 @@ describe('NotificationsService', () => {
             aliasId: null,
           },
         ],
-      });
+      } as any);
 
-      await service.processMessageForNotifications(message);
+      await service.processMessageForNotifications(message as any);
 
       expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
         'target-user',

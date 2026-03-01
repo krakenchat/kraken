@@ -45,13 +45,12 @@ To access your application, you can port-forward:
 🔧 CONFIGURATION
 
 Database:
-{{- if .Values.mongodb.bundled }}
-  ✅ MongoDB deployed (bundled)
-     Replica Set: {{ .Values.mongodb.replicaSetName }}
-     Database: {{ .Values.mongodb.auth.database }}
+{{- if .Values.postgresql.bundled }}
+  ✅ PostgreSQL deployed (bundled)
+     Database: {{ .Values.postgresql.auth.database }}
 {{- else }}
-  🔗 External MongoDB
-     URI: {{ .Values.mongodb.external.uri | replace ":@" ":****@" }}
+  🔗 External PostgreSQL
+     URI: (configured via postgresql.external.uri - check values for details)
 {{- end }}
 
 Cache:
@@ -81,14 +80,13 @@ LiveKit:
 
 {{- end }}
 
-{{- if .Values.mongodb.bundled }}
-{{- if or (eq .Values.mongodb.auth.rootPassword "changeme-root-password") (eq .Values.mongodb.auth.password "changeme-kraken-password") }}
+{{- if .Values.postgresql.bundled }}
+{{- if eq .Values.postgresql.auth.password "" }}
 
-🚨 CRITICAL: You are using default MongoDB passwords!
-   Please set custom values:
+🚨 CRITICAL: PostgreSQL password is not set!
+   Please set a custom value:
 
-   --set mongodb.auth.rootPassword="strong-random-password" \
-   --set mongodb.auth.password="different-strong-password"
+   --set postgresql.auth.password="strong-random-password"
 
 {{- end }}
 {{- end }}

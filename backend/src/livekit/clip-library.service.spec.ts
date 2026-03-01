@@ -249,7 +249,7 @@ describe('ClipLibraryService', () => {
 
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
       messagesService.create.mockResolvedValue(message as any);
-      messagesService.enrichMessageWithFileMetadata.mockResolvedValue({
+      messagesService.enrichMessageWithFileMetadata.mockReturnValue({
         ...message,
         attachmentMetadata: [{ id: 'file-1', filename: 'clip.mp4' }],
       } as any);
@@ -288,7 +288,7 @@ describe('ClipLibraryService', () => {
 
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
       messagesService.create.mockResolvedValue(message as any);
-      messagesService.enrichMessageWithFileMetadata.mockResolvedValue({
+      messagesService.enrichMessageWithFileMetadata.mockReturnValue({
         ...message,
         attachmentMetadata: [{ id: 'file-1', filename: 'clip.mp4' }],
       } as any);

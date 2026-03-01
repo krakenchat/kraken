@@ -1,6 +1,12 @@
-import { IsOptional, IsInt, Min, IsArray, IsDate } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  Min,
+  IsArray,
+  IsDate,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsObjectId } from 'nestjs-object-id';
 
 export class CreateInviteDto {
   @IsOptional()
@@ -14,6 +20,6 @@ export class CreateInviteDto {
   validUntil?: Date;
 
   @IsArray()
-  @IsObjectId({ each: true })
+  @IsUUID('all', { each: true })
   communityIds: string[];
 }

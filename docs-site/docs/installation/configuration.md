@@ -10,7 +10,7 @@ Copy `backend/env.sample` to `backend/.env` to get started.
 
 | Variable | Description | Default |
 |----------|------------|---------|
-| `MONGODB_URL` | MongoDB connection string (must include `replicaSet=rs0`) | `mongodb://mongo:27017/kraken?replicaSet=rs0&retryWrites=true&w=majority&directConnection=true` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://kraken:kraken@postgres:5432/kraken` |
 | `JWT_SECRET` | Secret key for signing access tokens | *(must change)* |
 | `JWT_REFRESH_SECRET` | Secret key for signing refresh tokens | *(must change)* |
 | `REDIS_HOST` | Redis hostname | `redis` |
@@ -89,7 +89,7 @@ Leave telemetry variables blank to disable.
 ## Production considerations
 
 - **JWT secrets** — Use long, random strings. Never reuse across environments.
-- **MongoDB** — Use a replica set with authentication enabled. Restrict network access.
+- **PostgreSQL** — Use authentication and restrict network access.
 - **Redis** — Enable authentication and restrict network access.
 - **HTTPS** — Always use TLS in production. Configure via your reverse proxy or Kubernetes ingress.
 - **VAPID keys** — Generate once per instance and keep stable. Changing them invalidates existing push subscriptions.

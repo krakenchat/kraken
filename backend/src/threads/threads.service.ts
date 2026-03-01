@@ -6,8 +6,29 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { flattenSpansToText } from '@/common/utils/text.utils';
+import { groupReactions } from '@/common/utils/reactions.utils';
 import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
-import { Message, $Enums } from '@prisma/client';
+import { Message, $Enums, FileType } from '@prisma/client';
+
+/** Prisma select shape for file metadata sent to clients */
+const FILE_METADATA_SELECT = {
+  id: true,
+  filename: true,
+  mimeType: true,
+  fileType: true,
+  size: true,
+  thumbnailPath: true,
+} as const;
+
+/** Standard includes for loading a message with its relations */
+const MESSAGE_INCLUDE = {
+  spans: { orderBy: { position: 'asc' as const } },
+  reactions: true,
+  attachments: {
+    include: { file: { select: FILE_METADATA_SELECT } },
+    orderBy: { position: 'asc' as const },
+  },
+} as const;
 
 /**
  * Service for managing message threads.
@@ -68,10 +89,7 @@ export class ThreadsService {
    * Create a thread reply message.
    * Also increments the parent's replyCount and auto-subscribes the user.
    */
-  async createThreadReply(
-    dto: CreateThreadReplyDto,
-    authorId: string,
-  ): Promise<Message> {
+  async createThreadReply(dto: CreateThreadReplyDto, authorId: string) {
     const { parentMessageId, spans, attachments, pendingAttachments } = dto;
 
     // Validate parent message exists and isn't a thread reply itself
@@ -87,9 +105,20 @@ export class ThreadsService {
       const reply = await tx.message.create({
         data: {
           authorId,
-          spans: sanitizedSpans,
+          spans: {
+            create: sanitizedSpans.map((s, i) => ({ position: i, ...s })),
+          },
           searchText,
-          attachments: attachments || [],
+          ...(attachments && attachments.length > 0
+            ? {
+                attachments: {
+                  create: attachments.map((fileId, i) => ({
+                    fileId,
+                    position: i,
+                  })),
+                },
+              }
+            : {}),
           pendingAttachments: pendingAttachments || 0,
           // Use relation connect syntax for Prisma
           ...(parent.channelId && {
@@ -102,6 +131,7 @@ export class ThreadsService {
           }),
           parentMessage: { connect: { id: parentMessageId } },
         },
+        include: MESSAGE_INCLUDE,
       });
 
       // Update parent message's reply count and lastReplyAt
@@ -135,7 +165,7 @@ export class ThreadsService {
       `Created thread reply ${result.id} for parent ${parentMessageId}`,
     );
 
-    return result;
+    return this.formatMessage(result);
   }
 
   /**
@@ -145,7 +175,7 @@ export class ThreadsService {
     parentMessageId: string,
     limit = 50,
     continuationToken?: string,
-  ): Promise<{ replies: Message[]; continuationToken?: string }> {
+  ) {
     // Verify parent exists
     const parent = await this.databaseService.message.findUnique({
       where: { id: parentMessageId },
@@ -160,6 +190,7 @@ export class ThreadsService {
       where: { parentMessageId },
       orderBy: { sentAt: 'asc' }, // Oldest first for thread context
       take: limit,
+      include: MESSAGE_INCLUDE,
       ...(continuationToken
         ? { cursor: { id: continuationToken }, skip: 1 }
         : {}),
@@ -173,6 +204,7 @@ export class ThreadsService {
 
   /**
    * Get thread replies with file metadata enrichment.
+   * Relations (spans, reactions, attachments with file) are loaded via Prisma include.
    */
   async getThreadRepliesWithMetadata(
     parentMessageId: string,
@@ -182,45 +214,10 @@ export class ThreadsService {
     const { replies, continuationToken: nextToken } =
       await this.getThreadReplies(parentMessageId, limit, continuationToken);
 
-    // Collect all unique file IDs
-    const allFileIds = new Set<string>();
-    replies.forEach((msg) => {
-      msg.attachments.forEach((fileId) => allFileIds.add(fileId));
-    });
-
-    // Fetch all files in a single query
-    const files =
-      allFileIds.size > 0
-        ? await this.databaseService.file.findMany({
-            where: { id: { in: Array.from(allFileIds) } },
-            select: {
-              id: true,
-              filename: true,
-              mimeType: true,
-              fileType: true,
-              size: true,
-              thumbnailPath: true,
-            },
-          })
-        : [];
-
-    const fileMap = new Map(files.map((file) => [file.id, file]));
-
-    // Transform replies to include file metadata (convert thumbnailPath to hasThumbnail)
-    const repliesWithMetadata = replies.map((reply) => ({
-      ...reply,
-      attachments: reply.attachments
-        .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map((file) => ({
-          id: file.id,
-          filename: file.filename,
-          mimeType: file.mimeType,
-          fileType: file.fileType,
-          size: file.size,
-          hasThumbnail: !!file.thumbnailPath,
-        })),
-    }));
+    // Transform replies: group reactions and convert attachments to file metadata
+    const repliesWithMetadata = replies.map((reply) =>
+      this.formatMessage(reply),
+    );
 
     return { replies: repliesWithMetadata, continuationToken: nextToken };
   }
@@ -352,5 +349,51 @@ export class ThreadsService {
         replyCount: { decrement: 1 },
       },
     });
+  }
+
+  /**
+   * Format a message with included relations into the shape expected by clients.
+   * Converts MessageReaction[] to { emoji, userIds[] }[] and
+   * MessageAttachment[] to file metadata objects.
+   */
+  private formatMessage<
+    T extends {
+      spans?: {
+        position: number;
+        type: string;
+        text: string | null;
+        userId: string | null;
+        specialKind: string | null;
+        communityId: string | null;
+        aliasId: string | null;
+      }[];
+      reactions?: { emoji: string; userId: string }[];
+      attachments?: {
+        file: {
+          id: string;
+          filename: string;
+          mimeType: string;
+          fileType: FileType;
+          size: number;
+          thumbnailPath: string | null;
+        };
+      }[];
+    },
+  >(message: T) {
+    return {
+      ...message,
+      spans: message.spans ?? [],
+      reactions: message.reactions ? groupReactions(message.reactions) : [],
+      attachments: message.attachments
+        ? message.attachments.map((a) => ({
+            id: a.file.id,
+            filename: a.file.filename,
+            mimeType: a.file.mimeType,
+            fileType: a.file.fileType,
+            size: a.file.size,
+            hasThumbnail: !!a.file.thumbnailPath,
+          }))
+        : [],
+    };
   }
 }

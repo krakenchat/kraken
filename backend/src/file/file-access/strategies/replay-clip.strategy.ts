@@ -49,7 +49,7 @@ export class ReplayClipAccessStrategy implements IFileAccessStrategy {
 
     // Check 3: User has access to any message containing this file
     const messagesWithFile = await this.databaseService.message.findMany({
-      where: { attachments: { has: fileId } },
+      where: { attachments: { some: { fileId } } },
       select: {
         id: true,
         channelId: true,

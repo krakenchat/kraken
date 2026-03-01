@@ -1,7 +1,7 @@
 /**
  * Flattens message spans into a single searchable text string.
  * Extracts text from all spans and joins them with spaces.
- * Returns lowercase for case-insensitive search compatibility with MongoDB.
+ * Returns lowercase for case-insensitive search indexing.
  */
 export function flattenSpansToText(
   spans: { text?: string | null }[],

@@ -92,19 +92,14 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-MongoDB URI - either from bundled or external
+PostgreSQL URI - either from bundled or external
 */}}
-{{- define "kraken.mongodb.uri" -}}
-{{- if .Values.mongodb.bundled }}
-{{- $fullname := include "kraken.fullname" . }}
-{{- $user := .Values.mongodb.auth.username }}
-{{- $pass := .Values.mongodb.auth.password }}
-{{- $db := .Values.mongodb.auth.database }}
-{{- $rsName := .Values.mongodb.replicaSetName }}
-{{- printf "mongodb://%s:%s@%s-mongodb:27017/%s?replicaSet=%s&retryWrites=true&w=majority" $user $pass $fullname $db $rsName }}
-{{- else }}
-{{- .Values.mongodb.external.uri }}
-{{- end }}
+{{- define "kraken.postgresql.uri" -}}
+{{- if .Values.postgresql.bundled -}}
+postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ include "kraken.fullname" . }}-postgresql:5432/{{ .Values.postgresql.auth.database }}
+{{- else -}}
+{{ .Values.postgresql.external.uri }}
+{{- end -}}
 {{- end }}
 
 {{/*

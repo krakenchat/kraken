@@ -9,6 +9,7 @@ import {
   HttpCode,
   Req,
   ForbiddenException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ChannelMembershipService } from './channel-membership.service';
 import { CreateChannelMembershipDto } from './dto/create-channel-membership.dto';
@@ -22,7 +23,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { AuthenticatedRequest } from '@/types';
 
 @Controller('channel-membership')
@@ -58,7 +59,7 @@ export class ChannelMembershipController {
     source: ResourceIdSource.PARAM,
   })
   findAllForChannel(
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
   ): Promise<ChannelMembershipResponseDto[]> {
     return this.channelMembershipService.findAllForChannel(channelId);
   }
@@ -67,7 +68,7 @@ export class ChannelMembershipController {
   @RequiredActions(RbacActions.READ_MEMBER)
   @RbacResource({ type: RbacResourceType.INSTANCE })
   findAllForUser(
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<ChannelMembershipResponseDto[]> {
     // Users can only view their own channel memberships unless they have additional permissions
@@ -98,8 +99,8 @@ export class ChannelMembershipController {
     source: ResourceIdSource.PARAM,
   })
   findOne(
-    @Param('userId', ParseObjectIdPipe) userId: string,
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
   ): Promise<ChannelMembershipResponseDto> {
     return this.channelMembershipService.findOne(userId, channelId);
   }
@@ -113,8 +114,8 @@ export class ChannelMembershipController {
     source: ResourceIdSource.PARAM,
   })
   remove(
-    @Param('userId', ParseObjectIdPipe) userId: string,
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
   ): Promise<void> {
     return this.channelMembershipService.remove(userId, channelId);
   }
@@ -128,7 +129,7 @@ export class ChannelMembershipController {
     source: ResourceIdSource.PARAM,
   })
   leaveChannel(
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     return this.channelMembershipService.remove(req.user.id, channelId);

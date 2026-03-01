@@ -12,12 +12,7 @@ import {
 } from '@/test-utils';
 import { MarkAsReadDto } from './dto/mark-as-read.dto';
 
-const EXCLUDE_THREAD_REPLIES = {
-  OR: [
-    { parentMessageId: null },
-    { NOT: { parentMessageId: { isSet: true } } },
-  ],
-};
+const EXCLUDE_THREAD_REPLIES = { parentMessageId: null };
 
 describe('ReadReceiptsService', () => {
   let service: ReadReceiptsService;
@@ -529,10 +524,7 @@ describe('ReadReceiptsService', () => {
 
       expect(mockDatabase.message.count).toHaveBeenCalledWith({
         where: expect.objectContaining({
-          OR: [
-            { parentMessageId: null },
-            { NOT: { parentMessageId: { isSet: true } } },
-          ],
+          parentMessageId: null,
         }),
       });
     });

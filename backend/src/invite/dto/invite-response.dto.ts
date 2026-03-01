@@ -7,6 +7,17 @@ class InviteCreatorDto {
   displayName: string | null;
 }
 
+class InviteDefaultCommunityDto {
+  id: string;
+  communityId: string;
+}
+
+class InviteUsageDto {
+  id: string;
+  userId: string;
+  usedAt: Date;
+}
+
 /**
  * Instance invite response DTO
  */
@@ -14,12 +25,12 @@ export class InviteResponseDto {
   id: string;
   code: string;
   createdById: string | null;
-  defaultCommunityId: string[];
   maxUses: number | null;
   uses: number;
   validUntil: Date | null;
   createdAt: Date;
-  usedByIds: string[];
   disabled: boolean;
   createdBy?: InviteCreatorDto | null;
+  defaultCommunities: InviteDefaultCommunityDto[];
+  usages: InviteUsageDto[];
 }

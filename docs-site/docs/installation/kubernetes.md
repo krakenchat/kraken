@@ -9,7 +9,7 @@ graph LR
     Client[Browser] --> Ingress[NGINX Ingress]
     Ingress -->|/| Frontend[Frontend<br/>React + Nginx]
     Ingress -->|/api, /socket.io| Backend[Backend<br/>NestJS]
-    Backend --> MongoDB[(MongoDB<br/>Replica Set)]
+    Backend --> PostgreSQL[(PostgreSQL)]
     Backend --> Redis[(Redis)]
     Backend --> LiveKit[LiveKit Server]
     Backend --> FileStorage[(File Storage<br/>PVC)]
@@ -19,7 +19,7 @@ graph LR
 |-----------|----------|-------------|
 | **Backend** | 2+ | NestJS API server + Socket.IO WebSocket server |
 | **Frontend** | 2+ | Static React app served via nginx |
-| **MongoDB** | 3 | Replica set (`rs0`) — bundled or external |
+| **PostgreSQL** | 1+ | Database — bundled or external |
 | **Redis** | 1 | Cache and Socket.IO adapter — bundled or external |
 | **LiveKit** | external | Voice/video media server ([Cloud](https://cloud.livekit.io/) or [self-hosted](https://docs.livekit.io/home/self-hosting/deployment/)) |
 
@@ -40,21 +40,19 @@ Optional: **cert-manager** for automatic TLS, **metrics-server** for autoscaling
 ```bash
 export JWT_SECRET=$(openssl rand -base64 32)
 export JWT_REFRESH_SECRET=$(openssl rand -base64 32)
-export MONGO_ROOT_PASSWORD=$(openssl rand -base64 32)
-export MONGO_PASSWORD=$(openssl rand -base64 32)
+export POSTGRES_PASSWORD=$(openssl rand -base64 32)
 export REDIS_PASSWORD=$(openssl rand -base64 32)
 ```
 
 ### 2. Install the chart
 
-The simplest install uses bundled MongoDB and Redis:
+The simplest install uses bundled PostgreSQL and Redis:
 
 ```bash
 helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
   --set secrets.jwtSecret="$JWT_SECRET" \
   --set secrets.jwtRefreshSecret="$JWT_REFRESH_SECRET" \
-  --set mongodb.auth.rootPassword="$MONGO_ROOT_PASSWORD" \
-  --set mongodb.auth.password="$MONGO_PASSWORD" \
+  --set postgresql.auth.postgresPassword="$POSTGRES_PASSWORD" \
   --set redis.auth.password="$REDIS_PASSWORD" \
   --set ingress.hosts[0].host=kraken.yourdomain.com \
   --set livekit.url=wss://your-livekit-server.com \
@@ -130,7 +128,7 @@ ingress:
       issuer: letsencrypt-prod
 
 # --- Data stores (bundled by default) ---
-mongodb:
+postgresql:
   bundled: true
 
 redis:
@@ -166,19 +164,17 @@ tls:
   mode: "none"
 ```
 
-### MongoDB
+### PostgreSQL
 
-The chart bundles a Bitnami MongoDB replica set by default. For production, consider running MongoDB externally for more control:
+The chart bundles a Bitnami PostgreSQL instance by default. For production, consider running PostgreSQL externally for more control:
 
 === "Bundled (default)"
 
     ```yaml
-    mongodb:
+    postgresql:
       bundled: true
-      replicaCount: 3
       auth:
-        rootPassword: "CHANGE-ME"
-        password: "CHANGE-ME"
+        postgresPassword: "CHANGE-ME"
       persistence:
         size: 50Gi
     ```
@@ -186,14 +182,11 @@ The chart bundles a Bitnami MongoDB replica set by default. For production, cons
 === "External"
 
     ```yaml
-    mongodb:
+    postgresql:
       bundled: false
       external:
-        uri: "mongodb://user:password@mongo-host:27017/kraken?replicaSet=rs0&retryWrites=true&w=majority"
+        uri: "postgresql://user:password@postgres-host:5432/kraken"
     ```
-
-!!! note
-    MongoDB **must** run as a replica set (`rs0`). Kraken uses change streams for real-time features, which require replica set mode.
 
 ### Redis
 
@@ -319,24 +312,18 @@ helm rollback kraken -n kraken        # previous version
 helm rollback kraken 2 -n kraken      # specific revision
 ```
 
-### Backup MongoDB
+### Backup PostgreSQL
 
 ```bash
-kubectl exec -n kraken kraken-mongodb-0 -- \
-  mongodump --uri="mongodb://localhost:27017/kraken" \
-  --gzip --archive=/tmp/backup.gz
-
-kubectl cp kraken/kraken-mongodb-0:/tmp/backup.gz ./backup.gz
+kubectl exec -n kraken kraken-postgresql-0 -- \
+  pg_dump -U kraken kraken | gzip > backup.sql.gz
 ```
 
-### Restore MongoDB
+### Restore PostgreSQL
 
 ```bash
-kubectl cp ./backup.gz kraken/kraken-mongodb-0:/tmp/backup.gz
-
-kubectl exec -n kraken kraken-mongodb-0 -- \
-  mongorestore --uri="mongodb://localhost:27017/kraken" \
-  --gzip --archive=/tmp/backup.gz --drop
+gunzip -c backup.sql.gz | kubectl exec -i -n kraken kraken-postgresql-0 -- \
+  psql -U kraken kraken
 ```
 
 ### Logs
@@ -361,8 +348,8 @@ Common causes: insufficient resources, PVC not bound, image pull errors.
 ### Database connection errors
 
 ```bash
-kubectl get pods -n kraken -l app.kubernetes.io/name=mongodb
-kubectl exec -it -n kraken deploy/kraken-backend -- sh -c 'mongosh "$MONGODB_URL"'
+kubectl get pods -n kraken -l app.kubernetes.io/name=postgresql
+kubectl exec -it -n kraken deploy/kraken-backend -- sh -c 'psql "$DATABASE_URL"'
 ```
 
 ### Ingress not working
@@ -377,10 +364,10 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 - [ ] All default passwords and secrets changed
 - [ ] TLS enabled via cert-manager or manual secret
 - [ ] Resource limits and autoscaling configured
-- [ ] External MongoDB with authentication (recommended over bundled)
+- [ ] External PostgreSQL with authentication (recommended over bundled)
 - [ ] External Redis with authentication
 - [ ] `ReadWriteMany` PVC for file storage
 - [ ] LiveKit webhook URL configured
 - [ ] Monitoring and alerting in place
-- [ ] Backup strategy for MongoDB
+- [ ] Backup strategy for PostgreSQL
 - [ ] DNS configured for your domain

@@ -1,67 +1,110 @@
 datasource db {
-  provider = "mongodb"
-  url      = env("MONGODB_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider      = "prisma-client-js"
-  output        = "../../node_modules/.prisma/client"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  output          = "../../node_modules/.prisma/client"
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 model Message {
-  id                   String     @id @default(auto()) @map("_id") @db.ObjectId
-  channelId            String?    @db.ObjectId // Now optional, for DMs
-  directMessageGroupId String?    @db.ObjectId // New, for DMs
-  authorId             String     @db.ObjectId
-  spans                Span[]
-  reactions            Reaction[]
-  sentAt               DateTime   @default(now())
+  id                   String    @id @default(uuid())
+  channelId            String? // Now optional, for DMs
+  directMessageGroupId String? // New, for DMs
+  authorId             String
+  sentAt               DateTime  @default(now())
   editedAt             DateTime?
   deletedAt            DateTime?
-  attachments          String[]   @db.ObjectId
-  pendingAttachments   Int?       @default(0) // Count of files currently uploading
+  pendingAttachments   Int?      @default(0) // Count of files currently uploading
   searchText           String? // Flattened text from spans for searching
 
   // Pinning fields
   pinned   Boolean   @default(false)
   pinnedAt DateTime?
-  pinnedBy String?   @db.ObjectId
+  pinnedBy String?
 
   // Moderation fields (for soft delete by mods)
-  deletedBy       String? @db.ObjectId // Who deleted the message (null if author)
+  deletedBy       String? // Who deleted the message (null if author)
   deletedByReason String? // Reason for mod deletion
 
   // Threading fields
-  parentMessageId String?   @db.ObjectId // If set, this is a thread reply
+  parentMessageId String?   // If set, this is a thread reply
   replyCount      Int       @default(0) // Number of replies (only on parent messages)
   lastReplyAt     DateTime? // When the last reply was added
+
+  // Relations (composite types → proper tables)
+  spans       MessageSpan[]
+  reactions   MessageReaction[]
+  attachments MessageAttachment[]
 
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
   notifications      Notification[]
 
   // Thread self-relation
-  parentMessage   Message?  @relation("ThreadReplies", fields: [parentMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  threadReplies   Message[] @relation("ThreadReplies")
+  parentMessage Message?  @relation("ThreadReplies", fields: [parentMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  threadReplies Message[] @relation("ThreadReplies")
 
   // Thread subscribers
   threadSubscribers ThreadSubscriber[] @relation("MessageThreadSubscribers")
 
   @@index([channelId, sentAt]) // Primary message loading (cursor pagination)
   @@index([channelId, authorId, sentAt]) // Slowmode check
-  @@index([channelId, searchText])
   @@index([directMessageGroupId, sentAt]) // DM message loading (cursor pagination)
-  @@index([directMessageGroupId, searchText])
   @@index([channelId, pinned]) // For fetching pinned messages in a channel
   @@index([parentMessageId]) // For fetching thread replies
   @@index([authorId]) // Author-based lookups
 }
 
+model MessageSpan {
+  id          String   @id @default(uuid())
+  messageId   String
+  position    Int // ordering within the message
+  type        SpanType
+  text        String?
+  userId      String? // For USER_MENTION
+  specialKind String? // For SPECIAL_MENTION: "here", "channel"
+  communityId String? // For COMMUNITY_MENTION
+  aliasId     String? // For ALIAS_MENTION
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  emoji     String
+  userId    String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, emoji, userId])
+  @@index([messageId])
+}
+
+model MessageAttachment {
+  id        String @id @default(uuid())
+  messageId String
+  fileId    String
+  position  Int    @default(0)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  file    File    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, fileId])
+  @@index([messageId])
+}
+
 model ThreadSubscriber {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String   @db.ObjectId
-  parentMessageId String   @db.ObjectId
+  id              String   @id @default(uuid())
+  userId          String
+  parentMessageId String
   subscribedAt    DateTime @default(now())
 
   user          User    @relation("UserThreadSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
@@ -73,11 +116,11 @@ model ThreadSubscriber {
 }
 
 model ReadReceipt {
-  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId               String   @db.ObjectId
-  channelId            String?  @db.ObjectId // For channel messages
-  directMessageGroupId String?  @db.ObjectId // For DM messages
-  lastReadMessageId    String   @db.ObjectId // Watermark - last message the user has read
+  id                   String   @id @default(uuid())
+  userId               String
+  channelId            String? // For channel messages
+  directMessageGroupId String? // For DM messages
+  lastReadMessageId    String // Watermark - last message the user has read
   lastReadAt           DateTime @default(now())
 
   user               User?               @relation("UserReadReceipts", fields: [userId], references: [id], onDelete: Cascade)
@@ -92,14 +135,14 @@ model ReadReceipt {
 }
 
 model Notification {
-  id                   String           @id @default(auto()) @map("_id") @db.ObjectId
-  userId               String           @db.ObjectId
+  id                   String           @id @default(uuid())
+  userId               String
   type                 NotificationType
-  messageId            String?          @db.ObjectId
-  channelId            String?          @db.ObjectId
-  directMessageGroupId String?          @db.ObjectId
-  authorId             String           @db.ObjectId // Who triggered the notification
-  parentMessageId      String?          @db.ObjectId // For thread reply notifications
+  messageId            String?
+  channelId            String?
+  directMessageGroupId String?
+  authorId             String // Who triggered the notification
+  parentMessageId      String? // For thread reply notifications
   read                 Boolean          @default(false)
   dismissed            Boolean          @default(false)
   createdAt            DateTime         @default(now())
@@ -114,8 +157,8 @@ model Notification {
 }
 
 model UserNotificationSettings {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId              String   @unique @db.ObjectId
+  id                  String   @id @default(uuid())
+  userId              String   @unique
   desktopEnabled      Boolean  @default(true)
   playSound           Boolean  @default(true)
   soundType           String   @default("default") // "default", "mention", "dm"
@@ -131,8 +174,8 @@ model UserNotificationSettings {
 }
 
 model UserAppearanceSettings {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @unique @db.ObjectId
+  id          String   @id @default(uuid())
+  userId      String   @unique
   themeMode   String   @default("dark") // "dark" | "light"
   accentColor String   @default("blue") // "teal" | "purple" | "orange" | "blue"
   intensity   String   @default("minimal") // "minimal" | "balanced" | "vibrant"
@@ -143,9 +186,9 @@ model UserAppearanceSettings {
 }
 
 model ChannelNotificationOverride {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  channelId String   @db.ObjectId
+  id        String   @id @default(uuid())
+  userId    String
+  channelId String
   level     String // 'all' | 'mentions' | 'none'
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,7 +201,7 @@ model ChannelNotificationOverride {
 }
 
 model User {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(uuid())
   username       String       @unique
   email          String?      @unique
   verified       Boolean      @default(false)
@@ -181,13 +224,13 @@ model User {
   storageUsedBytes  BigInt @default(0) // Cached total usage
 
   // Blocking relations
-  blockedUsers  UserBlock[] @relation("BlockerUser")
+  blockedUsers   UserBlock[] @relation("BlockerUser")
   blockedByUsers UserBlock[] @relation("BlockedUser")
 
   // Ban status
   banned     Boolean   @default(false)
   bannedAt   DateTime?
-  bannedById String?   @db.ObjectId
+  bannedById String?
   bannedBy   User?     @relation("BannedByUser", fields: [bannedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   bannedUsers User[]   @relation("BannedByUser")
 
@@ -229,8 +272,8 @@ model User {
 }
 
 model RefreshToken {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String   @db.ObjectId
+  id         String   @id @default(uuid())
+  userId     String
   tokenHash  String
   createdAt  DateTime @default(now())
   expiresAt  DateTime
@@ -246,7 +289,7 @@ model RefreshToken {
   // All tokens from a single login share a familyId. On rotation the old
   // token is marked consumed rather than deleted. If a consumed token is
   // presented again, the entire family is invalidated.
-  familyId   String?   @db.ObjectId
+  familyId   String?
   consumed   Boolean   @default(false)
   consumedAt DateTime?
 
@@ -255,26 +298,52 @@ model RefreshToken {
 }
 
 model InstanceInvite {
-  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
-  code               String    @unique
-  createdById        String?   @db.ObjectId
-  createdBy          User?     @relation(fields: [createdById], references: [id])
-  defaultCommunityId String[]  @db.ObjectId
-  maxUses            Int?
-  uses               Int       @default(0)
-  validUntil         DateTime?
-  createdAt          DateTime  @default(now())
-  usedByIds          String[]  @db.ObjectId
-  disabled           Boolean   @default(false)
+  id          String    @id @default(uuid())
+  code        String    @unique
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id])
+  maxUses     Int?
+  uses        Int       @default(0)
+  validUntil  DateTime?
+  createdAt   DateTime  @default(now())
+  disabled    Boolean   @default(false)
+
+  // Junction tables replacing embedded arrays
+  usages             InstanceInviteUsage[]
+  defaultCommunities InstanceInviteDefaultCommunity[]
+}
+
+model InstanceInviteUsage {
+  id       String   @id @default(uuid())
+  inviteId String
+  userId   String
+  usedAt   DateTime @default(now())
+
+  invite InstanceInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteId, userId])
+  @@index([inviteId])
+}
+
+model InstanceInviteDefaultCommunity {
+  id          String @id @default(uuid())
+  inviteId    String
+  communityId String
+
+  invite    InstanceInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  community Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteId, communityId])
+  @@index([inviteId])
 }
 
 model InstanceSettings {
-  id               String             @id @default(auto()) @map("_id") @db.ObjectId
-  name             String             @default("Kraken")
+  id               String           @id @default(uuid())
+  name             String           @default("Kraken")
   description      String?
-  registrationMode RegistrationMode   @default(INVITE_ONLY)
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  registrationMode RegistrationMode @default(INVITE_ONLY)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   // Storage settings
   defaultStorageQuotaBytes BigInt @default(53687091200) // 50GB default for new users
@@ -293,18 +362,18 @@ enum RegistrationMode {
 }
 
 model Membership {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  id          String    @id @default(uuid())
   user        User      @relation("UserMemberships", fields: [userId], references: [id])
   community   Community @relation("CommunityMemberships", fields: [communityId], references: [id])
   joinedAt    DateTime  @default(now())
-  userId      String    @db.ObjectId
-  communityId String    @db.ObjectId
+  userId      String
+  communityId String
 
   @@unique([userId, communityId])
 }
 
 model Community {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  id          String       @id @default(uuid())
   name        String
   memberships Membership[] @relation("CommunityMemberships")
   channels    Channel[]
@@ -320,13 +389,16 @@ model Community {
   timeouts       CommunityTimeout[] @relation("CommunityTimeouts")
   moderationLogs ModerationLog[]    @relation("ModerationLogs")
 
+  // Instance invite defaults
+  instanceInviteDefaults InstanceInviteDefaultCommunity[]
+
   @@unique([name])
 }
 
 model Channel {
-  id                    String                        @id @default(auto()) @map("_id") @db.ObjectId
+  id                    String                        @id @default(uuid())
   name                  String
-  communityId           String                        @db.ObjectId
+  communityId           String
   community             Community?                    @relation(fields: [communityId], references: [id], onDelete: Cascade)
   createdAt             DateTime                      @default(now())
   type                  ChannelType                   @default(TEXT)
@@ -344,31 +416,31 @@ model Channel {
 }
 
 model ChannelMembership {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(uuid())
   user      User     @relation("UserChannelMemberships", fields: [userId], references: [id], onDelete: Cascade)
   channel   Channel  @relation("ChannelMembership", fields: [channelId], references: [id], onDelete: Cascade)
   joinedAt  DateTime @default(now())
-  userId    String   @db.ObjectId
-  channelId String   @db.ObjectId
-  addedBy   String?  @db.ObjectId // Who added this user (for private channels)
+  userId    String
+  channelId String
+  addedBy   String? // Who added this user (for private channels)
 
   @@unique([userId, channelId])
 }
 
 model AliasGroup {
-  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  id          String             @id @default(uuid())
   name        String
-  communityId String             @db.ObjectId
-  members     AliasGroupMember[] @relation(fields: [], references: [])
+  communityId String
+  members     AliasGroupMember[]
   createdAt   DateTime           @default(now())
 
   @@unique([communityId, name])
 }
 
 model AliasGroupMember {
-  id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  aliasGroupId String      @db.ObjectId
-  userId       String      @db.ObjectId
+  id           String      @id @default(uuid())
+  aliasGroupId String
+  userId       String
   aliasGroup   AliasGroup? @relation(fields: [aliasGroupId], references: [id], onDelete: Cascade)
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -376,9 +448,9 @@ model AliasGroupMember {
 }
 
 model Role {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  id          String        @id @default(uuid())
   name        String
-  communityId String?       @db.ObjectId
+  communityId String?
   community   Community?    @relation(fields: [communityId], references: [id], onDelete: Cascade)
   isDefault   Boolean       @default(false)
   actions     RbacActions[] @default([])
@@ -390,11 +462,11 @@ model Role {
 }
 
 model UserRoles {
-  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  id             String     @id @default(uuid())
   // This is the same relationship as Membership, but it simplifies the auth lookup since our token only has the userId
-  userId         String     @db.ObjectId
-  communityId    String?    @db.ObjectId
-  roleId         String     @db.ObjectId
+  userId         String
+  communityId    String?
+  roleId         String
   isInstanceRole Boolean    @default(false)
   user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   community      Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
@@ -404,7 +476,7 @@ model UserRoles {
 }
 
 model DirectMessageGroup {
-  id           String                     @id @default(auto()) @map("_id") @db.ObjectId
+  id           String                     @id @default(uuid())
   name         String? // Optional, for group DMs
   members      DirectMessageGroupMember[]
   createdAt    DateTime                   @default(now())
@@ -414,9 +486,9 @@ model DirectMessageGroup {
 }
 
 model DirectMessageGroupMember {
-  id       String             @id @default(auto()) @map("_id") @db.ObjectId
-  groupId  String             @db.ObjectId
-  userId   String             @db.ObjectId
+  id       String             @id @default(uuid())
+  groupId  String
+  userId   String
   group    DirectMessageGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   joinedAt DateTime           @default(now())
@@ -426,9 +498,9 @@ model DirectMessageGroupMember {
 }
 
 model Friendship {
-  id        String           @id @default(auto()) @map("_id") @db.ObjectId
-  userAId   String           @db.ObjectId
-  userBId   String           @db.ObjectId
+  id        String           @id @default(uuid())
+  userAId   String
+  userBId   String
   createdAt DateTime         @default(now())
   status    FriendshipStatus @default(PENDING)
   userA     User             @relation("FriendshipA", fields: [userAId], references: [id], onDelete: Cascade)
@@ -439,9 +511,9 @@ model Friendship {
 }
 
 model UserBlock {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  blockerId String   @db.ObjectId // User doing the blocking
-  blockedId String   @db.ObjectId // User being blocked
+  id        String   @id @default(uuid())
+  blockerId String // User doing the blocking
+  blockedId String // User being blocked
   createdAt DateTime @default(now())
   blocker   User     @relation("BlockerUser", fields: [blockerId], references: [id], onDelete: Cascade)
   blocked   User     @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
@@ -452,26 +524,27 @@ model UserBlock {
 }
 
 model File {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  id           String       @id @default(uuid())
   filename     String // Original filename
   mimeType     String // MIME type (image/jpeg, etc.)
   fileType     FileType // Enum for different file types
   size         Int // File size in bytes
   checksum     String // SHA-256 hash for integrity
   uploadedBy   User?        @relation(fields: [uploadedById], references: [id])
-  uploadedById String?      @db.ObjectId
+  uploadedById String?
   uploadedAt   DateTime     @default(now())
   deletedAt    DateTime? // Soft delete
   resourceType ResourceType
   resourceId   String? // ID of the resource this file is associated with (userId, communityId, messageId, etc.)
 
   // Storage configuration
-  storageType StorageType @default(LOCAL)
-  storagePath    String // Local path or cloud key
-  thumbnailPath  String? // Path to generated thumbnail image (for videos)
+  storageType   StorageType @default(LOCAL)
+  storagePath   String // Local path or cloud key
+  thumbnailPath String? // Path to generated thumbnail image (for videos)
 
   // Relations
-  replayClips ReplayClip[]
+  replayClips        ReplayClip[]
+  messageAttachments MessageAttachment[]
 
   @@index([uploadedById]) // show my files or files for specific user
   @@index([deletedAt]) // For cleaning up deleted files
@@ -479,12 +552,12 @@ model File {
 }
 
 model EgressSession {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  id          String    @id @default(uuid())
   egressId    String    @unique // LiveKit egress ID
-  userId      String    @db.ObjectId
+  userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   roomName    String // LiveKit room name (channel ID)
-  channelId   String    @db.ObjectId // Voice channel ID
+  channelId   String // Voice channel ID
   segmentPath String // Path to segments (for cleanup)
   status      String // "active", "stopped", "failed"
   error       String? // Error message if egress failed
@@ -498,12 +571,12 @@ model EgressSession {
 }
 
 model ReplayClip {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String   @db.ObjectId
+  id              String   @id @default(uuid())
+  userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileId          String   @db.ObjectId
+  fileId          String
   file            File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  channelId       String?  @db.ObjectId // Optional: which channel it was captured from
+  channelId       String? // Optional: which channel it was captured from
   durationSeconds Int // Duration of the clip in seconds
   isPublic        Boolean  @default(false) // Show on user's public profile
   capturedAt      DateTime @default(now())
@@ -512,10 +585,10 @@ model ReplayClip {
 }
 
 model CommunityBan {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  communityId String    @db.ObjectId
-  userId      String    @db.ObjectId
-  moderatorId String    @db.ObjectId
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  moderatorId String
   reason      String?
   createdAt   DateTime  @default(now())
   expiresAt   DateTime? // null = permanent ban
@@ -528,10 +601,10 @@ model CommunityBan {
 }
 
 model CommunityTimeout {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  communityId String   @db.ObjectId
-  userId      String   @db.ObjectId
-  moderatorId String   @db.ObjectId
+  id          String   @id @default(uuid())
+  communityId String
+  userId      String
+  moderatorId String
   reason      String?
   createdAt   DateTime @default(now())
   expiresAt   DateTime // Required - timeouts are always temporary
@@ -543,11 +616,11 @@ model CommunityTimeout {
 }
 
 model ModerationLog {
-  id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  communityId     String           @db.ObjectId
-  moderatorId     String           @db.ObjectId
-  targetUserId    String?          @db.ObjectId
-  targetMessageId String?          @db.ObjectId
+  id              String           @id @default(uuid())
+  communityId     String
+  moderatorId     String
+  targetUserId    String?
+  targetMessageId String?
   action          ModerationAction
   reason          String?
   metadata        Json?
@@ -594,7 +667,6 @@ enum ChannelType {
 }
 
 enum RbacActions {
-  // These are just a bunch I randomly thought of but we'll modify this as we go
   DELETE_MESSAGE
   DELETE_CHANNEL
   DELETE_COMMUNITY
@@ -610,7 +682,6 @@ enum RbacActions {
   CREATE_CHANNEL
   CREATE_COMMUNITY
   CREATE_INVITE
-
   CREATE_ROLE
   CREATE_ALIAS_GROUP
   CREATE_ALIAS_GROUP_MEMBER
@@ -621,7 +692,7 @@ enum RbacActions {
   READ_MESSAGE
   READ_CHANNEL
   READ_COMMUNITY
-  READ_ALL_COMMUNITIES // TODO: we need to rethink this
+  READ_ALL_COMMUNITIES
   READ_USER
   READ_ROLE
   READ_ALIAS_GROUP
@@ -630,7 +701,6 @@ enum RbacActions {
   READ_MEMBER
   UPDATE_COMMUNITY
   UPDATE_CHANNEL
-
   UPDATE_USER
   UPDATE_ROLE
   UPDATE_ALIAS_GROUP
@@ -638,13 +708,11 @@ enum RbacActions {
   UPDATE_INSTANCE_INVITE
   UPDATE_MEMBER
   CAPTURE_REPLAY
-  // Instance administration
   READ_INSTANCE_SETTINGS
   UPDATE_INSTANCE_SETTINGS
   READ_INSTANCE_STATS
-  MANAGE_USER_STORAGE // View/update user storage quotas
+  MANAGE_USER_STORAGE
   BAN_USER
-  // Community moderation
   KICK_USER
   TIMEOUT_USER
   UNBAN_USER
@@ -681,8 +749,8 @@ enum NotificationType {
 }
 
 model PushSubscription {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(uuid())
+  userId    String
   endpoint  String   @unique
   keys      Json     // { p256dh, auth }
   userAgent String?
@@ -694,25 +762,10 @@ model PushSubscription {
   @@index([userId])
 }
 
-type Span {
-  type        SpanType
-  text        String?
-  userId      String? // For USER_MENTION
-  specialKind String? // For SPECIAL_MENTION: "here", "channel"
-  communityId String? // For COMMUNITY_MENTION
-  aliasId     String? // For ALIAS_MENTION
-}
-
-// New enum with more mention types
 enum SpanType {
   PLAINTEXT
   USER_MENTION
   SPECIAL_MENTION
   COMMUNITY_MENTION
   ALIAS_MENTION
-}
-
-type Reaction {
-  emoji   String
-  userIds String[]
 }

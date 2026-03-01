@@ -11,6 +11,7 @@ import {
   HttpCode,
   DefaultValuePipe,
   ParseIntPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { ModerationService } from './moderation.service';
@@ -23,7 +24,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { AuthenticatedRequest } from '@/types';
 import {
   ModerationBanUserDto,
@@ -64,8 +65,8 @@ export class ModerationController {
   @HttpCode(200)
   @ApiOkResponse({ type: SuccessMessageDto })
   async banUser(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: ModerationBanUserDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -90,8 +91,8 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: SuccessMessageDto })
   async unbanUser(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UnbanUserDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -114,7 +115,7 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: [CommunityBanDto] })
   async getBanList(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<CommunityBanDto[]> {
     return this.moderationService.getBanList(communityId);
   }
@@ -134,8 +135,8 @@ export class ModerationController {
   @HttpCode(200)
   @ApiOkResponse({ type: SuccessMessageDto })
   async kickUser(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: KickUserDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -163,8 +164,8 @@ export class ModerationController {
   @HttpCode(200)
   @ApiOkResponse({ type: SuccessMessageDto })
   async timeoutUser(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: TimeoutUserDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -188,8 +189,8 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: SuccessMessageDto })
   async removeTimeout(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: RemoveTimeoutDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -212,7 +213,7 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: [CommunityTimeoutDto] })
   async getTimeoutList(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<CommunityTimeoutDto[]> {
     return this.moderationService.getTimeoutList(communityId);
   }
@@ -227,8 +228,8 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: TimeoutStatusResponseDto })
   async getTimeoutStatus(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<TimeoutStatusResponseDto> {
     return this.moderationService.isUserTimedOut(communityId, userId);
   }
@@ -248,7 +249,7 @@ export class ModerationController {
   @HttpCode(200)
   @ApiOkResponse({ type: SuccessMessageDto })
   async pinMessage(
-    @Param('messageId', ParseObjectIdPipe) messageId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
     @Body() dto: PinMessageDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -266,7 +267,7 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: SuccessMessageDto })
   async unpinMessage(
-    @Param('messageId', ParseObjectIdPipe) messageId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
     @Body() dto: UnpinMessageDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -288,7 +289,7 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: [PinnedMessageDto] })
   async getPinnedMessages(
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
   ): Promise<PinnedMessageDto[]> {
     return this.moderationService.getPinnedMessages(channelId);
   }
@@ -307,7 +308,7 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: SuccessMessageDto })
   async deleteMessageAsMod(
-    @Param('messageId', ParseObjectIdPipe) messageId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
     @Body() dto: DeleteMessageAsModDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<SuccessMessageDto> {
@@ -333,7 +334,7 @@ export class ModerationController {
   })
   @ApiOkResponse({ type: ModerationLogsResponseDto })
   async getModerationLogs(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('action') action?: ModerationAction,

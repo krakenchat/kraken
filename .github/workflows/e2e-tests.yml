@@ -51,11 +51,11 @@ jobs:
 
       - name: Start E2E services
         run: |
-          docker compose -f docker-compose.e2e.yml up -d mongo-test redis-test
-          echo "Waiting for MongoDB..."
+          docker compose -f docker-compose.e2e.yml up -d postgres-test redis-test
+          echo "Waiting for PostgreSQL..."
           for i in {1..30}; do
-            if docker compose -f docker-compose.e2e.yml exec -T mongo-test mongosh --eval "rs.status()" > /dev/null 2>&1; then
-              echo "MongoDB is ready!"
+            if docker compose -f docker-compose.e2e.yml exec -T postgres-test pg_isready -U kraken > /dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
               break
             fi
             sleep 2
@@ -85,6 +85,11 @@ jobs:
             fi
             sleep 2
           done
+
+      - name: Run database migrations
+        run: |
+          echo "Running database migrations..."
+          docker compose -f docker-compose.e2e.yml exec -T backend-test pnpm run prisma:migrate
 
       - name: Seed test database
         run: |
