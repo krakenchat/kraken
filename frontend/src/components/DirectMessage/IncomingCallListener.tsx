@@ -9,7 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { directMessagesControllerFindUserDmGroupsQueryKey } from "../../api-client/@tanstack/react-query.gen";
 import { getDmDisplayName } from "../../utils/dmHelpers";
 import type { DirectMessageGroup } from "../../types/direct-message.type";
-import { playSound, Sounds } from "../../hooks/useSound";
+import { playSound, stopSound, Sounds } from "../../hooks/useSound";
 
 const RING_INTERVAL_MS = 3500;
 
@@ -31,11 +31,12 @@ export const IncomingCallListener: React.FC = () => {
         playSound(Sounds.incomingCall);
       }, RING_INTERVAL_MS);
     } else {
-      // Call dismissed/accepted — stop ringing
+      // Call dismissed/accepted — stop ringing immediately
       if (ringIntervalRef.current) {
         clearInterval(ringIntervalRef.current);
         ringIntervalRef.current = null;
       }
+      stopSound(Sounds.incomingCall);
     }
 
     return () => {
@@ -43,6 +44,7 @@ export const IncomingCallListener: React.FC = () => {
         clearInterval(ringIntervalRef.current);
         ringIntervalRef.current = null;
       }
+      stopSound(Sounds.incomingCall);
     };
   }, [incomingCall]);
 

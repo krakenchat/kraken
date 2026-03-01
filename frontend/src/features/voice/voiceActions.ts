@@ -644,6 +644,8 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
       if (!currentState.wasMutedBeforeDeafen && !currentState.isServerMuted) {
         await room.localParticipant.setMicrophoneEnabled(true);
       }
+      // Play sound only on undeafen — user can't hear it while deafened
+      playSound(Sounds.toggleOn);
     }
   } catch (error) {
     logger.error("Failed to toggle deafen:", error);

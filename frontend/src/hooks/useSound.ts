@@ -97,6 +97,15 @@ export function playSound(name: SoundName): void {
   });
 }
 
+export function stopSound(name: SoundName): void {
+  const cache = getAudioCache();
+  const audio = cache.get(name);
+  if (!audio) return;
+
+  audio.pause();
+  audio.currentTime = 0;
+}
+
 // ---------------------------------------------------------------------------
 // React hook (returns a stable playSound callback)
 // ---------------------------------------------------------------------------

@@ -25,6 +25,13 @@ import { isElectron, getElectronAPI } from '../utils/platform';
 import { logger } from '../utils/logger';
 import { playSound as playSoundEffect, Sounds, type SoundName } from './useSound';
 
+const NOTIFICATION_SOUND_MAP: Record<string, SoundName> = {
+  [NotificationType.CHANNEL_MESSAGE]: Sounds.channelMessage,
+  [NotificationType.DIRECT_MESSAGE]: Sounds.directMessage,
+  [NotificationType.USER_MENTION]: Sounds.mention,
+  [NotificationType.SPECIAL_MENTION]: Sounds.mention,
+};
+
 export interface UseNotificationSideEffectsOptions {
   showDesktopNotifications?: boolean;
   playSound?: boolean;
@@ -42,13 +49,6 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
 
   const navigate = useNavigate();
   const notificationsRef = useRef<Map<string, NewNotificationPayload>>(new Map());
-
-  const notificationSoundMap: Record<string, SoundName> = {
-    [NotificationType.CHANNEL_MESSAGE]: Sounds.channelMessage,
-    [NotificationType.DIRECT_MESSAGE]: Sounds.directMessage,
-    [NotificationType.USER_MENTION]: Sounds.mention,
-    [NotificationType.SPECIAL_MENTION]: Sounds.mention,
-  };
 
   const navigateToNotification = useCallback(
     (notification: { communityId?: string | null; channelId?: string | null; directMessageGroupId?: string | null }) => {
@@ -84,7 +84,7 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
 
     // Sound — pick the right sound based on notification type
     if (playSound) {
-      const soundName = notificationSoundMap[payload.type] || Sounds.channelMessage;
+      const soundName = NOTIFICATION_SOUND_MAP[payload.type] || Sounds.channelMessage;
       playSoundEffect(soundName);
     }
 

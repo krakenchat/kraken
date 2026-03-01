@@ -146,6 +146,34 @@ describe('useServerMuteEffect', () => {
     expect(playSound).toHaveBeenCalledTimes(1);
   });
 
+  it('plays error sound again after muted → unmuted → muted re-transition', () => {
+    renderHook(() => useServerMuteEffect());
+
+    // Mute → plays sound
+    serverEventCallback!({
+      channelId: 'ch-1',
+      userId: 'user-1',
+      user: { id: 'user-1', isServerMuted: true },
+    });
+    expect(playSound).toHaveBeenCalledTimes(1);
+
+    // Unmute → no sound
+    serverEventCallback!({
+      channelId: 'ch-1',
+      userId: 'user-1',
+      user: { id: 'user-1', isServerMuted: false },
+    });
+    expect(playSound).toHaveBeenCalledTimes(1);
+
+    // Re-mute → should play again
+    serverEventCallback!({
+      channelId: 'ch-1',
+      userId: 'user-1',
+      user: { id: 'user-1', isServerMuted: true },
+    });
+    expect(playSound).toHaveBeenCalledTimes(2);
+  });
+
   it('does nothing when no user is logged in', () => {
     mockUser = null;
     renderHook(() => useServerMuteEffect());
