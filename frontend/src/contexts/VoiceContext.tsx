@@ -22,6 +22,7 @@ export interface VoiceState {
   selectedAudioOutputId: string | null;
   selectedVideoInputId: string | null;
   wasMutedBeforeDeafen: boolean;
+  isServerMuted: boolean;
 }
 
 export type VoiceAction =
@@ -37,7 +38,8 @@ export type VoiceAction =
   | { type: 'SET_SELECTED_AUDIO_OUTPUT_ID'; payload: string | null }
   | { type: 'SET_REQUEST_MAXIMIZE'; payload: boolean }
   | { type: 'SET_SELECTED_VIDEO_INPUT_ID'; payload: string | null }
-  | { type: 'SET_WAS_MUTED_BEFORE_DEAFEN'; payload: boolean };
+  | { type: 'SET_WAS_MUTED_BEFORE_DEAFEN'; payload: boolean }
+  | { type: 'SET_SERVER_MUTED'; payload: boolean };
 
 const initialState: VoiceState = {
   isConnected: false,
@@ -59,6 +61,7 @@ const initialState: VoiceState = {
   selectedAudioOutputId: null,
   selectedVideoInputId: null,
   wasMutedBeforeDeafen: false,
+  isServerMuted: false,
 };
 
 function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
@@ -122,6 +125,8 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
       return { ...state, selectedVideoInputId: action.payload };
     case 'SET_WAS_MUTED_BEFORE_DEAFEN':
       return { ...state, wasMutedBeforeDeafen: action.payload };
+    case 'SET_SERVER_MUTED':
+      return { ...state, isServerMuted: action.payload };
     default:
       return state;
   }

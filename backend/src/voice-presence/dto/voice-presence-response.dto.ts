@@ -5,6 +5,7 @@ export class VoicePresenceUserDto {
   avatarUrl?: string;
   joinedAt: Date;
   isDeafened: boolean;
+  isServerMuted: boolean;
 }
 
 export class ChannelVoicePresenceResponseDto {

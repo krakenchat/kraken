@@ -198,9 +198,10 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
     onClose();
   };
 
-  // Server mute (moderator action)
-  const handleServerMute = async () => {
+  // Server mute/unmute (moderator action)
+  const handleServerMuteToggle = async () => {
     if (!voiceState.currentChannelId) return;
+    const newMuteState = !user.isServerMuted;
     try {
       const baseUrl = getApiBaseUrl();
       const token = getAccessToken();
@@ -212,12 +213,12 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ participantIdentity: user.id, mute: true }),
+          body: JSON.stringify({ participantIdentity: user.id, mute: newMuteState }),
         },
       );
-      if (!response.ok) throw new Error("Failed to mute");
+      if (!response.ok) throw new Error(newMuteState ? "Failed to mute" : "Failed to unmute");
     } catch (error) {
-      logger.error("Failed to server mute participant:", error);
+      logger.error("Failed to server mute/unmute participant:", error);
     }
     onClose();
   };
@@ -286,11 +287,13 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
             {communityId && canMuteParticipant && (
               <>
                 <Divider />
-                <MenuItem onClick={handleServerMute}>
+                <MenuItem onClick={handleServerMuteToggle}>
                   <ListItemIcon>
                     <MicOffIcon fontSize="small" color="warning" />
                   </ListItemIcon>
-                  <ListItemText>Server Mute</ListItemText>
+                  <ListItemText>
+                    {user.isServerMuted ? "Server Unmute" : "Server Mute"}
+                  </ListItemText>
                 </MenuItem>
               </>
             )}

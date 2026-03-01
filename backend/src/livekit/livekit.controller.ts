@@ -18,6 +18,7 @@ import { Response } from 'express';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
 import { ClipLibraryService } from './clip-library.service';
+import { VoicePresenceService } from '@/voice-presence/voice-presence.service';
 import { CreateTokenDto } from './dto/create-token.dto';
 import { StartReplayBufferDto } from './dto/start-replay-buffer.dto';
 import {
@@ -62,6 +63,7 @@ export class LivekitController {
     private readonly livekitReplayService: LivekitReplayService,
     private readonly clipLibraryService: ClipLibraryService,
     private readonly storageService: StorageService,
+    private readonly voicePresenceService: VoicePresenceService,
   ) {}
 
   @Post('token')
@@ -117,6 +119,11 @@ export class LivekitController {
     @Body() body: { participantIdentity: string; mute: boolean },
   ): Promise<{ success: boolean }> {
     await this.livekitService.muteParticipant(
+      channelId,
+      body.participantIdentity,
+      body.mute,
+    );
+    await this.voicePresenceService.updateServerMuteState(
       channelId,
       body.participantIdentity,
       body.mute,

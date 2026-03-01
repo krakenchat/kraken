@@ -391,7 +391,8 @@ export async function leaveDmVoice(deps: VoiceActionDeps) {
 
 export async function toggleMicrophone(deps: VoiceActionDeps) {
   const { getVoiceState, getRoom } = deps;
-  const { currentChannelId, currentDmGroupId } = getVoiceState();
+  const state = getVoiceState();
+  const { currentChannelId, currentDmGroupId } = state;
   const room = getRoom();
 
   if (!room || (!currentChannelId && !currentDmGroupId)) {
@@ -401,6 +402,13 @@ export async function toggleMicrophone(deps: VoiceActionDeps) {
 
   const isCurrentlyEnabled = room.localParticipant.isMicrophoneEnabled;
   const newState = !isCurrentlyEnabled;
+
+  // Block unmute when server-muted
+  if (newState && state.isServerMuted) {
+    logger.warn('[Voice] toggleMicrophone: Blocked — user is server muted');
+    return;
+  }
+
   logger.info('[Voice] Toggling microphone:', isCurrentlyEnabled, '->', newState);
 
   try {
@@ -620,9 +628,9 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
         await room.localParticipant.setMicrophoneEnabled(false);
       }
     } else if (!newDeafenedState && room) {
-      // Restore mic state from before deafen
-      const { wasMutedBeforeDeafen } = getVoiceState();
-      if (!wasMutedBeforeDeafen) {
+      // Restore mic state from before deafen (but not if server-muted)
+      const currentState = getVoiceState();
+      if (!currentState.wasMutedBeforeDeafen && !currentState.isServerMuted) {
         await room.localParticipant.setMicrophoneEnabled(true);
       }
     }

@@ -47,6 +47,8 @@ import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import { useVoicePresenceHeartbeat } from "../../hooks/useVoicePresenceHeartbeat";
+import { useServerMuteEffect } from "../../hooks/useServerMuteEffect";
+import { useRemoteVolumeEffect } from "../../hooks/useRemoteVolumeEffect";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 export const VoiceBottomBar: React.FC = () => {
@@ -78,6 +80,12 @@ export const VoiceBottomBar: React.FC = () => {
 
   // Implement proper deafen functionality (mute received audio)
   useDeafenEffect();
+
+  // Listen for server mute WS events and enforce on local user
+  useServerMuteEffect();
+
+  // Reapply per-user volume from localStorage when remote tracks change
+  useRemoteVolumeEffect();
 
   // Automatically manage replay buffer when screen sharing
   const { isReplayBufferActive } = useReplayBufferState();
@@ -228,23 +236,29 @@ export const VoiceBottomBar: React.FC = () => {
             {/* Microphone */}
             <Tooltip
               title={
-                isPTTActive
-                  ? (isPTTKeyHeld ? "Transmitting..." : `Hold ${pttKeyDisplay} to talk`)
-                  : (!isMicrophoneEnabled ? "Unmute" : "Mute")
+                state.isServerMuted
+                  ? "Server Muted — contact a moderator"
+                  : isPTTActive
+                    ? (isPTTKeyHeld ? "Transmitting..." : `Hold ${pttKeyDisplay} to talk`)
+                    : (!isMicrophoneEnabled ? "Unmute" : "Mute")
               }
               arrow={!isMobile}
             >
               <IconButton
-                onClick={isPTTActive ? undefined : actions.toggleMute}
+                onClick={isPTTActive || state.isServerMuted ? undefined : actions.toggleMute}
                 color={!isMicrophoneEnabled && !isPTTKeyHeld ? "error" : "default"}
                 size={isMobile ? "medium" : "medium"}
                 sx={{
                   backgroundColor: isPTTKeyHeld
                     ? theme.palette.semantic.status.positive
-                    : (!isMicrophoneEnabled ? "error.main" : "transparent"),
+                    : state.isServerMuted
+                      ? "warning.main"
+                      : (!isMicrophoneEnabled ? "error.main" : "transparent"),
                   color: isPTTKeyHeld
                     ? theme.palette.semantic.status.positiveText
-                    : (!isMicrophoneEnabled ? "error.contrastText" : "text.primary"),
+                    : state.isServerMuted
+                      ? "warning.contrastText"
+                      : (!isMicrophoneEnabled ? "error.contrastText" : "text.primary"),
                   minWidth: isMobile ? 48 : "auto",
                   minHeight: isMobile ? 48 : "auto",
                   border: (isMicrophoneEnabled && isCurrentUserSpeaking) || isPTTKeyHeld
@@ -254,13 +268,15 @@ export const VoiceBottomBar: React.FC = () => {
                     ? `0 0 8px ${theme.palette.semantic.status.positive}`
                     : "none",
                   transition: "all 0.2s ease",
-                  cursor: isPTTActive ? "default" : "pointer",
+                  cursor: isPTTActive || state.isServerMuted ? "default" : "pointer",
                   "&:hover": {
                     backgroundColor: isPTTKeyHeld
                       ? theme.palette.semantic.status.positive
-                      : (!isMicrophoneEnabled
-                        ? "error.dark"
-                        : "action.hover"),
+                      : state.isServerMuted
+                        ? "warning.dark"
+                        : (!isMicrophoneEnabled
+                          ? "error.dark"
+                          : "action.hover"),
                   },
                 }}
               >

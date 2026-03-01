@@ -10352,13 +10352,17 @@
           },
           "isDeafened": {
             "type": "boolean"
+          },
+          "isServerMuted": {
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "username",
           "joinedAt",
-          "isDeafened"
+          "isDeafened",
+          "isServerMuted"
         ]
       },
       "ChannelVoicePresenceResponseDto": {
@@ -11107,6 +11111,18 @@
           "maxFileSizeBytes": {
             "format": "int64",
             "type": "integer"
+          },
+          "vapidPublicKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "vapidPrivateKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "vapidSubject": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -11117,7 +11133,10 @@
           "createdAt",
           "updatedAt",
           "defaultStorageQuotaBytes",
-          "maxFileSizeBytes"
+          "maxFileSizeBytes",
+          "vapidPublicKey",
+          "vapidPrivateKey",
+          "vapidSubject"
         ]
       },
       "UpdateInstanceSettingsDto": {

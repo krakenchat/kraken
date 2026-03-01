@@ -34,6 +34,9 @@ import { useUserProfile } from "../../contexts/UserProfileContext";
 import VoiceUserContextMenu from "./VoiceUserContextMenu";
 import { RoomEvent } from "livekit-client";
 import { getUserInfo } from "../../features/users/userApiHelpers";
+import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
+import { useServerEvent } from "../../socket-hub/useServerEvent";
+import { ServerEvents } from "@kraken/shared";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -165,6 +168,19 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     };
   }, [isConnectedToThisChannel, voiceState.room]);
 
+  // Update isServerMuted for livekitParticipants from WS events
+  // (LiveKit metadata doesn't carry server mute state — it comes from backend via WS)
+  useServerEvent(ServerEvents.VOICE_CHANNEL_USER_UPDATED, (payload) => {
+    if (!isConnectedToThisChannel || payload.channelId !== channel.id) return;
+    setLivekitParticipants((prev) =>
+      prev.map((p) =>
+        p.id === payload.userId
+          ? { ...p, isServerMuted: payload.user.isServerMuted ?? false }
+          : p,
+      ),
+    );
+  });
+
   // Determine which data source to use
   const presence = isConnectedToThisChannel
     ? { channelId: channel.id, users: livekitParticipants, count: livekitParticipants.length }
@@ -209,6 +225,15 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     // Get LiveKit state for this user (if they're in the room)
     const livekitState = useParticipantTracks(user.id);
 
+    // Check if locally muted (volume = 0 in localStorage)
+    const isLocalUser = voiceState.room?.localParticipant?.identity === user.id;
+    const isLocallyMuted = !isLocalUser && (() => {
+      try {
+        const stored = localStorage.getItem(`${VOLUME_STORAGE_PREFIX}${user.id}`);
+        return stored !== null && parseFloat(stored) === 0;
+      } catch { return false; }
+    })();
+
     // Prefer LiveKit state if participant is in room, otherwise use server state
     const userState = {
       isMuted: livekitState.participant
@@ -223,6 +248,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       isScreenSharing: livekitState.participant
         ? livekitState.isScreenShareEnabled
         : Boolean(user.isScreenSharing),
+      isServerMuted: Boolean(user.isServerMuted),
     };
     
     return (
@@ -252,7 +278,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
               <UserAvatar user={user} size="small" />
             </Box>
             
-            {/* Audio status badge (deafen takes priority over mute) */}
+            {/* Audio status badge (deafen > server mute > self mute) */}
             {userState.isDeafened ? (
               <Box
                 sx={{
@@ -271,6 +297,25 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
                 }}
               >
                 <VolumeOff sx={{ fontSize: 10, color: "white" }} />
+              </Box>
+            ) : userState.isServerMuted ? (
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: -2,
+                  right: -2,
+                  backgroundColor: "warning.main",
+                  borderRadius: "50%",
+                  width: 16,
+                  height: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid",
+                  borderColor: "background.paper",
+                }}
+              >
+                <MicOff sx={{ fontSize: 10, color: "white" }} />
               </Box>
             ) : userState.isMuted ? (
               <Box
@@ -312,16 +357,27 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
               {/* Status indicators (deafen takes priority over mute) */}
               <Box sx={{ display: "flex", gap: 0.5, ml: "auto", alignItems: "center" }}>
 
-                {/* Deafened state takes priority over muted */}
+                {/* Deafened > server muted > self muted */}
                 {userState.isDeafened ? (
                   <Tooltip title="Deafened">
                     <VolumeOff sx={{ fontSize: 16, color: theme.palette.semantic.status.negative }} />
+                  </Tooltip>
+                ) : userState.isServerMuted ? (
+                  <Tooltip title="Server Muted">
+                    <MicOff sx={{ fontSize: 16, color: "warning.main" }} />
                   </Tooltip>
                 ) : userState.isMuted ? (
                   <Tooltip title="Muted">
                     <MicOff sx={{ fontSize: 16, color: theme.palette.semantic.status.negative }} />
                   </Tooltip>
                 ) : null}
+
+                {/* Locally muted indicator */}
+                {isLocallyMuted && (
+                  <Tooltip title="Muted for you">
+                    <VolumeOff sx={{ fontSize: 16, color: "text.disabled" }} />
+                  </Tooltip>
+                )}
 
                 {/* Video enabled state */}
                 {userState.isVideoEnabled && (

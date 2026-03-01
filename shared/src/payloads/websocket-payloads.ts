@@ -30,6 +30,7 @@ export interface VoicePresenceUser {
   avatarUrl?: string;
   joinedAt: Date | string;
   isDeafened?: boolean;
+  isServerMuted?: boolean;
 }
 
 // =============================================================================

@@ -124,6 +124,14 @@ vi.mock('../../hooks/useVoicePresenceHeartbeat', () => ({
   useVoicePresenceHeartbeat: vi.fn(),
 }));
 
+vi.mock('../../hooks/useServerMuteEffect', () => ({
+  useServerMuteEffect: vi.fn(),
+}));
+
+vi.mock('../../hooks/useRemoteVolumeEffect', () => ({
+  useRemoteVolumeEffect: vi.fn(),
+}));
+
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
