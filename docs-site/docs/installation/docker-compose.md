@@ -164,7 +164,7 @@ Copy the Compose file for your chosen setup:
             condition: service_started
 
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         restart: unless-stopped
         environment:
           POSTGRES_USER: kraken
@@ -332,7 +332,7 @@ Copy the Compose file for your chosen setup:
             condition: service_started
 
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         restart: unless-stopped
         environment:
           POSTGRES_USER: kraken
@@ -421,7 +421,7 @@ Copy the Compose file for your chosen setup:
           - backend
 
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         restart: unless-stopped
         environment:
           POSTGRES_USER: kraken

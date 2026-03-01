@@ -50,7 +50,7 @@ Database:
      Database: {{ .Values.postgresql.auth.database }}
 {{- else }}
   🔗 External PostgreSQL
-     URI: {{ .Values.postgresql.external.uri | replace ":@" ":****@" }}
+     URI: (configured via postgresql.external.uri - check values for details)
 {{- end }}
 
 Cache:

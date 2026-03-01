@@ -1,16 +1,17 @@
+import { randomUUID } from 'crypto';
 import { Message } from '@prisma/client';
 
 export class MessageFactory {
   private static counter = 0;
 
   static build(overrides: Partial<Message> = {}): Message {
-    const id = overrides.id || this.generateId();
+    const id = overrides.id || randomUUID();
 
     return {
       id,
-      channelId: overrides.channelId || this.generateId(),
+      channelId: overrides.channelId || randomUUID(),
       directMessageGroupId: overrides.directMessageGroupId || null,
-      authorId: overrides.authorId || this.generateId(),
+      authorId: overrides.authorId || randomUUID(),
       sentAt: overrides.sentAt || new Date(),
       editedAt: overrides.editedAt || null,
       deletedAt: overrides.deletedAt || null,
@@ -45,20 +46,13 @@ export class MessageFactory {
   static buildDirectMessage(overrides: Partial<Message> = {}): Message {
     return this.build({
       channelId: null,
-      directMessageGroupId: this.generateId(),
+      directMessageGroupId: randomUUID(),
       ...overrides,
     });
   }
 
   static buildMany(count: number, overrides: Partial<Message> = {}): Message[] {
     return Array.from({ length: count }, () => this.build(overrides));
-  }
-
-  private static generateId(): string {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
   }
 
   static resetCounter(): void {

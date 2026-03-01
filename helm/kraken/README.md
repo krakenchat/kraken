@@ -87,8 +87,10 @@ helm uninstall kraken
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `postgresql.bundled` | Deploy PostgreSQL with chart | `true` |
-| `postgresql.auth.postgresPassword` | PostgreSQL superuser password | `changeme-postgres-password` |
-| `postgresql.persistence.size` | PostgreSQL PVC size | `20Gi` |
+| `postgresql.auth.username` | PostgreSQL username | `kraken` |
+| `postgresql.auth.password` | PostgreSQL password | `""` (set via --set or secrets) |
+| `postgresql.auth.database` | PostgreSQL database name | `kraken` |
+| `postgresql.primary.persistence.size` | PostgreSQL PVC size | `10Gi` |
 | `postgresql.external.uri` | External PostgreSQL URI (if bundled=false) | `""` |
 
 ### Redis Configuration
