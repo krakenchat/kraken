@@ -4,6 +4,9 @@ import { Participant, Track } from "livekit-client";
 import { getCachedItem } from "../utils/storage";
 
 const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
+const HOLD_OPEN_MS = 300;
+const MIN_CLOSE_MS = 100;
+const HYSTERESIS_OFFSET = 5;
 
 interface VoiceSettingsCache {
   inputMode?: string;
@@ -11,11 +14,21 @@ interface VoiceSettingsCache {
 }
 
 /**
- * Hook to detect speaking state for all participants in a LiveKit room
+ * Hook to detect speaking state for all participants in a LiveKit room,
+ * and gate local audio transmission in Voice Activity mode.
  *
- * For the local participant, uses custom audio level analysis with a
- * configurable threshold (from voice settings). For remote participants,
- * uses LiveKit's built-in `isSpeaking` detection.
+ * For the local participant, uses a single AnalyserNode + requestAnimationFrame
+ * loop to both update the speaking indicator AND control `mediaStreamTrack.enabled`
+ * (sending silence frames when below threshold). The gate and indicator share
+ * identical timing so they stay perfectly in sync.
+ *
+ * For remote participants, uses LiveKit's built-in `isSpeaking` detection.
+ *
+ * Gate behaviour (Voice Activity mode only):
+ * - **Hold-open**: 300ms delay before closing after speech stops
+ * - **Hysteresis**: close threshold is 5 points below open threshold
+ * - **Min close time**: 100ms minimum before re-opening
+ * - **Cleanup**: re-enables `mediaStreamTrack.enabled = true`
  *
  * @example
  * const { speakingMap, isSpeaking } = useSpeakingDetection();
@@ -32,10 +45,18 @@ export const useSpeakingDetection = () => {
   const localAnalysisActiveRef = useRef(false);
   const localTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Read threshold from settings
-  const getThreshold = useCallback((): number => {
+  // Gate state refs (used for both indicator and audio gating)
+  const gateOpenRef = useRef(true);
+  const lastAboveThresholdRef = useRef(0);
+  const lastGateCloseRef = useRef(0);
+
+  // Read settings from localStorage
+  const getSettings = useCallback((): { threshold: number; isVoiceActivity: boolean } => {
     const settings = getCachedItem<VoiceSettingsCache>(VOICE_SETTINGS_KEY);
-    return settings?.voiceActivityThreshold ?? 25;
+    return {
+      threshold: settings?.voiceActivityThreshold ?? 25,
+      isVoiceActivity: (settings?.inputMode ?? 'voice_activity') === 'voice_activity',
+    };
   }, []);
 
   useEffect(() => {
@@ -94,7 +115,7 @@ export const useSpeakingDetection = () => {
     room.on("participantDisconnected", handleParticipantDisconnected);
 
     // ---------------------------------------------------------------
-    // Local participant: custom audio level analysis with threshold
+    // Local participant: unified audio analysis + gating
     // ---------------------------------------------------------------
     const local = room.localParticipant;
 
@@ -119,6 +140,11 @@ export const useSpeakingDetection = () => {
         analyserRef.current = analyser;
         localAnalysisActiveRef.current = true;
 
+        // Initialize gate state
+        gateOpenRef.current = true;
+        lastAboveThresholdRef.current = Date.now();
+        lastGateCloseRef.current = 0;
+
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         const tick = () => {
@@ -134,15 +160,69 @@ export const useSpeakingDetection = () => {
           const average = sum / dataArray.length;
           const level = (average / 255) * 100;
 
-          const threshold = getThreshold(); // 0-100, lower = more sensitive
-          const speaking = level > threshold;
+          const { threshold, isVoiceActivity } = getSettings();
+          const now = Date.now();
 
-          setSpeakingMap((prev) => {
-            if (prev.get(local.identity) === speaking) return prev;
-            const newMap = new Map(prev);
-            newMap.set(local.identity, speaking);
-            return newMap;
-          });
+          if (isVoiceActivity) {
+            // ---------- Gated mode: drive both indicator and track.enabled ----------
+            if (gateOpenRef.current) {
+              // Gate is open — check if we should close
+              const closeThreshold = Math.max(0, threshold - HYSTERESIS_OFFSET);
+              if (level > closeThreshold) {
+                lastAboveThresholdRef.current = now;
+                // Keep speaking indicator on while gate is open and transmitting
+                setSpeakingMap((prev) => {
+                  if (prev.get(local.identity) === true) return prev;
+                  const newMap = new Map(prev);
+                  newMap.set(local.identity, true);
+                  return newMap;
+                });
+              } else {
+                const elapsed = now - lastAboveThresholdRef.current;
+                if (elapsed >= HOLD_OPEN_MS) {
+                  gateOpenRef.current = false;
+                  lastGateCloseRef.current = now;
+                  mediaStreamTrack.enabled = false;
+                  setSpeakingMap((prev) => {
+                    if (prev.get(local.identity) === false) return prev;
+                    const newMap = new Map(prev);
+                    newMap.set(local.identity, false);
+                    return newMap;
+                  });
+                }
+              }
+            } else {
+              // Gate is closed — check if we should open
+              if (level > threshold) {
+                const closedFor = now - lastGateCloseRef.current;
+                if (closedFor >= MIN_CLOSE_MS) {
+                  gateOpenRef.current = true;
+                  lastAboveThresholdRef.current = now;
+                  mediaStreamTrack.enabled = true;
+                  setSpeakingMap((prev) => {
+                    if (prev.get(local.identity) === true) return prev;
+                    const newMap = new Map(prev);
+                    newMap.set(local.identity, true);
+                    return newMap;
+                  });
+                }
+              }
+            }
+          } else {
+            // ---------- Non-gated mode (PTT): simple threshold indicator ----------
+            // Ensure track is enabled (PTT controls it separately)
+            if (!mediaStreamTrack.enabled) {
+              mediaStreamTrack.enabled = true;
+              gateOpenRef.current = true;
+            }
+            const speaking = level > threshold;
+            setSpeakingMap((prev) => {
+              if (prev.get(local.identity) === speaking) return prev;
+              const newMap = new Map(prev);
+              newMap.set(local.identity, speaking);
+              return newMap;
+            });
+          }
 
           animationFrameRef.current = requestAnimationFrame(tick);
         };
@@ -177,6 +257,14 @@ export const useSpeakingDetection = () => {
         audioContextRef.current = null;
       }
       analyserRef.current = null;
+
+      // Re-enable track so PTT/manual mute work normally
+      const micPub = local.getTrackPublication(Track.Source.Microphone);
+      const track = micPub?.track?.mediaStreamTrack;
+      if (track) {
+        track.enabled = true;
+      }
+      gateOpenRef.current = true;
     };
 
     // Start analysis if mic track is already published
@@ -216,12 +304,12 @@ export const useSpeakingDetection = () => {
       room.off("participantConnected", handleParticipantConnected);
       room.off("participantDisconnected", handleParticipantDisconnected);
 
-      // Local analysis
+      // Local analysis + gating cleanup
       stopLocalAnalysis();
       local.off("localTrackPublished", handleLocalTrackPublished);
       local.off("localTrackUnpublished", handleLocalTrackUnpublished);
     };
-  }, [room, getThreshold]);
+  }, [room, getSettings]);
 
   /**
    * Check if a specific user (by identity/userId) is currently speaking

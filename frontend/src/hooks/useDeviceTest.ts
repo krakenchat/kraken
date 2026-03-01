@@ -11,6 +11,8 @@ interface UseDeviceTestReturn {
   testingAudio: boolean;
   testingVideo: boolean;
   audioLevel: number;
+  /** Un-doubled audio level (0-100) matching the VAD threshold scale */
+  rawAudioLevel: number;
   testAudioInput: () => Promise<void>;
   testVideoInput: () => Promise<void>;
   stopAudioTest: () => void;
@@ -45,6 +47,7 @@ export function useDeviceTest({
   const [testingAudio, setTestingAudio] = useState(false);
   const [testingVideo, setTestingVideo] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [rawAudioLevel, setRawAudioLevel] = useState(0);
 
   const testStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -72,6 +75,7 @@ export function useDeviceTest({
 
     analyserRef.current = null;
     setAudioLevel(0);
+    setRawAudioLevel(0);
     setTestingAudio(false);
   }, []);
 
@@ -127,7 +131,9 @@ export function useDeviceTest({
           sum += dataArray[i];
         }
         const average = sum / dataArray.length;
-        const level = Math.min(100, (average / 255) * 100 * 2);
+        const raw = (average / 255) * 100;
+        const level = Math.min(100, raw * 2);
+        setRawAudioLevel(raw);
         setAudioLevel(level);
 
         animationFrameRef.current = requestAnimationFrame(updateLevel);
@@ -177,6 +183,7 @@ export function useDeviceTest({
     testingAudio,
     testingVideo,
     audioLevel,
+    rawAudioLevel,
     testAudioInput,
     testVideoInput,
     stopAudioTest,

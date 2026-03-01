@@ -71,6 +71,7 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
     testingAudio,
     testingVideo,
     audioLevel,
+    rawAudioLevel,
     testAudioInput,
     testVideoInput,
     stopAudioTest,
@@ -348,22 +349,58 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
               <Typography variant="caption" color="text.secondary">
                 Microphone Level
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {Math.round(audioLevel)}%
-              </Typography>
+              {inputMode === 'voice_activity' ? (
+                <Typography
+                  variant="caption"
+                  fontWeight="medium"
+                  color={rawAudioLevel > voiceActivityThreshold ? 'success.main' : 'text.secondary'}
+                >
+                  {rawAudioLevel > voiceActivityThreshold ? 'Transmitting' : 'Gated'}
+                </Typography>
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  {Math.round(audioLevel)}%
+                </Typography>
+              )}
             </Box>
-            <LinearProgress
-              variant="determinate"
-              value={audioLevel}
-              sx={{
-                height: 8,
-                borderRadius: 1,
-                backgroundColor: 'grey.300',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: audioLevel > 80 ? 'error.main' : audioLevel > 50 ? 'warning.main' : 'success.main',
-                },
-              }}
-            />
+            <Box sx={{ position: 'relative' }}>
+              <LinearProgress
+                variant="determinate"
+                value={audioLevel}
+                sx={{
+                  height: 8,
+                  borderRadius: 1,
+                  backgroundColor: 'grey.300',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: inputMode === 'voice_activity'
+                      ? (rawAudioLevel > voiceActivityThreshold ? 'success.main' : 'grey.500')
+                      : (audioLevel > 80 ? 'error.main' : audioLevel > 50 ? 'warning.main' : 'success.main'),
+                  },
+                }}
+              />
+              {inputMode === 'voice_activity' && (
+                <Box
+                  data-testid="threshold-marker"
+                  sx={{
+                    position: 'absolute',
+                    // Threshold is on the raw (un-doubled) scale; the bar uses the doubled scale.
+                    // Map threshold to bar position: threshold * 2, capped at 100.
+                    left: `${Math.min(100, voiceActivityThreshold * 2)}%`,
+                    top: -2,
+                    bottom: -2,
+                    width: 2,
+                    backgroundColor: 'warning.main',
+                    borderRadius: 1,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+            </Box>
+            {inputMode === 'voice_activity' && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                The marker shows your sensitivity threshold — audio above it is transmitted.
+              </Typography>
+            )}
           </Box>
         )}
         {!testingAudio && (
