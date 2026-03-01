@@ -24,8 +24,9 @@ test.describe('Messaging', () => {
     testCommunity = await createTestCommunity(request, {
       name: generateTestName('msg-test'),
     }, authToken);
+    // Community creation auto-creates a "general" channel, so use a different name
     _testChannel = await createTestChannel(request, testCommunity.id, {
-      name: 'general',
+      name: 'test-messaging',
       type: 'TEXT',
     }, authToken);
   });
