@@ -4,7 +4,9 @@ import { ConfigService } from '@nestjs/config';
 describe('SignedUrlService', () => {
   let service: SignedUrlService;
 
-  const mockConfigService = (overrides: Record<string, string | undefined> = {}) => {
+  const mockConfigService = (
+    overrides: Record<string, string | undefined> = {},
+  ) => {
     return {
       get: jest.fn((key: string) => {
         if (key in overrides) return overrides[key];

@@ -6,7 +6,11 @@ import { createMockDatabase } from '@/test-utils';
 
 describe('FileAuthGuard', () => {
   let guard: FileAuthGuard;
-  let signedUrlService: { sign: jest.Mock; verify: jest.Mock; generateSignedUrl: jest.Mock };
+  let signedUrlService: {
+    sign: jest.Mock;
+    verify: jest.Mock;
+    generateSignedUrl: jest.Mock;
+  };
   let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   const createContext = (

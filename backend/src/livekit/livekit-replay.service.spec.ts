@@ -6,7 +6,7 @@ import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
-import { EgressStatus } from 'livekit-server-sdk';
+import { AudioCodec, EgressStatus, EncodingOptions } from 'livekit-server-sdk';
 import { ThumbnailService } from '@/file/thumbnail.service';
 import { FfmpegService } from './ffmpeg.service';
 import { EGRESS_CLIENT } from './providers/egress-client.provider';
@@ -181,6 +181,38 @@ describe('LivekitReplayService', () => {
           where: { id: 'old-session' },
           data: expect.objectContaining({
             status: 'stopped',
+          }),
+        }),
+      );
+    });
+
+    it('should use AAC audio codec (not Opus) for HLS/MPEG-TS compatibility', async () => {
+      const paramsWithIdentity = {
+        ...startParams,
+        participantIdentity: 'user-identity',
+      };
+
+      mockRoomServiceClient.getParticipant.mockResolvedValue({
+        tracks: [
+          {
+            sid: 'video-track-1',
+            type: 1, // TrackType.VIDEO
+            width: 1920,
+            height: 1080,
+          },
+        ],
+      });
+
+      await service.startReplayBuffer(paramsWithIdentity);
+
+      expect(
+        mockEgressClient.startTrackCompositeEgress,
+      ).toHaveBeenCalledWith(
+        'room-789',
+        expect.objectContaining({ segments: expect.any(Object) }),
+        expect.objectContaining({
+          encodingOptions: expect.objectContaining({
+            audioCodec: AudioCodec.AAC,
           }),
         }),
       );

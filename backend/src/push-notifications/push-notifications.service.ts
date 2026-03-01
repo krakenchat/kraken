@@ -59,18 +59,17 @@ export class PushNotificationsService implements OnModuleInit {
       // Persist using conditional write to handle concurrent pod startup.
       // If another instance already wrote keys, updateMany matches 0 rows.
       if (settings) {
-        const result =
-          await this.databaseService.instanceSettings.updateMany({
-            where: {
-              id: settings.id,
-              vapidPublicKey: null,
-            },
-            data: {
-              vapidPublicKey: generated.publicKey,
-              vapidPrivateKey: generated.privateKey,
-              vapidSubject: subject,
-            },
-          });
+        const result = await this.databaseService.instanceSettings.updateMany({
+          where: {
+            id: settings.id,
+            vapidPublicKey: null,
+          },
+          data: {
+            vapidPublicKey: generated.publicKey,
+            vapidPrivateKey: generated.privateKey,
+            vapidSubject: subject,
+          },
+        });
 
         if (result.count === 0) {
           // Another instance won the race — reload and use its keys
@@ -78,9 +77,7 @@ export class PushNotificationsService implements OnModuleInit {
             await this.databaseService.instanceSettings.findFirst();
           if (reloaded?.vapidPublicKey && reloaded?.vapidPrivateKey) {
             const effectiveSubject =
-              envSubject ||
-              reloaded.vapidSubject ||
-              'mailto:admin@localhost';
+              envSubject || reloaded.vapidSubject || 'mailto:admin@localhost';
             this.applyVapidDetails(
               effectiveSubject,
               reloaded.vapidPublicKey,

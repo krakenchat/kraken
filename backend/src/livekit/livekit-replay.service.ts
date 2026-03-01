@@ -190,7 +190,7 @@ export class LivekitReplayService {
               videoCodec: VideoCodec.H264_HIGH,
               videoBitrate, // Intelligent bitrate based on resolution
               audioBitrate: 128000, // 128kbps audio
-              audioCodec: AudioCodec.OPUS,
+              audioCodec: AudioCodec.AAC,
             });
 
             this.logger.log(
