@@ -25,6 +25,7 @@ export interface VoicePresenceUser {
   avatarUrl?: string;
   joinedAt: Date;
   isDeafened: boolean;
+  isServerMuted: boolean;
 }
 
 @Injectable()
@@ -395,6 +396,7 @@ export class VoicePresenceService {
       avatarUrl: user.avatarUrl ?? undefined,
       joinedAt: new Date(),
       isDeafened,
+      isServerMuted: false,
     };
 
     // Keys for Redis SET architecture
@@ -487,6 +489,7 @@ export class VoicePresenceService {
       avatarUrl: user.avatarUrl ?? undefined,
       joinedAt: new Date(),
       isDeafened,
+      isServerMuted: false,
     };
 
     // Keys for Redis SET architecture (DM-specific)
@@ -592,6 +595,50 @@ export class VoicePresenceService {
 
     this.logger.debug(
       `User ${userId} deafen state updated to ${isDeafened} in channel ${channelId}`,
+    );
+  }
+
+  /**
+   * Update a user's server mute state in a voice channel
+   * Updates Redis and broadcasts the change to all clients in the channel
+   */
+  async updateServerMuteState(
+    channelId: string,
+    userId: string,
+    isServerMuted: boolean,
+  ): Promise<void> {
+    const userDataKey = `${this.VOICE_PRESENCE_USER_DATA_PREFIX}:${channelId}:${userId}`;
+    const userDataStr = await this.redis.get(userDataKey);
+
+    if (!userDataStr) {
+      this.logger.warn(
+        `User ${userId} not found in voice channel ${channelId} for server mute update`,
+      );
+      return;
+    }
+
+    const userData = JSON.parse(userDataStr) as VoicePresenceUser;
+    userData.isServerMuted = isServerMuted;
+
+    await this.redis.set(
+      userDataKey,
+      JSON.stringify(userData),
+      'EX',
+      this.VOICE_PRESENCE_TTL,
+    );
+
+    this.websocketService.sendToRoom(
+      channelId,
+      ServerEvents.VOICE_CHANNEL_USER_UPDATED,
+      {
+        channelId,
+        userId,
+        user: userData,
+      },
+    );
+
+    this.logger.debug(
+      `User ${userId} server mute state updated to ${isServerMuted} in channel ${channelId}`,
     );
   }
 

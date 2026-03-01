@@ -478,6 +478,87 @@ describe('VoicePresenceService', () => {
     });
   });
 
+  describe('updateServerMuteState', () => {
+    it('should update server mute state in Redis and broadcast', async () => {
+      const channelId = 'channel-123';
+      const userId = 'user-123';
+      const userData = {
+        id: userId,
+        username: 'testuser',
+        joinedAt: new Date().toISOString(),
+        isDeafened: false,
+        isServerMuted: false,
+      };
+
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
+      mockRedis.set.mockResolvedValue('OK');
+
+      await service.updateServerMuteState(channelId, userId, true);
+
+      expect(mockRedis.get).toHaveBeenCalledWith(
+        expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
+      );
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
+        expect.stringContaining('"isServerMuted":true'),
+        'EX',
+        300,
+      );
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        channelId,
+        ServerEvents.VOICE_CHANNEL_USER_UPDATED,
+        expect.objectContaining({
+          channelId,
+          userId,
+          user: expect.objectContaining({ id: userId, isServerMuted: true }),
+        }),
+      );
+    });
+
+    it('should handle server unmuting', async () => {
+      const channelId = 'channel-123';
+      const userId = 'user-123';
+      const userData = {
+        id: userId,
+        username: 'testuser',
+        joinedAt: new Date().toISOString(),
+        isDeafened: false,
+        isServerMuted: true,
+      };
+
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
+      mockRedis.set.mockResolvedValue('OK');
+
+      await service.updateServerMuteState(channelId, userId, false);
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        expect.stringContaining(`voice_presence:user:${channelId}:${userId}`),
+        expect.stringContaining('"isServerMuted":false'),
+        'EX',
+        300,
+      );
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        channelId,
+        ServerEvents.VOICE_CHANNEL_USER_UPDATED,
+        expect.objectContaining({
+          user: expect.objectContaining({ isServerMuted: false }),
+        }),
+      );
+    });
+
+    it('should not update if user not found in channel', async () => {
+      const channelId = 'channel-123';
+      const userId = 'nonexistent-user';
+
+      mockRedis.get.mockResolvedValue(null);
+
+      await service.updateServerMuteState(channelId, userId, true);
+
+      expect(mockRedis.set).not.toHaveBeenCalled();
+      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+    });
+  });
+
   describe('leaveDmVoice', () => {
     it('should leave DM voice successfully', async () => {
       const dmGroupId = 'dm-group-123';

@@ -2,12 +2,14 @@ import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { LivekitController } from './livekit.controller';
 import { LivekitService } from './livekit.service';
+import { VoicePresenceService } from '@/voice-presence/voice-presence.service';
 import { UserFactory } from '@/test-utils';
 import { CreateTokenDto } from './dto/create-token.dto';
 
 describe('LivekitController', () => {
   let controller: LivekitController;
   let service: Mocked<LivekitService>;
+  let voicePresenceService: Mocked<VoicePresenceService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -20,6 +22,7 @@ describe('LivekitController', () => {
 
     controller = unit;
     service = unitRef.get(LivekitService);
+    voicePresenceService = unitRef.get(VoicePresenceService);
   });
 
   afterEach(() => {
@@ -201,8 +204,9 @@ describe('LivekitController', () => {
   });
 
   describe('muteParticipant', () => {
-    it('should call service muteParticipant and return success', async () => {
+    it('should call service muteParticipant and updateServerMuteState, return success', async () => {
       service.muteParticipant.mockResolvedValue(undefined);
+      voicePresenceService.updateServerMuteState.mockResolvedValue(undefined);
 
       const result = await controller.muteParticipant('channel-123', {
         participantIdentity: 'user-456',
@@ -214,11 +218,17 @@ describe('LivekitController', () => {
         'user-456',
         true,
       );
+      expect(voicePresenceService.updateServerMuteState).toHaveBeenCalledWith(
+        'channel-123',
+        'user-456',
+        true,
+      );
       expect(result).toEqual({ success: true });
     });
 
-    it('should pass mute=false for unmute', async () => {
+    it('should pass mute=false for unmute and update server mute state', async () => {
       service.muteParticipant.mockResolvedValue(undefined);
+      voicePresenceService.updateServerMuteState.mockResolvedValue(undefined);
 
       await controller.muteParticipant('channel-123', {
         participantIdentity: 'user-456',
@@ -230,9 +240,14 @@ describe('LivekitController', () => {
         'user-456',
         false,
       );
+      expect(voicePresenceService.updateServerMuteState).toHaveBeenCalledWith(
+        'channel-123',
+        'user-456',
+        false,
+      );
     });
 
-    it('should propagate service errors', async () => {
+    it('should propagate service errors without calling updateServerMuteState', async () => {
       service.muteParticipant.mockRejectedValue(new Error('Mute failed'));
 
       await expect(
@@ -241,6 +256,8 @@ describe('LivekitController', () => {
           mute: true,
         }),
       ).rejects.toThrow('Mute failed');
+
+      expect(voicePresenceService.updateServerMuteState).not.toHaveBeenCalled();
     });
   });
 });

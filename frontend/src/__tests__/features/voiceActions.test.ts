@@ -87,6 +87,8 @@ function createMockDeps(overrides: Partial<{
   channelId: string | null;
   dmGroupId: string | null;
   isDeafened: boolean;
+  isServerMuted: boolean;
+  wasMutedBeforeDeafen: boolean;
   room: unknown;
 }> = {}) {
   const dispatch = vi.fn();
@@ -107,12 +109,14 @@ function createMockDeps(overrides: Partial<{
       currentDmGroupId: 'dmGroupId' in overrides ? overrides.dmGroupId : null,
       dmGroupName: null,
       isDeafened: overrides.isDeafened ?? false,
+      isServerMuted: overrides.isServerMuted ?? false,
       showVideoTiles: false,
       screenShareAudioFailed: false,
       requestMaximize: false,
       selectedAudioInputId: null,
       selectedAudioOutputId: null,
       selectedVideoInputId: null,
+      wasMutedBeforeDeafen: overrides.wasMutedBeforeDeafen ?? false,
     }),
     getRoom: () => room as never,
     setRoom: vi.fn(),
@@ -277,6 +281,23 @@ describe('voiceActions', () => {
 
       expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
     });
+
+    it('blocks unmute when server-muted', async () => {
+      mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
+      const deps = createMockDeps({ isServerMuted: true });
+      await toggleMicrophone(deps);
+
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
+    });
+
+    it('allows mute when server-muted (already muted, toggle is a no-op unmute attempt)', async () => {
+      // User is already muted and server-muted; toggling would try to unmute -> blocked
+      mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
+      const deps = createMockDeps({ isServerMuted: true });
+      await toggleMicrophone(deps);
+
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
+    });
   });
 
   describe('toggleDeafenUnified', () => {
@@ -319,6 +340,16 @@ describe('voiceActions', () => {
 
       await expect(toggleDeafenUnified(deps)).rejects.toThrow('fail');
       expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_DEAFENED', payload: false });
+    });
+
+    it('does not restore mic when undeafening if server-muted', async () => {
+      mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
+      const deps = createMockDeps({ isDeafened: true, isServerMuted: true, wasMutedBeforeDeafen: false });
+      await toggleDeafenUnified(deps);
+
+      // Should undeafen but NOT re-enable mic because server-muted
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_DEAFENED', payload: false });
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
     });
   });
 
