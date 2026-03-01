@@ -234,14 +234,14 @@ describe('UserSearchAutocomplete', () => {
   });
 
   it('passes search query to the API endpoint', async () => {
-    let capturedQuery = '';
+    const capturedQueries: string[] = [];
     server.use(
       http.get(`${BASE_URL}/api/users/profile`, () =>
         HttpResponse.json(currentUser),
       ),
       http.get(`${BASE_URL}/api/users/search`, ({ request }) => {
         const url = new URL(request.url);
-        capturedQuery = url.searchParams.get('q') || '';
+        capturedQueries.push(url.searchParams.get('q') || '');
         return HttpResponse.json([userAlice]);
       }),
     );
@@ -254,6 +254,8 @@ describe('UserSearchAutocomplete', () => {
     await typeAndWaitForResults(user, 'alice');
 
     await screen.findByText('Alice');
-    expect(capturedQuery).toBe('alice');
+    // Intermediate debounced requests may fire with partial input;
+    // the final request should contain the full query.
+    expect(capturedQueries[capturedQueries.length - 1]).toBe('alice');
   });
 });
