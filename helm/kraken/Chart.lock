@@ -5,5 +5,5 @@ dependencies:
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 19.6.4
-digest: sha256:PLACEHOLDER-run-helm-dependency-update-to-regenerate
-generated: "2026-03-01T00:00:00.000000000+00:00"
+digest: sha256:dd9849dbd8c7efc3b9cbc51ff33fec55b6c49d30e75f3661658daf0fe847bd4f
+generated: "2026-03-01T13:32:35.40594307-08:00"
