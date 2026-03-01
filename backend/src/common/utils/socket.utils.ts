@@ -70,3 +70,35 @@ export function isAuthenticated(client: Socket): client is AuthenticatedSocket {
   const handshake = client.handshake as { user?: UserEntity };
   return !!handshake.user;
 }
+
+interface SocketHandshakeLike {
+  auth?: { token?: unknown };
+  headers?: { authorization?: unknown };
+}
+
+/**
+ * Extracts a JWT token from a socket handshake.
+ *
+ * Checks `auth.token` first, then falls back to `headers.authorization`.
+ * Strips the `Bearer ` prefix if present.
+ *
+ * @returns The raw token string, or undefined if no token is found
+ */
+export function extractTokenFromHandshake(
+  handshake: SocketHandshakeLike,
+): string | undefined {
+  let token: string | undefined =
+    typeof handshake.auth?.token === 'string'
+      ? handshake.auth.token
+      : typeof handshake.headers?.authorization === 'string'
+        ? handshake.headers.authorization
+        : undefined;
+
+  if (!token) return undefined;
+
+  if (token.startsWith('Bearer ')) {
+    token = token.split('Bearer ')[1];
+  }
+
+  return token || undefined;
+}

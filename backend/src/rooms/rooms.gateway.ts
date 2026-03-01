@@ -26,6 +26,7 @@ import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import {
   getSocketUser,
   AuthenticatedSocket,
+  extractTokenFromHandshake,
 } from '@/common/utils/socket.utils';
 import { WsException } from '@nestjs/websockets';
 
@@ -78,7 +79,12 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
           return next(new Error('RATE_LIMITED'));
         }
       } else {
-        // New window or expired — reset
+        // Clean up expired entries on each new/expired window to prevent unbounded growth
+        if (this.connectionAttempts.size > 100) {
+          for (const [key, val] of this.connectionAttempts) {
+            if (now >= val.resetAt) this.connectionAttempts.delete(key);
+          }
+        }
         this.connectionAttempts.set(ip, {
           count: 1,
           resetAt: now + RoomsGateway.RATE_LIMIT_WINDOW_MS,
@@ -89,35 +95,35 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
     });
 
     // Auth middleware — validates JWT and attaches user before connection
-    server.use(async (socket, next) => {
+    server.use((socket, next) => {
+      const token = extractTokenFromHandshake(socket.handshake);
+
+      if (!token) {
+        next(new Error('AUTH_FAILED'));
+        return;
+      }
+
+      let payload: { sub: string };
       try {
-        let token: string | undefined =
-          typeof socket.handshake.auth?.token === 'string'
-            ? socket.handshake.auth.token
-            : typeof socket.handshake.headers?.authorization === 'string'
-              ? (socket.handshake.headers.authorization as string)
-              : undefined;
-
-        if (!token) {
-          return next(new Error('AUTH_FAILED'));
-        }
-
-        if (token.startsWith('Bearer ')) {
-          token = token.split('Bearer ')[1];
-        }
-
-        const payload = this.jwtService.verify<{ sub: string }>(token);
-        const user = await this.userService.findById(payload.sub);
-
-        if (!user) {
-          return next(new Error('AUTH_FAILED'));
-        }
-
-        (socket.handshake as Record<string, any>).user = new UserEntity(user);
-        next();
+        payload = this.jwtService.verify<{ sub: string }>(token);
       } catch {
         next(new Error('AUTH_FAILED'));
+        return;
       }
+
+      this.userService
+        .findById(payload.sub)
+        .then((user) => {
+          if (!user) {
+            next(new Error('AUTH_FAILED'));
+            return;
+          }
+          (socket.handshake as Record<string, any>).user = new UserEntity(user);
+          next();
+        })
+        .catch(() => {
+          next(new Error('AUTH_FAILED'));
+        });
     });
   }
 

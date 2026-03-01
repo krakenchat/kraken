@@ -30,6 +30,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(socket?.connected ?? false);
   const serverDisconnectCount = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHandlingAuthFailure = useRef(false);
 
   // Track connection state via socket events
   useEffect(() => {
@@ -81,13 +82,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const onConnectError = (err: Error) => {
       logger.error("[Socket] Connection error:", err.message);
 
-      if (err.message === "AUTH_FAILED") {
+      if (err.message === "AUTH_FAILED" && !isHandlingAuthFailure.current) {
+        isHandlingAuthFailure.current = true;
         // Disable auto-reconnection while we attempt token refresh
         socket.io.opts.reconnection = false;
 
         refreshToken()
           .then((newToken) => {
             socket.io.opts.reconnection = true;
+            isHandlingAuthFailure.current = false;
             if (newToken) {
               logger.dev("[Socket] Token refreshed, reconnecting...");
               socket.connect();
@@ -100,6 +103,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           })
           .catch(() => {
             socket.io.opts.reconnection = true;
+            isHandlingAuthFailure.current = false;
             logger.error("[Socket] Token refresh failed, logging out");
             notifyAuthFailure();
           });

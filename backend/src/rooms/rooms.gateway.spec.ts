@@ -67,7 +67,9 @@ describe('RoomsGateway', () => {
   });
 
   describe('connection auth middleware', () => {
-    let authMiddleware: (socket: any, next: jest.Mock) => Promise<void>;
+    let authMiddleware: (socket: any, next: jest.Mock) => void;
+    const flushPromises = () =>
+      new Promise<void>((resolve) => setImmediate(resolve));
 
     beforeEach(() => {
       const mockServer = { use: jest.fn() } as unknown as Server;
@@ -90,7 +92,8 @@ describe('RoomsGateway', () => {
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
       jest.spyOn(userService, 'findById').mockResolvedValue(user);
 
-      await authMiddleware(socket, next);
+      authMiddleware(socket, next);
+      await flushPromises();
 
       expect(next).toHaveBeenCalledWith();
       expect(jwtService.verify).toHaveBeenCalledWith('valid-token');
@@ -112,7 +115,8 @@ describe('RoomsGateway', () => {
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
       jest.spyOn(userService, 'findById').mockResolvedValue(user);
 
-      await authMiddleware(socket, next);
+      authMiddleware(socket, next);
+      await flushPromises();
 
       expect(jwtService.verify).toHaveBeenCalledWith('my-jwt-token');
       expect(next).toHaveBeenCalledWith();
@@ -132,13 +136,14 @@ describe('RoomsGateway', () => {
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
       jest.spyOn(userService, 'findById').mockResolvedValue(user);
 
-      await authMiddleware(socket, next);
+      authMiddleware(socket, next);
+      await flushPromises();
 
       expect(jwtService.verify).toHaveBeenCalledWith('header-token');
       expect(next).toHaveBeenCalledWith();
     });
 
-    it('should reject when no token is provided', async () => {
+    it('should reject when no token is provided', () => {
       const socket = {
         handshake: {
           auth: {},
@@ -148,13 +153,13 @@ describe('RoomsGateway', () => {
       };
       const next = jest.fn();
 
-      await authMiddleware(socket, next);
+      authMiddleware(socket, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       expect((next.mock.calls[0][0] as Error).message).toBe('AUTH_FAILED');
     });
 
-    it('should reject when JWT verification fails', async () => {
+    it('should reject when JWT verification fails', () => {
       const socket = {
         handshake: {
           auth: { token: 'invalid-token' },
@@ -168,7 +173,7 @@ describe('RoomsGateway', () => {
         throw new Error('Invalid token');
       });
 
-      await authMiddleware(socket, next);
+      authMiddleware(socket, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       expect((next.mock.calls[0][0] as Error).message).toBe('AUTH_FAILED');
@@ -189,7 +194,8 @@ describe('RoomsGateway', () => {
         .mockReturnValue({ sub: 'deleted-user-id' });
       jest.spyOn(userService, 'findById').mockResolvedValue(null);
 
-      await authMiddleware(socket, next);
+      authMiddleware(socket, next);
+      await flushPromises();
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       expect((next.mock.calls[0][0] as Error).message).toBe('AUTH_FAILED');
@@ -249,9 +255,9 @@ describe('RoomsGateway', () => {
       }
 
       // Advance time past the window
-      jest.spyOn(Date, 'now').mockReturnValue(
-        Date.now() + RoomsGateway.RATE_LIMIT_WINDOW_MS + 1,
-      );
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(Date.now() + RoomsGateway.RATE_LIMIT_WINDOW_MS + 1);
 
       const next = jest.fn();
       rateLimitMiddleware(socket, next);

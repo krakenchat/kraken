@@ -453,15 +453,12 @@ describe('WsJwtAuthGuard', () => {
       };
       const context = createMockWsExecutionContext({ client: mockClient });
 
-      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
-        throw new Error('Invalid token');
-      });
-
       const result = await guard.canActivate(context);
 
       expect(result).toBe(false);
       expect(mockClient.disconnect).toHaveBeenCalledWith(true);
-      expect(jwtService.verify).toHaveBeenCalledWith('');
+      // Empty string after stripping "Bearer " is treated as missing token
+      expect(jwtService.verify).not.toHaveBeenCalled();
     });
   });
 });
