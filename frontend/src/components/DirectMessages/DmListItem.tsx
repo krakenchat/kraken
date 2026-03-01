@@ -130,11 +130,13 @@ const DmListItem: React.FC<DmListItemProps> = ({
             sx={{
               ml: "auto",
               "& .MuiBadge-badge": {
+                position: "static",
+                transform: "none",
+              },
+              "& .MuiBadge-standard": {
                 fontSize: 10,
                 height: 16,
                 minWidth: 16,
-                position: "static",
-                transform: "none",
               },
             }}
           />

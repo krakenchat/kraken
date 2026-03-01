@@ -113,11 +113,7 @@ const MobileCommunityDrawer: React.FC = () => {
   const navigate = useNavigate();
   const { state, closeDrawer, navigateToChannels, navigateToDmList } = useMobileNavigation();
   const { data: communities, isLoading } = useQuery(communityControllerFindAllMineOptions());
-  const { allUnreadCounts } = useReadReceipts();
-
-  const totalDmUnread = (allUnreadCounts ?? [])
-    .filter((c) => c.directMessageGroupId)
-    .reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+  const { totalDmUnreadCount: totalDmUnread } = useReadReceipts();
 
   const handleCommunitySelect = (communityId: string) => {
     navigateToChannels(communityId);

@@ -85,11 +85,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
   const { communityId } = useParams();
   const navigate = useNavigate();
   const canCreateCommunity = useCanPerformAction("INSTANCE", undefined, RBAC_ACTIONS.CREATE_COMMUNITY);
-  const { allUnreadCounts } = useReadReceipts();
-
-  const totalDmUnread = (allUnreadCounts ?? [])
-    .filter((c) => c.directMessageGroupId)
-    .reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+  const { totalDmUnreadCount: totalDmUnread } = useReadReceipts();
 
   const handleCreateCommunity = () => {
     // Navigate to create community page (you may need to adjust this route)
