@@ -1,6 +1,6 @@
 # Database Schema
 
-Kraken uses **MongoDB** with **Prisma ORM**. Schema changes use `prisma db push` (no migrations). MongoDB runs as a replica set for change stream support.
+Kraken uses **PostgreSQL** with **Prisma ORM**. Schema changes use `prisma db push` (no migrations).
 
 ---
 
@@ -10,7 +10,7 @@ Kraken uses **MongoDB** with **Prisma ORM**. Schema changes use `prisma db push`
 
 ```prisma
 model User {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(uuid())
   username       String       @unique
   email          String?      @unique
   verified       Boolean      @default(false)
@@ -35,7 +35,7 @@ model User {
 
 ```prisma
 model Community {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  id          String       @id @default(uuid())
   name        String       @unique
   description String?
   avatar      String?
@@ -52,9 +52,9 @@ model Community {
 
 ```prisma
 model Channel {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  id          String      @id @default(uuid())
   name        String
-  communityId String      @db.ObjectId
+  communityId String
   type        ChannelType @default(TEXT)
   isPrivate   Boolean     @default(false)
   createdAt   DateTime    @default(now())
@@ -78,13 +78,13 @@ Messages use a **span-based rich text system** and support both channel and DM c
 
 ```prisma
 model Message {
-  id                   String       @id @default(auto()) @map("_id") @db.ObjectId
-  channelId            String?      @db.ObjectId
-  directMessageGroupId String?      @db.ObjectId
+  id                   String       @id @default(uuid())
+  channelId            String?
+  directMessageGroupId String?
   authorId             String
-  spans                Span[]
-  attachments          Attachment[]
-  reactions            Reaction[]
+  spans                Json         @default("[]")
+  attachments          Json         @default("[]")
+  reactions            Json         @default("[]")
   sentAt               DateTime     @default(now())
   editedAt             DateTime?
   deletedAt            DateTime?
@@ -96,40 +96,35 @@ model Message {
 
 #### Span System (Rich Text)
 
-```prisma
-type Span {
-  type        SpanType
-  text        String?
-  userId      String?     // USER_MENTION
-  specialKind String?     // SPECIAL_MENTION: "here", "everyone", "mods"
-  channelId   String?     // CHANNEL_MENTION
-  communityId String?     // COMMUNITY_MENTION
-  aliasId     String?     // ALIAS_MENTION
-}
+Spans are stored as a JSON array. Each span object has the following shape:
 
-enum SpanType {
-  PLAINTEXT
-  USER_MENTION
-  SPECIAL_MENTION
-  CHANNEL_MENTION
-  COMMUNITY_MENTION
-  ALIAS_MENTION
+```typescript
+interface Span {
+  type: "PLAINTEXT" | "USER_MENTION" | "SPECIAL_MENTION" | "CHANNEL_MENTION" | "COMMUNITY_MENTION" | "ALIAS_MENTION";
+  text?: string;
+  userId?: string;       // USER_MENTION
+  specialKind?: string;  // SPECIAL_MENTION: "here", "everyone", "mods"
+  channelId?: string;    // CHANNEL_MENTION
+  communityId?: string;  // COMMUNITY_MENTION
+  aliasId?: string;      // ALIAS_MENTION
 }
 ```
 
-#### Embedded Types
+#### JSON Column Types
 
-```prisma
-type Attachment {
-  url      String
-  filename String
-  filetype String
-  size     Int
+Attachments and reactions are stored as JSON arrays:
+
+```typescript
+interface Attachment {
+  url: string;
+  filename: string;
+  filetype: string;
+  size: number;
 }
 
-type Reaction {
-  emoji   String
-  userIds String[]
+interface Reaction {
+  emoji: string;
+  userIds: string[];
 }
 ```
 
@@ -141,9 +136,9 @@ type Reaction {
 
 ```prisma
 model Membership {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @db.ObjectId
-  communityId String   @db.ObjectId
+  id          String   @id @default(uuid())
+  userId      String
+  communityId String
   joinedAt    DateTime @default(now())
 
   user      User      @relation(fields: [userId], references: [id])
@@ -157,11 +152,11 @@ model Membership {
 
 ```prisma
 model ChannelMembership {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  channelId String   @db.ObjectId
+  id        String   @id @default(uuid())
+  userId    String
+  channelId String
   joinedAt  DateTime @default(now())
-  addedBy   String?  @db.ObjectId
+  addedBy   String?
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
@@ -174,7 +169,7 @@ model ChannelMembership {
 
 ```prisma
 model Role {
-  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  id        String        @id @default(uuid())
   name      String        @unique
   actions   RbacActions[] @default([])
   createdAt DateTime      @default(now())
@@ -183,10 +178,10 @@ model Role {
 }
 
 model UserRoles {
-  id             String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String     @db.ObjectId
-  communityId    String?    @db.ObjectId  // Null for instance-level roles
-  roleId         String     @db.ObjectId
+  id             String     @id @default(uuid())
+  userId         String
+  communityId    String?    // Null for instance-level roles
+  roleId         String
   isInstanceRole Boolean    @default(false)
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -203,7 +198,7 @@ model UserRoles {
 
 ```prisma
 model DirectMessageGroup {
-  id        String                     @id @default(auto()) @map("_id") @db.ObjectId
+  id        String                     @id @default(uuid())
   name      String?                    // Optional, for group DMs
   isGroup   Boolean                    @default(false)
   createdAt DateTime                   @default(now())
@@ -213,9 +208,9 @@ model DirectMessageGroup {
 }
 
 model DirectMessageGroupMember {
-  id       String             @id @default(auto()) @map("_id") @db.ObjectId
-  groupId  String             @db.ObjectId
-  userId   String             @db.ObjectId
+  id       String             @id @default(uuid())
+  groupId  String
+  userId   String
   joinedAt DateTime           @default(now())
 
   group DirectMessageGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -233,9 +228,9 @@ model DirectMessageGroupMember {
 
 ```prisma
 model Friendship {
-  id        String           @id @default(auto()) @map("_id") @db.ObjectId
-  userAId   String           @db.ObjectId
-  userBId   String           @db.ObjectId
+  id        String           @id @default(uuid())
+  userAId   String
+  userBId   String
   status    FriendshipStatus @default(PENDING)
   createdAt DateTime         @default(now())
 
@@ -256,9 +251,9 @@ enum FriendshipStatus {
 
 ```prisma
 model AliasGroup {
-  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  id          String             @id @default(uuid())
   name        String
-  communityId String             @db.ObjectId
+  communityId String
   members     AliasGroupMember[]
   createdAt   DateTime           @default(now())
 

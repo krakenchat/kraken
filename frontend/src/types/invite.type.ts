@@ -5,12 +5,12 @@ export interface InstanceInvite {
   code: string;
   createdById?: string;
   createdBy?: User;
-  defaultCommunityId: string[];
+  defaultCommunities: Array<{ id: string; inviteId: string; communityId: string }>;
   maxUses?: number;
   uses: number;
   validUntil?: Date;
   createdAt: Date;
-  usedByIds: string[];
+  usages: Array<{ id: string; inviteId: string; userId: string; usedAt: Date }>;
   disabled: boolean;
 }
 

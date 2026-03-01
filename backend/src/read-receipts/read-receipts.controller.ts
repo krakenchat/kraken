@@ -8,14 +8,15 @@ import {
   Query,
   HttpCode,
   Param,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { ReadReceiptsService } from './read-receipts.service';
 import { MarkAsReadDto } from './dto/mark-as-read.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
-import { OptionalParseObjectIdPipe } from '@/common/pipes/optional-parse-object-id.pipe';
+
+import { OptionalParseUUIDPipe } from '@/common/pipes/optional-parse-uuid.pipe';
 import {
   ReadReceiptDto,
   UnreadCountDto,
@@ -62,8 +63,8 @@ export class ReadReceiptsController {
   @ApiOkResponse({ type: UnreadCountDto })
   async getUnreadCount(
     @Req() req: AuthenticatedRequest,
-    @Query('channelId', OptionalParseObjectIdPipe) channelId?: string,
-    @Query('directMessageGroupId', OptionalParseObjectIdPipe)
+    @Query('channelId', OptionalParseUUIDPipe) channelId?: string,
+    @Query('directMessageGroupId', OptionalParseUUIDPipe)
     directMessageGroupId?: string,
   ): Promise<UnreadCountDto> {
     return this.readReceiptsService.getUnreadCount(
@@ -81,8 +82,8 @@ export class ReadReceiptsController {
   @ApiOkResponse({ type: LastReadResponseDto })
   async getLastReadMessageId(
     @Req() req: AuthenticatedRequest,
-    @Query('channelId', OptionalParseObjectIdPipe) channelId?: string,
-    @Query('directMessageGroupId', OptionalParseObjectIdPipe)
+    @Query('channelId', OptionalParseUUIDPipe) channelId?: string,
+    @Query('directMessageGroupId', OptionalParseUUIDPipe)
     directMessageGroupId?: string,
   ): Promise<LastReadResponseDto> {
     const lastReadMessageId =
@@ -103,9 +104,9 @@ export class ReadReceiptsController {
   @ApiOkResponse({ type: [MessageReaderDto] })
   async getMessageReaders(
     @Req() req: AuthenticatedRequest,
-    @Param('messageId', ParseObjectIdPipe) messageId: string,
-    @Query('channelId', OptionalParseObjectIdPipe) channelId?: string,
-    @Query('directMessageGroupId', OptionalParseObjectIdPipe)
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Query('channelId', OptionalParseUUIDPipe) channelId?: string,
+    @Query('directMessageGroupId', OptionalParseUUIDPipe)
     directMessageGroupId?: string,
   ): Promise<MessageReaderDto[]> {
     return this.readReceiptsService.getMessageReaders(

@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   Req,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { ChannelsService } from './channels.service';
@@ -24,7 +25,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { AuthenticatedRequest } from '@/types';
 import { ChannelDto } from './dto/channel-response.dto';
 
@@ -58,7 +59,7 @@ export class ChannelsController {
   })
   @ApiOkResponse({ type: [ChannelDto] })
   findAllForCommunity(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<ChannelDto[]> {
     return this.channelsService.findAll(communityId);
   }
@@ -72,7 +73,7 @@ export class ChannelsController {
   })
   @ApiOkResponse({ type: [ChannelDto] })
   getMentionableChannels(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<ChannelDto[]> {
     return this.channelsService.findMentionableChannels(
@@ -89,7 +90,7 @@ export class ChannelsController {
     source: ResourceIdSource.PARAM,
   })
   @ApiOkResponse({ type: ChannelDto })
-  findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<ChannelDto> {
+  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ChannelDto> {
     return this.channelsService.findOne(id);
   }
 
@@ -102,7 +103,7 @@ export class ChannelsController {
   })
   @ApiOkResponse({ type: ChannelDto })
   update(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateChannelDto: UpdateChannelDto,
   ): Promise<ChannelDto> {
     return this.channelsService.update(id, updateChannelDto);
@@ -116,7 +117,7 @@ export class ChannelsController {
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })
-  remove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.channelsService.remove(id);
   }
 
@@ -130,7 +131,7 @@ export class ChannelsController {
   })
   @ApiOkResponse({ type: [ChannelDto] })
   moveUp(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() moveChannelDto: MoveChannelDto,
   ): Promise<ChannelDto[]> {
     return this.channelsService.moveChannelUp(id, moveChannelDto.communityId);
@@ -146,7 +147,7 @@ export class ChannelsController {
   })
   @ApiOkResponse({ type: [ChannelDto] })
   moveDown(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() moveChannelDto: MoveChannelDto,
   ): Promise<ChannelDto[]> {
     return this.channelsService.moveChannelDown(id, moveChannelDto.communityId);

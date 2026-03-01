@@ -1,15 +1,14 @@
-import { IsOptional } from 'class-validator';
-import { IsObjectId } from 'nestjs-object-id';
+import { IsOptional, IsUUID } from 'class-validator';
 
 export class MarkAsReadDto {
-  @IsObjectId()
+  @IsUUID()
   lastReadMessageId: string;
 
-  @IsObjectId()
+  @IsUUID()
   @IsOptional()
   channelId?: string;
 
-  @IsObjectId()
+  @IsUUID()
   @IsOptional()
   directMessageGroupId?: string;
 }

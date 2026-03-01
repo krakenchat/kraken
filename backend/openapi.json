@@ -7094,7 +7094,8 @@
           "communityIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         },
@@ -7122,6 +7123,41 @@
           "displayName"
         ]
       },
+      "InviteDefaultCommunityDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "communityId"
+        ]
+      },
+      "InviteUsageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "usedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "usedAt"
+        ]
+      },
       "InviteResponseDto": {
         "type": "object",
         "properties": {
@@ -7134,12 +7170,6 @@
           "createdById": {
             "type": "string",
             "nullable": true
-          },
-          "defaultCommunityId": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
           },
           "maxUses": {
             "type": "number",
@@ -7157,12 +7187,6 @@
             "format": "date-time",
             "type": "string"
           },
-          "usedByIds": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
           "disabled": {
             "type": "boolean"
           },
@@ -7173,19 +7197,31 @@
                 "$ref": "#/components/schemas/InviteCreatorDto"
               }
             ]
+          },
+          "defaultCommunities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InviteDefaultCommunityDto"
+            }
+          },
+          "usages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InviteUsageDto"
+            }
           }
         },
         "required": [
           "id",
           "code",
           "createdById",
-          "defaultCommunityId",
           "maxUses",
           "uses",
           "validUntil",
           "createdAt",
-          "usedByIds",
-          "disabled"
+          "disabled",
+          "defaultCommunities",
+          "usages"
         ]
       },
       "RoleDto": {
@@ -7633,7 +7669,8 @@
         "type": "object",
         "properties": {
           "communityId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -7949,27 +7986,6 @@
             "type": "string",
             "nullable": true
           },
-          "reactions": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "emoji": {
-                  "type": "string"
-                },
-                "userIds": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "emoji",
-                "userIds"
-              ]
-            }
-          },
           "pinned": {
             "type": "boolean"
           },
@@ -8015,7 +8031,6 @@
           "attachments",
           "pendingAttachments",
           "searchText",
-          "reactions",
           "pinned",
           "pinnedAt",
           "pinnedBy",
@@ -8239,7 +8254,8 @@
         "type": "object",
         "properties": {
           "messageId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "emoji": {
             "type": "string"
@@ -8367,7 +8383,8 @@
         "type": "object",
         "properties": {
           "messageId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "emoji": {
             "type": "string"
@@ -8382,7 +8399,8 @@
         "type": "object",
         "properties": {
           "fileId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -8437,27 +8455,6 @@
           "searchText": {
             "type": "string",
             "nullable": true
-          },
-          "reactions": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "emoji": {
-                  "type": "string"
-                },
-                "userIds": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "emoji",
-                "userIds"
-              ]
-            }
           },
           "pinned": {
             "type": "boolean"
@@ -8535,10 +8532,12 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "communityId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -8605,13 +8604,16 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "channelId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "addedBy": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -9716,13 +9718,16 @@
         "type": "object",
         "properties": {
           "lastReadMessageId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "channelId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "directMessageGroupId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -10677,7 +10682,8 @@
           "userIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           "name": {
@@ -10697,7 +10703,8 @@
           "userIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         },
@@ -11485,7 +11492,7 @@
           "attachments": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EnrichedAttachment"
             }
           },
           "pendingAttachments": {

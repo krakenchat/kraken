@@ -1,8 +1,7 @@
-import { IsArray } from 'class-validator';
-import { IsObjectId } from 'nestjs-object-id';
+import { IsArray, IsUUID } from 'class-validator';
 
 export class AddMembersDto {
   @IsArray()
-  @IsObjectId({ each: true })
+  @IsUUID('all', { each: true })
   userIds: string[];
 }

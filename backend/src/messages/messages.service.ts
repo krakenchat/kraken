@@ -9,36 +9,28 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
 import { flattenSpansToText } from '@/common/utils/text.utils';
-import { FileType, Message, Prisma } from '@prisma/client';
+import { FileType, Prisma } from '@prisma/client';
+import { groupReactions } from '@/common/utils/reactions.utils';
 
-/**
- * Raw MongoDB document structure returned by aggregateRaw
- * MongoDB returns ObjectIds and dates in extended JSON format
- */
-interface RawMongoMessage {
-  _id: { $oid: string };
-  channelId?: { $oid: string } | null;
-  directMessageGroupId?: { $oid: string } | null;
-  authorId: { $oid: string };
-  sentAt: { $date: string };
-  editedAt?: { $date: string } | null;
-  deletedAt?: { $date: string } | null;
-  pinnedAt?: { $date: string } | null;
-  attachments: string[];
-  spans: Prisma.JsonValue;
-  searchText?: string | null;
-  reactions: Prisma.JsonValue;
-  replyToId?: { $oid: string } | null;
-  pendingAttachments?: number | null;
-  pinned?: boolean;
-  pinnedBy?: { $oid: string } | null;
-  deletedBy?: { $oid: string } | null;
-  deletedByReason?: string | null;
-  // Threading fields
-  parentMessageId?: { $oid: string } | null;
-  replyCount?: number;
-  lastReplyAt?: { $date: string } | null;
-}
+/** Prisma select shape for file metadata sent to clients */
+const FILE_METADATA_SELECT = {
+  id: true,
+  filename: true,
+  mimeType: true,
+  fileType: true,
+  size: true,
+  thumbnailPath: true,
+} as const;
+
+/** Standard includes for loading a message with its relations */
+const MESSAGE_INCLUDE = {
+  spans: { orderBy: { position: 'asc' as const } },
+  reactions: true,
+  attachments: {
+    include: { file: { select: FILE_METADATA_SELECT } },
+    orderBy: { position: 'asc' as const },
+  },
+} as const;
 
 @Injectable()
 export class MessagesService {
@@ -49,27 +41,33 @@ export class MessagesService {
     private readonly fileService: FileService,
   ) {}
 
-  /**
-   * Escapes regex special characters in a string to prevent ReDoS
-   * and unintended pattern matching when used in MongoDB $regex.
-   */
-  private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
   async create(createMessageDto: CreateMessageDto) {
     const searchText = flattenSpansToText(createMessageDto.spans);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, ...data } = createMessageDto;
-    return this.databaseService.message.create({
+    const { id, spans, attachments, ...data } = createMessageDto;
+    const message = await this.databaseService.message.create({
       data: {
         ...data,
         searchText,
-        // Explicitly set parentMessageId so the field exists in MongoDB.
-        // Without this, Prisma's null filter won't match (it requires the field to exist).
         parentMessageId: data.parentMessageId ?? null,
+        spans: {
+          create: spans.map((span, i) => ({ position: i, ...span })),
+        },
+        ...(attachments && attachments.length > 0
+          ? {
+              attachments: {
+                create: attachments.map((fileId, i) => ({
+                  fileId,
+                  position: i,
+                })),
+              },
+            }
+          : {}),
       },
+      include: MESSAGE_INCLUDE,
     });
+
+    return this.formatMessage(message);
   }
 
   /**
@@ -118,13 +116,14 @@ export class MessagesService {
   async findOne(id: string) {
     const message = await this.databaseService.message.findUnique({
       where: { id },
+      include: MESSAGE_INCLUDE,
     });
 
     if (!message) {
       throw new NotFoundException('Message not found');
     }
 
-    return message;
+    return this.formatMessage(message);
   }
 
   async update(
@@ -132,75 +131,109 @@ export class MessagesService {
     updateMessageDto: UpdateMessageDto,
     originalAttachments?: string[],
   ) {
-    // Wrap in transaction to ensure message update and file marking are atomic
     return this.databaseService.$transaction(
       async (tx: Prisma.TransactionClient) => {
-        // If spans are being updated, recompute searchText
-        const dataToUpdate = { ...updateMessageDto };
+        const dataToUpdate: Record<string, unknown> = {};
+
         if (updateMessageDto.spans) {
-          (dataToUpdate as Record<string, unknown>).searchText =
-            flattenSpansToText(updateMessageDto.spans);
-          (dataToUpdate as Record<string, unknown>).editedAt = new Date();
+          dataToUpdate.searchText = flattenSpansToText(updateMessageDto.spans);
+          dataToUpdate.editedAt = new Date();
+
+          // Delete old spans, create new ones
+          await tx.messageSpan.deleteMany({ where: { messageId: id } });
+          await tx.messageSpan.createMany({
+            data: updateMessageDto.spans.map((span, i) => ({
+              messageId: id,
+              position: i,
+              ...span,
+            })),
+          });
         }
 
-        // Update the message first
+        // Handle attachment updates via junction table
+        if (updateMessageDto.attachments) {
+          const newAttachmentIds = updateMessageDto.attachments;
+
+          // Delete removed attachments from junction table
+          await tx.messageAttachment.deleteMany({
+            where: {
+              messageId: id,
+              fileId: { notIn: newAttachmentIds },
+            },
+          });
+
+          // Add new attachments
+          const existing = await tx.messageAttachment.findMany({
+            where: { messageId: id },
+            select: { fileId: true },
+          });
+          const existingIds = new Set(existing.map((a) => a.fileId));
+          const toAdd = newAttachmentIds.filter((fid) => !existingIds.has(fid));
+
+          if (toAdd.length > 0) {
+            await tx.messageAttachment.createMany({
+              data: toAdd.map((fileId, i) => ({
+                messageId: id,
+                fileId,
+                position: existingIds.size + i,
+              })),
+            });
+          }
+
+          // Mark removed files for deletion
+          if (originalAttachments && Array.isArray(originalAttachments)) {
+            const removedAttachments = originalAttachments.filter(
+              (oldId) => !newAttachmentIds.includes(oldId),
+            );
+            for (const fileId of removedAttachments) {
+              await this.fileService.markForDeletion(fileId, tx);
+            }
+            if (removedAttachments.length > 0) {
+              this.logger.debug(
+                `Marked ${removedAttachments.length} removed attachments for deletion`,
+              );
+            }
+          }
+        }
+
+        // Remove spans and attachments from the update data passed to message.update
+        // (they're handled above via junction tables)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { spans: _s, attachments: _a, ...restDto } = updateMessageDto;
+
         const updatedMessage = await tx.message.update({
           where: { id },
-          data: dataToUpdate,
+          data: { ...restDto, ...dataToUpdate },
+          include: MESSAGE_INCLUDE,
         });
 
-        // If attachments are being updated and we have the original list, mark removed ones for deletion
-        if (
-          updateMessageDto.attachments &&
-          originalAttachments &&
-          Array.isArray(originalAttachments)
-        ) {
-          const newAttachments = updateMessageDto.attachments;
-          const removedAttachments = originalAttachments.filter(
-            (oldId) => !newAttachments.includes(oldId),
-          );
-
-          // Mark removed attachments for deletion within transaction
-          for (const fileId of removedAttachments) {
-            await this.fileService.markForDeletion(fileId, tx);
-          }
-
-          if (removedAttachments.length > 0) {
-            this.logger.debug(
-              `Marked ${removedAttachments.length} removed attachments for deletion`,
-            );
-          }
-        }
-
-        return updatedMessage;
+        return this.formatMessage(updatedMessage);
       },
     );
   }
 
-  async remove(id: string, attachments?: string[]) {
-    // Wrap in transaction to ensure message delete and file marking are atomic
+  async remove(id: string) {
     return this.databaseService.$transaction(
       async (tx: Prisma.TransactionClient) => {
-        // Delete the message first
         const deletedMessage = await tx.message.delete({
           where: { id },
+          include: MESSAGE_INCLUDE,
         });
 
         // Mark all attachments for deletion after message is deleted
         if (
-          attachments &&
-          Array.isArray(attachments) &&
-          attachments.length > 0
+          deletedMessage.attachments &&
+          deletedMessage.attachments.length > 0
         ) {
-          for (const fileId of attachments) {
-            await this.fileService.markForDeletion(fileId, tx);
+          for (const attachment of deletedMessage.attachments) {
+            await this.fileService.markForDeletion(attachment.file.id, tx);
           }
           this.logger.debug(
-            `Marked ${attachments.length} attachments for deletion`,
+            `Marked ${deletedMessage.attachments.length} attachments for deletion`,
           );
         }
 
-        return deletedMessage;
+        return this.formatMessage(deletedMessage);
       },
     );
   }
@@ -237,55 +270,66 @@ export class MessagesService {
     );
   }
 
-  // Note: Reaction methods (addReaction, removeReaction) moved to ReactionsService
-
   async addAttachment(messageId: string, fileId?: string) {
-    // If fileId is provided, add it to attachments array
-    // Always decrement pendingAttachments (handles both success and failure)
+    if (fileId) {
+      // Get current max position for ordering
+      const maxPos = await this.databaseService.messageAttachment.aggregate({
+        where: { messageId },
+        _max: { position: true },
+      });
+      const nextPosition = (maxPos._max.position ?? -1) + 1;
+
+      await this.databaseService.messageAttachment.create({
+        data: { messageId, fileId, position: nextPosition },
+      });
+    }
+
     return this.databaseService.message.update({
       where: { id: messageId },
       data: {
-        ...(fileId && {
-          attachments: {
-            push: fileId,
-          },
-        }),
-        pendingAttachments: {
-          decrement: 1,
-        },
+        pendingAttachments: { decrement: 1 },
       },
+      include: MESSAGE_INCLUDE,
     });
   }
 
-  async enrichMessageWithFileMetadata(message: Message) {
+  enrichMessageWithFileMetadata<T extends { attachments?: unknown[] }>(
+    message: T,
+  ) {
     if (!message.attachments || message.attachments.length === 0) {
       return { ...message, attachments: [] };
     }
 
-    // Fetch all file metadata for this message
-    const files = await this.databaseService.file.findMany({
-      where: { id: { in: message.attachments } },
-      select: {
-        id: true,
-        filename: true,
-        mimeType: true,
-        fileType: true,
-        size: true,
-        thumbnailPath: true,
-      },
-    });
+    const first = message.attachments[0];
+    if (typeof first !== 'object' || first === null) {
+      return { ...message, attachments: [] };
+    }
 
-    // Create a map for quick lookup
-    const fileMap = new Map(files.map((file) => [file.id, file]));
+    // Already enriched by formatMessage (has id, filename, hasThumbnail) — pass through
+    if ('hasThumbnail' in (first as Record<string, unknown>)) {
+      return message;
+    }
 
-    // Transform attachments to include file metadata
-    return {
-      ...message,
-      attachments: message.attachments
-        .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map((file) => MessagesService.toFileMetadata(file)),
-    };
+    // Raw Prisma attachment with nested file — transform
+    if ('file' in (first as Record<string, unknown>)) {
+      return {
+        ...message,
+        attachments: (
+          message.attachments as Array<{
+            file: {
+              id: string;
+              filename: string;
+              mimeType: string;
+              fileType: FileType;
+              size: number;
+              thumbnailPath: string | null;
+            };
+          }>
+        ).map((a) => MessagesService.toFileMetadata(a.file)),
+      };
+    }
+
+    return { ...message, attachments: [] };
   }
 
   private async findAllByField(
@@ -296,57 +340,22 @@ export class MessagesService {
   ) {
     const where = {
       [field]: value,
-      // Exclude thread replies - they only show in thread panel.
-      // Use OR to handle MongoDB documents where parentMessageId is either
-      // explicitly null or absent (Prisma's null filter requires the field to exist).
-      OR: [
-        { parentMessageId: null },
-        { NOT: { parentMessageId: { isSet: true } } },
-      ],
+      parentMessageId: null,
     };
     const query = {
       where,
       orderBy: { sentAt: 'desc' as const },
       take: limit,
+      include: MESSAGE_INCLUDE,
       ...(continuationToken
         ? { cursor: { id: continuationToken }, skip: 1 }
         : {}),
     };
     const messages = await this.databaseService.message.findMany(query);
 
-    // Collect all unique file IDs from all messages
-    const allFileIds = new Set<string>();
-    messages.forEach((message) => {
-      message.attachments.forEach((fileId) => allFileIds.add(fileId));
-    });
-
-    // Fetch all files in a single query
-    const files =
-      allFileIds.size > 0
-        ? await this.databaseService.file.findMany({
-            where: { id: { in: Array.from(allFileIds) } },
-            select: {
-              id: true,
-              filename: true,
-              mimeType: true,
-              fileType: true,
-              size: true,
-              thumbnailPath: true,
-            },
-          })
-        : [];
-
-    // Create a map for quick lookup
-    const fileMap = new Map(files.map((file) => [file.id, file]));
-
-    // Transform messages to include file metadata
-    const messagesWithMetadata = messages.map((message) => ({
-      ...message,
-      attachments: message.attachments
-        .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map((file) => MessagesService.toFileMetadata(file)),
-    }));
+    const messagesWithMetadata = messages.map((message) =>
+      this.formatMessage(message),
+    );
 
     const nextToken =
       messages.length === limit ? messages[messages.length - 1].id : undefined;
@@ -354,50 +363,37 @@ export class MessagesService {
   }
 
   /**
-   * Search messages in a specific channel
+   * Search messages in a specific channel using PostgreSQL full-text search.
    */
   async searchChannelMessages(channelId: string, query: string, limit = 50) {
     if (!query || query.trim().length === 0) {
       return [];
     }
 
-    // Convert query to lowercase since searchText is stored lowercase
-    // Escape regex special characters to prevent ReDoS and unintended matching
-    const lowerQuery = this.escapeRegex(query.toLowerCase());
-
     this.logger.log(
-      `Searching messages in channel ${channelId} for query: "${lowerQuery}"`,
+      `Searching messages in channel ${channelId} for query: "${query}"`,
     );
 
-    // Use aggregateRaw for direct MongoDB regex query (Prisma contains doesn't work on MongoDB)
-    // We use aggregateRaw instead of findRaw because it handles ObjectId conversion better
-    const messages = await this.databaseService.message.aggregateRaw({
-      pipeline: [
-        {
-          $match: {
-            channelId: { $oid: channelId },
-            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
-            searchText: { $regex: lowerQuery, $options: 'i' },
-          },
-        },
-        { $sort: { sentAt: -1 } },
-        { $limit: limit },
-      ],
+    const messages = await this.databaseService.message.findMany({
+      where: {
+        channelId,
+        deletedAt: null,
+        searchText: { search: query },
+      },
+      orderBy: { sentAt: 'desc' },
+      take: limit,
+      include: MESSAGE_INCLUDE,
     });
 
-    const messagesArray = messages as unknown as RawMongoMessage[];
     this.logger.log(
-      `Found ${messagesArray.length} messages matching query "${lowerQuery}"`,
+      `Found ${messages.length} messages matching query "${query}"`,
     );
 
-    // Convert raw MongoDB documents to Prisma format
-    const formattedMessages = this.convertRawMongoMessages(messagesArray);
-
-    return this.enrichMessagesWithFileMetadata(formattedMessages);
+    return messages.map((m) => this.formatMessage(m));
   }
 
   /**
-   * Search messages in a specific direct message group
+   * Search messages in a specific direct message group using PostgreSQL full-text search.
    */
   async searchDirectMessages(
     directMessageGroupId: string,
@@ -408,34 +404,22 @@ export class MessagesService {
       return [];
     }
 
-    // Convert query to lowercase since searchText is stored lowercase
-    // Escape regex special characters to prevent ReDoS and unintended matching
-    const lowerQuery = this.escapeRegex(query.toLowerCase());
-
-    // Use aggregateRaw for MongoDB regex search
-    const messages = await this.databaseService.message.aggregateRaw({
-      pipeline: [
-        {
-          $match: {
-            directMessageGroupId: { $oid: directMessageGroupId },
-            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
-            searchText: { $regex: lowerQuery, $options: 'i' },
-          },
-        },
-        { $sort: { sentAt: -1 } },
-        { $limit: limit },
-      ],
+    const messages = await this.databaseService.message.findMany({
+      where: {
+        directMessageGroupId,
+        deletedAt: null,
+        searchText: { search: query },
+      },
+      orderBy: { sentAt: 'desc' },
+      take: limit,
+      include: MESSAGE_INCLUDE,
     });
 
-    // Convert raw MongoDB documents to Prisma format
-    const messagesArray = messages as unknown as RawMongoMessage[];
-    const formattedMessages = this.convertRawMongoMessages(messagesArray);
-
-    return this.enrichMessagesWithFileMetadata(formattedMessages);
+    return messages.map((m) => this.formatMessage(m));
   }
 
   /**
-   * Search messages across all accessible channels in a community
+   * Search messages across all accessible channels in a community using PostgreSQL full-text search.
    */
   async searchCommunityMessages(
     communityId: string,
@@ -447,19 +431,15 @@ export class MessagesService {
       return [];
     }
 
-    // Convert query to lowercase since searchText is stored lowercase
-    // Escape regex special characters to prevent ReDoS and unintended matching
-    const lowerQuery = this.escapeRegex(query.toLowerCase());
-
     // Get all channels the user has access to in this community
     const accessibleChannels = await this.databaseService.channel.findMany({
       where: {
         communityId,
         OR: [
-          { isPrivate: false }, // Public channels
+          { isPrivate: false },
           {
             isPrivate: true,
-            ChannelMembership: { some: { userId } }, // Private channels user is a member of
+            ChannelMembership: { some: { userId } },
           },
         ],
       },
@@ -473,107 +453,60 @@ export class MessagesService {
       return [];
     }
 
-    // Use aggregateRaw for MongoDB regex search across multiple channels
-    const messages = await this.databaseService.message.aggregateRaw({
-      pipeline: [
-        {
-          $match: {
-            channelId: { $in: channelIds.map((id) => ({ $oid: id })) },
-            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
-            searchText: { $regex: lowerQuery, $options: 'i' },
-          },
-        },
-        { $sort: { sentAt: -1 } },
-        { $limit: limit },
-      ],
+    const messages = await this.databaseService.message.findMany({
+      where: {
+        channelId: { in: channelIds },
+        deletedAt: null,
+        searchText: { search: query },
+      },
+      orderBy: { sentAt: 'desc' },
+      take: limit,
+      include: MESSAGE_INCLUDE,
     });
 
-    // Convert raw MongoDB documents to Prisma format
-    const messagesArray = messages as unknown as RawMongoMessage[];
-    const formattedMessages = this.convertRawMongoMessages(messagesArray);
-
-    const enrichedMessages =
-      await this.enrichMessagesWithFileMetadata(formattedMessages);
-
-    // Add channel name to each message
-    return enrichedMessages.map((msg) => ({
-      ...msg,
+    return messages.map((msg) => ({
+      ...this.formatMessage(msg),
       channelName: channelMap.get(msg.channelId ?? '') ?? 'Unknown',
     }));
   }
 
   /**
-   * Converts raw MongoDB documents from aggregateRaw to Prisma Message format.
-   * Handles the extended JSON format used by MongoDB for ObjectIds and dates.
+   * Format a message with included relations into the shape expected by clients.
+   * Converts MessageReaction[] to { emoji, userIds[] }[] and
+   * MessageAttachment[] to file metadata objects.
    */
-  private convertRawMongoMessages(rawMessages: RawMongoMessage[]): Message[] {
-    return rawMessages.map((msg) => ({
-      id: msg._id.$oid,
-      channelId: msg.channelId?.$oid ?? null,
-      directMessageGroupId: msg.directMessageGroupId?.$oid ?? null,
-      authorId: msg.authorId.$oid,
-      sentAt: new Date(msg.sentAt.$date),
-      editedAt: msg.editedAt ? new Date(msg.editedAt.$date) : null,
-      deletedAt: msg.deletedAt ? new Date(msg.deletedAt.$date) : null,
-      pinnedAt: msg.pinnedAt ? new Date(msg.pinnedAt.$date) : null,
-      attachments: msg.attachments,
-      spans: msg.spans as Message['spans'],
-      searchText: msg.searchText ?? null,
-      reactions: msg.reactions as Message['reactions'],
-      replyToId: msg.replyToId?.$oid ?? null,
-      pendingAttachments: msg.pendingAttachments ?? null,
-      pinned: msg.pinned ?? false,
-      pinnedBy: msg.pinnedBy?.$oid ?? null,
-      deletedBy: msg.deletedBy?.$oid ?? null,
-      deletedByReason: msg.deletedByReason ?? null,
-      // Threading fields
-      parentMessageId: msg.parentMessageId?.$oid ?? null,
-      replyCount: msg.replyCount ?? 0,
-      lastReplyAt: msg.lastReplyAt ? new Date(msg.lastReplyAt.$date) : null,
-    }));
-  }
-
-  /**
-   * Helper to enrich multiple messages with file metadata
-   */
-  private async enrichMessagesWithFileMetadata(messages: Message[]) {
-    if (messages.length === 0) {
-      return [];
-    }
-
-    // Collect all unique file IDs from all messages
-    const allFileIds = new Set<string>();
-    messages.forEach((message) => {
-      message.attachments.forEach((fileId) => allFileIds.add(fileId));
-    });
-
-    // Fetch all files in a single query
-    const files =
-      allFileIds.size > 0
-        ? await this.databaseService.file.findMany({
-            where: { id: { in: Array.from(allFileIds) } },
-            select: {
-              id: true,
-              filename: true,
-              mimeType: true,
-              fileType: true,
-              size: true,
-              thumbnailPath: true,
-            },
-          })
-        : [];
-
-    // Create a map for quick lookup
-    const fileMap = new Map(files.map((file) => [file.id, file]));
-
-    // Transform messages to include file metadata
-    return messages.map((message) => ({
+  private formatMessage<
+    T extends {
+      spans?: {
+        position: number;
+        type: string;
+        text: string | null;
+        userId: string | null;
+        specialKind: string | null;
+        communityId: string | null;
+        aliasId: string | null;
+      }[];
+      reactions?: { emoji: string; userId: string }[];
+      attachments?: {
+        file: {
+          id: string;
+          filename: string;
+          mimeType: string;
+          fileType: FileType;
+          size: number;
+          thumbnailPath: string | null;
+        };
+      }[];
+    },
+  >(message: T) {
+    return {
       ...message,
+      spans: message.spans ?? [],
+      reactions: message.reactions ? groupReactions(message.reactions) : [],
       attachments: message.attachments
-        .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map((file) => MessagesService.toFileMetadata(file)),
-    }));
+        ? message.attachments.map((a) => MessagesService.toFileMetadata(a.file))
+        : [],
+    };
   }
 
   /**

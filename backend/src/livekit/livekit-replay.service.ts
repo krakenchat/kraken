@@ -19,7 +19,7 @@ import {
   AudioCodec,
   TrackType,
 } from 'livekit-server-sdk';
-import { ObjectId } from 'mongodb';
+import { randomUUID } from 'crypto';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -137,10 +137,9 @@ export class LivekitReplayService {
       await this.stopReplayBuffer(userId);
     }
 
-    // Create unique session ID for directory isolation using MongoDB ObjectId
+    // Create unique session ID for directory isolation
     // We generate this BEFORE calling LiveKit API so we know the exact path
-    // Format: Clean ObjectId string for S3/blob storage compatibility
-    const sessionId = new ObjectId().toString();
+    const sessionId = randomUUID();
 
     // Create unique segment path using LiveKit egress output directory
     // This is the path we tell LiveKit Egress to write to (absolute path for LiveKit API)
@@ -1131,7 +1130,6 @@ export class LivekitReplayService {
         attachments: [file.id],
         pendingAttachments: 0,
         searchText: null,
-        reactions: [],
         pinned: false,
         pinnedAt: null,
         pinnedBy: null,
@@ -1153,7 +1151,7 @@ export class LivekitReplayService {
 
       // Emit websocket event for real-time notification
       const enrichedMessage =
-        await this.messagesService.enrichMessageWithFileMetadata(message);
+        this.messagesService.enrichMessageWithFileMetadata(message);
 
       if (dto.destination === 'channel' && dto.targetChannelId) {
         this.websocketService.sendToRoom(

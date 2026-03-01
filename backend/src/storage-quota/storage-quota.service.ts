@@ -34,7 +34,7 @@ export class StorageQuotaService {
       this.db.file.aggregate({
         where: {
           uploadedById: userId,
-          OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
+          deletedAt: null,
         },
         _sum: { size: true },
         _count: true,
@@ -169,7 +169,7 @@ export class StorageQuotaService {
     const fileStats = await this.db.file.aggregate({
       where: {
         uploadedById: userId,
-        OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
+        deletedAt: null,
       },
       _sum: { size: true },
       _count: true,
@@ -217,7 +217,7 @@ export class StorageQuotaService {
     ] = await Promise.all([
       this.getInstanceStorageSettings(),
       this.db.file.aggregate({
-        where: { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
+        where: { deletedAt: null },
         _sum: { size: true },
         _count: true,
       }),
@@ -309,7 +309,7 @@ export class StorageQuotaService {
   private async getStorageByType(): Promise<StorageByTypeDto[]> {
     const results = await this.db.file.groupBy({
       by: ['resourceType'],
-      where: { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
+      where: { deletedAt: null },
       _sum: { size: true },
       _count: true,
     });
@@ -454,7 +454,7 @@ export class StorageQuotaService {
           select: {
             File: {
               where: {
-                OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
+                deletedAt: null,
               },
             },
           },

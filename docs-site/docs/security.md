@@ -8,7 +8,7 @@ Report security issues via [GitHub private vulnerability reporting](https://gith
 
 - [ ] Change all default JWT secrets — generate with `openssl rand -base64 32`
 - [ ] Use HTTPS with valid TLS certificates
-- [ ] Restrict network access to MongoDB and Redis (don't expose ports publicly)
+- [ ] Restrict network access to PostgreSQL and Redis (don't expose ports publicly)
 - [ ] Enable authentication on all database connections
 - [ ] Keep images updated — watch for [Dependabot alerts](https://github.com/krakenchat/kraken/security/dependabot)
-- [ ] Back up MongoDB regularly
+- [ ] Back up PostgreSQL regularly

@@ -1,4 +1,4 @@
-import { Message, SpanType } from '@prisma/client';
+import { Message } from '@prisma/client';
 
 export class MessageFactory {
   private static counter = 0;
@@ -11,34 +11,21 @@ export class MessageFactory {
       channelId: overrides.channelId || this.generateId(),
       directMessageGroupId: overrides.directMessageGroupId || null,
       authorId: overrides.authorId || this.generateId(),
-      spans: overrides.spans || [
-        {
-          type: SpanType.PLAINTEXT,
-          text: `Test message ${this.counter++}`,
-          userId: null,
-          specialKind: null,
-          communityId: null,
-          aliasId: null,
-        },
-      ],
-      reactions: overrides.reactions || [],
       sentAt: overrides.sentAt || new Date(),
       editedAt: overrides.editedAt || null,
       deletedAt: overrides.deletedAt || null,
-      attachments: overrides.attachments || [],
       pendingAttachments: overrides.pendingAttachments ?? 0,
+      searchText: overrides.searchText || `Test message ${this.counter++}`,
+      pinned: overrides.pinned ?? false,
+      pinnedAt: overrides.pinnedAt || null,
+      pinnedBy: overrides.pinnedBy || null,
+      deletedBy: overrides.deletedBy || null,
+      deletedByReason: overrides.deletedByReason || null,
+      parentMessageId: overrides.parentMessageId || null,
+      replyCount: overrides.replyCount ?? 0,
+      lastReplyAt: overrides.lastReplyAt || null,
       ...overrides,
     } as Message;
-  }
-
-  static buildWithAttachments(
-    fileIds: string[],
-    overrides: Partial<Message> = {},
-  ): Message {
-    return this.build({
-      attachments: fileIds,
-      ...overrides,
-    });
   }
 
   static buildDeleted(overrides: Partial<Message> = {}): Message {
@@ -51,16 +38,6 @@ export class MessageFactory {
   static buildEdited(overrides: Partial<Message> = {}): Message {
     return this.build({
       editedAt: new Date(),
-      ...overrides,
-    });
-  }
-
-  static buildWithReactions(overrides: Partial<Message> = {}): Message {
-    return this.build({
-      reactions: [
-        { emoji: '👍', userIds: [this.generateId()] },
-        { emoji: '❤️', userIds: [this.generateId(), this.generateId()] },
-      ],
       ...overrides,
     });
   }

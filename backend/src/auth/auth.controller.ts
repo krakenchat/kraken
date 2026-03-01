@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   Logger,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse, ApiBody } from '@nestjs/swagger';
 import { LocalAuthGuard } from './local-auth.guard';
@@ -23,7 +24,7 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
 import { AuthenticatedRequest } from '@/types';
 import { setAccessTokenCookie, clearAccessTokenCookie } from './cookie-helper';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { JwtService } from '@nestjs/jwt';
 import {
   LoginResponseDto,
@@ -314,7 +315,7 @@ export class AuthController {
   @ApiOkResponse({ type: RevokeSessionResponseDto })
   async revokeSession(
     @Req() req: AuthenticatedRequest,
-    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ): Promise<RevokeSessionResponseDto> {
     const revoked = await this.authService.revokeSession(
       req.user.id,

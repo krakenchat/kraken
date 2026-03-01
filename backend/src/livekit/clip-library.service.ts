@@ -285,7 +285,6 @@ export class ClipLibraryService {
       attachments: [clip.fileId],
       pendingAttachments: 0,
       searchText: null,
-      reactions: [],
       pinned: false,
       pinnedAt: null,
       pinnedBy: null,
@@ -300,7 +299,7 @@ export class ClipLibraryService {
 
     // Enrich with file metadata for WebSocket clients
     const enrichedMessage =
-      await this.messagesService.enrichMessageWithFileMetadata(message);
+      this.messagesService.enrichMessageWithFileMetadata(message);
 
     // Emit WebSocket event to notify channel/DM members
     if (dto.destination === 'channel' && dto.targetChannelId) {

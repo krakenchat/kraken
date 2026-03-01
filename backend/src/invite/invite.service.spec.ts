@@ -46,6 +46,10 @@ describe('InviteService', () => {
           createdById: creator.id,
           code: expect.any(String),
         }),
+        include: expect.objectContaining({
+          defaultCommunities: true,
+          usages: true,
+        }),
       });
     });
 
@@ -66,6 +70,10 @@ describe('InviteService', () => {
       expect(mockDatabase.instanceInvite.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           maxUses,
+        }),
+        include: expect.objectContaining({
+          defaultCommunities: true,
+          usages: true,
         }),
       });
     });
@@ -88,15 +96,18 @@ describe('InviteService', () => {
         data: expect.objectContaining({
           validUntil,
         }),
+        include: expect.objectContaining({
+          defaultCommunities: true,
+          usages: true,
+        }),
       });
     });
 
-    it('should create invite with default community IDs', async () => {
+    it('should create invite with default community IDs via junction table', async () => {
       const creator = UserFactory.build();
       const communityIds = ['community-1', 'community-2'];
       const mockInvite = InstanceInviteFactory.build({
         createdById: creator.id,
-        defaultCommunityId: communityIds,
       });
 
       mockDatabase.instanceInvite.findFirst.mockResolvedValue(null);
@@ -109,10 +120,19 @@ describe('InviteService', () => {
         communityIds,
       );
 
-      expect(result.defaultCommunityId).toEqual(communityIds);
+      expect(result).toEqual(mockInvite);
       expect(mockDatabase.instanceInvite.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          defaultCommunityId: communityIds,
+          defaultCommunities: {
+            create: [
+              { communityId: 'community-1' },
+              { communityId: 'community-2' },
+            ],
+          },
+        }),
+        include: expect.objectContaining({
+          defaultCommunities: true,
+          usages: true,
         }),
       });
     });
@@ -255,7 +275,6 @@ describe('InviteService', () => {
         disabled: false,
         maxUses: 10,
         uses: 5,
-        usedByIds: [],
       });
 
       const mockTx = {
@@ -264,8 +283,13 @@ describe('InviteService', () => {
           update: jest.fn().mockResolvedValue({
             ...mockInvite,
             uses: 6,
-            usedByIds: [userId],
           }),
+        },
+        instanceInviteUsage: {
+          findUnique: jest.fn().mockResolvedValue(null), // User hasn't used this invite
+          create: jest
+            .fn()
+            .mockResolvedValue({ inviteId: mockInvite.id, userId }),
         },
       };
 
@@ -276,13 +300,33 @@ describe('InviteService', () => {
       );
 
       expect(result).toBeDefined();
+      // Should check for existing usage via junction table
+      expect(mockTx.instanceInviteUsage.findUnique).toHaveBeenCalledWith({
+        where: {
+          inviteId_userId: {
+            inviteId: mockInvite.id,
+            userId,
+          },
+        },
+      });
+      // Should record usage in junction table
+      expect(mockTx.instanceInviteUsage.create).toHaveBeenCalledWith({
+        data: {
+          inviteId: mockInvite.id,
+          userId,
+        },
+      });
+      // Should increment uses count (no more usedByIds push)
       expect(mockTx.instanceInvite.update).toHaveBeenCalledWith({
         where: { code: inviteCode },
         data: {
           uses: { increment: 1 },
-          usedByIds: { push: userId },
           disabled: false,
         },
+        include: expect.objectContaining({
+          defaultCommunities: true,
+          usages: true,
+        }),
       });
     });
 
@@ -294,7 +338,6 @@ describe('InviteService', () => {
         disabled: false,
         maxUses: 10,
         uses: 9, // One use away from max
-        usedByIds: [],
       });
 
       const mockTx = {
@@ -303,9 +346,14 @@ describe('InviteService', () => {
           update: jest.fn().mockResolvedValue({
             ...mockInvite,
             uses: 10,
-            usedByIds: [userId],
             disabled: true,
           }),
+        },
+        instanceInviteUsage: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          create: jest
+            .fn()
+            .mockResolvedValue({ inviteId: mockInvite.id, userId }),
         },
       };
 
@@ -315,9 +363,12 @@ describe('InviteService', () => {
         where: { code: inviteCode },
         data: {
           uses: { increment: 1 },
-          usedByIds: { push: userId },
-          disabled: true, // Should disable
+          disabled: true, // Should disable (9 + 1 >= 10)
         },
+        include: expect.objectContaining({
+          defaultCommunities: true,
+          usages: true,
+        }),
       });
     });
 
@@ -420,12 +471,18 @@ describe('InviteService', () => {
       const userId = 'user-123';
       const mockInvite = InstanceInviteFactory.build({
         disabled: false,
-        usedByIds: [userId],
       });
 
       const mockTx = {
         instanceInvite: {
           findUnique: jest.fn().mockResolvedValue(mockInvite),
+        },
+        instanceInviteUsage: {
+          findUnique: jest.fn().mockResolvedValue({
+            inviteId: mockInvite.id,
+            userId,
+            usedAt: new Date(),
+          }), // User already used this invite
         },
       };
 
@@ -462,6 +519,8 @@ describe('InviteService', () => {
               displayName: true,
             },
           },
+          defaultCommunities: true,
+          usages: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -511,6 +570,8 @@ describe('InviteService', () => {
               displayName: true,
             },
           },
+          defaultCommunities: true,
+          usages: true,
         },
       });
     });

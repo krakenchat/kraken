@@ -1,4 +1,4 @@
-import { $Enums, Message } from '@prisma/client';
+import { $Enums } from '@prisma/client';
 import { Exclude } from 'class-transformer';
 import { IsString, IsOptional, IsArray, IsInt, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -15,7 +15,7 @@ class CreateMessageSpanDto {
   aliasId: string | null;
 }
 
-export class CreateMessageDto implements Message {
+export class CreateMessageDto {
   @Exclude()
   id: string;
 
@@ -51,9 +51,6 @@ export class CreateMessageDto implements Message {
 
   @Exclude()
   searchText: string | null;
-
-  @Exclude()
-  reactions: { emoji: string; userIds: string[] }[];
 
   // Pinning fields (excluded - set by moderation actions)
   @Exclude()

@@ -5,8 +5,8 @@ metadata:
   labels:
     {{- include "kraken.backend.labels" . | nindent 4 }}
 data:
-  # MongoDB connection
-  MONGODB_URL: {{ include "kraken.mongodb.uri" . | quote }}
+  # PostgreSQL connection
+  DATABASE_URL: {{ include "kraken.postgresql.uri" . | quote }}
 
   # Redis connection
   REDIS_HOST: {{ include "kraken.redis.host" . | quote }}

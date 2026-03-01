@@ -2,21 +2,23 @@ import { TestBed } from '@suites/unit';
 import { ReactionsService } from './reactions.service';
 import { DatabaseService } from '@/database/database.service';
 import { NotFoundException } from '@nestjs/common';
-import { ObjectId } from 'bson';
+import { randomUUID } from 'crypto';
 
 describe('ReactionsService', () => {
   let service: ReactionsService;
 
-  // Use valid ObjectId hex strings so `new ObjectId(messageId)` succeeds
-  const messageId = new ObjectId().toHexString();
-  const userId1 = 'user-1';
-  const userId2 = 'user-2';
+  const messageId = randomUUID();
+  const userId1 = randomUUID();
+  const userId2 = randomUUID();
 
   const mockDatabaseService = {
     message: {
       findUnique: jest.fn(),
     },
-    $runCommandRaw: jest.fn(),
+    messageReaction: {
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -31,333 +33,221 @@ describe('ReactionsService', () => {
   });
 
   describe('addReaction', () => {
-    it('should add a new reaction to a message when emoji does not exist yet', async () => {
+    it('should add a new reaction to a message', async () => {
       const message = {
         id: messageId,
         channelId: 'channel-1',
         directMessageGroupId: null,
-        reactions: [],
       };
 
-      const updatedMessage = {
+      const messageWithReactions = {
         ...message,
-        reactions: [{ emoji: '👍', userIds: [userId1] }],
+        reactions: [
+          {
+            emoji: '👍',
+            userId: userId1,
+            messageId,
+            id: randomUUID(),
+            createdAt: new Date(),
+          },
+        ],
       };
 
-      // First findUnique call: existence check
-      // Second findUnique call: return updated message
+      // First call: existence check, second call: return with reactions
       mockDatabaseService.message.findUnique
         .mockResolvedValueOnce(message)
-        .mockResolvedValueOnce(updatedMessage);
+        .mockResolvedValueOnce(messageWithReactions);
 
-      // Step 1: updateExisting returns nModified: 0 (emoji doesn't exist yet)
-      mockDatabaseService.$runCommandRaw
-        .mockResolvedValueOnce({ nModified: 0 })
-        // Step 2: alreadyReacted check returns empty (user hasn't reacted)
-        .mockResolvedValueOnce({ cursor: { firstBatch: [] } })
-        // Step 3: push new reaction entry
-        .mockResolvedValueOnce({ nModified: 1 });
+      mockDatabaseService.messageReaction.upsert.mockResolvedValueOnce({
+        id: randomUUID(),
+        messageId,
+        emoji: '👍',
+        userId: userId1,
+      });
 
       const result = await service.addReaction(messageId, '👍', userId1);
 
       expect(result.reactions).toHaveLength(1);
       expect(result.reactions[0].emoji).toBe('👍');
-      expect(result.reactions[0].userIds).toContain(userId1);
 
-      // Verify findUnique was called twice (existence check + return updated)
+      // Verify existence check
       expect(mockDatabaseService.message.findUnique).toHaveBeenCalledTimes(2);
-      expect(mockDatabaseService.message.findUnique).toHaveBeenCalledWith({
-        where: { id: messageId },
-      });
+      expect(mockDatabaseService.message.findUnique).toHaveBeenNthCalledWith(
+        1,
+        {
+          where: { id: messageId },
+        },
+      );
 
-      // Verify $runCommandRaw was called 3 times:
-      // 1. Try to add to existing reaction
-      // 2. Check if user already reacted
-      // 3. Push new reaction entry
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(3);
-
-      // Verify step 1: try to update existing
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenNthCalledWith(1, {
-        update: 'Message',
-        updates: [
-          {
-            q: {
-              _id: { $oid: messageId },
-              reactions: {
-                $elemMatch: {
-                  emoji: '👍',
-                  userIds: { $ne: userId1 },
-                },
-              },
-            },
-            u: {
-              $push: { 'reactions.$.userIds': userId1 },
-            },
-          },
-        ],
-      });
-
-      // Verify step 3: push new reaction
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenNthCalledWith(3, {
-        update: 'Message',
-        updates: [
-          {
-            q: {
-              _id: { $oid: messageId },
-              'reactions.emoji': { $ne: '👍' },
-            },
-            u: {
-              $push: {
-                reactions: { emoji: '👍', userIds: [userId1] },
-              },
-            },
-          },
-        ],
+      // Verify upsert was called with compound unique key
+      expect(mockDatabaseService.messageReaction.upsert).toHaveBeenCalledWith({
+        where: {
+          messageId_emoji_userId: { messageId, emoji: '👍', userId: userId1 },
+        },
+        create: { messageId, emoji: '👍', userId: userId1 },
+        update: {},
       });
     });
 
-    it('should add user to existing reaction', async () => {
+    it('should be idempotent when user already reacted', async () => {
       const message = {
         id: messageId,
         channelId: 'channel-1',
         directMessageGroupId: null,
-        reactions: [{ emoji: '👍', userIds: [userId1] }],
       };
 
-      const updatedMessage = {
+      const messageWithReactions = {
         ...message,
-        reactions: [{ emoji: '👍', userIds: [userId1, userId2] }],
-      };
-
-      mockDatabaseService.message.findUnique
-        .mockResolvedValueOnce(message)
-        .mockResolvedValueOnce(updatedMessage);
-
-      // Step 1: updateExisting succeeds (emoji exists, user not yet in array)
-      mockDatabaseService.$runCommandRaw.mockResolvedValueOnce({
-        nModified: 1,
-      });
-
-      const result = await service.addReaction(messageId, '👍', userId2);
-
-      expect(result.reactions[0].userIds).toContain(userId2);
-
-      // Only 1 $runCommandRaw call because step 1 succeeded
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(1);
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledWith({
-        update: 'Message',
-        updates: [
+        reactions: [
           {
-            q: {
-              _id: { $oid: messageId },
-              reactions: {
-                $elemMatch: {
-                  emoji: '👍',
-                  userIds: { $ne: userId2 },
-                },
-              },
-            },
-            u: {
-              $push: { 'reactions.$.userIds': userId2 },
-            },
+            emoji: '👍',
+            userId: userId1,
+            messageId,
+            id: randomUUID(),
+            createdAt: new Date(),
           },
         ],
-      });
-    });
-
-    it('should not add duplicate user to reaction', async () => {
-      const message = {
-        id: messageId,
-        channelId: 'channel-1',
-        directMessageGroupId: null,
-        reactions: [{ emoji: '👍', userIds: [userId1] }],
       };
 
       mockDatabaseService.message.findUnique
         .mockResolvedValueOnce(message)
-        .mockResolvedValueOnce(message);
+        .mockResolvedValueOnce(messageWithReactions);
 
-      // Step 1: nModified 0 because user is already in the array ($ne fails)
-      mockDatabaseService.$runCommandRaw
-        .mockResolvedValueOnce({ nModified: 0 })
-        // Step 2: alreadyReacted returns the message (user already reacted)
-        .mockResolvedValueOnce({
-          cursor: { firstBatch: [{ _id: messageId }] },
-        });
+      // Upsert is a no-op when record already exists (update: {})
+      mockDatabaseService.messageReaction.upsert.mockResolvedValueOnce({
+        id: randomUUID(),
+        messageId,
+        emoji: '👍',
+        userId: userId1,
+      });
 
       const result = await service.addReaction(messageId, '👍', userId1);
 
-      // Should return original message (no change)
       expect(result.reactions).toHaveLength(1);
-      expect(result.reactions[0].userIds).toEqual([userId1]);
-
-      // Only 2 $runCommandRaw calls (step 1 + step 2 check, no step 3)
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(2);
+      expect(mockDatabaseService.messageReaction.upsert).toHaveBeenCalledTimes(
+        1,
+      );
     });
 
-    it('should add user to existing reaction when user already reacted with a different emoji', async () => {
-      // Regression test for #87: user B has reacted with 🔥, now wants to also add 👍
+    it('should add a second user to an existing emoji reaction', async () => {
       const message = {
         id: messageId,
         channelId: 'channel-1',
         directMessageGroupId: null,
-        reactions: [
-          { emoji: '👍', userIds: [userId1] },
-          { emoji: '🔥', userIds: [userId2] },
-        ],
       };
 
-      const updatedMessage = {
+      const messageWithReactions = {
         ...message,
         reactions: [
-          { emoji: '👍', userIds: [userId1, userId2] },
-          { emoji: '🔥', userIds: [userId2] },
+          {
+            emoji: '👍',
+            userId: userId1,
+            messageId,
+            id: randomUUID(),
+            createdAt: new Date(),
+          },
+          {
+            emoji: '👍',
+            userId: userId2,
+            messageId,
+            id: randomUUID(),
+            createdAt: new Date(),
+          },
         ],
       };
 
       mockDatabaseService.message.findUnique
         .mockResolvedValueOnce(message)
-        .mockResolvedValueOnce(updatedMessage);
+        .mockResolvedValueOnce(messageWithReactions);
 
-      // Step 1: $elemMatch finds the 👍 element where userId2 is NOT present → succeeds
-      // With the old dot-notation bug, this would return nModified: 0 because
-      // userId2 exists in reactions[1].userIds (the 🔥 reaction)
-      mockDatabaseService.$runCommandRaw.mockResolvedValueOnce({
-        nModified: 1,
+      mockDatabaseService.messageReaction.upsert.mockResolvedValueOnce({
+        id: randomUUID(),
+        messageId,
+        emoji: '👍',
+        userId: userId2,
       });
 
       const result = await service.addReaction(messageId, '👍', userId2);
 
-      expect(result.reactions[0].emoji).toBe('👍');
-      expect(result.reactions[0].userIds).toContain(userId1);
-      expect(result.reactions[0].userIds).toContain(userId2);
-
-      // Only 1 $runCommandRaw call because step 1 succeeded with $elemMatch
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(1);
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledWith({
-        update: 'Message',
-        updates: [
-          {
-            q: {
-              _id: { $oid: messageId },
-              reactions: {
-                $elemMatch: {
-                  emoji: '👍',
-                  userIds: { $ne: userId2 },
-                },
-              },
-            },
-            u: {
-              $push: { 'reactions.$.userIds': userId2 },
-            },
-          },
-        ],
-      });
+      // Result should have 2 reaction rows
+      expect(result.reactions).toHaveLength(2);
     });
 
     it('should throw NotFoundException when message not found', async () => {
       mockDatabaseService.message.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.addReaction('aabbccddeeff00112233aabb', '👍', userId1),
+        service.addReaction(randomUUID(), '👍', userId1),
       ).rejects.toThrow(NotFoundException);
 
-      // $runCommandRaw should never be called
-      expect(mockDatabaseService.$runCommandRaw).not.toHaveBeenCalled();
+      expect(mockDatabaseService.messageReaction.upsert).not.toHaveBeenCalled();
     });
   });
 
   describe('removeReaction', () => {
-    it('should remove user from reaction', async () => {
+    it('should remove user reaction from message', async () => {
       const message = {
         id: messageId,
         channelId: 'channel-1',
         directMessageGroupId: null,
-        reactions: [{ emoji: '👍', userIds: [userId1, userId2] }],
       };
 
-      const updatedMessage = {
+      const messageWithReactions = {
         ...message,
-        reactions: [{ emoji: '👍', userIds: [userId2] }],
+        reactions: [
+          {
+            emoji: '👍',
+            userId: userId2,
+            messageId,
+            id: randomUUID(),
+            createdAt: new Date(),
+          },
+        ],
       };
 
       mockDatabaseService.message.findUnique
         .mockResolvedValueOnce(message)
-        .mockResolvedValueOnce(updatedMessage);
+        .mockResolvedValueOnce(messageWithReactions);
 
-      // Step 1: pull userId from reaction
-      // Step 2: cleanup empty reactions
-      mockDatabaseService.$runCommandRaw
-        .mockResolvedValueOnce({ nModified: 1 })
-        .mockResolvedValueOnce({ nModified: 0 });
+      mockDatabaseService.messageReaction.deleteMany.mockResolvedValueOnce({
+        count: 1,
+      });
 
       const result = await service.removeReaction(messageId, '👍', userId1);
 
-      expect(result.reactions[0].userIds).not.toContain(userId1);
-      expect(result.reactions[0].userIds).toContain(userId2);
+      expect(result.reactions).toHaveLength(1);
+      expect(result.reactions[0].userId).toBe(userId2);
 
-      // Verify $runCommandRaw was called twice (pull + cleanup)
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(2);
-
-      // Verify step 1: pull user from reaction
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenNthCalledWith(1, {
-        update: 'Message',
-        updates: [
-          {
-            q: {
-              _id: { $oid: messageId },
-              'reactions.emoji': '👍',
-            },
-            u: {
-              $pull: { 'reactions.$.userIds': userId1 },
-            },
-          },
-        ],
-      });
-
-      // Verify step 2: cleanup empty reactions
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenNthCalledWith(2, {
-        update: 'Message',
-        updates: [
-          {
-            q: { _id: { $oid: messageId } },
-            u: {
-              $pull: { reactions: { userIds: { $size: 0 } } },
-            },
-          },
-        ],
+      expect(
+        mockDatabaseService.messageReaction.deleteMany,
+      ).toHaveBeenCalledWith({
+        where: { messageId, emoji: '👍', userId: userId1 },
       });
     });
 
-    it('should remove reaction entirely when last user removes it', async () => {
+    it('should return empty reactions when last user removes reaction', async () => {
       const message = {
         id: messageId,
         channelId: 'channel-1',
         directMessageGroupId: null,
-        reactions: [{ emoji: '👍', userIds: [userId1] }],
       };
 
-      const updatedMessage = {
+      const messageWithReactions = {
         ...message,
         reactions: [],
       };
 
       mockDatabaseService.message.findUnique
         .mockResolvedValueOnce(message)
-        .mockResolvedValueOnce(updatedMessage);
+        .mockResolvedValueOnce(messageWithReactions);
 
-      // Step 1: pull userId (last user)
-      // Step 2: cleanup removes the empty reaction entry
-      mockDatabaseService.$runCommandRaw
-        .mockResolvedValueOnce({ nModified: 1 })
-        .mockResolvedValueOnce({ nModified: 1 });
+      mockDatabaseService.messageReaction.deleteMany.mockResolvedValueOnce({
+        count: 1,
+      });
 
       const result = await service.removeReaction(messageId, '👍', userId1);
 
       expect(result.reactions).toHaveLength(0);
-
-      // Verify both $runCommandRaw calls were made
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(2);
     });
 
     it('should handle removing non-existent reaction gracefully', async () => {
@@ -365,35 +255,32 @@ describe('ReactionsService', () => {
         id: messageId,
         channelId: 'channel-1',
         directMessageGroupId: null,
-        reactions: [],
       };
 
       mockDatabaseService.message.findUnique
         .mockResolvedValueOnce(message)
-        .mockResolvedValueOnce(message);
+        .mockResolvedValueOnce({ ...message, reactions: [] });
 
-      // Both commands succeed but modify nothing
-      mockDatabaseService.$runCommandRaw
-        .mockResolvedValueOnce({ nModified: 0 })
-        .mockResolvedValueOnce({ nModified: 0 });
+      // deleteMany returns count: 0 when nothing matched
+      mockDatabaseService.messageReaction.deleteMany.mockResolvedValueOnce({
+        count: 0,
+      });
 
       const result = await service.removeReaction(messageId, '👍', userId1);
 
       expect(result.reactions).toHaveLength(0);
-
-      // Still called twice (pull + cleanup), even if nothing was modified
-      expect(mockDatabaseService.$runCommandRaw).toHaveBeenCalledTimes(2);
     });
 
     it('should throw NotFoundException when message not found', async () => {
       mockDatabaseService.message.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.removeReaction('aabbccddeeff00112233aabb', '👍', userId1),
+        service.removeReaction(randomUUID(), '👍', userId1),
       ).rejects.toThrow(NotFoundException);
 
-      // $runCommandRaw should never be called
-      expect(mockDatabaseService.$runCommandRaw).not.toHaveBeenCalled();
+      expect(
+        mockDatabaseService.messageReaction.deleteMany,
+      ).not.toHaveBeenCalled();
     });
   });
 });

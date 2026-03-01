@@ -7,7 +7,7 @@
 
 Self-hosted voice, video, and text chat — communication you own and control.
 
-Kraken is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, MongoDB, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box. Run it in your browser or as an Electron desktop app on Windows and Linux.
+Kraken is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, PostgreSQL, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box. Run it in your browser or as an Electron desktop app on Windows and Linux.
 
 ## Features
 
@@ -24,7 +24,7 @@ graph LR
     Client[Browser] --> Proxy[Reverse Proxy<br/>nginx / Caddy]
     Proxy -->|/| Frontend[Frontend<br/>React + Nginx<br/>:5173]
     Proxy -->|/api, /socket.io| Backend[Backend<br/>NestJS<br/>:3000]
-    Backend --> MongoDB[(MongoDB<br/>:27017)]
+    Backend --> PostgreSQL[(PostgreSQL<br/>:5432)]
     Backend --> Redis[(Redis<br/>:6379)]
     Backend --> LiveKit[LiveKit Server]
 ```
@@ -33,7 +33,7 @@ graph LR
 |-------|-----------|
 | Backend | [NestJS](https://nestjs.com/) (TypeScript) |
 | Frontend | [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) + [Material UI](https://mui.com/) |
-| Database | [MongoDB](https://www.mongodb.com/) with [Prisma ORM](https://www.prisma.io/) |
+| Database | [PostgreSQL](https://www.postgresql.org/) with [Prisma ORM](https://www.prisma.io/) |
 | Real-time | [Socket.IO](https://socket.io/) with Redis adapter |
 | Voice/Video | [LiveKit](https://livekit.io/) |
 | State | [TanStack Query v5](https://tanstack.com/query/latest) |
@@ -74,7 +74,7 @@ services:
     image: ghcr.io/krakenchat/kraken-backend:latest
     restart: unless-stopped
     environment:
-      MONGODB_URL: mongodb://mongo:27017/kraken?replicaSet=rs0&retryWrites=true&w=majority&directConnection=true
+      DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
       REDIS_HOST: redis
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -90,7 +90,7 @@ services:
     depends_on:
       volume-init:
         condition: service_completed_successfully
-      mongo:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -171,20 +171,20 @@ services:
       livekit:
         condition: service_started
 
-  mongo:
-    image: mongo:7.0
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    environment:
+      POSTGRES_USER: kraken
+      POSTGRES_PASSWORD: kraken
+      POSTGRES_DB: kraken
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" | mongosh --port 27017 --quiet
+      test: ["CMD-SHELL", "pg_isready -U kraken"]
       interval: 5s
-      timeout: 30s
-      start_period: 0s
-      start_interval: 1s
-      retries: 30
+      timeout: 5s
+      retries: 10
     volumes:
-      - mongodata:/data/db
-      - mongodb_config:/data/configdb
+      - pgdata:/var/lib/postgresql/data
 
   redis:
     image: redis:latest
@@ -198,8 +198,7 @@ services:
       - redisdata:/data
 
 volumes:
-  mongodata:
-  mongodb_config:
+  pgdata:
   redisdata:
   uploads:
   egress-data:
@@ -254,7 +253,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      MONGODB_URL: mongodb://mongo:27017/kraken?replicaSet=rs0&retryWrites=true&w=majority&directConnection=true
+      DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
       REDIS_HOST: redis
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -270,7 +269,7 @@ services:
     depends_on:
       volume-init:
         condition: service_completed_successfully
-      mongo:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -347,20 +346,20 @@ services:
       livekit:
         condition: service_started
 
-  mongo:
-    image: mongo:7.0
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    environment:
+      POSTGRES_USER: kraken
+      POSTGRES_PASSWORD: kraken
+      POSTGRES_DB: kraken
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" | mongosh --port 27017 --quiet
+      test: ["CMD-SHELL", "pg_isready -U kraken"]
       interval: 5s
-      timeout: 30s
-      start_period: 0s
-      start_interval: 1s
-      retries: 30
+      timeout: 5s
+      retries: 10
     volumes:
-      - mongodata:/data/db
-      - mongodb_config:/data/configdb
+      - pgdata:/var/lib/postgresql/data
 
   redis:
     image: redis:latest
@@ -374,8 +373,7 @@ services:
       - redisdata:/data
 
 volumes:
-  mongodata:
-  mongodb_config:
+  pgdata:
   redisdata:
   uploads:
   egress-data:

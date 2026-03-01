@@ -13,6 +13,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { RoomName } from '@/common/utils/room-name.util';
+import { groupReactions } from '@/common/utils/reactions.utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import {
   ModerationAction,
@@ -692,34 +693,45 @@ export class ModerationService {
   }
 
   async getPinnedMessages(channelId: string) {
-    // Note: We don't filter on deletedAt here because in MongoDB,
-    // optional fields that don't exist won't match { field: null }.
-    // Instead, deleted messages should have pinned set to false when deleted.
+    // Note: Deleted messages should have pinned set to false when deleted.
     const messages = await this.databaseService.message.findMany({
       where: {
         channelId,
         pinned: true,
       },
       orderBy: { pinnedAt: 'desc' },
+      include: {
+        attachments: {
+          include: {
+            file: {
+              select: {
+                id: true,
+                filename: true,
+                mimeType: true,
+                fileType: true,
+                size: true,
+                thumbnailPath: true,
+              },
+            },
+          },
+          orderBy: { position: 'asc' as const },
+        },
+        spans: { orderBy: { position: 'asc' as const } },
+        reactions: true,
+      },
     });
 
     // Filter out deleted messages in memory (handles both null and undefined)
     const activeMessages = messages.filter((m) => !m.deletedAt);
 
-    // Enrich messages with file metadata (same as MessagesService)
     if (activeMessages.length === 0) {
       return [];
     }
 
-    // Collect all unique author IDs and file IDs
+    // Fetch authors for enrichment
     const authorIds = new Set<string>();
-    const allFileIds = new Set<string>();
-    activeMessages.forEach((message) => {
-      authorIds.add(message.authorId);
-      message.attachments.forEach((fileId) => allFileIds.add(fileId));
-    });
+    activeMessages.forEach((message) => authorIds.add(message.authorId));
 
-    // Fetch authors
     const authors = await this.databaseService.user.findMany({
       where: { id: { in: Array.from(authorIds) } },
       select: {
@@ -730,41 +742,22 @@ export class ModerationService {
       },
     });
 
-    // Fetch files
-    const files =
-      allFileIds.size > 0
-        ? await this.databaseService.file.findMany({
-            where: { id: { in: Array.from(allFileIds) } },
-            select: {
-              id: true,
-              filename: true,
-              mimeType: true,
-              fileType: true,
-              size: true,
-              thumbnailPath: true,
-            },
-          })
-        : [];
-
-    // Create maps for quick lookup
     const authorMap = new Map(authors.map((author) => [author.id, author]));
-    const fileMap = new Map(files.map((file) => [file.id, file]));
 
-    // Transform messages to include author and file metadata
+    // Transform messages: add author, format attachments and reactions
     return activeMessages.map((message) => ({
       ...message,
       author: authorMap.get(message.authorId) || null,
-      attachments: message.attachments
-        .map((fileId) => fileMap.get(fileId))
-        .filter((file): file is NonNullable<typeof file> => file !== undefined)
-        .map((file) => ({
-          id: file.id,
-          filename: file.filename,
-          mimeType: file.mimeType,
-          fileType: file.fileType,
-          size: file.size,
-          hasThumbnail: !!file.thumbnailPath,
-        })),
+      spans: message.spans ?? [],
+      reactions: message.reactions ? groupReactions(message.reactions) : [],
+      attachments: message.attachments.map((a) => ({
+        id: a.file.id,
+        filename: a.file.filename,
+        mimeType: a.file.mimeType,
+        fileType: a.file.fileType,
+        size: a.file.size,
+        hasThumbnail: !!a.file.thumbnailPath,
+      })),
     }));
   }
 

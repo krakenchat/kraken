@@ -15,7 +15,7 @@ export class ThreadReplyDto {
   directMessageGroupId: string | null;
   authorId: string;
   spans: SpanDto[];
-  attachments: string[];
+  attachments: EnrichedAttachment[];
   pendingAttachments: number | null;
   reactions: ReactionDto[];
   sentAt: Date;

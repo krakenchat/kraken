@@ -11,12 +11,13 @@ import {
   HttpStatus,
   UseGuards,
   Req,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import { FileUploadService } from './file-upload.service';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { MimeTypeAwareSizeValidator } from './validators/mime-type-aware-size.validator';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
@@ -53,7 +54,7 @@ export class FileUploadController {
   @Delete(':id')
   @ApiOkResponse({ type: FileUploadResponseDto })
   remove(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<FileUploadResponseDto> {
     return this.fileUploadService.remove(id, req.user.id);

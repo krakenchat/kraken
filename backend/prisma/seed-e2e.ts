@@ -155,12 +155,15 @@ async function main() {
             data: {
               channelId: channel.id,
               authorId: msg.userId,
-              spans: [
-                {
-                  type: 'PLAINTEXT',
-                  text: msg.content,
-                },
-              ],
+              spans: {
+                create: [
+                  {
+                    position: 0,
+                    type: 'PLAINTEXT',
+                    text: msg.content,
+                  },
+                ],
+              },
               searchText: msg.content,
             },
           });

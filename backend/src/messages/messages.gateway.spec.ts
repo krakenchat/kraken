@@ -124,7 +124,7 @@ describe('MessagesGateway', () => {
       const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -164,7 +164,7 @@ describe('MessagesGateway', () => {
       const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -208,7 +208,7 @@ describe('MessagesGateway', () => {
       const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -251,7 +251,7 @@ describe('MessagesGateway', () => {
       const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockResolvedValue(
+      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
         enrichedMessage as any,
       );
 
@@ -290,7 +290,7 @@ describe('MessagesGateway', () => {
       const updatedMessage = {
         id: 'msg-789',
         channelId: 'channel-789',
-        reactions: [{ emoji: '👍', count: 1, users: ['user-789'] }],
+        reactions: [{ emoji: '👍', userId: 'user-789' }],
       };
 
       reactionsService.addReaction.mockResolvedValue(updatedMessage as any);
@@ -307,7 +307,7 @@ describe('MessagesGateway', () => {
         ServerEvents.REACTION_ADDED,
         {
           messageId: 'msg-789',
-          reaction: { emoji: '👍', count: 1, users: ['user-789'] },
+          reaction: { emoji: '👍', userIds: ['user-789'] },
           channelId: 'channel-789',
           directMessageGroupId: null,
         },
@@ -326,7 +326,7 @@ describe('MessagesGateway', () => {
       const updatedMessage = {
         id: 'msg-dm-999',
         directMessageGroupId: 'dm-group-999',
-        reactions: [{ emoji: '❤️', count: 1, users: ['user-999'] }],
+        reactions: [{ emoji: '❤️', userId: 'user-999' }],
       };
 
       reactionsService.addReaction.mockResolvedValue(updatedMessage as any);
@@ -353,7 +353,7 @@ describe('MessagesGateway', () => {
 
       const updatedMessage = {
         id: 'msg-111',
-        reactions: [{ emoji: '👍', count: 1, users: ['user-111'] }],
+        reactions: [{ emoji: '👍', userId: 'user-111' }],
       };
 
       reactionsService.addReaction.mockResolvedValue(updatedMessage as any);

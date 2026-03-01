@@ -7,7 +7,17 @@ import {
 import { randomBytes } from 'crypto';
 import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { InstanceInvite, Prisma } from '@prisma/client';
+import {
+  InstanceInvite,
+  InstanceInviteDefaultCommunity,
+  InstanceInviteUsage,
+  Prisma,
+} from '@prisma/client';
+
+export type InstanceInviteWithRelations = InstanceInvite & {
+  defaultCommunities: InstanceInviteDefaultCommunity[];
+  usages: InstanceInviteUsage[];
+};
 
 @Injectable()
 export class InviteService {
@@ -20,7 +30,7 @@ export class InviteService {
     maxUses?: number,
     validUntil?: Date,
     communityIds: string[] = [],
-  ): Promise<InstanceInvite> {
+  ): Promise<InstanceInviteWithRelations> {
     // generate a short code for the invite
     let shortCode = this.generateInviteCode();
     // Check if the short code already exists
@@ -41,14 +51,30 @@ export class InviteService {
         createdById: creator.id,
         maxUses,
         validUntil,
-        defaultCommunityId: communityIds,
+        ...(communityIds.length > 0
+          ? {
+              defaultCommunities: {
+                create: communityIds.map((communityId) => ({ communityId })),
+              },
+            }
+          : {}),
+      },
+      include: {
+        defaultCommunities: true,
+        usages: true,
       },
     });
   }
 
-  async validateInviteCode(inviteCode: string): Promise<InstanceInvite | null> {
+  async validateInviteCode(
+    inviteCode: string,
+  ): Promise<InstanceInviteWithRelations | null> {
     const invite = await this.databaseService.instanceInvite.findUnique({
       where: { code: inviteCode },
+      include: {
+        defaultCommunities: true,
+        usages: true,
+      },
     });
     if (!invite) return null;
     const now = new Date();
@@ -68,10 +94,13 @@ export class InviteService {
     tx: Prisma.TransactionClient,
     inviteCode: string,
     userId: string,
-  ): Promise<InstanceInvite | null> {
+  ): Promise<InstanceInviteWithRelations | null> {
     // Use a transaction for safety
     const invite = await tx.instanceInvite.findUnique({
       where: { code: inviteCode },
+      include: {
+        defaultCommunities: true,
+      },
     });
 
     if (!invite) {
@@ -83,27 +112,52 @@ export class InviteService {
     if (
       invite.disabled ||
       (invite.validUntil && now > invite.validUntil) ||
-      (invite.maxUses !== null && invite.uses >= invite.maxUses) ||
-      invite.usedByIds.includes(userId)
+      (invite.maxUses !== null && invite.uses >= invite.maxUses)
     ) {
       this.logger.warn(`Invalid or already used invite: ${invite.code}`);
       return null;
     }
 
-    // Update uses and usedByIds atomically
+    // Check if user has already used this invite via the junction table
+    const existingUsage = await tx.instanceInviteUsage.findUnique({
+      where: {
+        inviteId_userId: {
+          inviteId: invite.id,
+          userId,
+        },
+      },
+    });
+
+    if (existingUsage) {
+      this.logger.warn(`Invalid or already used invite: ${invite.code}`);
+      return null;
+    }
+
+    // Record the usage in the junction table
+    await tx.instanceInviteUsage.create({
+      data: {
+        inviteId: invite.id,
+        userId,
+      },
+    });
+
+    // Update uses count and disabled status
     const updated = await tx.instanceInvite.update({
       where: { code: inviteCode },
       data: {
         uses: { increment: 1 },
-        usedByIds: { push: userId },
         disabled: invite.maxUses !== null && invite.uses + 1 >= invite.maxUses,
+      },
+      include: {
+        defaultCommunities: true,
+        usages: true,
       },
     });
 
     return updated;
   }
 
-  async getInvites(user: UserEntity): Promise<InstanceInvite[]> {
+  async getInvites(user: UserEntity): Promise<InstanceInviteWithRelations[]> {
     return this.databaseService.instanceInvite.findMany({
       where: { createdById: user.id },
       include: {
@@ -114,12 +168,16 @@ export class InviteService {
             displayName: true,
           },
         },
+        defaultCommunities: true,
+        usages: true,
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async getInviteByCode(code: string): Promise<InstanceInvite | null> {
+  async getInviteByCode(
+    code: string,
+  ): Promise<InstanceInviteWithRelations | null> {
     return this.databaseService.instanceInvite.findUnique({
       where: { code },
       include: {
@@ -130,6 +188,8 @@ export class InviteService {
             displayName: true,
           },
         },
+        defaultCommunities: true,
+        usages: true,
       },
     });
   }

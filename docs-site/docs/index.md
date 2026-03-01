@@ -7,7 +7,7 @@ hide:
 
 **Self-hosted voice and text chat.**
 
-Kraken is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, MongoDB, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box.
+Kraken is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, PostgreSQL, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box.
 
 ---
 
@@ -57,7 +57,7 @@ Kraken is an open-source communication platform that gives you full control over
 |-------|-----------|
 | Backend | [NestJS](https://nestjs.com/) (TypeScript) |
 | Frontend | [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) + [Material UI](https://mui.com/) |
-| Database | [MongoDB](https://www.mongodb.com/) with [Prisma ORM](https://www.prisma.io/) |
+| Database | [PostgreSQL](https://www.postgresql.org/) with [Prisma ORM](https://www.prisma.io/) |
 | Real-time | [Socket.IO](https://socket.io/) with Redis adapter |
 | Voice/Video | [LiveKit](https://livekit.io/) |
 | State | [TanStack Query v5](https://tanstack.com/query/latest) |

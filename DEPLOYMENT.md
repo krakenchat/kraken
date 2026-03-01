@@ -111,7 +111,7 @@ docker run -p 5173:5173 -e BACKEND_URL=http://localhost:3000 kraken-frontend:loc
 
 **Features:**
 - Updates Chart.yaml with repository info
-- Updates Helm dependencies (MongoDB, Redis)
+- Updates Helm dependencies (PostgreSQL, Redis)
 - Packages and publishes to GHCR as OCI artifact
 - Automatic versioning
 
@@ -125,7 +125,7 @@ oci://ghcr.io/krakenchat/charts/kraken
 ### Key Features
 
 1. **Flexible Dependencies**
-   - Bundled MongoDB (Bitnami) - optional
+   - Bundled PostgreSQL (Bitnami) - optional
    - Bundled Redis (Bitnami) - optional
    - Or use external services
 
@@ -174,8 +174,8 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 **With External Database:**
 ```bash
 helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
-  --set mongodb.bundled=false \
-  --set mongodb.external.uri="mongodb+srv://..." \
+  --set postgresql.bundled=false \
+  --set postgresql.external.uri="postgresql://user:pass@host:5432/kraken" \
   --set redis.bundled=false \
   --set redis.external.host=redis.cloud.example.com
 ```
@@ -232,7 +232,7 @@ kubectl create secret generic kraken-secrets \
 - [ ] Update `values.yaml` image repositories
 - [ ] Update GitHub workflows with your username
 - [ ] Set up LiveKit server (self-hosted or cloud)
-- [ ] Generate strong secrets for JWT, MongoDB, Redis
+- [ ] Generate strong secrets for JWT, PostgreSQL, Redis
 - [ ] Configure DNS for your domain
 - [ ] Install NGINX Ingress Controller in cluster
 - [ ] Optional: Install cert-manager for automatic TLS
@@ -248,7 +248,7 @@ kubectl create secret generic kraken-secrets \
 - [ ] Test file uploads
 - [ ] Test voice/video calls
 - [ ] Set up monitoring (Prometheus/Grafana)
-- [ ] Configure backups for MongoDB
+- [ ] Configure backups for PostgreSQL
 - [ ] Set up logging aggregation
 - [ ] Load test the application
 
@@ -288,7 +288,7 @@ kubectl create secret generic kraken-secrets \
 A: Make sure images are public or configure image pull secrets
 
 **Q: Pods crash with database errors**
-A: Verify MongoDB connection string and credentials
+A: Verify PostgreSQL connection string and credentials
 
 **Q: Ingress not working**
 A: Check NGINX Ingress Controller is installed and DNS is configured

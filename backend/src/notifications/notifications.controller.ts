@@ -11,6 +11,7 @@ import {
   Req,
   HttpCode,
   ForbiddenException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
@@ -20,7 +21,7 @@ import { NotificationQueryDto } from './dto/notification-query.dto';
 import { SendTestNotificationDto } from './dto/debug-notification.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/types';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { InstanceRole } from '@prisma/client';
 import {
   NotificationDto,
@@ -93,7 +94,7 @@ export class NotificationsController {
   @ApiOkResponse({ type: NotificationDto })
   async markAsRead(
     @Req() req: AuthenticatedRequest,
-    @Param('id', ParseObjectIdPipe) notificationId: string,
+    @Param('id', ParseUUIDPipe) notificationId: string,
   ): Promise<NotificationDto> {
     return this.notificationsService.markAsRead(notificationId, req.user.id);
   }
@@ -120,7 +121,7 @@ export class NotificationsController {
   @ApiOkResponse({ type: NotificationDto })
   async dismissNotification(
     @Req() req: AuthenticatedRequest,
-    @Param('id', ParseObjectIdPipe) notificationId: string,
+    @Param('id', ParseUUIDPipe) notificationId: string,
   ): Promise<NotificationDto> {
     return this.notificationsService.dismissNotification(
       notificationId,
@@ -136,7 +137,7 @@ export class NotificationsController {
   @HttpCode(204)
   async deleteNotification(
     @Req() req: AuthenticatedRequest,
-    @Param('id', ParseObjectIdPipe) notificationId: string,
+    @Param('id', ParseUUIDPipe) notificationId: string,
   ): Promise<void> {
     await this.notificationsService.deleteNotification(
       notificationId,
@@ -177,7 +178,7 @@ export class NotificationsController {
   @ApiOkResponse({ type: ChannelNotificationOverrideDto })
   async getChannelOverride(
     @Req() req: AuthenticatedRequest,
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
   ): Promise<ChannelNotificationOverrideDto | null> {
     return this.notificationsService.getChannelOverride(req.user.id, channelId);
   }
@@ -190,7 +191,7 @@ export class NotificationsController {
   @ApiOkResponse({ type: ChannelNotificationOverrideDto })
   async setChannelOverride(
     @Req() req: AuthenticatedRequest,
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
     @Body() dto: UpdateChannelOverrideDto,
   ): Promise<ChannelNotificationOverrideDto> {
     return this.notificationsService.setChannelOverride(
@@ -208,7 +209,7 @@ export class NotificationsController {
   @HttpCode(204)
   async deleteChannelOverride(
     @Req() req: AuthenticatedRequest,
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
   ): Promise<void> {
     await this.notificationsService.deleteChannelOverride(
       req.user.id,

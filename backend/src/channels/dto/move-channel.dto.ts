@@ -1,9 +1,8 @@
-import { IsNotEmpty, IsString } from 'class-validator';
-import { IsObjectId } from 'nestjs-object-id';
+import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 export class MoveChannelDto {
   @IsNotEmpty()
   @IsString()
-  @IsObjectId()
+  @IsUUID()
   communityId: string;
 }

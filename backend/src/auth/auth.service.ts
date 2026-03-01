@@ -7,7 +7,7 @@ import { DatabaseService } from '@/database/database.service';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { ObjectId } from 'mongodb';
+import { randomUUID } from 'crypto';
 
 export interface DeviceInfo {
   userAgent?: string;
@@ -63,7 +63,7 @@ export class AuthService {
   }
 
   login(user: UserEntity) {
-    const jti = new ObjectId().toHexString();
+    const jti = randomUUID();
     const payload = {
       username: user.username,
       sub: user.id,
@@ -103,8 +103,7 @@ export class AuthService {
     tx?: Prisma.TransactionClient,
     familyId?: string,
   ) {
-    // generate a MongoDB ObjectId for the jti
-    const jti = new ObjectId().toHexString();
+    const jti = randomUUID();
     const refreshToken = this.jwtService.sign(
       { sub: userId, jti },
       {
@@ -127,7 +126,7 @@ export class AuthService {
         userAgent: deviceInfo?.userAgent,
         ipAddress: deviceInfo?.ipAddress,
         lastUsedAt: new Date(),
-        familyId: familyId ?? new ObjectId().toHexString(),
+        familyId: familyId ?? randomUUID(),
       },
     });
 

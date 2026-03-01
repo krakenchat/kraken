@@ -13,6 +13,7 @@ import {
   Delete,
   UseInterceptors,
   ClassSerializerInterceptor,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { UserService } from './user.service';
@@ -36,7 +37,7 @@ import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { SuccessResponseDto } from '@/common/dto/common-response.dto';
 
 @Controller('users')
@@ -113,7 +114,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({ type: UserEntity })
   async getUserById(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<UserEntity> {
     const user = await this.userService.findById(id);
 
@@ -181,7 +182,7 @@ export class UserController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   @ApiOkResponse({ type: AdminUserEntity })
   async getUserByIdAdmin(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<AdminUserEntity> {
     const user = await this.userService.findByIdAdmin(id);
     if (!user) {
@@ -200,7 +201,7 @@ export class UserController {
   @ApiOkResponse({ type: AdminUserEntity })
   async updateUserRole(
     @Req() req: AuthenticatedRequest,
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserRoleDto,
   ): Promise<AdminUserEntity> {
     return this.userService.updateUserRole(id, dto.role, req.user.id);
@@ -216,7 +217,7 @@ export class UserController {
   @ApiOkResponse({ type: AdminUserEntity })
   async setBanStatus(
     @Req() req: AuthenticatedRequest,
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetUserBanStatusDto,
   ): Promise<AdminUserEntity> {
     return this.userService.setBanStatus(id, dto.banned, req.user.id);
@@ -232,7 +233,7 @@ export class UserController {
   @ApiOkResponse({ type: SuccessResponseDto })
   async deleteUser(
     @Req() req: AuthenticatedRequest,
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ success: boolean }> {
     await this.userService.deleteUser(id, req.user.id);
     return { success: true };
@@ -250,7 +251,7 @@ export class UserController {
   @ApiCreatedResponse({ type: SuccessResponseDto })
   async blockUser(
     @Req() req: AuthenticatedRequest,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<{ success: boolean }> {
     await this.userService.blockUser(req.user.id, userId);
     return { success: true };
@@ -264,7 +265,7 @@ export class UserController {
   @ApiOkResponse({ type: SuccessResponseDto })
   async unblockUser(
     @Req() req: AuthenticatedRequest,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<{ success: boolean }> {
     await this.userService.unblockUser(req.user.id, userId);
     return { success: true };
@@ -290,7 +291,7 @@ export class UserController {
   @ApiOkResponse({ type: BlockedStatusResponseDto })
   async isUserBlocked(
     @Req() req: AuthenticatedRequest,
-    @Param('userId', ParseObjectIdPipe) userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<BlockedStatusResponseDto> {
     const blocked = await this.userService.isUserBlocked(req.user.id, userId);
     return { blocked };

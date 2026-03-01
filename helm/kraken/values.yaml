@@ -237,48 +237,33 @@ ingress:
     secretName: ""
 
 # ============================================
-# MongoDB Configuration
+# PostgreSQL Configuration
 # ============================================
-mongodb:
-  # Set to true to deploy MongoDB as part of this chart
-  # Set to false to use external MongoDB
+postgresql:
+  # Set to true to deploy PostgreSQL as part of this chart
   bundled: true
 
-  # Architecture: standalone or replicaset
-  architecture: replicaset
-
-  # Replica set configuration (required for Kraken's change streams)
-  replicaCount: 3
-  replicaSetName: rs0
-
-  # Authentication
   auth:
-    enabled: true
-    rootUser: root
-    rootPassword: "changeme-root-password"
     username: kraken
-    password: "changeme-kraken-password"
+    password: ""  # Set via --set or secrets
     database: kraken
 
-  # Persistence
-  persistence:
-    enabled: true
-    size: 20Gi
-    # storageClass: ""
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
 
-  # Resources
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 2Gi
-    requests:
-      cpu: 500m
-      memory: 1Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
 
-  # External MongoDB configuration (when bundled: false)
+  # External PostgreSQL (when bundled is false)
   external:
-    # Full MongoDB connection string
-    uri: "mongodb://user:password@mongo.example.com:27017/kraken?replicaSet=rs0"
+    uri: ""  # e.g., postgresql://user:pass@host:5432/kraken
 
 # ============================================
 # Redis Configuration

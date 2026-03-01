@@ -12,6 +12,7 @@ import {
   Req,
   DefaultValuePipe,
   ParseIntPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
@@ -31,7 +32,7 @@ import {
   RbacResourceType,
   ResourceIdSource,
 } from '@/auth/rbac-resource.decorator';
-import { ParseObjectIdPipe } from 'nestjs-object-id';
+
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { AuthenticatedRequest } from '@/types';
@@ -40,6 +41,7 @@ import {
   MessageDto,
   PaginatedMessagesResponseDto,
 } from './dto/message-response.dto';
+import { groupReactions } from '@/common/utils/reactions.utils';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -81,7 +83,7 @@ export class MessagesController {
     source: ResourceIdSource.PARAM,
   })
   findAllForGroup(
-    @Param('groupId', ParseObjectIdPipe) groupId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ): Promise<PaginatedMessagesResponseDto> {
@@ -101,7 +103,7 @@ export class MessagesController {
     source: ResourceIdSource.PARAM,
   })
   findAllForChannel(
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ): Promise<PaginatedMessagesResponseDto> {
@@ -121,7 +123,7 @@ export class MessagesController {
     source: ResourceIdSource.PARAM,
   })
   searchChannelMessages(
-    @Param('channelId', ParseObjectIdPipe) channelId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ): Promise<EnrichedMessageDto[]> {
@@ -137,7 +139,7 @@ export class MessagesController {
     source: ResourceIdSource.PARAM,
   })
   searchDirectMessages(
-    @Param('groupId', ParseObjectIdPipe) groupId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ): Promise<EnrichedMessageDto[]> {
@@ -153,7 +155,7 @@ export class MessagesController {
     source: ResourceIdSource.PARAM,
   })
   searchCommunityMessages(
-    @Param('communityId', ParseObjectIdPipe) communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Query('q') query: string,
     @Req() req: AuthenticatedRequest,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
@@ -177,7 +179,7 @@ export class MessagesController {
   async addReaction(
     @Body() addReactionDto: AddReactionDto,
     @Req() req: AuthenticatedRequest,
-  ): Promise<MessageDto> {
+  ) {
     const result = await this.reactionsService.addReaction(
       addReactionDto.messageId,
       addReactionDto.emoji,
@@ -187,11 +189,10 @@ export class MessagesController {
     // Emit WebSocket event
     const roomId = result.channelId || result.directMessageGroupId;
     if (roomId) {
-      const reactions = result.reactions as {
-        emoji: string;
-        userIds: string[];
-      }[];
-      const reaction = reactions.find((r) => r.emoji === addReactionDto.emoji);
+      const groupedReactions = groupReactions(result.reactions);
+      const reaction = groupedReactions.find(
+        (r) => r.emoji === addReactionDto.emoji,
+      );
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
         messageId: result.id,
         reaction: reaction,
@@ -214,7 +215,7 @@ export class MessagesController {
   async removeReaction(
     @Body() removeReactionDto: RemoveReactionDto,
     @Req() req: AuthenticatedRequest,
-  ): Promise<MessageDto> {
+  ) {
     const result = await this.reactionsService.removeReaction(
       removeReactionDto.messageId,
       removeReactionDto.emoji,
@@ -224,14 +225,11 @@ export class MessagesController {
     // Emit WebSocket event
     const roomId = result.channelId || result.directMessageGroupId;
     if (roomId) {
-      const reactions = result.reactions as {
-        emoji: string;
-        userIds: string[];
-      }[];
+      const groupedReactions = groupReactions(result.reactions);
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
         messageId: result.id,
         emoji: removeReactionDto.emoji,
-        reactions: reactions,
+        reactions: groupedReactions,
         channelId: result.channelId ?? null,
         directMessageGroupId: result.directMessageGroupId ?? null,
       });
@@ -244,9 +242,9 @@ export class MessagesController {
   @ApiCreatedResponse({ type: EnrichedMessageDto })
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
   async addAttachment(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() addAttachmentDto: AddAttachmentDto,
-  ): Promise<EnrichedMessageDto> {
+  ) {
     // First get the original message to know which room to notify
     const originalMessage = await this.messagesService.findOne(id);
 
@@ -259,7 +257,7 @@ export class MessagesController {
 
     // Enrich message with file metadata before emitting
     const enrichedMessage =
-      await this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
+      this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
 
     // Emit WebSocket event to the room
     const roomId =
@@ -282,7 +280,7 @@ export class MessagesController {
     source: ResourceIdSource.PARAM,
   })
   async findOne(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<EnrichedMessageDto> {
     const message = await this.messagesService.findOne(id);
     // Enrich with file metadata for consistent response shape
@@ -293,22 +291,25 @@ export class MessagesController {
   @ApiOkResponse({ type: EnrichedMessageDto })
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
   async update(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateMessageDto: UpdateMessageDto,
   ): Promise<EnrichedMessageDto> {
     // First get the original message to know which channel to notify
     const originalMessage = await this.messagesService.findOne(id);
 
-    // Update the message, passing original attachments for cleanup
+    // Update the message, passing original attachment file IDs for cleanup
+    const originalFileIds = originalMessage.attachments.map(
+      (a: { id: string }) => a.id,
+    );
     const updatedMessage = await this.messagesService.update(
       id,
       updateMessageDto,
-      originalMessage.attachments,
+      originalFileIds,
     );
 
     // Enrich with file metadata for consistent response shape
     const enrichedMessage =
-      await this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
+      this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
 
     // Emit WebSocket event to the channel room
     const roomId =
@@ -325,12 +326,12 @@ export class MessagesController {
   @HttpCode(204)
   @Delete(':id')
   @UseGuards(JwtAuthGuard, MessageOwnershipGuard)
-  async remove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     // First get the message to know which channel to notify
     const messageToDelete = await this.messagesService.findOne(id);
 
     // Delete the message and mark attachments for cleanup
-    await this.messagesService.remove(id, messageToDelete.attachments);
+    await this.messagesService.remove(id);
 
     // Emit WebSocket event to the channel room
     const roomId =

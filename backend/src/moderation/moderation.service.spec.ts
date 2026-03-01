@@ -820,6 +820,8 @@ describe('ModerationService', () => {
           pinned: true,
           deletedAt: null,
           attachments: [],
+          spans: [],
+          reactions: [],
         },
         {
           id: 'msg-2',
@@ -827,6 +829,8 @@ describe('ModerationService', () => {
           pinned: true,
           deletedAt: null,
           attachments: [],
+          spans: [],
+          reactions: [],
         },
       ];
       const authors = [
@@ -851,13 +855,32 @@ describe('ModerationService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].author).toEqual(authors[0]);
       expect(result[1].author).toEqual(authors[1]);
-      // Note: deletedAt is filtered in memory, not in query (MongoDB null field issue)
+      // Note: deletedAt is filtered in memory after query
       expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
         where: {
           channelId,
           pinned: true,
         },
         orderBy: { pinnedAt: 'desc' },
+        include: {
+          attachments: {
+            include: {
+              file: {
+                select: {
+                  id: true,
+                  filename: true,
+                  mimeType: true,
+                  fileType: true,
+                  size: true,
+                  thumbnailPath: true,
+                },
+              },
+            },
+            orderBy: { position: 'asc' },
+          },
+          spans: { orderBy: { position: 'asc' } },
+          reactions: true,
+        },
       });
       expect(mockDatabase.user.findMany).toHaveBeenCalledWith({
         where: { id: { in: ['user-1', 'user-2'] } },

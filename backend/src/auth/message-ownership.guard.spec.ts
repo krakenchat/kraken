@@ -36,7 +36,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      messagesService.findOne.mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message as any);
 
       const result = await guard.canActivate(context);
 
@@ -53,7 +53,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      messagesService.findOne.mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message as any);
       rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
@@ -71,7 +71,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      messagesService.findOne.mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message as any);
       rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
@@ -218,7 +218,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      messagesService.findOne.mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message as any);
       // Mock RBAC to return false to ensure ownership check takes precedence
       rbacGuard.canActivate.mockResolvedValue(false);
 
@@ -237,7 +237,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      messagesService.findOne.mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message as any);
       rbacGuard.canActivate.mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
@@ -311,7 +311,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      messagesService.findOne.mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message as any);
 
       const result = await guard.canActivate(context);
 
@@ -327,7 +327,7 @@ describe('MessageOwnershipGuard', () => {
         params: { id: message.id },
       });
 
-      messagesService.findOne.mockResolvedValue(message);
+      messagesService.findOne.mockResolvedValue(message as any);
       rbacGuard.canActivate.mockResolvedValue(false);
 
       const result = await guard.canActivate(context);

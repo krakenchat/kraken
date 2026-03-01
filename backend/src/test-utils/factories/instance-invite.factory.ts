@@ -1,22 +1,21 @@
 import { InstanceInvite } from '@prisma/client';
+import { randomUUID } from 'crypto';
 
 export class InstanceInviteFactory {
   private static counter = 0;
 
   static build(overrides: Partial<InstanceInvite> = {}): InstanceInvite {
-    const id = overrides.id || this.generateId();
+    const id = overrides.id || randomUUID();
     const code = overrides.code || `INVITE${this.counter++}`;
 
     return {
       id,
       code,
-      createdById: overrides.createdById || this.generateId(),
-      defaultCommunityId: overrides.defaultCommunityId || [],
+      createdById: overrides.createdById || randomUUID(),
       maxUses: overrides.maxUses || null,
       uses: overrides.uses ?? 0,
       validUntil: overrides.validUntil || null,
       createdAt: overrides.createdAt || new Date(),
-      usedByIds: overrides.usedByIds || [],
       disabled: overrides.disabled ?? false,
       ...overrides,
     } as InstanceInvite;
@@ -64,13 +63,6 @@ export class InstanceInviteFactory {
     overrides: Partial<InstanceInvite> = {},
   ): InstanceInvite[] {
     return Array.from({ length: count }, () => this.build(overrides));
-  }
-
-  private static generateId(): string {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
   }
 
   static resetCounter(): void {

@@ -40,6 +40,7 @@ import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
 import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
+import { groupReactions } from '@/common/utils/reactions.utils';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -165,7 +166,7 @@ export class MessagesGateway
 
     // Enrich message with file metadata before emitting
     const enrichedMessage =
-      await this.messagesService.enrichMessageWithFileMetadata(message);
+      this.messagesService.enrichMessageWithFileMetadata(message);
 
     this.websocketService.sendToRoom(
       payload.channelId,
@@ -233,7 +234,7 @@ export class MessagesGateway
 
     // Enrich message with file metadata before emitting
     const enrichedMessage =
-      await this.messagesService.enrichMessageWithFileMetadata(message);
+      this.messagesService.enrichMessageWithFileMetadata(message);
 
     this.websocketService.sendToRoom(
       payload.directMessageGroupId,
@@ -267,7 +268,8 @@ export class MessagesGateway
     // Broadcast to all users in the channel
     const roomId = result.channelId || result.directMessageGroupId;
     if (roomId) {
-      const reaction = result.reactions.find((r) => r.emoji === payload.emoji);
+      const grouped = groupReactions(result.reactions);
+      const reaction = grouped.find((r) => r.emoji === payload.emoji);
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
         messageId: result.id,
         reaction: reaction,
@@ -301,7 +303,7 @@ export class MessagesGateway
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
         messageId: result.id,
         emoji: payload.emoji,
-        reactions: result.reactions,
+        reactions: groupReactions(result.reactions),
         channelId: result.channelId ?? null,
         directMessageGroupId: result.directMessageGroupId ?? null,
       });

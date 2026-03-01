@@ -72,6 +72,12 @@ export type MockDatabaseService = {
   communityTimeout: MockPrismaModel;
   moderationLog: MockPrismaModel;
   replayClip: MockPrismaModel;
+  // Junction table models (PostgreSQL)
+  messageSpan: MockPrismaModel;
+  messageReaction: MockPrismaModel;
+  messageAttachment: MockPrismaModel;
+  instanceInviteUsage: MockPrismaModel;
+  instanceInviteDefaultCommunity: MockPrismaModel;
 
   // Prisma client methods
   $connect: jest.Mock;
@@ -79,7 +85,6 @@ export type MockDatabaseService = {
   $transaction: jest.Mock;
   $queryRaw: jest.Mock;
   $executeRaw: jest.Mock;
-  $runCommandRaw: jest.Mock;
   $on: jest.Mock;
 
   // NestJS lifecycle methods
@@ -139,6 +144,12 @@ export function createMockDatabase(): MockDatabaseService {
     communityTimeout: createMockPrismaModel(),
     moderationLog: createMockPrismaModel(),
     replayClip: createMockPrismaModel(),
+    // Junction table models (PostgreSQL)
+    messageSpan: createMockPrismaModel(),
+    messageReaction: createMockPrismaModel(),
+    messageAttachment: createMockPrismaModel(),
+    instanceInviteUsage: createMockPrismaModel(),
+    instanceInviteDefaultCommunity: createMockPrismaModel(),
 
     // Prisma client methods
     $connect: jest.fn().mockResolvedValue(undefined),
@@ -146,7 +157,6 @@ export function createMockDatabase(): MockDatabaseService {
     $transaction: jest.fn((callback) => callback(mockDb)),
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
-    $runCommandRaw: jest.fn(),
     $on: jest.fn(),
 
     // NestJS lifecycle methods

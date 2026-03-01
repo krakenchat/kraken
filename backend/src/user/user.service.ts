@@ -83,16 +83,19 @@ export class UserService {
       }
 
       // Add user to default communities specified in the invite
-      if (updatedInvite.defaultCommunityId.length > 0) {
+      const defaultCommunityIds = updatedInvite.defaultCommunities.map(
+        (dc) => dc.communityId,
+      );
+      if (defaultCommunityIds.length > 0) {
         await tx.membership.createMany({
-          data: updatedInvite.defaultCommunityId.map((communityId) => ({
+          data: defaultCommunityIds.map((communityId) => ({
             userId: createdUser.id,
             communityId,
           })),
         });
 
         // Add user to general channel and assign Member role in each community
-        for (const communityId of updatedInvite.defaultCommunityId) {
+        for (const communityId of defaultCommunityIds) {
           try {
             // Add to general channel
             await this.channelsService.addUserToGeneralChannel(

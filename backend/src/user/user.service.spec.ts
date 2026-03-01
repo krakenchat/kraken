@@ -162,7 +162,7 @@ describe('UserService', () => {
       inviteService.validateInviteCode.mockResolvedValue(invite as any);
       inviteService.redeemInviteWithTx.mockResolvedValue({
         ...invite,
-        defaultCommunityId: [],
+        defaultCommunities: [],
       } as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
 
@@ -198,7 +198,7 @@ describe('UserService', () => {
       inviteService.validateInviteCode.mockResolvedValue(invite as any);
       inviteService.redeemInviteWithTx.mockResolvedValue({
         ...invite,
-        defaultCommunityId: [],
+        defaultCommunities: [],
       } as any);
       mockDatabase.user.create.mockResolvedValue(newUser);
 
@@ -219,7 +219,7 @@ describe('UserService', () => {
       inviteService.validateInviteCode.mockResolvedValue(invite as any);
       inviteService.redeemInviteWithTx.mockResolvedValue({
         ...invite,
-        defaultCommunityId: [],
+        defaultCommunities: [],
       } as any);
       mockDatabase.user.create.mockResolvedValue(UserFactory.build());
 
@@ -243,9 +243,11 @@ describe('UserService', () => {
     it('should add user to default communities', async () => {
       const communityId1 = 'community-1';
       const communityId2 = 'community-2';
-      const invite = InstanceInviteFactory.build({
-        defaultCommunityId: [communityId1, communityId2],
-      });
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId: communityId1 },
+        { id: 'dc-2', inviteId: invite.id, communityId: communityId2 },
+      ];
       const newUser = UserFactory.build();
       const memberRole = RoleFactory.buildMember();
 
@@ -274,9 +276,10 @@ describe('UserService', () => {
 
     it('should add user to general channel in default communities', async () => {
       const communityId = 'community-123';
-      const invite = InstanceInviteFactory.build({
-        defaultCommunityId: [communityId],
-      });
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId },
+      ];
       const newUser = UserFactory.build();
       const memberRole = RoleFactory.buildMember();
 
@@ -303,9 +306,10 @@ describe('UserService', () => {
 
     it('should assign Member role to user in default communities', async () => {
       const communityId = 'community-123';
-      const invite = InstanceInviteFactory.build({
-        defaultCommunityId: [communityId],
-      });
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId },
+      ];
       const newUser = UserFactory.build();
       const memberRole = RoleFactory.buildMember();
 
@@ -334,9 +338,10 @@ describe('UserService', () => {
 
     it('should create Member role if it does not exist', async () => {
       const communityId = 'community-123';
-      const invite = InstanceInviteFactory.build({
-        defaultCommunityId: [communityId],
-      });
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId },
+      ];
       const newUser = UserFactory.build();
       const memberRole = RoleFactory.buildMember();
 
@@ -368,9 +373,10 @@ describe('UserService', () => {
 
     it('should not fail user creation if general channel addition fails', async () => {
       const communityId = 'community-123';
-      const invite = InstanceInviteFactory.build({
-        defaultCommunityId: [communityId],
-      });
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId },
+      ];
       const newUser = UserFactory.build();
       const memberRole = RoleFactory.buildMember();
 
@@ -398,9 +404,10 @@ describe('UserService', () => {
 
     it('should not fail user creation if role assignment fails', async () => {
       const communityId = 'community-123';
-      const invite = InstanceInviteFactory.build({
-        defaultCommunityId: [communityId],
-      });
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId },
+      ];
       const newUser = UserFactory.build();
 
       mockDatabase.user.findFirst.mockResolvedValue(null);
