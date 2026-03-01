@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { ServerEvents } from '@kraken/shared';
 import { useServerEvent } from '../socket-hub/useServerEvent';
 import { useVoiceDispatch } from '../contexts/VoiceContext';
@@ -22,6 +23,7 @@ export const useServerMuteEffect = () => {
   const { dispatch } = useVoiceDispatch();
   const { room } = useRoom();
   const { user } = useCurrentUser();
+  const wasServerMutedRef = useRef(false);
 
   useServerEvent(ServerEvents.VOICE_CHANNEL_USER_UPDATED, (payload) => {
     if (!user || payload.userId !== user.id) return;
@@ -30,9 +32,11 @@ export const useServerMuteEffect = () => {
 
     dispatch({ type: 'SET_SERVER_MUTED', payload: isServerMuted });
 
-    if (isServerMuted) {
+    // Only play error sound on the unmuted → muted transition
+    if (isServerMuted && !wasServerMutedRef.current) {
       playSound(Sounds.error);
     }
+    wasServerMutedRef.current = isServerMuted;
 
     if (isServerMuted && room) {
       room.localParticipant.setMicrophoneEnabled(false).catch((err) => {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useServerMuteEffect } from '../../hooks/useServerMuteEffect';
+import { playSound } from '../../hooks/useSound';
 
 const mockDispatch = vi.fn();
 let mockRoom: { localParticipant: { setMicrophoneEnabled: ReturnType<typeof vi.fn> } } | null = null;
@@ -54,7 +55,7 @@ describe('useServerMuteEffect', () => {
     };
   });
 
-  it('dispatches SET_SERVER_MUTED when local user is server-muted', () => {
+  it('dispatches SET_SERVER_MUTED and plays error sound when local user is server-muted', () => {
     renderHook(() => useServerMuteEffect());
 
     expect(serverEventCallback).toBeTruthy();
@@ -68,6 +69,7 @@ describe('useServerMuteEffect', () => {
       type: 'SET_SERVER_MUTED',
       payload: true,
     });
+    expect(playSound).toHaveBeenCalledWith('error');
   });
 
   it('forces mic off when server-muted', () => {
@@ -82,7 +84,7 @@ describe('useServerMuteEffect', () => {
     expect(mockRoom!.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
   });
 
-  it('dispatches SET_SERVER_MUTED(false) when server-unmuted', () => {
+  it('dispatches SET_SERVER_MUTED(false) when server-unmuted and does not play sound', () => {
     renderHook(() => useServerMuteEffect());
 
     serverEventCallback!({
@@ -95,6 +97,7 @@ describe('useServerMuteEffect', () => {
       type: 'SET_SERVER_MUTED',
       payload: false,
     });
+    expect(playSound).not.toHaveBeenCalled();
   });
 
   it('does not force mic on when server-unmuted', () => {
@@ -121,6 +124,26 @@ describe('useServerMuteEffect', () => {
 
     expect(mockDispatch).not.toHaveBeenCalled();
     expect(mockRoom!.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
+  });
+
+  it('does not play error sound on repeated server-muted events (only on transition)', () => {
+    renderHook(() => useServerMuteEffect());
+
+    // First mute → should play
+    serverEventCallback!({
+      channelId: 'ch-1',
+      userId: 'user-1',
+      user: { id: 'user-1', isServerMuted: true },
+    });
+    expect(playSound).toHaveBeenCalledTimes(1);
+
+    // Second mute event (same state) → should NOT play again
+    serverEventCallback!({
+      channelId: 'ch-1',
+      userId: 'user-1',
+      user: { id: 'user-1', isServerMuted: true },
+    });
+    expect(playSound).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing when no user is logged in', () => {
