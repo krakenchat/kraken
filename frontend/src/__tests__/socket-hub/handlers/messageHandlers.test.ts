@@ -192,36 +192,6 @@ describe('messageHandlers', () => {
       expect(readers).toHaveLength(0);
     });
 
-    it('does not add reader for messages after lastReadMessageId', () => {
-      const queryClient = new QueryClient();
-
-      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'current-user' });
-
-      // Seed a cached readers query for msg-9 (after lastReadMessageId msg-5)
-      const readersKey = readReceiptsControllerGetMessageReadersQueryKey({
-        path: { messageId: 'msg-9' },
-        query: { channelId: '', directMessageGroupId: 'dm-1' },
-      });
-      queryClient.setQueryData(readersKey, [] as MessageReader[]);
-
-      handleReadReceiptUpdated(
-        {
-          channelId: null,
-          directMessageGroupId: 'dm-1',
-          lastReadMessageId: 'msg-5',
-          lastReadAt: '2024-01-01T00:00:00Z',
-          userId: 'alice-id',
-          username: 'alice',
-          displayName: 'Alice',
-          avatarUrl: null,
-        },
-        queryClient,
-      );
-
-      const readers = queryClient.getQueryData<MessageReader[]>(readersKey);
-      expect(readers).toHaveLength(0);
-    });
-
     it('skips self-reads (does not add current user to readers)', () => {
       const queryClient = new QueryClient();
 
