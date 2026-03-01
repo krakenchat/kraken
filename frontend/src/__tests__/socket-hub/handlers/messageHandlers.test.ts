@@ -159,6 +159,37 @@ describe('messageHandlers', () => {
       expect(readers![0].username).toBe('alice');
       expect(readers![0].displayName).toBe('Alice');
       expect(readers![0].avatarUrl).toBe('https://example.com/alice.png');
+      expect(readers![0].readAt).toEqual(new Date('2024-01-01T00:00:00Z'));
+    });
+
+    it('does not update readers in a different DM group', () => {
+      const queryClient = new QueryClient();
+
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'current-user' });
+
+      // Cached readers for a message in dm-2 (different from the payload's dm-1)
+      const otherDmReadersKey = readReceiptsControllerGetMessageReadersQueryKey({
+        path: { messageId: 'msg-2' },
+        query: { channelId: '', directMessageGroupId: 'dm-2' },
+      });
+      queryClient.setQueryData(otherDmReadersKey, [] as MessageReader[]);
+
+      handleReadReceiptUpdated(
+        {
+          channelId: null,
+          directMessageGroupId: 'dm-1',
+          lastReadMessageId: 'msg-5',
+          lastReadAt: '2024-01-01T00:00:00Z',
+          userId: 'alice-id',
+          username: 'alice',
+          displayName: 'Alice',
+          avatarUrl: null,
+        },
+        queryClient,
+      );
+
+      const readers = queryClient.getQueryData<MessageReader[]>(otherDmReadersKey);
+      expect(readers).toHaveLength(0);
     });
 
     it('does not add reader for messages after lastReadMessageId', () => {

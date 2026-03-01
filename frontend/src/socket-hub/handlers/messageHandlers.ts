@@ -251,7 +251,7 @@ export const handleReadReceiptUpdated: SocketEventHandler<typeof ServerEvents.RE
       username: payload.username,
       displayName: payload.displayName ?? undefined,
       avatarUrl: payload.avatarUrl ?? undefined,
-      readAt: new Date(),
+      readAt: new Date(payload.lastReadAt),
     };
 
     // Update all cached message readers queries for messages <= lastReadMessageId
@@ -261,10 +261,16 @@ export const handleReadReceiptUpdated: SocketEventHandler<typeof ServerEvents.RE
 
     for (const [cachedKey, cachedData] of queries) {
       if (!cachedData) continue;
-      // Extract messageId from the query key options
-      const keyObj = cachedKey[0] as { messageId?: string; path?: { messageId?: string } };
-      const msgId = keyObj.messageId ?? keyObj.path?.messageId;
+      // Extract messageId and context from the query key options
+      const keyObj = cachedKey[0] as {
+        path?: { messageId?: string };
+        query?: { channelId?: string; directMessageGroupId?: string };
+      };
+      const msgId = keyObj.path?.messageId;
       if (!msgId) continue;
+      // Only update queries for the same conversation context
+      const keyContextId = keyObj.query?.directMessageGroupId || keyObj.query?.channelId;
+      if (keyContextId !== id) continue;
       // ObjectID lexicographic comparison works chronologically
       if (msgId > lastReadMessageId) continue;
       // Skip if this user is already in the readers list
