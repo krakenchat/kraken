@@ -64,15 +64,10 @@ export class ReadReceiptsService {
     }
 
     // Guard against watermark regression: only advance, never go backwards
-    const existingReceipt = await this.databaseService.readReceipt.findUnique({
+    const existingReceipt = await this.databaseService.readReceipt.findFirst({
       where: channelId
-        ? { userId_channelId: { userId, channelId } }
-        : {
-            userId_directMessageGroupId: {
-              userId,
-              directMessageGroupId: directMessageGroupId!,
-            },
-          },
+        ? { userId, channelId }
+        : { userId, directMessageGroupId },
     });
 
     if (existingReceipt) {
@@ -92,35 +87,16 @@ export class ReadReceiptsService {
       }
     }
 
-    // Upsert the read receipt
-    const readReceipt = channelId
-      ? await this.databaseService.readReceipt.upsert({
-          where: { userId_channelId: { userId, channelId } },
-          update: {
-            lastReadMessageId,
-            lastReadAt: new Date(),
-          },
-          create: {
-            userId,
-            channelId,
-            lastReadMessageId,
-            lastReadAt: new Date(),
-          },
+    // Create or update the read receipt
+    const readReceipt = existingReceipt
+      ? await this.databaseService.readReceipt.update({
+          where: { id: existingReceipt.id },
+          data: { lastReadMessageId, lastReadAt: new Date() },
         })
-      : await this.databaseService.readReceipt.upsert({
-          where: {
-            userId_directMessageGroupId: {
-              userId,
-              directMessageGroupId: directMessageGroupId!,
-            },
-          },
-          update: {
-            lastReadMessageId,
-            lastReadAt: new Date(),
-          },
-          create: {
+      : await this.databaseService.readReceipt.create({
+          data: {
             userId,
-            directMessageGroupId: directMessageGroupId!,
+            ...(channelId ? { channelId } : { directMessageGroupId }),
             lastReadMessageId,
             lastReadAt: new Date(),
           },
@@ -152,15 +128,10 @@ export class ReadReceiptsService {
     }
 
     // Find the read receipt
-    const readReceipt = await this.databaseService.readReceipt.findUnique({
+    const readReceipt = await this.databaseService.readReceipt.findFirst({
       where: channelId
-        ? { userId_channelId: { userId, channelId } }
-        : {
-            userId_directMessageGroupId: {
-              userId,
-              directMessageGroupId: directMessageGroupId!,
-            },
-          },
+        ? { userId, channelId }
+        : { userId, directMessageGroupId },
     });
 
     // Build notification type filter for mention counts
@@ -561,15 +532,10 @@ export class ReadReceiptsService {
       );
     }
 
-    const readReceipt = await this.databaseService.readReceipt.findUnique({
+    const readReceipt = await this.databaseService.readReceipt.findFirst({
       where: channelId
-        ? { userId_channelId: { userId, channelId } }
-        : {
-            userId_directMessageGroupId: {
-              userId,
-              directMessageGroupId: directMessageGroupId!,
-            },
-          },
+        ? { userId, channelId }
+        : { userId, directMessageGroupId },
     });
 
     return readReceipt?.lastReadMessageId || null;

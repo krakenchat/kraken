@@ -84,8 +84,8 @@ model ReadReceipt {
   channel            Channel?            @relation("ChannelReadReceipts", fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupReadReceipts", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, channelId])
-  @@unique([userId, directMessageGroupId])
+  @@index([userId, channelId])
+  @@index([userId, directMessageGroupId])
   @@index([userId]) // For fetching all read receipts for a user
   @@index([channelId]) // For channel-specific queries
   @@index([directMessageGroupId]) // For DM-specific queries

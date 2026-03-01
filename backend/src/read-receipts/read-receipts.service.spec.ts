@@ -58,8 +58,8 @@ describe('ReadReceiptsService', () => {
       };
 
       mockDatabase.message.findUnique.mockResolvedValue(message);
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(null);
-      mockDatabase.readReceipt.upsert.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(null);
+      mockDatabase.readReceipt.create.mockResolvedValue(readReceipt);
 
       const result = await service.markAsRead(userId, dto);
 
@@ -67,13 +67,8 @@ describe('ReadReceiptsService', () => {
       expect(mockDatabase.message.findUnique).toHaveBeenCalledWith({
         where: { id: messageId },
       });
-      expect(mockDatabase.readReceipt.upsert).toHaveBeenCalledWith({
-        where: { userId_channelId: { userId, channelId } },
-        update: {
-          lastReadMessageId: messageId,
-          lastReadAt: expect.any(Date),
-        },
-        create: {
+      expect(mockDatabase.readReceipt.create).toHaveBeenCalledWith({
+        data: {
           userId,
           channelId,
           lastReadMessageId: messageId,
@@ -99,24 +94,14 @@ describe('ReadReceiptsService', () => {
       };
 
       mockDatabase.message.findUnique.mockResolvedValue(message);
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(null);
-      mockDatabase.readReceipt.upsert.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(null);
+      mockDatabase.readReceipt.create.mockResolvedValue(readReceipt);
 
       const result = await service.markAsRead(userId, dto);
 
       expect(result).toEqual(readReceipt);
-      expect(mockDatabase.readReceipt.upsert).toHaveBeenCalledWith({
-        where: {
-          userId_directMessageGroupId: {
-            userId,
-            directMessageGroupId: dmGroupId,
-          },
-        },
-        update: {
-          lastReadMessageId: messageId,
-          lastReadAt: expect.any(Date),
-        },
-        create: {
+      expect(mockDatabase.readReceipt.create).toHaveBeenCalledWith({
+        data: {
           userId,
           directMessageGroupId: dmGroupId,
           lastReadMessageId: messageId,
@@ -156,13 +141,19 @@ describe('ReadReceiptsService', () => {
       mockDatabase.message.findUnique
         .mockResolvedValueOnce(message) // Validate incoming message
         .mockResolvedValueOnce(currentWatermarkMessage); // Fetch current watermark
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
-      mockDatabase.readReceipt.upsert.mockResolvedValue(updatedReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(existingReceipt);
+      mockDatabase.readReceipt.update.mockResolvedValue(updatedReceipt);
 
       const result = await service.markAsRead(userId, dto);
 
       expect(result).toEqual(updatedReceipt);
-      expect(mockDatabase.readReceipt.upsert).toHaveBeenCalled();
+      expect(mockDatabase.readReceipt.update).toHaveBeenCalledWith({
+        where: { id: existingReceipt.id },
+        data: {
+          lastReadMessageId: newMessageId,
+          lastReadAt: expect.any(Date),
+        },
+      });
     });
 
     it('should throw BadRequestException when neither channelId nor directMessageGroupId is provided', async () => {
@@ -255,12 +246,13 @@ describe('ReadReceiptsService', () => {
       mockDatabase.message.findUnique
         .mockResolvedValueOnce(olderMessage) // Validate incoming message
         .mockResolvedValueOnce(currentWatermarkMessage); // Fetch current watermark message
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(existingReceipt);
 
       const result = await service.markAsRead(userId, dto);
 
       expect(result).toEqual(existingReceipt);
-      expect(mockDatabase.readReceipt.upsert).not.toHaveBeenCalled();
+      expect(mockDatabase.readReceipt.update).not.toHaveBeenCalled();
+      expect(mockDatabase.readReceipt.create).not.toHaveBeenCalled();
     });
 
     it('should advance watermark when new message is newer than current watermark', async () => {
@@ -295,13 +287,19 @@ describe('ReadReceiptsService', () => {
       mockDatabase.message.findUnique
         .mockResolvedValueOnce(newerMessage) // Validate incoming message
         .mockResolvedValueOnce(currentWatermarkMessage); // Fetch current watermark message
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
-      mockDatabase.readReceipt.upsert.mockResolvedValue(updatedReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(existingReceipt);
+      mockDatabase.readReceipt.update.mockResolvedValue(updatedReceipt);
 
       const result = await service.markAsRead(userId, dto);
 
       expect(result).toEqual(updatedReceipt);
-      expect(mockDatabase.readReceipt.upsert).toHaveBeenCalled();
+      expect(mockDatabase.readReceipt.update).toHaveBeenCalledWith({
+        where: { id: existingReceipt.id },
+        data: {
+          lastReadMessageId: newerMessageId,
+          lastReadAt: expect.any(Date),
+        },
+      });
     });
 
     it('should advance watermark when current watermark message was deleted', async () => {
@@ -331,13 +329,19 @@ describe('ReadReceiptsService', () => {
       mockDatabase.message.findUnique
         .mockResolvedValueOnce(newMessage) // Validate incoming message
         .mockResolvedValueOnce(null); // Current watermark message was deleted
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(existingReceipt);
-      mockDatabase.readReceipt.upsert.mockResolvedValue(updatedReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(existingReceipt);
+      mockDatabase.readReceipt.update.mockResolvedValue(updatedReceipt);
 
       const result = await service.markAsRead(userId, dto);
 
       expect(result).toEqual(updatedReceipt);
-      expect(mockDatabase.readReceipt.upsert).toHaveBeenCalled();
+      expect(mockDatabase.readReceipt.update).toHaveBeenCalledWith({
+        where: { id: existingReceipt.id },
+        data: {
+          lastReadMessageId: newMessageId,
+          lastReadAt: expect.any(Date),
+        },
+      });
     });
 
     it('should throw BadRequestException when message does not belong to the specified DM group', async () => {
@@ -378,7 +382,7 @@ describe('ReadReceiptsService', () => {
         lastReadMessageId,
       });
 
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(lastReadMessage);
       mockDatabase.message.count.mockResolvedValue(5);
       mockDatabase.notification.count.mockResolvedValue(2);
@@ -424,7 +428,7 @@ describe('ReadReceiptsService', () => {
         lastReadMessageId,
       });
 
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(lastReadMessage);
       mockDatabase.message.count.mockResolvedValue(3);
       mockDatabase.notification.count.mockResolvedValue(1);
@@ -451,7 +455,7 @@ describe('ReadReceiptsService', () => {
     });
 
     it('should return total message count when no read receipt exists', async () => {
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(null);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(null);
       mockDatabase.message.count.mockResolvedValue(10);
       mockDatabase.notification.count.mockResolvedValue(0);
 
@@ -476,7 +480,7 @@ describe('ReadReceiptsService', () => {
         lastReadMessageId,
       });
 
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(null);
       mockDatabase.message.count.mockResolvedValue(15);
       mockDatabase.notification.count.mockResolvedValue(3);
@@ -516,7 +520,7 @@ describe('ReadReceiptsService', () => {
         lastReadMessageId,
       });
 
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(readReceipt);
       mockDatabase.message.findUnique.mockResolvedValue(lastReadMessage);
       mockDatabase.message.count.mockResolvedValue(3);
       mockDatabase.notification.count.mockResolvedValue(0);
@@ -780,13 +784,13 @@ describe('ReadReceiptsService', () => {
         lastReadMessageId,
       });
 
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(readReceipt);
 
       const result = await service.getLastReadMessageId(userId, channelId);
 
       expect(result).toBe(lastReadMessageId);
-      expect(mockDatabase.readReceipt.findUnique).toHaveBeenCalledWith({
-        where: { userId_channelId: { userId, channelId } },
+      expect(mockDatabase.readReceipt.findFirst).toHaveBeenCalledWith({
+        where: { userId, channelId },
       });
     });
 
@@ -798,7 +802,7 @@ describe('ReadReceiptsService', () => {
         lastReadMessageId,
       });
 
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(readReceipt);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(readReceipt);
 
       const result = await service.getLastReadMessageId(
         userId,
@@ -810,7 +814,7 @@ describe('ReadReceiptsService', () => {
     });
 
     it('should return null when no read receipt exists', async () => {
-      mockDatabase.readReceipt.findUnique.mockResolvedValue(null);
+      mockDatabase.readReceipt.findFirst.mockResolvedValue(null);
 
       const result = await service.getLastReadMessageId(userId, channelId);
 
