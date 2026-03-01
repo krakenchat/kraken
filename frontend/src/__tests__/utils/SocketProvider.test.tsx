@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { useContext } from 'react';
 import { SocketContext } from '../../utils/SocketContext';
@@ -11,6 +11,13 @@ const mockGetSocketSingleton = vi.fn();
 vi.mock('../../utils/socketSingleton', () => ({
   getSocketSingleton: (...args: unknown[]) => mockGetSocketSingleton(...args),
   disconnectSocket: vi.fn(),
+}));
+
+const mockRefreshToken = vi.fn();
+const mockNotifyAuthFailure = vi.fn();
+vi.mock('../../utils/tokenService', () => ({
+  refreshToken: (...args: unknown[]) => mockRefreshToken(...args),
+  notifyAuthFailure: (...args: unknown[]) => mockNotifyAuthFailure(...args),
 }));
 
 import { SocketProvider } from '../../utils/SocketProvider';
@@ -34,6 +41,11 @@ function createTestSocket() {
     connected: false,
     active: true,
     id: 'test-socket-id',
+    io: {
+      opts: {
+        reconnection: true,
+      },
+    },
     on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
       if (!handlers.has(event)) handlers.set(event, new Set());
       handlers.get(event)!.add(handler);
@@ -54,6 +66,11 @@ function createTestSocket() {
 describe('SocketProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('provides socket and initial disconnected state', () => {
@@ -151,5 +168,240 @@ describe('SocketProvider', () => {
     expect(mockSocket.off).toHaveBeenCalledWith('connect', expect.any(Function));
     expect(mockSocket.off).toHaveBeenCalledWith('disconnect', expect.any(Function));
     expect(mockSocket.off).toHaveBeenCalledWith('connect_error', expect.any(Function));
+  });
+
+  describe('AUTH_FAILED connect_error handling', () => {
+    it('should attempt token refresh on AUTH_FAILED error', async () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+      mockRefreshToken.mockResolvedValue('new-token');
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      await act(async () => {
+        mockSocket.simulateEvent('connect_error', new Error('AUTH_FAILED'));
+        // Flush the promise chain
+        await vi.runAllTimersAsync();
+      });
+
+      expect(mockRefreshToken).toHaveBeenCalled();
+      expect(mockSocket.io.opts.reconnection).toBe(true);
+      expect(mockSocket.connect).toHaveBeenCalled();
+      expect(mockNotifyAuthFailure).not.toHaveBeenCalled();
+    });
+
+    it('should call notifyAuthFailure when refresh returns null', async () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+      mockRefreshToken.mockResolvedValue(null);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      await act(async () => {
+        mockSocket.simulateEvent('connect_error', new Error('AUTH_FAILED'));
+        await vi.runAllTimersAsync();
+      });
+
+      expect(mockRefreshToken).toHaveBeenCalled();
+      expect(mockNotifyAuthFailure).toHaveBeenCalled();
+      expect(mockSocket.connect).not.toHaveBeenCalled();
+    });
+
+    it('should call notifyAuthFailure when refresh throws', async () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+      mockRefreshToken.mockRejectedValue(new Error('Refresh failed'));
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      await act(async () => {
+        mockSocket.simulateEvent('connect_error', new Error('AUTH_FAILED'));
+        await vi.runAllTimersAsync();
+      });
+
+      expect(mockRefreshToken).toHaveBeenCalled();
+      expect(mockNotifyAuthFailure).toHaveBeenCalled();
+    });
+
+    it('should temporarily disable reconnection during refresh', async () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      let resolveRefresh: (value: string | null) => void;
+      mockRefreshToken.mockImplementation(
+        () => new Promise((resolve) => { resolveRefresh = resolve; })
+      );
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      act(() => {
+        mockSocket.simulateEvent('connect_error', new Error('AUTH_FAILED'));
+      });
+
+      // Reconnection should be disabled during refresh
+      expect(mockSocket.io.opts.reconnection).toBe(false);
+
+      await act(async () => {
+        resolveRefresh!('new-token');
+        await vi.runAllTimersAsync();
+      });
+
+      // Re-enabled after refresh
+      expect(mockSocket.io.opts.reconnection).toBe(true);
+    });
+
+    it('should not attempt refresh for non-auth errors', () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      act(() => {
+        mockSocket.simulateEvent('connect_error', new Error('timeout'));
+      });
+
+      expect(mockRefreshToken).not.toHaveBeenCalled();
+      expect(mockNotifyAuthFailure).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('server disconnect backoff and circuit breaker', () => {
+    it('should not immediately reconnect on server disconnect', () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+
+      // Should not reconnect immediately
+      expect(mockSocket.connect).not.toHaveBeenCalled();
+    });
+
+    it('should reconnect after backoff delay', () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+
+      expect(mockSocket.connect).not.toHaveBeenCalled();
+
+      // After 1s (first backoff)
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(mockSocket.connect).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use exponential backoff on subsequent disconnects', () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      // First disconnect: 1s backoff
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(mockSocket.connect).toHaveBeenCalledTimes(1);
+
+      // Second disconnect: 2s backoff
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      // Should not have reconnected yet (need 2s)
+      expect(mockSocket.connect).toHaveBeenCalledTimes(1);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(mockSocket.connect).toHaveBeenCalledTimes(2);
+    });
+
+    it('should trigger circuit breaker after 3 server disconnects', () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      // Disconnect 1: schedules timer at 1s
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+      // Disconnect 2: clears timer from #1, schedules timer at 2s
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+      // Disconnect 3: clears timer from #2, circuit breaker triggers
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+
+      expect(mockNotifyAuthFailure).toHaveBeenCalled();
+
+      // No reconnect timers should fire — all were cleared
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(mockSocket.connect).not.toHaveBeenCalled();
+    });
+
+    it('should reset disconnect counter on successful connect', () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      // Two disconnects
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+
+      // Successful connection resets counter
+      act(() => {
+        mockSocket.simulateEvent('connect');
+      });
+
+      // Two more disconnects should NOT trigger circuit breaker
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'io server disconnect');
+      });
+
+      expect(mockNotifyAuthFailure).not.toHaveBeenCalled();
+    });
+
+    it('should not use backoff for non-server-initiated disconnects', () => {
+      const mockSocket = createTestSocket();
+      mockGetSocketSingleton.mockReturnValue(mockSocket);
+
+      render(<SocketProvider><TestConsumer /></SocketProvider>);
+
+      act(() => {
+        mockSocket.simulateEvent('disconnect', 'transport close');
+      });
+
+      // Should not call connect (Socket.IO handles non-server disconnects)
+      expect(mockSocket.connect).not.toHaveBeenCalled();
+      // Should not trigger circuit breaker
+      expect(mockNotifyAuthFailure).not.toHaveBeenCalled();
+    });
   });
 });

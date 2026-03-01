@@ -7,6 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '@/user/user.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
+import { extractTokenFromHandshake } from '@/common/utils/socket.utils';
 import { Socket } from 'socket.io';
 
 @Injectable()
@@ -23,21 +24,19 @@ export class WsJwtAuthGuard implements CanActivate {
 
     if (context.getType() !== 'ws') return true;
     const client = context.switchToWs().getClient<Socket>();
-    let token: string | undefined =
-      typeof client.handshake.auth?.token === 'string'
-        ? client.handshake.auth.token
-        : typeof client.handshake.headers?.authorization === 'string'
-          ? client.handshake.headers.authorization
-          : undefined;
+
+    // Short-circuit: user already authenticated by connection middleware
+    if ((client.handshake as Record<string, any>).user) {
+      return true;
+    }
+
+    const token = extractTokenFromHandshake(client.handshake);
     if (!token) {
       this.logger.warn(
         'No token provided in handshake. Ensure you are passing the token in the correct format.',
       );
       client.disconnect(true);
       return false;
-    }
-    if (token.startsWith('Bearer ')) {
-      token = token.split('Bearer ')[1];
     }
     try {
       const payload = this.jwtService.verify<{ sub: string }>(token);

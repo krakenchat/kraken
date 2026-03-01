@@ -369,6 +369,29 @@ describe('WsJwtAuthGuard', () => {
     });
   });
 
+  describe('Short-circuit when user already attached by middleware', () => {
+    it('should return true immediately if handshake.user is already set', async () => {
+      const user = UserFactory.build();
+      const mockClient = {
+        id: 'socket-pre-auth',
+        handshake: {
+          user: new UserEntity(user),
+          auth: { token: 'some-token' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(jwtService.verify).not.toHaveBeenCalled();
+      expect(userService.findById).not.toHaveBeenCalled();
+      expect(mockClient.disconnect).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Edge cases', () => {
     it('should handle undefined handshake.auth', async () => {
       const mockClient = {
@@ -430,15 +453,12 @@ describe('WsJwtAuthGuard', () => {
       };
       const context = createMockWsExecutionContext({ client: mockClient });
 
-      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
-        throw new Error('Invalid token');
-      });
-
       const result = await guard.canActivate(context);
 
       expect(result).toBe(false);
       expect(mockClient.disconnect).toHaveBeenCalledWith(true);
-      expect(jwtService.verify).toHaveBeenCalledWith('');
+      // Empty string after stripping "Bearer " is treated as missing token
+      expect(jwtService.verify).not.toHaveBeenCalled();
     });
   });
 });
