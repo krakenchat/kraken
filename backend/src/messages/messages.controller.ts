@@ -187,9 +187,9 @@ export class MessagesController {
     );
 
     // Emit WebSocket event
+    const groupedReactions = groupReactions(result.reactions);
     const roomId = result.channelId || result.directMessageGroupId;
     if (roomId) {
-      const groupedReactions = groupReactions(result.reactions);
       const reaction = groupedReactions.find(
         (r) => r.emoji === addReactionDto.emoji,
       );
@@ -201,7 +201,10 @@ export class MessagesController {
       });
     }
 
-    return result;
+    return {
+      ...result,
+      reactions: groupedReactions,
+    };
   }
 
   @Delete('reactions')
@@ -223,9 +226,9 @@ export class MessagesController {
     );
 
     // Emit WebSocket event
+    const groupedReactions = groupReactions(result.reactions);
     const roomId = result.channelId || result.directMessageGroupId;
     if (roomId) {
-      const groupedReactions = groupReactions(result.reactions);
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
         messageId: result.id,
         emoji: removeReactionDto.emoji,
@@ -235,7 +238,10 @@ export class MessagesController {
       });
     }
 
-    return result;
+    return {
+      ...result,
+      reactions: groupedReactions,
+    };
   }
 
   @Post(':id/attachments')

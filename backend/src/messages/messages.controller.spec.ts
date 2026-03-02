@@ -249,7 +249,10 @@ describe('MessagesController', () => {
           directMessageGroupId: null,
         },
       );
-      expect(result).toEqual(mockMessage);
+      expect(result).toEqual({
+        ...mockMessage,
+        reactions: [{ emoji: '👍', userIds: [mockUser.id] }],
+      });
     });
 
     it('should add reaction and emit WebSocket event for DM message', async () => {
@@ -334,7 +337,10 @@ describe('MessagesController', () => {
           directMessageGroupId: null,
         },
       );
-      expect(result).toEqual(mockMessage);
+      expect(result).toEqual({
+        ...mockMessage,
+        reactions: [],
+      });
     });
 
     it('should handle DM group messages when removing reaction', async () => {
