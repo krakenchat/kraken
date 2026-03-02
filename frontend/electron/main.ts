@@ -865,7 +865,9 @@ app.whenReady().then(() => {
 
 // Tray keeps the app alive — don't quit when windows are hidden
 app.on('window-all-closed', () => {
-  // No-op: app stays alive in tray
+  if (!getSetting('closeToTray')) {
+    app.quit();
+  }
 });
 
 // Set isQuitting flag before the app starts closing windows
