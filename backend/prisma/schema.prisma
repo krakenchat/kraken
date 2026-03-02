@@ -79,7 +79,7 @@ model MessageSpan {
   communityId String? // For COMMUNITY_MENTION
   aliasId     String? // For ALIAS_MENTION
 
-  message    Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message    Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user       User?       @relation("SpanUser", fields: [userId], references: [id], onDelete: SetNull)
   community  Community?  @relation("SpanCommunity", fields: [communityId], references: [id], onDelete: SetNull)
   aliasGroup AliasGroup? @relation("SpanAlias", fields: [aliasId], references: [id], onDelete: SetNull)

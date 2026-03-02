@@ -96,12 +96,12 @@ DELETE FROM "InstanceInviteUsage"
 DELETE FROM "EgressSession"
   WHERE "channelId" NOT IN (SELECT "id" FROM "Channel");
 
--- Clean typed File FK columns for orphans
-UPDATE "File" SET "fileUserId" = NULL
+-- Delete orphaned File records (rather than nulling FKs, which would make files publicly accessible)
+DELETE FROM "File"
   WHERE "fileUserId" IS NOT NULL AND "fileUserId" NOT IN (SELECT "id" FROM "User");
-UPDATE "File" SET "fileCommunityId" = NULL
+DELETE FROM "File"
   WHERE "fileCommunityId" IS NOT NULL AND "fileCommunityId" NOT IN (SELECT "id" FROM "Community");
-UPDATE "File" SET "fileMessageId" = NULL
+DELETE FROM "File"
   WHERE "fileMessageId" IS NOT NULL AND "fileMessageId" NOT IN (SELECT "id" FROM "Message");
 
 -- Clean AliasGroup orphans (needs FK to Community)
