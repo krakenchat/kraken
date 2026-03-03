@@ -93,6 +93,7 @@ import {
   switchAudioInputDevice,
   switchAudioOutputDevice,
 } from '../../features/voice/voiceActions';
+import { VoiceActionType, VoiceSessionType } from '../../contexts/VoiceContext';
 import { livekitControllerGenerateToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from '../../api-client/sdk.gen';
 import { getCachedItem } from '../../utils/storage';
 
@@ -113,7 +114,7 @@ function createMockDeps(overrides: Partial<{
       isConnected: true,
       isConnecting: false,
       connectionError: null,
-      contextType: 'channel' as const,
+      contextType: VoiceSessionType.Channel,
       currentChannelId: 'channelId' in overrides ? overrides.channelId : 'ch-1',
       channelName: 'General',
       communityId: 'c1',
@@ -158,9 +159,9 @@ describe('voiceActions', () => {
       const deps = createMockDeps();
       await joinVoiceChannel(params, deps);
 
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_CONNECTING', payload: true });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetConnecting, payload: true });
       expect(deps.dispatch).toHaveBeenCalledWith({
-        type: 'SET_CONNECTED',
+        type: VoiceActionType.SetConnected,
         payload: { channelId: 'ch-1', channelName: 'General', communityId: 'c1', isPrivate: false, createdAt: '2025-01-01' },
       });
     });
@@ -188,7 +189,7 @@ describe('voiceActions', () => {
       const deps = createMockDeps();
 
       await expect(joinVoiceChannel(params, deps)).rejects.toThrow('Token failed');
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_CONNECTION_ERROR', payload: 'Token failed' });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetConnectionError, payload: 'Token failed' });
     });
 
     it('calls setRoom(null) on failure', async () => {
@@ -253,7 +254,7 @@ describe('voiceActions', () => {
       await leaveVoiceChannel(deps);
 
       expect(mockRoomInstance.disconnect).toHaveBeenCalled();
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_DISCONNECTED' });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetDisconnected });
     });
 
     it('calls voicePresenceControllerLeavePresence', async () => {
@@ -318,7 +319,7 @@ describe('voiceActions', () => {
       const deps = createMockDeps({ isDeafened: false });
       await toggleDeafenUnified(deps);
 
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_DEAFENED', payload: true });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetDeafened, payload: true });
       expect(mockRoomInstance.localParticipant.setMetadata).toHaveBeenCalled();
     });
 
@@ -352,7 +353,7 @@ describe('voiceActions', () => {
       const deps = createMockDeps({ isDeafened: false });
 
       await expect(toggleDeafenUnified(deps)).rejects.toThrow('fail');
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_DEAFENED', payload: false });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetDeafened, payload: false });
     });
 
     it('does not restore mic when undeafening if server-muted', async () => {
@@ -361,7 +362,7 @@ describe('voiceActions', () => {
       await toggleDeafenUnified(deps);
 
       // Should undeafen but NOT re-enable mic because server-muted
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_DEAFENED', payload: false });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetDeafened, payload: false });
       expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
     });
   });
@@ -372,7 +373,7 @@ describe('voiceActions', () => {
       await switchAudioInputDevice('device-123', deps);
 
       expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'device-123');
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_SELECTED_AUDIO_INPUT_ID', payload: 'device-123' });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetSelectedAudioInputId, payload: 'device-123' });
     });
 
     it('returns early when no room', async () => {
@@ -389,7 +390,7 @@ describe('voiceActions', () => {
       await switchAudioOutputDevice('device-456', deps);
 
       expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audiooutput', 'device-456');
-      expect(deps.dispatch).toHaveBeenCalledWith({ type: 'SET_SELECTED_AUDIO_OUTPUT_ID', payload: 'device-456' });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetSelectedAudioOutputId, payload: 'device-456' });
     });
 
     it('returns early when no room or channel', async () => {

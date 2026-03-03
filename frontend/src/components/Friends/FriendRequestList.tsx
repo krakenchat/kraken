@@ -14,12 +14,12 @@ import {
   friendsControllerAcceptFriendRequestMutation,
   friendsControllerDeclineFriendRequestMutation,
   friendsControllerCancelFriendRequestMutation,
-  userControllerGetProfileOptions,
 } from "../../api-client/@tanstack/react-query.gen";
 
 import FriendRequestCard from "./FriendRequestCard";
 import EmptyState from "../Common/EmptyState";
 import { logger } from "../../utils/logger";
+import { invalidateFriendQueries } from "../../utils/queryInvalidation";
 
 interface FriendRequestListProps {
   compact?: boolean;
@@ -31,31 +31,19 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
   const [tabValue, setTabValue] = useState<"received" | "sent">("received");
   const queryClient = useQueryClient();
   const { data: requests, isLoading, error } = useQuery(friendsControllerGetPendingRequestsOptions());
-  const { data: currentUser } = useQuery(userControllerGetProfileOptions());
 
+  const onSuccess = () => invalidateFriendQueries(queryClient);
   const { mutateAsync: acceptRequest } = useMutation({
     ...friendsControllerAcceptFriendRequestMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
-    },
+    onSuccess,
   });
   const { mutateAsync: declineRequest } = useMutation({
     ...friendsControllerDeclineFriendRequestMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
-    },
+    onSuccess,
   });
   const { mutateAsync: cancelRequest } = useMutation({
     ...friendsControllerCancelFriendRequestMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
-    },
+    onSuccess,
   });
 
   const handleAccept = async (friendshipId: string) => {
@@ -151,7 +139,6 @@ const FriendRequestList: React.FC<FriendRequestListProps> = ({
                 key={request.id}
                 request={request}
                 type={tabValue}
-                currentUserId={currentUser?.id || ""}
                 onAccept={tabValue === "received" ? handleAccept : undefined}
                 onDecline={tabValue === "received" ? handleDecline : undefined}
                 onCancel={tabValue === "sent" ? handleCancel : undefined}

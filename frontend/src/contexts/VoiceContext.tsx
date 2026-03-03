@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useReducer, useRef, useEffect } from "react";
 
-export type VoiceContextType = 'channel' | 'dm' | null;
+export enum VoiceSessionType {
+  Channel = 'channel',
+  Dm = 'dm',
+}
 
 export interface VoiceState {
   isConnected: boolean;
   isConnecting: boolean;
   connectionError: string | null;
-  contextType: VoiceContextType;
+  contextType: VoiceSessionType | null;
   currentChannelId: string | null;
   channelName: string | null;
   communityId: string | null;
@@ -25,21 +28,38 @@ export interface VoiceState {
   isServerMuted: boolean;
 }
 
+export enum VoiceActionType {
+  SetConnecting = 'SET_CONNECTING',
+  SetConnected = 'SET_CONNECTED',
+  SetDmConnected = 'SET_DM_CONNECTED',
+  SetDisconnected = 'SET_DISCONNECTED',
+  SetConnectionError = 'SET_CONNECTION_ERROR',
+  SetDeafened = 'SET_DEAFENED',
+  SetShowVideoTiles = 'SET_SHOW_VIDEO_TILES',
+  SetScreenShareAudioFailed = 'SET_SCREEN_SHARE_AUDIO_FAILED',
+  SetSelectedAudioInputId = 'SET_SELECTED_AUDIO_INPUT_ID',
+  SetSelectedAudioOutputId = 'SET_SELECTED_AUDIO_OUTPUT_ID',
+  SetRequestMaximize = 'SET_REQUEST_MAXIMIZE',
+  SetSelectedVideoInputId = 'SET_SELECTED_VIDEO_INPUT_ID',
+  SetWasMutedBeforeDeafen = 'SET_WAS_MUTED_BEFORE_DEAFEN',
+  SetServerMuted = 'SET_SERVER_MUTED',
+}
+
 export type VoiceAction =
-  | { type: 'SET_CONNECTING'; payload: boolean }
-  | { type: 'SET_CONNECTED'; payload: { channelId: string; channelName: string; communityId: string; isPrivate: boolean; createdAt: string } }
-  | { type: 'SET_DM_CONNECTED'; payload: { dmGroupId: string; dmGroupName: string } }
-  | { type: 'SET_DISCONNECTED' }
-  | { type: 'SET_CONNECTION_ERROR'; payload: string }
-  | { type: 'SET_DEAFENED'; payload: boolean }
-  | { type: 'SET_SHOW_VIDEO_TILES'; payload: boolean }
-  | { type: 'SET_SCREEN_SHARE_AUDIO_FAILED'; payload: boolean }
-  | { type: 'SET_SELECTED_AUDIO_INPUT_ID'; payload: string | null }
-  | { type: 'SET_SELECTED_AUDIO_OUTPUT_ID'; payload: string | null }
-  | { type: 'SET_REQUEST_MAXIMIZE'; payload: boolean }
-  | { type: 'SET_SELECTED_VIDEO_INPUT_ID'; payload: string | null }
-  | { type: 'SET_WAS_MUTED_BEFORE_DEAFEN'; payload: boolean }
-  | { type: 'SET_SERVER_MUTED'; payload: boolean };
+  | { type: VoiceActionType.SetConnecting; payload: boolean }
+  | { type: VoiceActionType.SetConnected; payload: { channelId: string; channelName: string; communityId: string; isPrivate: boolean; createdAt: string } }
+  | { type: VoiceActionType.SetDmConnected; payload: { dmGroupId: string; dmGroupName: string } }
+  | { type: VoiceActionType.SetDisconnected }
+  | { type: VoiceActionType.SetConnectionError; payload: string }
+  | { type: VoiceActionType.SetDeafened; payload: boolean }
+  | { type: VoiceActionType.SetShowVideoTiles; payload: boolean }
+  | { type: VoiceActionType.SetScreenShareAudioFailed; payload: boolean }
+  | { type: VoiceActionType.SetSelectedAudioInputId; payload: string | null }
+  | { type: VoiceActionType.SetSelectedAudioOutputId; payload: string | null }
+  | { type: VoiceActionType.SetRequestMaximize; payload: boolean }
+  | { type: VoiceActionType.SetSelectedVideoInputId; payload: string | null }
+  | { type: VoiceActionType.SetWasMutedBeforeDeafen; payload: boolean }
+  | { type: VoiceActionType.SetServerMuted; payload: boolean };
 
 const initialState: VoiceState = {
   isConnected: false,
@@ -66,19 +86,19 @@ const initialState: VoiceState = {
 
 function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
   switch (action.type) {
-    case 'SET_CONNECTING':
+    case VoiceActionType.SetConnecting:
       return {
         ...state,
         isConnecting: action.payload,
         ...(action.payload ? { connectionError: null } : {}),
       };
-    case 'SET_CONNECTED':
+    case VoiceActionType.SetConnected:
       return {
         ...state,
         isConnected: true,
         isConnecting: false,
         connectionError: null,
-        contextType: 'channel',
+        contextType: VoiceSessionType.Channel,
         currentChannelId: action.payload.channelId,
         channelName: action.payload.channelName,
         communityId: action.payload.communityId,
@@ -87,13 +107,13 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
         currentDmGroupId: null,
         dmGroupName: null,
       };
-    case 'SET_DM_CONNECTED':
+    case VoiceActionType.SetDmConnected:
       return {
         ...state,
         isConnected: true,
         isConnecting: false,
         connectionError: null,
-        contextType: 'dm',
+        contextType: VoiceSessionType.Dm,
         currentDmGroupId: action.payload.dmGroupId,
         dmGroupName: action.payload.dmGroupName,
         currentChannelId: null,
@@ -102,30 +122,30 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
         isPrivate: null,
         createdAt: null,
       };
-    case 'SET_DISCONNECTED':
+    case VoiceActionType.SetDisconnected:
       return {
         ...initialState,
         showVideoTiles: state.showVideoTiles,
       };
-    case 'SET_CONNECTION_ERROR':
+    case VoiceActionType.SetConnectionError:
       return { ...state, isConnecting: false, connectionError: action.payload };
-    case 'SET_DEAFENED':
+    case VoiceActionType.SetDeafened:
       return { ...state, isDeafened: action.payload };
-    case 'SET_SHOW_VIDEO_TILES':
+    case VoiceActionType.SetShowVideoTiles:
       return { ...state, showVideoTiles: action.payload };
-    case 'SET_SCREEN_SHARE_AUDIO_FAILED':
+    case VoiceActionType.SetScreenShareAudioFailed:
       return { ...state, screenShareAudioFailed: action.payload };
-    case 'SET_REQUEST_MAXIMIZE':
+    case VoiceActionType.SetRequestMaximize:
       return { ...state, requestMaximize: action.payload };
-    case 'SET_SELECTED_AUDIO_INPUT_ID':
+    case VoiceActionType.SetSelectedAudioInputId:
       return { ...state, selectedAudioInputId: action.payload };
-    case 'SET_SELECTED_AUDIO_OUTPUT_ID':
+    case VoiceActionType.SetSelectedAudioOutputId:
       return { ...state, selectedAudioOutputId: action.payload };
-    case 'SET_SELECTED_VIDEO_INPUT_ID':
+    case VoiceActionType.SetSelectedVideoInputId:
       return { ...state, selectedVideoInputId: action.payload };
-    case 'SET_WAS_MUTED_BEFORE_DEAFEN':
+    case VoiceActionType.SetWasMutedBeforeDeafen:
       return { ...state, wasMutedBeforeDeafen: action.payload };
-    case 'SET_SERVER_MUTED':
+    case VoiceActionType.SetServerMuted:
       return { ...state, isServerMuted: action.payload };
     default:
       return state;

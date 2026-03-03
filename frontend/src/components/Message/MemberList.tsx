@@ -16,7 +16,7 @@ import UserAvatar from "../Common/UserAvatar";
 import { UserModerationMenu } from "../Moderation";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 
-interface MemberData {
+export interface MemberData {
   id: string;
   username: string;
   displayName?: string | null;

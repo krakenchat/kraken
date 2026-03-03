@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { VoiceSessionType } from '../contexts/VoiceContext';
 import { voicePresenceControllerRefreshPresence } from '../api-client/sdk.gen';
 import { dmVoicePresenceControllerRefreshDmPresence } from '../api-client/sdk.gen';
 import { logger } from '../utils/logger';
@@ -8,7 +9,7 @@ const HEARTBEAT_INTERVAL_MS = 30_000; // 30 seconds
 interface VoicePresenceHeartbeatParams {
   channelId: string | null;
   dmGroupId: string | null;
-  contextType: 'channel' | 'dm' | null;
+  contextType: VoiceSessionType | null;
 }
 
 /**
@@ -26,8 +27,8 @@ export function useVoicePresenceHeartbeat({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const isChannel = contextType === 'channel' && channelId;
-    const isDm = contextType === 'dm' && dmGroupId;
+    const isChannel = contextType === VoiceSessionType.Channel && channelId;
+    const isDm = contextType === VoiceSessionType.Dm && dmGroupId;
 
     if (!isChannel && !isDm) {
       return;

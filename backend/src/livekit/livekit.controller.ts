@@ -20,6 +20,7 @@ import { LivekitReplayService } from './livekit-replay.service';
 import { ClipLibraryService } from './clip-library.service';
 import { VoicePresenceService } from '@/voice-presence/voice-presence.service';
 import { CreateTokenDto } from './dto/create-token.dto';
+import { MuteParticipantDto } from './dto/mute-participant.dto';
 import { StartReplayBufferDto } from './dto/start-replay-buffer.dto';
 import {
   CaptureReplayDto,
@@ -113,20 +114,20 @@ export class LivekitController {
     idKey: 'channelId',
     source: ResourceIdSource.PARAM,
   })
-  @ApiOkResponse({ description: 'Participant muted/unmuted successfully' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   async muteParticipant(
     @Param('channelId') channelId: string,
-    @Body() body: { participantIdentity: string; mute: boolean },
+    @Body() dto: MuteParticipantDto,
   ): Promise<{ success: boolean }> {
     await this.livekitService.muteParticipant(
       channelId,
-      body.participantIdentity,
-      body.mute,
+      dto.participantIdentity,
+      dto.mute,
     );
     await this.voicePresenceService.updateServerMuteState(
       channelId,
-      body.participantIdentity,
-      body.mute,
+      dto.participantIdentity,
+      dto.mute,
     );
     return { success: true };
   }

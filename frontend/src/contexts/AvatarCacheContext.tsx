@@ -100,17 +100,20 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({
     return cacheRef.current.has(fileId);
   }, []);
 
-  const fetchBlob = useCallback(async (fileId: string): Promise<string> => {
+  /**
+   * Fetch an authenticated file by URL, with cache + in-flight deduplication.
+   * Used by both fetchBlob and fetchThumbnail.
+   */
+  const fetchWithCache = useCallback(async (cacheKey: string, url: string): Promise<string> => {
     // 1. Return cached blob URL if exists
-    const cached = cacheRef.current.get(fileId);
+    const cached = cacheRef.current.get(cacheKey);
     if (cached) {
-      // Update lastAccessed time on access (LRU behavior)
       cached.lastAccessed = Date.now();
       return cached.blobUrl;
     }
 
-    // 2. Return in-flight promise if already fetching (prevents duplicate fetches!)
-    const pending = pendingRef.current.get(fileId);
+    // 2. Return in-flight promise if already fetching (prevents duplicate fetches)
+    const pending = pendingRef.current.get(cacheKey);
     if (pending) {
       return pending;
     }
@@ -118,84 +121,17 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({
     // 3. Start new fetch and track it
     const fetchPromise = (async () => {
       try {
-        // Get auth token using centralized utility
         const token = getAccessToken();
-
         if (!token) {
           throw new Error("No authentication token found");
         }
 
-        const response = await fetch(getApiUrl(`/file/${fileId}`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
           throw new Error(`Failed to fetch file: ${response.status}`);
-        }
-
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        // Store in cache with timestamp
-        cacheRef.current.set(fileId, {
-          blobUrl,
-          lastAccessed: Date.now(),
-        });
-
-        // Clean up pending tracker
-        pendingRef.current.delete(fileId);
-
-        // Check if eviction is needed
-        evictIfNeeded();
-
-        return blobUrl;
-      } catch (error) {
-        // Clean up pending tracker on error
-        pendingRef.current.delete(fileId);
-        throw error;
-      }
-    })();
-
-    // Store promise so concurrent requesters can await the same fetch
-    pendingRef.current.set(fileId, fetchPromise);
-
-    return fetchPromise;
-  }, [evictIfNeeded]);
-
-  const fetchThumbnail = useCallback(async (fileId: string): Promise<string> => {
-    const cacheKey = `thumb:${fileId}`;
-
-    // 1. Return cached thumbnail if exists
-    const cached = cacheRef.current.get(cacheKey);
-    if (cached) {
-      cached.lastAccessed = Date.now();
-      return cached.blobUrl;
-    }
-
-    // 2. Return in-flight promise if already fetching
-    const pending = pendingRef.current.get(cacheKey);
-    if (pending) {
-      return pending;
-    }
-
-    // 3. Start new fetch
-    const fetchPromise = (async () => {
-      try {
-        const token = getAccessToken();
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-
-        const response = await fetch(getApiUrl(`/file/${fileId}/thumbnail`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch thumbnail: ${response.status}`);
         }
 
         const blob = await response.blob();
@@ -218,6 +154,16 @@ export const FileCacheProvider: React.FC<FileCacheProviderProps> = ({
     pendingRef.current.set(cacheKey, fetchPromise);
     return fetchPromise;
   }, [evictIfNeeded]);
+
+  const fetchBlob = useCallback(
+    (fileId: string) => fetchWithCache(fileId, getApiUrl(`/file/${fileId}`)),
+    [fetchWithCache],
+  );
+
+  const fetchThumbnail = useCallback(
+    (fileId: string) => fetchWithCache(`thumb:${fileId}`, getApiUrl(`/file/${fileId}/thumbnail`)),
+    [fetchWithCache],
+  );
 
   // Cleanup: Revoke all blob URLs when provider unmounts
   useEffect(() => {

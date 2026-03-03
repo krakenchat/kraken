@@ -25,6 +25,7 @@ import UserAvatar from "../Common/UserAvatar";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { SeenByTooltip } from "./SeenByTooltip";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 interface MessageProps {
   message: MessageType;
@@ -36,7 +37,7 @@ interface MessageProps {
   isThreadReply?: boolean;
   onOpenThread?: (message: MessageType) => void;
   /** Context type to determine if read receipts should be shown */
-  contextType?: "channel" | "dm";
+  contextType?: VoiceSessionType;
 }
 
 function MessageComponentInner({
@@ -152,7 +153,7 @@ function MessageComponentInner({
               <span style={{ marginLeft: 4 }}>(edited)</span>
             )}
             {/* Show read status for own messages in DMs with "seen by" tooltip */}
-            {contextType === "dm" && isAuthor && contextId && (
+            {contextType === VoiceSessionType.Dm && isAuthor && contextId && (
               <SeenByTooltip
                 messageId={message.id}
                 directMessageGroupId={contextId}

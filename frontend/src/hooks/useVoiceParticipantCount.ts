@@ -3,8 +3,7 @@ import {
   voicePresenceControllerGetChannelPresenceOptions,
   dmVoicePresenceControllerGetDmPresenceOptions,
 } from "../api-client/@tanstack/react-query.gen";
-
-type VoiceContextType = "channel" | "dm";
+import { VoiceSessionType } from "../contexts/VoiceContext";
 
 interface UseVoiceParticipantCountParams {
   /** The channel ID (for channel voice) */
@@ -12,7 +11,7 @@ interface UseVoiceParticipantCountParams {
   /** The DM group ID (for DM voice) */
   dmGroupId?: string | null;
   /** The context type - 'channel' or 'dm' */
-  contextType: VoiceContextType;
+  contextType: VoiceSessionType;
 }
 
 interface UseVoiceParticipantCountResult {
@@ -52,7 +51,7 @@ export function useVoiceParticipantCount({
     isLoading: isChannelLoading,
   } = useQuery({
     ...voicePresenceControllerGetChannelPresenceOptions({ path: { channelId: channelId ?? "" } }),
-    enabled: !!channelId && contextType === "channel",
+    enabled: !!channelId && contextType === VoiceSessionType.Channel,
   });
 
   const {
@@ -60,16 +59,16 @@ export function useVoiceParticipantCount({
     isLoading: isDmLoading,
   } = useQuery({
     ...dmVoicePresenceControllerGetDmPresenceOptions({ path: { dmGroupId: dmGroupId ?? "" } }),
-    enabled: !!dmGroupId && contextType === "dm",
+    enabled: !!dmGroupId && contextType === VoiceSessionType.Dm,
   });
 
   const participantCount =
-    contextType === "channel"
+    contextType === VoiceSessionType.Channel
       ? channelPresence?.count ?? 0
       : dmPresence?.count ?? 0;
 
   const isLoading =
-    contextType === "channel" ? isChannelLoading : isDmLoading;
+    contextType === VoiceSessionType.Channel ? isChannelLoading : isDmLoading;
 
   return {
     participantCount,

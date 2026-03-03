@@ -1,5 +1,6 @@
 import { useContext, useCallback } from "react";
 import type { Socket } from "socket.io-client";
+import { VoiceSessionType } from "../contexts/VoiceContext";
 import { logger } from "../utils/logger";
 import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from '@kraken/shared';
@@ -8,7 +9,7 @@ import type { Message } from "../types/message.type";
 // Omit id for new message payloads
 export type NewMessagePayload = Omit<Message, "id">;
 
-export type MessageContext = "channel" | "dm";
+export type MessageContext = VoiceSessionType;
 
 /**
  * Error thrown when attempting to send a message without a socket connection
@@ -73,7 +74,7 @@ export function useSendMessage(
         const doSend = () => {
           // Determine which event to emit based on context
           const event =
-            contextType === "channel"
+            contextType === VoiceSessionType.Channel
               ? ClientEvents.SEND_MESSAGE
               : ClientEvents.SEND_DM;
 

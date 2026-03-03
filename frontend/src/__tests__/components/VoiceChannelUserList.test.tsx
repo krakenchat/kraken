@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { VoiceChannelUserList } from '../../components/Voice/VoiceChannelUserList';
 import { ChannelType } from '../../types/channel.type';
+import { VoiceSessionType } from '../../contexts/VoiceContext';
 import { EventEmitter } from 'events';
 
 // Mock API client
@@ -160,7 +161,7 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
         isConnected: true,
         isConnecting: false,
         connectionError: null,
-        contextType: 'channel',
+        contextType: VoiceSessionType.Channel,
         currentChannelId: 'voice-ch-1',
         channelName: 'Voice Channel',
         communityId: 'c1',
@@ -230,7 +231,7 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
         isConnected: true,
         isConnecting: false,
         connectionError: null,
-        contextType: 'channel',
+        contextType: VoiceSessionType.Channel,
         currentChannelId: 'other-channel-id',
         channelName: 'Other Channel',
         communityId: 'c1',

@@ -10,6 +10,7 @@ import { directMessagesControllerFindUserDmGroupsQueryKey } from "../../api-clie
 import { getDmDisplayName } from "../../utils/dmHelpers";
 import type { DirectMessageGroup } from "../../types/direct-message.type";
 import { playSound, stopSound, Sounds } from "../../hooks/useSound";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 const RING_INTERVAL_MS = 3500;
 
@@ -72,7 +73,7 @@ export const IncomingCallListener: React.FC = () => {
       // Don't ring if already connected to this DM's voice call
       if (
         voiceState.isConnected &&
-        voiceState.contextType === "dm" &&
+        voiceState.contextType === VoiceSessionType.Dm &&
         voiceState.currentDmGroupId === payload.dmGroupId
       ) {
         return;

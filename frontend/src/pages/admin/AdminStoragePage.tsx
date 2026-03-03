@@ -31,16 +31,7 @@ import {
   storageQuotaControllerGetUsersStorageListOptions,
   storageQuotaControllerRecalculateUserStorageMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-
-
-// Helper to format bytes
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-};
+import { formatFileSize } from "../../utils/format";
 
 // Get progress bar color based on usage percentage
 const getProgressColor = (percent: number): "error" | "warning" | "primary" => {
@@ -218,10 +209,10 @@ const AdminStoragePage: React.FC = () => {
                         <Box>
                           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
                             <Typography variant="caption" color="text.secondary">
-                              {formatBytes(user.usedBytes)}
+                              {formatFileSize(user.usedBytes)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {formatBytes(user.quotaBytes)}
+                              {formatFileSize(user.quotaBytes)}
                             </Typography>
                           </Box>
                           <LinearProgress

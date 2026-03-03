@@ -1,23 +1,15 @@
 import React from "react";
-import MemberList from "./MemberList";
+import MemberList, { type MemberData } from "./MemberList";
 import { useQuery } from "@tanstack/react-query";
 import {
   membershipControllerFindAllForCommunityOptions,
   presenceControllerGetMultipleUserPresenceOptions,
+  directMessagesControllerFindDmGroupOptions,
 } from "../../api-client/@tanstack/react-query.gen";
-import { directMessagesControllerFindDmGroupOptions } from "../../api-client/@tanstack/react-query.gen";
-
-interface MemberData {
-  id: string;
-  username: string;
-  displayName?: string | null;
-  avatarUrl?: string | null;
-  isOnline?: boolean;
-  status?: string | null;
-}
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 interface MemberListContainerProps {
-  contextType: "channel" | "dm";
+  contextType: VoiceSessionType;
   contextId: string;
   communityId?: string;
 }
@@ -34,7 +26,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     error: communityError,
   } = useQuery({
     ...membershipControllerFindAllForCommunityOptions({ path: { communityId: communityId || "" } }),
-    enabled: contextType === "channel" && !!communityId,
+    enabled: contextType === VoiceSessionType.Channel && !!communityId,
   });
 
   // For DM context, fetch DM group members
@@ -44,12 +36,12 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     error: dmError,
   } = useQuery({
     ...directMessagesControllerFindDmGroupOptions({ path: { id: contextId } }),
-    enabled: contextType === "dm",
+    enabled: contextType === VoiceSessionType.Dm,
   });
 
   // Get base member data first
   const baseMembers = React.useMemo(() => {
-    if (contextType === "channel") {
+    if (contextType === VoiceSessionType.Channel) {
       return (communityMembers || [])
         .filter((membership) => membership.user) // Only include members with user data
         .map((membership) => ({
@@ -103,15 +95,15 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
         return a.username.localeCompare(b.username);
       });
 
-    const combinedLoading = contextType === "channel" 
+    const combinedLoading = contextType === VoiceSessionType.Channel 
       ? isCommunityLoading || isPresenceLoading
       : isDmLoading || isPresenceLoading;
     
-    const combinedError = contextType === "channel" 
+    const combinedError = contextType === VoiceSessionType.Channel 
       ? communityError || presenceError
       : dmError || presenceError;
 
-    const listTitle = contextType === "channel" 
+    const listTitle = contextType === VoiceSessionType.Channel 
       ? "Members" 
       : (dmGroup?.isGroup ? "Group Members" : "Participants");
 

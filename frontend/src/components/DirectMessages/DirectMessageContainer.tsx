@@ -9,6 +9,7 @@ import { directMessagesControllerFindDmGroupOptions } from "../../api-client/@ta
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import type { UserMention } from "../../utils/mentionParser";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 interface DirectMessageContainerProps {
   dmGroupId: string;
@@ -21,7 +22,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   const authorId = user?.id || "";
 
   const { handleSendMessage } = useMessageFileUpload({
-    contextType: 'dm',
+    contextType: VoiceSessionType.Dm,
     contextId: dmGroupId,
     authorId,
   });
@@ -31,7 +32,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
 
   // Auto-mark notifications as read when viewing this DM
   useAutoMarkNotificationsRead({
-    contextType: 'dm',
+    contextType: VoiceSessionType.Dm,
     contextId: dmGroupId,
   });
 
@@ -65,14 +66,14 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   // Create member list component for the DM group
   const memberListComponent = (
     <MemberListContainer
-      contextType="dm"
+      contextType={VoiceSessionType.Dm}
       contextId={dmGroupId}
     />
   );
 
   return (
     <MessageContainerWrapper
-      contextType="dm"
+      contextType={VoiceSessionType.Dm}
       contextId={dmGroupId}
       useMessagesHook={() => messagesHookResult}
       userMentions={userMentions}

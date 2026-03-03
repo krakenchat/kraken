@@ -6,7 +6,6 @@ import {
   Typography,
   Button,
   CircularProgress,
-  Avatar,
   Divider,
   Alert,
 } from "@mui/material";
@@ -14,34 +13,15 @@ import { useTheme } from "@mui/material/styles";
 import { PersonAdd as PersonAddIcon } from "@mui/icons-material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelMembershipControllerCreateMutation } from "../../../api-client/@tanstack/react-query.gen";
+import { invalidateChannelMembershipQueries } from "../../../utils/queryInvalidation";
 import { logger } from "../../../utils/logger";
-
-interface CommunityMember {
-  id: string;
-  userId: string;
-  user?: {
-    id: string;
-    username: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  };
-}
-
-interface ChannelMember {
-  id: string;
-  userId: string;
-  user?: {
-    id: string;
-    username: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  };
-}
+import { type ChannelMember } from "./ChannelMembersList";
+import UserAvatar from "../../Common/UserAvatar";
 
 interface AddChannelMembersProps {
   channelId: string;
   channelName: string;
-  communityMembers?: CommunityMember[];
+  communityMembers?: ChannelMember[];
   channelMembers?: ChannelMember[];
   isLoadingCommunityMembers: boolean;
   communityMembersError: unknown;
@@ -59,12 +39,7 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: createChannelMembership, isPending: isAdding } = useMutation({
     ...channelMembershipControllerCreateMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindAllForUser' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindMyChannelMemberships' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'channelMembershipControllerFindOne' }] });
-    },
+    onSuccess: () => invalidateChannelMembershipQueries(queryClient),
   });
 
   const currentChannelMemberIds = useMemo(() => 
@@ -146,10 +121,7 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
                 }}
               >
                 <Box display="flex" alignItems="center" gap={2}>
-                  <Avatar 
-                    src={member.user?.avatarUrl || ""} 
-                    sx={{ width: 40, height: 40 }}
-                  />
+                  <UserAvatar user={member.user} size="medium" />
                   <Box>
                     <Typography variant="body1" fontWeight="medium">
                       {member.user?.username}

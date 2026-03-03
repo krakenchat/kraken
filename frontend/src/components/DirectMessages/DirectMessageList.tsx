@@ -11,6 +11,7 @@ import {
 } from "../../api-client/@tanstack/react-query.gen";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 import DmListItem from "./DmListItem";
 import CreateDmDialog from "./CreateDmDialog";
@@ -53,7 +54,7 @@ const DirectMessageList: React.FC<DirectMessageListProps> = ({
               currentUserId={currentUser?.id}
               isSelected={selectedDmGroupId === dmGroup.id}
               onClick={() => onSelectDmGroup(dmGroup.id)}
-              isInCall={voiceState.isConnected && voiceState.contextType === "dm" && voiceState.currentDmGroupId === dmGroup.id}
+              isInCall={voiceState.isConnected && voiceState.contextType === VoiceSessionType.Dm && voiceState.currentDmGroupId === dmGroup.id}
               unreadCount={unreadCount(dmGroup.id)}
               mentionCount={mentionCount(dmGroup.id)}
             />

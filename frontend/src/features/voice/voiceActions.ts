@@ -1,5 +1,5 @@
 import { Room, VideoCaptureOptions } from "livekit-client";
-import type { VoiceAction, VoiceState } from "../../contexts/VoiceContext";
+import { VoiceSessionType, VoiceActionType, type VoiceAction, type VoiceState } from "../../contexts/VoiceContext";
 import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from "../../api-client/sdk.gen";
 import { queryClient } from "../../queryClient";
 
@@ -34,7 +34,7 @@ interface VoiceSettings {
 
 // Exported for use by useVoiceRecovery hook
 export interface SavedVoiceConnection {
-  contextType: 'channel' | 'dm';
+  contextType: VoiceSessionType;
   channelId?: string;
   channelName?: string;
   communityId?: string;
@@ -196,7 +196,7 @@ export async function joinVoiceChannel(
   logger.info('[Voice] User:', user.id, user.displayName || user.username);
 
   try {
-    dispatch({ type: 'SET_CONNECTING', payload: true });
+    dispatch({ type: VoiceActionType.SetConnecting, payload: true });
 
     logger.info('[Voice] Requesting LiveKit token...');
     let tokenResponse;
@@ -226,7 +226,7 @@ export async function joinVoiceChannel(
     await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
 
     dispatch({
-      type: 'SET_CONNECTED',
+      type: VoiceActionType.SetConnected,
       payload: { channelId, channelName, communityId, isPrivate, createdAt },
     });
 
@@ -243,7 +243,7 @@ export async function joinVoiceChannel(
     queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
 
     saveConnectionState({
-      contextType: 'channel',
+      contextType: VoiceSessionType.Channel,
       channelId,
       channelName,
       communityId,
@@ -256,7 +256,7 @@ export async function joinVoiceChannel(
   } catch (error) {
     logger.error("[Voice] Failed to join voice channel:", error);
     const message = error instanceof Error ? error.message : "Failed to join voice channel";
-    dispatch({ type: 'SET_CONNECTION_ERROR', payload: message });
+    dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     setRoom(null);
     throw error;
   }
@@ -289,7 +289,7 @@ export async function leaveVoiceChannel(deps: VoiceActionDeps) {
     logger.info('[Voice] Disconnected from LiveKit');
 
     setRoom(null);
-    dispatch({ type: 'SET_DISCONNECTED' });
+    dispatch({ type: VoiceActionType.SetDisconnected });
     clearConnectionState();
 
     playSound(Sounds.disconnected);
@@ -297,7 +297,7 @@ export async function leaveVoiceChannel(deps: VoiceActionDeps) {
   } catch (error) {
     logger.error('[Voice] Failed to leave voice channel:', error);
     const message = error instanceof Error ? error.message : "Failed to leave voice channel";
-    dispatch({ type: 'SET_CONNECTION_ERROR', payload: message });
+    dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     throw error;
   }
 }
@@ -321,7 +321,7 @@ export async function joinDmVoice(
   const { dispatch, setRoom } = deps;
 
   try {
-    dispatch({ type: 'SET_CONNECTING', payload: true });
+    dispatch({ type: VoiceActionType.SetConnecting, payload: true });
 
     let tokenResponse;
     try {
@@ -347,7 +347,7 @@ export async function joinDmVoice(
     await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
 
     dispatch({
-      type: 'SET_DM_CONNECTED',
+      type: VoiceActionType.SetDmConnected,
       payload: { dmGroupId, dmGroupName },
     });
 
@@ -356,7 +356,7 @@ export async function joinDmVoice(
     queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
 
     saveConnectionState({
-      contextType: 'dm',
+      contextType: VoiceSessionType.Dm,
       dmGroupId,
       dmGroupName,
     });
@@ -365,7 +365,7 @@ export async function joinDmVoice(
   } catch (error) {
     logger.error("Failed to join DM voice call:", error);
     const message = error instanceof Error ? error.message : "Failed to join DM voice call";
-    dispatch({ type: 'SET_CONNECTION_ERROR', payload: message });
+    dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     setRoom(null);
     throw error;
   }
@@ -381,12 +381,12 @@ export async function leaveDmVoice(deps: VoiceActionDeps) {
   try {
     await room.disconnect();
     setRoom(null);
-    dispatch({ type: 'SET_DISCONNECTED' });
+    dispatch({ type: VoiceActionType.SetDisconnected });
     clearConnectionState();
     playSound(Sounds.disconnected);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to leave DM voice call";
-    dispatch({ type: 'SET_CONNECTION_ERROR', payload: message });
+    dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     throw error;
   }
 }
@@ -486,7 +486,7 @@ export async function toggleScreenShareUnified(deps: VoiceActionDeps) {
   logger.info('[Voice] Toggling screen share:', isCurrentlySharing, '->', newState);
 
   if (newState) {
-    dispatch({ type: 'SET_SCREEN_SHARE_AUDIO_FAILED', payload: false });
+    dispatch({ type: VoiceActionType.SetScreenShareAudioFailed, payload: false });
   }
 
   try {
@@ -577,7 +577,7 @@ export async function toggleScreenShareUnified(deps: VoiceActionDeps) {
             preferCurrentTab: false,
           });
 
-          dispatch({ type: 'SET_SCREEN_SHARE_AUDIO_FAILED', payload: true });
+          dispatch({ type: VoiceActionType.SetScreenShareAudioFailed, payload: true });
           playSound(Sounds.screenShareStarted);
           logger.info('[Voice] Screen share enabled without audio (fallback)');
         } else {
@@ -586,7 +586,7 @@ export async function toggleScreenShareUnified(deps: VoiceActionDeps) {
       }
     } else {
       await room.localParticipant.setScreenShareEnabled(false);
-      dispatch({ type: 'SET_SCREEN_SHARE_AUDIO_FAILED', payload: false });
+      dispatch({ type: VoiceActionType.SetScreenShareAudioFailed, payload: false });
       playSound(Sounds.screenShareStopped);
     }
     logger.info('[Voice] Screen share toggled successfully');
@@ -606,7 +606,7 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
   const room = getRoom();
 
   try {
-    dispatch({ type: 'SET_DEAFENED', payload: newDeafenedState });
+    dispatch({ type: VoiceActionType.SetDeafened, payload: newDeafenedState });
 
     if (room) {
       const currentMetadata = room.localParticipant.metadata;
@@ -634,7 +634,7 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
 
     if (newDeafenedState && room) {
       const isMicEnabled = room.localParticipant.isMicrophoneEnabled;
-      dispatch({ type: 'SET_WAS_MUTED_BEFORE_DEAFEN', payload: !isMicEnabled });
+      dispatch({ type: VoiceActionType.SetWasMutedBeforeDeafen, payload: !isMicEnabled });
       if (isMicEnabled) {
         await room.localParticipant.setMicrophoneEnabled(false);
       }
@@ -649,7 +649,7 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
     }
   } catch (error) {
     logger.error("Failed to toggle deafen:", error);
-    dispatch({ type: 'SET_DEAFENED', payload: isDeafened });
+    dispatch({ type: VoiceActionType.SetDeafened, payload: isDeafened });
     throw error;
   }
 }
@@ -670,7 +670,7 @@ export async function switchAudioInputDevice(
 
   try {
     await room.switchActiveDevice('audioinput', deviceId);
-    dispatch({ type: 'SET_SELECTED_AUDIO_INPUT_ID', payload: deviceId });
+    dispatch({ type: VoiceActionType.SetSelectedAudioInputId, payload: deviceId });
     logger.info('[Voice] Switched audio input device:', deviceId);
   } catch (error) {
     logger.error("Failed to switch audio input device:", error);
@@ -690,7 +690,7 @@ export async function switchAudioOutputDevice(
 
   try {
     await room.switchActiveDevice('audiooutput', deviceId);
-    dispatch({ type: 'SET_SELECTED_AUDIO_OUTPUT_ID', payload: deviceId });
+    dispatch({ type: VoiceActionType.SetSelectedAudioOutputId, payload: deviceId });
     logger.info('[Voice] Switched audio output device:', deviceId);
   } catch (error) {
     logger.error("Failed to switch audio output device:", error);
@@ -710,7 +710,7 @@ export async function switchVideoInputDevice(
 
   try {
     await room.switchActiveDevice('videoinput', deviceId);
-    dispatch({ type: 'SET_SELECTED_VIDEO_INPUT_ID', payload: deviceId });
+    dispatch({ type: VoiceActionType.SetSelectedVideoInputId, payload: deviceId });
   } catch (error) {
     logger.error("Failed to switch video input device:", error);
     throw error;

@@ -2,18 +2,13 @@ import React from "react";
 import { Box, styled } from "@mui/material";
 import CommunityBannerUpload from "./CommunityBannerUpload";
 import CommunityAvatarUpload from "./CommunityAvatarUpload";
-import CommunityFormFields from "./CommunityFormFields";
+import CommunityFormFields, { type FormErrors } from "./CommunityFormFields";
 
 const FormContent = styled(Box)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   gap: theme.spacing(3),
 }));
-
-interface FormErrors {
-  name?: string;
-  description?: string;
-}
 
 interface CommunityFormContentProps {
   formData: {

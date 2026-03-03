@@ -21,10 +21,10 @@ const TwoColumnLayout: React.FC<TwoColumnLayoutProps> = ({
 }) => {
   return (
     <Root>
-      <SidebarContainer sx={{ width: sidebarWidth, minWidth: 220, maxWidth: 320 }}>
+      <SidebarContainer sx={{ width: sidebarWidth, minWidth: 220, maxWidth: 320, flexShrink: 0 }}>
         {sidebar}
       </SidebarContainer>
-      <ContentContainer ref={contentRef} sx={{ marginLeft: `${sidebarWidth}px`, ...contentSx }}>
+      <ContentContainer ref={contentRef} sx={contentSx}>
         {children}
       </ContentContainer>
     </Root>
@@ -35,29 +35,20 @@ const Root = styled(Box)({
   display: "flex",
   height: "100%",
   width: "100%",
-  position: "absolute",
-  top: 0,
-  left: 0,
-  bottom: 0,
-  right: 0,
 });
 
 const SidebarContainer = styled(Paper)(({ theme }) => ({
-  position: "absolute",
-  top: 0,
-  left: 0,
-  bottom: 0,
   display: "flex",
   flexDirection: "column",
   alignItems: "stretch",
   borderRadius: 0,
   padding: theme.spacing(2, 0, 0, 0),
   overflowY: "auto",
-  zIndex: 2,
 }));
 
 const ContentContainer = styled(Box)({
   flex: 1,
+  minWidth: 0,
   display: "flex",
   flexDirection: "column",
   alignItems: "stretch",

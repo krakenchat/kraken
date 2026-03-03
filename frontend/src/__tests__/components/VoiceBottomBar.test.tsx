@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { VoiceBottomBar } from '../../components/Voice/VoiceBottomBar';
+import { VoiceSessionType } from '../../contexts/VoiceContext';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
   const { createClient, createConfig } = await import('../../api-client/client');
@@ -32,7 +33,7 @@ const defaultVoiceState = {
   isConnected: true,
   isConnecting: false,
   connectionError: null,
-  contextType: 'channel' as const,
+  contextType: VoiceSessionType.Channel,
   currentChannelId: 'ch-1',
   channelName: 'General Voice',
   communityId: 'c1',
@@ -207,7 +208,7 @@ describe('VoiceBottomBar', () => {
   it('renders DM name and "DM Voice Call" label', () => {
     voiceState = {
       ...defaultVoiceState,
-      contextType: 'dm',
+      contextType: VoiceSessionType.Dm,
       currentChannelId: null,
       currentDmGroupId: 'dm-1',
       dmGroupName: 'Group Chat',

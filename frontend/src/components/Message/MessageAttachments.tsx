@@ -20,20 +20,6 @@ interface MessageAttachmentsProps {
   attachments: FileMetadata[];
 }
 
-// Helper component - just passes through the click handler
-// AttachmentPreview will determine if it should be clickable based on file type
-const AttachmentWrapper: React.FC<{
-  metadata: FileMetadata;
-  onImageClick?: () => void;
-}> = ({ metadata, onImageClick }) => {
-  return (
-    <AttachmentPreview
-      metadata={metadata}
-      onImageClick={onImageClick}
-    />
-  );
-};
-
 // Helper component to manage lightbox for images only
 const ImageLightboxManager: React.FC<{
   fileId: string;
@@ -106,7 +92,7 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = React.memo(
     return (
       <>
         <SingleAttachmentContainer>
-          <AttachmentWrapper
+          <AttachmentPreview
             metadata={attachments[0]}
             onImageClick={() => openLightbox(attachments[0])}
           />
@@ -126,7 +112,7 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = React.memo(
     <>
       <AttachmentsGrid>
         {attachments.map((metadata) => (
-          <AttachmentWrapper
+          <AttachmentPreview
             key={metadata.id}
             metadata={metadata}
             onImageClick={() => openLightbox(metadata)}

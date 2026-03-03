@@ -23,6 +23,7 @@ import {
   rolesControllerRemoveRoleFromUserMutation,
 } from "../../api-client/@tanstack/react-query.gen";
 import { logger } from "../../utils/logger";
+import { invalidateAllRoleQueries } from "../../utils/queryInvalidation";
 
 interface RoleAssignmentDialogProps {
   open: boolean;
@@ -63,29 +64,11 @@ const RoleAssignmentDialog: React.FC<RoleAssignmentDialogProps> = ({
 
   const { mutateAsync: assignRole, isPending: assigning } = useMutation({
     ...rolesControllerAssignRoleToUserMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyInstanceRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserInstanceRoles' }] });
-    },
+    onSuccess: () => invalidateAllRoleQueries(queryClient),
   });
   const { mutateAsync: removeRole, isPending: removing } = useMutation({
     ...rolesControllerRemoveRoleFromUserMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyRolesForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetMyInstanceRoles' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForCommunity' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForChannel' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserInstanceRoles' }] });
-    },
+    onSuccess: () => invalidateAllRoleQueries(queryClient),
   });
 
   // Update selected roles when user roles load

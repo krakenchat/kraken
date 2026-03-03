@@ -32,11 +32,8 @@ import {
   aliasGroupsControllerUpdateAliasGroupMutation,
   aliasGroupsControllerUpdateMembersMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-interface AliasGroupSummary {
-  id: string;
-  name: string;
-  memberCount: number;
-}
+import { type AliasGroupSummary } from "./AliasGroupManagement";
+import { invalidateAliasGroupQueries } from "../../utils/queryInvalidation";
 import UserAvatar from "../Common/UserAvatar";
 
 interface AliasGroupEditorProps {
@@ -79,26 +76,17 @@ const AliasGroupEditor: React.FC<AliasGroupEditorProps> = ({
   // Mutations
   const { mutateAsync: createGroup, isPending: creatingGroup, error: createError } = useMutation({
     ...aliasGroupsControllerCreateAliasGroupMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
-    },
+    onSuccess: () => invalidateAliasGroupQueries(queryClient),
   });
 
   const { mutateAsync: updateGroup, isPending: updatingGroup, error: updateError } = useMutation({
     ...aliasGroupsControllerUpdateAliasGroupMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
-    },
+    onSuccess: () => invalidateAliasGroupQueries(queryClient),
   });
 
   const { mutateAsync: updateMembers, isPending: updatingMembers, error: membersError } = useMutation({
     ...aliasGroupsControllerUpdateMembersMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
-    },
+    onSuccess: () => invalidateAliasGroupQueries(queryClient),
   });
 
   // Initialize selected members when editing

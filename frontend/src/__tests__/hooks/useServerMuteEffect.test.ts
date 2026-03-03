@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useServerMuteEffect } from '../../hooks/useServerMuteEffect';
+import { VoiceActionType } from '../../contexts/VoiceContext';
 import { playSound } from '../../hooks/useSound';
 
 const mockDispatch = vi.fn();
@@ -22,9 +23,13 @@ vi.mock('../../socket-hub/useServerEvent', () => ({
   }),
 }));
 
-vi.mock('../../contexts/VoiceContext', () => ({
-  useVoiceDispatch: vi.fn(() => ({ dispatch: mockDispatch })),
-}));
+vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../contexts/VoiceContext')>();
+  return {
+    ...actual,
+    useVoiceDispatch: vi.fn(() => ({ dispatch: mockDispatch })),
+  };
+});
 
 vi.mock('../../hooks/useRoom', () => ({
   useRoom: vi.fn(() => ({ room: mockRoom })),
@@ -66,7 +71,7 @@ describe('useServerMuteEffect', () => {
     });
 
     expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_SERVER_MUTED',
+      type: VoiceActionType.SetServerMuted,
       payload: true,
     });
     expect(playSound).toHaveBeenCalledWith('error');
@@ -94,7 +99,7 @@ describe('useServerMuteEffect', () => {
     });
 
     expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_SERVER_MUTED',
+      type: VoiceActionType.SetServerMuted,
       payload: false,
     });
     expect(playSound).not.toHaveBeenCalled();

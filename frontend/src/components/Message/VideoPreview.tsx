@@ -12,6 +12,7 @@ import VideocamIcon from "@mui/icons-material/Videocam";
 import { useFileCache } from "../../contexts/AvatarCacheContext";
 import { useVideoUrl } from "../../hooks/useVideoUrl";
 import type { FileMetadata } from "../../types/message.type";
+import { formatFileSize } from "../../utils/format";
 
 const VideoCard = styled(Card)(({ theme }) => ({
   position: "relative",
@@ -81,14 +82,6 @@ const StyledVideo = styled("video")({
   objectFit: "contain",
   display: "block",
 });
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
 
 interface VideoPreviewProps {
   metadata: FileMetadata;

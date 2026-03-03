@@ -1,5 +1,6 @@
 import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { VoiceSessionType } from "../contexts/VoiceContext";
 import { messagesControllerAddAttachmentMutation } from "../api-client/@tanstack/react-query.gen";
 import { useFileUpload } from "./useFileUpload";
 import { useSendMessage } from "./useSendMessage";
@@ -10,7 +11,7 @@ import { logger } from "../utils/logger";
 import type { Message } from "../types/message.type";
 
 interface UseMessageFileUploadOptions {
-  contextType: 'channel' | 'dm';
+  contextType: VoiceSessionType;
   contextId: string;
   authorId: string;
 }
@@ -24,11 +25,11 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
   const { mutateAsync: addAttachment } = useMutation({
     ...messagesControllerAddAttachmentMutation(),
     onSuccess: (updatedMessage) => {
-      const id = contextType === 'channel'
+      const id = contextType === VoiceSessionType.Channel
         ? updatedMessage.channelId
         : updatedMessage.directMessageGroupId;
       if (id) {
-        const queryKey = contextType === 'channel'
+        const queryKey = contextType === VoiceSessionType.Channel
           ? channelMessagesQueryKey(id)
           : dmMessagesQueryKey(id);
         queryClient.setQueryData(queryKey, (old: unknown) =>
@@ -79,7 +80,7 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
 
   const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[]) => {
     const msg = {
-      ...(contextType === 'channel'
+      ...(contextType === VoiceSessionType.Channel
         ? { channelId: contextId }
         : { directMessageGroupId: contextId }),
       authorId,

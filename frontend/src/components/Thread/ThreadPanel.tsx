@@ -236,11 +236,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       </Box>
 
       {/* Message Input */}
-      <ThreadMessageInput
-        parentMessageId={parentMessageId}
-        channelId={channelId}
-        directMessageGroupId={directMessageGroupId}
-      />
+      <ThreadMessageInput parentMessageId={parentMessageId} />
     </Box>
   );
 };

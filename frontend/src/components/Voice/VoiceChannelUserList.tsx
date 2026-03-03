@@ -3,40 +3,25 @@ import {
   Box,
   Typography,
   Chip,
-  Tooltip,
   Paper,
   List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  Divider,
-  IconButton,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import {
-  Mic,
-  MicOff,
-  Videocam,
-  ScreenShare,
-  VolumeOff,
-} from "@mui/icons-material";
 import { useQuery } from "@tanstack/react-query";
 import { voicePresenceControllerGetChannelPresenceOptions } from "../../api-client/@tanstack/react-query.gen";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
-import { formatDistanceToNow } from "date-fns";
-import { Channel } from "../../types/channel.type";
-import { ChannelType } from "../../types/channel.type";
-import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
-import { useParticipantTracks } from "../../hooks/useParticipantTracks";
-import UserAvatar from "../Common/UserAvatar";
+import { ChannelType, type Channel } from "../../types/channel.type";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import VoiceUserContextMenu from "./VoiceUserContextMenu";
 import { RoomEvent } from "livekit-client";
 import { getUserInfo } from "../../features/users/userApiHelpers";
-import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
 import { useServerEvent } from "../../socket-hub/useServerEvent";
 import { ServerEvents } from "@kraken/shared";
+import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import CompactUserItem from "./components/CompactUserItem";
+import UserItem from "./components/UserItem";
+import InlineUserAvatar from "./components/InlineUserAvatar";
 
 interface VoiceChannelUserListProps {
   channel: Channel;
@@ -51,6 +36,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 }) => {
   const theme = useTheme();
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
+  const { isSpeaking } = useSpeakingDetection();
   const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUserDto[]>([]);
   const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<{
@@ -81,9 +67,6 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     enabled: channel.type === ChannelType.VOICE && !isConnectedToThisChannel,
     refetchInterval: 120_000,
   });
-
-  // Hook for real-time speaking detection via LiveKit
-  const { isSpeaking } = useSpeakingDetection();
 
   // When connected to this channel, get participants directly from LiveKit
   useEffect(() => {
@@ -153,18 +136,19 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     updateParticipants();
 
     // Listen for participant changes (debounced)
-    room.on(RoomEvent.ParticipantConnected, debouncedUpdate);
-    room.on(RoomEvent.ParticipantDisconnected, debouncedUpdate);
-    room.on(RoomEvent.Connected, debouncedUpdate);
-    room.on(RoomEvent.ParticipantMetadataChanged, debouncedUpdate);
+    const events = [
+      RoomEvent.ParticipantConnected,
+      RoomEvent.ParticipantDisconnected,
+      RoomEvent.Connected,
+      RoomEvent.ParticipantMetadataChanged,
+    ] as const;
+
+    events.forEach((event) => room.on(event, debouncedUpdate));
 
     return () => {
       updateVersion++; // Invalidate any in-flight async updates
       if (debounceTimer) clearTimeout(debounceTimer);
-      room.off(RoomEvent.ParticipantConnected, debouncedUpdate);
-      room.off(RoomEvent.ParticipantDisconnected, debouncedUpdate);
-      room.off(RoomEvent.Connected, debouncedUpdate);
-      room.off(RoomEvent.ParticipantMetadataChanged, debouncedUpdate);
+      events.forEach((event) => room.off(event, debouncedUpdate));
     };
   }, [isConnectedToThisChannel, voiceState.room]);
 
@@ -216,334 +200,16 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     return null;
   }
 
-  const CompactUserItem: React.FC<{
-    user: (typeof presence.users)[0];
-  }> = React.memo(({ user }) => {
-    // Real-time speaking detection from LiveKit
-    const speaking = isSpeaking(user.id);
-
-    // Get LiveKit state for this user (if they're in the room)
-    const livekitState = useParticipantTracks(user.id);
-
-    // Check if locally muted (volume = 0 in localStorage)
-    const isLocalUser = voiceState.room?.localParticipant?.identity === user.id;
-    const isLocallyMuted = !isLocalUser && (() => {
-      try {
-        const stored = localStorage.getItem(`${VOLUME_STORAGE_PREFIX}${user.id}`);
-        return stored !== null && parseFloat(stored) === 0;
-      } catch { return false; }
-    })();
-
-    // Prefer LiveKit state if participant is in room, otherwise use server state
-    const userState = {
-      isMuted: livekitState.participant
-        ? !livekitState.isMicrophoneEnabled
-        : Boolean(user.isMuted),
-      isDeafened: livekitState.participant
-        ? livekitState.isDeafened
-        : Boolean(user.isDeafened),
-      isVideoEnabled: livekitState.participant
-        ? livekitState.isCameraEnabled
-        : Boolean(user.isVideoEnabled),
-      isScreenSharing: livekitState.participant
-        ? livekitState.isScreenShareEnabled
-        : Boolean(user.isScreenSharing),
-      isServerMuted: Boolean(user.isServerMuted),
-    };
-    
-    return (
-      <ListItem
-        sx={{
-          px: 1,
-          py: 0.5,
-          pl: 4, // Indent under voice channel
-          minHeight: 40,
-          cursor: "pointer",
-          "&:hover": {
-            backgroundColor: theme.palette.semantic.overlay.light,
-          },
-        }}
-        onClick={() => openProfile(user.id)}
-        onContextMenu={(e) => handleContextMenu(e, user)}
-      >
-        <ListItemAvatar sx={{ minWidth: 40 }}>
-          <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                border: speaking ? `2px solid ${theme.palette.semantic.status.positive}` : "2px solid transparent",
-                transition: "border-color 0.2s ease",
-                borderRadius: "50%",
-              }}
-            >
-              <UserAvatar user={user} size="small" />
-            </Box>
-            
-            {/* Audio status badge (deafen > server mute > self mute) */}
-            {userState.isDeafened ? (
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: -2,
-                  right: -2,
-                  backgroundColor: theme.palette.semantic.status.negative,
-                  borderRadius: "50%",
-                  width: 16,
-                  height: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "2px solid",
-                  borderColor: "background.paper",
-                }}
-              >
-                <VolumeOff sx={{ fontSize: 10, color: "white" }} />
-              </Box>
-            ) : userState.isServerMuted ? (
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: -2,
-                  right: -2,
-                  backgroundColor: "warning.main",
-                  borderRadius: "50%",
-                  width: 16,
-                  height: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "2px solid",
-                  borderColor: "background.paper",
-                }}
-              >
-                <MicOff sx={{ fontSize: 10, color: "white" }} />
-              </Box>
-            ) : userState.isMuted ? (
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: -2,
-                  right: -2,
-                  backgroundColor: theme.palette.semantic.status.negative,
-                  borderRadius: "50%",
-                  width: 16,
-                  height: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "2px solid",
-                  borderColor: "background.paper",
-                }}
-              >
-                <MicOff sx={{ fontSize: 10, color: "white" }} />
-              </Box>
-            ) : null}
-          </Box>
-        </ListItemAvatar>
-
-        <ListItemText
-          primary={
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  fontWeight: 500,
-                  color: userState.isMuted ? "text.secondary" : "text.primary",
-                  fontSize: "14px"
-                }}
-              >
-                {user.displayName || user.username}
-              </Typography>
-              
-              {/* Status indicators (deafen takes priority over mute) */}
-              <Box sx={{ display: "flex", gap: 0.5, ml: "auto", alignItems: "center" }}>
-
-                {/* Deafened > server muted > self muted */}
-                {userState.isDeafened ? (
-                  <Tooltip title="Deafened">
-                    <VolumeOff sx={{ fontSize: 16, color: theme.palette.semantic.status.negative }} />
-                  </Tooltip>
-                ) : userState.isServerMuted ? (
-                  <Tooltip title="Server Muted">
-                    <MicOff sx={{ fontSize: 16, color: "warning.main" }} />
-                  </Tooltip>
-                ) : userState.isMuted ? (
-                  <Tooltip title="Muted">
-                    <MicOff sx={{ fontSize: 16, color: theme.palette.semantic.status.negative }} />
-                  </Tooltip>
-                ) : null}
-
-                {/* Locally muted indicator */}
-                {isLocallyMuted && (
-                  <Tooltip title="Muted for you">
-                    <VolumeOff sx={{ fontSize: 16, color: "text.disabled" }} />
-                  </Tooltip>
-                )}
-
-                {/* Video enabled state */}
-                {userState.isVideoEnabled && (
-                  <Tooltip title={isConnectedToThisChannel ? "View camera" : "Camera"}>
-                    {isConnectedToThisChannel ? (
-                      <IconButton
-                        size="small"
-                        aria-label="View camera"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          voiceActions.setShowVideoTiles(true);
-                        }}
-                        sx={{ p: 0.25 }}
-                      >
-                        <Videocam sx={{ fontSize: 16, color: theme.palette.semantic.status.positive }} />
-                      </IconButton>
-                    ) : (
-                      <Videocam sx={{ fontSize: 16, color: theme.palette.semantic.status.positive }} />
-                    )}
-                  </Tooltip>
-                )}
-
-                {/* Screen sharing state */}
-                {userState.isScreenSharing && (
-                  <Tooltip title={isConnectedToThisChannel ? "View screen share" : "Screen Share"}>
-                    {isConnectedToThisChannel ? (
-                      <IconButton
-                        size="small"
-                        aria-label="View screen share"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          voiceActions.setShowVideoTiles(true);
-                        }}
-                        sx={{ p: 0.25 }}
-                      >
-                        <ScreenShare sx={{ fontSize: 16, color: theme.palette.primary.main }} />
-                      </IconButton>
-                    ) : (
-                      <ScreenShare sx={{ fontSize: 16, color: theme.palette.primary.main }} />
-                    )}
-                  </Tooltip>
-                )}
-              </Box>
-            </Box>
-          }
-        />
-      </ListItem>
-    );
-  });
-
-  const UserItem: React.FC<{
-    user: (typeof presence.users)[0];
-    index: number;
-  }> = React.memo(({ user, index }) => {
-    // Get LiveKit state for this user (if they're in the room)
-    const livekitState = useParticipantTracks(user.id);
-
-    // Prefer LiveKit state if participant is in room, otherwise use server state
-    const isMuted = livekitState.participant
-      ? !livekitState.isMicrophoneEnabled
-      : Boolean(user.isMuted);
-    const isDeafened = livekitState.participant
-      ? livekitState.isDeafened
-      : Boolean(user.isDeafened);
-    const isVideoEnabled = livekitState.participant
-      ? livekitState.isCameraEnabled
-      : Boolean(user.isVideoEnabled);
-    const isScreenSharing = livekitState.participant
-      ? livekitState.isScreenShareEnabled
-      : Boolean(user.isScreenSharing);
-
-    const statusIcons = [];
-
-    if (isMuted) statusIcons.push(<MicOff key="muted" fontSize="small" />);
-    else statusIcons.push(<Mic key="mic" fontSize="small" />);
-
-    if (isDeafened)
-      statusIcons.push(<VolumeOff key="deafened" fontSize="small" />);
-    if (isVideoEnabled)
-      statusIcons.push(<Videocam key="video" fontSize="small" />);
-    if (isScreenSharing)
-      statusIcons.push(<ScreenShare key="screen" fontSize="small" />);
-
-    const joinedAgo = formatDistanceToNow(new Date(user.joinedAt), {
-      addSuffix: true,
-    });
-
-    return (
-      <React.Fragment key={user.id}>
-        <ListItem
-          sx={{
-            px: showInline ? 1 : 2,
-            py: 1,
-            cursor: "pointer",
-            "&:hover": {
-              backgroundColor: "action.hover",
-            },
-          }}
-          onClick={() => openProfile(user.id)}
-          onContextMenu={(e) => handleContextMenu(e, user)}
-        >
-          <ListItemAvatar>
-            <UserAvatar user={user} size="small" />
-          </ListItemAvatar>
-
-          <ListItemText
-            primary={
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" fontWeight="medium">
-                  {user.displayName || user.username}
-                </Typography>
-                <Box
-                  sx={{ display: "flex", gap: 0.5, color: "text.secondary" }}
-                >
-                  {statusIcons.map((icon, i) => (
-                    <Box key={i} sx={{ display: "flex", alignItems: "center" }}>
-                      {icon}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            }
-            secondary={
-              !showInline && (
-                <Typography variant="caption" color="text.secondary">
-                  Joined {joinedAgo}
-                </Typography>
-              )
-            }
-          />
-        </ListItem>
-        {index < presence.users.length - 1 && <Divider />}
-      </React.Fragment>
-    );
-  });
-
-  // Inline avatar display with video indicator
-  const InlineUserAvatar: React.FC<{ user: (typeof presence.users)[0] }> = ({ user }) => {
-    const livekitState = useParticipantTracks(user.id);
-    const isVideoEnabled = livekitState.participant
-      ? livekitState.isCameraEnabled
-      : Boolean(user.isVideoEnabled);
-
-    return (
-      <Tooltip key={user.id} title={user.displayName || user.username}>
-        <Box
-          sx={{
-            width: 24,
-            height: 24,
-            border: isVideoEnabled ? "2px solid" : "none",
-            borderColor: "primary.main",
-            borderRadius: "50%",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-          }}
-          onClick={() => openProfile(user.id)}
-          onContextMenu={(e) => handleContextMenu(e, user)}
-        >
-          <UserAvatar user={user} size="small" />
-        </Box>
-      </Tooltip>
-    );
-  };
+  const contextMenuElement = contextMenu.user && (
+    <VoiceUserContextMenu
+      anchorPosition={contextMenu.position}
+      open={Boolean(contextMenu.position)}
+      onClose={handleCloseContextMenu}
+      user={contextMenu.user}
+      communityId={channel.communityId}
+      onViewProfile={() => openProfile(contextMenu.user!.id)}
+    />
+  );
 
   if (showInline) {
     return (
@@ -557,7 +223,12 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           }}
         >
           {presence.users.slice(0, 3).map((user) => (
-            <InlineUserAvatar key={user.id} user={user} />
+            <InlineUserAvatar
+              key={user.id}
+              user={user}
+              onContextMenu={handleContextMenu}
+              onClickUser={openProfile}
+            />
           ))}
           {presence.users.length > 3 && (
             <Chip
@@ -567,39 +238,29 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
             />
           )}
         </Box>
-        {contextMenu.user && (
-          <VoiceUserContextMenu
-            anchorPosition={contextMenu.position}
-            open={Boolean(contextMenu.position)}
-            onClose={handleCloseContextMenu}
-            user={contextMenu.user}
-            communityId={channel.communityId}
-            onViewProfile={() => openProfile(contextMenu.user!.id)}
-          />
-        )}
+        {contextMenuElement}
       </>
     );
   }
 
-  // Compact nested display under voice channels
   if (showCompact) {
     return (
       <>
         <Box>
           {presence.users.map((user) => (
-            <CompactUserItem key={user.id} user={user} />
+            <CompactUserItem
+              key={user.id}
+              user={user}
+              isConnectedToThisChannel={isConnectedToThisChannel}
+              localParticipantIdentity={voiceState.room?.localParticipant?.identity}
+              isSpeaking={isSpeaking}
+              onContextMenu={handleContextMenu}
+              onClickUser={openProfile}
+              onShowVideoTiles={() => voiceActions.setShowVideoTiles(true)}
+            />
           ))}
         </Box>
-        {contextMenu.user && (
-          <VoiceUserContextMenu
-            anchorPosition={contextMenu.position}
-            open={Boolean(contextMenu.position)}
-            onClose={handleCloseContextMenu}
-            user={contextMenu.user}
-            communityId={channel.communityId}
-            onViewProfile={() => openProfile(contextMenu.user!.id)}
-          />
-        )}
+        {contextMenuElement}
       </>
     );
   }
@@ -629,20 +290,19 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 
         <List disablePadding>
           {presence.users.map((user, index) => (
-            <UserItem key={user.id} user={user} index={index} />
+            <UserItem
+              key={user.id}
+              user={user}
+              index={index}
+              totalCount={presence.users.length}
+              showInline={showInline}
+              onContextMenu={handleContextMenu}
+              onClickUser={openProfile}
+            />
           ))}
         </List>
       </Paper>
-      {contextMenu.user && (
-        <VoiceUserContextMenu
-          anchorPosition={contextMenu.position}
-          open={Boolean(contextMenu.position)}
-          onClose={handleCloseContextMenu}
-          user={contextMenu.user}
-          communityId={channel.communityId}
-          onViewProfile={() => openProfile(contextMenu.user!.id)}
-        />
-      )}
+      {contextMenuElement}
     </>
   );
 };

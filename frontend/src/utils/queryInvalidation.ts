@@ -30,6 +30,9 @@ export function invalidateMemberQueries(queryClient: QueryClient) {
 }
 
 export function invalidateCommunityQueries(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAll' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllMine' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOne' }] });
   queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllWithStats' }] });
   queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOneWithStats' }] });
 }
@@ -60,4 +63,25 @@ export function invalidateTimeoutQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetTimeoutList' }] });
   queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetTimeoutStatus' }] });
   queryClient.invalidateQueries({ queryKey: [{ _id: 'moderationControllerGetModerationLogs' }] });
+}
+
+export function invalidateAliasGroupQueries(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetCommunityAliasGroups' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'aliasGroupsControllerGetAliasGroup' }] });
+}
+
+export function invalidateClipQueries(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetMyClips' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetUserPublicClips' }] });
+}
+
+export function invalidateFriendQueries(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+}
+
+export function invalidateDmGroupQueries(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindUserDmGroups' }] });
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindDmGroup' }] });
 }

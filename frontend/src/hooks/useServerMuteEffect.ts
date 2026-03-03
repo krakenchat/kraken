@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { ServerEvents } from '@kraken/shared';
 import { useServerEvent } from '../socket-hub/useServerEvent';
-import { useVoiceDispatch } from '../contexts/VoiceContext';
+import { useVoiceDispatch, VoiceActionType } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { useCurrentUser } from './useCurrentUser';
 import { logger } from '../utils/logger';
@@ -30,7 +30,7 @@ export const useServerMuteEffect = () => {
 
     const isServerMuted = payload.user.isServerMuted ?? false;
 
-    dispatch({ type: 'SET_SERVER_MUTED', payload: isServerMuted });
+    dispatch({ type: VoiceActionType.SetServerMuted, payload: isServerMuted });
 
     // Only play error sound on the unmuted → muted transition
     if (isServerMuted && !wasServerMutedRef.current) {

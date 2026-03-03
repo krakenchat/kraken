@@ -68,7 +68,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
   const debouncedQuery = useDebounce(inputValue.trim(), 300);
 
   const { data: usersData, isLoading } = useQuery({
-    ...userControllerSearchUsersOptions({ query: { q: debouncedQuery, limit: 100 } }),
+    ...userControllerSearchUsersOptions({ query: { q: debouncedQuery, limit: 25 } }),
     enabled: debouncedQuery.length >= 1,
   });
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
@@ -86,38 +86,61 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
     onChange(newValue);
   };
 
+  // Shared props for both single and multiple modes
+  // (server-side filtering — client-side filterOptions is a passthrough)
+  const sharedProps = {
+    options: filteredUsers,
+    getOptionLabel: (user: UserOption) => user.displayName || user.username,
+    getOptionDisabled,
+    onInputChange: (_e: React.SyntheticEvent, newInputValue: string) => setInputValue(newInputValue),
+    filterOptions: (x: UserOption[]) => x,
+    loading: isLoading,
+    disabled,
+    isOptionEqualToValue: (option: UserOption, val: UserOption) => option.id === val.id,
+    renderInput: (params: React.ComponentProps<typeof TextField> & { InputProps: { endAdornment?: React.ReactNode } }) => (
+      <TextField
+        {...params}
+        label={label}
+        placeholder={placeholder}
+        margin="normal"
+        autoFocus={autoFocus}
+        InputProps={{
+          ...params.InputProps,
+          endAdornment: (
+            <>
+              {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
+              {params.InputProps.endAdornment}
+            </>
+          ),
+        }}
+      />
+    ),
+    renderOption: (props: React.HTMLAttributes<HTMLLIElement> & { key?: string }, user: UserOption) => {
+      const { key: _key, ...restProps } = props;
+      return (
+        <Box component="li" key={user.id} {...restProps} sx={{ display: 'flex', alignItems: 'center' }}>
+          <UserAvatar user={user} size="small" />
+          <Box sx={{ ml: 1, flex: 1 }}>
+            <Typography variant="body2">
+              {user.displayName || user.username}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              @{user.username}
+            </Typography>
+          </Box>
+          {renderOptionExtra?.(user)}
+        </Box>
+      );
+    },
+  } as const;
+
   if (multiple) {
     return (
       <Autocomplete
         multiple
-        options={filteredUsers}
-        getOptionLabel={(user) => user.displayName || user.username}
-        getOptionDisabled={getOptionDisabled}
+        {...sharedProps}
         value={(value as UserOption[]) || []}
         onChange={handleChange as (event: React.SyntheticEvent, value: UserOption[]) => void}
-        onInputChange={(_e, newInputValue) => setInputValue(newInputValue)}
-        filterOptions={(x) => x}
-        loading={isLoading}
-        disabled={disabled}
-        isOptionEqualToValue={(option, val) => option.id === val.id}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={label}
-            placeholder={placeholder}
-            margin="normal"
-            autoFocus={autoFocus}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
-          />
-        )}
         renderTags={(tagValue, getTagProps) =>
           tagValue.map((user, index) => {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -132,75 +155,15 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
             );
           })
         }
-        renderOption={(props, user) => {
-          const { key: _key, ...restProps } = props;
-          return (
-            <Box component="li" key={user.id} {...restProps} sx={{ display: 'flex', alignItems: 'center' }}>
-              <UserAvatar user={user} size="small" />
-              <Box sx={{ ml: 1, flex: 1 }}>
-                <Typography variant="body2">
-                  {user.displayName || user.username}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  @{user.username}
-                </Typography>
-              </Box>
-              {renderOptionExtra?.(user)}
-            </Box>
-          );
-        }}
       />
     );
   }
 
-  // Single selection mode
   return (
     <Autocomplete
-      options={filteredUsers}
-      getOptionLabel={(user) => user.displayName || user.username}
-      getOptionDisabled={getOptionDisabled}
+      {...sharedProps}
       value={value as UserOption | null}
       onChange={handleChange as (event: React.SyntheticEvent, value: UserOption | null) => void}
-      onInputChange={(_e, newInputValue) => setInputValue(newInputValue)}
-      filterOptions={(x) => x}
-      loading={isLoading}
-      disabled={disabled}
-      isOptionEqualToValue={(option, val) => option.id === val.id}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label={label}
-          placeholder={placeholder}
-          margin="normal"
-          autoFocus={autoFocus}
-          InputProps={{
-            ...params.InputProps,
-            endAdornment: (
-              <>
-                {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                {params.InputProps.endAdornment}
-              </>
-            ),
-          }}
-        />
-      )}
-      renderOption={(props, user) => {
-        const { key: _key, ...restProps } = props;
-        return (
-          <Box component="li" key={user.id} {...restProps} sx={{ display: 'flex', alignItems: 'center' }}>
-            <UserAvatar user={user} size="small" />
-            <Box sx={{ ml: 1, flex: 1 }}>
-              <Typography variant="body2">
-                {user.displayName || user.username}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                @{user.username}
-              </Typography>
-            </Box>
-            {renderOptionExtra?.(user)}
-          </Box>
-        );
-      }}
     />
   );
 };

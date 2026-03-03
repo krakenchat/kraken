@@ -3,6 +3,7 @@ import { Box, IconButton, Tooltip, CircularProgress, Chip } from "@mui/material"
 import { Phone, Videocam } from "@mui/icons-material";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
 import { logger } from "../../utils/logger";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 interface DMVoiceControlsProps {
   dmGroupId: string;
@@ -19,7 +20,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
   // Check if we're currently in this DM's voice call
   const isInThisDmCall =
     state.isConnected &&
-    state.contextType === "dm" &&
+    state.contextType === VoiceSessionType.Dm &&
     state.currentDmGroupId === dmGroupId;
 
   // Check if we're in any voice call (DM or channel)
@@ -28,7 +29,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
   const handleStartVoiceCall = async () => {
     if (isInAnyCall) {
       // If already in a call, leave it first
-      if (state.contextType === "dm") {
+      if (state.contextType === VoiceSessionType.Dm) {
         await actions.leaveVoiceChannel();
       }
       // Don't handle channel calls here - let the user manually leave
@@ -48,7 +49,7 @@ export const DMVoiceControls: React.FC<DMVoiceControlsProps> = ({
   const handleStartVideoCall = async () => {
     if (isInAnyCall) {
       // If already in a call, leave it first
-      if (state.contextType === "dm") {
+      if (state.contextType === VoiceSessionType.Dm) {
         await actions.leaveVoiceChannel();
       }
       return;

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useVoice, useVoiceDispatch } from "../contexts/VoiceContext";
+import { useVoice, useVoiceDispatch, VoiceSessionType, VoiceActionType } from "../contexts/VoiceContext";
 import { useRoom } from "./useRoom";
 import { useQuery } from "@tanstack/react-query";
 import { livekitControllerGetConnectionInfoOptions } from "../api-client/@tanstack/react-query.gen";
@@ -73,7 +73,7 @@ export const useVoiceConnection = () => {
       const currentState = deps.getVoiceState();
       if (currentState.isConnected) {
         logger.info('[useVoiceConnection] Already connected, leaving current channel first');
-        if (currentState.contextType === 'dm') {
+        if (currentState.contextType === VoiceSessionType.Dm) {
           await leaveDmVoice(deps);
         } else {
           await leaveVoiceChannel(deps);
@@ -118,7 +118,7 @@ export const useVoiceConnection = () => {
       const currentState = deps.getVoiceState();
       if (currentState.isConnected) {
         logger.info('[useVoiceConnection] Already connected, leaving current channel/DM first');
-        if (currentState.contextType === 'dm') {
+        if (currentState.contextType === VoiceSessionType.Dm) {
           await leaveDmVoice(deps);
         } else {
           await leaveVoiceChannel(deps);
@@ -145,7 +145,7 @@ export const useVoiceConnection = () => {
 
   const handleLeaveVoiceChannel = useCallback(async () => {
     const deps = getDeps();
-    if (deps.getVoiceState().contextType === 'dm') {
+    if (deps.getVoiceState().contextType === VoiceSessionType.Dm) {
       await leaveDmVoice(deps);
     } else {
       await leaveVoiceChannel(deps);
@@ -174,7 +174,7 @@ export const useVoiceConnection = () => {
 
   const handleSetShowVideoTiles = useCallback(
     (show: boolean) => {
-      dispatch({ type: 'SET_SHOW_VIDEO_TILES', payload: show });
+      dispatch({ type: VoiceActionType.SetShowVideoTiles, payload: show });
     },
     [dispatch]
   );
@@ -201,7 +201,7 @@ export const useVoiceConnection = () => {
   );
 
   const handleRequestMaximize = useCallback(() => {
-    dispatch({ type: 'SET_REQUEST_MAXIMIZE', payload: true });
+    dispatch({ type: VoiceActionType.SetRequestMaximize, payload: true });
   }, [dispatch]);
 
   return {

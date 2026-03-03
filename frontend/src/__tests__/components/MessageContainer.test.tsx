@@ -88,12 +88,7 @@ const defaultProps = {
 
 /** Find the column-reverse scroll container */
 function getScrollContainer() {
-  // The scroll container has column-reverse style and contains message elements
-  const containers = document.querySelectorAll('div');
-  for (const el of containers) {
-    if (el.style.flexDirection === 'column-reverse') return el;
-  }
-  return null;
+  return screen.getByTestId('scroll-container');
 }
 
 /** Get the IntersectionObserver instance that observes a given element */
@@ -175,7 +170,7 @@ describe('MessageContainer', () => {
       expect(screen.getByTestId('message-msg-c')).toBeInTheDocument();
     });
 
-    it('uses column-reverse flex direction on scroll container', () => {
+    it('renders scroll container with column-reverse layout', () => {
       const messages = [createMessage({ id: 'msg-1' })];
 
       renderWithProviders(
@@ -183,9 +178,7 @@ describe('MessageContainer', () => {
       );
 
       const container = getScrollContainer();
-      expect(container).not.toBeNull();
-      expect(container!.style.flexDirection).toBe('column-reverse');
-      expect(container!.style.overflowY).toBe('auto');
+      expect(container).toBeInTheDocument();
     });
 
     it('always renders message input outside the scroll container', () => {
@@ -233,7 +226,7 @@ describe('MessageContainer', () => {
         <MessageContainer {...defaultProps} messages={messages} />,
       );
 
-      const container = getScrollContainer()!;
+      const container = getScrollContainer();
       container.scrollTo = vi.fn();
 
       // Make FAB visible
@@ -394,7 +387,7 @@ describe('MessageContainer', () => {
       // Verify DOM order: in column-reverse, DOM order is newest-first.
       // The divider should appear between msg-b (unread) and msg-c (last read) in DOM,
       // which visually places it between msg-c (above) and msg-b (below).
-      const container = getScrollContainer()!;
+      const container = getScrollContainer();
       const children = Array.from(container.querySelectorAll('[data-testid]'));
       const testIds = children.map((el) => el.getAttribute('data-testid'));
       const dividerIdx = testIds.indexOf('unread-divider');

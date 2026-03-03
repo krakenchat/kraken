@@ -29,6 +29,7 @@ import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
 import { useReadReceipts } from '../../../hooks/useReadReceipts';
 import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
 import MobileAppBar from '../MobileAppBar';
+import { VoiceSessionType } from '../../../contexts/VoiceContext';
 
 /**
  * Messages panel - Shows list of DM conversations
@@ -80,7 +81,7 @@ export const MobileMessagesPanel: React.FC = () => {
                 currentUserId={currentUser?.id}
                 onClick={() => handleDmClick(dmGroup.id)}
                 touchFriendly
-                isInCall={voiceState.isConnected && voiceState.contextType === "dm" && voiceState.currentDmGroupId === dmGroup.id}
+                isInCall={voiceState.isConnected && voiceState.contextType === VoiceSessionType.Dm && voiceState.currentDmGroupId === dmGroup.id}
                 unreadCount={unreadCount(dmGroup.id)}
                 mentionCount={mentionCount(dmGroup.id)}
               />

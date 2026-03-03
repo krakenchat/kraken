@@ -26,7 +26,10 @@ import { useNavigate } from "react-router-dom";
 import { useDebounce } from "../../hooks/useDebounce";
 import { logger } from "../../utils/logger";
 
-type SearchScope = "channel" | "community";
+enum SearchScope {
+  Channel = "channel",
+  Community = "community",
+}
 
 interface MessageSearchProps {
   channelId: string;
@@ -46,7 +49,7 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
   onClose,
 }) => {
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<SearchScope>("channel");
+  const [scope, setScope] = useState<SearchScope>(SearchScope.Channel);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,7 +78,7 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
 
       setIsLoading(true);
       try {
-        if (scope === "channel") {
+        if (scope === SearchScope.Channel) {
           const data = await queryClient.fetchQuery(
             messagesControllerSearchChannelMessagesOptions({
               path: { channelId },
@@ -232,8 +235,8 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
           fullWidth
           sx={{ mb: 2 }}
         >
-          <ToggleButton value="channel">This Channel</ToggleButton>
-          <ToggleButton value="community">All Channels</ToggleButton>
+          <ToggleButton value={SearchScope.Channel}>This Channel</ToggleButton>
+          <ToggleButton value={SearchScope.Community}>All Channels</ToggleButton>
         </ToggleButtonGroup>
 
         {/* Results */}
@@ -279,7 +282,7 @@ const MessageSearch: React.FC<MessageSearchProps> = ({
                           mb: 0.5,
                         }}
                       >
-                        {scope === "community" && result.channelName && (
+                        {scope === SearchScope.Community && result.channelName && (
                           <Typography
                             variant="caption"
                             sx={{

@@ -4645,9 +4645,26 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MuteParticipantDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Participant muted/unmuted successfully"
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           },
           "201": {
             "description": ""
@@ -7517,10 +7534,12 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "roleId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -7550,7 +7569,8 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -8155,7 +8175,8 @@
             "nullable": true
           },
           "authorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "spans": {
             "type": "array",
@@ -8281,7 +8302,8 @@
             "nullable": true
           },
           "authorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "spans": {
             "type": "array",
@@ -9284,7 +9306,8 @@
             "type": "string"
           },
           "moderatorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "reason": {
             "type": "string",
@@ -9377,7 +9400,8 @@
             "type": "string"
           },
           "moderatorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "reason": {
             "type": "string",
@@ -9509,7 +9533,8 @@
             "nullable": true
           },
           "authorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "spans": {
             "type": "array",
@@ -9668,7 +9693,8 @@
             "type": "string"
           },
           "moderatorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "targetUserId": {
             "type": "string",
@@ -9915,6 +9941,21 @@
           "roomId"
         ]
       },
+      "MuteParticipantDto": {
+        "type": "object",
+        "properties": {
+          "participantIdentity": {
+            "type": "string"
+          },
+          "mute": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "participantIdentity",
+          "mute"
+        ]
+      },
       "ConnectionInfoResponseDto": {
         "type": "object",
         "properties": {
@@ -9942,7 +9983,8 @@
         "type": "object",
         "properties": {
           "channelId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "roomName": {
             "type": "string"
@@ -10070,11 +10112,13 @@
           },
           "targetChannelId": {
             "type": "string",
-            "description": "Required if destination is 'channel'\nChannel ID to post the clip to"
+            "description": "Required if destination is 'channel'\nChannel ID to post the clip to",
+            "format": "uuid"
           },
           "targetDirectMessageGroupId": {
             "type": "string",
-            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to"
+            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to",
+            "format": "uuid"
           }
         },
         "required": [
@@ -10189,11 +10233,13 @@
           },
           "targetChannelId": {
             "type": "string",
-            "description": "Required if destination is 'channel'\nChannel ID to post the clip to"
+            "description": "Required if destination is 'channel'\nChannel ID to post the clip to",
+            "format": "uuid"
           },
           "targetDirectMessageGroupId": {
             "type": "string",
-            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to"
+            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to",
+            "format": "uuid"
           }
         },
         "required": [
@@ -10623,7 +10669,8 @@
             "type": "string"
           },
           "authorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "sentAt": {
             "format": "date-time",
@@ -10797,12 +10844,24 @@
             "type": "string",
             "nullable": true
           },
-          "resourceId": {
+          "fileUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileCommunityId": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileMessageId": {
             "type": "string",
             "nullable": true
           },
           "storagePath": {
             "type": "string"
+          },
+          "thumbnailPath": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -10817,8 +10876,11 @@
           "uploadedById",
           "uploadedAt",
           "deletedAt",
-          "resourceId",
-          "storagePath"
+          "fileUserId",
+          "fileCommunityId",
+          "fileMessageId",
+          "storagePath",
+          "thumbnailPath"
         ]
       },
       "UserStorageStatsDto": {
@@ -11481,7 +11543,8 @@
             "nullable": true
           },
           "authorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "spans": {
             "type": "array",
@@ -11613,7 +11676,8 @@
             "nullable": true
           },
           "authorId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "spans": {
             "type": "array",
@@ -11794,7 +11858,8 @@
           "memberIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         },
@@ -11880,7 +11945,8 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -11893,7 +11959,8 @@
           "memberIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         },

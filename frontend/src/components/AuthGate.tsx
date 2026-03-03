@@ -21,10 +21,15 @@ import { ThreadPanelProvider } from "../contexts/ThreadPanelContext";
 import { UserProfileProvider } from "../contexts/UserProfileContext";
 import { logger } from "../utils/logger";
 
-type AuthState = "loading" | "needs-onboarding" | "unauthenticated" | "authenticated";
+enum AuthState {
+  Loading = "loading",
+  NeedsOnboarding = "needs-onboarding",
+  Unauthenticated = "unauthenticated",
+  Authenticated = "authenticated",
+}
 
 export function AuthGate() {
-  const [authState, setAuthState] = useState<AuthState>("loading");
+  const [authState, setAuthState] = useState<AuthState>(AuthState.Loading);
 
   // Phase 1: Onboarding check (no auth required)
   const {
@@ -41,7 +46,7 @@ export function AuthGate() {
 
     // Onboarding needed
     if (onboardingChecked && onboardingStatus?.needsSetup) {
-      setAuthState("needs-onboarding");
+      setAuthState(AuthState.NeedsOnboarding);
       return;
     }
 
@@ -62,7 +67,7 @@ export function AuthGate() {
     return onAuthFailure(() => {
       disconnectSocket();
       clearTokens();
-      setAuthState("unauthenticated");
+      setAuthState(AuthState.Unauthenticated);
     });
   }, []);
 
@@ -76,14 +81,14 @@ export function AuthGate() {
       try {
         const newToken = await refreshToken();
         if (newToken) {
-          setAuthState("authenticated");
+          setAuthState(AuthState.Authenticated);
           return;
         }
       } catch {
         // Refresh failed — user must log in
       }
 
-      setAuthState("unauthenticated");
+      setAuthState(AuthState.Unauthenticated);
       return;
     }
 
@@ -92,7 +97,7 @@ export function AuthGate() {
     try {
       const { error } = await userControllerGetProfile();
       if (!error) {
-        setAuthState("authenticated");
+        setAuthState(AuthState.Authenticated);
         return;
       }
     } catch {
@@ -104,7 +109,7 @@ export function AuthGate() {
     try {
       const newToken = await refreshToken();
       if (newToken) {
-        setAuthState("authenticated");
+        setAuthState(AuthState.Authenticated);
         return;
       }
     } catch {
@@ -113,10 +118,10 @@ export function AuthGate() {
 
     disconnectSocket();
     clearTokens();
-    setAuthState("unauthenticated");
+    setAuthState(AuthState.Unauthenticated);
   }
 
-  if (authState === "loading") {
+  if (authState === AuthState.Loading) {
     return (
       <Box
         sx={{
@@ -136,11 +141,11 @@ export function AuthGate() {
     );
   }
 
-  if (authState === "needs-onboarding") {
+  if (authState === AuthState.NeedsOnboarding) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  if (authState === "unauthenticated") {
+  if (authState === AuthState.Unauthenticated) {
     return <Navigate to="/login" replace />;
   }
 

@@ -19,7 +19,6 @@ import UserAvatar from "../Common/UserAvatar";
 interface FriendRequestCardProps {
   request: Friendship;
   type: "received" | "sent";
-  currentUserId: string;
   onAccept?: (friendshipId: string) => void;
   onDecline?: (friendshipId: string) => void;
   onCancel?: (friendshipId: string) => void;
@@ -28,7 +27,6 @@ interface FriendRequestCardProps {
 const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
   request,
   type,
-  currentUserId: _currentUserId,
   onAccept,
   onDecline,
   onCancel,

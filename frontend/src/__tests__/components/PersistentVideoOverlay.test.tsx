@@ -40,10 +40,14 @@ const defaultVoiceState = {
 let mockVoiceState = { ...defaultVoiceState };
 const mockDispatch = vi.fn();
 
-vi.mock('../../contexts/VoiceContext', () => ({
-  useVoice: vi.fn(() => mockVoiceState),
-  useVoiceDispatch: vi.fn(() => ({ dispatch: mockDispatch })),
-}));
+vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../contexts/VoiceContext')>();
+  return {
+    ...actual,
+    useVoice: vi.fn(() => mockVoiceState),
+    useVoiceDispatch: vi.fn(() => ({ dispatch: mockDispatch })),
+  };
+});
 
 vi.mock('../../hooks/useVoiceConnection', () => ({
   useVoiceConnection: vi.fn(() => ({

@@ -21,14 +21,10 @@ import { logger } from "../../utils/logger";
 
 interface ThreadMessageInputProps {
   parentMessageId: string;
-  channelId?: string;
-  directMessageGroupId?: string;
 }
 
 export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
   parentMessageId,
-  channelId: _channelId,
-  directMessageGroupId: _directMessageGroupId,
 }) => {
   const theme = useTheme();
   const { socket } = useContext(SocketContext);

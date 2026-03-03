@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from "react";
 import { useVoiceConnection } from "../hooks/useVoiceConnection";
+import { VoiceSessionType } from "./VoiceContext";
 
 const AUTO_DISMISS_MS = 30_000;
 
@@ -66,7 +67,7 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     if (
       incomingCall &&
       voiceState.isConnected &&
-      voiceState.contextType === "dm" &&
+      voiceState.contextType === VoiceSessionType.Dm &&
       voiceState.currentDmGroupId === incomingCall.dmGroupId
     ) {
       dismissCall();

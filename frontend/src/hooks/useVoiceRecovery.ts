@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { VoiceSessionType } from '../contexts/VoiceContext';
 import { useVoiceConnection } from './useVoiceConnection';
 import { useQuery } from '@tanstack/react-query';
 import { userControllerGetProfileOptions, livekitControllerGetConnectionInfoOptions } from '../api-client/@tanstack/react-query.gen';
@@ -49,7 +50,7 @@ export function useVoiceRecovery() {
       setRecoveryError(null);
 
       try {
-        if (savedConnection.contextType === 'channel') {
+        if (savedConnection.contextType === VoiceSessionType.Channel) {
           // Recover channel voice connection
           if (!savedConnection.channelId || !savedConnection.channelName || !savedConnection.communityId) {
             throw new Error('Invalid saved channel connection data');
@@ -64,7 +65,7 @@ export function useVoiceRecovery() {
           );
 
           logger.info('[VoiceRecovery] ✓ Successfully recovered channel voice connection');
-        } else if (savedConnection.contextType === 'dm') {
+        } else if (savedConnection.contextType === VoiceSessionType.Dm) {
           // Recover DM voice connection
           if (!savedConnection.dmGroupId || !savedConnection.dmGroupName) {
             throw new Error('Invalid saved DM connection data');

@@ -19,6 +19,7 @@ import {
   communityControllerUpdateMutation,
   channelsControllerFindAllForCommunityOptions,
 } from "../api-client/@tanstack/react-query.gen";
+import { invalidateCommunityQueries } from "../utils/queryInvalidation";
 
 import { useCommunityForm } from "../hooks/useCommunityForm";
 import { useUserPermissions } from "../features/roles/useUserPermissions";
@@ -99,13 +100,7 @@ const EditCommunityPage: React.FC = () => {
 
   const { mutateAsync: updateCommunity, isPending: isLoading, error } = useMutation({
     ...communityControllerUpdateMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAll' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllMine' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllWithStats' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOneWithStats' }] });
-    },
+    onSuccess: () => invalidateCommunityQueries(queryClient),
   });
   const { uploadFile, isUploading, error: uploadError } = useFileUpload();
 
