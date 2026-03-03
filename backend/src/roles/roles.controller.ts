@@ -149,6 +149,7 @@ export class RolesController {
       communityId,
       createRoleDto,
       req.user.id,
+      req.user.role,
     );
   }
 
@@ -174,6 +175,7 @@ export class RolesController {
       communityId,
       updateRoleDto,
       req.user.id,
+      req.user.role,
     );
   }
 

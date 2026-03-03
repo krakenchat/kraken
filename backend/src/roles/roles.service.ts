@@ -570,6 +570,7 @@ export class RolesService implements OnModuleInit {
     communityId: string,
     createRoleDto: CreateRoleDto,
     userId?: string,
+    userInstanceRole?: string,
     tx?: Prisma.TransactionClient,
   ): Promise<RoleDto> {
     const database = tx || this.databaseService;
@@ -601,7 +602,8 @@ export class RolesService implements OnModuleInit {
     }
 
     // Privilege escalation prevention: user cannot grant permissions they don't have
-    if (userId) {
+    // Instance OWNERs bypass RBAC entirely, so skip this check for them
+    if (userId && userInstanceRole !== 'OWNER') {
       const userRolesResponse = await this.getUserRolesForCommunity(
         userId,
         communityId,
@@ -659,6 +661,7 @@ export class RolesService implements OnModuleInit {
     communityId: string,
     updateRoleDto: UpdateRoleDto,
     userId?: string,
+    userInstanceRole?: string,
     tx?: Prisma.TransactionClient,
   ): Promise<RoleDto> {
     const database = tx || this.databaseService;
@@ -704,7 +707,8 @@ export class RolesService implements OnModuleInit {
       }
 
       // Privilege escalation prevention: user cannot grant permissions they don't have
-      if (userId) {
+      // Instance OWNERs bypass RBAC entirely, so skip this check for them
+      if (userId && userInstanceRole !== 'OWNER') {
         const userRolesResponse = await this.getUserRolesForCommunity(
           userId,
           communityId,

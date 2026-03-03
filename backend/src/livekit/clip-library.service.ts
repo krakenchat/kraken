@@ -276,6 +276,18 @@ export class ClipLibraryService {
           "You are not a member of the target channel's community",
         );
       }
+      // Private channels require explicit channel membership
+      if (channel.isPrivate) {
+        const channelMembership =
+          await this.databaseService.channelMembership.findFirst({
+            where: { userId, channelId: dto.targetChannelId },
+          });
+        if (!channelMembership) {
+          throw new ForbiddenException(
+            'You do not have access to this private channel',
+          );
+        }
+      }
     }
 
     if (dto.destination === 'dm' && dto.targetDirectMessageGroupId) {

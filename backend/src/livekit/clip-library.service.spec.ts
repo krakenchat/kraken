@@ -30,6 +30,9 @@ describe('ClipLibraryService', () => {
     directMessageGroupMember: {
       findFirst: jest.fn(),
     },
+    channelMembership: {
+      findFirst: jest.fn(),
+    },
   };
 
   let storageService: Mocked<StorageService>;
