@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import MessageComponent from "./MessageComponent";
-import { Typography, Fab } from "@mui/material";
+import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
 import { UnreadMessageDivider } from "./UnreadMessageDivider";
@@ -8,6 +8,7 @@ import type { Message } from "../../types/message.type";
 import { useMessageVisibility } from "../../hooks/useMessageVisibility";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
 import { useResponsive } from "../../hooks/useResponsive";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 interface MessageContainerProps {
   // Data
@@ -151,60 +152,60 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
   if (isLoading) {
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           height: "100%",
           display: "flex",
           flexDirection: "row",
           width: "100%",
         }}
       >
-        <div
-          style={{
+        <Box
+          sx={{
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            padding: "16px",
+            p: 2,
           }}
         >
           {Array.from({ length: skeletonCount }).map((_, i) => (
             <MessageSkeleton key={i} />
           ))}
-        </div>
+        </Box>
         {shouldShowMemberList && memberListComponent}
-      </div>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           height: "100%",
           display: "flex",
           flexDirection: "row",
           width: "100%",
         }}
       >
-        <div
-          style={{
+        <Box
+          sx={{
             flex: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "16px",
+            p: 2,
           }}
         >
           <Typography color="error">Error loading messages</Typography>
-        </div>
+        </Box>
         {shouldShowMemberList && memberListComponent}
-      </div>
+      </Box>
     );
   }
 
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: "flex",
         flexDirection: "row",
         height: "100%",
@@ -213,8 +214,8 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
       }}
     >
       {/* Message Area */}
-      <div
-        style={{
+      <Box
+        sx={{
           flex: 1,
           display: "flex",
           flexDirection: "column",
@@ -223,9 +224,9 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         }}
       >
         {messages.length > 0 ? (
-          <div
+          <Box
             ref={scrollContainerRef}
-            style={{
+            sx={{
               flex: 1,
               minHeight: 0,
               overflowY: "auto",
@@ -234,7 +235,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             }}
           >
             {/* Bottom sentinel: first in DOM = visual bottom in column-reverse */}
-            <div ref={bottomSentinelRef} style={{ height: 1, flexShrink: 0 }} />
+            <Box ref={bottomSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
 
             {/* Messages newest-first; column-reverse shows oldest at top */}
             {messages.map((message, index) => {
@@ -265,7 +266,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
                         contextId={contextId}
                         communityId={communityId}
                         onOpenThread={onOpenThread}
-                        contextType={directMessageGroupId ? "dm" : "channel"}
+                        contextType={directMessageGroupId ? VoiceSessionType.Dm : VoiceSessionType.Channel}
                       />
                     </div>
                   </div>
@@ -275,19 +276,19 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
             {/* Loading skeleton at DOM end = visual top */}
             {isLoadingMore && (
-              <div style={{ padding: "16px", textAlign: "center" }}>
+              <Box sx={{ p: 2, textAlign: "center" }}>
                 <MessageSkeleton />
                 <MessageSkeleton />
                 <MessageSkeleton />
-              </div>
+              </Box>
             )}
 
             {/* Top sentinel: last in DOM = visual top */}
-            <div ref={topSentinelRef} style={{ height: 1, flexShrink: 0 }} />
-          </div>
+            <Box ref={topSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
+          </Box>
         ) : (
-          <div
-            style={{
+          <Box
+            sx={{
               flex: 1,
               display: "flex",
               alignItems: "center",
@@ -297,13 +298,13 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             <Typography color="text.secondary">
               {emptyStateMessage}
             </Typography>
-          </div>
+          </Box>
         )}
 
         {/* Input rendered outside scroll container — stable DOM, never unmounted by message changes */}
-        <div style={{ flexShrink: 0 }}>
+        <Box sx={{ flexShrink: 0 }}>
           {messageInput}
-        </div>
+        </Box>
 
         {!atBottom && (
           <Fab
@@ -320,11 +321,11 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             <KeyboardArrowDownIcon />
           </Fab>
         )}
-      </div>
+      </Box>
 
       {/* Member List */}
       {shouldShowMemberList && memberListComponent}
-    </div>
+    </Box>
   );
 };
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useServerMuteEffect } from '../../hooks/useServerMuteEffect';
+import { VoiceActionType } from '../../contexts/VoiceContext';
 import { playSound } from '../../hooks/useSound';
 
 const mockDispatch = vi.fn();
@@ -66,7 +67,7 @@ describe('useServerMuteEffect', () => {
     });
 
     expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_SERVER_MUTED',
+      type: VoiceActionType.SetServerMuted,
       payload: true,
     });
     expect(playSound).toHaveBeenCalledWith('error');
@@ -94,7 +95,7 @@ describe('useServerMuteEffect', () => {
     });
 
     expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_SERVER_MUTED',
+      type: VoiceActionType.SetServerMuted,
       payload: false,
     });
     expect(playSound).not.toHaveBeenCalled();

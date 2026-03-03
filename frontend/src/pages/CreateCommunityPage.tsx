@@ -3,6 +3,7 @@ import { logger } from "../utils/logger";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { communityControllerCreateMutation } from "../api-client/@tanstack/react-query.gen";
+import { invalidateCommunityQueries } from "../utils/queryInvalidation";
 
 import { useCommunityForm } from "../hooks/useCommunityForm";
 import {
@@ -15,13 +16,7 @@ const CreateCommunityPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { mutateAsync: createCommunity, isPending: isLoading, error } = useMutation({
     ...communityControllerCreateMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAll' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllMine' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOne' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindAllWithStats' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'communityControllerFindOneWithStats' }] });
-    },
+    onSuccess: () => invalidateCommunityQueries(queryClient),
   });
   
   const {

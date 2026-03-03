@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import type { Message, Span } from "../../types/message.type";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 
 export interface MessagesHookResult {
@@ -17,7 +18,7 @@ export interface MessagesHookResult {
 }
 
 export interface MessageContainerWrapperProps {
-  contextType: 'channel' | 'dm';
+  contextType: VoiceSessionType;
   contextId: string;
   communityId?: string;
   useMessagesHook: () => MessagesHookResult;
@@ -87,8 +88,8 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       contextId={contextId}
       communityId={communityId}
       onOpenThread={onOpenThread}
-      channelId={contextType === 'channel' ? contextId : undefined}
-      directMessageGroupId={contextType === 'dm' ? contextId : undefined}
+      channelId={contextType === VoiceSessionType.Channel ? contextId : undefined}
+      directMessageGroupId={contextType === VoiceSessionType.Dm ? contextId : undefined}
     />
   );
 };

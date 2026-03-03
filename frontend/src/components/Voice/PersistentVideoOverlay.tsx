@@ -18,7 +18,7 @@ import {
   FullscreenExit,
 } from '@mui/icons-material';
 import { useLocation } from 'react-router-dom';
-import { useVoice, useVoiceDispatch } from '../../contexts/VoiceContext';
+import { useVoice, useVoiceDispatch, VoiceSessionType, VoiceActionType } from '../../contexts/VoiceContext';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useVideoOverlay } from '../../contexts/VideoOverlayContext';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -139,7 +139,7 @@ export const PersistentVideoOverlay: React.FC = () => {
         setCachedItem(PIP_SETTINGS_KEY, updated);
         return updated;
       });
-      dispatch({ type: 'SET_REQUEST_MAXIMIZE', payload: false });
+      dispatch({ type: VoiceActionType.SetRequestMaximize, payload: false });
     }
   }, [voiceState.requestMaximize, dispatch]);
 
@@ -359,7 +359,7 @@ export const PersistentVideoOverlay: React.FC = () => {
     );
   }
 
-  const displayName = voiceState.contextType === 'dm'
+  const displayName = voiceState.contextType === VoiceSessionType.Dm
     ? voiceState.dmGroupName || 'DM Call'
     : voiceState.channelName || 'Voice';
 

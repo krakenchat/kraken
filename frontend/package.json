@@ -36,6 +36,7 @@
     "dev": "vite --host 0.0.0.0",
     "start": "pnpm run build-electron && pnpm run build-preload && electron .",
     "electron-dev": "concurrently -k \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && pnpm run build-electron && pnpm run build-preload && electron .\"",
+    "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 20",
     "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 20 --fix",
     "test:e2e": "playwright test",

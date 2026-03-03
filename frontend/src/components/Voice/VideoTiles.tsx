@@ -31,9 +31,13 @@ import {
   RoomEvent
 } from 'livekit-client';
 
-type VideoLayoutMode = 'grid' | 'sidebar' | 'spotlight';
+enum VideoLayoutMode {
+  Grid = 'grid',
+  Sidebar = 'sidebar',
+  Spotlight = 'spotlight',
+}
 
-interface VideoTile {
+interface VideoTileData {
   participant: RemoteParticipant | LocalParticipant;
   videoTrack?: TrackPublication;
   screenTrack?: TrackPublication;
@@ -54,7 +58,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
   const { isReplayBufferActive } = useReplayBufferState();
-  const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>('grid');
+  const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>(VideoLayoutMode.Grid);
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
   const [trackUpdate, setTrackUpdate] = useState(0); // Force re-render on track changes
@@ -79,8 +83,8 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const handleTilePin = useCallback((tileId: string) => {
     setPinnedTileId(prev => prev === tileId ? null : tileId);
     setLayoutMode(prev => {
-      if (prev !== 'sidebar' && pinnedTileId !== tileId) {
-        return 'sidebar';
+      if (prev !== VideoLayoutMode.Sidebar && pinnedTileId !== tileId) {
+        return VideoLayoutMode.Sidebar;
       }
       return prev;
     });
@@ -88,23 +92,23 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
 
   const handleTileSpotlight = useCallback((tileId: string) => {
     setLayoutMode(prevLayout => {
-      if (prevLayout === 'spotlight' && spotlightTileId === tileId) {
+      if (prevLayout === VideoLayoutMode.Spotlight && spotlightTileId === tileId) {
         // If we're in spotlight mode and clicking the same tile, go back to grid
         setSpotlightTileId(null);
-        return 'grid';
+        return VideoLayoutMode.Grid;
       } else {
         // Otherwise, spotlight this tile
         setSpotlightTileId(tileId);
-        return 'spotlight';
+        return VideoLayoutMode.Spotlight;
       }
     });
   }, [spotlightTileId]);
 
   // Memoize video tiles to avoid recalculating on every render
-  const videoTiles = useMemo((): VideoTile[] => {
+  const videoTiles = useMemo((): VideoTileData[] => {
     if (!state.room) return [];
 
-    const tiles: VideoTile[] = [];
+    const tiles: VideoTileData[] = [];
     const localParticipant = state.room.localParticipant;
     const participants = Array.from(state.room.remoteParticipants.values());
 
@@ -442,12 +446,12 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             <Tooltip title="Grid Layout">
               <IconButton
                 size="small"
-                onClick={() => setLayoutMode('grid')}
+                onClick={() => setLayoutMode(VideoLayoutMode.Grid)}
                 sx={{
-                  backgroundColor: layoutMode === 'grid' ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
+                  backgroundColor: layoutMode === VideoLayoutMode.Grid ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
                   color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: layoutMode === 'grid' ? theme.palette.primary.main : theme.palette.action.selected,
+                    backgroundColor: layoutMode === VideoLayoutMode.Grid ? theme.palette.primary.main : theme.palette.action.selected,
                   },
                 }}
               >
@@ -458,12 +462,12 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             <Tooltip title="Sidebar Layout">
               <IconButton
                 size="small"
-                onClick={() => setLayoutMode('sidebar')}
+                onClick={() => setLayoutMode(VideoLayoutMode.Sidebar)}
                 sx={{
-                  backgroundColor: layoutMode === 'sidebar' ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
+                  backgroundColor: layoutMode === VideoLayoutMode.Sidebar ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
                   color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: layoutMode === 'sidebar' ? theme.palette.primary.main : theme.palette.action.selected,
+                    backgroundColor: layoutMode === VideoLayoutMode.Sidebar ? theme.palette.primary.main : theme.palette.action.selected,
                   },
                 }}
               >
@@ -474,12 +478,12 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             <Tooltip title="Spotlight Layout">
               <IconButton
                 size="small"
-                onClick={() => setLayoutMode('spotlight')}
+                onClick={() => setLayoutMode(VideoLayoutMode.Spotlight)}
                 sx={{
-                  backgroundColor: layoutMode === 'spotlight' ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
+                  backgroundColor: layoutMode === VideoLayoutMode.Spotlight ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
                   color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: layoutMode === 'spotlight' ? theme.palette.primary.main : theme.palette.action.selected,
+                    backgroundColor: layoutMode === VideoLayoutMode.Spotlight ? theme.palette.primary.main : theme.palette.action.selected,
                   },
                 }}
               >
@@ -492,9 +496,9 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
 
       {/* Main Video Area */}
       <Box sx={{ flex: 1, overflow: 'hidden', p: isMobile ? 0.5 : 1, minHeight: 0 }}>
-        {layoutMode === 'grid' && renderGridLayout()}
-        {layoutMode === 'sidebar' && renderSidebarLayout()}
-        {layoutMode === 'spotlight' && renderSpotlightLayout()}
+        {layoutMode === VideoLayoutMode.Grid && renderGridLayout()}
+        {layoutMode === VideoLayoutMode.Sidebar && renderSidebarLayout()}
+        {layoutMode === VideoLayoutMode.Spotlight && renderSpotlightLayout()}
       </Box>
     </Box>
   );

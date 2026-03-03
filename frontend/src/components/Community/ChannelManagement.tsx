@@ -10,6 +10,7 @@ import {
   IconButton,
   Chip,
 } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material";
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -32,6 +33,114 @@ import { invalidateChannelQueries } from "../../utils/queryInvalidation";
 import ConfirmDialog from "../Common/ConfirmDialog";
 import CreateChannelDialog from "./CreateChannelDialog";
 import EditChannelDialog from "./EditChannelDialog";
+
+interface ChannelSectionProps {
+  title: string;
+  channels: Channel[];
+  canManageChannels: boolean;
+  canUpdateChannels: boolean;
+  canDeleteChannels: boolean;
+  movingUp: boolean;
+  movingDown: boolean;
+  deletingChannel: boolean;
+  onMoveUp: (channelId: string) => void;
+  onMoveDown: (channelId: string) => void;
+  onEdit: (channel: Channel) => void;
+  onDelete: (channelId: string, channelName: string) => void;
+  sx?: SxProps<Theme>;
+}
+
+const ChannelSection: React.FC<ChannelSectionProps> = ({
+  title,
+  channels,
+  canManageChannels,
+  canUpdateChannels,
+  canDeleteChannels,
+  movingUp,
+  movingDown,
+  deletingChannel,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
+  sx,
+}) => (
+  <Box sx={sx}>
+    <Typography variant="subtitle2" color="text.secondary" mb={1}>
+      {title}
+    </Typography>
+    <Box display="flex" flexDirection="column" gap={1}>
+      {channels.map((channel, index) => {
+        const isFirst = index === 0;
+        const isLast = index === channels.length - 1;
+        return (
+          <Box
+            key={channel.id}
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            p={1}
+            border={1}
+            borderColor="divider"
+            borderRadius={1}
+          >
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography variant="body2" fontWeight="medium">
+                {channel.name}
+              </Typography>
+              {channel.isPrivate && (
+                <Chip label="Private" size="small" color="warning" />
+              )}
+            </Box>
+
+            {canManageChannels && (
+              <Box display="flex" gap={0.5}>
+                {canUpdateChannels && (
+                  <>
+                    <IconButton
+                      size="small"
+                      onClick={() => onMoveUp(channel.id)}
+                      disabled={isFirst || movingUp || movingDown}
+                      title="Move up"
+                    >
+                      <ArrowUpIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => onMoveDown(channel.id)}
+                      disabled={isLast || movingUp || movingDown}
+                      title="Move down"
+                    >
+                      <ArrowDownIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => onEdit(channel)}
+                      title="Edit channel"
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
+                {canDeleteChannels && channel.name !== "general" && (
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => onDelete(channel.id, channel.name)}
+                    disabled={deletingChannel}
+                    title="Delete channel"
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+            )}
+          </Box>
+        );
+      })}
+    </Box>
+  </Box>
+);
 
 interface ChannelManagementProps {
   communityId: string;
@@ -184,160 +293,39 @@ const ChannelManagement: React.FC<ChannelManagementProps> = ({ communityId }) =>
 
         {/* Text Channels */}
         {textChannels.length > 0 && (
-          <Box mb={2}>
-            <Typography variant="subtitle2" color="text.secondary" mb={1}>
-              Text Channels
-            </Typography>
-            <Box display="flex" flexDirection="column" gap={1}>
-              {textChannels.map((channel, index) => {
-                const isFirst = index === 0;
-                const isLast = index === textChannels.length - 1;
-                return (
-                  <Box
-                    key={channel.id}
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    p={1}
-                    border={1}
-                    borderColor="divider"
-                    borderRadius={1}
-                  >
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Typography variant="body2" fontWeight="medium">
-                        {channel.name}
-                      </Typography>
-                      {channel.isPrivate && (
-                        <Chip label="Private" size="small" color="warning" />
-                      )}
-                    </Box>
-
-                    {canManageChannels && (
-                      <Box display="flex" gap={0.5}>
-                        {canUpdateChannels && (
-                          <>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleMoveUp(channel.id)}
-                              disabled={isFirst || movingUp || movingDown}
-                              title="Move up"
-                            >
-                              <ArrowUpIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleMoveDown(channel.id)}
-                              disabled={isLast || movingUp || movingDown}
-                              title="Move down"
-                            >
-                              <ArrowDownIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditChannel(channel)}
-                              title="Edit channel"
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </>
-                        )}
-                        {canDeleteChannels && channel.name !== "general" && (
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleDeleteChannel(channel.id, channel.name)}
-                            disabled={deletingChannel}
-                            title="Delete channel"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-          </Box>
+          <ChannelSection
+            title="Text Channels"
+            channels={textChannels}
+            canManageChannels={canManageChannels}
+            canUpdateChannels={canUpdateChannels}
+            canDeleteChannels={canDeleteChannels}
+            movingUp={movingUp}
+            movingDown={movingDown}
+            deletingChannel={deletingChannel}
+            onMoveUp={handleMoveUp}
+            onMoveDown={handleMoveDown}
+            onEdit={handleEditChannel}
+            onDelete={handleDeleteChannel}
+            sx={{ mb: 2 }}
+          />
         )}
 
         {/* Voice Channels */}
         {voiceChannels.length > 0 && (
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary" mb={1}>
-              Voice Channels
-            </Typography>
-            <Box display="flex" flexDirection="column" gap={1}>
-              {voiceChannels.map((channel, index) => {
-                const isFirst = index === 0;
-                const isLast = index === voiceChannels.length - 1;
-                return (
-                  <Box
-                    key={channel.id}
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    p={1}
-                    border={1}
-                    borderColor="divider"
-                    borderRadius={1}
-                  >
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Typography variant="body2" fontWeight="medium">
-                        {channel.name}
-                      </Typography>
-                      {channel.isPrivate && (
-                        <Chip label="Private" size="small" color="warning" />
-                      )}
-                    </Box>
-
-                    {canManageChannels && (
-                      <Box display="flex" gap={0.5}>
-                        {canUpdateChannels && (
-                          <>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleMoveUp(channel.id)}
-                              disabled={isFirst || movingUp || movingDown}
-                              title="Move up"
-                            >
-                              <ArrowUpIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleMoveDown(channel.id)}
-                              disabled={isLast || movingUp || movingDown}
-                              title="Move down"
-                            >
-                              <ArrowDownIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditChannel(channel)}
-                              title="Edit channel"
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </>
-                        )}
-                        {canDeleteChannels && channel.name !== "general" && (
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleDeleteChannel(channel.id, channel.name)}
-                            disabled={deletingChannel}
-                            title="Delete channel"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-          </Box>
+          <ChannelSection
+            title="Voice Channels"
+            channels={voiceChannels}
+            canManageChannels={canManageChannels}
+            canUpdateChannels={canUpdateChannels}
+            canDeleteChannels={canDeleteChannels}
+            movingUp={movingUp}
+            movingDown={movingDown}
+            deletingChannel={deletingChannel}
+            onMoveUp={handleMoveUp}
+            onMoveDown={handleMoveDown}
+            onEdit={handleEditChannel}
+            onDelete={handleDeleteChannel}
+          />
         )}
 
         <CreateChannelDialog

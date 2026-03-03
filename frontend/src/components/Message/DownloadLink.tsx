@@ -9,7 +9,7 @@ import CodeIcon from "@mui/icons-material/Code";
 import ArchiveIcon from "@mui/icons-material/Archive";
 import { useAuthenticatedFile } from "../../hooks/useAuthenticatedFile";
 import { FileMetadata } from "../../types/message.type";
-import { formatFileSize } from "../../utils/format";
+import { formatFileSize, downloadBlob } from "../../utils/format";
 
 const DownloadCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -69,14 +69,7 @@ export const DownloadLink: React.FC<DownloadLinkProps> = ({ metadata }) => {
   });
 
   const handleDownload = () => {
-    if (!blobUrl) return;
-
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = metadata.filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (blobUrl) downloadBlob(blobUrl, metadata.filename);
   };
 
   if (error) {

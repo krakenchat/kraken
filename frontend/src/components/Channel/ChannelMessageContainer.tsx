@@ -21,7 +21,7 @@ import { useCurrentUser } from "../../hooks/useCurrentUser";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
 import { useThreadPanel } from "../../contexts/ThreadPanelContext";
-import { useVoice } from "../../contexts/VoiceContext";
+import { useVoice, VoiceSessionType } from "../../contexts/VoiceContext";
 import { VOICE_BAR_HEIGHT } from "../../constants/layout";
 import type { UserMention, ChannelMention } from "../../utils/mentionParser";
 import type { Message } from "../../types/message.type";
@@ -68,7 +68,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   }, [highlightMessageId, communityId, channelId, navigate]);
 
   const { handleSendMessage } = useMessageFileUpload({
-    contextType: 'channel',
+    contextType: VoiceSessionType.Channel,
     contextId: channelId,
     authorId,
   });
@@ -105,7 +105,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
 
   // Auto-mark notifications as read when viewing this channel
   useAutoMarkNotificationsRead({
-    contextType: 'channel',
+    contextType: VoiceSessionType.Channel,
     contextId: channelId,
   });
 
@@ -139,7 +139,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   // Create member list component for the channel
   const memberListComponent = (
     <MemberListContainer
-      contextType="channel"
+      contextType={VoiceSessionType.Channel}
       contextId={channelId}
       communityId={communityId}
     />
@@ -196,7 +196,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
       {/* Messages */}
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
         <MessageContainerWrapper
-          contextType="channel"
+          contextType={VoiceSessionType.Channel}
           contextId={channelId}
           communityId={communityId}
           useMessagesHook={() => messagesHookResult}

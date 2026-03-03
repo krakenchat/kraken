@@ -7,7 +7,7 @@ const FormFields = styled(Box)(({ theme }) => ({
   gap: theme.spacing(3),
 }));
 
-interface FormErrors {
+export interface FormErrors {
   name?: string;
   description?: string;
 }

@@ -10,7 +10,7 @@ interface UseMessageVisibilityProps {
   channelId?: string;
   directMessageGroupId?: string;
   messages: Array<{ id: string }>;
-  containerRef?: React.RefObject<HTMLElement>;
+  containerRef?: React.RefObject<HTMLElement | null>;
   enabled?: boolean;
 }
 

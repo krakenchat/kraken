@@ -102,32 +102,17 @@ export const AudioRenderer: React.FC = () => {
     updateAudioTracks();
 
     // Subscribe to relevant room events
-    const handleTrackSubscribed = () => {
-      updateAudioTracks();
-    };
+    const events = [
+      RoomEvent.TrackSubscribed,
+      RoomEvent.TrackUnsubscribed,
+      RoomEvent.ParticipantConnected,
+      RoomEvent.ParticipantDisconnected,
+    ] as const;
 
-    const handleTrackUnsubscribed = () => {
-      updateAudioTracks();
-    };
-
-    const handleParticipantConnected = () => {
-      updateAudioTracks();
-    };
-
-    const handleParticipantDisconnected = () => {
-      updateAudioTracks();
-    };
-
-    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
-    room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
-    room.on(RoomEvent.ParticipantConnected, handleParticipantConnected);
-    room.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+    events.forEach((event) => room.on(event, updateAudioTracks));
 
     return () => {
-      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
-      room.off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
-      room.off(RoomEvent.ParticipantConnected, handleParticipantConnected);
-      room.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+      events.forEach((event) => room.off(event, updateAudioTracks));
     };
   }, [room, updateAudioTracks]);
 

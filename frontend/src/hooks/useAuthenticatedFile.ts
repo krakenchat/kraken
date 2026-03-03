@@ -4,6 +4,22 @@ import { getAccessToken } from "../utils/tokenService";
 import { getApiUrl } from "../config/env";
 import type { FileMetadata } from "../types/message.type";
 
+interface FileState {
+  blobUrl: string | null;
+  metadata: FileMetadata | null;
+  isLoadingBlob: boolean;
+  isLoadingMetadata: boolean;
+  error: Error | null;
+}
+
+const initialState: FileState = {
+  blobUrl: null,
+  metadata: null,
+  isLoadingBlob: false,
+  isLoadingMetadata: false,
+  error: null,
+};
+
 /**
  * Hook to fetch file metadata and/or blob URL with authentication
  * Uses global cache to prevent duplicate fetches for the same fileId
@@ -21,42 +37,33 @@ export const useAuthenticatedFile = (
   const { fetchBlob = true, fetchMetadata = false } = options || {};
   const fileCache = useFileCache();
 
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [metadata, setMetadata] = useState<FileMetadata | null>(null);
-  const [isLoadingBlob, setIsLoadingBlob] = useState(false);
-  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [state, setState] = useState<FileState>(initialState);
 
   useEffect(() => {
     if (!fileId) {
-      setBlobUrl(null);
-      setMetadata(null);
-      setIsLoadingBlob(false);
-      setIsLoadingMetadata(false);
-      setError(null);
+      setState(initialState);
       return;
     }
 
     let isCancelled = false;
 
     const fetchData = async () => {
-      setError(null);
+      setState(prev => ({ ...prev, error: null }));
 
       try {
         // Fetch blob using centralized fetchBlob (handles caching and deduplication)
         if (fetchBlob) {
-          setIsLoadingBlob(true);
+          setState(prev => ({ ...prev, isLoadingBlob: true }));
           const url = await fileCache.fetchBlob(fileId);
 
           if (!isCancelled) {
-            setBlobUrl(url);
-            setIsLoadingBlob(false);
+            setState(prev => ({ ...prev, blobUrl: url, isLoadingBlob: false }));
           }
         }
 
         // Fetch metadata if requested
         if (fetchMetadata) {
-          setIsLoadingMetadata(true);
+          setState(prev => ({ ...prev, isLoadingMetadata: true }));
 
           const token = getAccessToken();
           if (!token) {
@@ -75,18 +82,13 @@ export const useAuthenticatedFile = (
 
           const metadataData = await metadataResponse.json();
           if (!isCancelled) {
-            setMetadata(metadataData);
-            setIsLoadingMetadata(false);
+            setState(prev => ({ ...prev, metadata: metadataData, isLoadingMetadata: false }));
           }
         }
       } catch (err) {
         if (!isCancelled) {
           const error = err instanceof Error ? err : new Error("Failed to fetch file");
-          setError(error);
-          setBlobUrl(null);
-          setMetadata(null);
-          setIsLoadingBlob(false);
-          setIsLoadingMetadata(false);
+          setState({ ...initialState, error });
         }
       }
     };
@@ -99,12 +101,12 @@ export const useAuthenticatedFile = (
   }, [fileId, fetchBlob, fetchMetadata, fileCache]);
 
   return {
-    blobUrl,
-    metadata,
-    isLoading: isLoadingBlob || isLoadingMetadata,
-    isLoadingBlob,
-    isLoadingMetadata,
-    error,
+    blobUrl: state.blobUrl,
+    metadata: state.metadata,
+    isLoading: state.isLoadingBlob || state.isLoadingMetadata,
+    isLoadingBlob: state.isLoadingBlob,
+    isLoadingMetadata: state.isLoadingMetadata,
+    error: state.error,
   };
 };
 

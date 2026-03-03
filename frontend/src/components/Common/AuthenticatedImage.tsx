@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, CircularProgress, Avatar, SxProps, Theme } from "@mui/material";
+import { Box, CircularProgress, Avatar, type SxProps, type Theme } from "@mui/material";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
 
 interface AuthenticatedImageProps {
@@ -61,10 +61,11 @@ export const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({
   }
 
   return (
-    <img
+    <Box
+      component="img"
       src={blobUrl}
       alt={alt}
-      style={sx as React.CSSProperties}
+      sx={sx}
       className={className}
     />
   );

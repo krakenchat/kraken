@@ -17,6 +17,7 @@ import {
 import FriendCard from "./FriendCard";
 import EmptyState from "../Common/EmptyState";
 import { logger } from "../../utils/logger";
+import { invalidateFriendQueries, invalidateDmGroupQueries } from "../../utils/queryInvalidation";
 
 interface FriendListProps {
   onSelectDmGroup?: (dmGroupId: string) => void;
@@ -29,16 +30,13 @@ const FriendList: React.FC<FriendListProps> = ({ onSelectDmGroup }) => {
   const { mutateAsync: removeFriend } = useMutation({
     ...friendsControllerRemoveFriendMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+      invalidateFriendQueries(queryClient);
     },
   });
   const { mutateAsync: createDmGroup } = useMutation({
     ...directMessagesControllerCreateDmGroupMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindUserDmGroups' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'directMessagesControllerFindDmGroup' }] });
+      invalidateDmGroupQueries(queryClient);
     },
   });
 

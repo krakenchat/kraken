@@ -50,6 +50,7 @@ import { useVoicePresenceHeartbeat } from "../../hooks/useVoicePresenceHeartbeat
 import { useServerMuteEffect } from "../../hooks/useServerMuteEffect";
 import { useRemoteVolumeEffect } from "../../hooks/useRemoteVolumeEffect";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 export const VoiceBottomBar: React.FC = () => {
   const theme = useTheme();
@@ -169,11 +170,11 @@ export const VoiceBottomBar: React.FC = () => {
   }
 
   // Determine display name and type
-  const displayName = state.contextType === 'dm'
+  const displayName = state.contextType === VoiceSessionType.Dm
     ? state.dmGroupName || 'Direct Message'
     : state.channelName || 'Voice Channel';
 
-  const displayType = state.contextType === 'dm' ? 'DM Voice Call' : 'Voice Connected';
+  const displayType = state.contextType === VoiceSessionType.Dm ? 'DM Voice Call' : 'Voice Connected';
 
   return (
     <>

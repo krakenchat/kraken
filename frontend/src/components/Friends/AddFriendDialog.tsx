@@ -18,6 +18,7 @@ import {
 } from "../../api-client/@tanstack/react-query.gen";
 
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
+import { invalidateFriendQueries } from "../../utils/queryInvalidation";
 
 interface AddFriendDialogProps {
   open: boolean;
@@ -40,9 +41,7 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
   const { mutateAsync: sendFriendRequest, isPending: isSending } = useMutation({
     ...friendsControllerSendFriendRequestMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriendshipStatus' }] });
+      invalidateFriendQueries(queryClient);
     },
   });
   const [success, setSuccess] = useState(false);
@@ -94,8 +93,7 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
           errorMessage =
             FRIENDLY_409_MESSAGES[errorObj.message ?? ""] ?? errorObj.message ?? errorMessage;
           // Invalidate caches to refresh relationship data (handles race conditions)
-          queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetFriends' }] });
-          queryClient.invalidateQueries({ queryKey: [{ _id: 'friendsControllerGetPendingRequests' }] });
+          invalidateFriendQueries(queryClient);
         } else if (errorObj.message) {
           errorMessage = errorObj.message;
         }

@@ -35,7 +35,8 @@ import { useNotification } from '../../contexts/NotificationContext';
 import { getApiUrl } from '../../config/env';
 import { getAccessToken } from '../../utils/tokenService';
 import { useVideoUrl } from '../../hooks/useVideoUrl';
-import { formatFileSize } from '../../utils/format';
+import { formatFileSize, getErrorMessage } from '../../utils/format';
+import { invalidateClipQueries } from '../../utils/queryInvalidation';
 import { logger } from '../../utils/logger';
 import ConfirmDialog from '../Common/ConfirmDialog';
 import EmptyState from '../Common/EmptyState';
@@ -45,22 +46,6 @@ interface ClipLibraryProps {
   userId: string;
   isOwnProfile: boolean;
 }
-
-// Helper to extract error message from RTK Query error or fetch error
-const getErrorMessage = (err: unknown, defaultMessage: string): string => {
-  if (err && typeof err === 'object') {
-    // RTK Query error with server message
-    if ('data' in err && err.data && typeof err.data === 'object' && 'message' in err.data) {
-      const message = (err.data as { message: string }).message;
-      return typeof message === 'string' ? message : defaultMessage;
-    }
-    // Standard Error object
-    if (err instanceof Error) {
-      return err.message || defaultMessage;
-    }
-  }
-  return defaultMessage;
-};
 
 // Helper functions outside component to avoid recreation
 const formatDuration = (seconds: number) => {
@@ -218,19 +203,14 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
   const isLoading = isOwnProfile ? ownLoading : publicLoading;
   const error = isOwnProfile ? ownError : publicError;
 
+  const onClipMutationSuccess = () => invalidateClipQueries(queryClient);
   const { mutateAsync: updateClip } = useMutation({
     ...livekitControllerUpdateClipMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetMyClips' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetUserPublicClips' }] });
-    },
+    onSuccess: onClipMutationSuccess,
   });
   const { mutateAsync: deleteClip } = useMutation({
     ...livekitControllerDeleteClipMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetMyClips' }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: 'livekitControllerGetUserPublicClips' }] });
-    },
+    onSuccess: onClipMutationSuccess,
   });
 
   // Share dialog state

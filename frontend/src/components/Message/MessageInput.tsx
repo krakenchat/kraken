@@ -37,9 +37,10 @@ import { useNotification } from "../../contexts/NotificationContext";
 import { useTypingEmitter } from "../../hooks/useTypingEmitter";
 import type { Span } from "../../types/message.type";
 import { SpanType } from "../../types/message.type";
+import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 export interface MessageInputProps {
-  contextType: 'channel' | 'dm';
+  contextType: VoiceSessionType;
   contextId: string;
   userMentions: UserMention[];
   channelMentions?: ChannelMention[];
@@ -75,12 +76,12 @@ export default function MessageInput({
 
   // Typing indicator emitter
   const { handleKeyPress: emitTypingKeyPress, sendTypingStop } = useTypingEmitter(
-    contextType === 'channel'
+    contextType === VoiceSessionType.Channel
       ? { channelId: contextId }
       : { directMessageGroupId: contextId },
   );
 
-  const isChannel = contextType === 'channel' && !!communityId;
+  const isChannel = contextType === VoiceSessionType.Channel && !!communityId;
 
   // Cleanup timeout on unmount
   useEffect(() => {

@@ -38,7 +38,12 @@ interface ChannelNotificationMenuProps {
   channelName?: string;
 }
 
-type NotificationLevel = 'all' | 'mentions' | 'none' | 'default';
+enum NotificationLevel {
+  All = 'all',
+  Mentions = 'mentions',
+  None = 'none',
+  Default = 'default',
+}
 
 export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = ({
   channelId,
@@ -77,7 +82,7 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
 
   const handleSetLevel = async (level: NotificationLevel) => {
     try {
-      if (level === 'default') {
+      if (level === NotificationLevel.Default) {
         // Remove override to use default settings
         await deleteOverride({ path: { channelId } });
       } else {
@@ -91,18 +96,18 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
   };
 
   // Determine current notification level
-  const currentLevel: NotificationLevel = override?.level as NotificationLevel || 'default';
+  const currentLevel: NotificationLevel = override?.level as NotificationLevel || NotificationLevel.Default;
   const defaultLevel = settings?.defaultChannelLevel || 'mentions';
 
   // Get icon based on current level
   const getIcon = () => {
-    const effectiveLevel = currentLevel === 'default' ? defaultLevel : currentLevel;
+    const effectiveLevel = currentLevel === NotificationLevel.Default ? defaultLevel : currentLevel;
     switch (effectiveLevel) {
-      case 'all':
+      case NotificationLevel.All:
         return <NotificationsActive />;
-      case 'mentions':
+      case NotificationLevel.Mentions:
         return <Notifications />;
-      case 'none':
+      case NotificationLevel.None:
         return <NotificationsOff />;
       default:
         return <Notifications />;
@@ -111,14 +116,14 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
 
   // Get tooltip text
   const getTooltipText = () => {
-    const effectiveLevel = currentLevel === 'default' ? defaultLevel : currentLevel;
+    const effectiveLevel = currentLevel === NotificationLevel.Default ? defaultLevel : currentLevel;
     const levelText = {
-      all: 'All messages',
-      mentions: 'Only @mentions',
-      none: 'Nothing',
+      [NotificationLevel.All]: 'All messages',
+      [NotificationLevel.Mentions]: 'Only @mentions',
+      [NotificationLevel.None]: 'Nothing',
     }[effectiveLevel];
 
-    return currentLevel === 'default'
+    return currentLevel === NotificationLevel.Default
       ? `Notifications: ${levelText} (default)`
       : `Notifications: ${levelText}`;
   };
@@ -153,12 +158,12 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
         <Divider />
 
         <MenuItem
-          onClick={() => handleSetLevel('all')}
-          selected={currentLevel === 'all'}
+          onClick={() => handleSetLevel(NotificationLevel.All)}
+          selected={currentLevel === NotificationLevel.All}
           disabled={isLoading}
         >
           <ListItemIcon>
-            {currentLevel === 'all' ? <Check /> : <NotificationsActive />}
+            {currentLevel === NotificationLevel.All ? <Check /> : <NotificationsActive />}
           </ListItemIcon>
           <ListItemText
             primary="All Messages"
@@ -167,12 +172,12 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
         </MenuItem>
 
         <MenuItem
-          onClick={() => handleSetLevel('mentions')}
-          selected={currentLevel === 'mentions'}
+          onClick={() => handleSetLevel(NotificationLevel.Mentions)}
+          selected={currentLevel === NotificationLevel.Mentions}
           disabled={isLoading}
         >
           <ListItemIcon>
-            {currentLevel === 'mentions' ? <Check /> : <Notifications />}
+            {currentLevel === NotificationLevel.Mentions ? <Check /> : <Notifications />}
           </ListItemIcon>
           <ListItemText
             primary="Only @mentions"
@@ -181,12 +186,12 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
         </MenuItem>
 
         <MenuItem
-          onClick={() => handleSetLevel('none')}
-          selected={currentLevel === 'none'}
+          onClick={() => handleSetLevel(NotificationLevel.None)}
+          selected={currentLevel === NotificationLevel.None}
           disabled={isLoading}
         >
           <ListItemIcon>
-            {currentLevel === 'none' ? <Check /> : <NotificationsOff />}
+            {currentLevel === NotificationLevel.None ? <Check /> : <NotificationsOff />}
           </ListItemIcon>
           <ListItemText
             primary="Nothing"
@@ -194,11 +199,11 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
           />
         </MenuItem>
 
-        {currentLevel !== 'default' && (
+        {currentLevel !== NotificationLevel.Default && (
           <>
             <Divider />
             <MenuItem
-              onClick={() => handleSetLevel('default')}
+              onClick={() => handleSetLevel(NotificationLevel.Default)}
               disabled={isLoading}
             >
               <ListItemIcon>

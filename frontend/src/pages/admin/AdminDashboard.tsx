@@ -28,15 +28,7 @@ import {
   instanceControllerGetStatsOptions,
   storageQuotaControllerGetInstanceStorageStatsOptions,
 } from "../../api-client/@tanstack/react-query.gen";
-
-// Helper to format bytes
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-};
+import { formatFileSize } from "../../utils/format";
 
 // Helper to format uptime
 const formatUptime = (seconds: number): string => {
@@ -224,7 +216,7 @@ const AdminDashboard: React.FC = () => {
                     Total Used
                   </Typography>
                   <Typography variant="body2" fontWeight="bold">
-                    {formatBytes(storageStats.totalStorageUsedBytes)}
+                    {formatFileSize(storageStats.totalStorageUsedBytes)}
                   </Typography>
                 </Box>
 
@@ -242,7 +234,7 @@ const AdminDashboard: React.FC = () => {
                     Avg per User
                   </Typography>
                   <Typography variant="body2" fontWeight="bold">
-                    {formatBytes(storageStats.averageStoragePerUserBytes)}
+                    {formatFileSize(storageStats.averageStoragePerUserBytes)}
                   </Typography>
                 </Box>
 
@@ -251,7 +243,7 @@ const AdminDashboard: React.FC = () => {
                     Default Quota
                   </Typography>
                   <Typography variant="body2" fontWeight="bold">
-                    {formatBytes(storageStats.defaultQuotaBytes)}
+                    {formatFileSize(storageStats.defaultQuotaBytes)}
                   </Typography>
                 </Box>
 
@@ -260,7 +252,7 @@ const AdminDashboard: React.FC = () => {
                     Max File Size
                   </Typography>
                   <Typography variant="body2" fontWeight="bold">
-                    {formatBytes(storageStats.maxFileSizeBytes)}
+                    {formatFileSize(storageStats.maxFileSizeBytes)}
                   </Typography>
                 </Box>
 
@@ -303,7 +295,7 @@ const AdminDashboard: React.FC = () => {
                       Memory
                     </Typography>
                     <Typography variant="body2" fontWeight="bold">
-                      {formatBytes(storageStats.server.memoryUsedBytes)} / {formatBytes(storageStats.server.memoryTotalBytes)}
+                      {formatFileSize(storageStats.server.memoryUsedBytes)} / {formatFileSize(storageStats.server.memoryTotalBytes)}
                     </Typography>
                   </Box>
                   <LinearProgress
@@ -322,7 +314,7 @@ const AdminDashboard: React.FC = () => {
                         Disk
                       </Typography>
                       <Typography variant="body2" fontWeight="bold">
-                        {formatBytes(storageStats.server.diskUsedBytes)} / {formatBytes(storageStats.server.diskTotalBytes)}
+                        {formatFileSize(storageStats.server.diskUsedBytes)} / {formatFileSize(storageStats.server.diskTotalBytes)}
                       </Typography>
                     </Box>
                     <LinearProgress
@@ -391,7 +383,7 @@ const AdminDashboard: React.FC = () => {
                     <Grid size={{ xs: 6, sm: 4, md: 3 }} key={item.type}>
                       <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1, textAlign: "center" }}>
                         <Typography variant="h6" fontWeight="bold">
-                          {formatBytes(item.bytes)}
+                          {formatFileSize(item.bytes)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {item.type.replace(/_/g, " ")}

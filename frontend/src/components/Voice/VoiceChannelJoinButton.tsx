@@ -3,8 +3,7 @@ import { Box, Button, Tooltip, CircularProgress } from '@mui/material';
 import { VolumeUp, VolumeOff, VideoCall } from '@mui/icons-material';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useLocalMediaState } from '../../hooks/useLocalMediaState';
-import { ChannelType } from '../../types/channel.type';
-import { Channel } from '../../types/channel.type';
+import { ChannelType, type Channel } from '../../types/channel.type';
 
 interface VoiceChannelJoinButtonProps {
   channel: Channel;

@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { directMessagesControllerCreateDmGroupMutation } from "../../api-client/@tanstack/react-query.gen";
+import { invalidateDmGroupQueries } from "../../utils/queryInvalidation";
 
 import UserSearchAutocomplete, { UserOption } from "../Common/UserSearchAutocomplete";
 import { logger } from "../../utils/logger";
@@ -36,10 +37,7 @@ const CreateDmDialog: React.FC<CreateDmDialogProps> = ({
   const queryClient = useQueryClient();
   const { mutateAsync: createDmGroup, isPending: isCreating } = useMutation({
     ...directMessagesControllerCreateDmGroupMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [{ _id: "directMessagesControllerFindUserDmGroups" }] });
-      queryClient.invalidateQueries({ queryKey: [{ _id: "directMessagesControllerFindDmGroup" }] });
-    },
+    onSuccess: () => invalidateDmGroupQueries(queryClient),
   });
 
   const [selectedUsers, setSelectedUsers] = useState<UserOption[]>([]);

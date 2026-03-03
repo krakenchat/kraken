@@ -11,6 +11,7 @@ import {
   ListItemText,
   useTheme,
   alpha,
+  styled,
 } from '@mui/material';
 import {
   Notifications as NotificationIcon,
@@ -18,6 +19,34 @@ import {
 } from '@mui/icons-material';
 import { MentionSuggestion } from '../../hooks/useMentionAutocomplete';
 import UserAvatar from '../Common/UserAvatar';
+
+const DropdownPaper = styled(Paper)(({ theme }) => ({
+  position: 'absolute',
+  minWidth: 280,
+  maxWidth: 360,
+  zIndex: 2000,
+  backgroundImage: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.85)})`,
+  backdropFilter: 'blur(20px)',
+  borderRadius: theme.shape.borderRadius * 3,
+  border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+  boxShadow: `
+    0 8px 32px ${alpha(theme.palette.common.black, 0.12)},
+    0 2px 8px ${alpha(theme.palette.common.black, 0.08)},
+    inset 0 1px 0 ${alpha(theme.palette.common.white, 0.05)}
+  `,
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    bottom: -8,
+    left: 24,
+    width: 0,
+    height: 0,
+    borderLeft: '8px solid transparent',
+    borderRight: '8px solid transparent',
+    borderTop: `8px solid ${alpha(theme.palette.background.paper, 0.95)}`,
+    filter: `drop-shadow(0 2px 4px ${alpha(theme.palette.common.black, 0.1)})`,
+  },
+}));
 
 interface MentionDropdownProps {
   suggestions: MentionSuggestion[];
@@ -38,46 +67,21 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
 
   if (isLoading) {
     return (
-      <Paper
+      <DropdownPaper
         elevation={8}
         sx={{
-          position: 'absolute',
           ...position,
-          minWidth: 280,
-          maxWidth: 360,
-          zIndex: 2000,
-          backgroundImage: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.85)})`,
-          backdropFilter: 'blur(20px)',
-          borderRadius: 3,
-          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-          boxShadow: `
-            0 8px 32px ${alpha(theme.palette.common.black, 0.12)},
-            0 2px 8px ${alpha(theme.palette.common.black, 0.08)},
-            inset 0 1px 0 ${alpha(theme.palette.common.white, 0.05)}
-          `,
           p: 3,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            bottom: -8,
-            left: 24,
-            width: 0,
-            height: 0,
-            borderLeft: '8px solid transparent',
-            borderRight: '8px solid transparent',
-            borderTop: `8px solid ${alpha(theme.palette.background.paper, 0.95)}`,
-            filter: `drop-shadow(0 2px 4px ${alpha(theme.palette.common.black, 0.1)})`,
-          },
         }}
       >
         <CircularProgress size={20} thickness={4} />
         <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
           Searching...
         </Typography>
-      </Paper>
+      </DropdownPaper>
     );
   }
 
@@ -86,37 +90,12 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
   }
 
   return (
-    <Paper
+    <DropdownPaper
       elevation={8}
       sx={{
-        position: 'absolute',
         ...position,
-        minWidth: 280,
-        maxWidth: 360,
         maxHeight: 320,
         overflow: 'hidden',
-        zIndex: 2000,
-        background: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.85)})`,
-        backdropFilter: 'blur(20px)',
-        borderRadius: 3,
-        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-        boxShadow: `
-          0 8px 32px ${alpha(theme.palette.common.black, 0.12)},
-          0 2px 8px ${alpha(theme.palette.common.black, 0.08)},
-          inset 0 1px 0 ${alpha(theme.palette.common.white, 0.05)}
-        `,
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          bottom: -8,
-          left: 24,
-          width: 0,
-          height: 0,
-          borderLeft: '8px solid transparent',
-          borderRight: '8px solid transparent',
-          borderTop: `8px solid ${alpha(theme.palette.background.paper, 0.95)}`,
-          filter: `drop-shadow(0 2px 4px ${alpha(theme.palette.common.black, 0.1)})`,
-        },
       }}
     >
       {/* Header */}
@@ -311,6 +290,6 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
           ↑↓ Navigate • Enter/Tab Select • Esc Close
         </Typography>
       </Box>
-    </Paper>
+    </DropdownPaper>
   );
 };

@@ -47,7 +47,6 @@ interface BanListPanelProps {
 interface UnbanDialogProps {
   open: boolean;
   onClose: () => void;
-  ban: CommunityBan | null;
   onUnban: (reason?: string) => Promise<void>;
   isLoading: boolean;
 }
@@ -55,7 +54,6 @@ interface UnbanDialogProps {
 const UnbanDialog: React.FC<UnbanDialogProps> = ({
   open,
   onClose,
-  ban: _ban,
   onUnban,
   isLoading,
 }) => {
@@ -268,7 +266,6 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
       <UnbanDialog
         open={!!selectedBan}
         onClose={() => setSelectedBan(null)}
-        ban={selectedBan}
         onUnban={handleUnban}
         isLoading={isUnbanning}
       />

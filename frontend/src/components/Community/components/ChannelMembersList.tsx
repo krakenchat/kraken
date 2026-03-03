@@ -5,7 +5,6 @@ import {
   CardContent,
   Typography,
   CircularProgress,
-  Avatar,
   Divider,
   IconButton,
   Alert,
@@ -17,8 +16,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelMembershipControllerRemoveMutation } from "../../../api-client/@tanstack/react-query.gen";
 import { invalidateChannelMembershipQueries } from "../../../utils/queryInvalidation";
 import { logger } from "../../../utils/logger";
+import UserAvatar from "../../Common/UserAvatar";
 
-interface ChannelMember {
+export interface ChannelMember {
   id: string;
   userId: string;
   user?: {
@@ -141,10 +141,7 @@ export const ChannelMembersList: React.FC<ChannelMembersListProps> = ({
                   }}
                 >
                   <Box display="flex" alignItems="center" gap={2}>
-                    <Avatar 
-                      src={member.user?.avatarUrl || ""} 
-                      sx={{ width: 40, height: 40 }}
-                    />
+                    <UserAvatar user={member.user} size="medium" />
                     <Box>
                       <Typography variant="body1" fontWeight="medium">
                         {member.user?.username}

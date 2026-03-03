@@ -49,72 +49,21 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
     setValidationError(null);
   }, []);
 
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-
-      // Validate file sizes
-      const oversizedFile = fileArray.find(file => file.size > maxFileSize);
-      if (oversizedFile) {
-        setValidationError(`File "${oversizedFile.name}" exceeds the ${formatFileSize(maxFileSize)} size limit`);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-
-      // Validate total file count
-      const currentCount = fileCountRef.current;
-      if (currentCount + fileArray.length > MAX_FILES_PER_MESSAGE) {
-        setValidationError(`Maximum ${MAX_FILES_PER_MESSAGE} files per message`);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-
-      // Use ref for startIndex to avoid stale closure
-      const startIndex = fileCountRef.current;
-
-      // Generate previews for image files
-      fileArray.forEach((file, idx) => {
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            if (e.target?.result) {
-              setFilePreviews(prev => new Map(prev).set(startIndex + idx, e.target!.result as string));
-            }
-          };
-          reader.readAsDataURL(file);
-        }
-      });
-
-      // Update ref synchronously before React batches the state update
-      fileCountRef.current += fileArray.length;
-      setSelectedFiles(prev => [...prev, ...fileArray]);
-    }
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, [maxFileSize]);
-
-  const handleFileDrop = useCallback((files: File[]) => {
-    if (files.length === 0) return;
+  /** Shared validation + preview generation + state update for new files */
+  const addFiles = useCallback((files: File[]): boolean => {
+    if (files.length === 0) return false;
 
     // Validate file sizes
     const oversizedFile = files.find(file => file.size > maxFileSize);
     if (oversizedFile) {
       setValidationError(`File "${oversizedFile.name}" exceeds the ${formatFileSize(maxFileSize)} size limit`);
-      return;
+      return false;
     }
 
     // Validate total file count
-    const currentCount = fileCountRef.current;
-    if (currentCount + files.length > MAX_FILES_PER_MESSAGE) {
+    if (fileCountRef.current + files.length > MAX_FILES_PER_MESSAGE) {
       setValidationError(`Maximum ${MAX_FILES_PER_MESSAGE} files per message`);
-      return;
+      return false;
     }
 
     const startIndex = fileCountRef.current;
@@ -134,7 +83,23 @@ export function useFileAttachments(): UseFileAttachmentsReturn {
 
     fileCountRef.current += files.length;
     setSelectedFiles(prev => [...prev, ...files]);
+    return true;
   }, [maxFileSize]);
+
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      addFiles(Array.from(files));
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [addFiles]);
+
+  const handleFileDrop = useCallback((files: File[]) => {
+    addFiles(files);
+  }, [addFiles]);
 
   const handleRemoveFile = useCallback((index: number) => {
     fileCountRef.current = Math.max(0, fileCountRef.current - 1);

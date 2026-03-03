@@ -24,8 +24,7 @@ import { Track } from "livekit-client";
 import BanDialog from "../Moderation/BanDialog";
 import TimeoutDialog from "../Moderation/TimeoutDialog";
 import KickConfirmDialog from "../Moderation/KickConfirmDialog";
-import { getApiBaseUrl } from "../../config/env";
-import { getAccessToken } from "../../utils/tokenService";
+import { livekitControllerMuteParticipant } from "../../api-client/sdk.gen";
 import { useNotification } from "../../contexts/NotificationContext";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
@@ -203,20 +202,11 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
     if (!voiceState.currentChannelId) return;
     const newMuteState = !user.isServerMuted;
     try {
-      const baseUrl = getApiBaseUrl();
-      const token = getAccessToken();
-      const response = await fetch(
-        `${baseUrl}/livekit/channels/${voiceState.currentChannelId}/mute-participant`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ participantIdentity: user.id, mute: newMuteState }),
-        },
-      );
-      if (!response.ok) throw new Error(newMuteState ? "Failed to mute" : "Failed to unmute");
+      await livekitControllerMuteParticipant({
+        path: { channelId: voiceState.currentChannelId },
+        body: { participantIdentity: user.id, mute: newMuteState },
+        throwOnError: true,
+      });
     } catch (error) {
       logger.error("Failed to server mute/unmute participant:", error);
     }

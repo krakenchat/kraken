@@ -8,6 +8,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { VoiceSessionType } from '../contexts/VoiceContext';
 import {
   notificationsControllerMarkAsReadMutation,
   notificationsControllerGetNotificationsOptions,
@@ -21,7 +22,7 @@ interface UseAutoMarkNotificationsReadOptions {
   /**
    * Type of context being viewed
    */
-  contextType: 'channel' | 'dm';
+  contextType: VoiceSessionType;
 
   /**
    * ID of the channel or DM group being viewed
@@ -70,7 +71,7 @@ export function useAutoMarkNotificationsRead(options: UseAutoMarkNotificationsRe
 
     const unread = notificationsData.notifications.filter((n) => {
       if (n.read || n.dismissed || processedIdsRef.current.has(n.id)) return false;
-      return contextType === 'channel'
+      return contextType === VoiceSessionType.Channel
         ? n.channelId === contextId
         : n.directMessageGroupId === contextId;
     });

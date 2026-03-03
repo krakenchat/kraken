@@ -21,6 +21,7 @@ import {
   directMessagesControllerFindUserDmGroupsOptions,
 } from '../../api-client/@tanstack/react-query.gen';
 import { useNotification } from '../../contexts/NotificationContext';
+import { getErrorMessage } from '../../utils/format';
 import { logger } from '../../utils/logger';
 import type { Community } from '../../types/community.type';
 import type { Channel } from '../../types/channel.type';
@@ -31,19 +32,6 @@ interface ShareClipDialogProps {
   onClose: () => void;
   clipId: string | null;
 }
-
-const getErrorMessage = (err: unknown, defaultMessage: string): string => {
-  if (err && typeof err === 'object') {
-    if ('data' in err && err.data && typeof err.data === 'object' && 'message' in err.data) {
-      const message = (err.data as { message: string }).message;
-      return typeof message === 'string' ? message : defaultMessage;
-    }
-    if (err instanceof Error) {
-      return err.message || defaultMessage;
-    }
-  }
-  return defaultMessage;
-};
 
 const ShareClipDialog: React.FC<ShareClipDialogProps> = ({ open, onClose, clipId }) => {
   const { showNotification } = useNotification();

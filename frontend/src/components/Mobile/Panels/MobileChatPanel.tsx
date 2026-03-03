@@ -40,6 +40,7 @@ import { ErrorBoundary } from '../../ErrorBoundary';
 import MobileAppBar from '../MobileAppBar';
 import MemberListContainer from '../../Message/MemberListContainer';
 import { PinnedMessagesPanel } from '../../Moderation';
+import { VoiceSessionType } from '../../../contexts/VoiceContext';
 
 interface MobileChatPanelProps {
   communityId?: string;
@@ -260,14 +261,14 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
           <Box sx={{ flex: 1, overflow: 'auto' }}>
             {channelId && channel?.communityId && (
               <MemberListContainer
-                contextType="channel"
+                contextType={VoiceSessionType.Channel}
                 contextId={channelId}
                 communityId={channel.communityId}
               />
             )}
             {dmGroupId && (
               <MemberListContainer
-                contextType="dm"
+                contextType={VoiceSessionType.Dm}
                 contextId={dmGroupId}
               />
             )}
