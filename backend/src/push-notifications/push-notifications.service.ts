@@ -58,11 +58,15 @@ export class PushNotificationsService implements OnModuleInit {
 
       // Persist using conditional write to handle concurrent pod startup.
       // If another instance already wrote keys, updateMany matches 0 rows.
+      // Match both null and empty string to handle rows seeded without VAPID data.
       if (settings) {
         const result = await this.databaseService.instanceSettings.updateMany({
           where: {
             id: settings.id,
-            vapidPublicKey: null,
+            OR: [
+              { vapidPublicKey: null },
+              { vapidPublicKey: '' },
+            ],
           },
           data: {
             vapidPublicKey: generated.publicKey,

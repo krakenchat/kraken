@@ -191,13 +191,48 @@ describe('PushNotificationsService', () => {
       await service.onModuleInit();
 
       expect(mockDatabase.instanceSettings.updateMany).toHaveBeenCalledWith({
-        where: { id: 'settings-1', vapidPublicKey: null },
+        where: {
+          id: 'settings-1',
+          OR: [{ vapidPublicKey: null }, { vapidPublicKey: '' }],
+        },
         data: {
           vapidPublicKey: generatedKeys.publicKey,
           vapidPrivateKey: generatedKeys.privateKey,
           vapidSubject: 'mailto:admin@localhost',
         },
       });
+    });
+
+    it('should auto-generate keys when DB has empty string VAPID fields (tier 3)', async () => {
+      mockDatabase.instanceSettings.findFirst.mockResolvedValue({
+        id: 'settings-1',
+        vapidPublicKey: '',
+        vapidPrivateKey: '',
+        vapidSubject: '',
+      });
+
+      const generatedKeys = {
+        publicKey: 'generated-public-key',
+        privateKey: 'generated-private-key',
+      };
+      (webpush.generateVAPIDKeys as jest.Mock).mockReturnValue(generatedKeys);
+      mockDatabase.instanceSettings.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.onModuleInit();
+
+      expect(webpush.generateVAPIDKeys).toHaveBeenCalled();
+      expect(mockDatabase.instanceSettings.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'settings-1',
+          OR: [{ vapidPublicKey: null }, { vapidPublicKey: '' }],
+        },
+        data: {
+          vapidPublicKey: generatedKeys.publicKey,
+          vapidPrivateKey: generatedKeys.privateKey,
+          vapidSubject: 'mailto:admin@localhost',
+        },
+      });
+      expect(service.isEnabled()).toBe(true);
     });
 
     it('should use existing keys when another instance wins the race', async () => {
