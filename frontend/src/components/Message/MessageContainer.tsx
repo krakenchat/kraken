@@ -226,6 +226,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         {messages.length > 0 ? (
           <Box
             ref={scrollContainerRef}
+            data-testid="scroll-container"
             sx={{
               flex: 1,
               minHeight: 0,

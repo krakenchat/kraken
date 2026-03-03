@@ -71,9 +71,12 @@ describe('queryInvalidation', () => {
   });
 
   describe('invalidateCommunityQueries', () => {
-    it('calls invalidateQueries 2 times with correct keys', () => {
+    it('calls invalidateQueries 5 times with correct keys', () => {
       invalidateCommunityQueries(mockQueryClient);
-      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledTimes(5);
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'communityControllerFindAll' }] });
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'communityControllerFindAllMine' }] });
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'communityControllerFindOne' }] });
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'communityControllerFindAllWithStats' }] });
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'communityControllerFindOneWithStats' }] });
     });

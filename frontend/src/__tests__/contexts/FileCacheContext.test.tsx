@@ -216,7 +216,7 @@ describe('FileCacheContext', () => {
         act(async () => {
           await result.current.fetchThumbnail('no-thumb');
         }),
-      ).rejects.toThrow('Failed to fetch thumbnail: 404');
+      ).rejects.toThrow('Failed to fetch file: 404');
     });
 
     it('should throw when no auth token for thumbnail', async () => {

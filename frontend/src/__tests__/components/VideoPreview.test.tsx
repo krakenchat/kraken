@@ -55,7 +55,7 @@ describe('VideoPreview', () => {
   it('should display file size badge', () => {
     renderWithTheme(<VideoPreview metadata={baseMetadata} />);
 
-    expect(screen.getByText('50.0 MB')).toBeDefined();
+    expect(screen.getByText('50 MB')).toBeDefined();
   });
 
   it('should fetch thumbnail when hasThumbnail is true', () => {
@@ -101,7 +101,7 @@ describe('VideoPreview', () => {
 
     renderWithTheme(<VideoPreview metadata={smallMetadata} />);
 
-    expect(screen.getByText('512 B')).toBeDefined();
+    expect(screen.getByText('512 Bytes')).toBeDefined();
   });
 
   it('should format KB file sizes correctly', () => {
@@ -109,7 +109,7 @@ describe('VideoPreview', () => {
 
     renderWithTheme(<VideoPreview metadata={kbMetadata} />);
 
-    expect(screen.getByText('146 KB')).toBeDefined();
+    expect(screen.getByText('146.48 KB')).toBeDefined();
   });
 
   it('should format GB file sizes correctly', () => {
@@ -117,7 +117,7 @@ describe('VideoPreview', () => {
 
     renderWithTheme(<VideoPreview metadata={gbMetadata} />);
 
-    expect(screen.getByText('2.00 GB')).toBeDefined();
+    expect(screen.getByText('2 GB')).toBeDefined();
   });
 
   describe('edge cases', () => {

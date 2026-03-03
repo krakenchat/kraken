@@ -23,9 +23,13 @@ vi.mock('../../socket-hub/useServerEvent', () => ({
   }),
 }));
 
-vi.mock('../../contexts/VoiceContext', () => ({
-  useVoiceDispatch: vi.fn(() => ({ dispatch: mockDispatch })),
-}));
+vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../contexts/VoiceContext')>();
+  return {
+    ...actual,
+    useVoiceDispatch: vi.fn(() => ({ dispatch: mockDispatch })),
+  };
+});
 
 vi.mock('../../hooks/useRoom', () => ({
   useRoom: vi.fn(() => ({ room: mockRoom })),
