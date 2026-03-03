@@ -29,8 +29,10 @@ export class AuthService {
   private readonly jwtRefreshSecret: string | undefined;
   private readonly logger = new Logger(AuthService.name);
   // Dummy hash for timing-attack prevention - bcrypt.compare() must always run
-  private readonly DUMMY_HASH =
-    '$2b$10$dummyhashfortimingattackprevention000000000000000';
+  private readonly DUMMY_HASH = bcrypt.hashSync(
+    'dummy-timing-attack-prevention',
+    10,
+  );
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,

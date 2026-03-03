@@ -3,6 +3,7 @@ import {
   Inject,
   Logger,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -1098,6 +1099,48 @@ export class LivekitReplayService {
 
     // 9. Optionally create message with clip attachment (for channel/dm destinations)
     let messageId: string | undefined;
+
+    // Authorization: verify the user can post to the target destination
+    if (dto.destination === 'channel' && dto.targetChannelId) {
+      const channel = await this.databaseService.channel.findUnique({
+        where: { id: dto.targetChannelId },
+      });
+      if (!channel) {
+        throw new NotFoundException('Target channel not found');
+      }
+      const membership = await this.databaseService.membership.findFirst({
+        where: { userId, communityId: channel.communityId },
+      });
+      if (!membership) {
+        throw new ForbiddenException(
+          "You are not a member of the target channel's community",
+        );
+      }
+      // Private channels require explicit channel membership
+      if (channel.isPrivate) {
+        const channelMembership =
+          await this.databaseService.channelMembership.findFirst({
+            where: { userId, channelId: dto.targetChannelId },
+          });
+        if (!channelMembership) {
+          throw new ForbiddenException(
+            'You do not have access to this private channel',
+          );
+        }
+      }
+    }
+
+    if (dto.destination === 'dm' && dto.targetDirectMessageGroupId) {
+      const dmMember =
+        await this.databaseService.directMessageGroupMember.findFirst({
+          where: { groupId: dto.targetDirectMessageGroupId, userId },
+        });
+      if (!dmMember) {
+        throw new ForbiddenException(
+          'You are not a member of the target DM group',
+        );
+      }
+    }
 
     if (dto.destination === 'channel' || dto.destination === 'dm') {
       const sizeMB = Math.round(stats.size / 1024 / 1024);

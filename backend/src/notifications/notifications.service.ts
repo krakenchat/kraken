@@ -629,19 +629,11 @@ export class NotificationsService {
    * Get user notification settings (creates default if missing)
    */
   async getUserSettings(userId: string): Promise<UserNotificationSettings> {
-    let settings =
-      await this.databaseService.userNotificationSettings.findUnique({
-        where: { userId },
-      });
-
-    if (!settings) {
-      // Create default settings
-      settings = await this.databaseService.userNotificationSettings.create({
-        data: { userId },
-      });
-    }
-
-    return settings;
+    return this.databaseService.userNotificationSettings.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
   }
 
   /**

@@ -49,11 +49,10 @@ describe('RoomSubscriptionHandler', () => {
         where: { communityId, isPrivate: false },
         select: { id: true },
       });
-      expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(userId, [
-        `community:${communityId}`,
-        'channel-1',
-        'channel-2',
-      ]);
+      expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
+        `user:${userId}`,
+        [`community:${communityId}`, 'channel-1', 'channel-2'],
+      );
     });
 
     it('should notify the user about the new community', async () => {
@@ -65,7 +64,7 @@ describe('RoomSubscriptionHandler', () => {
       await handler.onMembershipCreated({ userId, communityId });
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        userId,
+        `user:${userId}`,
         ServerEvents.MEMBER_ADDED_TO_COMMUNITY,
         { communityId, userId },
       );
@@ -79,9 +78,10 @@ describe('RoomSubscriptionHandler', () => {
 
       await handler.onMembershipCreated({ userId, communityId });
 
-      expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(userId, [
-        `community:${communityId}`,
-      ]);
+      expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
+        `user:${userId}`,
+        [`community:${communityId}`],
+      );
     });
   });
 
@@ -104,7 +104,7 @@ describe('RoomSubscriptionHandler', () => {
         select: { id: true },
       });
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        userId,
+        `user:${userId}`,
         [
           `community:${communityId}`,
           'channel-1',
@@ -130,7 +130,7 @@ describe('RoomSubscriptionHandler', () => {
       await handler.onUserBanned({ userId, communityId });
 
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        userId,
+        `user:${userId}`,
         [`community:${communityId}`, 'channel-1'],
       );
     });
@@ -147,7 +147,7 @@ describe('RoomSubscriptionHandler', () => {
       await handler.onUserKicked({ userId, communityId });
 
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        userId,
+        `user:${userId}`,
         [`community:${communityId}`, 'channel-1'],
       );
     });
@@ -206,7 +206,7 @@ describe('RoomSubscriptionHandler', () => {
       });
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-123',
+        'user:user-123',
         'channel-456',
       );
     });
@@ -220,7 +220,7 @@ describe('RoomSubscriptionHandler', () => {
       });
 
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        'user-123',
+        'user:user-123',
         'channel-456',
       );
     });
@@ -238,16 +238,16 @@ describe('RoomSubscriptionHandler', () => {
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledTimes(3);
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-1',
-        'dm-group-123',
+        'user:user-1',
+        'dm:dm-group-123',
       );
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-2',
-        'dm-group-123',
+        'user:user-2',
+        'dm:dm-group-123',
       );
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-3',
-        'dm-group-123',
+        'user:user-3',
+        'dm:dm-group-123',
       );
     });
   });
@@ -261,12 +261,12 @@ describe('RoomSubscriptionHandler', () => {
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledTimes(2);
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-4',
-        'dm-group-123',
+        'user:user-4',
+        'dm:dm-group-123',
       );
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-5',
-        'dm-group-123',
+        'user:user-5',
+        'dm:dm-group-123',
       );
     });
   });
@@ -279,8 +279,8 @@ describe('RoomSubscriptionHandler', () => {
       });
 
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        'user-123',
-        'dm-group-123',
+        'user:user-123',
+        'dm:dm-group-123',
       );
     });
   });
@@ -297,11 +297,11 @@ describe('RoomSubscriptionHandler', () => {
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledTimes(2);
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-1',
+        'user:user-1',
         'alias-123',
       );
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-2',
+        'user:user-2',
         'alias-123',
       );
     });
@@ -315,7 +315,7 @@ describe('RoomSubscriptionHandler', () => {
       });
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-456',
+        'user:user-456',
         'alias-123',
       );
     });
@@ -329,7 +329,7 @@ describe('RoomSubscriptionHandler', () => {
       });
 
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        'user-456',
+        'user:user-456',
         'alias-123',
       );
     });
@@ -343,11 +343,11 @@ describe('RoomSubscriptionHandler', () => {
 
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledTimes(2);
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        'user-1',
+        'user:user-1',
         'alias-123',
       );
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        'user-2',
+        'user:user-2',
         'alias-123',
       );
     });
@@ -362,11 +362,11 @@ describe('RoomSubscriptionHandler', () => {
       });
 
       expect(websocketService.joinSocketsToRoom).toHaveBeenCalledWith(
-        'user-new',
+        'user:user-new',
         'alias-123',
       );
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
-        'user-old',
+        'user:user-old',
         'alias-123',
       );
     });

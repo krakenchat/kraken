@@ -1,6 +1,13 @@
 import { $Enums } from '@prisma/client';
 import { Exclude } from 'class-transformer';
-import { IsString, IsOptional, IsArray, IsInt, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsInt,
+  IsUUID,
+  Min,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { SpanTypeValues } from '@/common/enums/swagger-enums';
 import { ArrayMinLength } from '../../decorators/array-min-length.decorator';
@@ -21,10 +28,12 @@ export class CreateMessageDto {
 
   @IsOptional()
   @IsString()
+  @IsUUID()
   channelId: string | null;
 
   @IsOptional()
   @IsString()
+  @IsUUID()
   directMessageGroupId: string | null;
 
   @Exclude()

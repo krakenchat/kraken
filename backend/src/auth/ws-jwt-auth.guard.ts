@@ -9,6 +9,7 @@ import { UserService } from '@/user/user.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { extractTokenFromHandshake } from '@/common/utils/socket.utils';
 import { Socket } from 'socket.io';
+import { TokenBlacklistService } from './token-blacklist.service';
 
 @Injectable()
 export class WsJwtAuthGuard implements CanActivate {
@@ -17,6 +18,7 @@ export class WsJwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -39,9 +41,34 @@ export class WsJwtAuthGuard implements CanActivate {
       return false;
     }
     try {
-      const payload = this.jwtService.verify<{ sub: string }>(token);
+      const payload = this.jwtService.verify<{ sub: string; jti?: string }>(
+        token,
+      );
+
+      if (payload.jti) {
+        const isBlacklisted = await this.tokenBlacklistService.isBlacklisted(
+          payload.jti,
+        );
+        if (isBlacklisted) {
+          this.logger.warn(
+            'Blacklisted token used for WebSocket connection',
+          );
+          client.disconnect(true);
+          return false;
+        }
+      }
+
       const user = await this.userService.findById(payload.sub);
       if (!user) throw new Error('User not found');
+
+      if (user.banned) {
+        this.logger.warn(
+          `Banned user ${user.id} attempted WebSocket connection`,
+        );
+        client.disconnect(true);
+        return false;
+      }
+
       (client.handshake as Record<string, any>).user = new UserEntity(user);
       return true;
     } catch (error) {

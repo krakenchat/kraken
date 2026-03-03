@@ -597,6 +597,9 @@ describe('MessagesService', () => {
         fileId,
         position: 1,
       });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        pendingAttachments: 1,
+      });
       mockDatabase.message.update.mockResolvedValue(updatedMessage);
 
       const result = await service.addAttachment(messageId, fileId);
@@ -608,6 +611,10 @@ describe('MessagesService', () => {
       });
       expect(mockDatabase.messageAttachment.create).toHaveBeenCalledWith({
         data: { messageId, fileId, position: 1 },
+      });
+      expect(mockDatabase.message.findUnique).toHaveBeenCalledWith({
+        where: { id: messageId },
+        select: { pendingAttachments: true },
       });
       expect(mockDatabase.message.update).toHaveBeenCalledWith({
         where: { id: messageId },
@@ -629,6 +636,9 @@ describe('MessagesService', () => {
         pendingAttachments: 1,
       });
 
+      mockDatabase.message.findUnique.mockResolvedValue({
+        pendingAttachments: 2,
+      });
       mockDatabase.message.update.mockResolvedValue(updatedMessage);
 
       await service.addAttachment(messageId);
@@ -648,11 +658,39 @@ describe('MessagesService', () => {
       });
     });
 
+    it('should not decrement pending when pendingAttachments is already 0', async () => {
+      const messageId = 'msg-123';
+      const updatedMessage = buildMessageWithIncludes({
+        id: messageId,
+        pendingAttachments: 0,
+      });
+
+      mockDatabase.message.findUnique.mockResolvedValue({
+        pendingAttachments: 0,
+      });
+      mockDatabase.message.update.mockResolvedValue(updatedMessage);
+
+      await service.addAttachment(messageId);
+
+      expect(mockDatabase.message.update).toHaveBeenCalledWith({
+        where: { id: messageId },
+        data: {},
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
+      });
+    });
+
     it('should handle errors when adding attachment', async () => {
       mockDatabase.messageAttachment.aggregate.mockResolvedValue({
         _max: { position: null },
       });
       mockDatabase.messageAttachment.create.mockResolvedValue({});
+      mockDatabase.message.findUnique.mockResolvedValue({
+        pendingAttachments: 1,
+      });
       mockDatabase.message.update.mockRejectedValue(new Error('Update failed'));
 
       await expect(service.addAttachment('msg-id', 'file-id')).rejects.toThrow(

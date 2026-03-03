@@ -10,7 +10,9 @@ import { Server, Socket } from 'socket.io';
 import { ServerEvents } from '@kraken/shared';
 import { Notification } from '@prisma/client';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
+import { RoomName } from '@/common/utils/room-name.util';
 
 /**
  * Gateway for sending real-time notification events to clients
@@ -27,7 +29,7 @@ import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
   pingTimeout: 60000,
   pingInterval: 25000,
 })
-@UseGuards(WsJwtAuthGuard)
+@UseGuards(WsThrottleGuard, WsJwtAuthGuard)
 export class NotificationsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -77,7 +79,7 @@ export class NotificationsGateway
       } | null;
     },
   ): void {
-    const userRoom = `user:${userId}`;
+    const userRoom = RoomName.user(userId);
 
     this.server.to(userRoom).emit(ServerEvents.NEW_NOTIFICATION, {
       notificationId: notification.id,
@@ -101,7 +103,7 @@ export class NotificationsGateway
    * Emit notification read status update to user
    */
   emitNotificationRead(userId: string, notificationId: string): void {
-    const userRoom = `user:${userId}`;
+    const userRoom = RoomName.user(userId);
 
     this.server.to(userRoom).emit(ServerEvents.NOTIFICATION_READ, {
       notificationId,

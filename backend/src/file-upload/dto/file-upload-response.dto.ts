@@ -1,5 +1,6 @@
 import { FileType, StorageType, ResourceType } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 import {
   FileTypeValues,
   ResourceTypeValues,
@@ -24,7 +25,14 @@ export class FileUploadResponseDto {
   fileMessageId: string | null;
   @ApiProperty({ enum: StorageTypeValues })
   storageType: StorageType;
+
+  @Exclude()
   storagePath: string;
 
+  @Exclude()
   thumbnailPath: string | null;
+
+  constructor(partial: Partial<FileUploadResponseDto>) {
+    Object.assign(this, partial);
+  }
 }

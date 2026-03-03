@@ -36,6 +36,7 @@ import { ModerationService } from '@/moderation/moderation.service';
 import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
 import { groupReactions } from '@/common/utils/reactions.utils';
+import { RoomName } from '@/common/utils/room-name.util';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -137,7 +138,7 @@ export class MessagesGateway
       })
       .then((receipt) => {
         this.server
-          .to(`user:${userId}`)
+          .to(RoomName.user(userId))
           .emit(ServerEvents.READ_RECEIPT_UPDATED, {
             channelId: receipt.channelId,
             directMessageGroupId: receipt.directMessageGroupId,
@@ -205,7 +206,7 @@ export class MessagesGateway
       })
       .then((receipt) => {
         this.server
-          .to(`user:${userId}`)
+          .to(RoomName.user(userId))
           .emit(ServerEvents.READ_RECEIPT_UPDATED, {
             channelId: receipt.channelId,
             directMessageGroupId: receipt.directMessageGroupId,

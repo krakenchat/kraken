@@ -2,8 +2,8 @@ import { RoomName } from './room-name.util';
 
 describe('RoomName', () => {
   describe('user', () => {
-    it('should return raw userId', () => {
-      expect(RoomName.user('user-123')).toBe('user-123');
+    it('should return user-prefixed id', () => {
+      expect(RoomName.user('user-123')).toBe('user:user-123');
     });
   });
 
@@ -20,8 +20,8 @@ describe('RoomName', () => {
   });
 
   describe('dmGroup', () => {
-    it('should return raw groupId', () => {
-      expect(RoomName.dmGroup('dm-abc')).toBe('dm-abc');
+    it('should return dm-prefixed groupId', () => {
+      expect(RoomName.dmGroup('dm-abc')).toBe('dm:dm-abc');
     });
   });
 

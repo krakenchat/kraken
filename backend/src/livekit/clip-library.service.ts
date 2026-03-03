@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -253,6 +258,48 @@ export class ClipLibraryService {
 
     if (!clip) {
       throw new NotFoundException('Clip not found or access denied');
+    }
+
+    // Authorization: verify the user can post to the target destination
+    if (dto.destination === 'channel' && dto.targetChannelId) {
+      const channel = await this.databaseService.channel.findUnique({
+        where: { id: dto.targetChannelId },
+      });
+      if (!channel) {
+        throw new NotFoundException('Target channel not found');
+      }
+      const membership = await this.databaseService.membership.findFirst({
+        where: { userId, communityId: channel.communityId },
+      });
+      if (!membership) {
+        throw new ForbiddenException(
+          "You are not a member of the target channel's community",
+        );
+      }
+      // Private channels require explicit channel membership
+      if (channel.isPrivate) {
+        const channelMembership =
+          await this.databaseService.channelMembership.findFirst({
+            where: { userId, channelId: dto.targetChannelId },
+          });
+        if (!channelMembership) {
+          throw new ForbiddenException(
+            'You do not have access to this private channel',
+          );
+        }
+      }
+    }
+
+    if (dto.destination === 'dm' && dto.targetDirectMessageGroupId) {
+      const dmMember =
+        await this.databaseService.directMessageGroupMember.findFirst({
+          where: { groupId: dto.targetDirectMessageGroupId, userId },
+        });
+      if (!dmMember) {
+        throw new ForbiddenException(
+          'You are not a member of the target DM group',
+        );
+      }
     }
 
     const sizeMB = Math.round(clip.file.size / 1024 / 1024);

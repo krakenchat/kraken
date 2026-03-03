@@ -20,6 +20,7 @@ import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { RoomName } from '@/common/utils/room-name.util';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -99,7 +100,7 @@ export class ReadReceiptsGateway
       // Emit to all of the user's connected sessions (including this one)
       // This ensures that if the user has the app open on multiple devices,
       // all sessions stay in sync
-      const userRoom = `user:${userId}`;
+      const userRoom = RoomName.user(userId);
       this.server
         .to(userRoom)
         .emit(ServerEvents.READ_RECEIPT_UPDATED, receiptPayload);
@@ -107,7 +108,7 @@ export class ReadReceiptsGateway
       // Also emit to the channel/DM room so other users can see real-time "seen by" updates
       // Only do this for DMs where "seen by" is shown (privacy-conscious approach)
       if (readReceipt.directMessageGroupId) {
-        const dmRoom = `dm:${readReceipt.directMessageGroupId}`;
+        const dmRoom = RoomName.dmGroup(readReceipt.directMessageGroupId);
         this.server.to(dmRoom).emit(ServerEvents.READ_RECEIPT_UPDATED, {
           ...receiptPayload,
           // Include user info so other clients can update "seen by" without refetching

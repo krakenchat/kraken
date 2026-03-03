@@ -141,6 +141,8 @@ model ReadReceipt {
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupReadReceipts", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
   lastReadMessage    Message             @relation("ReadReceiptLastMessage", fields: [lastReadMessageId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, channelId])
+  @@unique([userId, directMessageGroupId])
   @@index([userId, channelId])
   @@index([userId, directMessageGroupId])
   @@index([userId]) // For fetching all read receipts for a user
@@ -313,7 +315,7 @@ model RefreshToken {
   tokenHash String
   createdAt DateTime @default(now())
   expiresAt DateTime
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Session/device tracking
   deviceName String? // User-friendly name (e.g., "Chrome on Windows")
@@ -337,7 +339,7 @@ model InstanceInvite {
   id          String    @id @default(uuid())
   code        String    @unique
   createdById String?
-  createdBy   User?     @relation(fields: [createdById], references: [id])
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
   maxUses     Int?
   uses        Int       @default(0)
   validUntil  DateTime?
@@ -400,8 +402,8 @@ enum RegistrationMode {
 
 model Membership {
   id          String    @id @default(uuid())
-  user        User      @relation("UserMemberships", fields: [userId], references: [id])
-  community   Community @relation("CommunityMemberships", fields: [communityId], references: [id])
+  user        User      @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  community   Community @relation("CommunityMemberships", fields: [communityId], references: [id], onDelete: Cascade)
   joinedAt    DateTime  @default(now())
   userId      String
   communityId String
@@ -527,7 +529,7 @@ model UserRoles {
   community      Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
   role           Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@index([userId, communityId, roleId])
+  @@unique([userId, communityId, roleId])
 }
 
 model DirectMessageGroup {
@@ -588,7 +590,7 @@ model File {
   fileType     FileType // Enum for different file types
   size         Int // File size in bytes
   checksum     String // SHA-256 hash for integrity
-  uploadedBy   User?        @relation(fields: [uploadedById], references: [id])
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
   uploadedById String?
   uploadedAt   DateTime     @default(now())
   deletedAt    DateTime? // Soft delete

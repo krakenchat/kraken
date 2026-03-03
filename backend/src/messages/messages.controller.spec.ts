@@ -215,6 +215,57 @@ describe('MessagesController', () => {
         undefined,
       );
     });
+
+    it('should pass limit=50 as-is without clamping', async () => {
+      const channelId = 'channel-123';
+
+      service.findAllForChannel.mockResolvedValue({
+        messages: [],
+        continuationToken: undefined,
+      } as any);
+
+      await controller.findAllForChannel(channelId, 50);
+
+      expect(service.findAllForChannel).toHaveBeenCalledWith(
+        channelId,
+        50,
+        undefined,
+      );
+    });
+
+    it('should clamp limit=200 to 100', async () => {
+      const channelId = 'channel-123';
+
+      service.findAllForChannel.mockResolvedValue({
+        messages: [],
+        continuationToken: undefined,
+      } as any);
+
+      await controller.findAllForChannel(channelId, 200);
+
+      expect(service.findAllForChannel).toHaveBeenCalledWith(
+        channelId,
+        100,
+        undefined,
+      );
+    });
+
+    it('should keep limit=100 unchanged', async () => {
+      const channelId = 'channel-123';
+
+      service.findAllForChannel.mockResolvedValue({
+        messages: [],
+        continuationToken: undefined,
+      } as any);
+
+      await controller.findAllForChannel(channelId, 100);
+
+      expect(service.findAllForChannel).toHaveBeenCalledWith(
+        channelId,
+        100,
+        undefined,
+      );
+    });
   });
 
   describe('addReaction', () => {

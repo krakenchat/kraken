@@ -15,6 +15,7 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 
 describe('RolesService', () => {
@@ -733,11 +734,20 @@ describe('RolesService', () => {
       const userId = 'user-123';
       const communityId = 'community-123';
       const roleId = 'role-123';
+      const role = RoleFactory.build({
+        id: roleId,
+        name: 'Custom Role',
+        communityId,
+      });
 
+      mockDatabase.role.findUnique.mockResolvedValue(role);
       mockDatabase.userRoles.create.mockResolvedValue({});
 
       await service.assignUserToCommunityRole(userId, communityId, roleId);
 
+      expect(mockDatabase.role.findUnique).toHaveBeenCalledWith({
+        where: { id: roleId },
+      });
       expect(mockDatabase.userRoles.create).toHaveBeenCalledWith({
         data: {
           userId,
@@ -746,6 +756,35 @@ describe('RolesService', () => {
           isInstanceRole: false,
         },
       });
+    });
+
+    it('should throw NotFoundException when role belongs to a different community', async () => {
+      const userId = 'user-123';
+      const communityId = 'community-123';
+      const roleId = 'role-123';
+      const roleFromOtherCommunity = RoleFactory.build({
+        id: roleId,
+        name: 'Other Role',
+        communityId: 'different-community',
+      });
+
+      mockDatabase.role.findUnique.mockResolvedValue(roleFromOtherCommunity);
+
+      await expect(
+        service.assignUserToCommunityRole(userId, communityId, roleId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockDatabase.userRoles.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when role does not exist', async () => {
+      mockDatabase.role.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.assignUserToCommunityRole('user-123', 'community-123', 'nonexistent-role'),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockDatabase.userRoles.create).not.toHaveBeenCalled();
     });
   });
 
@@ -847,6 +886,113 @@ describe('RolesService', () => {
         service.createCommunityRole(communityId, createRoleDto),
       ).rejects.toThrow(BadRequestException);
     });
+
+    describe('privilege escalation prevention', () => {
+      it('should throw ForbiddenException when user tries to grant actions they do not have', async () => {
+        const communityId = 'community-123';
+        const userId = 'user-123';
+        const createRoleDto = {
+          name: 'Escalated Role',
+          actions: [RbacActions.DELETE_COMMUNITY, RbacActions.CREATE_MESSAGE],
+        };
+
+        // No existing role with this name
+        mockDatabase.role.findFirst.mockResolvedValue(null);
+
+        // User only has CREATE_MESSAGE, not DELETE_COMMUNITY
+        const userRole = RoleFactory.buildMember({
+          communityId,
+          actions: [RbacActions.CREATE_MESSAGE, RbacActions.READ_MESSAGE],
+        });
+        mockDatabase.userRoles.findMany.mockResolvedValue([
+          {
+            userId,
+            communityId,
+            roleId: userRole.id,
+            isInstanceRole: false,
+            role: userRole,
+          },
+        ]);
+
+        await expect(
+          service.createCommunityRole(communityId, createRoleDto, userId),
+        ).rejects.toThrow(ForbiddenException);
+
+        expect(mockDatabase.role.create).not.toHaveBeenCalled();
+      });
+
+      it('should succeed when user has all the actions they are granting', async () => {
+        const communityId = 'community-123';
+        const userId = 'user-123';
+        const createRoleDto = {
+          name: 'Allowed Role',
+          actions: [RbacActions.CREATE_MESSAGE, RbacActions.READ_MESSAGE],
+        };
+        const createdRole = RoleFactory.build({
+          name: 'Allowed Role',
+          communityId,
+          isDefault: false,
+          actions: createRoleDto.actions,
+        });
+
+        // No existing role with this name
+        mockDatabase.role.findFirst.mockResolvedValue(null);
+
+        // User has all the actions being granted
+        const userRole = RoleFactory.buildAdmin({
+          communityId,
+        });
+        mockDatabase.userRoles.findMany.mockResolvedValue([
+          {
+            userId,
+            communityId,
+            roleId: userRole.id,
+            isInstanceRole: false,
+            role: userRole,
+          },
+        ]);
+
+        mockDatabase.role.create.mockResolvedValue(createdRole);
+
+        const result = await service.createCommunityRole(
+          communityId,
+          createRoleDto,
+          userId,
+        );
+
+        expect(result.name).toBe('Allowed Role');
+        expect(mockDatabase.role.create).toHaveBeenCalled();
+      });
+
+      it('should skip privilege escalation check when userId is not provided (internal call)', async () => {
+        const communityId = 'community-123';
+        const createRoleDto = {
+          name: 'Internal Role',
+          actions: [RbacActions.DELETE_COMMUNITY],
+        };
+        const createdRole = RoleFactory.build({
+          name: 'Internal Role',
+          communityId,
+          isDefault: false,
+          actions: createRoleDto.actions,
+        });
+
+        mockDatabase.role.findFirst.mockResolvedValue(null);
+        mockDatabase.role.create.mockResolvedValue(createdRole);
+
+        // Call without userId — should not check user permissions
+        const result = await service.createCommunityRole(
+          communityId,
+          createRoleDto,
+        );
+
+        expect(result.name).toBe('Internal Role');
+        // getUserRolesForCommunity uses userRoles.findMany — should not be called
+        // since no userId was provided
+        expect(mockDatabase.userRoles.findMany).not.toHaveBeenCalled();
+        expect(mockDatabase.role.create).toHaveBeenCalled();
+      });
+    });
   });
 
   describe('updateRole', () => {
@@ -935,6 +1081,118 @@ describe('RolesService', () => {
 
       expect(result.actions).toEqual(updateDto.actions);
       expect(result.isDefault).toBe(true);
+    });
+
+    describe('privilege escalation prevention', () => {
+      it('should throw ForbiddenException when user tries to add actions they do not have', async () => {
+        const communityId = 'community-123';
+        const userId = 'user-123';
+        const existingRole = RoleFactory.build({
+          name: 'Custom Role',
+          communityId,
+          isDefault: false,
+          actions: [RbacActions.READ_MESSAGE],
+        });
+        const updateDto = {
+          actions: [RbacActions.READ_MESSAGE, RbacActions.DELETE_COMMUNITY],
+        };
+
+        mockDatabase.role.findUnique.mockResolvedValue(existingRole);
+
+        // User only has READ_MESSAGE and CREATE_MESSAGE, not DELETE_COMMUNITY
+        const userRole = RoleFactory.buildMember({
+          communityId,
+          actions: [RbacActions.READ_MESSAGE, RbacActions.CREATE_MESSAGE],
+        });
+        mockDatabase.userRoles.findMany.mockResolvedValue([
+          {
+            userId,
+            communityId,
+            roleId: userRole.id,
+            isInstanceRole: false,
+            role: userRole,
+          },
+        ]);
+
+        await expect(
+          service.updateRole(existingRole.id, communityId, updateDto, userId),
+        ).rejects.toThrow(ForbiddenException);
+
+        expect(mockDatabase.role.update).not.toHaveBeenCalled();
+      });
+
+      it('should succeed when user has all the actions being set', async () => {
+        const communityId = 'community-123';
+        const userId = 'user-123';
+        const existingRole = RoleFactory.build({
+          name: 'Custom Role',
+          communityId,
+          isDefault: false,
+          actions: [RbacActions.READ_MESSAGE],
+        });
+        const updateDto = {
+          actions: [RbacActions.READ_MESSAGE, RbacActions.CREATE_MESSAGE],
+        };
+
+        mockDatabase.role.findUnique.mockResolvedValue(existingRole);
+
+        // User has both actions
+        const userRole = RoleFactory.buildAdmin({ communityId });
+        mockDatabase.userRoles.findMany.mockResolvedValue([
+          {
+            userId,
+            communityId,
+            roleId: userRole.id,
+            isInstanceRole: false,
+            role: userRole,
+          },
+        ]);
+
+        mockDatabase.role.update.mockResolvedValue({
+          ...existingRole,
+          actions: updateDto.actions,
+        });
+
+        const result = await service.updateRole(
+          existingRole.id,
+          communityId,
+          updateDto,
+          userId,
+        );
+
+        expect(result.actions).toEqual(updateDto.actions);
+        expect(mockDatabase.role.update).toHaveBeenCalled();
+      });
+
+      it('should skip privilege escalation check when userId is not provided', async () => {
+        const communityId = 'community-123';
+        const existingRole = RoleFactory.build({
+          name: 'Custom Role',
+          communityId,
+          isDefault: false,
+          actions: [RbacActions.READ_MESSAGE],
+        });
+        const updateDto = {
+          actions: [RbacActions.DELETE_COMMUNITY],
+        };
+
+        mockDatabase.role.findUnique.mockResolvedValue(existingRole);
+        mockDatabase.role.update.mockResolvedValue({
+          ...existingRole,
+          actions: updateDto.actions,
+        });
+
+        // Call without userId — should not check user permissions
+        const result = await service.updateRole(
+          existingRole.id,
+          communityId,
+          updateDto,
+        );
+
+        expect(result.actions).toEqual(updateDto.actions);
+        // getUserRolesForCommunity uses userRoles.findMany — should not be called
+        expect(mockDatabase.userRoles.findMany).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -1465,6 +1723,55 @@ describe('RolesService', () => {
           },
         });
       });
+
+      it('should only check instance-scoped roles for name conflicts (communityId: null)', async () => {
+        const createdRole = RoleFactory.build({
+          name: 'Shared Name',
+          communityId: null,
+          isDefault: false,
+          actions: [RbacActions.READ_USER],
+        });
+
+        // No instance role with this name exists (communityId: null)
+        mockDatabase.role.findFirst.mockResolvedValue(null);
+        mockDatabase.role.create.mockResolvedValue(createdRole);
+
+        // A community role with the same name should NOT block creation
+        const result = await service.createInstanceRole('Shared Name', [
+          RbacActions.READ_USER,
+        ]);
+
+        expect(result.name).toBe('Shared Name');
+        // Verify the conflict check scoped to communityId: null
+        expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+          where: { name: 'Shared Name', communityId: null },
+        });
+        expect(mockDatabase.role.create).toHaveBeenCalled();
+      });
+
+      it('should throw ConflictException when instance role with same name exists', async () => {
+        const existingRole = RoleFactory.build({
+          name: 'Duplicate Name',
+          communityId: null,
+        });
+
+        mockDatabase.role.findFirst.mockResolvedValue(existingRole);
+
+        await expect(
+          service.createInstanceRole('Duplicate Name', [RbacActions.READ_USER]),
+        ).rejects.toThrow(ConflictException);
+      });
+
+      it('should throw BadRequestException for non-instance actions', async () => {
+        mockDatabase.role.findFirst.mockResolvedValue(null);
+
+        // CREATE_MESSAGE is a community-level action, not an instance action
+        await expect(
+          service.createInstanceRole('Bad Role', [
+            RbacActions.CREATE_MESSAGE as any,
+          ]),
+        ).rejects.toThrow(BadRequestException);
+      });
     });
 
     describe('assignUserToInstanceRole', () => {
@@ -1566,13 +1873,82 @@ describe('RolesService', () => {
       });
 
       it('should prevent renaming Instance Admin role', async () => {
-        const existingRole = RoleFactory.build({ name: 'Instance Admin' });
+        const existingRole = RoleFactory.build({
+          name: 'Instance Admin',
+          communityId: null,
+          isDefault: true,
+        });
 
         mockDatabase.role.findUnique.mockResolvedValue(existingRole);
 
         await expect(
           service.updateInstanceRole(existingRole.id, { name: 'New Name' }),
         ).rejects.toThrow(BadRequestException);
+      });
+
+      it('should prevent renaming any default instance role (not just Instance Admin)', async () => {
+        const communityCreatorRole = RoleFactory.build({
+          name: 'Community Creator',
+          communityId: null,
+          isDefault: true,
+        });
+
+        mockDatabase.role.findUnique.mockResolvedValue(communityCreatorRole);
+
+        await expect(
+          service.updateInstanceRole(communityCreatorRole.id, {
+            name: 'Renamed Creator',
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('should throw NotFoundException when given a community role ID', async () => {
+        const communityRole = RoleFactory.build({
+          name: 'Community Admin',
+          communityId: 'community-123',
+          isDefault: true,
+        });
+
+        mockDatabase.role.findUnique.mockResolvedValue(communityRole);
+
+        await expect(
+          service.updateInstanceRole(communityRole.id, {
+            actions: [RbacActions.READ_USER],
+          }),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('should not conflict with community role names when checking for name conflicts', async () => {
+        const roleId = 'instance-role-123';
+        const existingInstanceRole = RoleFactory.build({
+          id: roleId,
+          name: 'Old Name',
+          communityId: null,
+          isDefault: false,
+        });
+
+        mockDatabase.role.findUnique.mockResolvedValue(existingInstanceRole);
+        // No conflicting instance role (communityId: null)
+        mockDatabase.role.findFirst.mockResolvedValue(null);
+        mockDatabase.role.update.mockResolvedValue({
+          ...existingInstanceRole,
+          name: 'Shared Name',
+        });
+
+        // Even if a community role has the same name, it should not prevent the rename
+        const result = await service.updateInstanceRole(roleId, {
+          name: 'Shared Name',
+        });
+
+        expect(result.name).toBe('Shared Name');
+        // Verify the conflict check scoped to communityId: null
+        expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
+          where: {
+            name: 'Shared Name',
+            communityId: null,
+            id: { not: roleId },
+          },
+        });
       });
     });
 
@@ -1628,6 +2004,25 @@ describe('RolesService', () => {
         await expect(service.deleteInstanceRole(role.id)).rejects.toThrow(
           BadRequestException,
         );
+      });
+
+      it('should throw NotFoundException when given a community role ID', async () => {
+        const communityRole = RoleFactory.build({
+          name: 'Community Admin',
+          communityId: 'community-123',
+          isDefault: true,
+        });
+
+        mockDatabase.role.findUnique.mockResolvedValue({
+          ...communityRole,
+          UserRoles: [],
+        });
+
+        await expect(
+          service.deleteInstanceRole(communityRole.id),
+        ).rejects.toThrow(NotFoundException);
+
+        expect(mockDatabase.role.delete).not.toHaveBeenCalled();
       });
     });
 

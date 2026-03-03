@@ -146,6 +146,7 @@ describe('RolesController', () => {
   describe('createCommunityRole', () => {
     it('should create a new community role', async () => {
       const communityId = 'community-456';
+      const req = { user: { id: 'user-creator', role: 'USER' } } as any;
       const createRoleDto = {
         name: 'Moderator',
         permissions: ['READ_MESSAGE', 'CREATE_MESSAGE'],
@@ -157,12 +158,15 @@ describe('RolesController', () => {
       const result = await controller.createCommunityRole(
         communityId,
         createRoleDto as any,
+        req,
       );
 
       expect(result).toEqual(createdRole);
       expect(service.createCommunityRole).toHaveBeenCalledWith(
         communityId,
         createRoleDto,
+        'user-creator',
+        'USER',
       );
     });
   });
@@ -171,6 +175,7 @@ describe('RolesController', () => {
     it('should update an existing role', async () => {
       const communityId = 'community-456';
       const roleId = 'role-789';
+      const req = { user: { id: 'user-updater', role: 'USER' } } as any;
       const updateRoleDto = { name: 'Updated Moderator' };
       const updatedRole = { id: roleId, ...updateRoleDto };
 
@@ -180,6 +185,7 @@ describe('RolesController', () => {
         communityId,
         roleId,
         updateRoleDto as any,
+        req,
       );
 
       expect(result).toEqual(updatedRole);
@@ -187,6 +193,8 @@ describe('RolesController', () => {
         roleId,
         communityId,
         updateRoleDto,
+        'user-updater',
+        'USER',
       );
     });
   });

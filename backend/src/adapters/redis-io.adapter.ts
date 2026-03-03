@@ -27,7 +27,7 @@ export class RedisIoAdapter extends IoAdapter {
 
     // Build Redis URL with optional password
     const redisUrl = redisPassword
-      ? `redis://:${redisPassword}@${redisHost}:${redisPort}`
+      ? `redis://:${encodeURIComponent(redisPassword)}@${redisHost}:${redisPort}`
       : `redis://${redisHost}:${redisPort}`;
 
     const pubClient = createClient({ url: redisUrl });

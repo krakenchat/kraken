@@ -8,6 +8,7 @@ import {
   UseGuards,
   UseInterceptors,
   ClassSerializerInterceptor,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { FriendsService } from './friends.service';
@@ -72,7 +73,7 @@ export class FriendsController {
   @ApiOkResponse({ type: FriendshipStatusDto })
   async getFriendshipStatus(
     @Req() req: AuthenticatedRequest,
-    @Param('userId') userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<FriendshipStatusDto> {
     return this.friendsService.getFriendshipStatus(req.user.id, userId);
   }
@@ -84,7 +85,7 @@ export class FriendsController {
   @ApiCreatedResponse({ type: FriendshipDto })
   async sendFriendRequest(
     @Req() req: AuthenticatedRequest,
-    @Param('userId') userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<FriendshipDto> {
     return this.friendsService.sendFriendRequest(req.user.id, userId);
   }
@@ -96,7 +97,7 @@ export class FriendsController {
   @ApiCreatedResponse({ type: FriendshipDto })
   async acceptFriendRequest(
     @Req() req: AuthenticatedRequest,
-    @Param('id') friendshipId: string,
+    @Param('id', ParseUUIDPipe) friendshipId: string,
   ): Promise<FriendshipDto> {
     return this.friendsService.acceptFriendRequest(req.user.id, friendshipId);
   }
@@ -108,7 +109,7 @@ export class FriendsController {
   @ApiOkResponse({ type: SuccessResponseDto })
   async declineFriendRequest(
     @Req() req: AuthenticatedRequest,
-    @Param('id') friendshipId: string,
+    @Param('id', ParseUUIDPipe) friendshipId: string,
   ): Promise<{ success: boolean }> {
     await this.friendsService.declineFriendRequest(req.user.id, friendshipId);
     return { success: true };
@@ -121,7 +122,7 @@ export class FriendsController {
   @ApiOkResponse({ type: SuccessResponseDto })
   async cancelFriendRequest(
     @Req() req: AuthenticatedRequest,
-    @Param('id') friendshipId: string,
+    @Param('id', ParseUUIDPipe) friendshipId: string,
   ): Promise<{ success: boolean }> {
     await this.friendsService.cancelFriendRequest(req.user.id, friendshipId);
     return { success: true };
@@ -134,7 +135,7 @@ export class FriendsController {
   @ApiOkResponse({ type: SuccessResponseDto })
   async removeFriend(
     @Req() req: AuthenticatedRequest,
-    @Param('id') friendshipId: string,
+    @Param('id', ParseUUIDPipe) friendshipId: string,
   ): Promise<{ success: boolean }> {
     await this.friendsService.removeFriend(req.user.id, friendshipId);
     return { success: true };

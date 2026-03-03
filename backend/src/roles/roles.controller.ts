@@ -143,8 +143,14 @@ export class RolesController {
   async createCommunityRole(
     @Param('communityId', ParseUUIDPipe) communityId: string,
     @Body() createRoleDto: CreateRoleDto,
+    @Req() req: AuthenticatedRequest,
   ): Promise<RoleDto> {
-    return this.rolesService.createCommunityRole(communityId, createRoleDto);
+    return this.rolesService.createCommunityRole(
+      communityId,
+      createRoleDto,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   // communityId is required in the route so the RbacGuard can resolve
@@ -162,8 +168,15 @@ export class RolesController {
     @Param('communityId', ParseUUIDPipe) communityId: string,
     @Param('roleId', ParseUUIDPipe) roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
+    @Req() req: AuthenticatedRequest,
   ): Promise<RoleDto> {
-    return this.rolesService.updateRole(roleId, communityId, updateRoleDto);
+    return this.rolesService.updateRole(
+      roleId,
+      communityId,
+      updateRoleDto,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   @Delete('community/:communityId/:roleId')

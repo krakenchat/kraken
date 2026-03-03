@@ -87,6 +87,7 @@ export class MessagesController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ): Promise<PaginatedMessagesResponseDto> {
+    limit = Math.min(limit, 100);
     return this.messagesService.findAllForDirectMessageGroup(
       groupId,
       limit,
@@ -107,6 +108,7 @@ export class MessagesController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ): Promise<PaginatedMessagesResponseDto> {
+    limit = Math.min(limit, 100);
     return this.messagesService.findAllForChannel(
       channelId,
       limit,
@@ -127,6 +129,7 @@ export class MessagesController {
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ): Promise<EnrichedMessageDto[]> {
+    limit = Math.min(limit, 100);
     return this.messagesService.searchChannelMessages(channelId, query, limit);
   }
 
@@ -143,6 +146,7 @@ export class MessagesController {
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ): Promise<EnrichedMessageDto[]> {
+    limit = Math.min(limit, 100);
     return this.messagesService.searchDirectMessages(groupId, query, limit);
   }
 
@@ -160,6 +164,7 @@ export class MessagesController {
     @Req() req: AuthenticatedRequest,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ): Promise<EnrichedMessageDto[]> {
+    limit = Math.min(limit, 100);
     return this.messagesService.searchCommunityMessages(
       communityId,
       req.user.id,
@@ -281,7 +286,7 @@ export class MessagesController {
   @ApiOkResponse({ type: EnrichedMessageDto })
   @RequiredActions(RbacActions.READ_MESSAGE)
   @RbacResource({
-    type: RbacResourceType.CHANNEL,
+    type: RbacResourceType.MESSAGE,
     idKey: 'id',
     source: ResourceIdSource.PARAM,
   })

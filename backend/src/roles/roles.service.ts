@@ -9,6 +9,7 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
   OnModuleInit,
 } from '@nestjs/common';
 import { RbacActions, Prisma } from '@prisma/client';
@@ -384,6 +385,12 @@ export class RolesService implements OnModuleInit {
   ): Promise<void> {
     const database = tx || this.databaseService;
 
+    // Verify the role belongs to this community
+    const role = await database.role.findUnique({ where: { id: roleId } });
+    if (!role || role.communityId !== communityId) {
+      throw new NotFoundException('Role not found in this community');
+    }
+
     await database.userRoles.create({
       data: {
         userId,
@@ -395,17 +402,11 @@ export class RolesService implements OnModuleInit {
 
     // Only emit when not called within a transaction (e.g., community creation)
     if (!tx) {
-      // Fetch role name for the event payload
-      const role = await this.databaseService.role.findUnique({
-        where: { id: roleId },
-        select: { name: true },
-      });
-
       this.eventEmitter.emit(RoomEvents.ROLE_ASSIGNED, {
         communityId,
         userId,
         roleId,
-        roleName: role?.name ?? '',
+        roleName: role.name,
       });
     }
   }
@@ -568,6 +569,8 @@ export class RolesService implements OnModuleInit {
   async createCommunityRole(
     communityId: string,
     createRoleDto: CreateRoleDto,
+    userId?: string,
+    userInstanceRole?: string,
     tx?: Prisma.TransactionClient,
   ): Promise<RoleDto> {
     const database = tx || this.databaseService;
@@ -596,6 +599,27 @@ export class RolesService implements OnModuleInit {
       throw new BadRequestException(
         `Invalid actions: ${invalidActions.join(', ')}`,
       );
+    }
+
+    // Privilege escalation prevention: user cannot grant permissions they don't have
+    // Instance OWNERs bypass RBAC entirely, so skip this check for them
+    if (userId && userInstanceRole !== 'OWNER') {
+      const userRolesResponse = await this.getUserRolesForCommunity(
+        userId,
+        communityId,
+      );
+      const userActions = new Set(
+        userRolesResponse.roles.flatMap((r) => r.actions),
+      );
+      const unauthorizedActions = createRoleDto.actions.filter(
+        (action) => !userActions.has(action),
+      );
+
+      if (unauthorizedActions.length > 0) {
+        throw new ForbiddenException(
+          `Cannot grant permissions you do not have: ${unauthorizedActions.join(', ')}`,
+        );
+      }
     }
 
     const role = await database.role.create({
@@ -636,6 +660,8 @@ export class RolesService implements OnModuleInit {
     roleId: string,
     communityId: string,
     updateRoleDto: UpdateRoleDto,
+    userId?: string,
+    userInstanceRole?: string,
     tx?: Prisma.TransactionClient,
   ): Promise<RoleDto> {
     const database = tx || this.databaseService;
@@ -678,6 +704,27 @@ export class RolesService implements OnModuleInit {
         throw new BadRequestException(
           `Invalid actions: ${invalidActions.join(', ')}`,
         );
+      }
+
+      // Privilege escalation prevention: user cannot grant permissions they don't have
+      // Instance OWNERs bypass RBAC entirely, so skip this check for them
+      if (userId && userInstanceRole !== 'OWNER') {
+        const userRolesResponse = await this.getUserRolesForCommunity(
+          userId,
+          communityId,
+        );
+        const userActions = new Set(
+          userRolesResponse.roles.flatMap((r) => r.actions),
+        );
+        const unauthorizedActions = updateRoleDto.actions.filter(
+          (action) => !userActions.has(action),
+        );
+
+        if (unauthorizedActions.length > 0) {
+          throw new ForbiddenException(
+            `Cannot grant permissions you do not have: ${unauthorizedActions.join(', ')}`,
+          );
+        }
       }
     }
 
@@ -985,15 +1032,13 @@ export class RolesService implements OnModuleInit {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
     }
 
-    // Don't allow renaming the default instance admin role
-    if (
-      role.name === DEFAULT_INSTANCE_ADMIN_ROLE.name &&
-      dto.name &&
-      dto.name !== DEFAULT_INSTANCE_ADMIN_ROLE.name
-    ) {
-      throw new BadRequestException(
-        'Cannot rename the default Instance Admin role',
-      );
+    if (role.communityId !== null) {
+      throw new NotFoundException('Instance role not found');
+    }
+
+    // Don't allow renaming any default instance role
+    if (role.isDefault && dto.name && dto.name !== role.name) {
+      throw new BadRequestException('Cannot rename a default role');
     }
 
     // Validate actions if provided
@@ -1010,11 +1055,12 @@ export class RolesService implements OnModuleInit {
       }
     }
 
-    // Check for name conflicts if renaming
+    // Check for name conflicts if renaming (scoped to instance roles only)
     if (dto.name && dto.name !== role.name) {
       const conflictingRole = await this.databaseService.role.findFirst({
         where: {
           name: dto.name,
+          communityId: null,
           id: { not: roleId },
         },
       });
@@ -1060,6 +1106,10 @@ export class RolesService implements OnModuleInit {
 
     if (!role) {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
+    }
+
+    if (role.communityId !== null) {
+      throw new NotFoundException('Instance role not found');
     }
 
     if (role.name === DEFAULT_INSTANCE_ADMIN_ROLE.name) {

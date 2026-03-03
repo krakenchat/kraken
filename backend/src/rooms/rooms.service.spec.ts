@@ -50,7 +50,7 @@ describe('RoomsService', () => {
 
       await service.joinAllUserRooms(client);
 
-      expect(client.join).toHaveBeenCalledWith(userId);
+      expect(client.join).toHaveBeenCalledWith(`user:${userId}`);
     });
 
     it('should join community rooms and all public channels across all communities', async () => {
@@ -139,8 +139,8 @@ describe('RoomsService', () => {
         where: { userId },
         select: { aliasGroupId: true },
       });
-      expect(client.join).toHaveBeenCalledWith('dm-1');
-      expect(client.join).toHaveBeenCalledWith('dm-2');
+      expect(client.join).toHaveBeenCalledWith('dm:dm-1');
+      expect(client.join).toHaveBeenCalledWith('dm:dm-2');
       expect(client.join).toHaveBeenCalledWith('alias-1');
     });
 
@@ -229,7 +229,7 @@ describe('RoomsService', () => {
       expect(mockDatabase.channel.findMany).not.toHaveBeenCalled();
       // Only personal room
       expect(client.join).toHaveBeenCalledTimes(1);
-      expect(client.join).toHaveBeenCalledWith(userId);
+      expect(client.join).toHaveBeenCalledWith(`user:${userId}`);
     });
 
     it('should join all room types in a single call', async () => {
@@ -254,11 +254,11 @@ describe('RoomsService', () => {
 
       // personal + 1 community room + 1 public + 1 private + 1 DM + 1 alias = 6
       expect(client.join).toHaveBeenCalledTimes(6);
-      expect(client.join).toHaveBeenCalledWith(userId);
+      expect(client.join).toHaveBeenCalledWith(`user:${userId}`);
       expect(client.join).toHaveBeenCalledWith('community:c-1');
       expect(client.join).toHaveBeenCalledWith('pub-1');
       expect(client.join).toHaveBeenCalledWith('priv-1');
-      expect(client.join).toHaveBeenCalledWith('dm-1');
+      expect(client.join).toHaveBeenCalledWith('dm:dm-1');
       expect(client.join).toHaveBeenCalledWith('alias-1');
     });
   });

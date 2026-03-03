@@ -19,6 +19,7 @@ import {
 import { ModerationAction } from '@prisma/client';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { RoomName } from '@/common/utils/room-name.util';
+import { ServerEvents } from '@kraken/shared';
 
 describe('ModerationService', () => {
   let service: ModerationService;
@@ -625,6 +626,36 @@ describe('ModerationService', () => {
       await expect(
         service.deleteMessageAsMod(message.id, moderatorId),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('should emit DELETE_MESSAGE WebSocket event to the channel room', async () => {
+      const channel = ChannelFactory.build({ communityId });
+      const message = MessageFactory.build({
+        channelId: channel.id,
+        deletedAt: null,
+      });
+      mockDatabase.message.findUnique.mockResolvedValue({
+        ...message,
+        channel,
+      } as any);
+      mockDatabase.message.update.mockResolvedValue({} as any);
+      mockDatabase.moderationLog.create.mockResolvedValue({} as any);
+
+      await service.deleteMessageAsMod(
+        message.id,
+        moderatorId,
+        'rule violation',
+      );
+
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        message.channelId,
+        ServerEvents.DELETE_MESSAGE,
+        {
+          messageId: message.id,
+          channelId: message.channelId,
+          directMessageGroupId: null,
+        },
+      );
     });
   });
 

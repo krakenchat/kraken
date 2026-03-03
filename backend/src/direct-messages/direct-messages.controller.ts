@@ -8,6 +8,7 @@ import {
   HttpCode,
   UseGuards,
   Req,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -62,7 +63,7 @@ export class DirectMessagesController {
     source: ResourceIdSource.PARAM,
   })
   async findDmGroup(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Req() req: { user: { id: string } },
   ): Promise<DmGroupResponseDto> {
     return this.directMessagesService.findDmGroup(id, req.user.id);
@@ -77,7 +78,7 @@ export class DirectMessagesController {
   })
   @ApiOkResponse({ type: PaginatedMessagesResponseDto })
   async getDmMessages(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Req() req: { user: { id: string } },
   ): Promise<PaginatedMessagesResponseDto> {
     // First verify user is a member of this DM group
@@ -95,7 +96,7 @@ export class DirectMessagesController {
     source: ResourceIdSource.PARAM,
   })
   async addMembers(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() addMembersDto: AddMembersDto,
     @Req() req: { user: { id: string } },
   ): Promise<DmGroupResponseDto> {
@@ -115,7 +116,7 @@ export class DirectMessagesController {
     source: ResourceIdSource.PARAM,
   })
   async leaveDmGroup(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Req() req: { user: { id: string } },
   ): Promise<void> {
     return this.directMessagesService.leaveDmGroup(id, req.user.id);

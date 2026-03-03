@@ -271,25 +271,34 @@ export class MessagesService {
   }
 
   async addAttachment(messageId: string, fileId?: string) {
-    if (fileId) {
-      // Get current max position for ordering
-      const maxPos = await this.databaseService.messageAttachment.aggregate({
-        where: { messageId },
-        _max: { position: true },
-      });
-      const nextPosition = (maxPos._max.position ?? -1) + 1;
+    return this.databaseService.$transaction(async (tx) => {
+      if (fileId) {
+        // Get current max position for ordering
+        const maxPos = await tx.messageAttachment.aggregate({
+          where: { messageId },
+          _max: { position: true },
+        });
+        const nextPosition = (maxPos._max.position ?? -1) + 1;
 
-      await this.databaseService.messageAttachment.create({
-        data: { messageId, fileId, position: nextPosition },
-      });
-    }
+        await tx.messageAttachment.create({
+          data: { messageId, fileId, position: nextPosition },
+        });
+      }
 
-    return this.databaseService.message.update({
-      where: { id: messageId },
-      data: {
-        pendingAttachments: { decrement: 1 },
-      },
-      include: MESSAGE_INCLUDE,
+      const msg = await tx.message.findUnique({
+        where: { id: messageId },
+        select: { pendingAttachments: true },
+      });
+
+      return tx.message.update({
+        where: { id: messageId },
+        data: {
+          ...(msg && (msg.pendingAttachments ?? 0) > 0
+            ? { pendingAttachments: { decrement: 1 } }
+            : {}),
+        },
+        include: MESSAGE_INCLUDE,
+      });
     });
   }
 

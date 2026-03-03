@@ -20,6 +20,7 @@ import {
 import { wsValidationPipe } from '@/common/pipes/ws-validation.pipe';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
+import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { IsString, IsNotEmpty } from 'class-validator';
 
 class VoiceChannelEventDto {
@@ -41,7 +42,7 @@ class VoiceChannelEventDto {
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway()
 @UsePipes(wsValidationPipe)
-@UseGuards(WsJwtAuthGuard, RbacGuard)
+@UseGuards(WsThrottleGuard, WsJwtAuthGuard, RbacGuard)
 export class VoicePresenceGateway {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 

@@ -4,6 +4,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/database/database.service';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import { Request } from 'express';
 
 @Injectable()
@@ -46,6 +47,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const user = await this.databaseService.user.findUniqueOrThrow({
       where: { id: payload.sub },
+      select: { ...PUBLIC_USER_SELECT, banned: true },
     });
 
     if (user.banned) {

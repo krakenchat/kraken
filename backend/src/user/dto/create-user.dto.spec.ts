@@ -82,6 +82,62 @@ describe('CreateUserDto', () => {
     );
   });
 
+  it('should accept username with letters, numbers, underscores, and hyphens', async () => {
+    const dto = createDto({
+      code: 'invite-code',
+      username: 'valid_user-123',
+      password: 'mypassword123',
+    });
+
+    const errors = await validate(dto);
+    const usernameErrors = errors.filter((e) => e.property === 'username');
+    expect(usernameErrors).toHaveLength(0);
+  });
+
+  it('should reject username with spaces', async () => {
+    const dto = createDto({
+      code: 'invite-code',
+      username: 'invalid user',
+      password: 'mypassword123',
+    });
+
+    const errors = await validate(dto);
+    const usernameError = errors.find((e) => e.property === 'username');
+    expect(usernameError).toBeDefined();
+    expect(usernameError!.constraints).toBeDefined();
+    expect(Object.values(usernameError!.constraints!)).toContain(
+      'Username can only contain letters, numbers, underscores, and hyphens',
+    );
+  });
+
+  it('should reject username with special characters', async () => {
+    const dto = createDto({
+      code: 'invite-code',
+      username: 'user@name!',
+      password: 'mypassword123',
+    });
+
+    const errors = await validate(dto);
+    const usernameError = errors.find((e) => e.property === 'username');
+    expect(usernameError).toBeDefined();
+    expect(usernameError!.constraints).toBeDefined();
+    expect(Object.values(usernameError!.constraints!)).toContain(
+      'Username can only contain letters, numbers, underscores, and hyphens',
+    );
+  });
+
+  it('should reject username with dots', async () => {
+    const dto = createDto({
+      code: 'invite-code',
+      username: 'user.name',
+      password: 'mypassword123',
+    });
+
+    const errors = await validate(dto);
+    const usernameError = errors.find((e) => e.property === 'username');
+    expect(usernameError).toBeDefined();
+  });
+
   it('should pass validation with a valid email', async () => {
     const dto = createDto({
       code: 'invite-code',
