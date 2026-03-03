@@ -93,7 +93,7 @@ import {
   switchAudioInputDevice,
   switchAudioOutputDevice,
 } from '../../features/voice/voiceActions';
-import { VoiceActionType } from '../../contexts/VoiceContext';
+import { VoiceActionType, VoiceSessionType } from '../../contexts/VoiceContext';
 import { livekitControllerGenerateToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from '../../api-client/sdk.gen';
 import { getCachedItem } from '../../utils/storage';
 
@@ -114,7 +114,7 @@ function createMockDeps(overrides: Partial<{
       isConnected: true,
       isConnecting: false,
       connectionError: null,
-      contextType: 'channel' as const,
+      contextType: VoiceSessionType.Channel,
       currentChannelId: 'channelId' in overrides ? overrides.channelId : 'ch-1',
       channelName: 'General',
       communityId: 'c1',

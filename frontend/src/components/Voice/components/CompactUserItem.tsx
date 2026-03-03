@@ -17,7 +17,6 @@ import {
 } from "@mui/icons-material";
 import type { VoicePresenceUserDto } from "../../../api-client/types.gen";
 import { useParticipantTracks } from "../../../hooks/useParticipantTracks";
-import { useSpeakingDetection } from "../../../hooks/useSpeakingDetection";
 import UserAvatar from "../../Common/UserAvatar";
 import { VOLUME_STORAGE_PREFIX } from "../../../constants/voice";
 import { deriveUserState } from "./voiceUserState";
@@ -26,6 +25,7 @@ interface CompactUserItemProps {
   user: VoicePresenceUserDto;
   isConnectedToThisChannel: boolean;
   localParticipantIdentity?: string;
+  isSpeaking: (userId: string) => boolean;
   onContextMenu: (event: React.MouseEvent<HTMLElement>, user: VoicePresenceUserDto) => void;
   onClickUser: (userId: string) => void;
   onShowVideoTiles: () => void;
@@ -35,12 +35,12 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
   user,
   isConnectedToThisChannel,
   localParticipantIdentity,
+  isSpeaking,
   onContextMenu,
   onClickUser,
   onShowVideoTiles,
 }) => {
   const theme = useTheme();
-  const { isSpeaking } = useSpeakingDetection();
   const speaking = isSpeaking(user.id);
   const livekitState = useParticipantTracks(user.id);
   const userState = deriveUserState(livekitState, user);

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { VideoTiles } from '../../components/Voice/VideoTiles';
+import { VoiceSessionType } from '../../contexts/VoiceContext';
 
 // jsdom doesn't implement HTMLMediaElement.play() — stub it to return a resolved promise
 beforeEach(() => {
@@ -143,7 +144,7 @@ const defaultVoiceState = {
   isConnected: true,
   isConnecting: false,
   connectionError: null,
-  contextType: 'channel' as const,
+  contextType: VoiceSessionType.Channel,
   currentChannelId: 'ch-1',
   channelName: 'General Voice',
   communityId: 'c1',

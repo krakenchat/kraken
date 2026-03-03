@@ -9,6 +9,7 @@ vi.mock('../../api-client/client.gen', () => ({
 }));
 
 import { useSendMessage, SocketNotConnectedError } from '../../hooks/useSendMessage';
+import { VoiceSessionType } from '../../contexts/VoiceContext';
 import {
   createTestQueryClient,
   createMockSocket,
@@ -31,7 +32,7 @@ afterEach(() => {
 });
 
 function renderSendMessage(
-  contextType: 'channel' | 'dm' = 'channel',
+  contextType: VoiceSessionType = VoiceSessionType.Channel,
   options?: { socket?: MockSocket | null; isConnected?: boolean; callback?: (id: string) => void },
 ) {
   const socket = options?.socket !== undefined ? options.socket : mockSocket;
@@ -44,17 +45,17 @@ function renderSendMessage(
 describe('useSendMessage', () => {
   describe('canSend', () => {
     it('returns true when socket is connected', () => {
-      const { result } = renderSendMessage('channel', { isConnected: true });
+      const { result } = renderSendMessage(VoiceSessionType.Channel, { isConnected: true });
       expect(result.current.canSend).toBe(true);
     });
 
     it('returns false when socket is null', () => {
-      const { result } = renderSendMessage('channel', { socket: null, isConnected: false });
+      const { result } = renderSendMessage(VoiceSessionType.Channel, { socket: null, isConnected: false });
       expect(result.current.canSend).toBe(false);
     });
 
     it('returns false when socket is disconnected', () => {
-      const { result } = renderSendMessage('channel', { isConnected: false });
+      const { result } = renderSendMessage(VoiceSessionType.Channel, { isConnected: false });
       expect(result.current.canSend).toBe(false);
     });
   });
@@ -64,7 +65,7 @@ describe('useSendMessage', () => {
       const msg = createMessage({ channelId: 'channel-1' });
       const { id: _id, ...payload } = msg;
 
-      const { result } = renderSendMessage('channel');
+      const { result } = renderSendMessage(VoiceSessionType.Channel);
 
       await act(async () => {
         result.current.sendMessage(payload);
@@ -77,7 +78,7 @@ describe('useSendMessage', () => {
       const msg = createMessage({ directMessageGroupId: 'dm-1' });
       const { id: _id, ...payload } = msg;
 
-      const { result } = renderSendMessage('dm');
+      const { result } = renderSendMessage(VoiceSessionType.Dm);
 
       await act(async () => {
         result.current.sendMessage(payload);
@@ -91,7 +92,7 @@ describe('useSendMessage', () => {
         ack('msg-123');
       });
 
-      const { result } = renderSendMessage('channel');
+      const { result } = renderSendMessage(VoiceSessionType.Channel);
       let sendResult: Awaited<ReturnType<typeof result.current.sendMessage>>;
 
       await act(async () => {
@@ -108,7 +109,7 @@ describe('useSendMessage', () => {
         ack('msg-456');
       });
 
-      const { result } = renderSendMessage('channel', { callback });
+      const { result } = renderSendMessage(VoiceSessionType.Channel, { callback });
 
       await act(async () => {
         await result.current.sendMessage(createMessage({ channelId: 'ch-1' }));
@@ -118,7 +119,7 @@ describe('useSendMessage', () => {
     });
 
     it('returns error when socket is null', async () => {
-      const { result } = renderSendMessage('channel', { socket: null });
+      const { result } = renderSendMessage(VoiceSessionType.Channel, { socket: null });
       let sendResult: Awaited<ReturnType<typeof result.current.sendMessage>>;
 
       await act(async () => {
@@ -135,7 +136,7 @@ describe('useSendMessage', () => {
         ack('msg-reconnected');
       });
 
-      const { result } = renderSendMessage('channel', { isConnected: false });
+      const { result } = renderSendMessage(VoiceSessionType.Channel, { isConnected: false });
       let sendResult: Awaited<ReturnType<typeof result.current.sendMessage>>;
       let resolvedPromise = false;
 
@@ -159,7 +160,7 @@ describe('useSendMessage', () => {
 
     it('returns error after reconnection timeout', async () => {
       mockSocket.connected = false;
-      const { result } = renderSendMessage('channel', { isConnected: false });
+      const { result } = renderSendMessage(VoiceSessionType.Channel, { isConnected: false });
       let sendResult: Awaited<ReturnType<typeof result.current.sendMessage>>;
 
       await act(async () => {
