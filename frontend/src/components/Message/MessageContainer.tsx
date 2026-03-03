@@ -236,7 +236,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             }}
           >
             {/* Bottom sentinel: first in DOM = visual bottom in column-reverse */}
-            <Box ref={bottomSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
+            <Box ref={bottomSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
 
             {/* Messages newest-first; column-reverse shows oldest at top */}
             {messages.map((message, index) => {
@@ -285,7 +285,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             )}
 
             {/* Top sentinel: last in DOM = visual top */}
-            <Box ref={topSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
+            <Box ref={topSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
           </Box>
         ) : (
           <Box
