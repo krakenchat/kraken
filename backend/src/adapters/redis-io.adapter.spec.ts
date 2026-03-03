@@ -124,6 +124,29 @@ describe('RedisIoAdapter', () => {
       });
     });
 
+    it('should encode special characters in Redis password', async () => {
+      const specialPassword = 'p@ss:w#rd!';
+      const configWithSpecialPassword = {
+        get: jest.fn((key: string) => {
+          const config: Record<string, string> = {
+            REDIS_HOST: 'secure-host',
+            REDIS_PORT: '6379',
+            REDIS_PASSWORD: specialPassword,
+          };
+          return config[key];
+        }),
+      } as any;
+
+      mockApp.get = jest.fn(() => configWithSpecialPassword);
+      adapter = new RedisIoAdapter(mockApp);
+
+      await adapter.connectToRedis();
+
+      expect(createClient).toHaveBeenCalledWith({
+        url: `redis://:${encodeURIComponent(specialPassword)}@secure-host:6379`,
+      });
+    });
+
     it('should register error handlers for pub client', async () => {
       await adapter.connectToRedis();
 

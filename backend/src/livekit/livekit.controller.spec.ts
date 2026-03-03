@@ -44,7 +44,7 @@ describe('LivekitController', () => {
       const mockTokenResponse = {
         token: 'livekit-token-abc123',
         url: 'wss://livekit.io',
-        identity: 'user-456',
+        identity: mockUser.id,
         roomId: 'channel-123',
       };
 
@@ -55,7 +55,11 @@ describe('LivekitController', () => {
         mockRequest,
       );
 
-      expect(service.generateToken).toHaveBeenCalledWith(createTokenDto);
+      // Identity should always be forced to req.user.id
+      expect(service.generateToken).toHaveBeenCalledWith({
+        ...createTokenDto,
+        identity: mockUser.id,
+      });
       expect(result).toEqual(mockTokenResponse);
     });
 
@@ -79,28 +83,30 @@ describe('LivekitController', () => {
       expect(callArgs.identity).toBe(mockUser.id);
     });
 
-    it('should preserve provided identity over user ID', async () => {
+    it('should override provided identity with req.user.id to prevent spoofing', async () => {
       const createTokenDto: CreateTokenDto = {
         roomId: 'channel-123',
-        identity: 'custom-identity',
+        identity: 'spoofed-identity',
         name: 'Custom Name',
       };
 
       service.generateToken.mockResolvedValue({
         token: 'token',
-        identity: 'custom-identity',
+        identity: mockUser.id,
         roomId: 'channel-123',
       } as any);
 
       await controller.generateToken(createTokenDto, mockRequest);
 
       const callArgs = (service.generateToken as jest.Mock).mock.calls[0]?.[0];
-      expect(callArgs.identity).toBe('custom-identity');
+      // The controller must always force identity to req.user.id, ignoring dto.identity
+      expect(callArgs.identity).toBe(mockUser.id);
+      expect(callArgs.identity).not.toBe('spoofed-identity');
     });
   });
 
   describe('generateDmToken', () => {
-    it('should generate LiveKit token for DM call', async () => {
+    it('should generate LiveKit token for DM call with forced identity', async () => {
       const createTokenDto: CreateTokenDto = {
         roomId: 'dm-group-123',
         identity: 'user-456',
@@ -109,7 +115,7 @@ describe('LivekitController', () => {
 
       const mockTokenResponse = {
         token: 'dm-livekit-token-xyz',
-        identity: 'user-456',
+        identity: mockUser.id,
         roomId: 'dm-group-123',
       };
 
@@ -120,7 +126,11 @@ describe('LivekitController', () => {
         mockRequest,
       );
 
-      expect(service.generateToken).toHaveBeenCalledWith(createTokenDto);
+      // Identity should always be forced to req.user.id for DM tokens too
+      expect(service.generateToken).toHaveBeenCalledWith({
+        ...createTokenDto,
+        identity: mockUser.id,
+      });
       expect(result).toEqual(mockTokenResponse);
     });
 
@@ -142,6 +152,26 @@ describe('LivekitController', () => {
       const callArgs = (service.generateToken as jest.Mock).mock.calls[0]?.[0];
       expect(callArgs.identity).toBe(mockUser.id);
       expect(callArgs.roomId).toBe('dm-group-456');
+    });
+
+    it('should override provided identity with req.user.id in DM tokens', async () => {
+      const createTokenDto: CreateTokenDto = {
+        roomId: 'dm-group-789',
+        identity: 'spoofed-dm-identity',
+        name: 'DM User',
+      };
+
+      service.generateToken.mockResolvedValue({
+        token: 'dm-token',
+        identity: mockUser.id,
+        roomId: 'dm-group-789',
+      } as any);
+
+      await controller.generateDmToken(createTokenDto, mockRequest);
+
+      const callArgs = (service.generateToken as jest.Mock).mock.calls[0]?.[0];
+      expect(callArgs.identity).toBe(mockUser.id);
+      expect(callArgs.identity).not.toBe('spoofed-dm-identity');
     });
   });
 

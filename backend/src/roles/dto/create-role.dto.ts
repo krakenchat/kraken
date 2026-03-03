@@ -1,4 +1,10 @@
-import { IsString, IsArray, ArrayMinSize, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  ArrayMinSize,
+  MaxLength,
+  IsEnum,
+} from 'class-validator';
 import { RbacActions } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { RbacActionsValues } from '@/common/enums/swagger-enums';
@@ -10,6 +16,7 @@ export class CreateRoleDto {
 
   @ApiProperty({ enum: RbacActionsValues, isArray: true })
   @IsArray()
+  @IsEnum(RbacActions, { each: true })
   @ArrayMinSize(1, { message: 'Role must have at least one permission' })
   actions: RbacActions[];
 }

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateChannelMembershipDto {
   @IsNotEmpty()
@@ -10,9 +10,4 @@ export class CreateChannelMembershipDto {
   @IsString()
   @IsUUID()
   channelId: string;
-
-  @IsOptional()
-  @IsString()
-  @IsUUID()
-  addedBy?: string;
 }

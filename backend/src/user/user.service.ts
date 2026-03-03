@@ -167,8 +167,9 @@ export class UserService {
     username?: string,
     email?: string,
   ): Promise<void> {
-    const conditions: { username?: string; email?: string }[] = [];
-    if (username) conditions.push({ username });
+    const conditions: Prisma.UserWhereInput[] = [];
+    if (username)
+      conditions.push({ username: { equals: username, mode: 'insensitive' } });
     if (email) conditions.push({ email });
 
     if (conditions.length === 0) return;
@@ -181,7 +182,9 @@ export class UserService {
 
     if (existingUser) {
       const conflictField =
-        existingUser.username === username ? 'username' : 'email';
+        existingUser.username.toLowerCase() === username?.toLowerCase()
+          ? 'username'
+          : 'email';
       throw new ConflictException(
         `A user with this ${conflictField} already exists.`,
       );

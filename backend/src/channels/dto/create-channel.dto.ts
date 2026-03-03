@@ -6,8 +6,10 @@ import {
   IsBoolean,
   IsOptional,
   IsNumber,
+  IsUUID,
   Min,
   Max,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { ChannelTypeValues } from '@/common/enums/swagger-enums';
@@ -19,10 +21,12 @@ export class CreateChannelDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   name: string;
 
   @IsString()
   @IsNotEmpty()
+  @IsUUID()
   communityId: string;
 
   @ApiProperty({ enum: ChannelTypeValues })

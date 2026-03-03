@@ -76,20 +76,6 @@ export class CommunityController {
     return this.communityService.findAll(req.user.id);
   }
 
-  @Get(':id')
-  @RequiredActions(RbacActions.READ_COMMUNITY)
-  @RbacResource({
-    type: RbacResourceType.COMMUNITY,
-    idKey: 'id',
-    source: ResourceIdSource.PARAM,
-  })
-  @ApiOkResponse({ type: CommunityResponseDto })
-  findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<CommunityResponseDto> {
-    return this.communityService.findOne(id);
-  }
-
   @Patch(':id')
   @RequiredActions(RbacActions.UPDATE_COMMUNITY)
   @RbacResource({
@@ -151,6 +137,20 @@ export class CommunityController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CommunityStatsDetailDto> {
     return this.communityService.findOneWithStats(id);
+  }
+
+  @Get(':id')
+  @RequiredActions(RbacActions.READ_COMMUNITY)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'id',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiOkResponse({ type: CommunityResponseDto })
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<CommunityResponseDto> {
+    return this.communityService.findOne(id);
   }
 
   /**

@@ -5,6 +5,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@kraken/shared';
 import { DatabaseService } from '@/database/database.service';
 import { LivekitReplayService } from '@/livekit/livekit-replay.service';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 /**
  * Voice presence user data
@@ -403,9 +404,10 @@ export class VoicePresenceService {
       return;
     }
 
-    // Look up user info from database
+    // Look up user info from database (only public fields)
     const user = await this.databaseService.user.findUnique({
       where: { id: userId },
+      select: PUBLIC_USER_SELECT,
     });
 
     if (!user) {
@@ -496,9 +498,10 @@ export class VoicePresenceService {
       return;
     }
 
-    // Look up user info from database
+    // Look up user info from database (only public fields)
     const user = await this.databaseService.user.findUnique({
       where: { id: userId },
+      select: PUBLIC_USER_SELECT,
     });
 
     if (!user) {

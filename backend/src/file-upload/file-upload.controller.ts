@@ -5,6 +5,7 @@ import {
   Param,
   Delete,
   UseInterceptors,
+  ClassSerializerInterceptor,
   UploadedFile,
   ParseFilePipe,
   FileTypeValidator,
@@ -24,6 +25,7 @@ import { AuthenticatedRequest } from '@/types';
 import { FileUploadResponseDto } from './dto/file-upload-response.dto';
 
 @UseGuards(JwtAuthGuard)
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('file-upload')
 export class FileUploadController {
   constructor(private readonly fileUploadService: FileUploadService) {}

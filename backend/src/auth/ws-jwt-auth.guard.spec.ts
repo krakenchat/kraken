@@ -3,6 +3,7 @@ import type { Mocked } from '@suites/doubles.jest';
 import { WsJwtAuthGuard } from './ws-jwt-auth.guard';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '@/user/user.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 import {
   UserFactory,
   createMockHttpExecutionContext,
@@ -15,6 +16,7 @@ describe('WsJwtAuthGuard', () => {
   let guard: WsJwtAuthGuard;
   let jwtService: Mocked<JwtService>;
   let userService: Mocked<UserService>;
+  let tokenBlacklistService: Mocked<TokenBlacklistService>;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(WsJwtAuthGuard).compile();
@@ -22,6 +24,7 @@ describe('WsJwtAuthGuard', () => {
     guard = unit;
     jwtService = unitRef.get(JwtService);
     userService = unitRef.get(UserService);
+    tokenBlacklistService = unitRef.get(TokenBlacklistService);
   });
 
   afterEach(() => {
@@ -308,7 +311,7 @@ describe('WsJwtAuthGuard', () => {
 
   describe('User attachment to handshake', () => {
     it('should attach user as UserEntity to handshake on successful authentication', async () => {
-      const user = UserFactory.buildComplete();
+      const user = UserFactory.buildComplete({ banned: false });
       const mockClient = {
         id: 'socket-attach',
         handshake: {
@@ -329,7 +332,7 @@ describe('WsJwtAuthGuard', () => {
     });
 
     it('should not leak sensitive fields in attached user', async () => {
-      const user = UserFactory.buildComplete();
+      const user = UserFactory.buildComplete({ banned: false });
       const mockClient = {
         id: 'socket-sensitive',
         handshake: {
@@ -459,6 +462,173 @@ describe('WsJwtAuthGuard', () => {
       expect(mockClient.disconnect).toHaveBeenCalledWith(true);
       // Empty string after stripping "Bearer " is treated as missing token
       expect(jwtService.verify).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Token blacklist checks', () => {
+    it('should disconnect client and return false when token is blacklisted', async () => {
+      const user = UserFactory.build();
+      const mockClient = {
+        id: 'socket-blacklisted',
+        handshake: {
+          auth: { token: 'blacklisted-token' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue({ sub: user.id, jti: 'revoked-jti' });
+      jest
+        .spyOn(tokenBlacklistService, 'isBlacklisted')
+        .mockResolvedValue(true);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(false);
+      expect(mockClient.disconnect).toHaveBeenCalledWith(true);
+      expect(tokenBlacklistService.isBlacklisted).toHaveBeenCalledWith(
+        'revoked-jti',
+      );
+      // Should not attempt to look up the user
+      expect(userService.findById).not.toHaveBeenCalled();
+    });
+
+    it('should allow connection when token has jti but is not blacklisted', async () => {
+      const user = UserFactory.build();
+      const mockClient = {
+        id: 'socket-valid-jti',
+        handshake: {
+          auth: { token: 'valid-token-with-jti' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue({ sub: user.id, jti: 'valid-jti' });
+      jest
+        .spyOn(tokenBlacklistService, 'isBlacklisted')
+        .mockResolvedValue(false);
+      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(tokenBlacklistService.isBlacklisted).toHaveBeenCalledWith(
+        'valid-jti',
+      );
+      expect(userService.findById).toHaveBeenCalledWith(user.id);
+      expect(mockClient.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('should skip blacklist check when token has no jti', async () => {
+      const user = UserFactory.build();
+      const mockClient = {
+        id: 'socket-no-jti',
+        handshake: {
+          auth: { token: 'token-without-jti' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue({ sub: user.id });
+      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(tokenBlacklistService.isBlacklisted).not.toHaveBeenCalled();
+      expect(mockClient.disconnect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Banned user rejection', () => {
+    it('should disconnect client and return false when user is banned', async () => {
+      const bannedUser = UserFactory.build({ banned: true });
+      const mockClient = {
+        id: 'socket-banned-user',
+        handshake: {
+          auth: { token: 'valid-token' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue({ sub: bannedUser.id });
+      jest.spyOn(userService, 'findById').mockResolvedValue(bannedUser);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(false);
+      expect(mockClient.disconnect).toHaveBeenCalledWith(true);
+      // Should not attach user to handshake
+      expect((mockClient.handshake as any).user).toBeUndefined();
+    });
+
+    it('should allow connection when user is not banned', async () => {
+      const user = UserFactory.build({ banned: false });
+      const mockClient = {
+        id: 'socket-not-banned',
+        handshake: {
+          auth: { token: 'valid-token' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue({ sub: user.id });
+      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockClient.disconnect).not.toHaveBeenCalled();
+      expect((mockClient.handshake as any).user).toBeInstanceOf(UserEntity);
+    });
+
+    it('should check ban status after blacklist check passes', async () => {
+      const bannedUser = UserFactory.build({ banned: true });
+      const mockClient = {
+        id: 'socket-banned-with-jti',
+        handshake: {
+          auth: { token: 'valid-token' },
+          headers: {},
+        },
+        disconnect: jest.fn(),
+      };
+      const context = createMockWsExecutionContext({ client: mockClient });
+
+      jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue({ sub: bannedUser.id, jti: 'valid-jti' });
+      jest
+        .spyOn(tokenBlacklistService, 'isBlacklisted')
+        .mockResolvedValue(false);
+      jest.spyOn(userService, 'findById').mockResolvedValue(bannedUser);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(false);
+      expect(tokenBlacklistService.isBlacklisted).toHaveBeenCalledWith(
+        'valid-jti',
+      );
+      expect(userService.findById).toHaveBeenCalledWith(bannedUser.id);
+      expect(mockClient.disconnect).toHaveBeenCalledWith(true);
     });
   });
 });

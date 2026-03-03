@@ -21,6 +21,12 @@ function validateSecrets() {
   const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
   const isProduction = process.env.NODE_ENV === 'production';
 
+  if (isProduction && (!jwtSecret || !jwtRefreshSecret)) {
+    throw new Error(
+      'JWT_SECRET and JWT_REFRESH_SECRET must be set in production.',
+    );
+  }
+
   if (
     jwtSecret &&
     jwtRefreshSecret &&
@@ -65,13 +71,14 @@ async function bootstrap() {
     }),
   );
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
+    origin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()) || ['http://localhost:5173'],
     credentials: true,
   });
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
@@ -90,6 +97,8 @@ async function bootstrap() {
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api-docs', app, document);
   }
+
+  app.enableShutdownHooks();
 
   await app.listen(process.env.PORT ?? 3000);
 }

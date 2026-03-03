@@ -11,20 +11,11 @@ export class AppearanceSettingsService {
    * Get user appearance settings (creates default if missing)
    */
   async getUserSettings(userId: string): Promise<UserAppearanceSettings> {
-    let settings = await this.databaseService.userAppearanceSettings.findUnique(
-      {
-        where: { userId },
-      },
-    );
-
-    if (!settings) {
-      // Create default settings
-      settings = await this.databaseService.userAppearanceSettings.create({
-        data: { userId },
-      });
-    }
-
-    return settings;
+    return this.databaseService.userAppearanceSettings.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
   }
 
   /**
@@ -34,12 +25,10 @@ export class AppearanceSettingsService {
     userId: string,
     dto: UpdateAppearanceSettingsDto,
   ): Promise<UserAppearanceSettings> {
-    // Ensure settings exist first
-    await this.getUserSettings(userId);
-
-    return this.databaseService.userAppearanceSettings.update({
+    return this.databaseService.userAppearanceSettings.upsert({
       where: { userId },
-      data: dto,
+      create: { userId, ...dto },
+      update: dto,
     });
   }
 }

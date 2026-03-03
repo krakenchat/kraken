@@ -26,9 +26,7 @@ describe('AppearanceSettingsService', () => {
     databaseService = unitRef.get(DatabaseService);
 
     (databaseService.userAppearanceSettings as any) = {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
+      upsert: jest.fn(),
     };
   });
 
@@ -41,108 +39,63 @@ describe('AppearanceSettingsService', () => {
   });
 
   describe('getUserSettings', () => {
-    it('returns existing settings when found', async () => {
+    it('returns settings via upsert', async () => {
       (
         databaseService.userAppearanceSettings as any
-      ).findUnique.mockResolvedValue(mockSettings);
+      ).upsert.mockResolvedValue(mockSettings);
 
       const result = await service.getUserSettings('user-1');
 
       expect(result).toBe(mockSettings);
       expect(
-        databaseService.userAppearanceSettings.findUnique,
+        databaseService.userAppearanceSettings.upsert,
       ).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
+        create: { userId: 'user-1' },
+        update: {},
       });
-      expect(
-        databaseService.userAppearanceSettings.create,
-      ).not.toHaveBeenCalled();
     });
 
-    it('creates default settings when none exist', async () => {
+    it('passes the correct userId to upsert', async () => {
       (
         databaseService.userAppearanceSettings as any
-      ).findUnique.mockResolvedValue(null);
-      (databaseService.userAppearanceSettings as any).create.mockResolvedValue(
-        mockSettings,
-      );
-
-      const result = await service.getUserSettings('user-1');
-
-      expect(
-        databaseService.userAppearanceSettings.create,
-      ).toHaveBeenCalledWith({
-        data: { userId: 'user-1' },
-      });
-      expect(result).toBe(mockSettings);
-    });
-
-    it('passes the correct userId to findUnique', async () => {
-      (
-        databaseService.userAppearanceSettings as any
-      ).findUnique.mockResolvedValue(mockSettings);
+      ).upsert.mockResolvedValue(mockSettings);
 
       await service.getUserSettings('user-42');
 
       expect(
-        databaseService.userAppearanceSettings.findUnique,
+        databaseService.userAppearanceSettings.upsert,
       ).toHaveBeenCalledWith({
         where: { userId: 'user-42' },
+        create: { userId: 'user-42' },
+        update: {},
       });
     });
   });
 
   describe('updateUserSettings', () => {
-    it('ensures settings exist before updating', async () => {
-      (
-        databaseService.userAppearanceSettings as any
-      ).findUnique.mockResolvedValue(mockSettings);
-      (databaseService.userAppearanceSettings as any).update.mockResolvedValue({
+    it('upserts with the provided DTO', async () => {
+      (databaseService.userAppearanceSettings as any).upsert.mockResolvedValue({
         ...mockSettings,
         themeMode: 'light',
       });
 
-      await service.updateUserSettings('user-1', { themeMode: 'light' } as any);
-
-      // getUserSettings should have been called first
-      expect(
-        databaseService.userAppearanceSettings.findUnique,
-      ).toHaveBeenCalledWith({
-        where: { userId: 'user-1' },
-      });
-    });
-
-    it('creates default settings if missing, then updates', async () => {
-      (
-        databaseService.userAppearanceSettings as any
-      ).findUnique.mockResolvedValue(null);
-      (databaseService.userAppearanceSettings as any).create.mockResolvedValue(
-        mockSettings,
-      );
-      (databaseService.userAppearanceSettings as any).update.mockResolvedValue({
-        ...mockSettings,
-        intensity: 'vibrant',
-      });
-
       const result = await service.updateUserSettings('user-1', {
-        intensity: 'vibrant',
+        themeMode: 'light',
       } as any);
 
-      expect(databaseService.userAppearanceSettings.create).toHaveBeenCalled();
       expect(
-        databaseService.userAppearanceSettings.update,
+        databaseService.userAppearanceSettings.upsert,
       ).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
-        data: { intensity: 'vibrant' },
+        create: { userId: 'user-1', themeMode: 'light' },
+        update: { themeMode: 'light' },
       });
-      expect(result.intensity).toBe('vibrant');
+      expect(result.themeMode).toBe('light');
     });
 
-    it('passes the DTO as data to the update call', async () => {
-      (
-        databaseService.userAppearanceSettings as any
-      ).findUnique.mockResolvedValue(mockSettings);
-      (databaseService.userAppearanceSettings as any).update.mockResolvedValue(
+    it('passes multiple DTO fields to upsert', async () => {
+      (databaseService.userAppearanceSettings as any).upsert.mockResolvedValue(
         mockSettings,
       );
 
@@ -150,10 +103,11 @@ describe('AppearanceSettingsService', () => {
       await service.updateUserSettings('user-1', dto as any);
 
       expect(
-        databaseService.userAppearanceSettings.update,
+        databaseService.userAppearanceSettings.upsert,
       ).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
-        data: dto,
+        create: { userId: 'user-1', ...dto },
+        update: dto,
       });
     });
   });

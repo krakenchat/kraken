@@ -75,7 +75,7 @@ describe('NotificationsService', () => {
       } as any);
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -171,7 +171,7 @@ describe('NotificationsService', () => {
 
       mockDatabase.channelMembership.findMany.mockResolvedValue(members);
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -216,7 +216,7 @@ describe('NotificationsService', () => {
 
       mockDatabase.channelMembership.findMany.mockResolvedValue(members);
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -266,7 +266,7 @@ describe('NotificationsService', () => {
 
       mockDatabase.directMessageGroupMember.findMany.mockResolvedValue(members);
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.notification.create.mockImplementation((args) =>
@@ -292,7 +292,7 @@ describe('NotificationsService', () => {
         ],
       } as any);
 
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         UserNotificationSettingsFactory.build(),
       );
       mockDatabase.notification.create.mockRejectedValue(new Error('DB error'));
@@ -310,9 +310,7 @@ describe('NotificationsService', () => {
 
     it('should return false when desktop notifications are disabled', async () => {
       const settings = UserNotificationSettingsFactory.buildMutedDesktop();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
-        settings,
-      );
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
 
       const result = await service.shouldNotify(
         userId,
@@ -333,9 +331,7 @@ describe('NotificationsService', () => {
         dndStartTime: '22:00',
         dndEndTime: '08:00',
       });
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
-        settings,
-      );
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
 
       const result = await service.shouldNotify(
         userId,
@@ -349,9 +345,7 @@ describe('NotificationsService', () => {
 
     it('should return false when DM notifications are disabled for DMs', async () => {
       const settings = UserNotificationSettingsFactory.buildMutedDMs();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
-        settings,
-      );
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
 
       const result = await service.shouldNotify(
         userId,
@@ -370,9 +364,7 @@ describe('NotificationsService', () => {
         channelId,
       });
 
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
-        settings,
-      );
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
         override,
       );
@@ -389,9 +381,7 @@ describe('NotificationsService', () => {
 
     it('should return false for channel messages when set to mentions-only', async () => {
       const settings = UserNotificationSettingsFactory.buildMentionsOnlyMode();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
-        settings,
-      );
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
         null,
       );
@@ -408,9 +398,7 @@ describe('NotificationsService', () => {
 
     it('should return true for mentions when set to mentions-only', async () => {
       const settings = UserNotificationSettingsFactory.buildMentionsOnlyMode();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
-        settings,
-      );
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
         null,
       );
@@ -425,10 +413,9 @@ describe('NotificationsService', () => {
       expect(result).toBe(true);
     });
 
-    it('should create default settings if none exist', async () => {
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(null);
+    it('should use upsert to get-or-create settings', async () => {
       const newSettings = UserNotificationSettingsFactory.build({ userId });
-      mockDatabase.userNotificationSettings.create.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         newSettings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -442,11 +429,13 @@ describe('NotificationsService', () => {
         NotificationType.USER_MENTION,
       );
 
-      expect(mockDatabase.userNotificationSettings.create).toHaveBeenCalledWith(
-        {
-          data: { userId },
-        },
-      );
+      expect(
+        mockDatabase.userNotificationSettings.upsert,
+      ).toHaveBeenCalledWith({
+        where: { userId },
+        create: { userId },
+        update: {},
+      });
     });
   });
 
@@ -612,9 +601,7 @@ describe('NotificationsService', () => {
       const userId = 'user-1';
       const settings = UserNotificationSettingsFactory.build({ userId });
 
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
-        settings,
-      );
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
 
       const result = await service.getUserSettings(userId);
 
@@ -625,19 +612,37 @@ describe('NotificationsService', () => {
       const userId = 'user-1';
       const newSettings = UserNotificationSettingsFactory.build({ userId });
 
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(null);
-      mockDatabase.userNotificationSettings.create.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         newSettings,
       );
 
       const result = await service.getUserSettings(userId);
 
       expect(result).toEqual(newSettings);
-      expect(mockDatabase.userNotificationSettings.create).toHaveBeenCalledWith(
-        {
-          data: { userId },
-        },
-      );
+    });
+
+    it('should use upsert instead of find-then-create', async () => {
+      const userId = 'user-1';
+      const settings = UserNotificationSettingsFactory.build({ userId });
+
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
+
+      await service.getUserSettings(userId);
+
+      expect(
+        mockDatabase.userNotificationSettings.upsert,
+      ).toHaveBeenCalledWith({
+        where: { userId },
+        create: { userId },
+        update: {},
+      });
+      // Verify the old find-then-create pattern is NOT used
+      expect(
+        mockDatabase.userNotificationSettings.findUnique,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockDatabase.userNotificationSettings.create,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -653,7 +658,7 @@ describe('NotificationsService', () => {
         dndEndTime: '08:00',
       };
 
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         existingSettings,
       );
       mockDatabase.userNotificationSettings.update.mockResolvedValue({
@@ -810,7 +815,7 @@ describe('NotificationsService', () => {
       setupNotificationCreate(NotificationType.USER_MENTION, spans);
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -847,7 +852,7 @@ describe('NotificationsService', () => {
       setupNotificationCreate(NotificationType.USER_MENTION, []);
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -911,7 +916,7 @@ describe('NotificationsService', () => {
       });
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
 
@@ -957,7 +962,7 @@ describe('NotificationsService', () => {
       });
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
 
@@ -1012,7 +1017,7 @@ describe('NotificationsService', () => {
       });
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -1068,7 +1073,7 @@ describe('NotificationsService', () => {
       setupNotificationCreate(NotificationType.USER_MENTION, spans);
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -1115,7 +1120,7 @@ describe('NotificationsService', () => {
       setupNotificationCreate(NotificationType.USER_MENTION, spans);
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
@@ -1170,7 +1175,7 @@ describe('NotificationsService', () => {
       setupNotificationCreate(NotificationType.USER_MENTION, spans);
 
       const settings = UserNotificationSettingsFactory.build();
-      mockDatabase.userNotificationSettings.findUnique.mockResolvedValue(
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
         settings,
       );
       mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(

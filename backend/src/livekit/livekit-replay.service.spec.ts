@@ -1,6 +1,10 @@
 import { TestBed } from '@suites/unit';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { LivekitReplayService } from './livekit-replay.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
@@ -1008,6 +1012,130 @@ describe('LivekitReplayService', () => {
       await expect(service.captureReplay(userId, customDto)).rejects.toThrow(
         'Start time must be before end time',
       );
+    });
+
+    describe('destination authorization', () => {
+      it('should throw ForbiddenException when posting to channel without community membership', async () => {
+        const channelDto = {
+          durationMinutes: 1 as const,
+          destination: 'channel' as const,
+          targetChannelId: 'target-channel-1',
+        };
+
+        // Channel exists and belongs to a community
+        databaseService.channel.findUnique.mockResolvedValue({
+          id: 'target-channel-1',
+          communityId: 'community-1',
+        });
+        // User is NOT a member of that community
+        databaseService.membership.findFirst.mockResolvedValue(null);
+
+        await expect(
+          service.captureReplay(userId, channelDto),
+        ).rejects.toThrow(ForbiddenException);
+      });
+
+      it('should throw NotFoundException when posting to nonexistent channel', async () => {
+        const channelDto = {
+          durationMinutes: 1 as const,
+          destination: 'channel' as const,
+          targetChannelId: 'nonexistent-channel',
+        };
+
+        databaseService.channel.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.captureReplay(userId, channelDto),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('should throw ForbiddenException when posting to DM without group membership', async () => {
+        const dmDto = {
+          durationMinutes: 1 as const,
+          destination: 'dm' as const,
+          targetDirectMessageGroupId: 'dm-group-1',
+        };
+
+        // User is NOT a member of the DM group
+        databaseService.directMessageGroupMember.findFirst.mockResolvedValue(
+          null,
+        );
+
+        await expect(service.captureReplay(userId, dmDto)).rejects.toThrow(
+          ForbiddenException,
+        );
+      });
+
+      it('should succeed when user has channel community membership', async () => {
+        const channelDto = {
+          durationMinutes: 1 as const,
+          destination: 'channel' as const,
+          targetChannelId: 'target-channel-1',
+        };
+
+        // Channel exists
+        databaseService.channel.findUnique.mockResolvedValue({
+          id: 'target-channel-1',
+          communityId: 'community-1',
+        });
+        // User IS a member
+        databaseService.membership.findFirst.mockResolvedValue({
+          id: 'membership-1',
+          userId,
+          communityId: 'community-1',
+        });
+        // Mock messagesService for the message creation path
+        const messagesService = (service as any).messagesService;
+        const mockMessage = {
+          id: 'message-1',
+          channelId: 'target-channel-1',
+          authorId: userId,
+          attachments: [],
+        };
+        messagesService.create.mockResolvedValue(mockMessage);
+        messagesService.enrichMessageWithFileMetadata.mockReturnValue({
+          ...mockMessage,
+          attachmentMetadata: [],
+        });
+
+        const result = await service.captureReplay(userId, channelDto);
+
+        expect(result.clipId).toBe('clip-1');
+        expect(result.messageId).toBe('message-1');
+      });
+
+      it('should succeed when user is a DM group member', async () => {
+        const dmDto = {
+          durationMinutes: 1 as const,
+          destination: 'dm' as const,
+          targetDirectMessageGroupId: 'dm-group-1',
+        };
+
+        // User IS a member of the DM group
+        databaseService.directMessageGroupMember.findFirst.mockResolvedValue({
+          id: 'dm-member-1',
+          groupId: 'dm-group-1',
+          userId,
+        });
+        // Mock messagesService for the message creation path
+        const messagesService = (service as any).messagesService;
+        const mockMessage = {
+          id: 'message-2',
+          directMessageGroupId: 'dm-group-1',
+          authorId: userId,
+          attachments: [],
+        };
+        messagesService.create.mockResolvedValue(mockMessage);
+        messagesService.enrichMessageWithFileMetadata.mockReturnValue({
+          ...mockMessage,
+          attachmentMetadata: [],
+        });
+
+        const result = await service.captureReplay(userId, dmDto);
+
+        expect(result.clipId).toBe('clip-1');
+        expect(result.messageId).toBe('message-2');
+      });
     });
   });
 

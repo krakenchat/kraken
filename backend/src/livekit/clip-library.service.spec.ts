@@ -21,6 +21,15 @@ describe('ClipLibraryService', () => {
     file: {
       delete: jest.fn(),
     },
+    channel: {
+      findUnique: jest.fn(),
+    },
+    membership: {
+      findFirst: jest.fn(),
+    },
+    directMessageGroupMember: {
+      findFirst: jest.fn(),
+    },
   };
 
   let storageService: Mocked<StorageService>;
@@ -248,6 +257,15 @@ describe('ClipLibraryService', () => {
       };
 
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
+      mockDatabaseService.channel.findUnique.mockResolvedValue({
+        id: 'channel-1',
+        communityId: 'community-1',
+      });
+      mockDatabaseService.membership.findFirst.mockResolvedValue({
+        id: 'membership-1',
+        userId: 'user-123',
+        communityId: 'community-1',
+      });
       messagesService.create.mockResolvedValue(message as any);
       messagesService.enrichMessageWithFileMetadata.mockReturnValue({
         ...message,
@@ -287,6 +305,11 @@ describe('ClipLibraryService', () => {
       };
 
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
+      mockDatabaseService.directMessageGroupMember.findFirst.mockResolvedValue({
+        id: 'dm-member-1',
+        groupId: 'dm-group-1',
+        userId: 'user-123',
+      });
       messagesService.create.mockResolvedValue(message as any);
       messagesService.enrichMessageWithFileMetadata.mockReturnValue({
         ...message,

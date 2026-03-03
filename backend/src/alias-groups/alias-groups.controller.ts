@@ -8,6 +8,7 @@ import {
   Param,
   HttpCode,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -46,7 +47,7 @@ export class AliasGroupsController {
     source: ResourceIdSource.PARAM,
   })
   async getCommunityAliasGroups(
-    @Param('communityId') communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<AliasGroupSummaryDto[]> {
     return this.aliasGroupsService.getCommunityAliasGroups(communityId);
   }
@@ -63,7 +64,7 @@ export class AliasGroupsController {
     source: ResourceIdSource.PARAM,
   })
   async createAliasGroup(
-    @Param('communityId') communityId: string,
+    @Param('communityId', ParseUUIDPipe) communityId: string,
     @Body() dto: CreateAliasGroupDto,
   ): Promise<AliasGroupWithMembersDto> {
     return this.aliasGroupsService.createAliasGroup(communityId, dto);
@@ -81,7 +82,7 @@ export class AliasGroupsController {
     source: ResourceIdSource.PARAM,
   })
   async getAliasGroup(
-    @Param('groupId') groupId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
   ): Promise<AliasGroupWithMembersDto> {
     return this.aliasGroupsService.getAliasGroup(groupId);
   }
@@ -98,7 +99,7 @@ export class AliasGroupsController {
     source: ResourceIdSource.PARAM,
   })
   async updateAliasGroup(
-    @Param('groupId') groupId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
     @Body() dto: UpdateAliasGroupDto,
   ): Promise<AliasGroupWithMembersDto> {
     return this.aliasGroupsService.updateAliasGroup(groupId, dto);
@@ -115,7 +116,7 @@ export class AliasGroupsController {
     idKey: 'groupId',
     source: ResourceIdSource.PARAM,
   })
-  async deleteAliasGroup(@Param('groupId') groupId: string): Promise<void> {
+  async deleteAliasGroup(@Param('groupId', ParseUUIDPipe) groupId: string): Promise<void> {
     return this.aliasGroupsService.deleteAliasGroup(groupId);
   }
 
@@ -131,7 +132,7 @@ export class AliasGroupsController {
     source: ResourceIdSource.PARAM,
   })
   async addMember(
-    @Param('groupId') groupId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
     @Body() dto: AddMemberDto,
   ): Promise<void> {
     return this.aliasGroupsService.addMember(groupId, dto.userId);
@@ -149,8 +150,8 @@ export class AliasGroupsController {
     source: ResourceIdSource.PARAM,
   })
   async removeMember(
-    @Param('groupId') groupId: string,
-    @Param('userId') userId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<void> {
     return this.aliasGroupsService.removeMember(groupId, userId);
   }
@@ -167,7 +168,7 @@ export class AliasGroupsController {
     source: ResourceIdSource.PARAM,
   })
   async updateMembers(
-    @Param('groupId') groupId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
     @Body() dto: UpdateMembersDto,
   ): Promise<void> {
     return this.aliasGroupsService.updateMembers(groupId, dto.memberIds);

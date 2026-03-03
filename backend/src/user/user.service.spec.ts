@@ -110,6 +110,30 @@ describe('UserService', () => {
       ).rejects.toThrow('A user with this username already exists.');
     });
 
+    it('should use case-insensitive matching for username', async () => {
+      mockDatabase.user.findFirst.mockResolvedValue(null);
+
+      await service.checkForFieldConflicts('Alice', undefined);
+
+      expect(mockDatabase.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          OR: [{ username: { equals: 'Alice', mode: 'insensitive' } }],
+        },
+      });
+    });
+
+    it('should detect username conflict case-insensitively', async () => {
+      const existingUser = UserFactory.build({ username: 'alice' });
+      mockDatabase.user.findFirst.mockResolvedValue(existingUser);
+
+      await expect(
+        service.checkForFieldConflicts('ALICE', undefined),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        service.checkForFieldConflicts('ALICE', undefined),
+      ).rejects.toThrow('A user with this username already exists.');
+    });
+
     it('should throw ConflictException when email exists', async () => {
       const existingUser = UserFactory.build({
         username: 'different',

@@ -10,6 +10,7 @@ import {
   Req,
   DefaultValuePipe,
   ParseIntPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { StorageQuotaService } from './storage-quota.service';
@@ -83,7 +84,7 @@ export class StorageQuotaController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   @ApiOkResponse({ type: UserStorageStatsDto })
   async getUserStorageStats(
-    @Param('userId') userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<UserStorageStatsDto> {
     return this.storageQuotaService.getUserStorageStats(userId);
   }
@@ -96,7 +97,7 @@ export class StorageQuotaController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   @ApiOkResponse({ type: UserStorageStatsDto })
   async updateUserQuota(
-    @Param('userId') userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UpdateUserQuotaDto,
   ): Promise<UserStorageStatsDto> {
     return this.storageQuotaService.updateUserQuota(userId, dto.quotaBytes);
@@ -110,7 +111,7 @@ export class StorageQuotaController {
   @RbacResource({ type: RbacResourceType.INSTANCE })
   @ApiOkResponse({ type: UserStorageStatsDto })
   async recalculateUserStorage(
-    @Param('userId') userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
   ): Promise<UserStorageStatsDto> {
     return this.storageQuotaService.recalculateUserStorage(userId);
   }

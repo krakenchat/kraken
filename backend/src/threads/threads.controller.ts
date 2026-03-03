@@ -83,6 +83,7 @@ export class ThreadsController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('continuationToken') continuationToken?: string,
   ): Promise<ThreadRepliesResponseDto> {
+    limit = Math.min(limit, 100);
     return this.threadsService.getThreadRepliesWithMetadata(
       parentMessageId,
       limit,

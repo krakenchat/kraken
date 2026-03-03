@@ -822,6 +822,17 @@ export class ModerationService {
     });
 
     this.logger.log(`Message ${messageId} deleted by moderator ${moderatorId}`);
+
+    // Emit WebSocket event to channel so clients remove the message in real-time
+    this.websocketService.sendToRoom(
+      message.channelId!,
+      ServerEvents.DELETE_MESSAGE,
+      {
+        messageId,
+        channelId: message.channelId,
+        directMessageGroupId: null,
+      },
+    );
   }
 
   // =========================================

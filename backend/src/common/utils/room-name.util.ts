@@ -6,12 +6,13 @@
  * - `RoomSubscriptionHandler` (mid-session subscription changes)
  * - Any service that sends events via `WebsocketService.sendToRoom()`
  *
- * Communities use a `community:` prefix; all other entities use raw IDs.
+ * Prefixed entities: `community:`, `user:`, `dm:`.
+ * Raw IDs: channels, alias groups (used directly as room IDs).
  */
 export const RoomName = {
-  user: (userId: string): string => userId,
+  user: (userId: string): string => `user:${userId}`,
   community: (communityId: string): string => `community:${communityId}`,
   channel: (channelId: string): string => channelId,
-  dmGroup: (groupId: string): string => groupId,
+  dmGroup: (groupId: string): string => `dm:${groupId}`,
   aliasGroup: (aliasGroupId: string): string => aliasGroupId,
 } as const;

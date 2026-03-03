@@ -15,6 +15,7 @@ import { StorageQuotaService } from '@/storage-quota/storage-quota.service';
 import { ThumbnailService } from '@/file/thumbnail.service';
 import { ResourceTypeFileValidator } from './validators';
 import { UserEntity } from '@/user/dto/user-response.dto';
+import { FileUploadResponseDto } from './dto/file-upload-response.dto';
 
 @Injectable()
 export class FileUploadService {
@@ -96,7 +97,7 @@ export class FileUploadService {
           this.generateThumbnailAsync(file.path, fileRecord.id);
         }
 
-        return fileRecord;
+        return new FileUploadResponseDto(fileRecord);
       } catch (dbError) {
         // If DB insert fails, clean up the file
         await this.cleanupFile(file.path);
@@ -256,6 +257,6 @@ export class FileUploadService {
       await this.storageQuotaService.decrementUserStorage(userId, file.size);
     }
 
-    return result;
+    return new FileUploadResponseDto(result);
   }
 }

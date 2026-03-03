@@ -110,22 +110,6 @@ export class UserController {
     return this.userService.searchUsers(query, communityId, limit);
   }
 
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ type: UserEntity })
-  async getUserById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<UserEntity> {
-    const user = await this.userService.findById(id);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const mapped = new UserEntity(user);
-    return mapped;
-  }
-
   @Get()
   @UseGuards(JwtAuthGuard, RbacGuard)
   @RequiredActions(RbacActions.READ_USER)
@@ -295,5 +279,21 @@ export class UserController {
   ): Promise<BlockedStatusResponseDto> {
     const blocked = await this.userService.isUserBlocked(req.user.id, userId);
     return { blocked };
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: UserEntity })
+  async getUserById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<UserEntity> {
+    const user = await this.userService.findById(id);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const mapped = new UserEntity(user);
+    return mapped;
   }
 }

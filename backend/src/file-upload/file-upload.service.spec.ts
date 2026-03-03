@@ -9,6 +9,7 @@ import { ThumbnailService } from '@/file/thumbnail.service';
 import { UnprocessableEntityException } from '@nestjs/common';
 import { ResourceType, FileType, StorageType } from '@prisma/client';
 import * as crypto from 'crypto';
+import { FileUploadResponseDto } from './dto/file-upload-response.dto';
 
 jest.mock('./validators/resource-type-file.validator');
 
@@ -128,6 +129,36 @@ describe('FileUploadService', () => {
           storagePath: '/tmp/test-123.png',
         }),
       });
+    });
+
+    it('should return a FileUploadResponseDto instance, not a raw Prisma object', async () => {
+      const createDto = {
+        resourceType: ResourceType.MESSAGE_ATTACHMENT,
+        resourceId: 'msg-123',
+      };
+
+      const createdFile = {
+        id: 'file-123',
+        filename: 'test.png',
+        mimeType: 'image/png',
+        size: 1024,
+        checksum: 'abc123def456',
+      };
+
+      databaseService.file.create.mockResolvedValue(createdFile as any);
+
+      // Mock validator to pass
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const {
+        ResourceTypeFileValidator,
+      } = require('./validators/resource-type-file.validator');
+      ResourceTypeFileValidator.mockImplementation(() => ({
+        isValid: jest.fn().mockResolvedValue(true),
+      }));
+
+      const result = await service.uploadFile(mockFile, createDto, mockUser);
+
+      expect(result).toBeInstanceOf(FileUploadResponseDto);
     });
 
     it('should throw error and cleanup file when validation fails', async () => {

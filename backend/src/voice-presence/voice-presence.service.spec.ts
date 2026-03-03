@@ -6,6 +6,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
 
 import { ServerEvents } from '@kraken/shared';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 describe('VoicePresenceService', () => {
   let service: VoicePresenceService;
@@ -80,6 +81,7 @@ describe('VoicePresenceService', () => {
 
       expect(mockDatabaseService.user.findUnique).toHaveBeenCalledWith({
         where: { id: userId },
+        select: PUBLIC_USER_SELECT,
       });
       expect(mockRedis.pipeline).toHaveBeenCalled();
       expect(mockPipeline.set).toHaveBeenCalledWith(
@@ -133,6 +135,27 @@ describe('VoicePresenceService', () => {
 
       expect(mockRedis.pipeline).not.toHaveBeenCalled();
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+    });
+
+    it('should query user with PUBLIC_USER_SELECT to avoid fetching sensitive fields', async () => {
+      const channelId = 'channel-123';
+      const userId = 'user-123';
+      const mockUser = {
+        id: userId,
+        username: 'testuser',
+        displayName: 'Test User',
+        avatarUrl: 'https://example.com/avatar.png',
+      };
+
+      mockRedis.get.mockResolvedValue(null);
+      mockDatabaseService.user.findUnique.mockResolvedValue(mockUser);
+
+      await service.joinVoiceChannelDirect(channelId, userId);
+
+      expect(mockDatabaseService.user.findUnique).toHaveBeenCalledWith({
+        where: { id: userId },
+        select: PUBLIC_USER_SELECT,
+      });
     });
   });
 
@@ -342,6 +365,7 @@ describe('VoicePresenceService', () => {
       // Should have called handleWebhookChannelParticipantJoined internally
       expect(mockDatabaseService.user.findUnique).toHaveBeenCalledWith({
         where: { id: userId },
+        select: PUBLIC_USER_SELECT,
       });
       expect(mockRedis.pipeline).toHaveBeenCalled();
       expect(mockPipeline.set).toHaveBeenCalledWith(
@@ -424,6 +448,7 @@ describe('VoicePresenceService', () => {
       // Should have called handleWebhookDmParticipantJoined internally
       expect(mockDatabaseService.user.findUnique).toHaveBeenCalledWith({
         where: { id: userId },
+        select: PUBLIC_USER_SELECT,
       });
       expect(mockRedis.pipeline).toHaveBeenCalled();
       expect(mockPipeline.set).toHaveBeenCalledWith(

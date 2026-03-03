@@ -79,10 +79,10 @@ export class LivekitController {
     @Body() createTokenDto: CreateTokenDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<TokenResponseDto> {
-    // Use the authenticated user's ID as the identity if not provided
+    // Always use the authenticated user's ID to prevent identity spoofing
     const tokenDto = {
       ...createTokenDto,
-      identity: createTokenDto.identity || req.user.id,
+      identity: req.user.id,
     };
     return this.livekitService.generateToken(tokenDto);
   }
@@ -99,10 +99,10 @@ export class LivekitController {
     @Body() createTokenDto: CreateTokenDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<TokenResponseDto> {
-    // Use the authenticated user's ID as the identity if not provided
+    // Always use the authenticated user's ID to prevent identity spoofing
     const tokenDto = {
       ...createTokenDto,
-      identity: createTokenDto.identity || req.user.id,
+      identity: req.user.id,
     };
     return this.livekitService.generateToken(tokenDto);
   }

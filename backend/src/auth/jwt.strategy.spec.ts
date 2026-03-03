@@ -1,8 +1,10 @@
 import { TestBed } from '@suites/unit';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigService } from '@nestjs/config';
+import { UnauthorizedException } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import { createMockDatabase } from '@/test-utils';
 
 describe('JwtStrategy', () => {
@@ -132,6 +134,7 @@ describe('JwtStrategy', () => {
       expect(result).toEqual(mockUser);
       expect(mockDatabase.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: 'user-123' },
+        select: { ...PUBLIC_USER_SELECT, banned: true },
       });
     });
 
@@ -168,6 +171,7 @@ describe('JwtStrategy', () => {
         expect(result).toEqual(user);
         expect(mockDatabase.user.findUniqueOrThrow).toHaveBeenCalledWith({
           where: { id: user.id },
+          select: { ...PUBLIC_USER_SELECT, banned: true },
         });
 
         jest.clearAllMocks();
@@ -230,6 +234,107 @@ describe('JwtStrategy', () => {
       // Should return actual user data from DB, not payload username
       expect(result.username).toBe('actualname');
       expect(result.id).toBe('user-456');
+    });
+
+    it('should reject banned users with UnauthorizedException', async () => {
+      const payload = {
+        sub: 'banned-user-id',
+        username: 'banneduser',
+      };
+
+      const bannedUser = {
+        id: 'banned-user-id',
+        username: 'banneduser',
+        banned: true,
+      };
+
+      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(bannedUser);
+
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        'Account has been banned',
+      );
+    });
+
+    it('should allow non-banned users', async () => {
+      const payload = {
+        sub: 'active-user-id',
+        username: 'activeuser',
+      };
+
+      const activeUser = {
+        id: 'active-user-id',
+        username: 'activeuser',
+        banned: false,
+      };
+
+      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(activeUser);
+
+      const result = await strategy.validate(payload);
+
+      expect(result).toEqual(activeUser);
+    });
+
+    it('should use PUBLIC_USER_SELECT with banned field in database query', async () => {
+      const payload = {
+        sub: 'user-123',
+        username: 'testuser',
+      };
+
+      const mockUser = {
+        id: 'user-123',
+        username: 'testuser',
+      };
+
+      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(mockUser);
+
+      await strategy.validate(payload);
+
+      const callArgs =
+        mockDatabase.user.findUniqueOrThrow.mock.calls[0][0];
+
+      // Verify all PUBLIC_USER_SELECT fields are present
+      expect(callArgs.select).toEqual(
+        expect.objectContaining({
+          id: true,
+          username: true,
+          role: true,
+          avatarUrl: true,
+          bannerUrl: true,
+          lastSeen: true,
+          displayName: true,
+          bio: true,
+          status: true,
+        }),
+      );
+
+      // Verify banned field is explicitly selected (needed for the ban check)
+      expect(callArgs.select.banned).toBe(true);
+
+      // Verify sensitive fields are NOT selected
+      expect(callArgs.select.hashedPassword).toBeUndefined();
+      expect(callArgs.select.email).toBeUndefined();
+    });
+
+    it('should skip blacklist check when payload has no jti', async () => {
+      const payload = {
+        sub: 'user-123',
+        username: 'testuser',
+        // no jti field
+      };
+
+      const mockUser = {
+        id: 'user-123',
+        username: 'testuser',
+      };
+
+      mockDatabase.user.findUniqueOrThrow.mockResolvedValue(mockUser);
+
+      await strategy.validate(payload);
+
+      expect(mockTokenBlacklist.isBlacklisted).not.toHaveBeenCalled();
     });
   });
 });
