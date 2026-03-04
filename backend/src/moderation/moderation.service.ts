@@ -306,7 +306,9 @@ export class ModerationService {
     return activeBans.map((ban) => ({
       ...ban,
       user: userMap.get(ban.userId) ?? null,
-      moderator: ban.moderatorId ? (userMap.get(ban.moderatorId) ?? null) : null,
+      moderator: ban.moderatorId
+        ? (userMap.get(ban.moderatorId) ?? null)
+        : null,
     }));
   }
 
@@ -759,7 +761,9 @@ export class ModerationService {
     // Transform messages: add author, format attachments and reactions
     return activeMessages.map((message) => ({
       ...message,
-      author: message.authorId ? (authorMap.get(message.authorId) ?? null) : null,
+      author: message.authorId
+        ? (authorMap.get(message.authorId) ?? null)
+        : null,
       spans: message.spans ?? [],
       reactions: message.reactions ? groupReactions(message.reactions) : [],
       attachments: message.attachments.map((a) => ({
@@ -882,7 +886,9 @@ export class ModerationService {
 
     const enrichedLogs = logs.map((log) => ({
       ...log,
-      moderator: log.moderatorId ? (userMap.get(log.moderatorId) ?? null) : null,
+      moderator: log.moderatorId
+        ? (userMap.get(log.moderatorId) ?? null)
+        : null,
       targetUser: log.targetUserId
         ? (userMap.get(log.targetUserId) ?? null)
         : null,

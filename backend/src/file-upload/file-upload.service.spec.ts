@@ -148,7 +148,7 @@ describe('FileUploadService', () => {
       databaseService.file.create.mockResolvedValue(createdFile as any);
 
       // Mock validator to pass
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+
       const {
         ResourceTypeFileValidator,
       } = require('./validators/resource-type-file.validator');

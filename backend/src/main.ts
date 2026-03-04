@@ -71,7 +71,9 @@ async function bootstrap() {
     }),
   );
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean) || ['http://localhost:5173'],
+    origin: process.env.CORS_ORIGIN?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) || ['http://localhost:5173'],
     credentials: true,
   });
   app.useGlobalPipes(

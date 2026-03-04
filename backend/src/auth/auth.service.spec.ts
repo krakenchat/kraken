@@ -103,7 +103,10 @@ describe('AuthService', () => {
       expect(result).toBeNull();
       // bcrypt.compare must still be called against a dummy hash to prevent timing-based user enumeration
       // The hash is dynamically generated at construction time, so we only verify the call shape
-      expect(bcrypt.compare).toHaveBeenCalledWith('password', expect.anything());
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'password',
+        expect.anything(),
+      );
     });
 
     it('should return null when password is incorrect', async () => {

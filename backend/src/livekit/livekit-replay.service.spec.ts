@@ -1030,9 +1030,9 @@ describe('LivekitReplayService', () => {
         // User is NOT a member of that community
         databaseService.membership.findFirst.mockResolvedValue(null);
 
-        await expect(
-          service.captureReplay(userId, channelDto),
-        ).rejects.toThrow(ForbiddenException);
+        await expect(service.captureReplay(userId, channelDto)).rejects.toThrow(
+          ForbiddenException,
+        );
       });
 
       it('should throw NotFoundException when posting to nonexistent channel', async () => {
@@ -1044,9 +1044,9 @@ describe('LivekitReplayService', () => {
 
         databaseService.channel.findUnique.mockResolvedValue(null);
 
-        await expect(
-          service.captureReplay(userId, channelDto),
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.captureReplay(userId, channelDto)).rejects.toThrow(
+          NotFoundException,
+        );
       });
 
       it('should throw ForbiddenException when posting to DM without group membership', async () => {

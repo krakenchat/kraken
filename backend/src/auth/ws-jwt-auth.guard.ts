@@ -50,9 +50,7 @@ export class WsJwtAuthGuard implements CanActivate {
           payload.jti,
         );
         if (isBlacklisted) {
-          this.logger.warn(
-            'Blacklisted token used for WebSocket connection',
-          );
+          this.logger.warn('Blacklisted token used for WebSocket connection');
           client.disconnect(true);
           return false;
         }

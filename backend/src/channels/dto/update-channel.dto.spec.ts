@@ -53,18 +53,14 @@ describe('UpdateChannelDto', () => {
   it('should reject negative slowmodeSeconds', async () => {
     const dto = createDto({ slowmodeSeconds: -1 });
     const errors = await validate(dto);
-    const slowmodeError = errors.find(
-      (e) => e.property === 'slowmodeSeconds',
-    );
+    const slowmodeError = errors.find((e) => e.property === 'slowmodeSeconds');
     expect(slowmodeError).toBeDefined();
   });
 
   it('should reject slowmodeSeconds exceeding 21600', async () => {
     const dto = createDto({ slowmodeSeconds: 21601 });
     const errors = await validate(dto);
-    const slowmodeError = errors.find(
-      (e) => e.property === 'slowmodeSeconds',
-    );
+    const slowmodeError = errors.find((e) => e.property === 'slowmodeSeconds');
     expect(slowmodeError).toBeDefined();
   });
 

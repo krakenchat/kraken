@@ -292,8 +292,7 @@ describe('JwtStrategy', () => {
 
       await strategy.validate(payload);
 
-      const callArgs =
-        mockDatabase.user.findUniqueOrThrow.mock.calls[0][0];
+      const callArgs = mockDatabase.user.findUniqueOrThrow.mock.calls[0][0];
 
       // Verify all PUBLIC_USER_SELECT fields are present
       expect(callArgs.select).toEqual(

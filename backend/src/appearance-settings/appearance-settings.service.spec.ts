@@ -40,9 +40,9 @@ describe('AppearanceSettingsService', () => {
 
   describe('getUserSettings', () => {
     it('returns settings via upsert', async () => {
-      (
-        databaseService.userAppearanceSettings as any
-      ).upsert.mockResolvedValue(mockSettings);
+      (databaseService.userAppearanceSettings as any).upsert.mockResolvedValue(
+        mockSettings,
+      );
 
       const result = await service.getUserSettings('user-1');
 
@@ -57,9 +57,9 @@ describe('AppearanceSettingsService', () => {
     });
 
     it('passes the correct userId to upsert', async () => {
-      (
-        databaseService.userAppearanceSettings as any
-      ).upsert.mockResolvedValue(mockSettings);
+      (databaseService.userAppearanceSettings as any).upsert.mockResolvedValue(
+        mockSettings,
+      );
 
       await service.getUserSettings('user-42');
 

@@ -63,10 +63,7 @@ export class PushNotificationsService implements OnModuleInit {
         const result = await this.databaseService.instanceSettings.updateMany({
           where: {
             id: settings.id,
-            OR: [
-              { vapidPublicKey: null },
-              { vapidPublicKey: '' },
-            ],
+            OR: [{ vapidPublicKey: null }, { vapidPublicKey: '' }],
           },
           data: {
             vapidPublicKey: generated.publicKey,

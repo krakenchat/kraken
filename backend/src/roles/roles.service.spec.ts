@@ -781,7 +781,11 @@ describe('RolesService', () => {
       mockDatabase.role.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.assignUserToCommunityRole('user-123', 'community-123', 'nonexistent-role'),
+        service.assignUserToCommunityRole(
+          'user-123',
+          'community-123',
+          'nonexistent-role',
+        ),
       ).rejects.toThrow(NotFoundException);
 
       expect(mockDatabase.userRoles.create).not.toHaveBeenCalled();

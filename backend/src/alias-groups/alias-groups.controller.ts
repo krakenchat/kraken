@@ -116,7 +116,9 @@ export class AliasGroupsController {
     idKey: 'groupId',
     source: ResourceIdSource.PARAM,
   })
-  async deleteAliasGroup(@Param('groupId', ParseUUIDPipe) groupId: string): Promise<void> {
+  async deleteAliasGroup(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ): Promise<void> {
     return this.aliasGroupsService.deleteAliasGroup(groupId);
   }
 
