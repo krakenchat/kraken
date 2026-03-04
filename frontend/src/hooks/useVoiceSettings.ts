@@ -8,6 +8,10 @@ export interface VoiceSettings {
   pushToTalkKey: string;        // KeyboardEvent.code, e.g., 'Space', 'KeyV'
   pushToTalkKeyDisplay: string; // Human-readable display, e.g., 'Space', 'V'
   voiceActivityThreshold: number; // 0-100, default 25 (lower = more sensitive)
+  echoCancellation: boolean;     // default: true
+  noiseSuppression: boolean;     // default: true
+  autoGainControl: boolean;      // default: true
+  voiceIsolation: boolean;       // default: false (experimental)
 }
 
 const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
@@ -17,6 +21,10 @@ const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   pushToTalkKey: 'Backquote',
   pushToTalkKeyDisplay: '`',
   voiceActivityThreshold: 25,
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  voiceIsolation: false,
 };
 
 /**
@@ -113,6 +121,12 @@ export const useVoiceSettings = () => {
     saveVoiceSettings({ voiceActivityThreshold: threshold });
   }, [saveVoiceSettings]);
 
+  // Set audio processing toggle
+  type AudioProcessingKey = 'echoCancellation' | 'noiseSuppression' | 'autoGainControl' | 'voiceIsolation';
+  const setAudioProcessing = useCallback((key: AudioProcessingKey, value: boolean) => {
+    saveVoiceSettings({ [key]: value });
+  }, [saveVoiceSettings]);
+
   return {
     // Current settings
     settings: voiceSettings,
@@ -123,12 +137,17 @@ export const useVoiceSettings = () => {
     pushToTalkKeyDisplay: voiceSettings.pushToTalkKeyDisplay,
     voiceActivityThreshold: voiceSettings.voiceActivityThreshold,
     isPushToTalk: voiceSettings.inputMode === 'push_to_talk',
+    echoCancellation: voiceSettings.echoCancellation,
+    noiseSuppression: voiceSettings.noiseSuppression,
+    autoGainControl: voiceSettings.autoGainControl,
+    voiceIsolation: voiceSettings.voiceIsolation,
 
     // Setters
     setInputMode,
     setPushToTalkKey,
     setPushToTalkKeyDirect,
     setVoiceActivityThreshold,
+    setAudioProcessing,
     saveVoiceSettings,
   };
 };

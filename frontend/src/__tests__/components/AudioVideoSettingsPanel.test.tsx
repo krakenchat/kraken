@@ -45,15 +45,25 @@ vi.mock('../../hooks/useDeviceTest', () => ({
 
 let mockInputMode = 'voice_activity';
 let mockThreshold = 25;
+let mockEchoCancellation = true;
+let mockNoiseSuppression = true;
+let mockAutoGainControl = true;
+let mockVoiceIsolation = false;
+const mockSetAudioProcessing = vi.fn();
 
 vi.mock('../../hooks/useVoiceSettings', () => ({
   useVoiceSettings: () => ({
     inputMode: mockInputMode,
     pushToTalkKeyDisplay: '`',
     voiceActivityThreshold: mockThreshold,
+    echoCancellation: mockEchoCancellation,
+    noiseSuppression: mockNoiseSuppression,
+    autoGainControl: mockAutoGainControl,
+    voiceIsolation: mockVoiceIsolation,
     setInputMode: vi.fn(),
     setPushToTalkKey: vi.fn(),
     setVoiceActivityThreshold: vi.fn(),
+    setAudioProcessing: mockSetAudioProcessing,
   }),
   VoiceInputMode: {},
 }));
@@ -68,6 +78,10 @@ describe('AudioVideoSettingsPanel — threshold preview', () => {
     mockRawAudioLevel = 0;
     mockInputMode = 'voice_activity';
     mockThreshold = 25;
+    mockEchoCancellation = true;
+    mockNoiseSuppression = true;
+    mockAutoGainControl = true;
+    mockVoiceIsolation = false;
   });
 
   it('shows threshold marker when testing audio in voice activity mode', () => {
@@ -141,5 +155,106 @@ describe('AudioVideoSettingsPanel — threshold preview', () => {
     renderWithProviders(<AudioVideoSettingsPanel />);
 
     expect(screen.getByText(/marker shows your sensitivity threshold/i)).toBeInTheDocument();
+  });
+});
+
+describe('AudioVideoSettingsPanel — audio processing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTestingAudio = false;
+    mockAudioLevel = 0;
+    mockRawAudioLevel = 0;
+    mockInputMode = 'voice_activity';
+    mockThreshold = 25;
+    mockEchoCancellation = true;
+    mockNoiseSuppression = true;
+    mockAutoGainControl = true;
+    mockVoiceIsolation = false;
+  });
+
+  it('renders all 4 audio processing switches', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.getByText('Echo Cancellation')).toBeInTheDocument();
+    expect(screen.getByText('Noise Suppression')).toBeInTheDocument();
+    expect(screen.getByText('Auto Gain Control')).toBeInTheDocument();
+    expect(screen.getByText('Voice Isolation')).toBeInTheDocument();
+  });
+
+  it('renders the Audio Processing heading', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.getByText('Audio Processing')).toBeInTheDocument();
+  });
+
+  it('renders the Experimental chip on Voice Isolation', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.getByText('Experimental')).toBeInTheDocument();
+  });
+
+  it('shows the info note about changes taking effect on next join', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.getByText(/changes take effect the next time you join a voice channel/i)).toBeInTheDocument();
+  });
+
+  it('renders switches with correct default states', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const echoSwitch = screen.getByText('Echo Cancellation').closest('label')?.querySelector('input');
+    const noiseSwitch = screen.getByText('Noise Suppression').closest('label')?.querySelector('input');
+    const agcSwitch = screen.getByText('Auto Gain Control').closest('label')?.querySelector('input');
+    const voiceIsoSwitch = screen.getByText('Voice Isolation').closest('label')?.querySelector('input');
+
+    expect(echoSwitch).toBeChecked();
+    expect(noiseSwitch).toBeChecked();
+    expect(agcSwitch).toBeChecked();
+    expect(voiceIsoSwitch).not.toBeChecked();
+  });
+
+  it('calls setAudioProcessing when toggling Echo Cancellation', async () => {
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const echoSwitch = screen.getByText('Echo Cancellation').closest('label')?.querySelector('input');
+    await user.click(echoSwitch!);
+
+    expect(mockSetAudioProcessing).toHaveBeenCalledWith('echoCancellation', false);
+  });
+
+  it('calls setAudioProcessing when toggling Noise Suppression', async () => {
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const noiseSwitch = screen.getByText('Noise Suppression').closest('label')?.querySelector('input');
+    await user.click(noiseSwitch!);
+
+    expect(mockSetAudioProcessing).toHaveBeenCalledWith('noiseSuppression', false);
+  });
+
+  it('calls setAudioProcessing when toggling Auto Gain Control', async () => {
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const agcSwitch = screen.getByText('Auto Gain Control').closest('label')?.querySelector('input');
+    await user.click(agcSwitch!);
+
+    expect(mockSetAudioProcessing).toHaveBeenCalledWith('autoGainControl', false);
+  });
+
+  it('calls setAudioProcessing when enabling Voice Isolation', async () => {
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const voiceIsoSwitch = screen.getByText('Voice Isolation').closest('label')?.querySelector('input');
+    await user.click(voiceIsoSwitch!);
+
+    expect(mockSetAudioProcessing).toHaveBeenCalledWith('voiceIsolation', true);
+  });
+
+  it('reflects disabled state when echoCancellation is off', () => {
+    mockEchoCancellation = false;
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const echoSwitch = screen.getByText('Echo Cancellation').closest('label')?.querySelector('input');
+    expect(echoSwitch).not.toBeChecked();
   });
 });

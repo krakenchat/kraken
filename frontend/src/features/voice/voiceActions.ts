@@ -1,4 +1,4 @@
-import { Room, VideoCaptureOptions } from "livekit-client";
+import { Room, VideoCaptureOptions, AudioCaptureOptions } from "livekit-client";
 import { VoiceSessionType, VoiceActionType, type VoiceAction, type VoiceState } from "../../contexts/VoiceContext";
 import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from "../../api-client/sdk.gen";
 import { queryClient } from "../../queryClient";
@@ -30,6 +30,10 @@ interface VoiceSettings {
   inputMode: 'voice_activity' | 'push_to_talk';
   pushToTalkKey: string;
   pushToTalkKeyDisplay: string;
+  echoCancellation?: boolean;
+  noiseSuppression?: boolean;
+  autoGainControl?: boolean;
+  voiceIsolation?: boolean;
 }
 
 // Exported for use by useVoiceRecovery hook
@@ -74,6 +78,16 @@ export function getSavedConnection(): SavedVoiceConnection | null {
 }
 
 export { clearConnectionState as clearSavedConnection };
+
+function getAudioCaptureOptions(): AudioCaptureOptions {
+  const settings = getCachedItem<VoiceSettings>(VOICE_SETTINGS_KEY);
+  return {
+    echoCancellation: settings?.echoCancellation ?? true,
+    noiseSuppression: settings?.noiseSuppression ?? true,
+    autoGainControl: settings?.autoGainControl ?? true,
+    voiceIsolation: settings?.voiceIsolation ?? false,
+  };
+}
 
 /** Deps passed to each voice action */
 interface VoiceActionDeps {
@@ -121,7 +135,7 @@ async function connectToLiveKitRoom(
   } else {
     logger.info('[Voice] Voice Activity mode - attempting to enable microphone...');
     try {
-      const micPromise = room.localParticipant.setMicrophoneEnabled(true);
+      const micPromise = room.localParticipant.setMicrophoneEnabled(true, getAudioCaptureOptions());
       const timeoutPromise = new Promise<void>((_, reject) =>
         setTimeout(() => reject(new Error('Microphone enable timeout (5s)')), 5000)
       );
@@ -418,7 +432,7 @@ export async function toggleMicrophone(deps: VoiceActionDeps) {
   logger.info('[Voice] Toggling microphone:', isCurrentlyEnabled, '->', newState);
 
   try {
-    await room.localParticipant.setMicrophoneEnabled(newState);
+    await room.localParticipant.setMicrophoneEnabled(newState, newState ? getAudioCaptureOptions() : undefined);
     playSound(newState ? Sounds.toggleOn : Sounds.toggleOff);
     logger.info('[Voice] Microphone toggled successfully');
   } catch (error) {
@@ -642,7 +656,7 @@ export async function toggleDeafenUnified(deps: VoiceActionDeps) {
       // Restore mic state from before deafen (but not if server-muted)
       const currentState = getVoiceState();
       if (!currentState.wasMutedBeforeDeafen && !currentState.isServerMuted) {
-        await room.localParticipant.setMicrophoneEnabled(true);
+        await room.localParticipant.setMicrophoneEnabled(true, getAudioCaptureOptions());
       }
       // Play sound only on undeafen — user can't hear it while deafened
       playSound(Sounds.toggleOn);

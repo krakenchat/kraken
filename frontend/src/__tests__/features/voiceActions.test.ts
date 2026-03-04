@@ -33,6 +33,7 @@ vi.mock('livekit-client', () => {
   return {
     Room: MockRoom,
     VideoCaptureOptions: {},
+    AudioCaptureOptions: {},
   };
 });
 
@@ -273,20 +274,28 @@ describe('voiceActions', () => {
   });
 
   describe('toggleMicrophone', () => {
-    it('disables mic when currently enabled', async () => {
+    it('disables mic when currently enabled (no audio options)', async () => {
       mockRoomInstance.localParticipant.isMicrophoneEnabled = true;
       const deps = createMockDeps();
       await toggleMicrophone(deps);
 
-      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false, undefined);
     });
 
-    it('enables mic when currently disabled', async () => {
+    it('enables mic when currently disabled with audio capture options', async () => {
       mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
       const deps = createMockDeps();
       await toggleMicrophone(deps);
 
-      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+        true,
+        expect.objectContaining({
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          voiceIsolation: false,
+        }),
+      );
     });
 
     it('returns early when no room', async () => {
@@ -310,7 +319,7 @@ describe('voiceActions', () => {
       const deps = createMockDeps({ isServerMuted: true });
       await toggleMicrophone(deps);
 
-      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false, undefined);
     });
   });
 
@@ -398,6 +407,107 @@ describe('voiceActions', () => {
       await switchAudioOutputDevice('device-456', deps);
 
       expect(mockRoomInstance.switchActiveDevice).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('audio capture options', () => {
+    it('reads custom audio processing settings from localStorage', async () => {
+      vi.mocked(getCachedItem).mockImplementation((key: string) => {
+        if (key === 'kraken_voice_settings') {
+          return {
+            inputMode: 'voice_activity',
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            voiceIsolation: true,
+          };
+        }
+        return null;
+      });
+
+      mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
+      const deps = createMockDeps();
+      await toggleMicrophone(deps);
+
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+        true,
+        expect.objectContaining({
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          voiceIsolation: true,
+        }),
+      );
+    });
+
+    it('uses defaults when no voice settings saved', async () => {
+      vi.mocked(getCachedItem).mockReturnValue(null);
+
+      mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
+      const deps = createMockDeps();
+      await toggleMicrophone(deps);
+
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+        true,
+        expect.objectContaining({
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          voiceIsolation: false,
+        }),
+      );
+    });
+
+    it('passes audio options when undeafening restores mic', async () => {
+      vi.mocked(getCachedItem).mockReturnValue(null);
+      mockRoomInstance.localParticipant.isMicrophoneEnabled = false;
+
+      const deps = createMockDeps({ isDeafened: true, wasMutedBeforeDeafen: false, isServerMuted: false });
+      await toggleDeafenUnified(deps);
+
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+        true,
+        expect.objectContaining({
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          voiceIsolation: false,
+        }),
+      );
+    });
+
+    it('passes audio options when joining a voice channel in voice activity mode', async () => {
+      vi.mocked(getCachedItem).mockImplementation((key: string) => {
+        if (key === 'kraken_voice_settings') {
+          return { inputMode: 'voice_activity', echoCancellation: false, voiceIsolation: true };
+        }
+        return null;
+      });
+
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: { enumerateDevices: vi.fn().mockResolvedValue([]) },
+        configurable: true,
+      });
+
+      const deps = createMockDeps();
+      const params = {
+        channelId: 'ch-1',
+        channelName: 'General',
+        communityId: 'c1',
+        isPrivate: false,
+        createdAt: '2025-01-01',
+        user: { id: 'user-1', username: 'testuser', displayName: 'Test User' },
+        connectionInfo: { url: 'ws://localhost:7880' },
+      };
+      await joinVoiceChannel(params, deps);
+
+      expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+        true,
+        expect.objectContaining({
+          echoCancellation: false,
+          voiceIsolation: true,
+        }),
+      );
     });
   });
 });

@@ -16,6 +16,8 @@ import {
   ToggleButtonGroup,
   IconButton,
   Slider,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Mic,
@@ -27,6 +29,7 @@ import {
   Error as ErrorIcon,
   Keyboard,
   VolumeUp,
+  InfoOutlined,
 } from '@mui/icons-material';
 import { useDeviceSettings } from '../../hooks/useDeviceSettings';
 import { useDeviceTest, getDeviceLabel } from '../../hooks/useDeviceTest';
@@ -82,9 +85,14 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
     inputMode,
     pushToTalkKeyDisplay,
     voiceActivityThreshold,
+    echoCancellation,
+    noiseSuppression,
+    autoGainControl,
+    voiceIsolation,
     setInputMode,
     setPushToTalkKey,
     setVoiceActivityThreshold,
+    setAudioProcessing,
   } = useVoiceSettings();
 
   const handleInputModeChange = (
@@ -260,6 +268,94 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
           </Typography>
         </Box>
       )}
+
+      {/* Audio Processing Section */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          Audio Processing
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', ml: 1 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={echoCancellation}
+                onChange={(e) => setAudioProcessing('echoCancellation', e.target.checked)}
+                size="small"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2">Echo Cancellation</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Reduces echo from your speakers
+                </Typography>
+              </Box>
+            }
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={noiseSuppression}
+                onChange={(e) => setAudioProcessing('noiseSuppression', e.target.checked)}
+                size="small"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2">Noise Suppression</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Filters out steady background noise
+                </Typography>
+              </Box>
+            }
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={autoGainControl}
+                onChange={(e) => setAudioProcessing('autoGainControl', e.target.checked)}
+                size="small"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2">Auto Gain Control</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Automatically adjusts microphone volume
+                </Typography>
+              </Box>
+            }
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={voiceIsolation}
+                onChange={(e) => setAudioProcessing('voiceIsolation', e.target.checked)}
+                size="small"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography variant="body2">Voice Isolation</Typography>
+                    <Chip label="Experimental" size="small" variant="outlined" color="warning" sx={{ height: 20, fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Uses AI to isolate your voice
+                  </Typography>
+                </Box>
+              </Box>
+            }
+          />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1, ml: 1 }}>
+          <InfoOutlined sx={{ fontSize: 16, color: 'text.secondary' }} />
+          <Typography variant="caption" color="text.secondary">
+            Changes take effect the next time you join a voice channel.
+          </Typography>
+        </Box>
+      </Box>
 
       <Divider sx={{ my: 3 }} />
 
