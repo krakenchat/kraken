@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-03-03
+
+### Added
+
+- **PostgreSQL Migration** — Migrated from MongoDB to PostgreSQL with Prisma ORM (#267)
+- **DM Unread Badges** — Unread count badges on sidebar and DM list (#266)
+- **Notification Sounds** — Full notification sound palette using Eb major pentatonic scale, wired across the app (#262)
+- **Voice Mute Overhaul** — Server mute enforcement and persistent local volume controls (#261)
+- **Voice Activity Gate** — Gate audio transmission based on voice activity threshold (#260)
+- **FK Constraints** — Added foreign key constraints to all previously unenforced entity references (#268)
+- **Helm Migration Job** — Pre-install/pre-upgrade database migration Job for Helm deployments
+
+### Changed
+
+- **Frontend Code Review** — Fixes across 9 audit phases (#273)
+- **Backend Code Review** — Security, authorization, and data integrity fixes (#274)
+- **README Rewrite** — Rewrote README and updated Docker Compose install guide (#254)
+
+### Fixed
+
+- **Notification Reliability** — 7 bug fixes for notification system reliability (#264, #275)
+- **Voice Presence** — Stop Socket.IO disconnects from removing voice presence (#270)
+- **Voice Activity Lockout** — Prevent gate lockout by cloning analysis track (#271)
+- **Replay Capture** — Resolve race conditions and buffer overflow errors (#259)
+- **Replay Audio Codec** — Use AAC audio codec for HLS replay egress (#167)
+- **WebSocket Auth** — Prevent reconnection loop (#258)
+- **WebSocket Validation** — Add whitelist/transform to WS gateway ValidationPipe (#269)
+- **Electron Fixes** — Quit on window close when "Close to Tray" is disabled (#206), open links in default browser, fix signed URL 401s (#257), fix DM read receipt bugs (#265)
+- **Reaction Grouping** — Group reactions in HTTP response for add/remove endpoints
+- **Scroll Sentinel** — Use explicit '1px' for scroll sentinel height in MUI sx prop
+- **Prisma Schema** — Replace @@unique with @@index on Role/UserRoles and ReadReceipt to fix prisma db push crashes
+- **VAPID Keys** — Handle empty string VAPID keys in auto-generation conditional
+
 ## [0.0.3] - 2025-02-11
 
 ### Added
