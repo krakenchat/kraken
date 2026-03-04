@@ -91,9 +91,14 @@ export class NotificationsService {
 
       await Promise.all(mentionPromises);
 
-      // Handle DM notifications (if no mentions, still notify all DM members)
-      if (message.directMessageGroupId && mentionedUserIds.size === 0) {
-        await this.createDMNotifications(message);
+      // Handle DM notifications for all DM members (excluding already-notified via mentions)
+      if (message.directMessageGroupId) {
+        await this.createDMNotifications(message, mentionedUserIds);
+      }
+
+      // Handle CHANNEL_MESSAGE notifications for users with "all" notification level
+      if (message.channelId) {
+        await this.createChannelMessageNotifications(message, mentionedUserIds);
       }
     } catch (error) {
       this.logger.error(
@@ -117,6 +122,8 @@ export class NotificationsService {
 
   /**
    * Get users for special mentions (@here, @channel)
+   * For private channels, uses channelMembership. For public channels, uses
+   * community membership since public channels don't have channelMembership records.
    */
   private async getSpecialMentionUsers(
     channelId: string | null,
@@ -124,43 +131,75 @@ export class NotificationsService {
   ): Promise<string[]> {
     if (!channelId) return [];
 
+    const channel = await this.databaseService.channel.findUnique({
+      where: { id: channelId },
+      select: { isPrivate: true, communityId: true },
+    });
+
+    if (!channel) return [];
+
     if (specialKind === 'channel') {
-      // @channel - all channel members
-      const memberships = await this.databaseService.channelMembership.findMany(
-        {
-          where: { channelId },
+      // @channel - all channel/community members
+      if (channel.isPrivate) {
+        const memberships =
+          await this.databaseService.channelMembership.findMany({
+            where: { channelId },
+            select: { userId: true },
+          });
+        return memberships.map((m) => m.userId);
+      } else {
+        const memberships = await this.databaseService.membership.findMany({
+          where: { communityId: channel.communityId },
           select: { userId: true },
-        },
-      );
-      return memberships.map((m) => m.userId);
+        });
+        return memberships.map((m) => m.userId);
+      }
     }
 
     if (specialKind === 'here') {
       // @here - only online members (users with recent lastSeen)
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const memberships = await this.databaseService.channelMembership.findMany(
-        {
-          where: { channelId },
+
+      if (channel.isPrivate) {
+        const memberships =
+          await this.databaseService.channelMembership.findMany({
+            where: { channelId },
+            include: {
+              user: {
+                select: { id: true, lastSeen: true },
+              },
+            },
+          });
+
+        return memberships
+          .filter((m) => m.user.lastSeen && m.user.lastSeen > fiveMinutesAgo)
+          .map((m) => m.userId);
+      } else {
+        const memberships = await this.databaseService.membership.findMany({
+          where: { communityId: channel.communityId },
           include: {
             user: {
               select: { id: true, lastSeen: true },
             },
           },
-        },
-      );
+        });
 
-      return memberships
-        .filter((m) => m.user.lastSeen && m.user.lastSeen > fiveMinutesAgo)
-        .map((m) => m.userId);
+        return memberships
+          .filter((m) => m.user.lastSeen && m.user.lastSeen > fiveMinutesAgo)
+          .map((m) => m.userId);
+      }
     }
 
     return [];
   }
 
   /**
-   * Create DM notifications for all members except author
+   * Create DM notifications for all members except author and already-notified users
    */
-  private async createDMNotifications(message: Message): Promise<void> {
+  private async createDMNotifications(
+    message: Message,
+    alreadyNotifiedUserIds = new Set<string>(),
+  ): Promise<void> {
     if (!message.directMessageGroupId) return;
 
     const members =
@@ -170,7 +209,11 @@ export class NotificationsService {
       });
 
     const notificationPromises = members
-      .filter((m) => m.userId !== message.authorId)
+      .filter(
+        (m) =>
+          m.userId !== message.authorId &&
+          !alreadyNotifiedUserIds.has(m.userId),
+      )
       .map((m) =>
         this.createNotificationIfAllowed(
           m.userId,
@@ -178,6 +221,78 @@ export class NotificationsService {
           message,
         ),
       );
+
+    await Promise.all(notificationPromises);
+  }
+
+  /**
+   * Max community size for CHANNEL_MESSAGE notifications.
+   * Skipped for larger communities to avoid performance issues on self-hosted instances.
+   */
+  private static readonly CHANNEL_MESSAGE_MEMBER_THRESHOLD = 500;
+
+  /**
+   * Create CHANNEL_MESSAGE notifications for users with "all" notification level.
+   * Only users whose settings resolve to level 'all' will actually get records
+   * (the existing shouldNotify() filters out CHANNEL_MESSAGE for 'mentions' level).
+   */
+  private async createChannelMessageNotifications(
+    message: Message,
+    alreadyNotifiedUserIds: Set<string>,
+  ): Promise<void> {
+    if (!message.channelId) return;
+
+    const channel = await this.databaseService.channel.findUnique({
+      where: { id: message.channelId },
+      select: { isPrivate: true, communityId: true },
+    });
+
+    if (!channel) return;
+
+    // Performance guard: skip for large communities
+    if (!channel.isPrivate) {
+      const memberCount = await this.databaseService.membership.count({
+        where: { communityId: channel.communityId },
+      });
+      if (memberCount > NotificationsService.CHANNEL_MESSAGE_MEMBER_THRESHOLD) {
+        this.logger.debug(
+          `Skipping CHANNEL_MESSAGE notifications for channel ${message.channelId}: community has ${memberCount} members (threshold: ${NotificationsService.CHANNEL_MESSAGE_MEMBER_THRESHOLD})`,
+        );
+        return;
+      }
+    }
+
+    // Get eligible users
+    let userIds: string[];
+    if (channel.isPrivate) {
+      const memberships = await this.databaseService.channelMembership.findMany(
+        {
+          where: { channelId: message.channelId },
+          select: { userId: true },
+        },
+      );
+      userIds = memberships.map((m) => m.userId);
+    } else {
+      const memberships = await this.databaseService.membership.findMany({
+        where: { communityId: channel.communityId },
+        select: { userId: true },
+      });
+      userIds = memberships.map((m) => m.userId);
+    }
+
+    // Filter out author and already-notified users
+    const eligibleUserIds = userIds.filter(
+      (userId) =>
+        userId !== message.authorId && !alreadyNotifiedUserIds.has(userId),
+    );
+
+    const notificationPromises = eligibleUserIds.map((userId) =>
+      this.createNotificationIfAllowed(
+        userId,
+        NotificationType.CHANNEL_MESSAGE,
+        message,
+      ),
+    );
 
     await Promise.all(notificationPromises);
   }
@@ -224,25 +339,15 @@ export class NotificationsService {
     // Get user notification settings (creates default if missing)
     const settings = await this.getUserSettings(userId);
 
-    // Check if desktop notifications are globally disabled
-    if (!settings.desktopEnabled) {
-      return false;
-    }
-
-    // Check DND mode
-    if (settings.doNotDisturb) {
-      const isInDND = this.isInDoNotDisturbWindow(
-        settings.dndStartTime,
-        settings.dndEndTime,
-      );
-      if (isInDND) {
-        return false;
-      }
-    }
-
     // Check DM notifications
     if (type === NotificationType.DIRECT_MESSAGE && !settings.dmNotifications) {
       return false;
+    }
+
+    // Thread reply notifications bypass channel mute — thread subscription
+    // is an explicit opt-in. DM notification check above still applies.
+    if (type === NotificationType.THREAD_REPLY) {
+      return true;
     }
 
     // Check channel-specific settings
@@ -557,7 +662,11 @@ export class NotificationsService {
           NotificationType.SPECIAL_MENTION,
           NotificationType.DIRECT_MESSAGE,
         ]
-      : [NotificationType.USER_MENTION, NotificationType.SPECIAL_MENTION];
+      : [
+          NotificationType.USER_MENTION,
+          NotificationType.SPECIAL_MENTION,
+          NotificationType.CHANNEL_MESSAGE,
+        ];
 
     const result = await this.databaseService.notification.updateMany({
       where: {
