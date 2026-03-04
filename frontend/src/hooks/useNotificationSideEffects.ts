@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ServerEvents, NotificationType } from '@kraken/shared';
 import type { NewNotificationPayload } from '@kraken/shared';
 import { useServerEvent } from '../socket-hub/useServerEvent';
@@ -22,6 +22,7 @@ import {
 } from '../utils/notifications';
 import { isNotificationShown, markNotificationAsShown } from '../utils/notificationTracking';
 import { isElectron, getElectronAPI } from '../utils/platform';
+import { useWindowFocus } from './useWindowFocus';
 import { logger } from '../utils/logger';
 import { playSound as playSoundEffect, Sounds, type SoundName } from './useSound';
 
@@ -30,6 +31,7 @@ const NOTIFICATION_SOUND_MAP: Record<string, SoundName> = {
   [NotificationType.DIRECT_MESSAGE]: Sounds.directMessage,
   [NotificationType.USER_MENTION]: Sounds.mention,
   [NotificationType.SPECIAL_MENTION]: Sounds.mention,
+  [NotificationType.THREAD_REPLY]: Sounds.mention,
 };
 
 export interface UseNotificationSideEffectsOptions {
@@ -48,7 +50,15 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
   } = options;
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const isFocused = useWindowFocus();
   const notificationsRef = useRef<Map<string, NewNotificationPayload>>(new Map());
+
+  // Use refs to avoid stale closures in the useServerEvent callback
+  const isFocusedRef = useRef(isFocused);
+  isFocusedRef.current = isFocused;
+  const locationRef = useRef(location);
+  locationRef.current = location;
 
   const navigateToNotification = useCallback(
     (notification: { communityId?: string | null; channelId?: string | null; directMessageGroupId?: string | null }) => {
@@ -81,6 +91,23 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
 
     // Custom callback
     onNotificationReceived?.(payload);
+
+    // Suppress sound + desktop notification when actively viewing the same channel/DM
+    const isViewingContext = (() => {
+      if (!isFocusedRef.current) return false;
+      const { pathname, search } = locationRef.current;
+      if (payload.channelId && payload.communityId) {
+        return pathname.includes(`/channel/${payload.channelId}`);
+      }
+      if (payload.directMessageGroupId) {
+        const params = new URLSearchParams(search);
+        const activeGroupId = params.get('group');
+        return !!activeGroupId && activeGroupId === payload.directMessageGroupId;
+      }
+      return false;
+    })();
+
+    if (isViewingContext) return;
 
     // Sound — pick the right sound based on notification type
     if (playSound) {
