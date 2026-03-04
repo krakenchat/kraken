@@ -18,7 +18,7 @@ files:
 
 # Copy the app icon into resources/ for tray and window icons at runtime
 extraResources:
-  - from: public/pwa-512x512.png
+  - from: build/icon.png
     to: icon.png
 
 # Auto-update configuration
@@ -46,8 +46,8 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: ${productName}
   # Installer/uninstaller icon
-  # installerIcon: build/installerIcon.ico
-  # uninstallerIcon: build/uninstallerIcon.ico
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   # License file
   # license: LICENSE.txt
 

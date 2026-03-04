@@ -77,14 +77,14 @@ function isWayland(): boolean {
 
 /**
  * Get the path to the app icon, handling both development and packaged builds.
- * In production, electron-builder's extraResources copies pwa-512x512.png to
- * process.resourcesPath/icon.png. In development, we use public/ directly.
+ * In production, electron-builder's extraResources copies build/icon.png to
+ * process.resourcesPath/icon.png. In development, we use build/ directly.
  */
 function getIconPath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'icon.png');
   }
-  return path.join(app.getAppPath(), 'public', 'pwa-512x512.png');
+  return path.join(app.getAppPath(), 'build', 'icon.png');
 }
 
 let mainWindow: BrowserWindow | null = null;
