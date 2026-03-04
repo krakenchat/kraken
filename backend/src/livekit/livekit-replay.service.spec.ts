@@ -453,7 +453,7 @@ describe('LivekitReplayService', () => {
       await service.handleEgressEnded('egress-123', 'failed', 'Codec error');
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'user-123',
+        'user:user-123',
         ServerEvents.REPLAY_BUFFER_FAILED,
         expect.objectContaining({
           sessionId: 'session-1',
@@ -484,7 +484,7 @@ describe('LivekitReplayService', () => {
       await service.handleEgressEnded('egress-123', 'stopped');
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'user-123',
+        'user:user-123',
         ServerEvents.REPLAY_BUFFER_STOPPED,
         expect.objectContaining({
           sessionId: 'session-1',

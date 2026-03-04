@@ -226,7 +226,7 @@ describe('MessagesGateway', () => {
         }),
       );
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-456',
+        'dm:dm-group-456',
         ServerEvents.NEW_DM,
         {
           message: enrichedMessage,
@@ -334,7 +334,7 @@ describe('MessagesGateway', () => {
       await gateway.handleAddReaction(payload as any, mockClient);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-999',
+        'dm:dm-group-999',
         ServerEvents.REACTION_ADDED,
         expect.objectContaining({
           messageId: 'msg-dm-999',
@@ -423,7 +423,7 @@ describe('MessagesGateway', () => {
       await gateway.handleRemoveReaction(payload as any, mockClient);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-333',
+        'dm:dm-group-333',
         ServerEvents.REACTION_REMOVED,
         expect.objectContaining({
           messageId: 'msg-dm-333',

@@ -11,6 +11,7 @@ import { MessagesService } from '@/messages/messages.service';
 import { CreateMessageDto } from '@/messages/dto/create-message.dto';
 import { ServerEvents } from '@kraken/shared';
 import { getErrorMessage } from '@/common/utils/error.utils';
+import { RoomName } from '@/common/utils/room-name.util';
 import {
   UpdateClipDto,
   ShareClipDto,
@@ -357,7 +358,7 @@ export class ClipLibraryService {
       );
     } else if (dto.destination === 'dm' && dto.targetDirectMessageGroupId) {
       this.websocketService.sendToRoom(
-        dto.targetDirectMessageGroupId,
+        RoomName.dmGroup(dto.targetDirectMessageGroupId),
         ServerEvents.NEW_DM,
         { message: enrichedMessage },
       );

@@ -327,7 +327,7 @@ describe('ClipLibraryService', () => {
       expect(result.messageId).toBe('message-1');
       expect(result.destination).toBe('dm');
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-1',
+        'dm:dm-group-1',
         ServerEvents.NEW_DM,
         expect.any(Object),
       );

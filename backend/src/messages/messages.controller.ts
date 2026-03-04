@@ -42,6 +42,7 @@ import {
   PaginatedMessagesResponseDto,
 } from './dto/message-response.dto';
 import { groupReactions } from '@/common/utils/reactions.utils';
+import { RoomName } from '@/common/utils/room-name.util';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -193,7 +194,9 @@ export class MessagesController {
 
     // Emit WebSocket event
     const groupedReactions = groupReactions(result.reactions);
-    const roomId = result.channelId || result.directMessageGroupId;
+    const roomId = result.directMessageGroupId
+      ? RoomName.dmGroup(result.directMessageGroupId)
+      : result.channelId;
     if (roomId) {
       const reaction = groupedReactions.find(
         (r) => r.emoji === addReactionDto.emoji,
@@ -232,7 +235,9 @@ export class MessagesController {
 
     // Emit WebSocket event
     const groupedReactions = groupReactions(result.reactions);
-    const roomId = result.channelId || result.directMessageGroupId;
+    const roomId = result.directMessageGroupId
+      ? RoomName.dmGroup(result.directMessageGroupId)
+      : result.channelId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
         messageId: result.id,
@@ -271,8 +276,9 @@ export class MessagesController {
       this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
 
     // Emit WebSocket event to the room
-    const roomId =
-      originalMessage.channelId || originalMessage.directMessageGroupId;
+    const roomId = originalMessage.directMessageGroupId
+      ? RoomName.dmGroup(originalMessage.directMessageGroupId)
+      : originalMessage.channelId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
         message: enrichedMessage,
@@ -323,8 +329,9 @@ export class MessagesController {
       this.messagesService.enrichMessageWithFileMetadata(updatedMessage);
 
     // Emit WebSocket event to the channel room
-    const roomId =
-      originalMessage.channelId || originalMessage.directMessageGroupId;
+    const roomId = originalMessage.directMessageGroupId
+      ? RoomName.dmGroup(originalMessage.directMessageGroupId)
+      : originalMessage.channelId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
         message: enrichedMessage,
@@ -345,8 +352,9 @@ export class MessagesController {
     await this.messagesService.remove(id);
 
     // Emit WebSocket event to the channel room
-    const roomId =
-      messageToDelete.channelId || messageToDelete.directMessageGroupId;
+    const roomId = messageToDelete.directMessageGroupId
+      ? RoomName.dmGroup(messageToDelete.directMessageGroupId)
+      : messageToDelete.channelId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.DELETE_MESSAGE, {
         messageId: id,

@@ -129,7 +129,7 @@ describe('ThreadsGateway', () => {
       await gateway.handleThreadReply(basePayload as any, mockClient);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-1',
+        'dm:dm-1',
         ServerEvents.NEW_THREAD_REPLY,
         expect.any(Object),
       );

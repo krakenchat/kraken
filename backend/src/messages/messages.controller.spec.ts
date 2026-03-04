@@ -324,7 +324,7 @@ describe('MessagesController', () => {
       await controller.addReaction(addReactionDto, mockRequest);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-123',
+        'dm:dm-group-123',
         ServerEvents.REACTION_ADDED,
         expect.objectContaining({
           messageId: 'msg-456',
@@ -411,7 +411,7 @@ describe('MessagesController', () => {
       await controller.removeReaction(removeReactionDto, mockRequest);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-123',
+        'dm:dm-group-123',
         ServerEvents.REACTION_REMOVED,
         expect.any(Object),
       );
@@ -581,7 +581,7 @@ describe('MessagesController', () => {
       await controller.update(messageId, updateDto);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-123',
+        'dm:dm-group-123',
         ServerEvents.UPDATE_MESSAGE,
         { message: enrichedMessage },
       );
@@ -630,7 +630,7 @@ describe('MessagesController', () => {
       await controller.remove(messageId);
 
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm-group-123',
+        'dm:dm-group-123',
         ServerEvents.DELETE_MESSAGE,
         expect.objectContaining({
           messageId,

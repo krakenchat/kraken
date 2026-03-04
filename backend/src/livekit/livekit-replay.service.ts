@@ -450,7 +450,7 @@ export class LivekitReplayService {
     // In Socket.IO, users join a room with their userId
     if (status === 'failed') {
       this.websocketService.sendToRoom(
-        session.userId,
+        RoomName.user(session.userId),
         ServerEvents.REPLAY_BUFFER_FAILED,
         {
           sessionId: session.id,
@@ -464,7 +464,7 @@ export class LivekitReplayService {
       );
     } else {
       this.websocketService.sendToRoom(
-        session.userId,
+        RoomName.user(session.userId),
         ServerEvents.REPLAY_BUFFER_STOPPED,
         {
           sessionId: session.id,
@@ -729,7 +729,7 @@ export class LivekitReplayService {
             // Notify user if egress failed
             if (isFailed) {
               this.websocketService.sendToRoom(
-                session.userId,
+                RoomName.user(session.userId),
                 ServerEvents.REPLAY_BUFFER_FAILED,
                 {
                   sessionId: session.id,
@@ -740,7 +740,7 @@ export class LivekitReplayService {
               );
             } else {
               this.websocketService.sendToRoom(
-                session.userId,
+                RoomName.user(session.userId),
                 ServerEvents.REPLAY_BUFFER_STOPPED,
                 {
                   sessionId: session.id,
@@ -1204,7 +1204,7 @@ export class LivekitReplayService {
         );
       } else if (dto.destination === 'dm' && dto.targetDirectMessageGroupId) {
         this.websocketService.sendToRoom(
-          dto.targetDirectMessageGroupId,
+          RoomName.dmGroup(dto.targetDirectMessageGroupId),
           ServerEvents.NEW_DM,
           { message: enrichedMessage },
         );

@@ -6,6 +6,7 @@ import { ServerEvents } from '@kraken/shared';
 import { DatabaseService } from '@/database/database.service';
 import { LivekitReplayService } from '@/livekit/livekit-replay.service';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
+import { RoomName } from '@/common/utils/room-name.util';
 
 /**
  * Voice presence user data
@@ -562,7 +563,7 @@ export class VoicePresenceService {
     if (isFirstUser) {
       // First user joining - emit "call started" event
       this.websocketService.sendToRoom(
-        dmGroupId,
+        RoomName.dmGroup(dmGroupId),
         ServerEvents.DM_VOICE_CALL_STARTED,
         {
           dmGroupId,
@@ -581,7 +582,7 @@ export class VoicePresenceService {
     } else {
       // Not first user - just notify that someone joined
       this.websocketService.sendToRoom(
-        dmGroupId,
+        RoomName.dmGroup(dmGroupId),
         ServerEvents.DM_VOICE_USER_JOINED,
         {
           dmGroupId,
@@ -739,7 +740,7 @@ export class VoicePresenceService {
 
       // Notify other users in the DM call
       this.websocketService.sendToRoom(
-        dmGroupId,
+        RoomName.dmGroup(dmGroupId),
         ServerEvents.DM_VOICE_USER_LEFT,
         {
           dmGroupId,

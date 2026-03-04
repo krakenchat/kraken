@@ -30,6 +30,7 @@ import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
 import { DatabaseService } from '@/database/database.service';
+import { RoomName } from '@/common/utils/room-name.util';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -114,8 +115,9 @@ export class ThreadsGateway
       throw new WsException('Parent message not found');
     }
 
-    const roomId =
-      parentMessage.channelId || parentMessage.directMessageGroupId;
+    const roomId = parentMessage.directMessageGroupId
+      ? RoomName.dmGroup(parentMessage.directMessageGroupId)
+      : parentMessage.channelId;
 
     if (roomId) {
       // Emit the new thread reply to the room

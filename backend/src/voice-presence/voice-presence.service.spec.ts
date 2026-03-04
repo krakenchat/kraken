@@ -710,7 +710,7 @@ describe('VoicePresenceService', () => {
 
       expect(mockRedis.pipeline).toHaveBeenCalled();
       expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        dmGroupId,
+        `dm:${dmGroupId}`,
         ServerEvents.DM_VOICE_USER_LEFT,
         {
           dmGroupId,

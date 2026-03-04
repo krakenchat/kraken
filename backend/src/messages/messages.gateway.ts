@@ -231,7 +231,7 @@ export class MessagesGateway
       this.messagesService.enrichMessageWithFileMetadata(message);
 
     this.websocketService.sendToRoom(
-      payload.directMessageGroupId,
+      RoomName.dmGroup(payload.directMessageGroupId),
       ServerEvents.NEW_DM,
       {
         message: enrichedMessage,
@@ -259,8 +259,10 @@ export class MessagesGateway
       userId,
     );
 
-    // Broadcast to all users in the channel
-    const roomId = result.channelId || result.directMessageGroupId;
+    // Broadcast to all users in the channel/DM
+    const roomId = result.directMessageGroupId
+      ? RoomName.dmGroup(result.directMessageGroupId)
+      : result.channelId;
     if (roomId) {
       const grouped = groupReactions(result.reactions);
       const reaction = grouped.find((r) => r.emoji === payload.emoji);
@@ -291,8 +293,10 @@ export class MessagesGateway
       userId,
     );
 
-    // Broadcast to all users in the channel
-    const roomId = result.channelId || result.directMessageGroupId;
+    // Broadcast to all users in the channel/DM
+    const roomId = result.directMessageGroupId
+      ? RoomName.dmGroup(result.directMessageGroupId)
+      : result.channelId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_REMOVED, {
         messageId: result.id,
@@ -310,7 +314,9 @@ export class MessagesGateway
     @ConnectedSocket() client: Socket,
   ): void {
     const userId = getSocketUserId(client);
-    const roomId = payload.channelId || payload.directMessageGroupId;
+    const roomId = payload.directMessageGroupId
+      ? RoomName.dmGroup(payload.directMessageGroupId)
+      : payload.channelId;
     if (!roomId) return;
 
     // Only allow typing in rooms the socket has joined (prevents channel probing)
@@ -331,7 +337,9 @@ export class MessagesGateway
     @ConnectedSocket() client: Socket,
   ): void {
     const userId = getSocketUserId(client);
-    const roomId = payload.channelId || payload.directMessageGroupId;
+    const roomId = payload.directMessageGroupId
+      ? RoomName.dmGroup(payload.directMessageGroupId)
+      : payload.channelId;
     if (!roomId) return;
 
     // Only allow typing in rooms the socket has joined (prevents channel probing)
