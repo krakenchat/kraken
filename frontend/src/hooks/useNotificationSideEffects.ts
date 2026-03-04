@@ -95,12 +95,14 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
     // Suppress sound + desktop notification when actively viewing the same channel/DM
     const isViewingContext = (() => {
       if (!isFocusedRef.current) return false;
-      const currentPath = locationRef.current.pathname;
+      const { pathname, search } = locationRef.current;
       if (payload.channelId && payload.communityId) {
-        return currentPath.includes(`/channel/${payload.channelId}`);
+        return pathname.includes(`/channel/${payload.channelId}`);
       }
       if (payload.directMessageGroupId) {
-        return currentPath.startsWith('/direct-messages');
+        const params = new URLSearchParams(search);
+        const activeGroupId = params.get('group');
+        return !!activeGroupId && activeGroupId === payload.directMessageGroupId;
       }
       return false;
     })();

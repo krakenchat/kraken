@@ -176,17 +176,14 @@ export class NotificationsService {
           .map((m) => m.userId);
       } else {
         const memberships = await this.databaseService.membership.findMany({
-          where: { communityId: channel.communityId },
-          include: {
-            user: {
-              select: { id: true, lastSeen: true },
-            },
+          where: {
+            communityId: channel.communityId,
+            user: { lastSeen: { gt: fiveMinutesAgo } },
           },
+          select: { userId: true },
         });
 
-        return memberships
-          .filter((m) => m.user.lastSeen && m.user.lastSeen > fiveMinutesAgo)
-          .map((m) => m.userId);
+        return memberships.map((m) => m.userId);
       }
     }
 
@@ -286,15 +283,19 @@ export class NotificationsService {
         userId !== message.authorId && !alreadyNotifiedUserIds.has(userId),
     );
 
-    const notificationPromises = eligibleUserIds.map((userId) =>
-      this.createNotificationIfAllowed(
-        userId,
-        NotificationType.CHANNEL_MESSAGE,
-        message,
-      ),
-    );
-
-    await Promise.all(notificationPromises);
+    // Process in batches to avoid overwhelming the DB with per-user queries
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < eligibleUserIds.length; i += BATCH_SIZE) {
+      const batch = eligibleUserIds.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map((userId) =>
+        this.createNotificationIfAllowed(
+          userId,
+          NotificationType.CHANNEL_MESSAGE,
+          message,
+        ),
+      );
+      await Promise.all(batchPromises);
+    }
   }
 
   /**
@@ -339,8 +340,12 @@ export class NotificationsService {
     // Get user notification settings (creates default if missing)
     const settings = await this.getUserSettings(userId);
 
-    // Check DM notifications
-    if (type === NotificationType.DIRECT_MESSAGE && !settings.dmNotifications) {
+    // TODO: DND should suppress push notifications and desktop side effects,
+    // not notification record creation. Move DND check to sendPushNotification()
+    // and implement client-side DND in useNotificationSideEffects.
+
+    // Check DM notifications — applies to both DIRECT_MESSAGE and THREAD_REPLY in DM context
+    if (directMessageGroupId && !settings.dmNotifications) {
       return false;
     }
 

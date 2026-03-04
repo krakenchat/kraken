@@ -312,7 +312,7 @@ describe('NotificationsService', () => {
       );
     });
 
-    it('should handle @here in public channel using community membership', async () => {
+    it('should handle @here in public channel using DB-level lastSeen filter', async () => {
       const channelId = 'channel-1';
       const communityId = 'community-1';
       const message = MessageFactory.build({
@@ -335,14 +335,8 @@ describe('NotificationsService', () => {
         communityId,
       });
 
-      const now = new Date();
-      const fourMinutesAgo = new Date(now.getTime() - 4 * 60 * 1000);
-      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
-
-      const members = [
-        { userId: 'user-1', user: { id: 'user-1', lastSeen: fourMinutesAgo } },
-        { userId: 'user-2', user: { id: 'user-2', lastSeen: tenMinutesAgo } },
-      ];
+      // DB-level filter returns only online users
+      const members = [{ userId: 'user-1' }];
 
       mockDatabase.membership.findMany.mockResolvedValue(members);
       const settings = UserNotificationSettingsFactory.build();
@@ -370,15 +364,14 @@ describe('NotificationsService', () => {
 
       await service.processMessageForNotifications(message as any);
 
-      // Should create only 1 notification (user-1 is online)
+      // Should create 1 notification (only online user returned by DB)
       expect(mockDatabase.notification.create).toHaveBeenCalledTimes(1);
       expect(mockDatabase.membership.findMany).toHaveBeenCalledWith({
-        where: { communityId },
-        include: {
-          user: {
-            select: { id: true, lastSeen: true },
-          },
+        where: {
+          communityId,
+          user: { lastSeen: { gt: expect.any(Date) } },
         },
+        select: { userId: true },
       });
     });
 
@@ -735,7 +728,7 @@ describe('NotificationsService', () => {
       expect(result).toBe(true);
     });
 
-    it('should return false for thread reply when DM notifications are disabled', async () => {
+    it('should return false for thread reply in DM when DM notifications are disabled', async () => {
       const settings = UserNotificationSettingsFactory.buildMutedDMs();
       mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
 
@@ -743,7 +736,7 @@ describe('NotificationsService', () => {
         userId,
         null,
         'dm-group-1',
-        NotificationType.DIRECT_MESSAGE,
+        NotificationType.THREAD_REPLY,
       );
 
       expect(result).toBe(false);
