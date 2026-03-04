@@ -163,17 +163,14 @@ export class NotificationsService {
       if (channel.isPrivate) {
         const memberships =
           await this.databaseService.channelMembership.findMany({
-            where: { channelId },
-            include: {
-              user: {
-                select: { id: true, lastSeen: true },
-              },
+            where: {
+              channelId,
+              user: { lastSeen: { gt: fiveMinutesAgo } },
             },
+            select: { userId: true },
           });
 
-        return memberships
-          .filter((m) => m.user.lastSeen && m.user.lastSeen > fiveMinutesAgo)
-          .map((m) => m.userId);
+        return memberships.map((m) => m.userId);
       } else {
         const memberships = await this.databaseService.membership.findMany({
           where: {
@@ -370,35 +367,6 @@ export class NotificationsService {
     }
 
     return true;
-  }
-
-  /**
-   * Check if current time is within DND window
-   */
-  private isInDoNotDisturbWindow(
-    startTime: string | null,
-    endTime: string | null,
-  ): boolean {
-    if (!startTime || !endTime) {
-      return false;
-    }
-
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const startMinutes = startHour * 60 + startMinute;
-
-    const [endHour, endMinute] = endTime.split(':').map(Number);
-    const endMinutes = endHour * 60 + endMinute;
-
-    // Handle overnight DND (e.g., 22:00 - 08:00)
-    if (startMinutes > endMinutes) {
-      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
-    }
-
-    // Normal DND window
-    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
   }
 
   /**

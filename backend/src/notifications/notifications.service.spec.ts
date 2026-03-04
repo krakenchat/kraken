@@ -242,7 +242,7 @@ describe('NotificationsService', () => {
       });
     });
 
-    it('should handle @here special mention (only online users) in private channel', async () => {
+    it('should handle @here special mention in private channel with DB-level filter', async () => {
       const channelId = 'channel-1';
       const message = MessageFactory.build({
         channelId,
@@ -264,15 +264,8 @@ describe('NotificationsService', () => {
         communityId: 'community-1',
       });
 
-      const now = new Date();
-      const fourMinutesAgo = new Date(now.getTime() - 4 * 60 * 1000);
-      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
-
-      const members = [
-        { userId: 'user-1', user: { id: 'user-1', lastSeen: fourMinutesAgo } }, // Online
-        { userId: 'user-2', user: { id: 'user-2', lastSeen: tenMinutesAgo } }, // Offline
-        { userId: 'user-3', user: { id: 'user-3', lastSeen: null } }, // Never logged in
-      ];
+      // DB-level filter returns only online users
+      const members = [{ userId: 'user-1' }];
 
       mockDatabase.channelMembership.findMany.mockResolvedValue(members);
       const settings = UserNotificationSettingsFactory.build();
@@ -300,16 +293,15 @@ describe('NotificationsService', () => {
 
       await service.processMessageForNotifications(message as any);
 
-      // Should create only 1 notification (for online user)
+      // Should create 1 notification (only online user returned by DB)
       expect(mockDatabase.notification.create).toHaveBeenCalledTimes(1);
-      expect(mockDatabase.notification.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            userId: 'user-1',
-          }),
-          include: expect.any(Object),
-        }),
-      );
+      expect(mockDatabase.channelMembership.findMany).toHaveBeenCalledWith({
+        where: {
+          channelId,
+          user: { lastSeen: { gt: expect.any(Date) } },
+        },
+        select: { userId: true },
+      });
     });
 
     it('should handle @here in public channel using DB-level lastSeen filter', async () => {
