@@ -78,6 +78,7 @@ Copy the Compose file for your chosen setup:
           LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
           REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
           REPLAY_EGRESS_OUTPUT_PATH: /out
+          TRUST_PROXY: 1
         volumes:
           - uploads:/app/backend/uploads
           - egress-data:/app/storage/replay-segments  # shared with livekit-egress
@@ -96,6 +97,8 @@ Copy the Compose file for your chosen setup:
         restart: unless-stopped
         environment:
           BACKEND_URL: http://backend:3000
+        depends_on:
+          - backend
 
       livekit:
         image: livekit/livekit-server:latest
