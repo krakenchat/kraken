@@ -1,4 +1,5 @@
 import { NestFactory, Reflector } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import {
   ClassSerializerInterceptor,
@@ -44,10 +45,27 @@ function validateSecrets() {
   }
 }
 
+/**
+ * Parse the TRUST_PROXY env var into the type Express expects.
+ * Express distinguishes between:
+ *   - number (hop count): trust the nth proxy from the client
+ *   - boolean true: trust all proxies (not recommended)
+ *   - string: treated as a subnet/address (e.g. "loopback", "10.0.0.0/8")
+ */
+function parseTrustProxy(value: string): boolean | number | string {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+
+  const asNumber = Number(value);
+  if (!Number.isNaN(asNumber)) return asNumber;
+
+  return value; // subnet or address, e.g. "loopback"
+}
+
 async function bootstrap() {
   validateSecrets();
 
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: new ConsoleLogger({
       prefix: 'KrakenChat',
       timestamp: true,
@@ -55,6 +73,12 @@ async function bootstrap() {
     }),
     bufferLogs: true,
   });
+
+  // Trust proxy so req.ip resolves the real client IP behind a reverse proxy.
+  // https://expressjs.com/en/guide/behind-proxies.html
+  if (process.env.TRUST_PROXY) {
+    app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+  }
 
   const redisIoAdapter = new RedisIoAdapter(app);
   await redisIoAdapter.connectToRedis();

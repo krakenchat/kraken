@@ -56,13 +56,8 @@ export class AuthController {
    */
   private getDeviceInfo(req: Request): DeviceInfo {
     const userAgent = req.headers['user-agent'] || '';
-    // Get IP address (handle proxies)
-    const forwarded = req.headers['x-forwarded-for'];
-    const ipAddress =
-      (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]) ||
-      req.socket?.remoteAddress ||
-      '';
-
+    // req.ip respects the TRUST_PROXY setting configured in main.ts
+    const ipAddress = req.ip || req.socket?.remoteAddress || '';
     return { userAgent, ipAddress };
   }
 
