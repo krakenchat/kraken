@@ -248,6 +248,7 @@ Copy the Compose file for your chosen setup:
           LIVEKIT_INTERNAL_URL: http://livekit:7880
           LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
           LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+          TRUST_PROXY: 1
           REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
           REPLAY_EGRESS_OUTPUT_PATH: /out
         volumes:
@@ -398,6 +399,7 @@ Copy the Compose file for your chosen setup:
           REDIS_HOST: redis
           JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
           JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+          TRUST_PROXY: 1
           # Uncomment and fill in to enable voice/video:
           # LIVEKIT_URL: ${LIVEKIT_URL:-}
           # LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}

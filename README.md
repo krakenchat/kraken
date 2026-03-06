@@ -85,6 +85,7 @@ services:
       LIVEKIT_INTERNAL_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+      TRUST_PROXY: 1
       REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
       REPLAY_EGRESS_OUTPUT_PATH: /out
     volumes:
@@ -270,6 +271,7 @@ services:
       LIVEKIT_INTERNAL_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+      TRUST_PROXY: 1
       REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
       REPLAY_EGRESS_OUTPUT_PATH: /out
     volumes:
