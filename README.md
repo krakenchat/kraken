@@ -7,6 +7,8 @@
 
 Self-hosted voice, video, and text chat — communication you own and control.
 
+> **Beta Software** — Semaphore Chat is under active development. Expect bugs and occasional breaking changes.
+
 Semaphore Chat is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, PostgreSQL, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box. Run it in your browser or as an Electron desktop app on Windows and Linux.
 
 ## Features
