@@ -13,13 +13,14 @@ Semaphore Chat is an open-source communication platform that gives you full cont
 
 ## Features
 
-- **Real-time messaging** — WebSocket-powered text channels with mentions, reactions, attachments, and threads
-- **Voice & video calls** — Powered by [LiveKit](https://livekit.io/) with screen sharing and replay buffer support
-- **Communities** — Create servers with text and voice channels, roles, and permissions
-- **Direct messages** — Private conversations and group DMs with file attachments
-- **Role-based access control** — Granular permissions at the instance and community level
-- **Desktop app** — Electron-based desktop client alongside the web interface
-- **Self-hosted** — Run on your own infrastructure with Docker Compose or Kubernetes
+- **Real-time messaging** — WebSocket-powered text channels with mentions, reactions, threads, file attachments, and read receipts
+- **Voice & video calls** — Powered by [LiveKit](https://livekit.io/) with screen sharing and system audio capture on the desktop app. Voice connections persist across page navigation
+- **Replay capture** — Continuously buffers screen share sessions so you can retroactively clip the last 1-10 minutes with a visual trim timeline. Share clips to channels, DMs, or save them to a personal clip library with storage quotas. See [Replay Buffer Architecture](architecture/replay-buffer.md)
+- **Desktop app** — [Electron client](installation/desktop-app.md) for Windows and Linux with a custom screen source picker showing live thumbnails, configurable resolution and frame rate, system tray integration, and auto-updates
+- **Communities** — Create servers with text and voice channels, private channels, direct messages, and group DMs with file attachments
+- **Role-based access control** — Granular permissions at the instance and community level, with community bans, timeouts, and moderation logs
+- **Mobile-friendly** — Responsive design with swipe navigation, mobile-optimized layouts, and PWA support
+- **Self-hosted** — Run on your own infrastructure with [Docker Compose](installation/docker-compose.md) or [Kubernetes](installation/kubernetes.md). Your data stays yours
 
 ---
 

@@ -12,10 +12,13 @@ Semaphore Chat is an open-source communication platform that gives you full cont
 ## Features
 
 - **Messaging** — Real-time text channels with mentions, reactions, threads, file attachments, and read receipts
-- **Voice & Video** — LiveKit-powered calls with screen sharing and replay buffer with clip trimming
-- **Communities** — Servers with text and voice channels, private channels, DMs, and group DMs
-- **Administration** — Role-based access control with granular permissions, moderation tools, storage quotas, and invite system
-- **User Experience** — Profiles with avatars and banners, presence, friends list, push notifications, desktop app, and PWA support
+- **Voice & Video** — LiveKit-powered calls with screen sharing, including system audio capture on the desktop app. Persistent connections stay active as you navigate
+- **Replay Capture** — Continuously buffers screen share sessions so you can retroactively clip the last 1-10 minutes. Trim to the exact moment, then share to a channel or save to your personal clip library
+- **Desktop App** — Electron client for Windows and Linux with a custom screen source picker, system tray integration, and auto-updates
+- **Communities** — Servers with text and voice channels, private channels, direct messages, and group DMs with file attachments
+- **Administration** — Role-based access control with granular permissions, community bans and timeouts, moderation logs, and per-user storage quotas
+- **Mobile-Friendly** — Responsive UI with swipe navigation, mobile-optimized panels, and PWA support for install-to-homescreen
+- **Self-Hosted** — Run on your own infrastructure with Docker Compose or Kubernetes. Your data stays yours
 
 ## Architecture
 
