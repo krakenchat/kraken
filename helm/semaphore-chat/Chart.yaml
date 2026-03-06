@@ -1,5 +1,5 @@
 apiVersion: v2
-name: kraken
+name: semaphore-chat
 description: A self-hosted voice and text chat application with video calling support
 type: application
 version: 0.0.1
@@ -11,13 +11,13 @@ keywords:
   - communication
   - websocket
   - livekit
-home: https://github.com/krakenchat/kraken
+home: https://github.com/semaphore-chat/semaphore-chat
 sources:
-  - https://github.com/krakenchat/kraken
+  - https://github.com/semaphore-chat/semaphore-chat
 maintainers:
-  - name: Kraken Team
-    email: oss@krakenchat.app
-icon: https://raw.githubusercontent.com/krakenchat/kraken/main/logo.png
+  - name: Semaphore Chat Team
+    email: oss@semaphorechat.app
+icon: https://raw.githubusercontent.com/semaphore-chat/semaphore-chat/main/logo.png
 
 # Optional dependencies (can be disabled via values.yaml)
 dependencies:

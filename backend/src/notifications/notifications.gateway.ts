@@ -7,7 +7,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { Notification } from '@prisma/client';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';

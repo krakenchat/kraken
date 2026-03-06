@@ -23,8 +23,8 @@
     "noUncheckedSideEffectImports": true,
 
     "paths": {
-      "@kraken/shared": ["../shared/src"],
-      "@kraken/shared/*": ["../shared/src/*"]
+      "@semaphore-chat/shared": ["../shared/src"],
+      "@semaphore-chat/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src", "../shared/src"]

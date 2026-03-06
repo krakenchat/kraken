@@ -14,7 +14,7 @@ import { TokenBlacklistService } from '@/auth/token-blacklist.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { UserService } from '@/user/user.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { ClientEvents } from '@kraken/shared';
+import { ClientEvents } from '@semaphore-chat/shared';
 import { wsValidationPipe } from '@/common/pipes/ws-validation.pipe';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';

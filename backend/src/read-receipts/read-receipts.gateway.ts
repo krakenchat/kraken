@@ -15,7 +15,7 @@ import { wsValidationPipe } from '@/common/pipes/ws-validation.pipe';
 import { ReadReceiptsService } from './read-receipts.service';
 import { MarkAsReadDto } from './dto/mark-as-read.dto';
 import { Server, Socket } from 'socket.io';
-import { ClientEvents, ServerEvents } from '@kraken/shared';
+import { ClientEvents, ServerEvents } from '@semaphore-chat/shared';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';

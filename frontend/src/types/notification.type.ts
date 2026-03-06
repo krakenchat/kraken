@@ -4,9 +4,9 @@
  * Type definitions for the notifications system matching backend Prisma models.
  */
 
-import { NotificationType } from '@kraken/shared';
+import { NotificationType } from '@semaphore-chat/shared';
 
-export { NotificationType, type NewNotificationPayload, type NotificationReadPayload } from '@kraken/shared';
+export { NotificationType, type NewNotificationPayload, type NotificationReadPayload } from '@semaphore-chat/shared';
 
 export interface Notification {
   id: string;

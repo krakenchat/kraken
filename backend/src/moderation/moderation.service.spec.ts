@@ -19,7 +19,7 @@ import {
 import { ModerationAction } from '@prisma/client';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { RoomName } from '@/common/utils/room-name.util';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('ModerationService', () => {
   let service: ModerationService;

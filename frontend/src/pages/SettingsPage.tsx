@@ -391,7 +391,7 @@ const SettingsPage: React.FC = () => {
         <DialogTitle>Change Backend URL</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Enter the URL of your Kraken backend server. The app will reload after the change.
+            Enter the URL of your Semaphore Chat backend server. The app will reload after the change.
           </Typography>
 
           <TextField

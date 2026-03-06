@@ -1,4 +1,4 @@
-import type { ServerEventPayloads } from '@kraken/shared';
+import type { ServerEventPayloads } from '@semaphore-chat/shared';
 
 type Handler<T = unknown> = (event: T) => void;
 

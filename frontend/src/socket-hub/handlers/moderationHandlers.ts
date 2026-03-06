@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ServerEvents } from '@kraken/shared';
+import type { ServerEvents } from '@semaphore-chat/shared';
 import type { SocketEventHandler } from './types';
 
 export const handleUserBanned: SocketEventHandler<typeof ServerEvents.USER_BANNED> = (

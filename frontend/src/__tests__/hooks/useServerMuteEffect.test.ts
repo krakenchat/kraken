@@ -11,7 +11,7 @@ let mockUser: { id: string } | null = null;
 // Capture the callback passed to useServerEvent
 let serverEventCallback: ((payload: unknown) => void) | null = null;
 
-vi.mock('@kraken/shared', () => ({
+vi.mock('@semaphore-chat/shared', () => ({
   ServerEvents: {
     VOICE_CHANNEL_USER_UPDATED: 'voiceChannelUserUpdated',
   },

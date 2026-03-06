@@ -4,7 +4,7 @@ Troubleshooting guide for Socket.IO WebSocket and LiveKit connectivity issues in
 
 ## Architecture
 
-Kraken uses two types of real-time connections:
+Semaphore Chat uses two types of real-time connections:
 
 1. **Socket.IO WebSockets** -- chat messages, presence, real-time updates
 2. **LiveKit WebRTC** -- voice/video calls and screen sharing
@@ -58,7 +58,7 @@ All Backend Pods -> Emit to their connected clients
 ### Check Backend Pods
 
 ```bash
-kubectl logs -n kraken -l app.kubernetes.io/component=backend --tail=50 | \
+kubectl logs -n semaphore-chat -l app.kubernetes.io/component=backend --tail=50 | \
   grep -i "socket\|redis\|gateway"
 ```
 
@@ -72,22 +72,22 @@ Expected:
 ### Check Redis
 
 ```bash
-kubectl get pods -n kraken -l app.kubernetes.io/name=redis
-kubectl exec -it -n kraken deploy/kraken-backend -- sh -c 'nc -zv $REDIS_HOST $REDIS_PORT'
+kubectl get pods -n semaphore-chat -l app.kubernetes.io/name=redis
+kubectl exec -it -n semaphore-chat deploy/semaphore-chat-backend -- sh -c 'nc -zv $REDIS_HOST $REDIS_PORT'
 ```
 
 ### Check Ingress
 
 ```bash
-kubectl get ingress -n kraken -o yaml
+kubectl get ingress -n semaphore-chat -o yaml
 ```
 
 Required annotations:
 
 ```yaml
-nginx.ingress.kubernetes.io/websocket-services: "kraken-backend"
+nginx.ingress.kubernetes.io/websocket-services: "semaphore-chat-backend"
 nginx.ingress.kubernetes.io/affinity: "cookie"
-nginx.ingress.kubernetes.io/session-cookie-name: "kraken-affinity"
+nginx.ingress.kubernetes.io/session-cookie-name: "semaphore-chat-affinity"
 nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
 nginx.ingress.kubernetes.io/affinity-mode: "persistent"
 nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
@@ -97,7 +97,7 @@ nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 ### Check Service Affinity
 
 ```bash
-kubectl get service -n kraken kraken-backend -o jsonpath='{.spec.sessionAffinity}'
+kubectl get service -n semaphore-chat semaphore-chat-backend -o jsonpath='{.spec.sessionAffinity}'
 ```
 
 !!! warning "Critical"
@@ -123,10 +123,10 @@ Expected: `HTTP/1.1 101 Switching Protocols`
 ### Fix Service Session Affinity
 
 ```bash
-kubectl get service -n kraken kraken-backend -o yaml | grep sessionAffinity
+kubectl get service -n semaphore-chat semaphore-chat-backend -o yaml | grep sessionAffinity
 # If "ClientIP", upgrade Helm chart:
-helm upgrade kraken ./helm/kraken -n kraken --reuse-values
-kubectl rollout restart deployment/kraken-backend -n kraken
+helm upgrade semaphore-chat ./helm/semaphore-chat -n semaphore-chat --reuse-values
+kubectl rollout restart deployment/semaphore-chat-backend -n semaphore-chat
 ```
 
 ### Add Missing Ingress Annotations
@@ -134,15 +134,15 @@ kubectl rollout restart deployment/kraken-backend -n kraken
 Update `values.yaml` with the annotations listed above, then:
 
 ```bash
-helm upgrade kraken ./helm/kraken -n kraken --reuse-values
+helm upgrade semaphore-chat ./helm/semaphore-chat -n semaphore-chat --reuse-values
 ```
 
 ### Fix Redis Connection
 
 ```bash
-kubectl get secret -n kraken kraken-redis -o jsonpath='{.data.redis-password}' | base64 -d
+kubectl get secret -n semaphore-chat semaphore-chat-redis -o jsonpath='{.data.redis-password}' | base64 -d
 # Verify password matches backend ConfigMap, restart if needed:
-kubectl rollout restart deployment/kraken-backend -n kraken
+kubectl rollout restart deployment/semaphore-chat-backend -n semaphore-chat
 ```
 
 ### Fix LiveKit Browser Permissions
@@ -159,7 +159,7 @@ kubectl rollout restart deployment/kraken-backend -n kraken
 1. **Browser DevTools** -> Network -> Filter "WS" -> look for `101 Switching Protocols`
 2. **Open two windows** with different users, send a message, verify delivery
 3. **With multiple replicas**: Send message from user on Pod A, verify user on Pod B receives it
-4. **Check cookies**: Application tab -> look for `kraken-affinity` cookie
+4. **Check cookies**: Application tab -> look for `semaphore-chat-affinity` cookie
 
 ---
 

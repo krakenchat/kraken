@@ -1,6 +1,6 @@
-# Kraken Backend
+# Semaphore Chat Backend
 
-NestJS backend for Kraken — a self-hosted voice and text chat application.
+NestJS backend for Semaphore Chat — a self-hosted voice and text chat application.
 
 ## Development
 

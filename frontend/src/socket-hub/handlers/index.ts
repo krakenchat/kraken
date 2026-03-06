@@ -1,5 +1,5 @@
-import { ServerEvents } from '@kraken/shared';
-import type { ServerEventPayloads } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
+import type { ServerEventPayloads } from '@semaphore-chat/shared';
 import type { SocketEventHandler } from './types';
 import * as messageHandlers from './messageHandlers';
 import * as presenceHandlers from './presenceHandlers';

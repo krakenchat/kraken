@@ -10,8 +10,8 @@ All development is done through Docker — never run `pnpm`/`npm` commands direc
 ## Starting the dev environment
 
 ```bash
-git clone https://github.com/krakenchat/kraken.git
-cd kraken
+git clone https://github.com/semaphore-chat/semaphore-chat.git
+cd semaphore-chat
 cp backend/env.sample backend/.env
 docker-compose up
 ```
@@ -144,7 +144,7 @@ docker compose run --rm frontend pnpm run test:cov   # With coverage
 ## Project structure
 
 ```
-kraken/
+semaphore-chat/
 ├── backend/
 │   ├── src/           # NestJS application (modules, services, controllers)
 │   ├── prisma/        # Database schema (single schema.prisma for PostgreSQL)

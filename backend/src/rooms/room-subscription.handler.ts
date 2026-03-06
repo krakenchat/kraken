@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { RoomName } from '@/common/utils/room-name.util';
 import {
   RoomEvents,

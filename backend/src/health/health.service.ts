@@ -6,7 +6,7 @@ import { version } from '../../package.json';
 @Injectable()
 export class HealthService implements OnModuleInit {
   private readonly logger = new Logger(HealthService.name);
-  private instanceName: string = 'Kraken Instance'; // Default fallback
+  private instanceName: string = 'Semaphore Chat Instance'; // Default fallback
   private readonly INSTANCE_NAME_KEY = 'instance:name';
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
@@ -23,7 +23,7 @@ export class HealthService implements OnModuleInit {
         this.logger.log(`Loaded instance name from Redis: ${name}`);
       } else {
         this.logger.log(
-          'No instance name found in Redis, using default: Kraken Instance',
+          'No instance name found in Redis, using default: Semaphore Chat Instance',
         );
       }
     } catch (error) {

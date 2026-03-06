@@ -1,6 +1,6 @@
-# Kraken Helm Chart
+# Semaphore Chat Helm Chart
 
-A production-ready Helm chart for deploying Kraken - a self-hosted voice and text chat application with video calling support.
+A production-ready Helm chart for deploying Semaphore Chat - a self-hosted voice and text chat application with video calling support.
 
 ## Prerequisites
 
@@ -14,11 +14,11 @@ A production-ready Helm chart for deploying Kraken - a self-hosted voice and tex
 
 ### Install with Default Configuration
 
-This will deploy Kraken with bundled PostgreSQL and Redis:
+This will deploy Semaphore Chat with bundled PostgreSQL and Redis:
 
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
-  --set ingress.hosts[0].host=kraken.local \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
+  --set ingress.hosts[0].host=semaphore.local \
   --set livekit.url=wss://your-livekit-server.com \
   --set livekit.apiKey=YOUR_LIVEKIT_API_KEY \
   --set livekit.apiSecret=YOUR_LIVEKIT_API_SECRET \
@@ -29,7 +29,7 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 ### Upgrade an Existing Release
 
 ```bash
-helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm upgrade semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --reuse-values \
   --set backend.image.tag=v1.2.3
 ```
@@ -37,7 +37,7 @@ helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
 ### Uninstall
 
 ```bash
-helm uninstall kraken
+helm uninstall semaphore-chat
 ```
 
 ## Configuration
@@ -46,10 +46,10 @@ helm uninstall kraken
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `backend.image.repository` | Backend Docker image repository | `ghcr.io/user/kraken-backend` |
+| `backend.image.repository` | Backend Docker image repository | `ghcr.io/user/semaphore-backend` |
 | `backend.image.tag` | Backend image tag | `latest` |
 | `backend.image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `frontend.image.repository` | Frontend Docker image repository | `ghcr.io/user/kraken-frontend` |
+| `frontend.image.repository` | Frontend Docker image repository | `ghcr.io/user/semaphore-frontend` |
 | `frontend.image.tag` | Frontend image tag | `latest` |
 | `global.imagePullSecrets` | Image pull secrets for private registries | `[]` |
 
@@ -87,9 +87,9 @@ helm uninstall kraken
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `postgresql.bundled` | Deploy PostgreSQL with chart | `true` |
-| `postgresql.auth.username` | PostgreSQL username | `kraken` |
+| `postgresql.auth.username` | PostgreSQL username | `semaphore` |
 | `postgresql.auth.password` | PostgreSQL password | `""` (set via --set or secrets) |
-| `postgresql.auth.database` | PostgreSQL database name | `kraken` |
+| `postgresql.auth.database` | PostgreSQL database name | `semaphore` |
 | `postgresql.primary.persistence.size` | PostgreSQL PVC size | `10Gi` |
 | `postgresql.external.uri` | External PostgreSQL URI (if bundled=false) | `""` |
 
@@ -125,8 +125,8 @@ helm uninstall kraken
 Everything bundled, minimal configuration:
 
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
-  --set ingress.hosts[0].host=kraken.local \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
+  --set ingress.hosts[0].host=semaphore.local \
   --set livekit.url=wss://livekit.example.com \
   --set livekit.apiKey=key \
   --set livekit.apiSecret=secret
@@ -134,12 +134,12 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 
 Add to `/etc/hosts`:
 ```
-127.0.0.1 kraken.local
+127.0.0.1 semaphore.local
 ```
 
 Access via port-forward:
 ```bash
-kubectl port-forward svc/kraken-frontend 8080:5173
+kubectl port-forward svc/semaphore-chat-frontend 8080:5173
 ```
 
 ### Scenario 2: Production with cert-manager
@@ -168,9 +168,9 @@ spec:
           class: nginx
 EOF
 
-# Install Kraken with TLS
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
-  --set ingress.hosts[0].host=kraken.yourdomain.com \
+# Install Semaphore Chat with TLS
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
+  --set ingress.hosts[0].host=semaphore.yourdomain.com \
   --set ingress.tls.mode=cert-manager \
   --set ingress.tls.certManager.enabled=true \
   --set ingress.tls.certManager.issuer=letsencrypt-prod \
@@ -188,14 +188,14 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 Use your own managed PostgreSQL and Redis:
 
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --set postgresql.bundled=false \
-  --set postgresql.external.uri="postgresql://user:pass@postgres.example.com:5432/kraken" \
+  --set postgresql.external.uri="postgresql://user:pass@postgres.example.com:5432/semaphore" \
   --set redis.bundled=false \
   --set redis.external.host=redis.example.com \
   --set redis.external.port=6379 \
   --set redis.external.password="your-redis-password" \
-  --set ingress.hosts[0].host=kraken.yourdomain.com \
+  --set ingress.hosts[0].host=semaphore.yourdomain.com \
   --set livekit.url=wss://livekit.yourdomain.com \
   --set livekit.apiKey=$LIVEKIT_API_KEY \
   --set livekit.apiSecret=$LIVEKIT_API_SECRET \
@@ -209,15 +209,15 @@ Bring your own certificates:
 
 ```bash
 # Create TLS secret
-kubectl create secret tls kraken-tls \
+kubectl create secret tls semaphore-tls \
   --cert=path/to/tls.crt \
   --key=path/to/tls.key
 
 # Install with manual TLS
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --set ingress.tls.mode=manual \
-  --set ingress.tls.secretName=kraken-tls \
-  --set ingress.hosts[0].host=kraken.yourdomain.com \
+  --set ingress.tls.secretName=semaphore-tls \
+  --set ingress.hosts[0].host=semaphore.yourdomain.com \
   --set livekit.url=wss://livekit.yourdomain.com \
   --set livekit.apiKey=$LIVEKIT_API_KEY \
   --set livekit.apiSecret=$LIVEKIT_API_SECRET
@@ -230,13 +230,13 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 Instead of passing secrets via values, create them manually:
 
 ```bash
-kubectl create secret generic kraken-secrets \
+kubectl create secret generic semaphore-secrets \
   --from-literal=JWT_SECRET="$(openssl rand -base64 32)" \
   --from-literal=JWT_REFRESH_SECRET="$(openssl rand -base64 32)" \
   --from-literal=LIVEKIT_API_SECRET="your-livekit-secret"
 
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
-  --set secrets.existingSecret=kraken-secrets \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
+  --set secrets.existingSecret=semaphore-secrets \
   --set livekit.apiKey=$LIVEKIT_API_KEY
 ```
 
@@ -257,7 +257,7 @@ openssl rand -hex 32
 When updating PostgreSQL or Redis subchart versions:
 
 ```bash
-cd helm/kraken
+cd helm/semaphore-chat
 helm dependency update
 ```
 
@@ -266,7 +266,7 @@ helm dependency update
 Update images with zero downtime:
 
 ```bash
-helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm upgrade semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --reuse-values \
   --set backend.image.tag=v1.2.3 \
   --set frontend.image.tag=v1.2.3
@@ -277,7 +277,7 @@ helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
 ### Check Pod Status
 
 ```bash
-kubectl get pods -l app.kubernetes.io/instance=kraken
+kubectl get pods -l app.kubernetes.io/instance=semaphore-chat
 ```
 
 ### View Logs
@@ -296,9 +296,9 @@ kubectl logs -l app.kubernetes.io/name=postgresql -f
 ### Access PostgreSQL
 
 ```bash
-kubectl run --namespace default kraken-postgresql-client --rm --tty -i --restart='Never' \
-  --env="PGPASSWORD=$(kubectl get secret --namespace default kraken-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)" \
-  --image docker.io/bitnami/postgresql:16 --command -- psql -h kraken-postgresql -U kraken
+kubectl run --namespace default semaphore-chat-postgresql-client --rm --tty -i --restart='Never' \
+  --env="PGPASSWORD=$(kubectl get secret --namespace default semaphore-chat-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)" \
+  --image docker.io/bitnami/postgresql:16 --command -- psql -h semaphore-chat-postgresql -U semaphore
 ```
 
 ## Troubleshooting
@@ -307,7 +307,7 @@ kubectl run --namespace default kraken-postgresql-client --rm --tty -i --restart
 
 ```bash
 # Check pod status
-kubectl describe pod -l app.kubernetes.io/instance=kraken
+kubectl describe pod -l app.kubernetes.io/instance=semaphore-chat
 
 # Check events
 kubectl get events --sort-by='.lastTimestamp'
@@ -323,7 +323,7 @@ kubectl get pods -l app.kubernetes.io/name=postgresql
 kubectl logs -l app.kubernetes.io/name=postgresql
 
 # Test PostgreSQL connection from backend pod
-kubectl exec -it deploy/kraken-backend -- sh -c 'psql "$DATABASE_URL"'
+kubectl exec -it deploy/semaphore-chat-backend -- sh -c 'psql "$DATABASE_URL"'
 ```
 
 ### Ingress Not Working
@@ -345,7 +345,7 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 kubectl run postgresql-backup --rm -i --tty --restart=Never \
   --image=bitnami/postgresql:16 \
   --env="PGPASSWORD=your-password" \
-  -- pg_dump -h kraken-postgresql -U kraken -d kraken -Fc -f /backup.dump
+  -- pg_dump -h semaphore-chat-postgresql -U semaphore -d semaphore -Fc -f /backup.dump
 ```
 
 ### Restore PostgreSQL
@@ -355,7 +355,7 @@ kubectl run postgresql-backup --rm -i --tty --restart=Never \
 kubectl run postgresql-restore --rm -i --tty --restart=Never \
   --image=bitnami/postgresql:16 \
   --env="PGPASSWORD=your-password" \
-  -- pg_restore -h kraken-postgresql -U kraken -d kraken /backup.dump
+  -- pg_restore -h semaphore-chat-postgresql -U semaphore -d semaphore /backup.dump
 ```
 
 ## Security Best Practices
@@ -369,9 +369,9 @@ kubectl run postgresql-restore --rm -i --tty --restart=Never \
 
 ## Support
 
-- **Issues**: https://github.com/user/kraken/issues
-- **Documentation**: https://github.com/user/kraken
-- **Chart Version**: Check with `helm show chart oci://ghcr.io/krakenchat/charts/kraken`
+- **Issues**: https://github.com/semaphore-chat/semaphore-chat/issues
+- **Documentation**: https://github.com/semaphore-chat/semaphore-chat
+- **Chart Version**: Check with `helm show chart oci://ghcr.io/semaphore-chat/charts/semaphore-chat`
 
 ## License
 

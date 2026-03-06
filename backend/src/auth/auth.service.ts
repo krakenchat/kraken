@@ -152,10 +152,10 @@ export class AuthService {
 
     // Check for Electron app first
     if (ua.includes('electron')) {
-      if (ua.includes('windows')) return 'Kraken Desktop (Windows)';
-      if (ua.includes('mac')) return 'Kraken Desktop (macOS)';
-      if (ua.includes('linux')) return 'Kraken Desktop (Linux)';
-      return 'Kraken Desktop';
+      if (ua.includes('windows')) return 'Semaphore Chat Desktop (Windows)';
+      if (ua.includes('mac')) return 'Semaphore Chat Desktop (macOS)';
+      if (ua.includes('linux')) return 'Semaphore Chat Desktop (Linux)';
+      return 'Semaphore Chat Desktop';
     }
 
     // Check for mobile devices

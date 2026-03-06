@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ServerEventPayloads } from '@kraken/shared';
+import type { ServerEventPayloads } from '@semaphore-chat/shared';
 
 /**
  * A pure handler function that updates TanStack Query cache in response

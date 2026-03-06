@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Documentation
 
-Project documentation: [docs.krakenchat.app](https://docs.krakenchat.app) (source: `docs-site/`).
+Project documentation: [docs.semaphorechat.app](https://docs.semaphorechat.app) (source: `docs-site/`).
 
 ## 🐳 **CRITICAL**: ALL DEVELOPMENT USES DOCKER
 
@@ -12,7 +12,7 @@ Project documentation: [docs.krakenchat.app](https://docs.krakenchat.app) (sourc
 
 ## Project Overview
 
-**Kraken** is a self-hosted voice and text chat application built with NestJS backend and React frontend.
+**Semaphore Chat** is a self-hosted voice and text chat application built with NestJS backend and React frontend.
 
 ### Core Concepts
 
@@ -50,7 +50,7 @@ Project documentation: [docs.krakenchat.app](https://docs.krakenchat.app) (sourc
 
 ### 🔌 Platform Separation Pattern (Web vs Electron)
 
-**Kraken supports both web browsers and Electron desktop app. Use these patterns for clean platform separation:**
+**Semaphore Chat supports both web browsers and Electron desktop app. Use these patterns for clean platform separation:**
 
 #### **1. Platform Detection Utility**
 
@@ -460,9 +460,9 @@ When implementing a feature, fixing a bug, or modifying behavior in either the b
 
 #### WebSocket Event Patterns
 
-**See [WebSocket Patterns](https://docs.krakenchat.app/architecture/websocket-patterns/) for the full guide.**
+**See [WebSocket Patterns](https://docs.semaphorechat.app/architecture/websocket-patterns/) for the full guide.**
 
-Kraken uses three patterns for WebSocket events. Choosing the right one matters:
+Semaphore Chat uses three patterns for WebSocket events. Choosing the right one matters:
 
 | Pattern | When | Example |
 |---------|------|---------|

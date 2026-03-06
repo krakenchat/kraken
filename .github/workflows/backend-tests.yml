@@ -55,11 +55,11 @@ jobs:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_USER: kraken
-          POSTGRES_PASSWORD: kraken
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: semaphore
           POSTGRES_DB: test
         options: >-
-          --health-cmd "pg_isready -U kraken"
+          --health-cmd "pg_isready -U semaphore"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -101,7 +101,7 @@ jobs:
         working-directory: ./backend
         run: pnpm run test:cov
         env:
-          DATABASE_URL: postgresql://kraken:kraken@localhost:5432/test
+          DATABASE_URL: postgresql://semaphore:semaphore@localhost:5432/test
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_SECRET: test-secret-key

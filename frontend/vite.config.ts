@@ -16,8 +16,8 @@ export default defineConfig({
       filename: "sw-custom.ts",
       includeAssets: ["favicon.ico", "favicon-32x32.png", "favicon-16x16.png", "apple-touch-icon.png"],
       manifest: {
-        name: "Kraken Chat",
-        short_name: "Kraken",
+        name: "Semaphore Chat",
+        short_name: "Semaphore Chat",
         description: "Self-hosted voice and text chat",
         theme_color: "#1a1a2e",
         background_color: "#1a1a2e",
@@ -56,7 +56,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@kraken/shared": path.resolve(__dirname, "../shared/src"),
+      "@semaphore-chat/shared": path.resolve(__dirname, "../shared/src"),
     },
   },
   // Use relative paths for Electron file:// protocol compatibility

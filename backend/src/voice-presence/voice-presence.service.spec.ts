@@ -5,7 +5,7 @@ import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
 
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 
 describe('VoicePresenceService', () => {

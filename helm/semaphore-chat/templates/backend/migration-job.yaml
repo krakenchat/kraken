@@ -2,9 +2,9 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "kraken.fullname" . }}-backend-migrate
+  name: {{ include "semaphore-chat.fullname" . }}-backend-migrate
   labels:
-    {{- include "kraken.backend.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "-5"
@@ -15,10 +15,10 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "kraken.backend.selectorLabels" . | nindent 8 }}
+        {{- include "semaphore-chat.backend.selectorLabels" . | nindent 8 }}
     spec:
-      {{- include "kraken.imagePullSecrets" . | nindent 6 }}
-      serviceAccountName: {{ include "kraken.serviceAccountName" . }}
+      {{- include "semaphore-chat.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "semaphore-chat.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
       restartPolicy: Never
@@ -26,7 +26,7 @@ spec:
         - name: migrate
           securityContext:
             {{- toYaml .Values.backend.securityContext | nindent 12 }}
-          image: {{ include "kraken.backend.image" . }}
+          image: {{ include "semaphore-chat.backend.image" . }}
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           command: ["npx", "prisma", "migrate", "deploy", "--schema=prisma/schema.prisma"]
           env:
@@ -34,7 +34,7 @@ spec:
               value: "true"
           envFrom:
             - configMapRef:
-                name: {{ include "kraken.fullname" . }}-backend-config
+                name: {{ include "semaphore-chat.fullname" . }}-backend-config
             - secretRef:
-                name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "kraken.fullname" . }}-secrets{{ end }}
+                name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "semaphore-chat.fullname" . }}-secrets{{ end }}
 {{- end }}

@@ -1,11 +1,11 @@
 # Docker Compose
 
-Deploy Kraken with Docker Compose — from first launch to production.
+Deploy Semaphore Chat with Docker Compose — from first launch to production.
 
 ## Prerequisites
 
 - **[Docker](https://docs.docker.com/get-docker/)** (v20+) and **Docker Compose** (v2+)
-- A domain name pointing to your server (e.g. `kraken.example.com`)
+- A domain name pointing to your server (e.g. `semaphore.example.com`)
 
 ## Choose your setup
 
@@ -31,14 +31,14 @@ Three options depending on your existing infrastructure:
 ### 1. Create the Compose file
 
 ```bash
-mkdir kraken && cd kraken
+mkdir semaphore-chat && cd semaphore-chat
 ```
 
 Download the IP watcher script (used by the "With Caddy" and "Batteries included" setups to restart LiveKit when your public IP changes):
 
 ```bash
 mkdir -p scripts
-curl -fsSL https://raw.githubusercontent.com/krakenchat/kraken/main/scripts/livekit-ip-watcher.sh -o scripts/livekit-ip-watcher.sh
+curl -fsSL https://raw.githubusercontent.com/semaphore-chat/semaphore-chat/main/scripts/livekit-ip-watcher.sh -o scripts/livekit-ip-watcher.sh
 ```
 
 Copy the Compose file for your chosen setup:
@@ -65,10 +65,10 @@ Copy the Compose file for your chosen setup:
           - livekit
 
       backend:
-        image: ghcr.io/krakenchat/kraken-backend:latest
+        image: ghcr.io/semaphore-chat/semaphore-backend:latest
         restart: unless-stopped
         environment:
-          DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
+          DATABASE_URL: postgresql://semaphore:semaphore@postgres:5432/semaphore
           REDIS_HOST: redis
           JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
           JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -93,7 +93,7 @@ Copy the Compose file for your chosen setup:
             condition: service_started
 
       frontend:
-        image: ghcr.io/krakenchat/kraken-frontend:latest
+        image: ghcr.io/semaphore-chat/semaphore-frontend:latest
         restart: unless-stopped
         environment:
           BACKEND_URL: http://backend:3000
@@ -170,11 +170,11 @@ Copy the Compose file for your chosen setup:
         image: postgres:17-alpine
         restart: unless-stopped
         environment:
-          POSTGRES_USER: kraken
-          POSTGRES_PASSWORD: kraken
-          POSTGRES_DB: kraken
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: semaphore
+          POSTGRES_DB: semaphore
         healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U kraken"]
+          test: ["CMD-SHELL", "pg_isready -U semaphore"]
           interval: 5s
           timeout: 5s
           retries: 10
@@ -235,12 +235,12 @@ Copy the Compose file for your chosen setup:
     ```yaml title="docker-compose.yml"
     services:
       backend:
-        image: ghcr.io/krakenchat/kraken-backend:latest
+        image: ghcr.io/semaphore-chat/semaphore-backend:latest
         restart: unless-stopped
         ports:
           - "3000:3000"
         environment:
-          DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
+          DATABASE_URL: postgresql://semaphore:semaphore@postgres:5432/semaphore
           REDIS_HOST: redis
           JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
           JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -264,7 +264,7 @@ Copy the Compose file for your chosen setup:
             condition: service_started
 
       frontend:
-        image: ghcr.io/krakenchat/kraken-frontend:latest
+        image: ghcr.io/semaphore-chat/semaphore-frontend:latest
         restart: unless-stopped
         ports:
           - "5173:5173"
@@ -344,11 +344,11 @@ Copy the Compose file for your chosen setup:
         image: postgres:17-alpine
         restart: unless-stopped
         environment:
-          POSTGRES_USER: kraken
-          POSTGRES_PASSWORD: kraken
-          POSTGRES_DB: kraken
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: semaphore
+          POSTGRES_DB: semaphore
         healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U kraken"]
+          test: ["CMD-SHELL", "pg_isready -U semaphore"]
           interval: 5s
           timeout: 5s
           retries: 10
@@ -389,12 +389,12 @@ Copy the Compose file for your chosen setup:
     ```yaml title="docker-compose.yml"
     services:
       backend:
-        image: ghcr.io/krakenchat/kraken-backend:latest
+        image: ghcr.io/semaphore-chat/semaphore-backend:latest
         restart: unless-stopped
         ports:
           - "3000:3000"
         environment:
-          DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
+          DATABASE_URL: postgresql://semaphore:semaphore@postgres:5432/semaphore
           REDIS_HOST: redis
           JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
           JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -420,7 +420,7 @@ Copy the Compose file for your chosen setup:
         restart: "no"
 
       frontend:
-        image: ghcr.io/krakenchat/kraken-frontend:latest
+        image: ghcr.io/semaphore-chat/semaphore-frontend:latest
         restart: unless-stopped
         ports:
           - "5173:5173"
@@ -433,11 +433,11 @@ Copy the Compose file for your chosen setup:
         image: postgres:17-alpine
         restart: unless-stopped
         environment:
-          POSTGRES_USER: kraken
-          POSTGRES_PASSWORD: kraken
-          POSTGRES_DB: kraken
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: semaphore
+          POSTGRES_DB: semaphore
         healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U kraken"]
+          test: ["CMD-SHELL", "pg_isready -U semaphore"]
           interval: 5s
           timeout: 5s
           retries: 10
@@ -469,10 +469,10 @@ Create a `.env` file next to your `docker-compose.yml`:
 
 === "With Caddy"
 
-    Your domain needs two DNS records pointing to your server — `HOST` and `lk.HOST` (e.g. `kraken.example.com` and `lk.kraken.example.com`), or a wildcard `*.kraken.example.com`.
+    Your domain needs two DNS records pointing to your server — `HOST` and `lk.HOST` (e.g. `semaphore.example.com` and `lk.semaphore.example.com`), or a wildcard `*.semaphore.example.com`.
 
     ```env title=".env"
-    HOST=kraken.example.com
+    HOST=semaphore.example.com
     JWT_SECRET=replace-with-a-long-random-string
     JWT_REFRESH_SECRET=replace-with-a-different-long-random-string
     LIVEKIT_API_KEY=replace-with-a-key-name
@@ -481,10 +481,10 @@ Create a `.env` file next to your `docker-compose.yml`:
 
 === "Batteries included"
 
-    Your domain needs two DNS records pointing to your server — `HOST` and `lk.HOST` (e.g. `kraken.example.com` and `lk.kraken.example.com`), or a wildcard `*.kraken.example.com`.
+    Your domain needs two DNS records pointing to your server — `HOST` and `lk.HOST` (e.g. `semaphore.example.com` and `lk.semaphore.example.com`), or a wildcard `*.semaphore.example.com`.
 
     ```env title=".env"
-    HOST=kraken.example.com
+    HOST=semaphore.example.com
     JWT_SECRET=replace-with-a-long-random-string
     JWT_REFRESH_SECRET=replace-with-a-different-long-random-string
     LIVEKIT_API_KEY=replace-with-a-key-name
@@ -579,7 +579,7 @@ docker compose up -d
     | **PostgreSQL** | Database | internal only |
     | **Redis** | Cache and pub/sub | internal only |
 
-### 4. Open Kraken
+### 4. Open Semaphore Chat
 
 Visit your domain (or `http://localhost:5173` without Caddy) in your browser. You're ready to [create your first account](first-run.md).
 
@@ -614,7 +614,7 @@ If you chose the "Bring your own LiveKit" setup, follow these steps to enable vo
 5. **Restart**: `docker compose down && docker compose up -d`
 
 !!! note "Replay capture not yet supported with LiveKit Cloud"
-    The replay/clip capture feature requires LiveKit egress and Kraken to share a filesystem for HLS segment access. LiveKit Cloud writes egress output to cloud storage (S3/GCS/Azure Blob), which Kraken can't read from yet. Voice and video calls work normally — only replay capture is affected. See [#227](https://github.com/krakenchat/kraken/issues/227) for progress on cloud storage support.
+    The replay/clip capture feature requires LiveKit egress and Semaphore Chat to share a filesystem for HLS segment access. LiveKit Cloud writes egress output to cloud storage (S3/GCS/Azure Blob), which Semaphore Chat can't read from yet. Voice and video calls work normally — only replay capture is affected. See [#227](https://github.com/semaphore-chat/semaphore-chat/issues/227) for progress on cloud storage support.
 
 ### Self-hosted LiveKit
 
@@ -650,7 +650,7 @@ graph LR
 
 ### Reverse proxy and HTTPS
 
-If you chose the "With Caddy" setup, this is already handled. For the other setups, place a reverse proxy in front of Kraken to handle TLS termination:
+If you chose the "With Caddy" setup, this is already handled. For the other setups, place a reverse proxy in front of Semaphore Chat to handle TLS termination:
 
 - Proxy `your-domain.com` to the frontend (port 5173) — the frontend's nginx handles `/api` and `/socket.io` routing to the backend internally
 - Proxy `lk.your-domain.com` to LiveKit signaling (port 7880)
@@ -660,7 +660,7 @@ If you chose the "With Caddy" setup, this is already handled. For the other setu
 
 Docker Compose uses named volumes for PostgreSQL and Redis data. These persist across container restarts.
 
-- **Backup PostgreSQL** regularly: `docker compose exec postgres pg_dump -U kraken kraken > backup.sql`
+- **Backup PostgreSQL** regularly: `docker compose exec postgres pg_dump -U semaphore semaphore > backup.sql`
 - **Monitor disk usage** — PostgreSQL and uploads can grow over time
 
 ### Resource limits
@@ -683,9 +683,9 @@ services:
 
 ### Replay capture (LiveKit egress)
 
-The replay/clip capture feature requires LiveKit egress to write HLS segments to a location that the Kraken backend can also read from. Both services need access to the same storage path.
+The replay/clip capture feature requires LiveKit egress to write HLS segments to a location that the Semaphore Chat backend can also read from. Both services need access to the same storage path.
 
-Mount a shared volume into both the LiveKit egress container and the Kraken backend:
+Mount a shared volume into both the LiveKit egress container and the Semaphore Chat backend:
 
 ```yaml
 services:
@@ -703,7 +703,7 @@ volumes:
 ```
 
 !!! note "LiveKit Cloud"
-    LiveKit Cloud writes egress output to cloud storage (S3/GCS/Azure Blob), which Kraken can't read from yet. Replay capture is not available with LiveKit Cloud until cloud storage support is added. See [#227](https://github.com/krakenchat/kraken/issues/227) for progress.
+    LiveKit Cloud writes egress output to cloud storage (S3/GCS/Azure Blob), which Semaphore Chat can't read from yet. Replay capture is not available with LiveKit Cloud until cloud storage support is added. See [#227](https://github.com/semaphore-chat/semaphore-chat/issues/227) for progress.
 
 ### Dynamic IP support
 

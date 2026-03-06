@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from 'react';
-import { ClientEvents } from '@kraken/shared';
+import { ClientEvents } from '@semaphore-chat/shared';
 import { useSocket } from './useSocket';
 
 interface UseTypingEmitterOptions {

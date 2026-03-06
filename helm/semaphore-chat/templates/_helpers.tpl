@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "kraken.name" -}}
+{{- define "semaphore-chat.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "kraken.fullname" -}}
+{{- define "semaphore-chat.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "kraken.chart" -}}
+{{- define "semaphore-chat.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "kraken.labels" -}}
-helm.sh/chart: {{ include "kraken.chart" . }}
-{{ include "kraken.selectorLabels" . }}
+{{- define "semaphore-chat.labels" -}}
+helm.sh/chart: {{ include "semaphore-chat.chart" . }}
+{{ include "semaphore-chat.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,49 +43,49 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "kraken.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "kraken.name" . }}
+{{- define "semaphore-chat.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "semaphore-chat.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Backend labels
 */}}
-{{- define "kraken.backend.labels" -}}
-{{ include "kraken.labels" . }}
+{{- define "semaphore-chat.backend.labels" -}}
+{{ include "semaphore-chat.labels" . }}
 app.kubernetes.io/component: backend
 {{- end }}
 
 {{/*
 Backend selector labels
 */}}
-{{- define "kraken.backend.selectorLabels" -}}
-{{ include "kraken.selectorLabels" . }}
+{{- define "semaphore-chat.backend.selectorLabels" -}}
+{{ include "semaphore-chat.selectorLabels" . }}
 app.kubernetes.io/component: backend
 {{- end }}
 
 {{/*
 Frontend labels
 */}}
-{{- define "kraken.frontend.labels" -}}
-{{ include "kraken.labels" . }}
+{{- define "semaphore-chat.frontend.labels" -}}
+{{ include "semaphore-chat.labels" . }}
 app.kubernetes.io/component: frontend
 {{- end }}
 
 {{/*
 Frontend selector labels
 */}}
-{{- define "kraken.frontend.selectorLabels" -}}
-{{ include "kraken.selectorLabels" . }}
+{{- define "semaphore-chat.frontend.selectorLabels" -}}
+{{ include "semaphore-chat.selectorLabels" . }}
 app.kubernetes.io/component: frontend
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "kraken.serviceAccountName" -}}
+{{- define "semaphore-chat.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "kraken.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "semaphore-chat.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -94,9 +94,9 @@ Create the name of the service account to use
 {{/*
 PostgreSQL URI - either from bundled or external
 */}}
-{{- define "kraken.postgresql.uri" -}}
+{{- define "semaphore-chat.postgresql.uri" -}}
 {{- if .Values.postgresql.bundled -}}
-postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ include "kraken.fullname" . }}-postgresql:5432/{{ .Values.postgresql.auth.database }}
+postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ include "semaphore-chat.fullname" . }}-postgresql:5432/{{ .Values.postgresql.auth.database }}
 {{- else -}}
 {{ .Values.postgresql.external.uri }}
 {{- end -}}
@@ -105,9 +105,9 @@ postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.p
 {{/*
 Redis host - either from bundled or external
 */}}
-{{- define "kraken.redis.host" -}}
+{{- define "semaphore-chat.redis.host" -}}
 {{- if .Values.redis.bundled }}
-{{- printf "%s-redis-master" (include "kraken.fullname" .) }}
+{{- printf "%s-redis-master" (include "semaphore-chat.fullname" .) }}
 {{- else }}
 {{- .Values.redis.external.host }}
 {{- end }}
@@ -116,7 +116,7 @@ Redis host - either from bundled or external
 {{/*
 Redis port - either from bundled or external
 */}}
-{{- define "kraken.redis.port" -}}
+{{- define "semaphore-chat.redis.port" -}}
 {{- if .Values.redis.bundled }}
 {{- print "6379" }}
 {{- else }}
@@ -127,7 +127,7 @@ Redis port - either from bundled or external
 {{/*
 Redis password - either from bundled or external
 */}}
-{{- define "kraken.redis.password" -}}
+{{- define "semaphore-chat.redis.password" -}}
 {{- if .Values.redis.bundled }}
 {{- .Values.redis.auth.password }}
 {{- else }}
@@ -138,7 +138,7 @@ Redis password - either from bundled or external
 {{/*
 Image pull secrets
 */}}
-{{- define "kraken.imagePullSecrets" -}}
+{{- define "semaphore-chat.imagePullSecrets" -}}
 {{- if .Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{- range .Values.global.imagePullSecrets }}
@@ -150,7 +150,7 @@ imagePullSecrets:
 {{/*
 Backend image
 */}}
-{{- define "kraken.backend.image" -}}
+{{- define "semaphore-chat.backend.image" -}}
 {{- $registry := .Values.global.imageRegistry | default "" }}
 {{- $repository := .Values.backend.image.repository }}
 {{- $tag := .Values.backend.image.tag | default .Chart.AppVersion }}
@@ -164,7 +164,7 @@ Backend image
 {{/*
 Frontend image
 */}}
-{{- define "kraken.frontend.image" -}}
+{{- define "semaphore-chat.frontend.image" -}}
 {{- $registry := .Values.global.imageRegistry | default "" }}
 {{- $repository := .Values.frontend.image.repository }}
 {{- $tag := .Values.frontend.image.tag | default .Chart.AppVersion }}

@@ -20,7 +20,7 @@ import Hls from 'hls.js';
 import { getApiUrl } from '../../config/env';
 import { getAccessToken } from '../../utils/tokenService';
 import { useQuery } from '@tanstack/react-query';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { livekitControllerGetSessionInfoOptions } from '../../api-client/@tanstack/react-query.gen';
 import { useServerEvent } from '../../socket-hub/useServerEvent';
 import { logger } from '../../utils/logger';

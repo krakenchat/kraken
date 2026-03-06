@@ -4,7 +4,7 @@ import type {
   UpdateThreadReplyPayload,
   DeleteThreadReplyPayload,
   ServerEvents,
-} from '@kraken/shared';
+} from '@semaphore-chat/shared';
 import { threadsControllerGetRepliesQueryKey } from '../../api-client/@tanstack/react-query.gen';
 import type { ThreadRepliesResponseDto, EnrichedThreadReplyDto } from '../../api-client';
 import type { SocketEventHandler } from './types';

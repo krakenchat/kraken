@@ -1,4 +1,4 @@
-# Contributing to Kraken
+# Contributing to Semaphore Chat
 
 Thanks for your interest in contributing!
 
@@ -6,16 +6,16 @@ Thanks for your interest in contributing!
 
 Full development setup, testing, and code pattern guides are on the docs site:
 
-- [Development Setup](https://docs.krakenchat.app/contributing/development-setup/)
-- [Testing Guide](https://docs.krakenchat.app/contributing/testing/)
-- [Code Patterns](https://docs.krakenchat.app/contributing/code-patterns/)
+- [Development Setup](https://docs.semaphorechat.app/contributing/development-setup/)
+- [Testing Guide](https://docs.semaphorechat.app/contributing/testing/)
+- [Code Patterns](https://docs.semaphorechat.app/contributing/code-patterns/)
 
 ## Quick Reference
 
 ```bash
 # Clone and start
-git clone https://github.com/<your-username>/kraken.git
-cd kraken
+git clone https://github.com/<your-username>/semaphore-chat.git
+cd semaphore-chat
 cp backend/env.sample backend/.env
 docker-compose up
 ```
@@ -39,4 +39,4 @@ All development is done inside Docker containers — never run `pnpm`/`npm`/`nod
 
 ## Legal
 
-_By contributing to Kraken Chat, you agree that your contribution may be included in both open-source (AGPLv3) and commercial distributions of Kraken Chat._
+_By contributing to Semaphore Chat, you agree that your contribution may be included in both open-source (AGPLv3) and commercial distributions of Semaphore Chat._

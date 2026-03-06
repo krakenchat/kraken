@@ -35,12 +35,12 @@ describe('getInstanceUrl', () => {
 
   it('returns window.location.origin in web browser', () => {
     Object.defineProperty(window, 'location', {
-      value: { origin: 'https://kraken.example.com' },
+      value: { origin: 'https://semaphore.example.com' },
       writable: true,
       configurable: true,
     });
 
-    expect(getInstanceUrl()).toBe('https://kraken.example.com');
+    expect(getInstanceUrl()).toBe('https://semaphore.example.com');
   });
 
   it('returns active server URL in Electron', () => {
@@ -48,10 +48,10 @@ describe('getInstanceUrl', () => {
     vi.mocked(getActiveServer).mockReturnValue({
       id: 'server-1',
       name: 'My Server',
-      url: 'https://my-kraken-instance.com',
+      url: 'https://my-semaphore-instance.com',
     });
 
-    expect(getInstanceUrl()).toBe('https://my-kraken-instance.com');
+    expect(getInstanceUrl()).toBe('https://my-semaphore-instance.com');
   });
 
   it('returns empty string in Electron when no server is configured', () => {

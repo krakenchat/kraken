@@ -86,7 +86,7 @@ const Layout: React.FC = () => {
   const { mutateAsync: logout, isPending: logoutLoading } = useMutation(authControllerLogoutMutation());
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
   const { data: publicSettings } = useQuery(instanceControllerGetPublicSettingsOptions());
-  const instanceName = publicSettings?.name || "Kraken";
+  const instanceName = publicSettings?.name || "Semaphore Chat";
   const { isMobile, isTablet } = useResponsive();
 
   // Sync theme settings with server (server wins on initial load)

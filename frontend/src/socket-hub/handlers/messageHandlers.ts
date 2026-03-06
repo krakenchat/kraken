@@ -9,7 +9,7 @@ import type {
   MessageUnpinnedPayload,
   ThreadReplyCountUpdatedPayload,
   ReadReceiptUpdatedPayload,
-} from '@kraken/shared';
+} from '@semaphore-chat/shared';
 import type { Message } from '../../types/message.type';
 import type { UnreadCountDto, UserControllerGetProfileResponse } from '../../api-client';
 import type { MessageReader } from '../../types/read-receipt.type';
@@ -27,7 +27,7 @@ import {
   findMessageInInfinite,
 } from '../../utils/messageCacheUpdaters';
 import type { SocketEventHandler } from './types';
-import type { ServerEvents } from '@kraken/shared';
+import type { ServerEvents } from '@semaphore-chat/shared';
 
 export const handleNewMessage: SocketEventHandler<typeof ServerEvents.NEW_MESSAGE> = async (
   { message }: NewMessagePayload,

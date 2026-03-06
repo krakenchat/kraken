@@ -71,7 +71,7 @@ export const PWAInstallPrompt: React.FC = () => {
           <InstallIcon color="primary" />
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" fontWeight={600}>
-              Install Kraken
+              Install Semaphore Chat
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Add to your home screen for the best experience

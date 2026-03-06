@@ -10,7 +10,7 @@ import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { RoomName } from '@/common/utils/room-name.util';
 import { groupReactions } from '@/common/utils/reactions.utils';

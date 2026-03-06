@@ -1,6 +1,6 @@
 import { TestBed } from '@suites/unit';
 import { NotificationsGateway } from './notifications.gateway';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('NotificationsGateway', () => {
   let gateway: NotificationsGateway;

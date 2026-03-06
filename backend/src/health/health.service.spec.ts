@@ -38,7 +38,7 @@ describe('HealthService', () => {
       await service.onModuleInit();
 
       expect(mockRedis.get).toHaveBeenCalledWith('instance:name');
-      expect(service.getInstanceName()).toBe('Kraken Instance');
+      expect(service.getInstanceName()).toBe('Semaphore Chat Instance');
     });
 
     it('should use default name when Redis throws error', async () => {
@@ -46,7 +46,7 @@ describe('HealthService', () => {
 
       await service.onModuleInit();
 
-      expect(service.getInstanceName()).toBe('Kraken Instance');
+      expect(service.getInstanceName()).toBe('Semaphore Chat Instance');
     });
 
     it('should log when instance name is loaded successfully', async () => {
@@ -67,7 +67,7 @@ describe('HealthService', () => {
       await service.onModuleInit();
 
       expect(loggerSpy).toHaveBeenCalledWith(
-        'No instance name found in Redis, using default: Kraken Instance',
+        'No instance name found in Redis, using default: Semaphore Chat Instance',
       );
     });
 
@@ -89,7 +89,7 @@ describe('HealthService', () => {
     it('should return cached instance name', () => {
       const name = service.getInstanceName();
 
-      expect(name).toBe('Kraken Instance');
+      expect(name).toBe('Semaphore Chat Instance');
       expect(mockRedis.get).not.toHaveBeenCalled(); // Should not call Redis
     });
 
@@ -122,7 +122,7 @@ describe('HealthService', () => {
     it('should return default instance name', () => {
       const metadata = service.getHealthMetadata();
 
-      expect(metadata.instanceName).toBe('Kraken Instance');
+      expect(metadata.instanceName).toBe('Semaphore Chat Instance');
     });
 
     it('should return updated instance name after initialization', async () => {

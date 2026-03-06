@@ -8,11 +8,11 @@ services:
     ports:
       - "5433:5432"  # Different port to avoid conflicts
     environment:
-      POSTGRES_USER: kraken
-      POSTGRES_PASSWORD: kraken
-      POSTGRES_DB: kraken_e2e_test
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore_e2e_test
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kraken"]
+      test: ["CMD-SHELL", "pg_isready -U semaphore"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -44,7 +44,7 @@ services:
       - "3001:3000"  # Different port to avoid conflicts
     environment:
       - NODE_ENV=test
-      - DATABASE_URL=postgresql://kraken:kraken@postgres-test:5432/kraken_e2e_test
+      - DATABASE_URL=postgresql://semaphore:semaphore@postgres-test:5432/semaphore_e2e_test
       - REDIS_HOST=redis-test
       - REDIS_PORT=6379
       - JWT_SECRET=e2e-test-jwt-secret-change-in-production

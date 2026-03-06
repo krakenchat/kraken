@@ -125,7 +125,7 @@ describe('useSpeakingDetection', () => {
     mockAnalysisTrack.stop.mockClear();
     currentRoom = makeRoom();
     storedSettings = {
-      kraken_voice_settings: {
+      semaphore_voice_settings: {
         inputMode: 'voice_activity',
         voiceActivityThreshold: 25,
       },
@@ -268,7 +268,7 @@ describe('useSpeakingDetection', () => {
 
   it('keeps gate open when audio hovers between hysteresis thresholds', () => {
     storedSettings = {
-      kraken_voice_settings: {
+      semaphore_voice_settings: {
         inputMode: 'voice_activity',
         voiceActivityThreshold: 30,
       },
@@ -294,7 +294,7 @@ describe('useSpeakingDetection', () => {
 
   it('does NOT gate audio in push_to_talk mode', () => {
     storedSettings = {
-      kraken_voice_settings: {
+      semaphore_voice_settings: {
         inputMode: 'push_to_talk',
         voiceActivityThreshold: 25,
       },
@@ -326,7 +326,7 @@ describe('useSpeakingDetection', () => {
 
     // Switch to PTT — next tick should re-enable (once settings cache refreshes)
     storedSettings = {
-      kraken_voice_settings: {
+      semaphore_voice_settings: {
         inputMode: 'push_to_talk',
         voiceActivityThreshold: 25,
       },

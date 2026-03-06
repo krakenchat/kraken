@@ -3,7 +3,7 @@ import { MessagesGateway } from './messages.gateway';
 import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
 import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';

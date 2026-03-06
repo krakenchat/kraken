@@ -26,7 +26,7 @@ import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { MessagesService } from '@/messages/messages.service';
 import { CreateMessageDto } from '@/messages/dto/create-message.dto';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { RoomName } from '@/common/utils/room-name.util';
 import { getErrorMessage } from '@/common/utils/error.utils';
 import { ThumbnailService } from '@/file/thumbnail.service';

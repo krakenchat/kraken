@@ -1,17 +1,17 @@
 # Default owners for everything in the repo
-* @krakenchat/maintainers
+* @semaphore-chat/maintainers
 
 # Backend
-/backend/ @krakenchat/maintainers
+/backend/ @semaphore-chat/maintainers
 
 # Frontend and Electron
-/frontend/ @krakenchat/maintainers
+/frontend/ @semaphore-chat/maintainers
 
 # Infrastructure
-/helm/ @krakenchat/maintainers
-/.github/ @krakenchat/maintainers
-/docker-compose*.yml @krakenchat/maintainers
+/helm/ @semaphore-chat/maintainers
+/.github/ @semaphore-chat/maintainers
+/docker-compose*.yml @semaphore-chat/maintainers
 
 # Documentation
-/docs/ @krakenchat/maintainers
-*.md @krakenchat/maintainers
+/docs/ @semaphore-chat/maintainers
+*.md @semaphore-chat/maintainers

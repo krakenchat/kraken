@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ServerEvents, ClientEvents } from '@kraken/shared';
-import type { ServerEventPayloads } from '@kraken/shared';
+import { ServerEvents, ClientEvents } from '@semaphore-chat/shared';
+import type { ServerEventPayloads } from '@semaphore-chat/shared';
 import { useSocket } from '../hooks/useSocket';
 import { handlerRegistry } from './handlers';
 import { handleReconnect } from './handlers/reconnectHandlers';

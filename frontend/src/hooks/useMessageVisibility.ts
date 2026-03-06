@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useContext } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SocketContext } from "../utils/SocketContext";
-import { ClientEvents } from '@kraken/shared';
+import { ClientEvents } from '@semaphore-chat/shared';
 import { MarkAsReadPayload } from "../types/read-receipt.type";
 import { readReceiptsControllerGetUnreadCountsQueryKey } from "../api-client/@tanstack/react-query.gen";
 import type { UnreadCountDto } from "../api-client";

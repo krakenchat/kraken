@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ServerEvents, NewNotificationPayload, NotificationReadPayload } from '@kraken/shared';
+import type { ServerEvents, NewNotificationPayload, NotificationReadPayload } from '@semaphore-chat/shared';
 import {
   notificationsControllerGetNotificationsQueryKey,
   notificationsControllerGetUnreadCountQueryKey,

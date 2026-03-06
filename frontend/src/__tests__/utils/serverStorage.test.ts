@@ -32,12 +32,12 @@ describe('serverStorage', () => {
     });
 
     it('returns parsed servers from localStorage', () => {
-      localStorage.setItem('kraken:servers', JSON.stringify([{ id: '1', name: 'Test' }]));
+      localStorage.setItem('semaphore:servers', JSON.stringify([{ id: '1', name: 'Test' }]));
       expect(getServers()).toEqual([{ id: '1', name: 'Test' }]);
     });
 
     it('returns an empty array when localStorage contains corrupted JSON', () => {
-      localStorage.setItem('kraken:servers', '{broken');
+      localStorage.setItem('semaphore:servers', '{broken');
       expect(getServers()).toEqual([]);
     });
   });
@@ -75,7 +75,7 @@ describe('serverStorage', () => {
     it('marks the first server as active by default', () => {
       const server = addServer('First', 'https://a.com');
       expect(server.isActive).toBe(true);
-      expect(localStorage.getItem('kraken:activeServerId')).toBe(server.id);
+      expect(localStorage.getItem('semaphore:activeServerId')).toBe(server.id);
     });
 
     it('does not mark subsequent servers as active', () => {
@@ -108,7 +108,7 @@ describe('serverStorage', () => {
     it('falls back to first server when activeServerId points to nothing', () => {
       addServer('A', 'https://a.com');
       addServer('B', 'https://b.com');
-      localStorage.setItem('kraken:activeServerId', 'nonexistent');
+      localStorage.setItem('semaphore:activeServerId', 'nonexistent');
       // Falls back to the first server marked isActive=true, or the first server
       const active = getActiveServer();
       expect(active).not.toBeNull();
@@ -117,13 +117,13 @@ describe('serverStorage', () => {
     it('falls back to the first server when no server has isActive=true', () => {
       // Manually write servers without isActive flag
       localStorage.setItem(
-        'kraken:servers',
+        'semaphore:servers',
         JSON.stringify([
           { id: 's1', name: 'A', url: 'https://a.com', isActive: false },
           { id: 's2', name: 'B', url: 'https://b.com', isActive: false },
         ]),
       );
-      localStorage.removeItem('kraken:activeServerId');
+      localStorage.removeItem('semaphore:activeServerId');
 
       const active = getActiveServer();
       expect(active!.id).toBe('s1');
@@ -153,7 +153,7 @@ describe('serverStorage', () => {
       const s = addServer('A', 'https://a.com');
       addServer('B', 'https://b.com');
       setActiveServer(s.id);
-      expect(localStorage.getItem('kraken:activeServerId')).toBe(s.id);
+      expect(localStorage.getItem('semaphore:activeServerId')).toBe(s.id);
     });
 
     it('throws when the server ID does not exist', () => {
@@ -188,7 +188,7 @@ describe('serverStorage', () => {
     it('clears activeServerId when removing the last server', () => {
       const s = addServer('A', 'https://a.com');
       removeServer(s.id);
-      expect(localStorage.getItem('kraken:activeServerId')).toBeNull();
+      expect(localStorage.getItem('semaphore:activeServerId')).toBeNull();
     });
 
     it('throws when the server ID does not exist', () => {
@@ -204,8 +204,8 @@ describe('serverStorage', () => {
     it('removes both localStorage keys', () => {
       addServer('A', 'https://a.com');
       clearAllServers();
-      expect(localStorage.getItem('kraken:servers')).toBeNull();
-      expect(localStorage.getItem('kraken:activeServerId')).toBeNull();
+      expect(localStorage.getItem('semaphore:servers')).toBeNull();
+      expect(localStorage.getItem('semaphore:activeServerId')).toBeNull();
       expect(getServers()).toEqual([]);
     });
   });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
-import { ClientEvents } from '@kraken/shared';
+import { ClientEvents } from '@semaphore-chat/shared';
 import { useTypingEmitter } from '../../hooks/useTypingEmitter';
 import { createTestWrapper } from '../test-utils/wrappers';
 import { createMockSocket } from '../test-utils/mockSocket';

@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef } from 'react';
-import type { ServerEventPayloads } from '@kraken/shared';
+import type { ServerEventPayloads } from '@semaphore-chat/shared';
 import { SocketHubContext } from './SocketHubContext';
 
 /**

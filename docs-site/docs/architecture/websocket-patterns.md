@@ -1,6 +1,6 @@
 # WebSocket Event Patterns
 
-Kraken uses three distinct patterns for handling WebSocket events on the frontend. This guide defines when to use each and why.
+Semaphore Chat uses three distinct patterns for handling WebSocket events on the frontend. This guide defines when to use each and why.
 
 **This is not a style preference -- each pattern exists for specific technical reasons.**
 
@@ -176,7 +176,7 @@ this.websocketService.sendToRoom(channelId, ServerEvents.NEW_MESSAGE, { message 
 ## Adding a New WebSocket Event
 
 1. **Decide the pattern** using the decision framework above
-2. **Shared types**: Add `ServerEvents` enum value + payload interface in `@kraken/shared`
+2. **Shared types**: Add `ServerEvents` enum value + payload interface in `@semaphore-chat/shared`
 3. **Backend**: Emit from service (EventEmitter2) or gateway (direct)
 4. **Frontend handler**: Create handler function in `socket-hub/handlers/`
 5. **Register**: Add to `handlerRegistry` in `handlers/index.ts` (skip for ephemeral events)

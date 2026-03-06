@@ -413,7 +413,7 @@ describe('voiceActions', () => {
   describe('audio capture options', () => {
     it('reads custom audio processing settings from localStorage', async () => {
       vi.mocked(getCachedItem).mockImplementation((key: string) => {
-        if (key === 'kraken_voice_settings') {
+        if (key === 'semaphore_voice_settings') {
           return {
             inputMode: 'voice_activity',
             echoCancellation: false,
@@ -478,7 +478,7 @@ describe('voiceActions', () => {
 
     it('passes audio options when joining a voice channel in voice activity mode', async () => {
       vi.mocked(getCachedItem).mockImplementation((key: string) => {
-        if (key === 'kraken_voice_settings') {
+        if (key === 'semaphore_voice_settings') {
           return { inputMode: 'voice_activity', echoCancellation: false, voiceIsolation: true };
         }
         return null;

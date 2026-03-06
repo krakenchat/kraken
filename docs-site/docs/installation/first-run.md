@@ -1,6 +1,6 @@
 # First Run
 
-After [installing](docker-compose.md) Kraken, follow these steps to set up your instance.
+After [installing](docker-compose.md) Semaphore Chat, follow these steps to set up your instance.
 
 ## 1. Register your account
 
@@ -44,4 +44,4 @@ If you haven't configured LiveKit yet, voice channels will be visible but non-fu
 ## Next steps
 
 - [Configuration](configuration.md) — Tune environment variables
-- [Contributing](../contributing/index.md) — Help improve Kraken
+- [Contributing](../contributing/index.md) — Help improve Semaphore Chat

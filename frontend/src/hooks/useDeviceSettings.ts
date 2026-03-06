@@ -23,7 +23,7 @@ interface DevicePreferences {
 }
 
 const DEFAULT_DEVICE_ID = 'default';
-const DEVICE_PREFERENCES_KEY = 'kraken_device_preferences';
+const DEVICE_PREFERENCES_KEY = 'semaphore_device_preferences';
 
 export const useDeviceSettings = () => {
   const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);

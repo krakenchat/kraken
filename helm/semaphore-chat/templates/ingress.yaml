@@ -2,9 +2,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "kraken.fullname" . }}
+  name: {{ include "semaphore-chat.fullname" . }}
   labels:
-    {{- include "kraken.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.labels" . | nindent 4 }}
   annotations:
     {{- if and (eq .Values.ingress.tls.mode "cert-manager") .Values.ingress.tls.certManager.enabled }}
     cert-manager.io/{{ .Values.ingress.tls.certManager.issuerKind | lower }}: {{ .Values.ingress.tls.certManager.issuer }}
@@ -22,7 +22,7 @@ spec:
     - hosts:
         - {{ .host | quote }}
       {{- if eq $.Values.ingress.tls.mode "cert-manager" }}
-      secretName: {{ include "kraken.fullname" $ }}-tls-{{ .host | replace "." "-" }}
+      secretName: {{ include "semaphore-chat.fullname" $ }}-tls-{{ .host | replace "." "-" }}
       {{- else if eq $.Values.ingress.tls.mode "manual" }}
       secretName: {{ $.Values.ingress.tls.secretName }}
       {{- end }}
@@ -44,7 +44,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "kraken.fullname" $ }}-{{ .service }}
+                name: {{ include "semaphore-chat.fullname" $ }}-{{ .service }}
                 port:
                   {{- if eq .service "frontend" }}
                   number: {{ $.Values.frontend.service.port }}

@@ -6,7 +6,7 @@ import { WebsocketService } from '@/websocket/websocket.service';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { DatabaseService } from '@/database/database.service';
 import { WsException } from '@nestjs/websockets';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('ThreadsGateway', () => {
   let gateway: ThreadsGateway;

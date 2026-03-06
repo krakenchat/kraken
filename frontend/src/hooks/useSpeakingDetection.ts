@@ -3,7 +3,7 @@ import { useRoom } from "./useRoom";
 import { Participant, Track } from "livekit-client";
 import { getCachedItem } from "../utils/storage";
 
-const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
+const VOICE_SETTINGS_KEY = 'semaphore_voice_settings';
 const HOLD_OPEN_MS = 300;
 const MIN_CLOSE_MS = 100;
 const HYSTERESIS_OFFSET = 5;

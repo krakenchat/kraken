@@ -1,7 +1,7 @@
 /**
  * Electron Main Process
  *
- * This is the main process for the Kraken Electron application.
+ * This is the main process for the Semaphore Chat Electron application.
  * It handles window creation, auto-updates, and IPC communication.
  */
 
@@ -174,7 +174,7 @@ function rebuildMenus(): void {
 function buildTrayContextMenu(): Electron.Menu {
   return Menu.buildFromTemplate([
     {
-      label: 'Show/Hide Kraken',
+      label: 'Show/Hide Semaphore Chat',
       click: () => {
         if (!mainWindow) return;
         if (mainWindow.isVisible()) {
@@ -227,7 +227,7 @@ function setupTray(): void {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip('Kraken');
+  tray.setToolTip('Semaphore Chat');
   tray.setContextMenu(buildTrayContextMenu());
 
   // On Linux/Windows, clicking the tray icon toggles window visibility
@@ -332,12 +332,12 @@ function setupApplicationMenu(): void {
       label: 'Help',
       submenu: [
         {
-          label: 'About Kraken',
+          label: 'About Semaphore Chat',
           click: () => {
             dialog.showMessageBox({
               type: 'info',
-              title: 'About Kraken',
-              message: `Kraken v${app.getVersion()}`,
+              title: 'About Semaphore Chat',
+              message: `Semaphore Chat v${app.getVersion()}`,
               detail: 'Self-hosted voice and text chat.',
             });
           },

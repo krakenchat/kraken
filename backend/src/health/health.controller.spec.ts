@@ -42,7 +42,7 @@ describe('HealthController', () => {
     it('should call service method without arguments', () => {
       healthService.getHealthMetadata.mockReturnValue({
         status: 'ok',
-        instanceName: 'Kraken Instance',
+        instanceName: 'Semaphore Chat Instance',
         version: '0.0.1',
         timestamp: new Date().toISOString(),
       });
@@ -59,13 +59,13 @@ describe('HealthController', () => {
       healthService.getHealthMetadata
         .mockReturnValueOnce({
           status: 'ok',
-          instanceName: 'Kraken Instance',
+          instanceName: 'Semaphore Chat Instance',
           version: '0.0.1',
           timestamp: timestamp1,
         })
         .mockReturnValueOnce({
           status: 'ok',
-          instanceName: 'Kraken Instance',
+          instanceName: 'Semaphore Chat Instance',
           version: '0.0.1',
           timestamp: timestamp2,
         });

@@ -49,7 +49,7 @@ export const accentColors: AccentColorInfo[] = [
   { id: 'slate', name: 'Slate Gray', primary: '#64748b' },
 ];
 
-export const STORAGE_KEY = 'kraken-theme';
+export const STORAGE_KEY = 'semaphore-theme';
 
 export const defaultSettings: ThemeSettings = {
   mode: 'dark',

@@ -30,11 +30,11 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   return (
     <Box sx={{ textAlign: 'center' }}>
       <Typography variant="h4" gutterBottom>
-        🎉 Welcome to Your New Kraken Instance!
+        🎉 Welcome to Your New Semaphore Chat Instance!
       </Typography>
       
       <Typography variant="body1" sx={{ mb: 4, maxWidth: '600px', mx: 'auto' }}>
-        Kraken is a powerful, self-hosted communication platform that gives you complete 
+        Semaphore Chat is a powerful, self-hosted communication platform that gives you complete 
         control over your team's chat experience. Let's get you set up in just a few minutes.
       </Typography>
 

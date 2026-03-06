@@ -1,4 +1,4 @@
-# Production Dockerfile for Kraken Backend
+# Production Dockerfile for Semaphore Chat Backend
 # Multi-stage build for optimized image size and security
 
 # ============================================
@@ -54,7 +54,7 @@ RUN cp -rL /app/node_modules/.bin/prisma /tmp/prisma-cli && \
 FROM node:24-alpine AS production
 
 # Build arguments for OCI labels and timestamp
-ARG GITHUB_REPOSITORY=user/kraken
+ARG GITHUB_REPOSITORY=user/semaphore-chat
 ARG BUILD_DATE
 
 # Install OpenSSL for Prisma and FFmpeg for video processing (replay clips)
@@ -93,7 +93,7 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
 
 # Add OCI labels for GHCR integration (including creation timestamp)
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
-LABEL org.opencontainers.image.description="Kraken Backend - Self-hosted voice and text chat"
+LABEL org.opencontainers.image.description="Semaphore Chat Backend - Self-hosted voice and text chat"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
 

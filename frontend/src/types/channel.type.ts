@@ -1,1 +1,1 @@
-export { ChannelType, type Channel } from '@kraken/shared';
+export { ChannelType, type Channel } from '@semaphore-chat/shared';

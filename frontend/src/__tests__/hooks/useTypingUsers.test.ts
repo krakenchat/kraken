@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { useTypingUsers } from '../../hooks/useTypingUsers';
 import { createTestHubWrapper } from '../test-utils/wrappers';
 import { createEventBus } from '../../socket-hub/emitter';

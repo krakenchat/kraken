@@ -1,6 +1,6 @@
 # Kubernetes Quick Start Guide
 
-Get Kraken running in Kubernetes in under 10 minutes!
+Get Semaphore Chat running in Kubernetes in under 10 minutes!
 
 ## Prerequisites
 
@@ -23,18 +23,18 @@ helm upgrade --install ingress-nginx ingress-nginx \
 Before deploying, update these placeholders in the Helm command below:
 
 - `YOUR-GITHUB-USERNAME` - Your GitHub username
-- `kraken.yourdomain.com` - Your domain name
+- `semaphore.yourdomain.com` - Your domain name
 - `wss://livekit.example.com` - Your LiveKit server URL
 - `LIVEKIT_KEY` - Your LiveKit API key
 - `LIVEKIT_SECRET` - Your LiveKit API secret
 
-## Step 3: Install Kraken
+## Step 3: Install Semaphore Chat
 
 ```bash
-helm install kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
+helm install semaphore-chat oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/semaphore-chat \
   --create-namespace \
-  --namespace kraken \
-  --set ingress.hosts[0].host=kraken.yourdomain.com \
+  --namespace semaphore-chat \
+  --set ingress.hosts[0].host=semaphore-chat.yourdomain.com \
   --set livekit.url=wss://livekit.example.com \
   --set livekit.apiKey=LIVEKIT_KEY \
   --set livekit.apiSecret=LIVEKIT_SECRET \
@@ -48,7 +48,7 @@ helm install kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
 
 ```bash
 # Watch pods starting up
-kubectl get pods -n kraken --watch
+kubectl get pods -n semaphore-chat --watch
 
 # Should see all pods Running within 2-3 minutes
 ```
@@ -59,16 +59,16 @@ kubectl get pods -n kraken --watch
 
 1. Point your domain's DNS to the ingress load balancer:
    ```bash
-   kubectl get ingress -n kraken
+   kubectl get ingress -n semaphore-chat
    ```
 
-2. Visit `https://kraken.yourdomain.com` (or `http://` if TLS not configured)
+2. Visit `https://semaphore-chat.yourdomain.com` (or `http://` if TLS not configured)
 
 ### Option B: Via Port Forward (for testing)
 
 ```bash
 # Forward frontend port
-kubectl port-forward -n kraken svc/kraken-frontend 8080:5173
+kubectl port-forward -n semaphore-chat svc/semaphore-chat-frontend 8080:5173
 
 # Visit http://localhost:8080
 ```
@@ -77,13 +77,13 @@ kubectl port-forward -n kraken svc/kraken-frontend 8080:5173
 
 ```bash
 # Check all pods are running
-kubectl get pods -n kraken
+kubectl get pods -n semaphore-chat
 
 # Check backend logs
-kubectl logs -n kraken -l app.kubernetes.io/component=backend
+kubectl logs -n semaphore-chat -l app.kubernetes.io/component=backend
 
 # Check frontend logs
-kubectl logs -n kraken -l app.kubernetes.io/component=frontend
+kubectl logs -n semaphore-chat -l app.kubernetes.io/component=frontend
 ```
 
 ## Next Steps
@@ -112,9 +112,9 @@ spec:
           class: nginx
 EOF
 
-# 3. Upgrade Kraken to use cert-manager
-helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
-  --namespace kraken \
+# 3. Upgrade Semaphore Chat to use cert-manager
+helm upgrade semaphore-chat oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/semaphore-chat \
+  --namespace semaphore-chat \
   --reuse-values \
   --set ingress.tls.mode=cert-manager \
   --set ingress.tls.certManager.enabled=true
@@ -127,8 +127,8 @@ helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
 # Enable autoscaling
-helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
-  --namespace kraken \
+helm upgrade semaphore-chat oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/semaphore-chat \
+  --namespace semaphore-chat \
   --reuse-values \
   --set backend.autoscaling.enabled=true \
   --set frontend.autoscaling.enabled=true
@@ -137,11 +137,11 @@ helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
 ### Use External PostgreSQL/Redis
 
 ```bash
-helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
-  --namespace kraken \
+helm upgrade semaphore-chat oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/semaphore-chat \
+  --namespace semaphore-chat \
   --reuse-values \
   --set postgresql.bundled=false \
-  --set postgresql.external.uri="postgresql://user:pass@your-postgres-host:5432/kraken" \
+  --set postgresql.external.uri="postgresql://user:pass@your-postgres-host:5432/semaphore" \
   --set redis.bundled=false \
   --set redis.external.host=your-redis-host
 ```
@@ -152,18 +152,18 @@ helm upgrade kraken oci://ghcr.io/YOUR-GITHUB-USERNAME/charts/kraken \
 
 ```bash
 # Describe pod to see errors
-kubectl describe pod -n kraken <pod-name>
+kubectl describe pod -n semaphore-chat <pod-name>
 
 # Check events
-kubectl get events -n kraken --sort-by='.lastTimestamp'
+kubectl get events -n semaphore-chat --sort-by='.lastTimestamp'
 ```
 
 ### Can't Access via Ingress
 
 ```bash
 # Check ingress
-kubectl get ingress -n kraken
-kubectl describe ingress -n kraken
+kubectl get ingress -n semaphore-chat
+kubectl describe ingress -n semaphore-chat
 
 # Check NGINX logs
 kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
@@ -173,35 +173,35 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 
 ```bash
 # Check PostgreSQL is running
-kubectl get pods -n kraken -l app.kubernetes.io/name=postgresql
+kubectl get pods -n semaphore-chat -l app.kubernetes.io/name=postgresql
 
 # View PostgreSQL logs
-kubectl logs -n kraken kraken-postgresql-0
+kubectl logs -n semaphore-chat semaphore-chat-postgresql-0
 ```
 
 ## Uninstall
 
 ```bash
-# Remove Kraken
-helm uninstall kraken -n kraken
+# Remove Semaphore Chat
+helm uninstall semaphore-chat -n semaphore-chat
 
 # Optional: Delete all data (PVCs)
-kubectl delete pvc -n kraken --all
+kubectl delete pvc -n semaphore-chat --all
 
 # Optional: Delete namespace
-kubectl delete namespace kraken
+kubectl delete namespace semaphore-chat
 ```
 
 ## Full Documentation
 
-- **Helm Chart README**: [helm/kraken/README.md](./helm/kraken/README.md)
-- **Kubernetes Guide**: [docs.krakenchat.app/deployment/kubernetes](https://docs.krakenchat.app/deployment/kubernetes/)
+- **Helm Chart README**: [helm/semaphore-chat/README.md](./helm/semaphore-chat/README.md)
+- **Kubernetes Guide**: [docs.semaphorechat.app/deployment/kubernetes](https://docs.semaphorechat.app/deployment/kubernetes/)
 - **Deployment Summary**: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## Getting Help
 
-- **Issues**: https://github.com/krakenchat/kraken/issues
-- **Discussions**: https://github.com/krakenchat/kraken/discussions
+- **Issues**: https://github.com/semaphore-chat/semaphore-chat/issues
+- **Discussions**: https://github.com/semaphore-chat/semaphore-chat/discussions
 
 ---
 

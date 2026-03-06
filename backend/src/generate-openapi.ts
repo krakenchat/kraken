@@ -9,8 +9,8 @@ async function generate() {
   app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
-    .setTitle('Kraken API')
-    .setDescription('Kraken Chat Application API')
+    .setTitle('Semaphore Chat API')
+    .setDescription('Semaphore Chat Application API')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

@@ -1,8 +1,8 @@
 # Electron Builder Configuration
 # https://www.electron.build/configuration/configuration
 
-appId: com.kraken.app
-productName: Kraken
+appId: com.semaphorechat.app
+productName: Semaphore Chat
 copyright: Copyright © 2025
 
 # Directories
@@ -24,8 +24,8 @@ extraResources:
 # Auto-update configuration
 publish:
   provider: github
-  owner: krakenchat
-  repo: kraken
+  owner: semaphorechat
+  repo: semaphore-chat
 
 # Windows configuration
 win:
@@ -40,7 +40,7 @@ win:
 
 # NSIS installer configuration (Windows)
 nsis:
-  artifactName: ${productName}-Setup-${version}.${ext}
+  artifactName: Semaphore-Chat-Setup-${version}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
@@ -90,7 +90,7 @@ linux:
         - x64
   category: Network
   desktop:
-    Name: Kraken
+    Name: Semaphore Chat
     GenericName: Voice Chat Application
     Comment: Self-hosted voice and text chat application
     Categories: Network;InstantMessaging;AudioVideo;

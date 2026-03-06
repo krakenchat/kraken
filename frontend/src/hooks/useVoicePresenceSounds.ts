@@ -6,7 +6,7 @@
  * connection sounds are handled in voiceActions.ts).
  */
 
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { useServerEvent } from '../socket-hub/useServerEvent';
 import { useVoice } from '../contexts/VoiceContext';
 import { useCurrentUser } from './useCurrentUser';

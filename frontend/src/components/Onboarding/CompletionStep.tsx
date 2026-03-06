@@ -98,7 +98,7 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
           🎉 Setup Complete!
         </Typography>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          Your Kraken instance is ready to use. Logging you in automatically...
+          Your Semaphore Chat instance is ready to use. Logging you in automatically...
         </Typography>
         <CircularProgress size={24} />
       </Box>

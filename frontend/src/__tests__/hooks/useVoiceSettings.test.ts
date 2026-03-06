@@ -48,7 +48,7 @@ describe('useVoiceSettings', () => {
   describe('backward compatibility', () => {
     it('merges defaults for missing audio processing fields from old saved settings', () => {
       // Simulate old saved settings that lack audio processing fields
-      mockStorage['kraken_voice_settings'] = {
+      mockStorage['semaphore_voice_settings'] = {
         inputMode: 'push_to_talk',
         pushToTalkKey: 'KeyV',
         pushToTalkKeyDisplay: 'V',
@@ -118,7 +118,7 @@ describe('useVoiceSettings', () => {
       });
 
       expect(setCachedItem).toHaveBeenCalledWith(
-        'kraken_voice_settings',
+        'semaphore_voice_settings',
         expect.objectContaining({ voiceIsolation: true }),
       );
     });
@@ -141,7 +141,7 @@ describe('useVoiceSettings', () => {
 
   describe('loads persisted audio processing settings', () => {
     it('restores saved audio processing values', () => {
-      mockStorage['kraken_voice_settings'] = {
+      mockStorage['semaphore_voice_settings'] = {
         inputMode: 'voice_activity',
         pushToTalkKey: 'Backquote',
         pushToTalkKeyDisplay: '`',

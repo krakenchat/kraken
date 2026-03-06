@@ -54,7 +54,7 @@ jobs:
           docker compose -f docker-compose.e2e.yml up -d postgres-test redis-test
           echo "Waiting for PostgreSQL..."
           for i in {1..30}; do
-            if docker compose -f docker-compose.e2e.yml exec -T postgres-test pg_isready -U kraken > /dev/null 2>&1; then
+            if docker compose -f docker-compose.e2e.yml exec -T postgres-test pg_isready -U semaphore > /dev/null 2>&1; then
               echo "PostgreSQL is ready!"
               break
             fi

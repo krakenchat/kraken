@@ -1,4 +1,4 @@
-# Default values for kraken
+# Default values for semaphore-chat
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -19,7 +19,7 @@ backend:
   replicaCount: 2
 
   image:
-    repository: ghcr.io/user/kraken-backend
+    repository: ghcr.io/user/semaphore-backend
     pullPolicy: Always
     tag: "latest"
 
@@ -108,7 +108,7 @@ frontend:
   replicaCount: 2
 
   image:
-    repository: ghcr.io/user/kraken-frontend
+    repository: ghcr.io/user/semaphore-frontend
     pullPolicy: IfNotPresent
     tag: "latest"
 
@@ -154,7 +154,7 @@ frontend:
   # Environment variables for nginx
   env:
     # Backend URL (internal service URL)
-    backendUrl: "http://kraken-backend:3000"
+    backendUrl: "http://semaphore-backend:3000"
 
   # Extra environment variables for the frontend container
   # These are injected at runtime (useful for telemetry, feature flags, etc.)
@@ -209,17 +209,17 @@ ingress:
     # File upload size
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     # WebSocket upgrade headers for Socket.IO and LiveKit
-    nginx.ingress.kubernetes.io/websocket-services: "kraken-backend"
+    nginx.ingress.kubernetes.io/websocket-services: "semaphore-backend"
     # Cookie-based sticky sessions (required for multi-replica Socket.IO)
     nginx.ingress.kubernetes.io/affinity: "cookie"
-    nginx.ingress.kubernetes.io/session-cookie-name: "kraken-affinity"
+    nginx.ingress.kubernetes.io/session-cookie-name: "semaphore-affinity"
     nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
     nginx.ingress.kubernetes.io/affinity-mode: "persistent"
     # Additional annotations for your use case
     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 
   hosts:
-    - host: kraken.local
+    - host: semaphore.local
       paths:
         - path: /
           pathType: Prefix
@@ -253,9 +253,9 @@ postgresql:
   bundled: true
 
   auth:
-    username: kraken
+    username: semaphore
     password: ""  # Set via --set or secrets
-    database: kraken
+    database: semaphore
 
   primary:
     persistence:
@@ -272,7 +272,7 @@ postgresql:
 
   # External PostgreSQL (when bundled is false)
   external:
-    uri: ""  # e.g., postgresql://user:pass@host:5432/kraken
+    uri: ""  # e.g., postgresql://user:pass@host:5432/semaphore
 
 # ============================================
 # Redis Configuration
@@ -391,7 +391,7 @@ fileStorage:
     # NFS server IP or hostname (override with your NFS server)
     server: "nfs-server.example.com"
     # NFS export path (override with your NFS export path)
-    path: "/exports/kraken-uploads"
+    path: "/exports/semaphore-uploads"
 
   # Mount options for NFS volumes (optional)
   # If not specified, default NFSv4.1 resilient options are used
@@ -423,4 +423,4 @@ replayStorage:
     # NFS server IP or hostname
     server: "nfs-server.example.com"
     # NFS export path for replay segments
-    path: "/exports/kraken-replay-segments"
+    path: "/exports/semaphore-replay-segments"

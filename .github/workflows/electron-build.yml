@@ -129,14 +129,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: frontend/release/Kraken-Setup-*.exe
+          path: frontend/release/Semaphore-Chat-Setup-*.exe
           retention-days: 7
 
       - name: Upload Windows blockmap
         uses: actions/upload-artifact@v4
         with:
           name: windows-blockmap
-          path: frontend/release/Kraken-Setup-*.exe.blockmap
+          path: frontend/release/Semaphore-Chat-Setup-*.exe.blockmap
           retention-days: 7
 
       - name: Upload Windows update manifest
@@ -204,21 +204,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
-          path: frontend/release/Kraken-*.AppImage
+          path: frontend/release/Semaphore-Chat-*.AppImage
           retention-days: 7
 
       - name: Upload Linux Debian package
         uses: actions/upload-artifact@v4
         with:
           name: linux-deb
-          path: frontend/release/kraken_*_amd64.deb
+          path: frontend/release/semaphore-chat_*_amd64.deb
           retention-days: 7
 
       - name: Upload Linux RPM package
         uses: actions/upload-artifact@v4
         with:
           name: linux-rpm
-          path: frontend/release/kraken-*.x86_64.rpm
+          path: frontend/release/semaphore-chat-*.x86_64.rpm
           retention-days: 7
 
       - name: Upload Linux update manifest

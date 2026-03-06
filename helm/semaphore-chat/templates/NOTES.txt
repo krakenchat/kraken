@@ -31,11 +31,11 @@ Application URL(s):
 To access your application, you can port-forward:
 
   Frontend:
-  $ kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "kraken.fullname" . }}-frontend {{ .Values.frontend.service.port }}:{{ .Values.frontend.service.port }}
+  $ kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "semaphore-chat.fullname" . }}-frontend {{ .Values.frontend.service.port }}:{{ .Values.frontend.service.port }}
   Then visit: http://localhost:{{ .Values.frontend.service.port }}
 
   Backend API:
-  $ kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "kraken.fullname" . }}-backend {{ .Values.backend.service.port }}:{{ .Values.backend.service.port }}
+  $ kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "semaphore-chat.fullname" . }}-backend {{ .Values.backend.service.port }}:{{ .Values.backend.service.port }}
   Then visit: http://localhost:{{ .Values.backend.service.port }}/api/health
 
 {{- end }}
@@ -56,7 +56,7 @@ Database:
 Cache:
 {{- if .Values.redis.bundled }}
   ✅ Redis deployed (bundled)
-     Host: {{ include "kraken.redis.host" . }}
+     Host: {{ include "semaphore-chat.redis.host" . }}
 {{- else }}
   🔗 External Redis
      Host: {{ .Values.redis.external.host }}:{{ .Values.redis.external.port }}
@@ -120,7 +120,7 @@ LiveKit:
    - Configure TLS/SSL (ingress.tls.mode=cert-manager or manual)
 
 4. Documentation:
-   📖 https://github.com/user/kraken/tree/main/helm/kraken
+   📖 https://github.com/semaphore-chat/semaphore-chat/tree/main/helm/semaphore-chat
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

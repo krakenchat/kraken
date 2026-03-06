@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
-import { ServerEvents } from '@kraken/shared';
-import type { NewMessagePayload } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
+import type { NewMessagePayload } from '@semaphore-chat/shared';
 import { useServerEvent } from '../../socket-hub/useServerEvent';
 import { createEventBus } from '../../socket-hub/emitter';
 import { createTestHubWrapper, createTestWrapper } from '../test-utils/wrappers';

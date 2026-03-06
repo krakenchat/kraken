@@ -1,13 +1,13 @@
 [![License: AGPL v3 + Commercial](https://img.shields.io/badge/license-AGPL%20v3%20%2F%20Commercial-blue)](LICENSE.md)
-[![Backend Coverage](https://raw.githubusercontent.com/krakenchat/kraken/badges/backend-coverage.svg)](https://github.com/krakenchat/kraken/actions/workflows/backend-tests.yml)
-[![Frontend Coverage](https://raw.githubusercontent.com/krakenchat/kraken/badges/frontend-coverage.svg)](https://github.com/krakenchat/kraken/actions/workflows/frontend-tests.yml)
-[![Docs](https://img.shields.io/badge/docs-docs.krakenchat.app-blue)](https://docs.krakenchat.app)
+[![Backend Coverage](https://raw.githubusercontent.com/semaphore-chat/semaphore-chat/badges/backend-coverage.svg)](https://github.com/semaphore-chat/semaphore-chat/actions/workflows/backend-tests.yml)
+[![Frontend Coverage](https://raw.githubusercontent.com/semaphore-chat/semaphore-chat/badges/frontend-coverage.svg)](https://github.com/semaphore-chat/semaphore-chat/actions/workflows/frontend-tests.yml)
+[![Docs](https://img.shields.io/badge/docs-docs.semaphorechat.app-blue)](https://docs.semaphorechat.app)
 
-# Kraken
+# Semaphore Chat
 
 Self-hosted voice, video, and text chat — communication you own and control.
 
-Kraken is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, PostgreSQL, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box. Run it in your browser or as an Electron desktop app on Windows and Linux.
+Semaphore Chat is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, PostgreSQL, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box. Run it in your browser or as an Electron desktop app on Windows and Linux.
 
 ## Features
 
@@ -42,7 +42,7 @@ graph LR
 
 ## Quickstart
 
-Docker Compose setup. For Kubernetes deployment with Helm, see the [full docs](https://docs.krakenchat.app/installation/kubernetes/).
+Docker Compose setup. For Kubernetes deployment with Helm, see the [full docs](https://docs.semaphorechat.app/installation/kubernetes/).
 
 ### 1. Pick your setup
 
@@ -71,10 +71,10 @@ services:
       - livekit
 
   backend:
-    image: ghcr.io/krakenchat/kraken-backend:latest
+    image: ghcr.io/semaphore-chat/semaphore-backend:latest
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
+      DATABASE_URL: postgresql://semaphore:semaphore@postgres:5432/semaphore
       REDIS_HOST: redis
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -98,7 +98,7 @@ services:
         condition: service_started
 
   frontend:
-    image: ghcr.io/krakenchat/kraken-frontend:latest
+    image: ghcr.io/semaphore-chat/semaphore-frontend:latest
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:3000
@@ -175,11 +175,11 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: kraken
-      POSTGRES_PASSWORD: kraken
-      POSTGRES_DB: kraken
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kraken"]
+      test: ["CMD-SHELL", "pg_isready -U semaphore"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -232,7 +232,7 @@ lk.{$HOST} {
 
 ```bash
 mkdir -p scripts
-curl -fsSL https://raw.githubusercontent.com/krakenchat/kraken/main/scripts/livekit-ip-watcher.sh -o scripts/livekit-ip-watcher.sh
+curl -fsSL https://raw.githubusercontent.com/semaphore-chat/semaphore-chat/main/scripts/livekit-ip-watcher.sh -o scripts/livekit-ip-watcher.sh
 ```
 
 #### Port forwarding
@@ -254,12 +254,12 @@ curl -fsSL https://raw.githubusercontent.com/krakenchat/kraken/main/scripts/live
 ```yaml
 services:
   backend:
-    image: ghcr.io/krakenchat/kraken-backend:latest
+    image: ghcr.io/semaphore-chat/semaphore-backend:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://kraken:kraken@postgres:5432/kraken
+      DATABASE_URL: postgresql://semaphore:semaphore@postgres:5432/semaphore
       REDIS_HOST: redis
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
@@ -283,7 +283,7 @@ services:
         condition: service_started
 
   frontend:
-    image: ghcr.io/krakenchat/kraken-frontend:latest
+    image: ghcr.io/semaphore-chat/semaphore-frontend:latest
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -356,11 +356,11 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: kraken
-      POSTGRES_PASSWORD: kraken
-      POSTGRES_DB: kraken
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kraken"]
+      test: ["CMD-SHELL", "pg_isready -U semaphore"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -398,7 +398,7 @@ The frontend's built-in nginx already proxies `/api` and `/socket.io` to the bac
 
 ```bash
 mkdir -p scripts
-curl -fsSL https://raw.githubusercontent.com/krakenchat/kraken/main/scripts/livekit-ip-watcher.sh -o scripts/livekit-ip-watcher.sh
+curl -fsSL https://raw.githubusercontent.com/semaphore-chat/semaphore-chat/main/scripts/livekit-ip-watcher.sh -o scripts/livekit-ip-watcher.sh
 ```
 
 #### Port forwarding
@@ -413,10 +413,10 @@ curl -fsSL https://raw.githubusercontent.com/krakenchat/kraken/main/scripts/live
 
 ### 2. Configure environment
 
-Create a `.env` file next to your `docker-compose.yml`. Your domain needs two DNS records pointing to your server — `HOST` and `lk.HOST` (e.g. `kraken.example.com` and `lk.kraken.example.com`), or a wildcard `*.kraken.example.com`.
+Create a `.env` file next to your `docker-compose.yml`. Your domain needs two DNS records pointing to your server — `HOST` and `lk.HOST` (e.g. `semaphore.example.com` and `lk.semaphore.example.com`), or a wildcard `*.semaphore.example.com`.
 
 ```env
-HOST=kraken.example.com
+HOST=semaphore.example.com
 JWT_SECRET=replace-with-a-long-random-string
 JWT_REFRESH_SECRET=replace-with-a-different-long-random-string
 LIVEKIT_API_KEY=replace-with-a-key-name
@@ -435,19 +435,19 @@ openssl rand -base64 32
 docker compose up -d
 ```
 
-### 4. Open Kraken
+### 4. Open Semaphore Chat
 
 Visit `https://<your-domain>` and create your first account.
 
-For more details, see the [full installation guide](https://docs.krakenchat.app/installation/docker-compose/).
+For more details, see the [full installation guide](https://docs.semaphorechat.app/installation/docker-compose/).
 
 ## Development
 
-For contributors working on Kraken itself — clone the repo and use the dev Compose file which mounts source code with hot reload:
+For contributors working on Semaphore Chat itself — clone the repo and use the dev Compose file which mounts source code with hot reload:
 
 ```bash
-git clone https://github.com/krakenchat/kraken.git
-cd kraken
+git clone https://github.com/semaphore-chat/semaphore-chat.git
+cd semaphore-chat
 docker compose up
 ```
 
@@ -467,25 +467,25 @@ docker compose run --rm backend pnpm run lint
 docker compose run --rm backend pnpm run prisma
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) and the [developer docs](https://docs.krakenchat.app) for more.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and the [developer docs](https://docs.semaphorechat.app) for more.
 
 ## Deployment
 
-- **Docker Compose** — The [installation guide](https://docs.krakenchat.app/installation/docker-compose/) covers everything from first launch to production with reverse proxy, TLS, and backups.
+- **Docker Compose** — The [installation guide](https://docs.semaphorechat.app/installation/docker-compose/) covers everything from first launch to production with reverse proxy, TLS, and backups.
 
 - **Kubernetes** — Deploy with the official Helm chart:
   ```bash
-  helm install kraken oci://ghcr.io/krakenchat/charts/kraken
+  helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat
   ```
-  See the [Helm chart README](./helm/kraken/README.md) and [Kubernetes guide](https://docs.krakenchat.app/installation/kubernetes/).
+  See the [Helm chart README](./helm/semaphore-chat/README.md) and [Kubernetes guide](https://docs.semaphorechat.app/installation/kubernetes/).
 
-- **Desktop app** — Electron builds for Windows and Linux are available from the [desktop app page](https://docs.krakenchat.app/installation/desktop-app/).
+- **Desktop app** — Electron builds for Windows and Linux are available from the [desktop app page](https://docs.semaphorechat.app/installation/desktop-app/).
 
-- **Docker images** — `ghcr.io/krakenchat/kraken-backend` and `ghcr.io/krakenchat/kraken-frontend`
+- **Docker images** — `ghcr.io/semaphore-chat/semaphore-backend` and `ghcr.io/semaphore-chat/semaphore-frontend`
 
 ## Documentation
 
-- Full docs: [docs.krakenchat.app](https://docs.krakenchat.app)
+- Full docs: [docs.semaphorechat.app](https://docs.semaphorechat.app)
 - API docs: Swagger UI at `/api` when running locally
 
 ## Contributing
@@ -498,9 +498,9 @@ To report a vulnerability, see [SECURITY.md](./SECURITY.md).
 
 ## License
 
-Kraken Chat is **dual-licensed**:
+Semaphore Chat is **dual-licensed**:
 
 - **AGPLv3** (default) — free for everyone, including commercial use, as long as you comply with AGPL terms (see [LICENSE](./LICENSE.md)).
 - **Commercial License** — available for those who want to keep modifications proprietary or avoid AGPL source-sharing obligations (see [LICENSE_COM](./LICENSE_COM.md) and [LICENSE-FAQ.md](./LICENSE-FAQ.md)).
 
-Contact us for commercial licensing — licensing {at} krakenchat [dot] app
+Contact us for commercial licensing — licensing {at} semaphorechat [dot] app

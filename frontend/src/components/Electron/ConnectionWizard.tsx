@@ -135,13 +135,13 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
         return (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="h5" gutterBottom>
-              Welcome to Kraken!
+              Welcome to Semaphore Chat!
             </Typography>
             <Typography variant="body1" color="text.secondary" paragraph>
-              Let's get you connected to a Kraken server.
+              Let's get you connected to a Semaphore Chat server.
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              You'll need the URL of your Kraken server to continue.
+              You'll need the URL of your Semaphore Chat server to continue.
             </Typography>
           </Box>
         );
@@ -166,7 +166,7 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
             <TextField
               fullWidth
               label="Server Name (Optional)"
-              placeholder="My Kraken Server"
+              placeholder="My Semaphore Chat Server"
               value={serverName}
               onChange={(e) => setServerName(e.target.value)}
               helperText="A friendly name to identify this server"
@@ -196,7 +196,7 @@ export const ConnectionWizard: React.FC<ConnectionWizardProps> = ({ open, onComp
               </Typography>
             </Alert>
             <Typography variant="body2" color="text.secondary">
-              You're all set! Click finish to start using Kraken.
+              You're all set! Click finish to start using Semaphore Chat.
             </Typography>
           </Box>
         );

@@ -1,4 +1,4 @@
-# Production Docker Compose for Kraken
+# Production Docker Compose for Semaphore Chat
 #
 # Usage:
 #   1. Copy backend/env.sample to .env.prod — fill in JWT secrets, LiveKit config, etc.
@@ -7,7 +7,7 @@
 #        REDIS_PASSWORD=<strong-password>
 #   3. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 #
-# See https://docs.krakenchat.app/installation/docker-compose/ for the full guide.
+# See https://docs.semaphorechat.app/installation/docker-compose/ for the full guide.
 # For Kubernetes deployments, see the helm/ directory.
 
 services:
@@ -19,7 +19,7 @@ services:
       - .env.prod
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-kraken}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/${POSTGRES_DB:-kraken}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-semaphore}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/${POSTGRES_DB:-semaphore}
       - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD required}
     ports:
@@ -60,11 +60,11 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-kraken}
+      POSTGRES_USER: ${POSTGRES_USER:-semaphore}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
-      POSTGRES_DB: ${POSTGRES_DB:-kraken}
+      POSTGRES_DB: ${POSTGRES_DB:-semaphore}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kraken}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-semaphore}"]
       interval: 10s
       timeout: 5s
       retries: 10

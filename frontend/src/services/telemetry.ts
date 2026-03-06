@@ -37,11 +37,11 @@ export function initTelemetry(): void {
   try {
     // Initialize RUM (Real User Monitoring)
     openobserveRum.init({
-      applicationId: 'kraken-frontend',
+      applicationId: 'semaphore-frontend',
       clientToken,
       site: endpoint,
       organizationIdentifier: orgId,
-      service: 'kraken-frontend',
+      service: 'semaphore-frontend',
       env: import.meta.env.MODE,
       version: import.meta.env.VITE_APP_VERSION || '1.0.0',
       apiVersion: 'v1',
@@ -58,7 +58,7 @@ export function initTelemetry(): void {
       clientToken,
       site: endpoint,
       organizationIdentifier: orgId,
-      service: 'kraken-frontend',
+      service: 'semaphore-frontend',
       env: import.meta.env.MODE,
       apiVersion: 'v1',
       forwardErrorsToLogs: true,

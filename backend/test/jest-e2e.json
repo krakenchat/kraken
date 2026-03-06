@@ -8,8 +8,8 @@
   },
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/../src/$1",
-    "^@kraken/shared$": "<rootDir>/../../shared/src",
-    "^@kraken/shared/(.*)$": "<rootDir>/../../shared/src/$1"
+    "^@semaphore-chat/shared$": "<rootDir>/../../shared/src",
+    "^@semaphore-chat/shared/(.*)$": "<rootDir>/../../shared/src/$1"
   },
   "transformIgnorePatterns": [
     "node_modules/(?!uuid)"

@@ -171,7 +171,7 @@ const JoinInvitePage: React.FC = () => {
     <FormContainer>
       <FormBox>
         <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
-          Join Kraken
+          Join Semaphore Chat
         </Typography>
         
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: "center" }}>

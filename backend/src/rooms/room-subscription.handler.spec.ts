@@ -4,7 +4,7 @@ import { RoomSubscriptionHandler } from './room-subscription.handler';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
 import { createMockDatabase } from '@/test-utils';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('RoomSubscriptionHandler', () => {
   let handler: RoomSubscriptionHandler;

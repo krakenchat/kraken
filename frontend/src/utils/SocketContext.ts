@@ -1,6 +1,6 @@
 import { Socket } from "socket.io-client";
 import { createContext } from "react";
-import type { ServerToClientEvents, ClientToServerEvents } from "@kraken/shared";
+import type { ServerToClientEvents, ClientToServerEvents } from "@semaphore-chat/shared";
 
 export type { ServerToClientEvents, ClientToServerEvents };
 

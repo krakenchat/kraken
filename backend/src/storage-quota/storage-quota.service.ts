@@ -386,7 +386,7 @@ export class StorageQuotaService {
       // Create default settings
       const created = await this.db.instanceSettings.create({
         data: {
-          name: 'Kraken',
+          name: 'Semaphore Chat',
           defaultStorageQuotaBytes: BigInt(53687091200), // 50GB
           maxFileSizeBytes: BigInt(524288000), // 500MB
         },
@@ -411,7 +411,7 @@ export class StorageQuotaService {
     if (!existing) {
       await this.db.instanceSettings.create({
         data: {
-          name: 'Kraken',
+          name: 'Semaphore Chat',
           ...(defaultStorageQuotaBytes !== undefined && {
             defaultStorageQuotaBytes,
           }),

@@ -1,7 +1,7 @@
 /**
  * Server Storage Utility
  *
- * Manages multiple Kraken server instances in localStorage.
+ * Manages multiple Semaphore Chat server instances in localStorage.
  * Supports multi-server switching.
  */
 
@@ -16,8 +16,8 @@ export interface Server {
   lastConnected?: string;
 }
 
-const SERVERS_KEY = 'kraken:servers';
-const ACTIVE_SERVER_KEY = 'kraken:activeServerId';
+const SERVERS_KEY = 'semaphore:servers';
+const ACTIVE_SERVER_KEY = 'semaphore:activeServerId';
 
 /**
  * Get all saved servers from localStorage

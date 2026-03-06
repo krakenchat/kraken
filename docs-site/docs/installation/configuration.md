@@ -1,6 +1,6 @@
 # Configuration
 
-Kraken is configured through environment variables. The backend reads from `backend/.env` and the frontend from `frontend/.env`.
+Semaphore Chat is configured through environment variables. The backend reads from `backend/.env` and the frontend from `frontend/.env`.
 
 ## Backend environment variables
 
@@ -10,7 +10,7 @@ Copy `backend/env.sample` to `backend/.env` to get started.
 
 | Variable | Description | Default |
 |----------|------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://kraken:kraken@postgres:5432/kraken` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://semaphore:semaphore@postgres:5432/semaphore` |
 | `JWT_SECRET` | Secret key for signing access tokens | *(must change)* |
 | `JWT_REFRESH_SECRET` | Secret key for signing refresh tokens | *(must change)* |
 | `REDIS_HOST` | Redis hostname | `redis` |
@@ -44,7 +44,7 @@ Configuration for the replay buffer / screen recording feature. Requires LiveKit
 
 ### Reverse proxy
 
-If Kraken runs behind a reverse proxy (Nginx, Traefik, Caddy, a cloud load balancer, etc.), set `TRUST_PROXY` so that rate-limiting and session IPs use the real client address instead of the proxy's.
+If Semaphore Chat runs behind a reverse proxy (Nginx, Traefik, Caddy, a cloud load balancer, etc.), set `TRUST_PROXY` so that rate-limiting and session IPs use the real client address instead of the proxy's.
 
 | Variable | Description | Default |
 |----------|------------|---------|
@@ -55,7 +55,7 @@ Common values:
 | Value | When to use |
 |-------|-------------|
 | `1` | Single reverse proxy (Nginx, Traefik, k8s ingress) |
-| `2` | CDN → reverse proxy → Kraken |
+| `2` | CDN → reverse proxy → Semaphore Chat |
 | `loopback` | Proxy runs on the same host (localhost) |
 | `10.0.0.0/8` | Trust a specific internal subnet |
 

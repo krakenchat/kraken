@@ -18,7 +18,7 @@ export class InstanceService {
     if (!settings) {
       settings = await this.db.instanceSettings.create({
         data: {
-          name: 'Kraken',
+          name: 'Semaphore Chat',
           description: null,
           registrationMode: RegistrationMode.INVITE_ONLY,
         },

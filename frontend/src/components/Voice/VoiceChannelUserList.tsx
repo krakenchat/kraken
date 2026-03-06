@@ -17,7 +17,7 @@ import VoiceUserContextMenu from "./VoiceUserContextMenu";
 import { RoomEvent } from "livekit-client";
 import { getUserInfo } from "../../features/users/userApiHelpers";
 import { useServerEvent } from "../../socket-hub/useServerEvent";
-import { ServerEvents } from "@kraken/shared";
+import { ServerEvents } from "@semaphore-chat/shared";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import CompactUserItem from "./components/CompactUserItem";
 import UserItem from "./components/UserItem";

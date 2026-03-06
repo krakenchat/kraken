@@ -9,7 +9,7 @@ import { LivekitReplayService } from './livekit-replay.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { AudioCodec, EgressStatus } from 'livekit-server-sdk';
 import { ThumbnailService } from '@/file/thumbnail.service';
 import { FfmpegService } from './ffmpeg.service';

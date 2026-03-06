@@ -4,7 +4,7 @@ import { ReadReceiptsGateway } from './read-receipts.gateway';
 import { ReadReceiptsService } from './read-receipts.service';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { WsException } from '@nestjs/websockets';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('ReadReceiptsGateway', () => {
   let gateway: ReadReceiptsGateway;

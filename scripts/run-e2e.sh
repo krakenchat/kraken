@@ -66,7 +66,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║           Kraken E2E Test Runner                             ║${NC}"
+echo -e "${BLUE}║        Semaphore Chat E2E Test Runner                        ║${NC}"
 echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -95,7 +95,7 @@ docker-compose -f docker-compose.e2e.yml up -d postgres-test redis-test
 # Wait for PostgreSQL to be ready
 echo -e "${YELLOW}⏳ Waiting for PostgreSQL...${NC}"
 for i in {1..30}; do
-  if docker-compose -f docker-compose.e2e.yml exec -T postgres-test pg_isready -U kraken > /dev/null 2>&1; then
+  if docker-compose -f docker-compose.e2e.yml exec -T postgres-test pg_isready -U semaphore > /dev/null 2>&1; then
     echo -e "${GREEN}✓ PostgreSQL is ready${NC}"
     break
   fi

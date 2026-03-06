@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "kraken.fullname" . }}-backend-config
+  name: {{ include "semaphore-chat.fullname" . }}-backend-config
   labels:
-    {{- include "kraken.backend.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
 data:
   # PostgreSQL connection
-  DATABASE_URL: {{ include "kraken.postgresql.uri" . | quote }}
+  DATABASE_URL: {{ include "semaphore-chat.postgresql.uri" . | quote }}
 
   # Redis connection
-  REDIS_HOST: {{ include "kraken.redis.host" . | quote }}
-  REDIS_PORT: {{ include "kraken.redis.port" . | quote }}
+  REDIS_HOST: {{ include "semaphore-chat.redis.host" . | quote }}
+  REDIS_PORT: {{ include "semaphore-chat.redis.port" . | quote }}
 
   # LiveKit configuration
   LIVEKIT_URL: {{ .Values.livekit.url | quote }}

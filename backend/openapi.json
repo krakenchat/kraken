@@ -6674,8 +6674,8 @@
     }
   },
   "info": {
-    "title": "Kraken API",
-    "description": "Kraken Chat Application API",
+    "title": "Semaphore Chat API",
+    "description": "Semaphore Chat Application API",
     "version": "1.0",
     "contact": {}
   },

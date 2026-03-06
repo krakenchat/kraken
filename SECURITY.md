@@ -15,8 +15,8 @@ We take security seriously. If you discover a security vulnerability, please rep
 
 ### How to Report
 
-1. **Email**: Send details to security@krakenchat.app
-2. **GitHub Security Advisories**: Use [GitHub's private vulnerability reporting](https://github.com/krakenchat/kraken/security/advisories/new)
+1. **Email**: Send details to security@semaphorechat.app
+2. **GitHub Security Advisories**: Use [GitHub's private vulnerability reporting](https://github.com/semaphore-chat/semaphore-chat/security/advisories/new)
 
 ### What to Include
 
@@ -34,8 +34,8 @@ We take security seriously. If you discover a security vulnerability, please rep
 ### Scope
 
 The following are in scope:
-- Kraken backend API
-- Kraken frontend application
+- Semaphore Chat backend API
+- Semaphore Chat frontend application
 - Electron desktop application
 - Docker images and Helm charts
 - Authentication and authorization flaws
@@ -50,7 +50,7 @@ The following are in scope:
 
 ## Security Best Practices for Self-Hosting
 
-If you're self-hosting Kraken:
+If you're self-hosting Semaphore Chat:
 
 1. **Change all default secrets** in your `.env` and Helm values
 2. **Use HTTPS** with valid TLS certificates
@@ -62,4 +62,4 @@ If you're self-hosting Kraken:
 
 ## Acknowledgments
 
-We appreciate security researchers who help keep Kraken safe. Contributors who responsibly disclose vulnerabilities will be acknowledged here (with permission).
+We appreciate security researchers who help keep Semaphore Chat safe. Contributors who responsibly disclose vulnerabilities will be acknowledged here (with permission).

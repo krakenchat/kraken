@@ -19,7 +19,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  CHART_NAME: kraken
+  CHART_NAME: semaphore-chat
 
 jobs:
   publish-helm-chart:
@@ -113,7 +113,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Installation Command" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "helm install my-kraken oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts/${{ env.CHART_NAME }} --version ${CHART_VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "helm install my-semaphore oci://${{ env.REGISTRY }}/${REPO_LOWER}/charts/${{ env.CHART_NAME }} --version ${CHART_VERSION}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 

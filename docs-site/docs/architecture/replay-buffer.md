@@ -13,7 +13,7 @@ Continuous screen recording during screen share sessions, allowing users to retr
 graph TD
     Browser["Browser<br/>(Screen Share)"] -->|WebRTC| LiveKit["LiveKit Server"]
     LiveKit -->|"HLS Segments<br/>(10s chunks)"| Storage["Shared Storage<br/>/replay-buffer/"]
-    Storage -->|Read segments| Backend["Kraken Backend"]
+    Storage -->|Read segments| Backend["Semaphore Chat Backend"]
     Backend -->|"FFmpeg concat<br/>(stream copy)"| Replays["Saved Replays<br/>/replays/"]
     Backend -->|File record| PostgreSQL[(PostgreSQL)]
 ```

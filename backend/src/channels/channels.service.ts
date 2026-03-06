@@ -11,7 +11,7 @@ import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { ChannelType, Prisma } from '@prisma/client';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { RoomName } from '@/common/utils/room-name.util';

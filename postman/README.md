@@ -1,4 +1,4 @@
-# Kraken File Upload Postman Collection
+# Semaphore Chat File Upload Postman Collection
 
 ## Setup
 

@@ -1,10 +1,10 @@
 # Contributing
 
-Thanks for your interest in contributing to Kraken! Whether it's a bug report, feature request, or code contribution, every bit helps.
+Thanks for your interest in contributing to Semaphore Chat! Whether it's a bug report, feature request, or code contribution, every bit helps.
 
 ## Ways to contribute
 
-- **Report bugs** — Open a [GitHub issue](https://github.com/krakenchat/kraken/issues) with reproduction steps
+- **Report bugs** — Open a [GitHub issue](https://github.com/semaphore-chat/semaphore-chat/issues) with reproduction steps
 - **Suggest features** — Open a discussion or issue describing what you'd like to see
 - **Submit code** — Fix a bug, implement a feature, or improve documentation
 - **Improve docs** — Fix typos, clarify instructions, or add missing guides
@@ -44,8 +44,8 @@ When reporting a bug, include:
 
 ## Legal
 
-By contributing to Kraken, you agree that your contribution may be included in both open-source (AGPLv3) and commercial distributions of Kraken.
+By contributing to Semaphore Chat, you agree that your contribution may be included in both open-source (AGPLv3) and commercial distributions of Semaphore Chat.
 
 ## Questions?
 
-Open a [GitHub issue](https://github.com/krakenchat/kraken/issues) or start a discussion — we're happy to help.
+Open a [GitHub issue](https://github.com/semaphore-chat/semaphore-chat/issues) or start a discussion — we're happy to help.

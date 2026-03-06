@@ -3,11 +3,11 @@ hide:
   - navigation
 ---
 
-# Kraken
+# Semaphore Chat
 
 **Self-hosted voice and text chat.**
 
-Kraken is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, PostgreSQL, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box.
+Semaphore Chat is an open-source communication platform that gives you full control over your data. Built with a modern stack — NestJS, React, PostgreSQL, and LiveKit — it provides real-time messaging, voice and video calls, and community management out of the box.
 
 ---
 
@@ -29,7 +29,7 @@ Kraken is an open-source communication platform that gives you full control over
 
 - :material-rocket-launch: **[Installation](installation/docker-compose.md)**
 
-    Get Kraken running with Docker Compose — from first launch to production.
+    Get Semaphore Chat running with Docker Compose — from first launch to production.
 
 - :material-cog: **[Configuration](installation/configuration.md)**
 
@@ -37,7 +37,7 @@ Kraken is an open-source communication platform that gives you full control over
 
 - :material-ship-wheel: **[Kubernetes](installation/kubernetes.md)**
 
-    Deploy Kraken to a Kubernetes cluster with the official Helm chart.
+    Deploy Semaphore Chat to a Kubernetes cluster with the official Helm chart.
 
 - :material-monitor-arrow-down: **[Desktop App](installation/desktop-app.md)**
 
@@ -45,7 +45,7 @@ Kraken is an open-source communication platform that gives you full control over
 
 - :material-account-group: **[Contributing](contributing/index.md)**
 
-    Help improve Kraken — bug reports, features, and code contributions.
+    Help improve Semaphore Chat — bug reports, features, and code contributions.
 
 </div>
 
@@ -68,6 +68,6 @@ Kraken is an open-source communication platform that gives you full control over
 
 ## License
 
-Kraken is **dual-licensed** under the [AGPLv3](license.md) and a commercial license. Free for everyone — including commercial use — as long as you comply with AGPL terms. A commercial license is available for proprietary deployments.
+Semaphore Chat is **dual-licensed** under the [AGPLv3](license.md) and a commercial license. Free for everyone — including commercial use — as long as you comply with AGPL terms. A commercial license is available for proprietary deployments.
 
-Contact: licensing {at} krakenchat [dot] app
+Contact: licensing {at} semaphorechat [dot] app

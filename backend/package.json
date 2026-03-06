@@ -31,7 +31,7 @@
     "generate:openapi": "nest build && node dist/src/generate-openapi.js"
   },
   "dependencies": {
-    "@kraken/shared": "workspace:*",
+    "@semaphore-chat/shared": "workspace:*",
     "@nestjs/common": "^11.1.11",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -134,8 +134,8 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1",
-      "^@kraken/shared$": "<rootDir>/../../shared/src",
-      "^@kraken/shared/(.*)$": "<rootDir>/../../shared/src/$1"
+      "^@semaphore-chat/shared$": "<rootDir>/../../shared/src",
+      "^@semaphore-chat/shared/(.*)$": "<rootDir>/../../shared/src/$1"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!uuid)"

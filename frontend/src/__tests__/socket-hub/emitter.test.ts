@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createEventBus } from '../../socket-hub/emitter';
-import { ServerEvents } from '@kraken/shared';
-import type { NewMessagePayload } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
+import type { NewMessagePayload } from '@semaphore-chat/shared';
 
 describe('createEventBus', () => {
   it('calls handler when event is emitted', () => {

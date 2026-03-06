@@ -14,7 +14,7 @@ export interface VoiceSettings {
   voiceIsolation: boolean;       // default: false (experimental)
 }
 
-const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
+const VOICE_SETTINGS_KEY = 'semaphore_voice_settings';
 
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   inputMode: 'voice_activity',

@@ -12,11 +12,11 @@ import { refreshToken as refreshAuthToken } from "../../utils/tokenService";
 import { playSound, Sounds } from "../../hooks/useSound";
 
 // Storage key must match useDeviceSettings.ts
-const DEVICE_PREFERENCES_KEY = 'kraken_device_preferences';
+const DEVICE_PREFERENCES_KEY = 'semaphore_device_preferences';
 // Storage key must match useVoiceSettings.ts
-const VOICE_SETTINGS_KEY = 'kraken_voice_settings';
+const VOICE_SETTINGS_KEY = 'semaphore_voice_settings';
 // Storage key for voice connection recovery
-const VOICE_CONNECTION_KEY = 'kraken_voice_connection';
+const VOICE_CONNECTION_KEY = 'semaphore_voice_connection';
 // Connection state expires after 5 minutes (used for recovery on page refresh)
 const CONNECTION_EXPIRY_MS = 5 * 60 * 1000;
 

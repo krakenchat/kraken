@@ -3,7 +3,7 @@ import type { Mocked } from '@suites/doubles.jest';
 import { PresenceGateway } from './presence.gateway';
 import { PresenceService } from './presence.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('PresenceGateway', () => {
   let gateway: PresenceGateway;

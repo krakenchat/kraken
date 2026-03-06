@@ -7,7 +7,7 @@ describe('InstanceSettingsResponseDto', () => {
     it('should transform defaultStorageQuotaBytes BigInt to Number', () => {
       const settings = new InstanceSettingsResponseDto({
         id: 'settings-123',
-        name: 'Kraken',
+        name: 'Semaphore Chat',
         description: 'Test instance',
         registrationMode: RegistrationMode.INVITE_ONLY,
         createdAt: new Date(),
@@ -27,7 +27,7 @@ describe('InstanceSettingsResponseDto', () => {
     it('should handle zero BigInt values', () => {
       const settings = new InstanceSettingsResponseDto({
         id: 'settings-123',
-        name: 'Kraken',
+        name: 'Semaphore Chat',
         defaultStorageQuotaBytes: BigInt(0),
         maxFileSizeBytes: BigInt(0),
       } as any);
@@ -41,7 +41,7 @@ describe('InstanceSettingsResponseDto', () => {
     it('should handle null/undefined BigInt values gracefully', () => {
       const settings = new InstanceSettingsResponseDto({
         id: 'settings-123',
-        name: 'Kraken',
+        name: 'Semaphore Chat',
         defaultStorageQuotaBytes: null as any,
         maxFileSizeBytes: undefined as any,
       } as any);
@@ -55,7 +55,7 @@ describe('InstanceSettingsResponseDto', () => {
     it('should serialize to valid JSON without BigInt errors', () => {
       const settings = new InstanceSettingsResponseDto({
         id: 'settings-123',
-        name: 'Kraken Instance',
+        name: 'Semaphore Chat Instance',
         description: 'A test instance',
         registrationMode: RegistrationMode.OPEN,
         createdAt: new Date('2024-01-01'),
@@ -74,14 +74,14 @@ describe('InstanceSettingsResponseDto', () => {
 
       expect(parsed.defaultStorageQuotaBytes).toBe(107374182400);
       expect(parsed.maxFileSizeBytes).toBe(1073741824);
-      expect(parsed.name).toBe('Kraken Instance');
+      expect(parsed.name).toBe('Semaphore Chat Instance');
       expect(parsed.registrationMode).toBe('OPEN');
     });
 
     it('should exclude vapidPrivateKey from serialized output', () => {
       const settings = new InstanceSettingsResponseDto({
         id: 'settings-123',
-        name: 'Kraken',
+        name: 'Semaphore Chat',
         defaultStorageQuotaBytes: BigInt(53687091200),
         maxFileSizeBytes: BigInt(524288000),
         vapidPublicKey: 'public-key-123',

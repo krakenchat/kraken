@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
-import { ServerEvents, ClientEvents } from '@kraken/shared';
+import { ServerEvents, ClientEvents } from '@semaphore-chat/shared';
 import { useSocketHub } from '../../socket-hub/useSocketHub';
 import { createEventBus } from '../../socket-hub/emitter';
 import { createMockSocket } from '../test-utils/mockSocket';

@@ -1,6 +1,6 @@
 # Release Process
 
-Kraken uses a tag-based release workflow with support for full releases, component hotfixes, and manual builds.
+Semaphore Chat uses a tag-based release workflow with support for full releases, component hotfixes, and manual builds.
 
 ## Tag Patterns
 
@@ -60,17 +60,17 @@ Go to GitHub Actions, select the workflow, click "Run workflow", optionally spec
 
 | Artifact | Description |
 |----------|-------------|
-| `Kraken-Setup-X.X.X.exe` | Windows NSIS installer |
-| `Kraken-X.X.X.AppImage` | Linux universal binary |
-| `kraken_X.X.X_amd64.deb` | Debian/Ubuntu package |
-| `kraken-X.X.X.x86_64.rpm` | Fedora/RHEL package |
+| `SemaphoreChat-Setup-X.X.X.exe` | Windows NSIS installer |
+| `SemaphoreChat-X.X.X.AppImage` | Linux universal binary |
+| `semaphore-chat_X.X.X_amd64.deb` | Debian/Ubuntu package |
+| `semaphore-chat-X.X.X.x86_64.rpm` | Fedora/RHEL package |
 | `latest.yml` / `latest-linux.yml` | Auto-update manifests |
 
 ### Docker Images (GHCR)
 
 ```
-ghcr.io/OWNER/kraken-backend:1.0.0
-ghcr.io/OWNER/kraken-frontend:1.0.0
+ghcr.io/OWNER/semaphore-backend:1.0.0
+ghcr.io/OWNER/semaphore-frontend:1.0.0
 ```
 
 Tags: `1.0.0`, `1.0`, `1`, `latest`
@@ -78,7 +78,7 @@ Tags: `1.0.0`, `1.0`, `1`, `latest`
 ### Helm Chart (GHCR OCI)
 
 ```bash
-helm install kraken oci://ghcr.io/OWNER/kraken/charts/kraken --version 1.0.0
+helm install semaphore-chat oci://ghcr.io/OWNER/semaphore-chat/charts/semaphore-chat --version 1.0.0
 ```
 
 ## Electron Auto-Update

@@ -11,8 +11,8 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ServerEvents, NotificationType } from '@kraken/shared';
-import type { NewNotificationPayload } from '@kraken/shared';
+import { ServerEvents, NotificationType } from '@semaphore-chat/shared';
+import type { NewNotificationPayload } from '@semaphore-chat/shared';
 import { useServerEvent } from '../socket-hub/useServerEvent';
 import {
   showNotification,

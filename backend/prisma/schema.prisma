@@ -378,7 +378,7 @@ model InstanceInviteDefaultCommunity {
 
 model InstanceSettings {
   id               String           @id @default(uuid())
-  name             String           @default("Kraken")
+  name             String           @default("Semaphore Chat")
   description      String?
   registrationMode RegistrationMode @default(INVITE_ONLY)
   createdAt        DateTime         @default(now())

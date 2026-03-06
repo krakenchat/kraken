@@ -151,7 +151,7 @@ const DesktopHomePage: React.FC = () => {
             <PersonAddIcon sx={{ fontSize: 32 }} />
             <Box>
               <Typography variant="h6" fontWeight="bold">
-                Invite Users to Kraken
+                Invite Users to Semaphore Chat
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
                 Share your instance with others
@@ -307,7 +307,7 @@ const DesktopHomePage: React.FC = () => {
           <DesktopIcon color="primary" sx={{ fontSize: 28 }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle2">
-              Get Kraken Desktop
+              Get Semaphore Chat Desktop
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Available for Windows and Linux
@@ -316,7 +316,7 @@ const DesktopHomePage: React.FC = () => {
           <Button
             variant="outlined"
             size="small"
-            href="https://docs.krakenchat.app/installation/desktop-app/"
+            href="https://docs.semaphorechat.app/installation/desktop-app/"
             target="_blank"
             rel="noopener noreferrer"
           >

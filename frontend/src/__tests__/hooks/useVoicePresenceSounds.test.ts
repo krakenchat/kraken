@@ -13,7 +13,7 @@ let mockUser: { id: string } | null = null;
 // Capture callbacks per event name
 const serverEventCallbacks: Record<string, ((payload: unknown) => void)> = {};
 
-vi.mock('@kraken/shared', () => ({
+vi.mock('@semaphore-chat/shared', () => ({
   ServerEvents: {
     VOICE_CHANNEL_USER_JOINED: 'voiceChannelUserJoined',
     VOICE_CHANNEL_USER_LEFT: 'voiceChannelUserLeft',

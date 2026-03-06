@@ -45,7 +45,7 @@ describe('InstanceService', () => {
     it('should create default settings if none exist', async () => {
       const mockNewSettings = {
         id: 'settings-1',
-        name: 'Kraken',
+        name: 'Semaphore Chat',
         description: null,
         registrationMode: RegistrationMode.INVITE_ONLY,
         createdAt: new Date(),
@@ -60,7 +60,7 @@ describe('InstanceService', () => {
       expect(result).toEqual(mockNewSettings);
       expect(mockDatabase.instanceSettings.create).toHaveBeenCalledWith({
         data: {
-          name: 'Kraken',
+          name: 'Semaphore Chat',
           description: null,
           registrationMode: RegistrationMode.INVITE_ONLY,
         },

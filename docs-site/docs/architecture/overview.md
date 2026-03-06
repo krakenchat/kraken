@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Kraken is a self-hosted communication platform with real-time messaging, voice/video calls, and community management.
+Semaphore Chat is a self-hosted communication platform with real-time messaging, voice/video calls, and community management.
 
 ## System Architecture
 
@@ -51,7 +51,7 @@ LiveKit handles all media transport. The backend generates LiveKit tokens and ma
 
 ## Shared Package
 
-`@kraken/shared` (`shared/src/`) provides type-safe contracts between frontend and backend:
+`@semaphore-chat/shared` (`shared/src/`) provides type-safe contracts between frontend and backend:
 
 - **Events** -- `ServerEvents` enum with all WebSocket event names
 - **Payloads** -- TypeScript interfaces for each event's data shape

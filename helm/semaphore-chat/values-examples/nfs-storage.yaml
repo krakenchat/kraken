@@ -3,10 +3,10 @@
 # To use NFS storage for file uploads, create a custom values file
 # with your NFS server details and apply it during Helm install/upgrade:
 #
-# helm upgrade kraken . --namespace kraken -f values-examples/nfs-storage.yaml
+# helm upgrade semaphore-chat . --namespace semaphore-chat -f values-examples/nfs-storage.yaml
 #
 # Or use --set flags:
-# helm upgrade kraken . --namespace kraken \
+# helm upgrade semaphore-chat . --namespace semaphore-chat \
 #   --set fileStorage.enabled=true \
 #   --set fileStorage.nfs.enabled=true \
 #   --set fileStorage.nfs.server=YOUR_NFS_SERVER \
@@ -22,4 +22,4 @@ fileStorage:
     # Replace with your NFS server IP or hostname
     server: "10.0.0.100"
     # Replace with your NFS export path
-    path: "/mnt/pool/kraken/uploads"
+    path: "/mnt/pool/semaphore/uploads"

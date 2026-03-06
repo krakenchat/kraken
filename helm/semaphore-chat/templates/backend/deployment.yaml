@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "kraken.fullname" . }}-backend
+  name: {{ include "semaphore-chat.fullname" . }}-backend
   labels:
-    {{- include "kraken.backend.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.backend.autoscaling.enabled }}
   replicas: {{ .Values.backend.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "kraken.backend.selectorLabels" . | nindent 6 }}
+      {{- include "semaphore-chat.backend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -20,17 +20,17 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "kraken.backend.selectorLabels" . | nindent 8 }}
+        {{- include "semaphore-chat.backend.selectorLabels" . | nindent 8 }}
     spec:
-      {{- include "kraken.imagePullSecrets" . | nindent 6 }}
-      serviceAccountName: {{ include "kraken.serviceAccountName" . }}
+      {{- include "semaphore-chat.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "semaphore-chat.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
       containers:
         - name: backend
           securityContext:
             {{- toYaml .Values.backend.securityContext | nindent 12 }}
-          image: {{ include "kraken.backend.image" . }}
+          image: {{ include "semaphore-chat.backend.image" . }}
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           ports:
             - name: http
@@ -38,9 +38,9 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: {{ include "kraken.fullname" . }}-backend-config
+                name: {{ include "semaphore-chat.fullname" . }}-backend-config
             - secretRef:
-                name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "kraken.fullname" . }}-secrets{{ end }}
+                name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "semaphore-chat.fullname" . }}-secrets{{ end }}
           livenessProbe:
             {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
           readinessProbe:
@@ -74,7 +74,7 @@ spec:
         {{- if .Values.fileStorage.enabled }}
         - name: uploads
           persistentVolumeClaim:
-            claimName: {{ include "kraken.fullname" . }}-uploads
+            claimName: {{ include "semaphore-chat.fullname" . }}-uploads
         {{- else }}
         - name: uploads
           emptyDir: {}  # Fallback to ephemeral storage if persistent storage disabled
@@ -82,5 +82,5 @@ spec:
         {{- if .Values.replayStorage.enabled }}
         - name: replay-segments
           persistentVolumeClaim:
-            claimName: {{ include "kraken.fullname" . }}-replay-segments
+            claimName: {{ include "semaphore-chat.fullname" . }}-replay-segments
         {{- end }}

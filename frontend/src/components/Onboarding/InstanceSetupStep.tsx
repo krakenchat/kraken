@@ -61,7 +61,7 @@ const InstanceSetupStep: React.FC<InstanceSetupStepProps> = ({
           Configure Your Instance
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          Set up the basic details for your Kraken instance.
+          Set up the basic details for your Semaphore Chat instance.
         </Typography>
       </Box>
 

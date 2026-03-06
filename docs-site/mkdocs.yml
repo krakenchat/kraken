@@ -1,8 +1,8 @@
-site_name: Kraken Docs
-site_url: https://docs.krakenchat.app
-site_description: Documentation for Kraken — self-hosted voice and text chat
-repo_url: https://github.com/krakenchat/kraken
-repo_name: krakenchat/kraken
+site_name: Semaphore Chat Docs
+site_url: https://docs.semaphorechat.app
+site_description: Documentation for Semaphore Chat — self-hosted voice and text chat
+repo_url: https://github.com/semaphore-chat/semaphore-chat
+repo_name: semaphore-chat/semaphore-chat
 edit_uri: edit/main/docs-site/docs/
 
 theme:
@@ -95,6 +95,6 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/krakenchat/kraken
+      link: https://github.com/semaphore-chat/semaphore-chat
 
-copyright: Copyright &copy; 2025-2026 Kraken Chat
+copyright: Copyright &copy; 2025-2026 Semaphore Chat

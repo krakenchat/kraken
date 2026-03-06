@@ -79,7 +79,7 @@ const AdminSetupStep: React.FC<AdminSetupStepProps> = ({
           Create Your Admin Account
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          This account will have full administrative privileges on your Kraken instance.
+          This account will have full administrative privileges on your Semaphore Chat instance.
         </Typography>
       </Box>
 

@@ -10,7 +10,7 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { AddAttachmentDto } from './dto/add-attachment.dto';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('MessagesController', () => {
   let controller: MessagesController;

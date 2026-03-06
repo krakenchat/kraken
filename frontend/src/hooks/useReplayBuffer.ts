@@ -20,7 +20,7 @@ import {
   livekitControllerStartReplayBufferMutation,
   livekitControllerStopReplayBufferMutation,
 } from '../api-client/@tanstack/react-query.gen';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { useNotification } from '../contexts/NotificationContext';
 import { useServerEvent } from '../socket-hub/useServerEvent';
 import { useVoiceConnection } from './useVoiceConnection';

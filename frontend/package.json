@@ -1,18 +1,18 @@
 {
-  "name": "kraken",
-  "productName": "Kraken",
+  "name": "semaphore-chat",
+  "productName": "Semaphore Chat",
   "description": "Self-hosted voice and text chat",
   "main": "electron/dist/main.cjs",
   "private": true,
   "license": "AGPL-3.0-only",
   "version": "0.0.1",
   "author": {
-    "name": "Kraken Team",
-    "email": "noreply@krakenchat.app"
+    "name": "Semaphore Chat Team",
+    "email": "noreply@semaphorechat.app"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/krakenchat/kraken.git"
+    "url": "https://github.com/semaphore-chat/semaphore-chat.git"
   },
   "type": "module",
   "scripts": {
@@ -59,7 +59,7 @@
     "@emotion/styled": "^11.14.1",
     "@fontsource/roboto": "^5.2.9",
     "@hey-api/client-fetch": "^0.13.1",
-    "@kraken/shared": "workspace:*",
+    "@semaphore-chat/shared": "workspace:*",
     "@livekit/components-react": "^2.9.17",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",

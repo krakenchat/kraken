@@ -1,4 +1,4 @@
-# Production Dockerfile for Kraken Frontend
+# Production Dockerfile for Semaphore Chat Frontend
 # Multi-stage build for optimized image size with nginx
 
 # ============================================
@@ -53,7 +53,7 @@ RUN pnpm run build:renderer
 FROM nginx:1.29-alpine AS production
 
 # Build arguments for OCI labels and timestamp
-ARG GITHUB_REPOSITORY=user/kraken
+ARG GITHUB_REPOSITORY=user/semaphore-chat
 ARG BUILD_DATE
 
 # Install gettext for envsubst (environment variable substitution)
@@ -70,7 +70,7 @@ COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 # Add OCI labels for GHCR integration (including creation timestamp)
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
-LABEL org.opencontainers.image.description="Kraken Frontend - Self-hosted voice and text chat"
+LABEL org.opencontainers.image.description="Semaphore Chat Frontend - Self-hosted voice and text chat"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
 

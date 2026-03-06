@@ -94,7 +94,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 4, minHeight: '600px' }}>
         <Typography variant="h3" component="h1" gutterBottom align="center">
-          Welcome to Kraken
+          Welcome to Semaphore Chat
         </Typography>
         <Typography variant="h6" color="textSecondary" align="center" sx={{ mb: 4 }}>
           Let's set up your new chat instance

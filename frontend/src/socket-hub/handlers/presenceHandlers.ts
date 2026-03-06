@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { UserPresenceInfo, ServerEvents } from '@kraken/shared';
+import type { UserPresenceInfo, ServerEvents } from '@semaphore-chat/shared';
 import {
   presenceControllerGetUserPresenceQueryKey,
   presenceControllerGetBulkPresenceQueryKey,

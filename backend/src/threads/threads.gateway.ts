@@ -23,7 +23,7 @@ import { RbacActions } from '@prisma/client';
 import { ThreadsService } from './threads.service';
 import { SendThreadReplyDto } from './dto/send-thread-reply.dto';
 import { Server, Socket } from 'socket.io';
-import { ClientEvents, ServerEvents } from '@kraken/shared';
+import { ClientEvents, ServerEvents } from '@semaphore-chat/shared';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';

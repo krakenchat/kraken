@@ -60,7 +60,7 @@ const RESOLUTION_PRESETS = {
 };
 
 // LocalStorage key
-const SCREEN_SHARE_SETTINGS_KEY = 'kraken_screen_share_settings';
+const SCREEN_SHARE_SETTINGS_KEY = 'semaphore_screen_share_settings';
 
 // Load settings from localStorage
 const loadScreenShareSettings = (): ScreenShareSettings => {

@@ -17,9 +17,6 @@ importers:
 
   backend:
     dependencies:
-      '@kraken/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@nestjs/common':
         specifier: ^11.1.11
         version: 11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -62,6 +59,9 @@ importers:
       '@prisma/client':
         specifier: ^6.6.0
         version: 6.19.2(prisma@6.19.2(typescript@5.7.3))(typescript@5.7.3)
+      '@semaphore-chat/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@socket.io/redis-adapter':
         specifier: ^8.3.0
         version: 8.3.0(socket.io-adapter@2.5.6)
@@ -246,9 +246,6 @@ importers:
       '@hey-api/client-fetch':
         specifier: ^0.13.1
         version: 0.13.1(@hey-api/openapi-ts@0.92.4(magicast@0.5.2)(typescript@5.7.3))
-      '@kraken/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@livekit/components-react':
         specifier: ^2.9.17
         version: 2.9.19(livekit-client@2.17.1(@types/dom-mediacapture-record@1.0.22))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tslib@2.8.1)
@@ -264,6 +261,9 @@ importers:
       '@openobserve/browser-rum':
         specifier: ^0.2.11
         version: 0.2.11(@openobserve/browser-logs@0.2.11)
+      '@semaphore-chat/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@tanstack/react-query':
         specifier: ^5.90.20
         version: 5.90.21(react@19.2.4)

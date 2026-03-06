@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ServerEvents } from '@kraken/shared';
-import type { UserTypingPayload } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
+import type { UserTypingPayload } from '@semaphore-chat/shared';
 import { useServerEvent } from '../socket-hub/useServerEvent';
 
 const TYPING_TIMEOUT_MS = 8_000;

@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "kraken.fullname" . }}-frontend
+  name: {{ include "semaphore-chat.fullname" . }}-frontend
   labels:
-    {{- include "kraken.frontend.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.frontend.labels" . | nindent 4 }}
   {{- with .Values.frontend.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -16,4 +16,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "kraken.frontend.selectorLabels" . | nindent 4 }}
+    {{- include "semaphore-chat.frontend.selectorLabels" . | nindent 4 }}

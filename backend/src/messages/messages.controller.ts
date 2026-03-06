@@ -34,7 +34,7 @@ import {
 } from '@/auth/rbac-resource.decorator';
 
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@kraken/shared';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { AuthenticatedRequest } from '@/types';
 import {
   EnrichedMessageDto,

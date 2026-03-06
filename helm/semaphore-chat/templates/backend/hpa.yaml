@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "kraken.fullname" . }}-backend
+  name: {{ include "semaphore-chat.fullname" . }}-backend
   labels:
-    {{- include "kraken.backend.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "kraken.fullname" . }}-backend
+    name: {{ include "semaphore-chat.fullname" . }}-backend
   minReplicas: {{ .Values.backend.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.backend.autoscaling.maxReplicas }}
   metrics:

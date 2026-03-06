@@ -1,6 +1,6 @@
 # Code Patterns
 
-Key patterns and conventions used across the Kraken codebase.
+Key patterns and conventions used across the Semaphore Chat codebase.
 
 ## RBAC (Role-Based Access Control)
 

@@ -387,7 +387,7 @@ describe('StorageQuotaService', () => {
 
       expect(mockDatabase.instanceSettings.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          name: 'Kraken',
+          name: 'Semaphore Chat',
           defaultStorageQuotaBytes: 1000000,
         }),
       });

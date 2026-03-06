@@ -1,11 +1,11 @@
-# Kraken Deployment Summary
+# Semaphore Chat Deployment Summary
 
-This document provides an overview of all deployment-related files and configurations created for Kraken.
+This document provides an overview of all deployment-related files and configurations created for Semaphore Chat.
 
 ## 📁 File Structure
 
 ```
-kraken/
+semaphore-chat/
 ├── backend/
 │   ├── Dockerfile.prod                    # Production backend Dockerfile
 │   └── .env.sample                        # Backend environment variables
@@ -16,7 +16,7 @@ kraken/
 ├── .github/workflows/
 │   ├── docker-publish.yml                 # Docker image publishing workflow
 │   └── helm-publish.yml                   # Helm chart publishing workflow
-├── helm/kraken/
+├── helm/semaphore-chat/
 │   ├── Chart.yaml                         # Helm chart metadata
 │   ├── values.yaml                        # Default configuration values
 │   ├── .helmignore                        # Helm ignore patterns
@@ -69,14 +69,14 @@ kraken/
 
 ```bash
 # Build backend
-docker build -f backend/Dockerfile.prod -t kraken-backend:local ./backend
+docker build -f backend/Dockerfile.prod -t semaphore-backend:local ./backend
 
 # Build frontend
-docker build -f frontend/Dockerfile.prod -t kraken-frontend:local ./frontend
+docker build -f frontend/Dockerfile.prod -t semaphore-frontend:local ./frontend
 
 # Test locally
-docker run -p 3000:3000 kraken-backend:local
-docker run -p 5173:5173 -e BACKEND_URL=http://localhost:3000 kraken-frontend:local
+docker run -p 3000:3000 semaphore-backend:local
+docker run -p 5173:5173 -e BACKEND_URL=http://localhost:3000 semaphore-frontend:local
 ```
 
 ## 🚀 GitHub Actions Workflows
@@ -117,7 +117,7 @@ docker run -p 5173:5173 -e BACKEND_URL=http://localhost:3000 kraken-frontend:loc
 
 **Chart Location:**
 ```
-oci://ghcr.io/krakenchat/charts/kraken
+oci://ghcr.io/semaphore-chat/charts/semaphore-chat
 ```
 
 ## ⎈ Helm Chart
@@ -156,8 +156,8 @@ oci://ghcr.io/krakenchat/charts/kraken
 
 **Quick Start:**
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
-  --set ingress.hosts[0].host=kraken.local \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
+  --set ingress.hosts[0].host=semaphore.local \
   --set livekit.url=wss://livekit.example.com \
   --set livekit.apiKey=key \
   --set livekit.apiSecret=secret
@@ -165,7 +165,7 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 
 **Production:**
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --values production-values.yaml \
   --set secrets.jwtSecret="$(openssl rand -base64 32)" \
   --set secrets.jwtRefreshSecret="$(openssl rand -base64 32)"
@@ -173,9 +173,9 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 
 **With External Database:**
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --set postgresql.bundled=false \
-  --set postgresql.external.uri="postgresql://user:pass@host:5432/kraken" \
+  --set postgresql.external.uri="postgresql://user:pass@host:5432/semaphore" \
   --set redis.bundled=false \
   --set redis.external.host=redis.cloud.example.com
 ```
@@ -202,13 +202,13 @@ openssl rand -base64 24
 **Use external secrets (recommended for production):**
 ```bash
 # Create Kubernetes secret manually
-kubectl create secret generic kraken-secrets \
+kubectl create secret generic semaphore-chat-secrets \
   --from-literal=JWT_SECRET="..." \
   --from-literal=JWT_REFRESH_SECRET="..." \
   --from-literal=LIVEKIT_API_SECRET="..."
 
 # Reference in Helm
---set secrets.existingSecret=kraken-secrets
+--set secrets.existingSecret=semaphore-chat-secrets
 ```
 
 ### Container Images
@@ -220,9 +220,9 @@ kubectl create secret generic kraken-secrets \
 **When open-sourcing:**
 1. Make repository public on GitHub
 2. Manually make packages public:
-   - Go to `github.com/krakenchat/kraken/pkgs/container/kraken-backend`
+   - Go to `github.com/semaphore-chat/semaphore-chat/pkgs/container/semaphore-backend`
    - Settings → Change visibility → Public
-   - Repeat for `kraken-frontend`
+   - Repeat for `semaphore-frontend`
 
 ## 📋 Pre-Deployment Checklist
 
@@ -276,8 +276,8 @@ kubectl create secret generic kraken-secrets \
 ## 📖 Documentation Index
 
 1. **[README.md](./README.md)** - Main project README with K8s section
-2. **[helm/kraken/README.md](./helm/kraken/README.md)** - Complete Helm chart documentation
-3. **[Kubernetes Deployment Guide](https://docs.krakenchat.app/deployment/kubernetes/)** - Detailed deployment guide
+2. **[helm/semaphore-chat/README.md](./helm/semaphore-chat/README.md)** - Complete Helm chart documentation
+3. **[Kubernetes Deployment Guide](https://docs.semaphorechat.app/deployment/kubernetes/)** - Detailed deployment guide
 4. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - This file
 
 ## 🆘 Getting Help
@@ -319,10 +319,10 @@ A: Verify ingress annotations for WebSocket support
 - All workflows use GitHub's `GITHUB_TOKEN` - no manual secrets needed
 - Images remain private until you explicitly make them public
 - Helm chart can be used immediately after pushing
-- Update `krakenchat` placeholders with your actual GitHub username
+- Update `semaphore-chat` placeholders with your actual GitHub username
 - Chart version is independent of app version (can be different)
 
 ---
 
 **Generated**: 2025-10-27
-**Maintainer**: Kraken Team
+**Maintainer**: Semaphore Chat Team

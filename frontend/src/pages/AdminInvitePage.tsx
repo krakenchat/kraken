@@ -289,7 +289,7 @@ const AdminInvitePage: React.FC = () => {
           Instance Invites
         </Typography>
         <Typography variant="body1" color="text.secondary" gutterBottom>
-          Manage invitation codes that allow new users to register and join your Kraken instance.
+          Manage invitation codes that allow new users to register and join your Semaphore Chat instance.
         </Typography>
       </Box>
 
@@ -522,7 +522,7 @@ const AdminInvitePage: React.FC = () => {
         <DialogTitle>Create Instance Invite</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 3 }}>
-            Create a new invite link for users to join your Kraken instance.
+            Create a new invite link for users to join your Semaphore Chat instance.
             The invite will be automatically copied to your clipboard.
           </DialogContentText>
           

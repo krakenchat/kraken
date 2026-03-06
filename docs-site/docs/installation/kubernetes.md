@@ -1,6 +1,6 @@
 # Kubernetes
 
-Deploy Kraken to a Kubernetes cluster using the official Helm chart.
+Deploy Semaphore Chat to a Kubernetes cluster using the official Helm chart.
 
 ## Architecture
 
@@ -49,23 +49,23 @@ export REDIS_PASSWORD=$(openssl rand -base64 32)
 The simplest install uses bundled PostgreSQL and Redis:
 
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --set secrets.jwtSecret="$JWT_SECRET" \
   --set secrets.jwtRefreshSecret="$JWT_REFRESH_SECRET" \
   --set postgresql.auth.postgresPassword="$POSTGRES_PASSWORD" \
   --set redis.auth.password="$REDIS_PASSWORD" \
-  --set ingress.hosts[0].host=kraken.yourdomain.com \
+  --set ingress.hosts[0].host=semaphore.yourdomain.com \
   --set livekit.url=wss://your-livekit-server.com \
   --set livekit.apiKey=YOUR_KEY \
   --set livekit.apiSecret=YOUR_SECRET \
-  --namespace kraken \
+  --namespace semaphore-chat \
   --create-namespace
 ```
 
 ### 3. Verify
 
 ```bash
-kubectl get pods -n kraken --watch
+kubectl get pods -n semaphore-chat --watch
 ```
 
 Wait for all pods to show `Running`, then visit your domain.
@@ -75,9 +75,9 @@ Wait for all pods to show `Running`, then visit your domain.
 For anything beyond the quick start, create a values file:
 
 ```bash
-helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm install semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --values custom-values.yaml \
-  --namespace kraken \
+  --namespace semaphore-chat \
   --create-namespace
 ```
 
@@ -87,12 +87,12 @@ helm install kraken oci://ghcr.io/krakenchat/charts/kraken \
 # --- Images ---
 backend:
   image:
-    repository: ghcr.io/krakenchat/kraken-backend
+    repository: ghcr.io/semaphore-chat/semaphore-backend
     tag: "latest"
 
 frontend:
   image:
-    repository: ghcr.io/krakenchat/kraken-frontend
+    repository: ghcr.io/semaphore-chat/semaphore-frontend
     tag: "latest"
 
 # --- Secrets ---
@@ -111,7 +111,7 @@ ingress:
   enabled: true
   className: nginx
   hosts:
-    - host: kraken.yourdomain.com
+    - host: semaphore.yourdomain.com
       paths:
         - path: /
           pathType: Prefix
@@ -185,7 +185,7 @@ The chart bundles a Bitnami PostgreSQL instance by default. For production, cons
     postgresql:
       bundled: false
       external:
-        uri: "postgresql://user:password@postgres-host:5432/kraken"
+        uri: "postgresql://user:password@postgres-host:5432/semaphore"
     ```
 
 ### Redis
@@ -217,7 +217,7 @@ Same pattern — bundled or external:
 
 ### LiveKit
 
-Kraken requires a LiveKit server for voice and video. The chart doesn't bundle LiveKit — use [LiveKit Cloud](https://cloud.livekit.io/) or a [self-hosted deployment](https://docs.livekit.io/home/self-hosting/deployment/).
+Semaphore Chat requires a LiveKit server for voice and video. The chart doesn't bundle LiveKit — use [LiveKit Cloud](https://cloud.livekit.io/) or a [self-hosted deployment](https://docs.livekit.io/home/self-hosting/deployment/).
 
 ```yaml
 livekit:
@@ -230,7 +230,7 @@ livekit:
 Configure your LiveKit server to send webhooks to `https://your-domain.com/api/livekit/webhook` for voice presence tracking.
 
 !!! note "Replay capture with LiveKit Cloud"
-    LiveKit Cloud writes egress output to cloud storage (S3/GCS/Azure Blob), which Kraken can't read from yet. Replay capture is not available with LiveKit Cloud until cloud storage support is added — voice and video calls work normally. See [#227](https://github.com/krakenchat/kraken/issues/227) for progress.
+    LiveKit Cloud writes egress output to cloud storage (S3/GCS/Azure Blob), which Semaphore Chat can't read from yet. Replay capture is not available with LiveKit Cloud until cloud storage support is added — voice and video calls work normally. See [#227](https://github.com/semaphore-chat/semaphore-chat/issues/227) for progress.
 
 ### File storage
 
@@ -247,7 +247,7 @@ When `fileStorage.enabled: false` (the default), an ephemeral `emptyDir` is used
 
 ### Replay storage (LiveKit egress)
 
-The replay/clip capture feature requires LiveKit egress and the Kraken backend to share a storage volume for HLS segment access. Both the egress service and backend pods must be able to read and write to the same path. Enable a `ReadWriteMany` PVC:
+The replay/clip capture feature requires LiveKit egress and the Semaphore Chat backend to share a storage volume for HLS segment access. Both the egress service and backend pods must be able to read and write to the same path. Enable a `ReadWriteMany` PVC:
 
 ```yaml
 replayStorage:
@@ -297,40 +297,40 @@ frontend:
 ### Upgrading
 
 ```bash
-helm upgrade kraken oci://ghcr.io/krakenchat/charts/kraken \
+helm upgrade semaphore-chat oci://ghcr.io/semaphore-chat/charts/semaphore-chat \
   --reuse-values \
   --set backend.image.tag=v1.1.0 \
   --set frontend.image.tag=v1.1.0 \
-  --namespace kraken
+  --namespace semaphore-chat
 ```
 
 ### Rollback
 
 ```bash
-helm history kraken -n kraken
-helm rollback kraken -n kraken        # previous version
-helm rollback kraken 2 -n kraken      # specific revision
+helm history semaphore-chat -n semaphore-chat
+helm rollback semaphore-chat -n semaphore-chat        # previous version
+helm rollback semaphore-chat 2 -n semaphore-chat      # specific revision
 ```
 
 ### Backup PostgreSQL
 
 ```bash
-kubectl exec -n kraken kraken-postgresql-0 -- \
-  pg_dump -U kraken kraken | gzip > backup.sql.gz
+kubectl exec -n semaphore-chat semaphore-chat-postgresql-0 -- \
+  pg_dump -U semaphore semaphore | gzip > backup.sql.gz
 ```
 
 ### Restore PostgreSQL
 
 ```bash
-gunzip -c backup.sql.gz | kubectl exec -i -n kraken kraken-postgresql-0 -- \
-  psql -U kraken kraken
+gunzip -c backup.sql.gz | kubectl exec -i -n semaphore-chat semaphore-chat-postgresql-0 -- \
+  psql -U semaphore semaphore
 ```
 
 ### Logs
 
 ```bash
-kubectl logs -n kraken -l app.kubernetes.io/component=backend -f
-kubectl logs -n kraken -l app.kubernetes.io/component=frontend -f
+kubectl logs -n semaphore-chat -l app.kubernetes.io/component=backend -f
+kubectl logs -n semaphore-chat -l app.kubernetes.io/component=frontend -f
 ```
 
 ## Troubleshooting
@@ -340,7 +340,7 @@ For WebSocket and LiveKit connectivity issues, see the dedicated [WebSocket Trou
 ### Pods stuck in Pending
 
 ```bash
-kubectl describe pod -n kraken <pod-name>
+kubectl describe pod -n semaphore-chat <pod-name>
 ```
 
 Common causes: insufficient resources, PVC not bound, image pull errors.
@@ -348,14 +348,14 @@ Common causes: insufficient resources, PVC not bound, image pull errors.
 ### Database connection errors
 
 ```bash
-kubectl get pods -n kraken -l app.kubernetes.io/name=postgresql
-kubectl exec -it -n kraken deploy/kraken-backend -- sh -c 'psql "$DATABASE_URL"'
+kubectl get pods -n semaphore-chat -l app.kubernetes.io/name=postgresql
+kubectl exec -it -n semaphore-chat deploy/semaphore-chat-backend -- sh -c 'psql "$DATABASE_URL"'
 ```
 
 ### Ingress not working
 
 ```bash
-kubectl describe ingress -n kraken
+kubectl describe ingress -n semaphore-chat
 kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 ```
 

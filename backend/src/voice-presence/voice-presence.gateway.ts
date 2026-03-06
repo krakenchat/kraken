@@ -9,7 +9,7 @@ import { Socket } from 'socket.io';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { UseGuards, UsePipes, UseFilters } from '@nestjs/common';
 import { RbacGuard } from '@/auth/rbac.guard';
-import { ClientEvents } from '@kraken/shared';
+import { ClientEvents } from '@semaphore-chat/shared';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacActions } from '@prisma/client';
 import {

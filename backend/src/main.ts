@@ -67,7 +67,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: new ConsoleLogger({
-      prefix: 'KrakenChat',
+      prefix: 'SemaphoreChat',
       timestamp: true,
       json: true,
     }),
@@ -114,8 +114,8 @@ async function bootstrap() {
       process.env.NODE_ENV !== 'production');
   if (enableSwagger) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Kraken API')
-      .setDescription('Kraken Chat Application API')
+      .setTitle('Semaphore Chat API')
+      .setDescription('Semaphore Chat Application API')
       .setVersion('1.0')
       .addBearerAuth()
       .build();

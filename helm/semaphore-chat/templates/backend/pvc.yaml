@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "kraken.fullname" . }}-uploads
+  name: {{ include "semaphore-chat.fullname" . }}-uploads
   labels:
-    {{- include "kraken.backend.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteMany  # Multiple backend pods can mount simultaneously
@@ -16,7 +16,7 @@ spec:
       storage: {{ .Values.fileStorage.size }}
   {{- if .Values.fileStorage.nfs.enabled }}
   # Bind to the specific NFS PV we created
-  volumeName: {{ include "kraken.fullname" . }}-uploads-nfs
+  volumeName: {{ include "semaphore-chat.fullname" . }}-uploads-nfs
   {{- end }}
 {{- end }}
 ---
@@ -24,9 +24,9 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "kraken.fullname" . }}-replay-segments
+  name: {{ include "semaphore-chat.fullname" . }}-replay-segments
   labels:
-    {{- include "kraken.backend.labels" . | nindent 4 }}
+    {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteMany  # Multiple backend pods and LiveKit egress can mount simultaneously
@@ -38,6 +38,6 @@ spec:
       storage: {{ .Values.replayStorage.size }}
   {{- if .Values.replayStorage.nfs.enabled }}
   # Bind to the specific NFS PV we created for replay segments
-  volumeName: {{ include "kraken.fullname" . }}-replay-segments-nfs
+  volumeName: {{ include "semaphore-chat.fullname" . }}-replay-segments-nfs
   {{- end }}
 {{- end }}

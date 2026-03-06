@@ -1,6 +1,6 @@
 # Database Schema
 
-Kraken uses **PostgreSQL** with **Prisma ORM**. Schema changes use Prisma Migrate (`prisma migrate dev` to create migrations, `prisma migrate deploy` to apply).
+Semaphore Chat uses **PostgreSQL** with **Prisma ORM**. Schema changes use Prisma Migrate (`prisma migrate dev` to create migrations, `prisma migrate deploy` to apply).
 
 ---
 

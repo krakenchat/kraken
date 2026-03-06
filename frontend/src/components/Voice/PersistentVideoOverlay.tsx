@@ -27,7 +27,7 @@ import { getCachedItem, setCachedItem } from '../../utils/storage';
 import { VOICE_BAR_HEIGHT, VOICE_BAR_HEIGHT_MOBILE } from '../../constants/layout';
 
 // Constants
-const PIP_SETTINGS_KEY = 'kraken_pip_settings';
+const PIP_SETTINGS_KEY = 'semaphore_pip_settings';
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 240;
 const DEFAULT_WIDTH = 480;
