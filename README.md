@@ -7,7 +7,7 @@
 
 Semaphore Chat is a self-hosted, free, open-source communication platform that provides real-time messaging, voice and video calls, screen sharing with audio and replay capture, and community management out of the box. Run it in your browser or as an Electron desktop app on Windows and Linux, as well as on your phone as a PWA with push notification support.
 
-> **Beta Software** — Semaphore Chat is under active development. Expect bugs and occasional breaking changes.
+> **Beta Software** — Semaphore Chat is under active development. Expect bugs and occasional breaking changes. If you find a bug please report it as an issue!
 
 ## Features
 
@@ -74,7 +74,7 @@ services:
       - livekit
 
   backend:
-    image: ghcr.io/semaphore-chat/semaphore-backend:latest
+    image: ghcr.io/semaphore-chat/semaphore-chat-backend:latest
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://semaphore:semaphore@postgres:5432/semaphore
@@ -88,6 +88,7 @@ services:
       TRUST_PROXY: 1
       REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
       REPLAY_EGRESS_OUTPUT_PATH: /out
+      REPLAY_CLIPS_PATH: /app/backend/uploads/replays
     volumes:
       - uploads:/app/backend/uploads
       - egress-data:/app/storage/replay-segments  # shared with livekit-egress
@@ -102,7 +103,7 @@ services:
         condition: service_started
 
   frontend:
-    image: ghcr.io/semaphore-chat/semaphore-frontend:latest
+    image: ghcr.io/semaphore-chat/semaphore-chat-frontend:latest
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:3000
@@ -162,7 +163,7 @@ services:
         condition: service_healthy
 
   livekit-ip-watcher:
-    image: alpine:latest
+    image: curlimages/curl:latest
     restart: unless-stopped
     command: sh /scripts/livekit-ip-watcher.sh
     environment:
@@ -258,7 +259,7 @@ curl -fsSL https://raw.githubusercontent.com/semaphore-chat/semaphore-chat/main/
 ```yaml
 services:
   backend:
-    image: ghcr.io/semaphore-chat/semaphore-backend:latest
+    image: ghcr.io/semaphore-chat/semaphore-chat-backend:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -274,6 +275,7 @@ services:
       TRUST_PROXY: 1
       REPLAY_SEGMENTS_PATH: /app/storage/replay-segments
       REPLAY_EGRESS_OUTPUT_PATH: /out
+      REPLAY_CLIPS_PATH: /app/backend/uploads/replays
     volumes:
       - uploads:/app/backend/uploads
       - egress-data:/app/storage/replay-segments  # shared with livekit-egress
@@ -288,7 +290,7 @@ services:
         condition: service_started
 
   frontend:
-    image: ghcr.io/semaphore-chat/semaphore-frontend:latest
+    image: ghcr.io/semaphore-chat/semaphore-chat-frontend:latest
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -320,6 +322,13 @@ services:
       - "7881:7881"
       - "7882:7882/udp"
 
+  volume-init:
+    image: busybox
+    volumes:
+      - uploads:/uploads
+      - egress-data:/out
+    command: sh -c 'chown -R 1001:0 /uploads /out'
+    restart: "no"
 
   livekit-egress:
     image: livekit/egress:latest
@@ -344,7 +353,7 @@ services:
         condition: service_healthy
 
   livekit-ip-watcher:
-    image: alpine:latest
+    image: curlimages/curl:latest
     restart: unless-stopped
     command: sh /scripts/livekit-ip-watcher.sh
     environment:
@@ -486,7 +495,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) and the [developer docs](https://docs.s
 
 - **Desktop app** — Electron builds for Windows and Linux are available from the [desktop app page](https://docs.semaphorechat.app/installation/desktop-app/).
 
-- **Docker images** — `ghcr.io/semaphore-chat/semaphore-backend` and `ghcr.io/semaphore-chat/semaphore-frontend`
+- **Docker images** — `ghcr.io/semaphore-chat/semaphore-chat-backend` and `ghcr.io/semaphore-chat/semaphore-chat-frontend`
 
 ## Documentation
 

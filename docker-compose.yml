@@ -127,7 +127,7 @@ services:
         condition: service_healthy
 
   livekit-ip-watcher:
-    image: alpine:latest
+    image: curlimages/curl:latest
     restart: unless-stopped
     command: sh /scripts/livekit-ip-watcher.sh
     environment:
