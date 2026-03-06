@@ -28,7 +28,6 @@ import { SocketHubProvider } from "./socket-hub";
 import { IncomingCallProvider } from "./contexts/IncomingCallContext";
 import { IncomingCallListener } from "./components/DirectMessage/IncomingCallListener";
 import { IncomingCallBanner } from "./components/DirectMessage/IncomingCallBanner";
-import { setTelemetryUser, clearTelemetryUser } from "./services/telemetry";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { disconnectSocket } from "./utils/socketSingleton";
 import { clearSavedConnection } from "./features/voice/voiceActions";
@@ -100,16 +99,6 @@ const Layout: React.FC = () => {
     document.title = instanceName;
   }, [instanceName]);
 
-  // Set telemetry user context when profile loads
-  useEffect(() => {
-    if (userData && !isLoading && !isError) {
-      setTelemetryUser({
-        id: userData.id,
-        username: userData.username,
-      });
-    }
-  }, [userData, isLoading, isError]);
-
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
@@ -151,7 +140,6 @@ const Layout: React.FC = () => {
     const refreshToken = isElectron() ? (await getElectronRefreshToken()) ?? undefined : undefined;
     await logout({ body: { refreshToken } });
     clearTokens();
-    clearTelemetryUser();
     navigate("/login");
   };
 

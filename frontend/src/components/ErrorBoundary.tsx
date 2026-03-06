@@ -1,7 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { Error as ErrorIcon } from '@mui/icons-material';
-import { trackError } from '../services/telemetry';
 import { logger } from '../utils/logger';
 
 interface Props {
@@ -37,14 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log the error to console
     logger.error('ErrorBoundary caught an error:', error, errorInfo);
-
-    // Report to telemetry
-    trackError(error, {
-      componentStack: errorInfo.componentStack,
-      type: 'react_error_boundary',
-    });
   }
 
   handleReset = () => {

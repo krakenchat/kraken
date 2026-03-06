@@ -97,17 +97,6 @@ Copy `frontend/.env.sample` to `frontend/.env`. The defaults work for local Dock
 | `VITE_API_URL` | Backend API URL (Vite proxies this in dev; nginx proxies in production) | `/api` |
 | `VITE_WS_URL` | WebSocket URL for Socket.IO | `http://localhost:3000` |
 
-### Telemetry (optional)
-
-| Variable | Description |
-|----------|------------|
-| `VITE_TELEMETRY_ENDPOINT` | OpenObserve instance URL |
-| `VITE_TELEMETRY_CLIENT_TOKEN` | OpenObserve client token |
-| `VITE_TELEMETRY_ORG_ID` | OpenObserve organization ID |
-| `VITE_APP_VERSION` | App version reported to telemetry |
-
-Leave telemetry variables blank to disable.
-
 ## Production considerations
 
 - **JWT secrets** — Use long, random strings. Never reuse across environments.

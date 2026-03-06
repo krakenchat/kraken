@@ -63,8 +63,6 @@
     "@livekit/components-react": "^2.9.17",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
-    "@openobserve/browser-logs": "^0.2.11",
-    "@openobserve/browser-rum": "^0.2.11",
     "@tanstack/react-query": "^5.90.20",
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",

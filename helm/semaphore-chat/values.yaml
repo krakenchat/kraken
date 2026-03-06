@@ -157,16 +157,11 @@ frontend:
     backendUrl: "http://semaphore-backend:3000"
 
   # Extra environment variables for the frontend container
-  # These are injected at runtime (useful for telemetry, feature flags, etc.)
+  # These are injected at runtime (useful for feature flags, etc.)
   # Example:
   #   extraEnv:
-  #     - name: VITE_TELEMETRY_ENDPOINT
-  #       value: "https://openobserve.example.com"
-  #     - name: VITE_TELEMETRY_CLIENT_TOKEN
-  #       valueFrom:
-  #         secretKeyRef:
-  #           name: telemetry-secrets
-  #           key: client-token
+  #     - name: VITE_APP_VERSION
+  #       value: "1.2.3"
   extraEnv: []
 
   # Node selector for pod assignment

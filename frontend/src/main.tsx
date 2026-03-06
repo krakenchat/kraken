@@ -5,13 +5,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./App.tsx";
 import { HashRouter } from "react-router-dom";
-import { initTelemetry } from "./services/telemetry";
 import { configureApiClient } from "./api-client-config";
 import { isElectron } from "./utils/platform";
 import { queryClient } from "./queryClient";
-
-// Initialize telemetry before app renders
-initTelemetry();
 
 // Configure the generated API client (auth interceptors, base URL)
 configureApiClient();
