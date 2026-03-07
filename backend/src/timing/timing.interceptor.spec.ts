@@ -15,6 +15,7 @@ describe('TimingInterceptor', () => {
     loggerSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
 
     mockExecutionContext = {
+      getType: jest.fn().mockReturnValue('http'),
       switchToHttp: jest.fn().mockReturnValue({
         getRequest: jest.fn().mockReturnValue({
           method: 'GET',
@@ -49,8 +50,7 @@ describe('TimingInterceptor', () => {
         expect(loggerSpy).toHaveBeenCalled();
 
         const logCall = loggerSpy.mock.calls[0][0];
-        expect(logCall).toContain('GET');
-        expect(logCall).toContain('/api/test');
+        expect(logCall).toContain('HTTP GET /api/test');
         expect(logCall).toMatch(/\d+ms$/);
 
         done();
@@ -60,6 +60,7 @@ describe('TimingInterceptor', () => {
 
   it('should use originalUrl if available', (done) => {
     mockExecutionContext = {
+      getType: jest.fn().mockReturnValue('http'),
       switchToHttp: jest.fn().mockReturnValue({
         getRequest: jest.fn().mockReturnValue({
           method: 'POST',
@@ -87,6 +88,7 @@ describe('TimingInterceptor', () => {
 
   it('should fall back to url if originalUrl is not available', (done) => {
     mockExecutionContext = {
+      getType: jest.fn().mockReturnValue('http'),
       switchToHttp: jest.fn().mockReturnValue({
         getRequest: jest.fn().mockReturnValue({
           method: 'PUT',
@@ -117,6 +119,7 @@ describe('TimingInterceptor', () => {
       loggerSpy.mockClear();
 
       mockExecutionContext = {
+        getType: jest.fn().mockReturnValue('http'),
         switchToHttp: jest.fn().mockReturnValue({
           getRequest: jest.fn().mockReturnValue({
             method,
