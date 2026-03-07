@@ -25,7 +25,10 @@ export class DebugController {
     }
   }
 
-  private resolveRoom(roomType: DebugEmitDto['roomType'], roomId: string): string {
+  private resolveRoom(
+    roomType: DebugEmitDto['roomType'],
+    roomId: string,
+  ): string {
     switch (roomType) {
       case 'channel':
         return RoomName.channel(roomId);
@@ -48,10 +51,7 @@ export class DebugController {
 
   @Post('emit')
   @HttpCode(200)
-  emit(
-    @Req() req: AuthenticatedRequest,
-    @Body() dto: DebugEmitDto,
-  ) {
+  emit(@Req() req: AuthenticatedRequest, @Body() dto: DebugEmitDto) {
     this.assertOwner(req);
 
     const room = this.resolveRoom(dto.roomType, dto.roomId);

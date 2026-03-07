@@ -219,9 +219,7 @@ describe('RoomsGateway', () => {
       };
       const next = jest.fn();
 
-      jest
-        .spyOn(jwtService, 'verify')
-        .mockReturnValue({ sub: bannedUser.id });
+      jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: bannedUser.id });
       jest.spyOn(userService, 'findById').mockResolvedValue(bannedUser);
       tokenBlacklistService.isBlacklisted.mockResolvedValue(false);
 

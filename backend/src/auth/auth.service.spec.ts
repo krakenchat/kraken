@@ -214,7 +214,10 @@ describe('AuthService', () => {
 
     it('should delete existing sessions for same device on fresh login (no familyId)', async () => {
       const userId = 'user-123';
-      const deviceInfo = { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0', ipAddress: '1.2.3.4' };
+      const deviceInfo = {
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+        ipAddress: '1.2.3.4',
+      };
 
       jest.spyOn(jwtService, 'sign').mockReturnValue('mock-refresh-token');
       mockBcrypt.hash.mockResolvedValue('hashed-token' as never);
@@ -234,7 +237,10 @@ describe('AuthService', () => {
 
     it('should NOT delete existing sessions when familyId is provided (token rotation)', async () => {
       const userId = 'user-123';
-      const deviceInfo = { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0', ipAddress: '1.2.3.4' };
+      const deviceInfo = {
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+        ipAddress: '1.2.3.4',
+      };
 
       jest.spyOn(jwtService, 'sign').mockReturnValue('mock-refresh-token');
       mockBcrypt.hash.mockResolvedValue('hashed-token' as never);
@@ -244,7 +250,12 @@ describe('AuthService', () => {
         tokenHash: 'hashed-token',
       });
 
-      await service.generateRefreshToken(userId, deviceInfo, undefined, 'existing-family-id');
+      await service.generateRefreshToken(
+        userId,
+        deviceInfo,
+        undefined,
+        'existing-family-id',
+      );
 
       expect(mockDatabase.refreshToken.deleteMany).not.toHaveBeenCalled();
     });

@@ -5,6 +5,7 @@ import {
   Logger,
   NestInterceptor,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
@@ -12,7 +13,7 @@ import { tap } from 'rxjs/operators';
 export class TimingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(TimingInterceptor.name);
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const start = Date.now();
     const label = this.getLabel(context);
 
@@ -28,14 +29,16 @@ export class TimingInterceptor implements NestInterceptor {
     const type = context.getType();
 
     if (type === 'http') {
-      const req = context.switchToHttp().getRequest();
+      const req = context.switchToHttp().getRequest<Request>();
       return `HTTP ${req.method} ${req.originalUrl || req.url}`;
     }
 
     if (type === 'ws') {
-      const pattern = Reflect.getMetadata('message', context.getHandler());
+      const pattern = String(
+        Reflect.getMetadata('message', context.getHandler()) ?? '',
+      );
       const gateway = context.getClass().name;
-      return `WS ${gateway}:${pattern ?? context.getHandler().name}`;
+      return `WS ${gateway}:${pattern || context.getHandler().name}`;
     }
 
     return `${type} ${context.getClass().name}.${context.getHandler().name}`;

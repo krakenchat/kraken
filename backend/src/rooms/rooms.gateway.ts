@@ -107,8 +107,9 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
 
       const checkBlacklistAndUser = async () => {
         if (payload.jti) {
-          const isBlacklisted =
-            await this.tokenBlacklistService.isBlacklisted(payload.jti);
+          const isBlacklisted = await this.tokenBlacklistService.isBlacklisted(
+            payload.jti,
+          );
           if (isBlacklisted) {
             next(new Error('AUTH_FAILED'));
             return;

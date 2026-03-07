@@ -13,9 +13,7 @@ describe('DebugController', () => {
   const userReq = { user: { id: 'user-1', role: InstanceRole.USER } } as any;
 
   beforeEach(async () => {
-    const { unit, unitRef } = await TestBed.solitary(
-      DebugController,
-    ).compile();
+    const { unit, unitRef } = await TestBed.solitary(DebugController).compile();
 
     controller = unit;
     websocketService = unitRef.get(WebsocketService);
@@ -67,7 +65,11 @@ describe('DebugController', () => {
         'userTyping',
         { userId: 'u1', isTyping: true },
       );
-      expect(result).toEqual({ success: true, room: 'ch-1', event: 'userTyping' });
+      expect(result).toEqual({
+        success: true,
+        room: 'ch-1',
+        event: 'userTyping',
+      });
     });
 
     it('should resolve dmGroup room type with dm: prefix', () => {
