@@ -30,7 +30,6 @@ interface MemberListProps {
   isLoading?: boolean;
   error?: unknown;
   title?: string;
-  maxHeight?: number | string;
   communityId?: string; // For moderation actions
 }
 
@@ -56,7 +55,6 @@ const MemberList: React.FC<MemberListProps> = ({
   isLoading = false,
   error = null,
   title = "Members",
-  maxHeight = 400,
   communityId,
 }) => {
   const theme = useTheme();
