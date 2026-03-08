@@ -30,7 +30,6 @@ interface MemberListProps {
   isLoading?: boolean;
   error?: unknown;
   title?: string;
-  maxHeight?: number | string;
   communityId?: string; // For moderation actions
 }
 
@@ -56,7 +55,6 @@ const MemberList: React.FC<MemberListProps> = ({
   isLoading = false,
   error = null,
   title = "Members",
-  maxHeight = 400,
   communityId,
 }) => {
   const theme = useTheme();
@@ -113,7 +111,6 @@ const MemberList: React.FC<MemberListProps> = ({
         sx={{
           flex: 1,
           overflowY: "auto",
-          maxHeight: typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight,
           "&::-webkit-scrollbar": {
             width: 8,
           },
@@ -143,7 +140,7 @@ const MemberList: React.FC<MemberListProps> = ({
                 >
                   <ListItemAvatar sx={{ minWidth: 40 }}>
                     <UserAvatar
-                      user={member}
+                      userId={member.id}
                       size="small"
                       showStatus={true}
                       isOnline={member.isOnline}

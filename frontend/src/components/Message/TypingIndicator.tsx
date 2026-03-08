@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { alpha, Box, Typography } from '@mui/material';
 import { useTypingUsers } from '../../hooks/useTypingUsers';
 import { useUsers } from '../../hooks/useUser';
 
@@ -17,8 +17,7 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({
   const typingUserIds = useTypingUsers({ channelId, directMessageGroupId, currentUserId });
   const userQueries = useUsers(typingUserIds);
 
-  if (typingUserIds.length === 0)
-    return <Box sx={{ px: 2, minHeight: 24 }} />;
+  if (typingUserIds.length === 0) return null;
 
   const getName = (index: number) => {
     const user = userQueries[index]?.data;
@@ -35,7 +34,27 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({
   }
 
   return (
-    <Box sx={{ px: 2, minHeight: 24 }}>
+    <Box
+      sx={(theme) => {
+        const bg =
+          theme.palette.mode === 'dark'
+            ? theme.palette.background.default
+            : theme.palette.background.paper;
+        return {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          px: 2,
+          pt: 1,
+          pb: 0.5,
+          background: `linear-gradient(to bottom, transparent 0%, ${alpha(bg, 0.85)} 40%, ${bg} 70%)`,
+          maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+          pointerEvents: 'none',
+        };
+      }}
+    >
       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
         {text}
       </Typography>

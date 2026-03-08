@@ -188,11 +188,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
                   }}
                 >
                   <UserAvatar
-                    user={{
-                      avatarUrl: suggestion.avatar,
-                      displayName: suggestion.displayName,
-                      username: suggestion.displayName,
-                    }}
+                    userId={suggestion.id}
                     size="small"
                   />
                 </Box>

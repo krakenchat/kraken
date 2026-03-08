@@ -121,7 +121,7 @@ export const AddChannelMembers: React.FC<AddChannelMembersProps> = ({
                 }}
               >
                 <Box display="flex" alignItems="center" gap={2}>
-                  <UserAvatar user={member.user} size="medium" />
+                  <UserAvatar userId={member.userId} size="medium" />
                   <Box>
                     <Typography variant="body1" fontWeight="medium">
                       {member.user?.username}

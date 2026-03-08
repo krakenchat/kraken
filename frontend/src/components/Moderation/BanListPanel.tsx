@@ -227,7 +227,7 @@ const BanListPanel: React.FC<BanListPanelProps> = ({ communityId }) => {
               >
                 <ListItemAvatar>
                   <UserAvatar
-                    user={ban.user ? { id: ban.userId, username: ban.user.username, avatarUrl: ban.user.avatarUrl } : { id: ban.userId, username: ban.userId }}
+                    userId={ban.userId}
                     size="medium"
                   />
                 </ListItemAvatar>

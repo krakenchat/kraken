@@ -15,7 +15,7 @@ vi.mock('../../api-client/client.gen', async (importOriginal) => {
 
 // Mock child components to isolate DirectMessageList
 vi.mock('../../components/Common/UserAvatar', () => ({
-  default: ({ user }: { user: unknown }) => <div data-testid="user-avatar">{(user as { username?: string })?.username}</div>,
+  default: ({ userId }: { userId?: string }) => <div data-testid="user-avatar">{userId}</div>,
 }));
 
 vi.mock('../../components/Common/UserSearchAutocomplete', () => ({

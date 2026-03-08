@@ -71,7 +71,7 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
         onContextMenu={(e) => onContextMenu(e, user)}
       >
         <ListItemAvatar>
-          <UserAvatar user={user} size="small" />
+          <UserAvatar userId={user.id} size="small" />
         </ListItemAvatar>
 
         <ListItemText

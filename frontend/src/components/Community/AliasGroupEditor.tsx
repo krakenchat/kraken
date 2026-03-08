@@ -348,7 +348,7 @@ const AliasGroupEditor: React.FC<AliasGroupEditorProps> = ({
                         />
                       </ListItemIcon>
                       <ListItemIcon sx={{ minWidth: 48 }}>
-                        <UserAvatar user={member.user} size="small" />
+                        <UserAvatar userId={member.userId} size="small" />
                       </ListItemIcon>
                       <ListItemText
                         primary={member.user?.username}

@@ -1,8 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { UserPresenceInfo, ServerEvents } from '@semaphore-chat/shared';
+import type { UserPresenceInfo, UserProfileUpdatedPayload, ServerEvents } from '@semaphore-chat/shared';
+import type { UserControllerGetProfileResponse } from '../../api-client';
 import {
   presenceControllerGetUserPresenceQueryKey,
   presenceControllerGetBulkPresenceQueryKey,
+  userControllerGetUserByIdQueryKey,
+  userControllerGetProfileQueryKey,
 } from '../../api-client/@tanstack/react-query.gen';
 import type { SocketEventHandler } from './types';
 
@@ -67,8 +70,20 @@ export const handleUserOffline: SocketEventHandler<typeof ServerEvents.USER_OFFL
 // =============================================================================
 
 export const handleUserProfileUpdated: SocketEventHandler<typeof ServerEvents.USER_PROFILE_UPDATED> = (
-  _payload,
+  payload: UserProfileUpdatedPayload,
   queryClient: QueryClient,
 ) => {
-  queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetProfile' }] });
+  // Only invalidate the current user's own profile query if they are the one who updated
+  const currentUser = queryClient.getQueryData<UserControllerGetProfileResponse>(
+    userControllerGetProfileQueryKey(),
+  );
+  if (currentUser && payload.userId === currentUser.id) {
+    queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetProfile' }] });
+  }
+
+  // Invalidate the useUser() cache for this user so all UserAvatar
+  // instances and other components showing this user's data refresh
+  queryClient.invalidateQueries({
+    queryKey: userControllerGetUserByIdQueryKey({ path: { id: payload.userId } }),
+  });
 };

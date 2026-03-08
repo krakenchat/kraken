@@ -78,7 +78,7 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
               borderRadius: "50%",
             }}
           >
-            <UserAvatar user={user} size="small" />
+            <UserAvatar userId={user.id} size="small" />
           </Box>
 
           {/* Audio status badge (deafen > server mute > self mute) */}
