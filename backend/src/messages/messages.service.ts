@@ -215,12 +215,33 @@ export class MessagesService {
   async remove(id: string) {
     return this.databaseService.$transaction(
       async (tx: Prisma.TransactionClient) => {
+        // 1. Cascade-delete thread replies and their attachments
+        const threadReplies = await tx.message.findMany({
+          where: { parentMessageId: id },
+          include: { attachments: { include: { file: true } } },
+        });
+
+        for (const reply of threadReplies) {
+          for (const attachment of reply.attachments) {
+            await this.fileService.markForDeletion(attachment.file.id, tx);
+          }
+        }
+
+        // Delete thread subscribers for this parent
+        await tx.threadSubscriber.deleteMany({
+          where: { parentMessageId: id },
+        });
+
+        // Delete all thread replies
+        await tx.message.deleteMany({ where: { parentMessageId: id } });
+
+        // 2. Delete the parent message
         const deletedMessage = await tx.message.delete({
           where: { id },
           include: MESSAGE_INCLUDE,
         });
 
-        // Mark all attachments for deletion after message is deleted
+        // Mark parent's attachments for deletion
         if (
           deletedMessage.attachments &&
           deletedMessage.attachments.length > 0

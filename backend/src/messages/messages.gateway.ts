@@ -271,6 +271,7 @@ export class MessagesGateway
         reaction: reaction,
         channelId: result.channelId ?? null,
         directMessageGroupId: result.directMessageGroupId ?? null,
+        parentMessageId: result.parentMessageId ?? null,
       });
     }
   }
@@ -304,6 +305,7 @@ export class MessagesGateway
         reactions: groupReactions(result.reactions),
         channelId: result.channelId ?? null,
         directMessageGroupId: result.directMessageGroupId ?? null,
+        parentMessageId: result.parentMessageId ?? null,
       });
     }
   }

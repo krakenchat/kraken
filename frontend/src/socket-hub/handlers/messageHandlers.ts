@@ -19,7 +19,9 @@ import {
   userControllerGetProfileQueryKey,
   moderationControllerGetPinnedMessagesQueryKey,
   directMessagesControllerFindUserDmGroupsQueryKey,
+  threadsControllerGetRepliesQueryKey,
 } from '../../api-client/@tanstack/react-query.gen';
+import type { ThreadRepliesResponseDto, EnrichedThreadReplyDto } from '../../api-client';
 import {
   prependMessageToInfinite,
   updateMessageInInfinite,
@@ -101,51 +103,102 @@ export const handleDeleteMessage: SocketEventHandler<typeof ServerEvents.DELETE_
   queryClient.setQueryData(queryKey, (old: unknown) =>
     deleteMessageFromInfinite(old as never, messageId),
   );
+
+  // Remove thread replies cache if this was a thread parent
+  const threadQueryKey = threadsControllerGetRepliesQueryKey({
+    path: { parentMessageId: messageId },
+  });
+  queryClient.removeQueries({ queryKey: threadQueryKey });
 };
 
 export const handleReactionAdded: SocketEventHandler<typeof ServerEvents.REACTION_ADDED> = async (
-  { messageId, reaction, channelId, directMessageGroupId }: ReactionAddedPayload,
+  { messageId, reaction, channelId, directMessageGroupId, parentMessageId }: ReactionAddedPayload,
   queryClient: QueryClient,
 ) => {
+  // Update channel/DM message cache
   const queryKey = messageQueryKeyForContext({ channelId, directMessageGroupId });
-  if (!queryKey) return;
+  if (queryKey) {
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData(queryKey, (old: unknown) => {
+      const msg = findMessageInInfinite(old as never, messageId);
+      if (!msg) return old;
 
-  await queryClient.cancelQueries({ queryKey });
-  queryClient.setQueryData(queryKey, (old: unknown) => {
-    const msg = findMessageInInfinite(old as never, messageId);
-    if (!msg) return old;
+      const updatedReactions = [...msg.reactions];
+      const existingIndex = updatedReactions.findIndex((r) => r.emoji === reaction.emoji);
+      if (existingIndex >= 0) {
+        updatedReactions[existingIndex] = reaction;
+      } else {
+        updatedReactions.push(reaction);
+      }
 
-    const updatedReactions = [...msg.reactions];
-    const existingIndex = updatedReactions.findIndex((r) => r.emoji === reaction.emoji);
-    if (existingIndex >= 0) {
-      updatedReactions[existingIndex] = reaction;
-    } else {
-      updatedReactions.push(reaction);
-    }
-
-    return updateMessageInInfinite(old as never, {
-      ...msg,
-      reactions: updatedReactions,
+      return updateMessageInInfinite(old as never, {
+        ...msg,
+        reactions: updatedReactions,
+      });
     });
-  });
+  }
+
+  // Update thread replies cache if this is a thread reply
+  if (parentMessageId) {
+    const threadQueryKey = threadsControllerGetRepliesQueryKey({
+      path: { parentMessageId },
+      query: { limit: 50, continuationToken: '' },
+    });
+    queryClient.setQueryData(threadQueryKey, (old: ThreadRepliesResponseDto | undefined) => {
+      if (!old) return old;
+      return {
+        ...old,
+        replies: old.replies.map((r) => {
+          if (r.id !== messageId) return r;
+          const updatedReactions = [...(r.reactions || [])];
+          const existingIndex = updatedReactions.findIndex((rx) => rx.emoji === reaction.emoji);
+          if (existingIndex >= 0) {
+            updatedReactions[existingIndex] = reaction;
+          } else {
+            updatedReactions.push(reaction);
+          }
+          return { ...r, reactions: updatedReactions } as EnrichedThreadReplyDto;
+        }),
+      };
+    });
+  }
 };
 
 export const handleReactionRemoved: SocketEventHandler<typeof ServerEvents.REACTION_REMOVED> = async (
-  { messageId, reactions, channelId, directMessageGroupId }: ReactionRemovedPayload,
+  { messageId, reactions, channelId, directMessageGroupId, parentMessageId }: ReactionRemovedPayload,
   queryClient: QueryClient,
 ) => {
+  // Update channel/DM message cache
   const queryKey = messageQueryKeyForContext({ channelId, directMessageGroupId });
-  if (!queryKey) return;
-
-  await queryClient.cancelQueries({ queryKey });
-  queryClient.setQueryData(queryKey, (old: unknown) => {
-    const msg = findMessageInInfinite(old as never, messageId);
-    if (!msg) return old;
-    return updateMessageInInfinite(old as never, {
-      ...msg,
-      reactions,
+  if (queryKey) {
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData(queryKey, (old: unknown) => {
+      const msg = findMessageInInfinite(old as never, messageId);
+      if (!msg) return old;
+      return updateMessageInInfinite(old as never, {
+        ...msg,
+        reactions,
+      });
     });
-  });
+  }
+
+  // Update thread replies cache if this is a thread reply
+  if (parentMessageId) {
+    const threadQueryKey = threadsControllerGetRepliesQueryKey({
+      path: { parentMessageId },
+      query: { limit: 50, continuationToken: '' },
+    });
+    queryClient.setQueryData(threadQueryKey, (old: ThreadRepliesResponseDto | undefined) => {
+      if (!old) return old;
+      return {
+        ...old,
+        replies: old.replies.map((r) => {
+          if (r.id !== messageId) return r;
+          return { ...r, reactions } as EnrichedThreadReplyDto;
+        }),
+      };
+    });
+  }
 };
 
 export const handleMessagePinned: SocketEventHandler<typeof ServerEvents.MESSAGE_PINNED> = async (

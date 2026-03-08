@@ -298,6 +298,7 @@ describe('MessagesController', () => {
           reaction: { emoji: '👍', userIds: [mockUser.id] },
           channelId: 'channel-123',
           directMessageGroupId: null,
+          parentMessageId: null,
         },
       );
       expect(result).toEqual({
@@ -386,6 +387,7 @@ describe('MessagesController', () => {
           reactions: [],
           channelId: 'channel-123',
           directMessageGroupId: null,
+          parentMessageId: null,
         },
       );
       expect(result).toEqual({
