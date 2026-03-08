@@ -310,6 +310,7 @@ describe('MessagesGateway', () => {
           reaction: { emoji: '👍', userIds: ['user-789'] },
           channelId: 'channel-789',
           directMessageGroupId: null,
+          parentMessageId: null,
         },
       );
     });
@@ -399,6 +400,7 @@ describe('MessagesGateway', () => {
           reactions: [],
           channelId: 'channel-222',
           directMessageGroupId: null,
+          parentMessageId: null,
         },
       );
     });

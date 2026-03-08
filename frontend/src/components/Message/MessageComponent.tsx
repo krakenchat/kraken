@@ -22,6 +22,7 @@ import { Container } from "./MessageComponentStyles";
 import { useMessageActions } from "./useMessageActions";
 import { isUserMentioned } from "./messageUtils";
 import UserAvatar from "../Common/UserAvatar";
+import ConfirmDialog from "../Common/ConfirmDialog";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { SeenByTooltip } from "./SeenByTooltip";
@@ -92,6 +93,9 @@ function MessageComponentInner({
     handleDeleteClick,
     handleConfirmDelete,
     handleCancelDelete,
+    handleConfirmThreadDelete,
+    handleCancelThreadDelete,
+    showThreadDeleteConfirm,
     handleReactionClick,
     handleEmojiSelect,
     handlePin,
@@ -221,6 +225,15 @@ function MessageComponentInner({
           onReplyInThread={handleOpenThread}
         />
       )}
+      <ConfirmDialog
+        open={showThreadDeleteConfirm}
+        title="Delete Message"
+        description={`This message has ${message.replyCount ?? 0} thread ${(message.replyCount ?? 0) === 1 ? 'reply' : 'replies'}. Deleting it will also delete all replies.`}
+        confirmLabel="Delete All"
+        confirmColor="error"
+        onConfirm={handleConfirmThreadDelete}
+        onCancel={handleCancelThreadDelete}
+      />
     </Container>
   );
 }

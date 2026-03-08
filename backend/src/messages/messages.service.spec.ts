@@ -338,6 +338,12 @@ describe('MessagesService', () => {
   });
 
   describe('remove', () => {
+    beforeEach(() => {
+      // Default: no thread replies
+      mockDatabase.message.findMany.mockResolvedValue([]);
+      mockDatabase.message.deleteMany.mockResolvedValue({ count: 0 });
+    });
+
     it('should delete a message', async () => {
       const messageId = 'msg-123';
       const deletedMessage = buildMessageWithIncludes({ id: messageId });
@@ -406,6 +412,84 @@ describe('MessagesService', () => {
       mockDatabase.message.delete.mockRejectedValue(new Error('Delete failed'));
 
       await expect(service.remove('msg-id')).rejects.toThrow('Delete failed');
+    });
+
+    it('should delete thread replies before deleting parent message', async () => {
+      const parentId = 'parent-msg';
+      const reply1 = { id: 'reply-1', parentMessageId: parentId, attachments: [] };
+      const reply2 = { id: 'reply-2', parentMessageId: parentId, attachments: [] };
+
+      mockDatabase.message.findMany.mockResolvedValue([reply1, reply2]);
+      mockDatabase.message.deleteMany.mockResolvedValue({ count: 2 });
+      mockDatabase.message.delete.mockResolvedValue(
+        buildMessageWithIncludes({ id: parentId }),
+      );
+
+      await service.remove(parentId);
+
+      // Should find thread replies
+      expect(mockDatabase.message.findMany).toHaveBeenCalledWith({
+        where: { parentMessageId: parentId },
+        include: { attachments: { include: { file: true } } },
+      });
+
+      // Should delete all thread replies
+      expect(mockDatabase.message.deleteMany).toHaveBeenCalledWith({
+        where: { parentMessageId: parentId },
+      });
+
+      // Should delete the parent message
+      expect(mockDatabase.message.delete).toHaveBeenCalledWith({
+        where: { id: parentId },
+        include: expect.objectContaining({
+          spans: expect.any(Object),
+          reactions: true,
+          attachments: expect.any(Object),
+        }),
+      });
+    });
+
+    it('should mark thread reply attachments for deletion', async () => {
+      const parentId = 'parent-msg';
+      const replyFile = {
+        id: 'reply-file-1',
+        filename: 'reply-attachment.png',
+        mimeType: 'image/png',
+        fileType: FileType.IMAGE,
+        size: 512,
+        thumbnailPath: null,
+      };
+      const reply = {
+        id: 'reply-1',
+        parentMessageId: parentId,
+        attachments: [{ file: replyFile }],
+      };
+
+      mockDatabase.message.findMany.mockResolvedValue([reply]);
+      mockDatabase.message.deleteMany.mockResolvedValue({ count: 1 });
+      mockDatabase.message.delete.mockResolvedValue(
+        buildMessageWithIncludes({ id: parentId }),
+      );
+
+      await service.remove(parentId);
+
+      expect(fileService.markForDeletion).toHaveBeenCalledWith(
+        'reply-file-1',
+        expect.any(Object),
+      );
+    });
+
+    it('should not explicitly delete thread subscribers (cascade handles it)', async () => {
+      const parentId = 'parent-msg';
+
+      mockDatabase.message.delete.mockResolvedValue(
+        buildMessageWithIncludes({ id: parentId }),
+      );
+
+      await service.remove(parentId);
+
+      // ThreadSubscriber has onDelete: Cascade on parentMessage, so no explicit delete needed
+      expect(mockDatabase.threadSubscriber.deleteMany).not.toHaveBeenCalled();
     });
   });
 

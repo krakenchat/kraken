@@ -35,6 +35,7 @@ export interface UseMessageActionsReturn {
   editAttachments: FileMetadata[];
   stagedForDelete: boolean;
   isDeleting: boolean;
+  showThreadDeleteConfirm: boolean;
   setEditText: (text: string) => void;
   handleEditClick: () => void;
   handleEditSave: () => Promise<void>;
@@ -43,6 +44,8 @@ export interface UseMessageActionsReturn {
   handleDeleteClick: () => void;
   handleConfirmDelete: () => Promise<void>;
   handleCancelDelete: () => void;
+  handleConfirmThreadDelete: () => Promise<void>;
+  handleCancelThreadDelete: () => void;
   handleReactionClick: (emoji: string) => Promise<void>;
   handleEmojiSelect: (emoji: string) => Promise<void>;
   handlePin: () => Promise<void>;
@@ -179,6 +182,7 @@ export function useMessageActions(
   const [editAttachments, setEditAttachments] = useState<FileMetadata[]>([]);
   const [stagedForDelete, setStagedForDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showThreadDeleteConfirm, setShowThreadDeleteConfirm] = useState(false);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -245,8 +249,12 @@ export function useMessageActions(
   }, []);
 
   const handleDeleteClick = useCallback(() => {
-    setStagedForDelete(true);
-  }, []);
+    if ((message.replyCount ?? 0) > 0) {
+      setShowThreadDeleteConfirm(true);
+    } else {
+      setStagedForDelete(true);
+    }
+  }, [message.replyCount]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!message.channelId && !message.directMessageGroupId) return;
@@ -270,6 +278,15 @@ export function useMessageActions(
 
   const handleCancelDelete = useCallback(() => {
     setStagedForDelete(false);
+  }, []);
+
+  const handleConfirmThreadDelete = useCallback(async () => {
+    setShowThreadDeleteConfirm(false);
+    await handleConfirmDelete();
+  }, [handleConfirmDelete]);
+
+  const handleCancelThreadDelete = useCallback(() => {
+    setShowThreadDeleteConfirm(false);
   }, []);
 
   const handleReactionClick = useCallback(async (emoji: string) => {
@@ -319,6 +336,7 @@ export function useMessageActions(
     editAttachments,
     stagedForDelete,
     isDeleting,
+    showThreadDeleteConfirm,
     setEditText,
     handleEditClick,
     handleEditSave,
@@ -327,6 +345,8 @@ export function useMessageActions(
     handleDeleteClick,
     handleConfirmDelete,
     handleCancelDelete,
+    handleConfirmThreadDelete,
+    handleCancelThreadDelete,
     handleReactionClick,
     handleEmojiSelect,
     handlePin,

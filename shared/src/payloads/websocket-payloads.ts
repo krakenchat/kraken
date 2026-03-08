@@ -75,6 +75,7 @@ export interface ReactionAddedPayload {
   reaction: Reaction;
   channelId?: string | null;
   directMessageGroupId?: string | null;
+  parentMessageId?: string | null;
 }
 
 export interface ReactionRemovedPayload {
@@ -83,6 +84,7 @@ export interface ReactionRemovedPayload {
   reactions: Reaction[];
   channelId?: string | null;
   directMessageGroupId?: string | null;
+  parentMessageId?: string | null;
 }
 
 // =============================================================================

@@ -711,7 +711,7 @@ export class ModerationService {
         channelId,
         pinned: true,
       },
-      orderBy: { pinnedAt: 'desc' },
+      orderBy: { pinnedAt: 'asc' },
       include: {
         attachments: {
           include: {
