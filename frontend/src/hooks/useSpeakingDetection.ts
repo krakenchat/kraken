@@ -61,13 +61,13 @@ export const useSpeakingDetection = () => {
   const lastGateCloseRef = useRef(0);
 
   // Cached settings — re-read from localStorage periodically, not every frame
-  const cachedSettingsRef = useRef<ParsedSettings>({ threshold: 25, isVoiceActivity: true });
+  const cachedSettingsRef = useRef<ParsedSettings>({ threshold: 0, isVoiceActivity: true });
   const frameCountRef = useRef(0);
 
   const readSettings = useCallback((): ParsedSettings => {
     const settings = getCachedItem<VoiceSettingsCache>(VOICE_SETTINGS_KEY);
     return {
-      threshold: settings?.voiceActivityThreshold ?? 25,
+      threshold: settings?.voiceActivityThreshold ?? 0,
       isVoiceActivity: (settings?.inputMode ?? 'voice_activity') === 'voice_activity',
     };
   }, []);

@@ -160,8 +160,11 @@ describe('useRemoteVolumeEffect', () => {
     expect(setVolume).not.toHaveBeenCalled();
   });
 
-  it('handles screen share audio tracks', () => {
-    localStorageGetSpy.mockReturnValue('0.3');
+  it('handles screen share audio tracks using screenshare volume prefix', () => {
+    localStorageGetSpy.mockImplementation((key: string) => {
+      if (key === 'voiceScreenShareVolume:user-2') return '0.3';
+      return null;
+    });
 
     renderHook(() => useRemoteVolumeEffect());
 
@@ -173,7 +176,29 @@ describe('useRemoteVolumeEffect', () => {
     const handlers = roomEventHandlers.get('trackSubscribed');
     handlers!.forEach((h) => h(track, publication, participant));
 
+    expect(localStorageGetSpy).toHaveBeenCalledWith('voiceScreenShareVolume:user-2');
     expect(setVolume).toHaveBeenCalledWith(0.3);
+  });
+
+  it('uses mic volume prefix for microphone tracks, not screenshare prefix', () => {
+    localStorageGetSpy.mockImplementation((key: string) => {
+      if (key === 'voiceUserVolume:user-2') return '0.7';
+      if (key === 'voiceScreenShareVolume:user-2') return '0.2';
+      return null;
+    });
+
+    renderHook(() => useRemoteVolumeEffect());
+
+    const setVolume = vi.fn();
+    const track = { setVolume };
+    const publication = { source: 'microphone', track };
+    const participant = { identity: 'user-2' };
+
+    const handlers = roomEventHandlers.get('trackSubscribed');
+    handlers!.forEach((h) => h(track, publication, participant));
+
+    expect(localStorageGetSpy).toHaveBeenCalledWith('voiceUserVolume:user-2');
+    expect(setVolume).toHaveBeenCalledWith(0.7);
   });
 
   it('does nothing when no room is available', () => {

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { RoomEvent, Track, type RemoteTrackPublication, type RemoteParticipant } from 'livekit-client';
 import { useRoom } from './useRoom';
 import { useVoice } from '../contexts/VoiceContext';
-import { VOLUME_STORAGE_PREFIX } from '../constants/voice';
+import { VOLUME_STORAGE_PREFIX, SCREENSHARE_VOLUME_STORAGE_PREFIX } from '../constants/voice';
 import { logger } from '../utils/logger';
 
 /**
@@ -41,10 +41,15 @@ export const useRemoteVolumeEffect = () => {
       // Skip when deafened — useDeafenEffect manages volume in that case
       if (isDeafenedRef.current) return;
 
+      const storagePrefix =
+        publication.source === Track.Source.ScreenShareAudio
+          ? SCREENSHARE_VOLUME_STORAGE_PREFIX
+          : VOLUME_STORAGE_PREFIX;
+
       let storedRaw: string | null = null;
       try {
         storedRaw = localStorage.getItem(
-          `${VOLUME_STORAGE_PREFIX}${participant.identity}`,
+          `${storagePrefix}${participant.identity}`,
         );
       } catch {
         // localStorage may throw in sandboxed/private environments

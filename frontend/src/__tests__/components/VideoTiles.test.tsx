@@ -4,6 +4,18 @@ import { renderWithProviders } from '../test-utils';
 import { VideoTiles } from '../../components/Voice/VideoTiles';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
 
+vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../contexts/VoiceContext')>();
+  return {
+    ...actual,
+    useVoice: vi.fn(() => ({ isDeafened: false })),
+  };
+});
+
+vi.mock('../../hooks/useRoom', () => ({
+  useRoom: vi.fn(() => ({ room: { on: vi.fn(), off: vi.fn() } })),
+}));
+
 // jsdom doesn't implement HTMLMediaElement.play() — stub it to return a resolved promise
 beforeEach(() => {
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();

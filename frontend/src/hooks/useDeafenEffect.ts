@@ -3,7 +3,7 @@ import { logger } from '../utils/logger';
 import { useVoice } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { Track } from 'livekit-client';
-import { VOLUME_STORAGE_PREFIX } from '../constants/voice';
+import { VOLUME_STORAGE_PREFIX, SCREENSHARE_VOLUME_STORAGE_PREFIX } from '../constants/voice';
 
 /**
  * Hook that implements proper deafen functionality by muting received audio tracks
@@ -44,13 +44,26 @@ export const useDeafenEffect = () => {
     // Restore per-user stored volumes for all remote audio tracks
     const restoreRemoteAudioVolumes = () => {
       room.remoteParticipants.forEach((participant) => {
-        const storedRaw = localStorage.getItem(`${VOLUME_STORAGE_PREFIX}${participant.identity}`);
-        const storedVolume = storedRaw !== null ? parseFloat(storedRaw) : 1.0;
-        // Cap at 1.0 for track.setVolume; GainNode handles boost >1.0 via context menu
-        const trackVolume = Math.min(storedVolume, 1.0);
-
         participant.audioTrackPublications.forEach((publication) => {
           if (publication.track && (publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio)) {
+            let storedVolume = 1.0;
+            try {
+              const storagePrefix =
+                publication.source === Track.Source.ScreenShareAudio
+                  ? SCREENSHARE_VOLUME_STORAGE_PREFIX
+                  : VOLUME_STORAGE_PREFIX;
+              const storedRaw = localStorage.getItem(`${storagePrefix}${participant.identity}`);
+              if (storedRaw !== null) {
+                const parsed = parseFloat(storedRaw);
+                if (Number.isFinite(parsed)) {
+                  storedVolume = parsed;
+                }
+              }
+            } catch {
+              // localStorage may throw in sandboxed/private environments
+            }
+            // Cap at 1.0 for track.setVolume; GainNode handles boost >1.0 via context menu/component
+            const trackVolume = Math.min(Math.max(storedVolume, 0), 1.0);
             publication.track.setVolume(trackVolume);
           }
         });

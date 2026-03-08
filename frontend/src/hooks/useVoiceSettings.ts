@@ -7,7 +7,7 @@ export interface VoiceSettings {
   inputMode: VoiceInputMode;
   pushToTalkKey: string;        // KeyboardEvent.code, e.g., 'Space', 'KeyV'
   pushToTalkKeyDisplay: string; // Human-readable display, e.g., 'Space', 'V'
-  voiceActivityThreshold: number; // 0-100, default 25 (lower = more sensitive)
+  voiceActivityThreshold: number; // 0-100, default 0 (lower = more sensitive)
   echoCancellation: boolean;     // default: true
   noiseSuppression: boolean;     // default: true
   autoGainControl: boolean;      // default: true
@@ -20,7 +20,7 @@ const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   inputMode: 'voice_activity',
   pushToTalkKey: 'Backquote',
   pushToTalkKeyDisplay: '`',
-  voiceActivityThreshold: 25,
+  voiceActivityThreshold: 0,
   echoCancellation: true,
   noiseSuppression: true,
   autoGainControl: true,

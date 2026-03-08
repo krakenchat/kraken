@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Menu,
   MenuItem,
@@ -28,6 +28,7 @@ import { livekitControllerMuteParticipant } from "../../api-client/sdk.gen";
 import { useNotification } from "../../contexts/NotificationContext";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
+import { useAudioBoost } from "../../hooks/useAudioBoost";
 import { logger } from "../../utils/logger";
 
 function getStoredVolume(userId: string): number | null {
@@ -81,17 +82,7 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
 
   const isLocallyMuted = volume === 0;
 
-  // Web Audio GainNode for >100% amplification
-  const gainNodesRef = useRef<Map<string, { gainNode: GainNode; source: MediaStreamAudioSourceNode; context: AudioContext }>>(new Map());
-
-  // Cleanup gain nodes on unmount
-  useEffect(() => {
-    const nodes = gainNodesRef.current;
-    return () => {
-      nodes.forEach(({ context }) => context.close());
-      nodes.clear();
-    };
-  }, []);
+  const { applyVolume: applyBoost } = useAudioBoost();
 
   const canMuteParticipant = useCanPerformAction(
     "COMMUNITY",
@@ -114,51 +105,19 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
     RBAC_ACTIONS.BAN_USER,
   );
 
-  // Apply volume to LiveKit participant tracks (with GainNode for >100%)
+  // Apply volume to LiveKit participant mic tracks (with GainNode for >100%)
   const applyVolume = useCallback(
     (vol: number) => {
       if (!participant || isLocalUser) return;
 
       participant.audioTrackPublications.forEach((pub) => {
-        if (pub.track && (pub.source === Track.Source.Microphone || pub.source === Track.Source.ScreenShareAudio)) {
+        if (pub.track && pub.source === Track.Source.Microphone) {
           const key = `${user.id}:${pub.source}`;
-
-          if (vol <= 100) {
-            // Standard range: use track.setVolume (0-1.0)
-            // Clean up any existing GainNode first
-            const existingEntry = gainNodesRef.current.get(key);
-            if (existingEntry) {
-              existingEntry.source.disconnect();
-              existingEntry.context.close();
-              gainNodesRef.current.delete(key);
-            }
-            pub.track.setVolume(vol / 100);
-          } else {
-            // Boost range: mute LiveKit track output to prevent double audio,
-            // route through GainNode for amplification
-            pub.track.setVolume(0);
-
-            const mediaStream = pub.track.mediaStream;
-            if (mediaStream) {
-              let entry = gainNodesRef.current.get(key);
-
-              if (!entry) {
-                const context = new AudioContext();
-                const source = context.createMediaStreamSource(mediaStream);
-                const gainNode = context.createGain();
-                source.connect(gainNode);
-                gainNode.connect(context.destination);
-                entry = { gainNode, source, context };
-                gainNodesRef.current.set(key, entry);
-              }
-
-              entry.gainNode.gain.value = vol / 100; // 1.0 - 2.0
-            }
-          }
+          applyBoost(pub.track, key, vol);
         }
       });
     },
-    [participant, isLocalUser, user.id],
+    [participant, isLocalUser, user.id, applyBoost],
   );
 
   // Apply stored volume when participant joins/changes
