@@ -202,6 +202,15 @@ const electronAPI = {
   deleteRefreshToken: (): Promise<void> => {
     return ipcRenderer.invoke('secure-storage:delete', 'refreshToken');
   },
+
+  // Power save blocker for voice calls
+  requestPowerSaveBlock: (): Promise<number> => {
+    return ipcRenderer.invoke('voice:request-power-save-block');
+  },
+
+  releasePowerSaveBlock: (id: number): Promise<void> => {
+    return ipcRenderer.invoke('voice:release-power-save-block', id);
+  },
 };
 
 // Expose protected methods to renderer process
