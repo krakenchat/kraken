@@ -120,7 +120,7 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
       if (!participant || isLocalUser) return;
 
       participant.audioTrackPublications.forEach((pub) => {
-        if (pub.track && (pub.source === Track.Source.Microphone || pub.source === Track.Source.ScreenShareAudio)) {
+        if (pub.track && pub.source === Track.Source.Microphone) {
           const key = `${user.id}:${pub.source}`;
 
           if (vol <= 100) {

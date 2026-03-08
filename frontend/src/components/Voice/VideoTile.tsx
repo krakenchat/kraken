@@ -25,6 +25,7 @@ import type {
   LocalParticipant,
 } from 'livekit-client';
 import UserAvatar from '../Common/UserAvatar';
+import ScreenShareVolumeControl from './ScreenShareVolumeControl';
 
 export interface VideoTileProps {
   participant: RemoteParticipant | LocalParticipant;
@@ -233,6 +234,11 @@ const VideoTile: React.FC<VideoTileProps> = ({
             gap: 0.5,
           }}
         >
+          {/* Screenshare volume control */}
+          {hasScreen && !isLocal && (
+            <ScreenShareVolumeControl participant={participant as RemoteParticipant} />
+          )}
+
           {/* Pin button */}
           {onPin && (
             <IconButton
