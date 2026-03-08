@@ -46,14 +46,24 @@ export const useDeafenEffect = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
           if (publication.track && (publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio)) {
-            const storagePrefix =
-              publication.source === Track.Source.ScreenShareAudio
-                ? SCREENSHARE_VOLUME_STORAGE_PREFIX
-                : VOLUME_STORAGE_PREFIX;
-            const storedRaw = localStorage.getItem(`${storagePrefix}${participant.identity}`);
-            const storedVolume = storedRaw !== null ? parseFloat(storedRaw) : 1.0;
+            let storedVolume = 1.0;
+            try {
+              const storagePrefix =
+                publication.source === Track.Source.ScreenShareAudio
+                  ? SCREENSHARE_VOLUME_STORAGE_PREFIX
+                  : VOLUME_STORAGE_PREFIX;
+              const storedRaw = localStorage.getItem(`${storagePrefix}${participant.identity}`);
+              if (storedRaw !== null) {
+                const parsed = parseFloat(storedRaw);
+                if (Number.isFinite(parsed)) {
+                  storedVolume = parsed;
+                }
+              }
+            } catch {
+              // localStorage may throw in sandboxed/private environments
+            }
             // Cap at 1.0 for track.setVolume; GainNode handles boost >1.0 via context menu/component
-            const trackVolume = Math.min(storedVolume, 1.0);
+            const trackVolume = Math.min(Math.max(storedVolume, 0), 1.0);
             publication.track.setVolume(trackVolume);
           }
         });

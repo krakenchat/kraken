@@ -4,8 +4,12 @@ import userEvent from '@testing-library/user-event';
 import ScreenShareVolumeControl from '../../components/Voice/ScreenShareVolumeControl';
 
 let mockIsDeafened = false;
+let mockRoom: { on: ReturnType<typeof vi.fn>; off: ReturnType<typeof vi.fn> } | null = null;
 
 vi.mock('livekit-client', () => ({
+  RoomEvent: {
+    TrackSubscribed: 'trackSubscribed',
+  },
   Track: {
     Source: {
       ScreenShareAudio: 'screen_share_audio',
@@ -15,6 +19,10 @@ vi.mock('livekit-client', () => ({
 
 vi.mock('../../contexts/VoiceContext', () => ({
   useVoice: vi.fn(() => ({ isDeafened: mockIsDeafened })),
+}));
+
+vi.mock('../../hooks/useRoom', () => ({
+  useRoom: vi.fn(() => ({ room: mockRoom })),
 }));
 
 function createMockParticipant(identity: string, hasScreenShareAudio = true) {
@@ -62,6 +70,7 @@ describe('ScreenShareVolumeControl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsDeafened = false;
+    mockRoom = { on: vi.fn(), off: vi.fn() };
     localStorageGetSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
     localStorageSetSpy = vi.spyOn(Storage.prototype, 'setItem');
   });
@@ -71,12 +80,12 @@ describe('ScreenShareVolumeControl', () => {
     localStorageSetSpy.mockRestore();
   });
 
-  it('renders volume icon button', () => {
+  it('renders volume icon button with aria-label', () => {
     const { participant } = createMockParticipant('user-1');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: 'Screenshare volume' });
     expect(button).toBeInTheDocument();
   });
 
@@ -86,7 +95,7 @@ describe('ScreenShareVolumeControl', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
-    await user.click(screen.getByRole('button'));
+    await user.click(screen.getByRole('button', { name: 'Screenshare volume' }));
 
     expect(screen.getByRole('slider')).toBeInTheDocument();
   });
@@ -100,19 +109,27 @@ describe('ScreenShareVolumeControl', () => {
     expect(localStorageGetSpy).toHaveBeenCalledWith('voiceScreenShareVolume:user-1');
   });
 
+  it('rejects invalid localStorage values and defaults to 100%', () => {
+    localStorageGetSpy.mockReturnValue('not-a-number');
+    const { participant } = createMockParticipant('user-1');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    render(<ScreenShareVolumeControl participant={participant as any} />);
+
+    // Invalid stored value is rejected, so component defaults to 100%
+    expect(screen.getByTestId('VolumeUpIcon')).toBeInTheDocument();
+  });
+
   it('writes correct localStorage key on volume change', async () => {
     const user = userEvent.setup();
     const { participant } = createMockParticipant('user-1');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
-    await user.click(screen.getByRole('button'));
+    await user.click(screen.getByRole('button', { name: 'Screenshare volume' }));
 
     const slider = screen.getByRole('slider');
-    // Simulate change via fireEvent since MUI slider doesn't respond well to userEvent
     fireEvent.change(slider, { target: { value: 50 } });
 
-    // Check localStorage was written with the screenshare prefix
     const setCalls = localStorageSetSpy.mock.calls.filter(
       ([key]) => key === 'voiceScreenShareVolume:user-1',
     );
@@ -125,17 +142,14 @@ describe('ScreenShareVolumeControl', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
-    // Open popover
-    await user.click(screen.getByRole('button'));
+    await user.click(screen.getByRole('button', { name: 'Screenshare volume' }));
 
     const slider = screen.getByRole('slider');
     const popover = slider.closest('[role="presentation"]') ?? document.body;
     const sliderInPopover = within(popover as HTMLElement).getByRole('slider');
 
-    // The slider defaults to 100, trigger a change
     fireEvent.change(sliderInPopover, { target: { value: 75 } });
 
-    // setVolume should have been called (from initial apply or change)
     expect(setVolume).toHaveBeenCalled();
   });
 
@@ -146,10 +160,9 @@ describe('ScreenShareVolumeControl', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
-    await user.click(screen.getByRole('button'));
+    await user.click(screen.getByRole('button', { name: 'Screenshare volume' }));
 
     const slider = screen.getByRole('slider');
-    // MUI Slider adds Mui-disabled class to the root when disabled
     const sliderRoot = slider.closest('.MuiSlider-root');
     expect(sliderRoot).toHaveClass('Mui-disabled');
   });
@@ -160,8 +173,14 @@ describe('ScreenShareVolumeControl', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
-    // No setVolume call with stored value since stored is null
-    // The default volume icon should show VolumeUp (100%)
     expect(screen.getByTestId('VolumeUpIcon')).toBeInTheDocument();
+  });
+
+  it('listens for TrackSubscribed events on the room', () => {
+    const { participant } = createMockParticipant('user-1');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    render(<ScreenShareVolumeControl participant={participant as any} />);
+
+    expect(mockRoom!.on).toHaveBeenCalledWith('trackSubscribed', expect.any(Function));
   });
 });

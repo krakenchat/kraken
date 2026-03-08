@@ -4,14 +4,19 @@ import { useTheme, alpha } from '@mui/material/styles';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
-import { Track, type RemoteParticipant } from 'livekit-client';
+import { RoomEvent, Track, type RemoteParticipant, type RemoteTrackPublication } from 'livekit-client';
 import { SCREENSHARE_VOLUME_STORAGE_PREFIX } from '../../constants/voice';
 import { useVoice } from '../../contexts/VoiceContext';
+import { useRoom } from '../../hooks/useRoom';
+import { useAudioBoost } from '../../hooks/useAudioBoost';
 
 function getStoredScreenShareVolume(userId: string): number | null {
   try {
     const stored = localStorage.getItem(`${SCREENSHARE_VOLUME_STORAGE_PREFIX}${userId}`);
-    return stored !== null ? parseFloat(stored) : null;
+    if (stored === null) return null;
+    const parsed = parseFloat(stored);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 2) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -32,6 +37,8 @@ interface ScreenShareVolumeControlProps {
 const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ participant }) => {
   const theme = useTheme();
   const { isDeafened } = useVoice();
+  const { room } = useRoom();
+  const { applyVolume: applyBoost, muteAllGainNodes } = useAudioBoost();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const [volume, setVolume] = useState<number>(() => {
@@ -39,70 +46,75 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
     return stored !== null ? Math.round(stored * 100) : 100;
   });
 
-  // Web Audio GainNode for >100% amplification
-  const gainNodesRef = useRef<Map<string, { gainNode: GainNode; source: MediaStreamAudioSourceNode; context: AudioContext }>>(new Map());
-
-  // Cleanup gain nodes on unmount
+  // Keep volume in a ref so event handlers can read the latest value
+  const volumeRef = useRef(volume);
   useEffect(() => {
-    const nodes = gainNodesRef.current;
-    return () => {
-      nodes.forEach(({ context }) => context.close());
-      nodes.clear();
-    };
-  }, []);
+    volumeRef.current = volume;
+  }, [volume]);
 
-  const applyVolume = useCallback(
+  const applyVolumeToTracks = useCallback(
     (vol: number) => {
       participant.audioTrackPublications.forEach((pub) => {
         if (pub.track && pub.source === Track.Source.ScreenShareAudio) {
           const key = `${participant.identity}:screenshare`;
-
-          if (vol <= 100) {
-            const existingEntry = gainNodesRef.current.get(key);
-            if (existingEntry) {
-              existingEntry.source.disconnect();
-              existingEntry.context.close();
-              gainNodesRef.current.delete(key);
-            }
-            pub.track.setVolume(vol / 100);
-          } else {
-            pub.track.setVolume(0);
-
-            const mediaStream = pub.track.mediaStream;
-            if (mediaStream) {
-              let entry = gainNodesRef.current.get(key);
-
-              if (!entry) {
-                const context = new AudioContext();
-                const source = context.createMediaStreamSource(mediaStream);
-                const gainNode = context.createGain();
-                source.connect(gainNode);
-                gainNode.connect(context.destination);
-                entry = { gainNode, source, context };
-                gainNodesRef.current.set(key, entry);
-              }
-
-              entry.gainNode.gain.value = vol / 100;
-            }
-          }
+          applyBoost(pub.track, key, vol);
         }
       });
     },
-    [participant],
+    [participant, applyBoost],
   );
 
   // Apply stored volume when participant changes
   useEffect(() => {
     const stored = getStoredScreenShareVolume(participant.identity);
     if (stored !== null) {
-      applyVolume(Math.round(stored * 100));
+      applyVolumeToTracks(Math.round(stored * 100));
     }
-  }, [participant, applyVolume]);
+  }, [participant, applyVolumeToTracks]);
+
+  // Handle ScreenShareAudio track arriving after the video track
+  useEffect(() => {
+    if (!room) return;
+
+    const handleTrackSubscribed = (
+      _track: unknown,
+      publication: RemoteTrackPublication,
+      subscribedParticipant: RemoteParticipant,
+    ) => {
+      if (
+        subscribedParticipant.identity !== participant.identity ||
+        publication.source !== Track.Source.ScreenShareAudio
+      ) {
+        return;
+      }
+      // Apply current volume to newly subscribed screenshare audio track
+      const currentVol = volumeRef.current;
+      if (publication.track) {
+        const key = `${participant.identity}:screenshare`;
+        applyBoost(publication.track, key, currentVol);
+      }
+    };
+
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    return () => {
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    };
+  }, [room, participant.identity, applyBoost]);
+
+  // Handle deafen: mute GainNode path when deafened, restore on undeafen
+  useEffect(() => {
+    if (isDeafened) {
+      muteAllGainNodes();
+    } else {
+      // Re-apply current volume (restores GainNode gain values)
+      applyVolumeToTracks(volume);
+    }
+  }, [isDeafened]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only react to deafen changes
 
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const val = newValue as number;
     setVolume(val);
-    applyVolume(val);
+    applyVolumeToTracks(val);
     setStoredScreenShareVolume(participant.identity, val / 100);
   };
 
@@ -125,6 +137,7 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
   return (
     <>
       <IconButton
+        aria-label="Screenshare volume"
         sx={{
           backgroundColor: alpha(theme.palette.background.paper, 0.5),
           color: theme.palette.common.white,
