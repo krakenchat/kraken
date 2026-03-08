@@ -7,7 +7,8 @@ const VOICE_SETTINGS_KEY = 'semaphore_voice_settings';
 const HOLD_OPEN_MS = 300;
 const MIN_CLOSE_MS = 100;
 const HYSTERESIS_OFFSET = 5;
-const SETTINGS_READ_INTERVAL = 60; // Re-read localStorage every ~60 frames (~1s at 60fps)
+const SETTINGS_READ_INTERVAL = 60; // Re-read localStorage every ~60 ticks (~2s at 30ms)
+const ANALYSIS_TICK_MS = 30; // ~33fps, sufficient for voice detection
 
 interface VoiceSettingsCache {
   inputMode?: string;
@@ -47,7 +48,7 @@ export const useSpeakingDetection = () => {
   // Custom audio analysis refs for local participant
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
+  const workerRef = useRef<Worker | null>(null);
   const localAnalysisActiveRef = useRef(false);
   const localTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analysisTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -181,7 +182,13 @@ export const useSpeakingDetection = () => {
         const tick = () => {
           if (!localAnalysisActiveRef.current || !analyserRef.current) return;
 
-          // Periodically re-read settings from localStorage (not every frame)
+          // Resume AudioContext if it was suspended (edge case in background tabs)
+          if (audioContextRef.current?.state === 'suspended') {
+            audioContextRef.current.resume();
+            return; // skip this tick, resume is async
+          }
+
+          // Periodically re-read settings from localStorage (not every tick)
           frameCountRef.current++;
           if (frameCountRef.current >= SETTINGS_READ_INTERVAL) {
             frameCountRef.current = 0;
@@ -265,11 +272,42 @@ export const useSpeakingDetection = () => {
               return newMap;
             });
           }
-
-          animationFrameRef.current = requestAnimationFrame(tick);
         };
 
-        tick();
+        // Use a Web Worker timer instead of requestAnimationFrame so the
+        // analysis loop keeps running when the tab/window is backgrounded.
+        const fallbackToRaf = () => {
+          const rafTick = () => {
+            tick();
+            if (localAnalysisActiveRef.current) {
+              requestAnimationFrame(rafTick);
+            }
+          };
+          rafTick();
+        };
+
+        try {
+          const worker = new Worker(
+            new URL('../workers/background-timer.worker.ts', import.meta.url),
+            { type: 'module' },
+          );
+          worker.onmessage = (e) => {
+            if (e.data.type === 'tick' && e.data.name === 'voice-analysis') {
+              tick();
+            }
+          };
+          worker.onerror = () => {
+            // Worker script failed to load — tear down and fall back to rAF
+            worker.terminate();
+            workerRef.current = null;
+            fallbackToRaf();
+          };
+          worker.postMessage({ type: 'start', name: 'voice-analysis', interval: ANALYSIS_TICK_MS });
+          workerRef.current = worker;
+        } catch {
+          // Synchronous Worker creation failed — fall back to rAF
+          fallbackToRaf();
+        }
       } catch {
         // Fall back to LiveKit's isSpeaking for local user if Web Audio fails
         const fallback = (speaking: boolean) => {
@@ -290,9 +328,10 @@ export const useSpeakingDetection = () => {
         clearTimeout(localTrackTimeoutRef.current);
         localTrackTimeoutRef.current = null;
       }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
+      if (workerRef.current) {
+        workerRef.current.postMessage({ type: 'stop', name: 'voice-analysis' });
+        workerRef.current.terminate();
+        workerRef.current = null;
       }
       if (audioContextRef.current) {
         audioContextRef.current.close();

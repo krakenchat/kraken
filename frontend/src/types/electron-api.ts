@@ -54,6 +54,8 @@ export interface ElectronAPI {
   storeRefreshToken?: (token: string) => Promise<true | null>;
   getRefreshToken?: () => Promise<string | null>;
   deleteRefreshToken?: () => Promise<void>;
+  requestPowerSaveBlock?: () => Promise<number>;
+  releasePowerSaveBlock?: (id: number) => Promise<void>;
   [key: string]: unknown;
 }
 

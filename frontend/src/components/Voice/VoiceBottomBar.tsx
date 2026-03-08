@@ -47,6 +47,7 @@ import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
 import { useVoicePresenceHeartbeat } from "../../hooks/useVoicePresenceHeartbeat";
+import { useBackgroundVoiceKeepAlive } from "../../hooks/useBackgroundVoiceKeepAlive";
 import { useServerMuteEffect } from "../../hooks/useServerMuteEffect";
 import { useRemoteVolumeEffect } from "../../hooks/useRemoteVolumeEffect";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
@@ -71,6 +72,9 @@ export const VoiceBottomBar: React.FC = () => {
   // Use extracted hooks for cleaner organization
   const { showDebugPanel } = useDebugPanelShortcut();
   const { isActive: isPTTActive, isKeyHeld: isPTTKeyHeld, currentKeyDisplay: pttKeyDisplay } = usePushToTalk();
+
+  // Prevent tab freeze / OS suspension while in voice
+  useBackgroundVoiceKeepAlive({ isConnected: state.isConnected });
 
   // Keep voice presence TTL alive in Redis while connected
   useVoicePresenceHeartbeat({

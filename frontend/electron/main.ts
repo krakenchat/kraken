@@ -8,6 +8,7 @@
 import {
   app, BrowserWindow, ipcMain, session, desktopCapturer, Notification,
   Tray, Menu, nativeImage, screen, dialog, safeStorage, shell,
+  powerSaveBlocker,
 } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
@@ -613,6 +614,26 @@ function setupIpcHandlers() {
       console.error('Failed to delete secure token:', error);
     }
   });
+
+  // Power save blocker for voice calls — prevents OS-level suspension
+  let activePowerSaveId: number | null = null;
+
+  ipcMain.handle('voice:request-power-save-block', () => {
+    if (activePowerSaveId !== null && powerSaveBlocker.isStarted(activePowerSaveId)) {
+      return activePowerSaveId;
+    }
+    activePowerSaveId = powerSaveBlocker.start('prevent-app-suspension');
+    return activePowerSaveId;
+  });
+
+  ipcMain.handle('voice:release-power-save-block', (_event, id: number) => {
+    if (typeof id === 'number' && powerSaveBlocker.isStarted(id)) {
+      powerSaveBlocker.stop(id);
+      if (activePowerSaveId === id) {
+        activePowerSaveId = null;
+      }
+    }
+  });
 }
 
 /**
@@ -637,6 +658,8 @@ function createWindow() {
       contextIsolation: true,
       // Enable preload script
       preload: path.join(__dirname, 'preload.cjs'),
+      // Keep timers and audio running when window is hidden/minimized
+      backgroundThrottling: false,
     },
     // Enable fullscreen for HTML5 video elements
     fullscreenable: true,
