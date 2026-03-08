@@ -38,7 +38,7 @@ const InlineUserAvatar: React.FC<InlineUserAvatarProps> = ({
         onClick={() => onClickUser(user.id)}
         onContextMenu={(e) => onContextMenu(e, user)}
       >
-        <UserAvatar user={user} size="small" />
+        <UserAvatar userId={user.id} size="small" />
       </Box>
     </Tooltip>
   );

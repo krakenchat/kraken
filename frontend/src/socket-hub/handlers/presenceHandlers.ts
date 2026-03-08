@@ -1,8 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { UserPresenceInfo, ServerEvents } from '@semaphore-chat/shared';
+import type { UserPresenceInfo, UserProfileUpdatedPayload, ServerEvents } from '@semaphore-chat/shared';
 import {
   presenceControllerGetUserPresenceQueryKey,
   presenceControllerGetBulkPresenceQueryKey,
+  userControllerGetUserByIdQueryKey,
 } from '../../api-client/@tanstack/react-query.gen';
 import type { SocketEventHandler } from './types';
 
@@ -67,8 +68,17 @@ export const handleUserOffline: SocketEventHandler<typeof ServerEvents.USER_OFFL
 // =============================================================================
 
 export const handleUserProfileUpdated: SocketEventHandler<typeof ServerEvents.USER_PROFILE_UPDATED> = (
-  _payload,
+  payload: UserProfileUpdatedPayload,
   queryClient: QueryClient,
 ) => {
+  // Invalidate the current user's own profile query
   queryClient.invalidateQueries({ queryKey: [{ _id: 'userControllerGetProfile' }] });
+
+  // Invalidate the useUser() cache for this user so all UserAvatar
+  // instances and other components showing this user's data refresh
+  if (payload.userId) {
+    queryClient.invalidateQueries({
+      queryKey: userControllerGetUserByIdQueryKey({ path: { id: payload.userId } }),
+    });
+  }
 };

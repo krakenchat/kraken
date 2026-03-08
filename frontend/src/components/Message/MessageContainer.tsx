@@ -238,6 +238,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
           >
             {/* Bottom sentinel: first in DOM = visual bottom in column-reverse */}
             <Box ref={bottomSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
+            <Box sx={{ px: 2, minHeight: 20 }} />
 
             {/* Messages newest-first; column-reverse shows oldest at top */}
             {messages.map((message, index) => {
@@ -303,9 +304,10 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
           </Box>
         )}
 
-        {/* Other user typing indicator */}
-        <TypingIndicator channelId={channelId} directMessageGroupId={directMessageGroupId} currentUserId={authorId} />
-
+        {/* Other user typing indicator — floats above input, no layout shift */}
+        <Box sx={{ position: 'relative', height: 0, zIndex: 1 }}>
+          <TypingIndicator channelId={channelId} directMessageGroupId={directMessageGroupId} currentUserId={authorId} />
+        </Box>
 
         {/* Input rendered outside scroll container — stable DOM, never unmounted by message changes */}
         <Box sx={{ flexShrink: 0 }}>

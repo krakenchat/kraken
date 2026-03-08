@@ -16,7 +16,7 @@ vi.mock('../../api-client/client.gen', async (importOriginal) => {
 });
 
 vi.mock('../../components/Common/UserAvatar', () => ({
-  default: ({ user }: { user: { username?: string } }) => <div data-testid="user-avatar">{user?.username}</div>,
+  default: ({ userId }: { userId?: string }) => <div data-testid="user-avatar">{userId}</div>,
 }));
 
 const BASE_URL = 'http://localhost:3000';

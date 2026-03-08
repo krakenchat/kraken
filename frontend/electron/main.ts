@@ -44,10 +44,17 @@ function setSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]):
   fs.writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2));
 }
 
-// Enable PipeWire-based screen capture for Wayland (must be before initMain()
-// so electron-audio-loopback picks it up in its feature flag merging)
+// Enable PipeWire-based screen capture for Wayland and hardware-accelerated
+// video decoding (VA-API) for HEVC/H.265 playback on Linux.
+// Must be before initMain() so electron-audio-loopback picks it up in its
+// feature flag merging.
 if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer');
+  app.commandLine.appendSwitch('enable-features',
+    'WebRTCPipeWireCapturer,VaapiVideoDecoder,VaapiVideoDecodeLinuxGL,PlatformHEVCDecoderSupport');
+  app.commandLine.appendSwitch('enable-accelerated-video-decode');
+} else {
+  // macOS (VideoToolbox) and Windows (DXVA) have platform HEVC decoders
+  app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
 }
 
 // Initialize audio loopback for cross-platform system audio capture
@@ -370,6 +377,13 @@ function setupAutoUpdater() {
 
   // Configure auto-updater logging
   autoUpdater.logger = console;
+
+  // Explicitly set feed URL to ensure correct GitHub owner (with hyphen)
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'semaphore-chat',
+    repo: 'semaphore-chat',
+  });
 
   // Auto-updater events
   autoUpdater.on('checking-for-update', () => {

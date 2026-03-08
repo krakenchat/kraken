@@ -107,7 +107,7 @@ function MessageComponentInner({
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
         <UserAvatar
-          user={message.authorId && author ? { ...author, id: message.authorId } : null}
+          userId={message.authorId ?? undefined}
           size="small"
           clickable={!!message.authorId}
         />

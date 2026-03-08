@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Typography,
-  Avatar,
   IconButton,
   Card,
   Fade,
@@ -25,6 +24,7 @@ import type {
   RemoteParticipant,
   LocalParticipant,
 } from 'livekit-client';
+import UserAvatar from '../Common/UserAvatar';
 
 export interface VideoTileProps {
   participant: RemoteParticipant | LocalParticipant;
@@ -55,7 +55,6 @@ const VideoTile: React.FC<VideoTileProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const screenRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
-
   // Handle video track
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -147,16 +146,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
             backgroundColor: 'grey.800',
           }}
         >
-          <Avatar
-            sx={{
-              width: 80,
-              height: 80,
-              fontSize: '2rem',
-              backgroundColor: 'primary.main',
-            }}
-          >
-            {displayName.charAt(0).toUpperCase()}
-          </Avatar>
+          <UserAvatar userId={participant.identity} displayName={participant.name} size="xlarge" />
         </Box>
       )}
 

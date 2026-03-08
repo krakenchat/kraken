@@ -113,7 +113,6 @@ const MemberList: React.FC<MemberListProps> = ({
         sx={{
           flex: 1,
           overflowY: "auto",
-          maxHeight: typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight,
           "&::-webkit-scrollbar": {
             width: 8,
           },
@@ -143,7 +142,7 @@ const MemberList: React.FC<MemberListProps> = ({
                 >
                   <ListItemAvatar sx={{ minWidth: 40 }}>
                     <UserAvatar
-                      user={member}
+                      userId={member.id}
                       size="small"
                       showStatus={true}
                       isOnline={member.isOnline}

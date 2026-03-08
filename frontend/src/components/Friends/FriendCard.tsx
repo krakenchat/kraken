@@ -64,7 +64,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
     >
       <ListItemButton onClick={handleMessage}>
         <ListItemAvatar>
-          <UserAvatar user={friend} size="medium" />
+          <UserAvatar userId={friend.id} size="medium" />
         </ListItemAvatar>
         <ListItemText
           primary={friend.displayName || friend.username}

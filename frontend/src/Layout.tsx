@@ -143,12 +143,9 @@ const Layout: React.FC = () => {
     navigate("/login");
   };
 
-  // Fix userData type for ProfileIcon
+  // Pass user data to ProfileIcon for authenticated avatar fetching
   const profileUserData = userData
-    ? {
-        displayName: userData.displayName ?? undefined,
-        avatarUrl: userData.avatarUrl ?? undefined,
-      }
+    ? { id: userData.id }
     : undefined;
 
   // Use mobile layout on phones (< 768px)

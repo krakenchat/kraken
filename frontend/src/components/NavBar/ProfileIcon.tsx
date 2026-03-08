@@ -2,14 +2,16 @@ import React from "react";
 import {
   IconButton,
   Tooltip,
-  Avatar,
   Menu,
   MenuItem,
   Typography,
 } from "@mui/material";
+import UserAvatar from "../Common/UserAvatar";
 
 interface ProfileIconProps {
-  userData: { displayName?: string; avatarUrl?: string } | undefined;
+  userData: {
+    id?: string;
+  } | undefined;
   anchorElUser: null | HTMLElement;
   handleOpenUserMenu: (event: React.MouseEvent<HTMLElement>) => void;
   handleCloseUserMenu: () => void;
@@ -36,10 +38,7 @@ const ProfileIcon: React.FC<ProfileIconProps> = ({
     <>
       <Tooltip title="Open settings">
         <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-          <Avatar
-            alt={userData?.displayName || "User"}
-            src={userData?.avatarUrl || undefined}
-          />
+          <UserAvatar userId={userData?.id} size="medium" />
         </IconButton>
       </Tooltip>
       <Menu

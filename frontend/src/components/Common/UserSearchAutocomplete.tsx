@@ -122,7 +122,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
       const { key: _key, ...restProps } = props;
       return (
         <Box component="li" key={user.id} {...restProps} sx={{ display: 'flex', alignItems: 'center' }}>
-          <UserAvatar user={user} size="small" />
+          <UserAvatar userId={user.id} size="small" />
           <Box sx={{ ml: 1, flex: 1 }}>
             <Typography variant="body2">
               {user.displayName || user.username}
@@ -153,7 +153,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
                 key={user.id}
                 label={user.displayName || user.username}
                 {...chipProps}
-                avatar={<UserAvatar user={user} size="small" />}
+                avatar={<UserAvatar userId={user.id} size="small" />}
               />
             );
           })

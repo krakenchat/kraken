@@ -38,4 +38,5 @@ export {
   type PayloadOf,
   type NewNotificationPayload,
   type NotificationReadPayload,
+  type UserProfileUpdatedPayload,
 } from './websocket-payloads';

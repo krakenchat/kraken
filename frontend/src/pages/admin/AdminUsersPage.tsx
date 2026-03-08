@@ -292,7 +292,7 @@ const AdminUsersPage: React.FC = () => {
                 <TableRow key={user.id} hover>
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <UserAvatar user={user} size="small" />
+                      <UserAvatar userId={user.id} size="small" />
                       <Box>
                         <Typography variant="body2" fontWeight="medium">
                           {user.displayName || user.username}

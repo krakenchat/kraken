@@ -242,7 +242,7 @@ const TimeoutListPanel: React.FC<TimeoutListPanelProps> = ({ communityId }) => {
             >
               <ListItemAvatar>
                 <UserAvatar
-                  user={timeout.user ? { id: timeout.userId, username: timeout.user.username, avatarUrl: timeout.user.avatarUrl } : { id: timeout.userId, username: timeout.userId }}
+                  userId={timeout.userId}
                   size="medium"
                 />
               </ListItemAvatar>

@@ -405,12 +405,29 @@ export class RoomSubscriptionHandler {
   // =========================================================================
 
   @OnEvent(RoomEvents.USER_PROFILE_UPDATED)
-  onUserProfileUpdated(event: UserProfileUpdatedEvent): void {
+  async onUserProfileUpdated(event: UserProfileUpdatedEvent): Promise<void> {
+    // Notify the user's own sessions
     this.websocketService.sendToRoom(
       RoomName.user(event.userId),
       ServerEvents.USER_PROFILE_UPDATED,
       event,
     );
+
+    // Broadcast to all communities the user belongs to so other members
+    // can invalidate cached user data (avatars, display names, etc.)
+    const memberships = await this.databaseService.membership.findMany({
+      where: { userId: event.userId },
+      select: { communityId: true },
+    });
+
+    for (const { communityId } of memberships) {
+      this.websocketService.sendToRoom(
+        RoomName.community(communityId),
+        ServerEvents.USER_PROFILE_UPDATED,
+        event,
+      );
+    }
+
     this.logger.debug(`User ${event.userId} profile updated`);
   }
 }

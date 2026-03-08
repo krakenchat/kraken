@@ -4,9 +4,9 @@ import { renderWithProviders, createDmGroup, createDmGroupMember } from '../test
 import DmListItem from '../../components/DirectMessages/DmListItem';
 
 vi.mock('../../components/Common/UserAvatar', () => ({
-  default: ({ user }: { user: unknown }) => (
+  default: ({ userId }: { userId?: string }) => (
     <div data-testid="user-avatar">
-      {(user as { username?: string })?.username || 'unknown'}
+      {userId || 'unknown'}
     </div>
   ),
 }));
@@ -164,7 +164,7 @@ describe('DmListItem', () => {
 
     const avatar = screen.getByTestId('user-avatar');
     expect(avatar).toBeInTheDocument();
-    expect(avatar).toHaveTextContent('alice');
+    expect(avatar).toHaveTextContent('other-user');
   });
 
   it('renders group icon for group DM', () => {

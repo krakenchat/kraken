@@ -65,7 +65,7 @@ const DmListItem: React.FC<DmListItemProps> = ({
               <GroupIcon />
             </Avatar>
           ) : (
-            <UserAvatar user={getDmOtherUser(group, currentUserId)} size="medium" />
+            <UserAvatar userId={getDmOtherUser(group, currentUserId)?.id} size="medium" />
           )}
         </ListItemAvatar>
         <ListItemText

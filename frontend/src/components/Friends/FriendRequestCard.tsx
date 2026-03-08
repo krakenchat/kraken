@@ -99,7 +99,7 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
       }
     >
       <ListItemAvatar>
-        <UserAvatar user={otherUser} size="medium" />
+        <UserAvatar userId={otherUser.id} size="medium" />
       </ListItemAvatar>
       <ListItemText
         primary={otherUser.displayName || otherUser.username}

@@ -184,7 +184,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
                     primary={
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
                         {message.author && (
-                          <UserAvatar user={message.author} size="small" />
+                          <UserAvatar userId={message.author?.id} size="small" />
                         )}
                         <Typography variant="subtitle2">
                           {message.author?.displayName || message.author?.username || "Unknown"}
