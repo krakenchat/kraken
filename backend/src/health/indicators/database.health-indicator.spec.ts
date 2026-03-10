@@ -51,4 +51,19 @@ describe('DatabaseHealthIndicator', () => {
       });
     }
   });
+
+  it('should throw HealthCheckError when query times out', async () => {
+    jest.useFakeTimers();
+
+    databaseService.$executeRaw.mockReturnValue(
+      new Promise(() => {}) as never,
+    );
+
+    const healthPromise = indicator.isHealthy('database');
+    jest.advanceTimersByTime(3000);
+
+    await expect(healthPromise).rejects.toThrow(HealthCheckError);
+
+    jest.useRealTimers();
+  });
 });

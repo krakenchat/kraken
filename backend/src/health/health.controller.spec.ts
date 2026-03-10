@@ -41,9 +41,12 @@ describe('HealthController', () => {
       const result = await controller.check();
 
       expect(result).toEqual(mockResult);
-      expect(healthCheckService.check).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.any(Function)]),
-      );
+      expect(healthCheckService.check).toHaveBeenCalledTimes(1);
+      const checksArg = healthCheckService.check.mock.calls[0][0];
+      expect(checksArg).toHaveLength(2);
+      checksArg.forEach((check) => {
+        expect(typeof check).toBe('function');
+      });
     });
   });
 });

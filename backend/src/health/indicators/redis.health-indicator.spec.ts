@@ -51,4 +51,17 @@ describe('RedisHealthIndicator', () => {
       });
     }
   });
+
+  it('should throw HealthCheckError when ping times out', async () => {
+    jest.useFakeTimers();
+
+    mockRedis.ping.mockReturnValue(new Promise(() => {}));
+
+    const healthPromise = indicator.isHealthy('redis');
+    jest.advanceTimersByTime(3000);
+
+    await expect(healthPromise).rejects.toThrow(HealthCheckError);
+
+    jest.useRealTimers();
+  });
 });
