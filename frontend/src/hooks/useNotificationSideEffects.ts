@@ -21,6 +21,7 @@ import {
   getNotificationPermission,
 } from '../utils/notifications';
 import { isNotificationShown, markNotificationAsShown } from '../utils/notificationTracking';
+import { getActiveDmGroupId } from '../utils/activeDmTracking';
 import { isElectron, getElectronAPI } from '../utils/platform';
 import { useWindowFocus } from './useWindowFocus';
 import { logger } from '../utils/logger';
@@ -95,14 +96,12 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
     // Suppress sound + desktop notification when actively viewing the same channel/DM
     const isViewingContext = (() => {
       if (!isFocusedRef.current) return false;
-      const { pathname, search } = locationRef.current;
+      const { pathname } = locationRef.current;
       if (payload.channelId && payload.communityId) {
         return pathname.includes(`/channel/${payload.channelId}`);
       }
       if (payload.directMessageGroupId) {
-        const params = new URLSearchParams(search);
-        const activeGroupId = params.get('group');
-        return !!activeGroupId && activeGroupId === payload.directMessageGroupId;
+        return getActiveDmGroupId() === payload.directMessageGroupId;
       }
       return false;
     })();

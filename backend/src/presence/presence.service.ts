@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 const ONLINE_USERS_SET = 'presence:online-users';
 const USER_PRESENCE_KEY_PREFIX = 'presence:user:';
 const USER_CONNECTIONS_KEY_PREFIX = 'presence:connections:';
+const USER_IDLE_KEY_PREFIX = 'presence:idle:';
 const DEFAULT_TTL_SECONDS = 60; // 1 minute, can be adjusted
 
 @Injectable()
@@ -63,9 +64,11 @@ export class PresenceService {
     connectionId: string,
   ): Promise<boolean> {
     const connectionsKey = USER_CONNECTIONS_KEY_PREFIX + userId;
+    const idleKey = USER_IDLE_KEY_PREFIX + userId;
 
-    // Remove connection from user's connections set
+    // Remove connection from user's connections set and idle hash
     await this.redis.srem(connectionsKey, connectionId);
+    await this.redis.hdel(idleKey, connectionId);
 
     // Get remaining connection count
     const connectionCount = await this.redis.scard(connectionsKey);
@@ -75,6 +78,7 @@ export class PresenceService {
       await this.redis.srem(ONLINE_USERS_SET, userId);
       await this.redis.del(USER_PRESENCE_KEY_PREFIX + userId);
       await this.redis.del(connectionsKey);
+      await this.redis.del(idleKey);
       return true; // User went from online to offline
     }
 
@@ -129,6 +133,53 @@ export class PresenceService {
     await this.redis.srem(ONLINE_USERS_SET, userId);
     await this.redis.del(USER_PRESENCE_KEY_PREFIX + userId);
     await this.redis.del(USER_CONNECTIONS_KEY_PREFIX + userId);
+    await this.redis.del(USER_IDLE_KEY_PREFIX + userId);
+  }
+
+  /**
+   * Set the idle state for a specific connection.
+   * TTL matches the connections key so orphaned idle hashes expire automatically.
+   */
+  async setConnectionIdle(
+    userId: string,
+    connectionId: string,
+    idle: boolean,
+    ttlSeconds: number = DEFAULT_TTL_SECONDS,
+  ): Promise<void> {
+    const idleKey = USER_IDLE_KEY_PREFIX + userId;
+    if (idle) {
+      await this.redis.hset(idleKey, connectionId, '1');
+    } else {
+      await this.redis.hdel(idleKey, connectionId);
+    }
+    // Refresh TTL to prevent orphaned idle hashes if cleanup cron doesn't fire
+    await this.redis.expire(idleKey, ttlSeconds);
+  }
+
+  /**
+   * Check if a user is actively using the app (online + at least one non-idle connection).
+   * Used to decide whether to suppress push notifications.
+   *
+   * Note: There is a small TOCTOU window between smembers and hmget where a connection
+   * could be added/removed. This is acceptable for push suppression — worst case is an
+   * occasional extra or missed push, compensated by the in-app WebSocket notification.
+   */
+  async isActive(userId: string): Promise<boolean> {
+    // Must be online first
+    const online = await this.isOnline(userId);
+    if (!online) return false;
+
+    // Get all connections for the user
+    const connectionsKey = USER_CONNECTIONS_KEY_PREFIX + userId;
+    const connections = await this.redis.smembers(connectionsKey);
+    if (connections.length === 0) return false;
+
+    // Check idle hash — if ANY connection is NOT in the idle hash, user is active
+    const idleKey = USER_IDLE_KEY_PREFIX + userId;
+    const idleValues = await this.redis.hmget(idleKey, ...connections);
+
+    // idleValues[i] is '1' if connection i is idle, null if not idle
+    return idleValues.some((v) => v === null);
   }
 
   /**
@@ -166,6 +217,7 @@ export class PresenceService {
         // Presence expired but user is still in set - clean up
         await this.redis.srem(ONLINE_USERS_SET, userId);
         await this.redis.del(USER_CONNECTIONS_KEY_PREFIX + userId);
+        await this.redis.del(USER_IDLE_KEY_PREFIX + userId);
       }
     }
   }

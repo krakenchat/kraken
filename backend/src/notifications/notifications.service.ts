@@ -21,6 +21,7 @@ import { UpdateChannelOverrideDto } from './dto/update-channel-override.dto';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 import { NotificationsGateway } from './notifications.gateway';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
+import { PresenceService } from '@/presence/presence.service';
 import { flattenSpansToDisplayText } from '@/common/utils/text.utils';
 
 @Injectable()
@@ -32,6 +33,7 @@ export class NotificationsService {
     @Inject(forwardRef(() => NotificationsGateway))
     private readonly notificationsGateway: NotificationsGateway,
     private readonly pushNotificationsService: PushNotificationsService,
+    private readonly presenceService: PresenceService,
   ) {}
 
   /**
@@ -440,6 +442,16 @@ export class NotificationsService {
     try {
       // Check if push notifications are enabled
       if (!this.pushNotificationsService.isEnabled()) {
+        return;
+      }
+
+      // Suppress push if user is actively using the app.
+      // They already receive real-time WebSocket notifications + in-app desktop notifications.
+      const isActive = await this.presenceService.isActive(userId);
+      if (isActive) {
+        this.logger.debug(
+          `Suppressing push notification for active user ${userId}`,
+        );
         return;
       }
 
