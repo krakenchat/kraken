@@ -81,7 +81,7 @@ describe('PinnedMessagesPanel', () => {
 
   it('renders text-only pinned message', async () => {
     const msg = makePinnedMessage({
-      spans: [{ type: 'TEXT' as never, text: 'Hello world' }],
+      spans: [{ type: 'PLAINTEXT', text: 'Hello world', userId: null, specialKind: null, communityId: null, aliasId: null }],
     });
     setupPinnedEndpoint([msg]);
 
@@ -111,7 +111,7 @@ describe('PinnedMessagesPanel', () => {
 
   it('renders both text and attachment for message with caption', async () => {
     const msg = makePinnedMessage({
-      spans: [{ type: 'TEXT' as never, text: 'Check this out' }],
+      spans: [{ type: 'PLAINTEXT', text: 'Check this out', userId: null, specialKind: null, communityId: null, aliasId: null }],
       attachments: [
         { id: 'file-1', filename: 'screenshot.png', mimeType: 'image/png', fileType: 'IMAGE', size: 2048 },
       ],
