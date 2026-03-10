@@ -74,17 +74,19 @@ export function useMessagePermissions({
   }, [isOwnMessage]);
 
   // Users can delete their own messages (backend MessageOwnershipGuard handles logic)
-  // Users with DELETE_MESSAGE permission can delete any message
+  // In channels, users with DELETE_MESSAGE permission can delete any message.
+  // In DMs, only the author can delete (backend rejects moderator deletes in DMs).
   const canDelete = useMemo(() => {
+    if (isDm) return isOwnMessage;
     return isOwnMessage || canDeleteMessage;
-  }, [isOwnMessage, canDeleteMessage]);
+  }, [isDm, isOwnMessage, canDeleteMessage]);
 
   // Backend forbids pinning in DMs — only allow for channel messages with permission
   const canPin = !isDm && canPinMessage;
 
-  // In DMs, all participants can react (backend grants DM group members full access).
+  // Any logged-in user can react to messages they can see.
   // This ensures the toolbar renders even when other permissions are false.
-  const canReact = isDm || !!currentUserId;
+  const canReact = !!currentUserId;
 
   return {
     canEdit,

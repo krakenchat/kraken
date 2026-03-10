@@ -146,6 +146,19 @@ describe('useMessagePermissions', () => {
       expect(result.current.canReact).toBe(true);
     });
 
+    it('returns canReact=false when currentUserId is undefined in DMs', () => {
+      const message = createMessage({
+        authorId: 'other-user',
+        channelId: undefined,
+        directMessageGroupId: 'dm-group-1',
+      });
+      const { result } = renderHook(() =>
+        useMessagePermissions({ message, currentUserId: undefined }),
+      );
+
+      expect(result.current.canReact).toBe(false);
+    });
+
     it('does not pass DM resourceId to RBAC checks', () => {
       const message = createMessage({
         authorId: 'other-user',
