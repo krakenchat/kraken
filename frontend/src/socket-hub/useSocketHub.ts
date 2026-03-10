@@ -7,6 +7,7 @@ import { handlerRegistry } from './handlers';
 import { handleReconnect } from './handlers/reconnectHandlers';
 import type { EventBus } from './emitter';
 import { logger } from '../utils/logger';
+import { getIsIdle } from '../hooks/useActivityDetector';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -37,7 +38,7 @@ export function useSocketHub(eventBus: EventBus) {
       socket.emit(ClientEvents.SUBSCRIBE_ALL);
 
       // Send initial heartbeat
-      socket.emit(ClientEvents.PRESENCE_ONLINE);
+      socket.emit(ClientEvents.PRESENCE_ONLINE, { idle: getIsIdle() });
 
       // On reconnect (not first connect), invalidate stale caches
       if (hasConnectedRef.current) {
@@ -57,7 +58,7 @@ export function useSocketHub(eventBus: EventBus) {
     // Presence heartbeat interval
     const heartbeatId = setInterval(() => {
       if (socket.connected) {
-        socket.emit(ClientEvents.PRESENCE_ONLINE);
+        socket.emit(ClientEvents.PRESENCE_ONLINE, { idle: getIsIdle() });
       }
     }, HEARTBEAT_INTERVAL_MS);
 

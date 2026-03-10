@@ -16,6 +16,9 @@ describe('PresenceService', () => {
       get: jest.fn(),
       set: jest.fn(),
       del: jest.fn(),
+      hset: jest.fn(),
+      hdel: jest.fn(),
+      hmget: jest.fn(),
     };
 
     const { unit } = await TestBed.solitary(PresenceService)
@@ -360,6 +363,108 @@ describe('PresenceService', () => {
 
       expect(mockRedis.get).not.toHaveBeenCalled();
       expect(mockRedis.srem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setConnectionIdle', () => {
+    it('should set idle flag in Redis hash when idle is true', async () => {
+      mockRedis.hset.mockResolvedValue(1);
+
+      await service.setConnectionIdle('user-1', 'conn-1', true);
+
+      expect(mockRedis.hset).toHaveBeenCalledWith(
+        'presence:idle:user-1',
+        'conn-1',
+        '1',
+      );
+    });
+
+    it('should remove idle flag from Redis hash when idle is false', async () => {
+      mockRedis.hdel.mockResolvedValue(1);
+
+      await service.setConnectionIdle('user-1', 'conn-1', false);
+
+      expect(mockRedis.hdel).toHaveBeenCalledWith(
+        'presence:idle:user-1',
+        'conn-1',
+      );
+    });
+  });
+
+  describe('isActive', () => {
+    it('should return false when user is offline', async () => {
+      mockRedis.get.mockResolvedValue(null);
+
+      const result = await service.isActive('user-1');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when user is online but has no connections', async () => {
+      mockRedis.get.mockResolvedValue('1');
+      mockRedis.smembers.mockResolvedValue([]);
+
+      const result = await service.isActive('user-1');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true when user has at least one non-idle connection', async () => {
+      mockRedis.get.mockResolvedValue('1');
+      mockRedis.smembers.mockResolvedValue(['conn-1', 'conn-2']);
+      // conn-1 is idle ('1'), conn-2 is not idle (null)
+      mockRedis.hmget.mockResolvedValue(['1', null]);
+
+      const result = await service.isActive('user-1');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false when all connections are idle', async () => {
+      mockRedis.get.mockResolvedValue('1');
+      mockRedis.smembers.mockResolvedValue(['conn-1', 'conn-2']);
+      // Both connections are idle
+      mockRedis.hmget.mockResolvedValue(['1', '1']);
+
+      const result = await service.isActive('user-1');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true when user has a single non-idle connection', async () => {
+      mockRedis.get.mockResolvedValue('1');
+      mockRedis.smembers.mockResolvedValue(['conn-1']);
+      mockRedis.hmget.mockResolvedValue([null]);
+
+      const result = await service.isActive('user-1');
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('removeConnection (idle cleanup)', () => {
+    it('should clean up idle hash entry when removing a connection', async () => {
+      mockRedis.srem.mockResolvedValue(1);
+      mockRedis.hdel.mockResolvedValue(1);
+      mockRedis.scard.mockResolvedValue(1); // Still has connections
+
+      await service.removeConnection('user-1', 'conn-1');
+
+      expect(mockRedis.hdel).toHaveBeenCalledWith(
+        'presence:idle:user-1',
+        'conn-1',
+      );
+    });
+
+    it('should delete entire idle hash when last connection removed', async () => {
+      mockRedis.srem.mockResolvedValue(1);
+      mockRedis.hdel.mockResolvedValue(1);
+      mockRedis.scard.mockResolvedValue(0);
+      mockRedis.del.mockResolvedValue(1);
+
+      await service.removeConnection('user-1', 'conn-1');
+
+      expect(mockRedis.del).toHaveBeenCalledWith('presence:idle:user-1');
     });
   });
 });

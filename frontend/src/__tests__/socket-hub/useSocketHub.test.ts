@@ -43,7 +43,7 @@ describe('useSocketHub', () => {
     });
 
     expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.SUBSCRIBE_ALL);
-    expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.PRESENCE_ONLINE);
+    expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.PRESENCE_ONLINE, { idle: expect.any(Boolean) });
   });
 
   it('re-emits socket events on the event bus', async () => {

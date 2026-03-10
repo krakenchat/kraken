@@ -13,6 +13,7 @@ import {
 } from "../api-client/@tanstack/react-query.gen";
 import { styled } from "@mui/material/styles";
 import { getDmDisplayName } from "../utils/dmHelpers";
+import { setActiveDmGroupId } from "../utils/activeDmTracking";
 import { useVideoOverlay } from "../contexts/VideoOverlayContext";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import TwoColumnLayout from "../components/Common/TwoColumnLayout";
@@ -68,6 +69,12 @@ const DirectMessagesPage: React.FC = () => {
       setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, selectedDmGroupId, setSearchParams]);
+
+  // Sync selected DM group to module-scoped tracker for notification suppression
+  useEffect(() => {
+    setActiveDmGroupId(selectedDmGroupId ?? null);
+    return () => setActiveDmGroupId(null);
+  }, [selectedDmGroupId]);
 
   const { data: selectedDmGroup } = useQuery({
     ...directMessagesControllerFindDmGroupOptions({ path: { id: selectedDmGroupId! } }),

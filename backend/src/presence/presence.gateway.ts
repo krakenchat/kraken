@@ -3,6 +3,7 @@ import { UserEntity } from '@/user/dto/user-response.dto';
 import { Logger, UseFilters, UseGuards, UsePipes } from '@nestjs/common';
 import {
   ConnectedSocket,
+  MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
   OnGatewayInit,
@@ -55,9 +56,11 @@ export class PresenceGateway
   @SubscribeMessage(ClientEvents.PRESENCE_ONLINE)
   async handleMessage(
     @ConnectedSocket() client: Socket & { handshake: { user: UserEntity } },
+    @MessageBody() data?: { idle?: boolean },
   ): Promise<string> {
     const userId = client.handshake.user.id;
     const connectionId = client.id;
+    const idle = data?.idle ?? false;
 
     // Add this connection and check if user went from offline to online
     const wentOnline = await this.presenceService.addConnection(
@@ -65,6 +68,9 @@ export class PresenceGateway
       connectionId,
       60, // 1 minute TTL
     );
+
+    // Update idle state for this connection
+    await this.presenceService.setConnectionIdle(userId, connectionId, idle);
 
     // Only broadcast if this is the user's first connection
     if (wentOnline) {

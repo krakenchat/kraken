@@ -93,34 +93,37 @@ self.addEventListener('push', (event: PushEvent) => {
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
-  const notificationData = event.notification.data as PushNotificationData['data'];
+  const data = event.notification.data as PushNotificationData['data'];
 
-  // Determine the URL to navigate to
-  let url = '/';
-  if (notificationData?.communityId && notificationData?.channelId) {
-    url = `/community/${notificationData.communityId}/channel/${notificationData.channelId}`;
-  } else if (notificationData?.directMessageGroupId) {
-    url = `/direct-messages?group=${notificationData.directMessageGroupId}`;
+  // Determine the path to navigate to
+  let path = '/';
+  if (data?.communityId && data?.channelId) {
+    path = `/community/${data.communityId}/channel/${data.channelId}`;
+  } else if (data?.directMessageGroupId) {
+    path = `/direct-messages?group=${data.directMessageGroupId}`;
   }
 
-  // Focus existing window or open new one
+  const targetUrl = new URL(path, self.location.origin).href;
+
+  // Focus existing same-origin window or open new one
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there's already a window/tab open
-      for (const client of windowClients) {
-        if ('focus' in client) {
-          return client.focus().then((focusedClient) => {
-            // Navigate the focused client to the notification target
-            if ('navigate' in focusedClient) {
-              return (focusedClient as WindowClient).navigate(url);
-            }
-            return focusedClient;
-          });
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      const existing = clients.find(
+        (c) => new URL(c.url).origin === self.location.origin,
+      );
+      if (existing) {
+        try {
+          await existing.focus();
+          if (existing.url !== targetUrl) {
+            await (existing as WindowClient).navigate(targetUrl);
+          }
+          return;
+        } catch {
+          // navigate() fails on some mobile browsers — fall through to openWindow
         }
       }
-      // If no existing window, open a new one
-      return self.clients.openWindow(url);
-    })
+      return self.clients.openWindow(targetUrl);
+    }),
   );
 });
 

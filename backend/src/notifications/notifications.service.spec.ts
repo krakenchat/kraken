@@ -4,6 +4,7 @@ import { NotificationsService } from './notifications.service';
 
 import { DatabaseService } from '@/database/database.service';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
+import { PresenceService } from '@/presence/presence.service';
 import { NotificationType, SpanType } from '@prisma/client';
 import {
   createMockDatabase,
@@ -18,6 +19,7 @@ describe('NotificationsService', () => {
   let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   let pushNotificationsService: Mocked<PushNotificationsService>;
+  let presenceService: Mocked<PresenceService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -30,9 +32,11 @@ describe('NotificationsService', () => {
     service = unit;
 
     pushNotificationsService = unitRef.get(PushNotificationsService);
+    presenceService = unitRef.get(PresenceService);
 
     // Default mock behaviors
     pushNotificationsService.isEnabled.mockReturnValue(false);
+    presenceService.isActive.mockResolvedValue(false);
     pushNotificationsService.sendToUser.mockResolvedValue({
       sent: 0,
       failed: 0,
@@ -1072,6 +1076,100 @@ describe('NotificationsService', () => {
       ).toHaveBeenCalledWith({
         where: { userId, channelId },
       });
+    });
+  });
+
+  // ============================================================================
+  // PUSH NOTIFICATION SUPPRESSION FOR ACTIVE USERS
+  // ============================================================================
+
+  describe('push notification suppression for active users', () => {
+    const authorId = 'author-1';
+    const targetUserId = 'target-user';
+    const channelId = 'channel-1';
+
+    beforeEach(() => {
+      pushNotificationsService.isEnabled.mockReturnValue(true);
+    });
+
+    function setupForPushTest() {
+      const notification = NotificationFactory.build({
+        type: NotificationType.USER_MENTION,
+        authorId,
+        channelId,
+      });
+
+      mockDatabase.notification.create.mockResolvedValue({
+        ...notification,
+        author: {
+          id: authorId,
+          username: 'johndoe',
+          displayName: 'John Doe',
+          avatarUrl: null,
+        },
+        message: {
+          id: 'msg-1',
+          spans: [{ text: 'Hello' }],
+          channelId,
+          directMessageGroupId: null,
+        },
+        channel: { id: channelId, name: 'general', communityId: 'community-1' },
+      });
+
+      const settings = UserNotificationSettingsFactory.build();
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
+      mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(null);
+
+      return MessageFactory.build({
+        id: 'msg-1',
+        channelId,
+        authorId,
+        spans: [
+          {
+            type: SpanType.USER_MENTION,
+            userId: targetUserId,
+            text: null,
+            specialKind: null,
+            communityId: null,
+            aliasId: null,
+          },
+        ],
+      } as any);
+    }
+
+    it('should suppress push notification when user is active', async () => {
+      presenceService.isActive.mockResolvedValue(true);
+      const message = setupForPushTest();
+
+      await service.processMessageForNotifications(message as any);
+
+      expect(presenceService.isActive).toHaveBeenCalledWith(targetUserId);
+      expect(pushNotificationsService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('should send push notification when user is not active', async () => {
+      presenceService.isActive.mockResolvedValue(false);
+      const message = setupForPushTest();
+
+      await service.processMessageForNotifications(message as any);
+
+      expect(presenceService.isActive).toHaveBeenCalledWith(targetUserId);
+      expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
+        targetUserId,
+        expect.objectContaining({ title: expect.any(String) }),
+      );
+    });
+
+    it('should always create notification record and emit WebSocket event regardless of active state', async () => {
+      presenceService.isActive.mockResolvedValue(true);
+      const message = setupForPushTest();
+
+      await service.processMessageForNotifications(message as any);
+
+      // Notification record should still be created
+      expect(mockDatabase.notification.create).toHaveBeenCalled();
+      // Push should be suppressed
+      expect(pushNotificationsService.sendToUser).not.toHaveBeenCalled();
     });
   });
 
