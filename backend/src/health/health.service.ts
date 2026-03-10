@@ -25,12 +25,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-function getErrorMessage(reason: unknown): string {
-  if (reason instanceof Error) return reason.message;
-  if (typeof reason === 'string') return reason;
-  return 'Unknown error';
-}
-
 @Injectable()
 export class HealthService implements OnModuleInit {
   private readonly logger = new Logger(HealthService.name);
@@ -98,7 +92,7 @@ export class HealthService implements OnModuleInit {
     const [redisResult, dbResult] = await Promise.allSettled([
       withTimeout(this.redis.ping(), HEALTH_CHECK_TIMEOUT_MS),
       withTimeout(
-        this.databaseService.$queryRawUnsafe('SELECT 1'),
+        this.databaseService.$executeRaw`SELECT 1`,
         HEALTH_CHECK_TIMEOUT_MS,
       ),
     ]);
@@ -107,10 +101,10 @@ export class HealthService implements OnModuleInit {
     const dbUp = dbResult.status === 'fulfilled';
 
     if (!redisUp) {
-      this.logger.error('Redis health check failed', redisResult.reason);
+      this.logger.warn('Redis health check failed', redisResult.reason);
     }
     if (!dbUp) {
-      this.logger.error('Database health check failed', dbResult.reason);
+      this.logger.warn('Database health check failed', dbResult.reason);
     }
 
     const allUp = redisUp && dbUp;
@@ -123,11 +117,9 @@ export class HealthService implements OnModuleInit {
       checks: {
         redis: {
           status: redisUp ? 'up' : 'down',
-          ...(redisUp ? {} : { error: getErrorMessage(redisResult.reason) }),
         },
         database: {
           status: dbUp ? 'up' : 'down',
-          ...(dbUp ? {} : { error: getErrorMessage(dbResult.reason) }),
         },
       },
     };

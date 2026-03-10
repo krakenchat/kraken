@@ -7,12 +7,12 @@ import { createMockRedis } from '@/test-utils';
 describe('HealthService', () => {
   let service: HealthService;
   let mockRedis: ReturnType<typeof createMockRedis>;
-  let mockDatabase: { $queryRawUnsafe: jest.Mock };
+  let mockDatabase: { $executeRaw: jest.Mock };
 
   beforeEach(async () => {
     mockRedis = createMockRedis();
     mockDatabase = {
-      $queryRawUnsafe: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
     };
 
     const { unit } = await TestBed.solitary(HealthService)
@@ -185,12 +185,11 @@ describe('HealthService', () => {
 
       expect(result.status).toBe('degraded');
       expect(result.checks.redis.status).toBe('down');
-      expect(result.checks.redis.error).toBe('Connection refused');
       expect(result.checks.database.status).toBe('up');
     });
 
     it('should return degraded when database is down', async () => {
-      mockDatabase.$queryRawUnsafe.mockRejectedValue(
+      mockDatabase.$executeRaw.mockRejectedValue(
         new Error('Connection terminated'),
       );
 
@@ -199,31 +198,21 @@ describe('HealthService', () => {
       expect(result.status).toBe('degraded');
       expect(result.checks.redis.status).toBe('up');
       expect(result.checks.database.status).toBe('down');
-      expect(result.checks.database.error).toBe('Connection terminated');
     });
 
     it('should return degraded when both are down', async () => {
       mockRedis.ping.mockRejectedValue(new Error('Redis offline'));
-      mockDatabase.$queryRawUnsafe.mockRejectedValue(new Error('DB offline'));
+      mockDatabase.$executeRaw.mockRejectedValue(new Error('DB offline'));
 
       const result = await service.checkHealth();
 
       expect(result.status).toBe('degraded');
       expect(result.checks.redis.status).toBe('down');
-      expect(result.checks.redis.error).toBe('Redis offline');
       expect(result.checks.database.status).toBe('down');
-      expect(result.checks.database.error).toBe('DB offline');
     });
 
-    it('should not include error field when checks pass', async () => {
-      const result = await service.checkHealth();
-
-      expect(result.checks.redis).not.toHaveProperty('error');
-      expect(result.checks.database).not.toHaveProperty('error');
-    });
-
-    it('should log errors for failed checks', async () => {
-      const loggerSpy = jest.spyOn(service['logger'], 'error');
+    it('should warn on failed checks', async () => {
+      const loggerSpy = jest.spyOn(service['logger'], 'warn');
       mockRedis.ping.mockRejectedValue(new Error('Redis offline'));
 
       await service.checkHealth();
@@ -234,11 +223,32 @@ describe('HealthService', () => {
       );
     });
 
-    it('should call redis.ping and database.$queryRawUnsafe', async () => {
+    it('should call redis.ping and database.$executeRaw', async () => {
       await service.checkHealth();
 
       expect(mockRedis.ping).toHaveBeenCalled();
-      expect(mockDatabase.$queryRawUnsafe).toHaveBeenCalledWith('SELECT 1');
+      expect(mockDatabase.$executeRaw).toHaveBeenCalled();
+    });
+
+    it('should return degraded when checks time out', async () => {
+      jest.useFakeTimers();
+
+      // Both return promises that never settle, simulating hung connections
+      mockRedis.ping.mockReturnValue(new Promise(() => {}));
+      mockDatabase.$executeRaw.mockReturnValue(new Promise(() => {}));
+
+      const healthPromise = service.checkHealth();
+
+      // Advance past the 3s timeout
+      jest.advanceTimersByTime(3000);
+
+      const result = await healthPromise;
+
+      expect(result.status).toBe('degraded');
+      expect(result.checks.redis.status).toBe('down');
+      expect(result.checks.database.status).toBe('down');
+
+      jest.useRealTimers();
     });
   });
 });

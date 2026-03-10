@@ -1,6 +1,5 @@
 export class HealthCheckDetail {
   status: 'up' | 'down';
-  error?: string;
 }
 
 export class HealthChecks {
