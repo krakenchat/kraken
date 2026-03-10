@@ -31,7 +31,6 @@
     "generate:openapi": "nest build && node dist/src/generate-openapi.js"
   },
   "dependencies": {
-    "@semaphore-chat/shared": "workspace:*",
     "@nestjs/common": "^11.1.11",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -43,9 +42,11 @@
     "@nestjs/platform-socket.io": "^11.1.11",
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/swagger": "^11.1.5",
+    "@nestjs/terminus": "^11.1.1",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/websockets": "^11.1.11",
     "@prisma/client": "^6.6.0",
+    "@semaphore-chat/shared": "workspace:*",
     "@socket.io/redis-adapter": "^8.3.0",
     "@types/uuid": "^10.0.0",
     "bcrypt": "^5.1.1",

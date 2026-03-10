@@ -1,30 +1,26 @@
-import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOkResponse,
-  ApiServiceUnavailableResponse,
-} from '@nestjs/swagger';
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 import { Public } from '@/auth/public.decorator';
-import { HealthService } from './health.service';
-import { HealthResponseDto } from './dto/health-response.dto';
-import { Response } from 'express';
+import { DatabaseHealthIndicator } from './indicators/database.health-indicator';
+import { RedisHealthIndicator } from './indicators/redis.health-indicator';
 
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {
-  constructor(private readonly healthService: HealthService) {}
+  constructor(
+    private readonly health: HealthCheckService,
+    private readonly db: DatabaseHealthIndicator,
+    private readonly redis: RedisHealthIndicator,
+  ) {}
 
   @Get()
   @Public()
-  @ApiOkResponse({ type: HealthResponseDto })
-  @ApiServiceUnavailableResponse({ type: HealthResponseDto })
-  async check(
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<HealthResponseDto> {
-    const health = await this.healthService.checkHealth();
-    if (health.status !== 'ok') {
-      res.status(HttpStatus.SERVICE_UNAVAILABLE);
-    }
-    return health;
+  @HealthCheck()
+  check() {
+    return this.health.check([
+      () => this.redis.isHealthy('redis'),
+      () => this.db.isHealthy('database'),
+    ]);
   }
 }

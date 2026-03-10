@@ -1,25 +1,17 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { HealthController } from './health.controller';
-import { HealthService } from './health.service';
-import { HttpStatus } from '@nestjs/common';
-
-function createMockResponse() {
-  const res = {
-    status: jest.fn().mockReturnThis(),
-  };
-  return res as unknown as import('express').Response;
-}
+import { HealthCheckService } from '@nestjs/terminus';
 
 describe('HealthController', () => {
   let controller: HealthController;
-  let healthService: Mocked<HealthService>;
+  let healthCheckService: Mocked<HealthCheckService>;
 
   beforeEach(async () => {
     const { unit, unitRef } =
       await TestBed.solitary(HealthController).compile();
     controller = unit;
-    healthService = unitRef.get(HealthService);
+    healthCheckService = unitRef.get(HealthCheckService);
   });
 
   afterEach(() => {
@@ -31,64 +23,27 @@ describe('HealthController', () => {
   });
 
   describe('check', () => {
-    it('should return health dto with 200 when all checks pass', async () => {
-      const mockHealth = {
+    it('should delegate to HealthCheckService with redis and database checks', async () => {
+      const mockResult = {
         status: 'ok' as const,
-        instanceName: 'Test Instance',
-        version: '0.0.1',
-        timestamp: new Date().toISOString(),
-        checks: {
+        info: {
+          redis: { status: 'up' as const },
+          database: { status: 'up' as const },
+        },
+        error: {},
+        details: {
           redis: { status: 'up' as const },
           database: { status: 'up' as const },
         },
       };
-      healthService.checkHealth.mockResolvedValue(mockHealth);
-      const res = createMockResponse();
+      healthCheckService.check.mockResolvedValue(mockResult);
 
-      const result = await controller.check(res);
+      const result = await controller.check();
 
-      expect(result).toEqual(mockHealth);
-      expect(res.status).not.toHaveBeenCalled();
-    });
-
-    it('should set 503 when status is degraded', async () => {
-      const mockHealth = {
-        status: 'degraded' as const,
-        instanceName: 'Test Instance',
-        version: '0.0.1',
-        timestamp: new Date().toISOString(),
-        checks: {
-          redis: { status: 'down' as const },
-          database: { status: 'up' as const },
-        },
-      };
-      healthService.checkHealth.mockResolvedValue(mockHealth);
-      const res = createMockResponse();
-
-      const result = await controller.check(res);
-
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
-      expect(result).toEqual(mockHealth);
-    });
-
-    it('should set 503 when database is down', async () => {
-      const mockHealth = {
-        status: 'degraded' as const,
-        instanceName: 'Test Instance',
-        version: '0.0.1',
-        timestamp: new Date().toISOString(),
-        checks: {
-          redis: { status: 'up' as const },
-          database: { status: 'down' as const },
-        },
-      };
-      healthService.checkHealth.mockResolvedValue(mockHealth);
-      const res = createMockResponse();
-
-      const result = await controller.check(res);
-
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
-      expect(result).toEqual(mockHealth);
+      expect(result).toEqual(mockResult);
+      expect(healthCheckService.check).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.any(Function)]),
+      );
     });
   });
 });
