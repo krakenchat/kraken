@@ -28,6 +28,7 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
       query: { channelId: '', directMessageGroupId },
     }),
     staleTime: 30_000,
+    enabled: isOpen,
   });
   const readers = (readersData as MessageReader[] | undefined) ?? undefined;
 
