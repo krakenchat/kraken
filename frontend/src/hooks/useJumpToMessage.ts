@@ -65,11 +65,19 @@ export const useJumpToMessage = (
     setAnchorMessageId(undefined);
   }, [id, anchorMessageId, type, queryClient]);
 
-  const activeResult = mode === "anchored" ? anchoredResult : normalResult;
+  // If anchored query errors (e.g. message not found), fall back to normal mode
+  useEffect(() => {
+    if (mode === "anchored" && anchoredResult.error) {
+      setAnchorMessageId(undefined);
+    }
+  }, [mode, anchoredResult.error]);
+
+  const activeResult = mode === "anchored" && !anchoredResult.error ? anchoredResult : normalResult;
+  const effectiveMode = mode === "anchored" && !anchoredResult.error ? "anchored" : "normal";
 
   return {
     ...activeResult,
-    mode: mode as "normal" | "anchored",
+    mode: effectiveMode as "normal" | "anchored",
     jumpToPresent,
     // Pass through anchored-specific fields
     onLoadNewer: anchoredResult.onLoadNewer,
