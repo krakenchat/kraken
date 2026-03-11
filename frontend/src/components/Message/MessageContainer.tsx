@@ -44,6 +44,7 @@ interface MessageContainerProps {
 
   // Search highlight
   highlightMessageId?: string;
+  highlightSeq?: number;
 
   // Thread handling
   contextId?: string;
@@ -73,6 +74,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   showMemberList = true,
   emptyStateMessage = "No messages yet. Start the conversation!",
   highlightMessageId,
+  highlightSeq,
   contextId,
   communityId,
   onOpenThread,
@@ -92,6 +94,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     messages,
     mode,
     highlightMessageId,
+    highlightSeq,
     onLoadMore,
     isLoadingMore,
     continuationToken,

@@ -20,6 +20,7 @@ export interface MessagesHookResult {
   hasNewer?: boolean;
   mode?: 'normal' | 'anchored';
   jumpToPresent?: () => void;
+  highlightSeq?: number;
 }
 
 export interface MessageContainerWrapperProps {
@@ -67,6 +68,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
     hasNewer,
     mode,
     jumpToPresent,
+    highlightSeq,
   } = useMessagesHook();
 
   // Create the message input component
@@ -100,6 +102,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       memberListComponent={memberListComponent}
       emptyStateMessage={emptyStateMessage}
       highlightMessageId={highlightMessageId}
+      highlightSeq={highlightSeq}
       contextId={contextId}
       communityId={communityId}
       onOpenThread={onOpenThread}

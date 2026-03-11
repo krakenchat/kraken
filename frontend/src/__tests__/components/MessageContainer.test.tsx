@@ -481,6 +481,7 @@ describe('MessageContainer', () => {
           {...defaultProps}
           messages={messages}
           highlightMessageId="msg-b"
+          highlightSeq={1}
         />,
       );
 

@@ -41,13 +41,11 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
   const dmNavigate = useNavigate();
   const highlightMessageId = searchParams.get("highlight");
 
-  // Clear highlight param from URL after a delay (so the flash animation can play)
+  // Clear highlight param from URL immediately after capturing it.
+  // useJumpToMessage stores it locally for scroll/flash (3s auto-clear).
   React.useEffect(() => {
     if (highlightMessageId) {
-      const timer = setTimeout(() => {
-        dmNavigate(`/direct-messages?group=${dmGroupId}`, { replace: true });
-      }, 3000);
-      return () => clearTimeout(timer);
+      dmNavigate(`/direct-messages?group=${dmGroupId}`, { replace: true });
     }
   }, [highlightMessageId, dmGroupId, dmNavigate]);
 
@@ -81,7 +79,7 @@ const DirectMessageContainer: React.FC<DirectMessageContainerProps> = ({
       memberListComponent={memberListComponent}
       placeholder="Type a direct message..."
       emptyStateMessage="No messages yet. Start the conversation!"
-      highlightMessageId={highlightMessageId || undefined}
+      highlightMessageId={messagesHookResult.highlightMessageId}
     />
   );
 };

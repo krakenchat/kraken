@@ -4,6 +4,8 @@ interface UseBidirectionalScrollOptions {
   messages: { id: string }[];
   mode: 'normal' | 'anchored';
   highlightMessageId?: string;
+  /** Sequence counter — increments on every jump request so re-clicks to the same message trigger a new scroll. */
+  highlightSeq?: number;
 
   // Older pagination
   onLoadMore?: () => Promise<void>;
@@ -29,6 +31,7 @@ export const useBidirectionalScroll = ({
   messages,
   mode,
   highlightMessageId,
+  highlightSeq = 0,
   onLoadMore,
   isLoadingMore,
   continuationToken,
@@ -137,26 +140,26 @@ export const useBidirectionalScroll = ({
     newerLoadSuppressedRef.current = mode === 'anchored' && !!highlightMessageId;
   }, [mode, highlightMessageId]);
 
-  // Scroll to highlighted message (once per highlightMessageId).
-  // Avoids re-scrolling when newer/older pages load and change the messages array.
-  const lastScrolledHighlightRef = useRef<string | undefined>();
+  // Scroll to highlighted message (once per highlightSeq).
+  // Uses a seq counter instead of message ID so re-clicks to the same message
+  // always trigger a new scroll. Avoids re-scrolling on pagination re-renders.
+  const lastScrolledSeqRef = useRef(0);
   useEffect(() => {
-    if (
-      highlightMessageId &&
-      highlightMessageId !== lastScrolledHighlightRef.current &&
-      messages.length > 0
-    ) {
+    if (!highlightMessageId || highlightSeq <= lastScrolledSeqRef.current) {
+      return;
+    }
+    if (messages.length > 0) {
       const el = messageRefs.current.get(highlightMessageId);
       if (el) {
         el.scrollIntoView({ behavior: "instant", block: "center" });
-        lastScrolledHighlightRef.current = highlightMessageId;
+        lastScrolledSeqRef.current = highlightSeq;
         // Allow onLoadNewer after the browser processes the scroll
         requestAnimationFrame(() => {
           newerLoadSuppressedRef.current = false;
         });
       }
     }
-  }, [highlightMessageId, messages]);
+  }, [highlightMessageId, highlightSeq, messages]);
 
   // scrollTop=0 is visual bottom in column-reverse
   const scrollToBottom = useCallback(() => {
