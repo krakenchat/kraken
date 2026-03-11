@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useMemo } from "react";
 import MessageComponent from "./MessageComponent";
 import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -8,6 +8,8 @@ import type { Message } from "../../types/message.type";
 import { useMessageVisibility } from "../../hooks/useMessageVisibility";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
 import { useResponsive } from "../../hooks/useResponsive";
+import { useBidirectionalScroll } from "../../hooks/useBidirectionalScroll";
+import { useAnchoredModeTransition } from "../../hooks/useAnchoredModeTransition";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
 import TypingIndicator from "./TypingIndicator";
 
@@ -78,15 +80,34 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   directMessageGroupId,
 }) => {
   const { isMobile } = useResponsive();
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const bottomSentinelRef = useRef<HTMLDivElement>(null);
-  const topSentinelRef = useRef<HTMLDivElement>(null);
-  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const [atBottom, setAtBottom] = useState(true);
-  // Suppresses onLoadNewer until the initial scroll-to-highlight completes in anchored mode.
-  // Without this, column-reverse starts at scrollTop=0 (visual bottom), making the bottom
-  // sentinel visible on first render and triggering cascading newer page loads.
-  const newerLoadSuppressedRef = useRef(false);
+
+  const {
+    scrollContainerRef,
+    bottomSentinelRef,
+    topSentinelRef,
+    messageRefs,
+    atBottom,
+    scrollToBottom,
+  } = useBidirectionalScroll({
+    messages,
+    mode,
+    highlightMessageId,
+    onLoadMore,
+    isLoadingMore,
+    continuationToken,
+    onLoadNewer,
+    isLoadingNewer,
+    hasNewer,
+  });
+
+  useAnchoredModeTransition({
+    mode,
+    atBottom,
+    hasNewer,
+    isLoadingNewer,
+    jumpToPresent,
+    scrollContainerRef,
+  });
 
   // Auto-mark messages as read when they scroll into view
   useMessageVisibility({
@@ -108,132 +129,6 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     if (!lastReadMessageId) return -1;
     return messages.findIndex((msg) => msg.id === lastReadMessageId);
   }, [messages, lastReadMessageId]);
-
-  // Stable refs for pagination state so IntersectionObservers aren't
-  // recreated on every loading/token change. Observer recreation causes
-  // a fresh initial callback, which re-triggers loading while the sentinel
-  // is still in view — creating a cascading load loop.
-  const hasMessages = messages.length > 0;
-  const onLoadNewerRef = useRef(onLoadNewer);
-  const isLoadingNewerRef = useRef(isLoadingNewer);
-  const hasNewerRef = useRef(hasNewer);
-  const onLoadMoreRef = useRef(onLoadMore);
-  const isLoadingMoreRef = useRef(isLoadingMore);
-  const continuationTokenRef = useRef(continuationToken);
-  useEffect(() => {
-    onLoadNewerRef.current = onLoadNewer;
-    isLoadingNewerRef.current = isLoadingNewer;
-    hasNewerRef.current = hasNewer;
-    onLoadMoreRef.current = onLoadMore;
-    isLoadingMoreRef.current = isLoadingMore;
-    continuationTokenRef.current = continuationToken;
-  });
-
-  // "At bottom" detection via IntersectionObserver on bottom sentinel
-  // Bottom sentinel is first in DOM = visual bottom in column-reverse
-  // In anchored mode, also triggers loading newer messages
-  useEffect(() => {
-    const sentinel = bottomSentinelRef.current;
-    const container = scrollContainerRef.current;
-    if (!sentinel || !container) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setAtBottom(entry.isIntersecting);
-        if (entry.isIntersecting && mode === 'anchored' && onLoadNewerRef.current && !isLoadingNewerRef.current && hasNewerRef.current && !newerLoadSuppressedRef.current) {
-          onLoadNewerRef.current();
-        }
-      },
-      { root: container, threshold: 0 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMessages, mode]);
-
-  // "Load more" pagination via IntersectionObserver on top sentinel
-  // Top sentinel is last in DOM = visual top in column-reverse
-  useEffect(() => {
-    const sentinel = topSentinelRef.current;
-    const container = scrollContainerRef.current;
-    if (!sentinel || !container) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !isLoadingMoreRef.current && continuationTokenRef.current && onLoadMoreRef.current) {
-          onLoadMoreRef.current();
-        }
-      },
-      { root: container, threshold: 0 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMessages]);
-
-  // Stabilize scroll when newer messages are prepended in anchored mode.
-  // In column-reverse, newer messages appear at the visual bottom (DOM start).
-  // Without adjustment, the viewport jumps to show the new content. Shifting
-  // scrollTop by the height delta keeps the user's current view stable and
-  // naturally moves the bottom sentinel out of view (preventing cascading loads).
-  const prevScrollHeightRef = useRef(0);
-  const prevFirstMsgIdRef = useRef<string | undefined>();
-  useLayoutEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container || messages.length === 0) return;
-
-    const firstMsgId = messages[0]?.id;
-    const currentScrollHeight = container.scrollHeight;
-    const prevScrollHeight = prevScrollHeightRef.current;
-
-    if (
-      mode === 'anchored' &&
-      prevFirstMsgIdRef.current &&
-      firstMsgId !== prevFirstMsgIdRef.current &&
-      prevScrollHeight > 0 &&
-      currentScrollHeight > prevScrollHeight
-    ) {
-      const delta = currentScrollHeight - prevScrollHeight;
-      container.scrollTop -= delta;
-    }
-
-    prevScrollHeightRef.current = currentScrollHeight;
-    prevFirstMsgIdRef.current = firstMsgId;
-  }, [messages, mode]);
-
-  // Scroll to bottom: scrollTop=0 is visual bottom in column-reverse
-  const scrollToBottom = useCallback(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
-  // Suppress onLoadNewer when entering anchored mode, until scroll-to-highlight completes
-  useEffect(() => {
-    if (mode === 'anchored' && highlightMessageId) {
-      newerLoadSuppressedRef.current = true;
-    } else {
-      newerLoadSuppressedRef.current = false;
-    }
-  }, [mode, highlightMessageId]);
-
-  // Scroll to highlighted message.
-  // Only scroll once per highlightMessageId to avoid re-scrolling when
-  // newer/older pages load and change the messages array.
-  const lastScrolledHighlightRef = useRef<string | undefined>();
-  useEffect(() => {
-    if (
-      highlightMessageId &&
-      highlightMessageId !== lastScrolledHighlightRef.current &&
-      messages.length > 0
-    ) {
-      const el = messageRefs.current.get(highlightMessageId);
-      if (el) {
-        el.scrollIntoView({ behavior: "instant", block: "center" });
-        lastScrolledHighlightRef.current = highlightMessageId;
-        // Allow onLoadNewer after the browser processes the scroll
-        requestAnimationFrame(() => {
-          newerLoadSuppressedRef.current = false;
-        });
-      }
-    }
-  }, [highlightMessageId, messages]);
 
   const skeletonCount = 10;
 
