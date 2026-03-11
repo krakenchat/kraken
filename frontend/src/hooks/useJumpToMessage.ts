@@ -21,13 +21,18 @@ export const useJumpToMessage = (
   const normalResult = useMessages(type, id);
   const anchoredResult = useAnchoredMessages(type, id, anchorMessageId);
 
+  // Reset anchored mode when switching channels/DMs.
+  // Don't reset when highlightMessageId clears — that's just the URL
+  // cleanup for the flash animation, not a signal to leave anchored mode.
+  useEffect(() => {
+    setAnchorMessageId(undefined);
+  }, [id]);
+
   // When highlightMessageId changes, check if it's already loaded in normal data.
   // Wait for the normal query to finish loading before deciding, to avoid
   // a race where we switch to anchored mode before the first page arrives.
-  // Reset to normal mode when highlight is cleared or context changes.
   useEffect(() => {
     if (!highlightMessageId || !id) {
-      setAnchorMessageId(undefined);
       return;
     }
 
