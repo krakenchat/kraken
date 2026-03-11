@@ -246,8 +246,12 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               const showDividerBefore =
                 unreadCount > 0 && lastReadIndex > 0 && index === lastReadIndex;
 
+              // Composite key: when highlighted, include highlightSeq so React remounts
+              // the element and restarts the CSS flash animation on re-clicks.
+              const key = isHighlighted ? `${message.id}-hl-${highlightSeq}` : message.id;
+
               return (
-                <React.Fragment key={message.id}>
+                <React.Fragment key={key}>
                   {showDividerBefore && (
                     <UnreadMessageDivider unreadCount={unreadCount} />
                   )}
