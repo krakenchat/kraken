@@ -311,11 +311,11 @@ export const handleReadReceiptUpdated: SocketEventHandler<typeof ServerEvents.RE
     });
 
     queryClient.setQueryData(peerReadsKey, (old: DmPeerReadDto[] | undefined) => {
-      if (!old) return old;
       const entry: DmPeerReadDto = {
         userId: payload.userId!,
         lastReadAt: payload.lastReadAt,
       };
+      if (!old) return [entry];
       const index = old.findIndex((p) => p.userId === payload.userId);
       if (index >= 0) {
         const next = [...old];

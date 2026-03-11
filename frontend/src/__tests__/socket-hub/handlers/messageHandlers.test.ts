@@ -214,6 +214,34 @@ describe('messageHandlers', () => {
       expect(peerReads).toHaveLength(0);
     });
 
+    it('initializes peer reads cache when it does not exist yet', () => {
+      const queryClient = new QueryClient();
+
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'current-user' });
+
+      // Do NOT seed the peer reads cache — simulates WS event before REST fetch
+      handleReadReceiptUpdated(
+        {
+          channelId: null,
+          directMessageGroupId: 'dm-1',
+          lastReadMessageId: 'msg-5',
+          lastReadAt: '2024-01-15T00:00:00Z',
+          userId: 'alice-id',
+          username: 'alice',
+          displayName: 'Alice',
+          avatarUrl: null,
+        },
+        queryClient,
+      );
+
+      const peerReadsKey = readReceiptsControllerGetDmPeerReadsQueryKey({
+        path: { directMessageGroupId: 'dm-1' },
+      });
+      const peerReads = queryClient.getQueryData<DmPeerReadDto[]>(peerReadsKey);
+      expect(peerReads).toHaveLength(1);
+      expect(peerReads![0].userId).toBe('alice-id');
+    });
+
     it('skips self-reads (does not update peer reads for current user)', () => {
       const queryClient = new QueryClient();
 

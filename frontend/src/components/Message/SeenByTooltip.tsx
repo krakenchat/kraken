@@ -32,12 +32,17 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
   const readerIds = getReaderIds(sentAt);
 
   // Look up display info from cached DM group members
-  const readers = readerIds
+  const resolvedReaders = readerIds
     .map((id) => dmGroup?.members?.find((m) => m.userId === id)?.user)
     .filter(Boolean) as Array<{ id: string; username: string; displayName?: string | null; avatarUrl?: string | null }>;
 
-  const displayReaders = readers.slice(0, 15);
-  const remainingCount = readers.length - displayReaders.length;
+  const displayReaders = resolvedReaders.slice(0, 15);
+  const remainingCount = readByCount - displayReaders.length;
+
+  // For 1:1 DMs, show the peer's name if resolved; otherwise fall back to count
+  const singleReaderName = readByCount === 1 && displayReaders[0]
+    ? (displayReaders[0].displayName || displayReaders[0].username)
+    : null;
 
   const tooltipContent = (
     <Box sx={{ minWidth: 150, maxWidth: 250, p: 0.5 }}>
@@ -50,11 +55,11 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
           mb: 0.5,
         }}
       >
-        {readers.length === 1
-          ? `Seen by ${displayReaders[0]?.displayName || displayReaders[0]?.username}`
+        {singleReaderName
+          ? `Seen by ${singleReaderName}`
           : `Seen by ${readByCount}`}
       </Typography>
-      {readers.length > 1 && (
+      {readByCount > 1 && (
         <>
           {displayReaders.map((reader) => (
             <Box
