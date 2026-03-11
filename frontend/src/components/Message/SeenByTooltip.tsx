@@ -5,6 +5,8 @@ import { directMessagesControllerFindDmGroupOptions } from "../../api-client/@ta
 import { useDmPeerReads } from "../../hooks/useDmPeerReads";
 import { ReadStatusIndicator } from "./ReadStatusIndicator";
 
+const MAX_TOOLTIP_READERS = 15;
+
 interface SeenByTooltipProps {
   sentAt: string;
   directMessageGroupId: string;
@@ -36,7 +38,7 @@ export const SeenByTooltip: React.FC<SeenByTooltipProps> = ({
     .map((id) => dmGroup?.members?.find((m) => m.userId === id)?.user)
     .filter(Boolean) as Array<{ id: string; username: string; displayName?: string | null; avatarUrl?: string | null }>;
 
-  const displayReaders = resolvedReaders.slice(0, 15);
+  const displayReaders = resolvedReaders.slice(0, MAX_TOOLTIP_READERS);
   const remainingCount = readByCount - displayReaders.length;
 
   // For 1:1 DMs, show the peer's name if resolved; otherwise fall back to count
