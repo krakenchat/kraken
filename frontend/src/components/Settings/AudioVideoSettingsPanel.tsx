@@ -389,11 +389,19 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
             {audioInputDevices.length === 0 ? (
               <MenuItem value="">No devices found</MenuItem>
             ) : (
-              audioInputDevices.map((device) => (
-                <MenuItem key={device.deviceId} value={device.deviceId}>
-                  {getDeviceLabel(device)}
-                </MenuItem>
-              ))
+              [
+                selectedAudioInputId !== 'default' &&
+                  !audioInputDevices.some(d => d.deviceId === selectedAudioInputId) && (
+                  <MenuItem key="__disconnected" value={selectedAudioInputId} disabled>
+                    Previously selected device (disconnected)
+                  </MenuItem>
+                ),
+                ...audioInputDevices.map((device) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {getDeviceLabel(device)}
+                  </MenuItem>
+                )),
+              ]
             )}
           </Select>
         </FormControl>
@@ -415,11 +423,19 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
             {audioOutputDevices.length === 0 ? (
               <MenuItem value="">No devices found</MenuItem>
             ) : (
-              audioOutputDevices.map((device) => (
-                <MenuItem key={device.deviceId} value={device.deviceId}>
-                  {getDeviceLabel(device)}
-                </MenuItem>
-              ))
+              [
+                selectedAudioOutputId !== 'default' &&
+                  !audioOutputDevices.some(d => d.deviceId === selectedAudioOutputId) && (
+                  <MenuItem key="__disconnected" value={selectedAudioOutputId} disabled>
+                    Previously selected device (disconnected)
+                  </MenuItem>
+                ),
+                ...audioOutputDevices.map((device) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {getDeviceLabel(device)}
+                  </MenuItem>
+                )),
+              ]
             )}
           </Select>
         </FormControl>
@@ -537,11 +553,19 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
             {videoInputDevices.length === 0 ? (
               <MenuItem value="">No devices found</MenuItem>
             ) : (
-              videoInputDevices.map((device) => (
-                <MenuItem key={device.deviceId} value={device.deviceId}>
-                  {getDeviceLabel(device)}
-                </MenuItem>
-              ))
+              [
+                selectedVideoInputId !== 'default' &&
+                  !videoInputDevices.some(d => d.deviceId === selectedVideoInputId) && (
+                  <MenuItem key="__disconnected" value={selectedVideoInputId} disabled>
+                    Previously selected device (disconnected)
+                  </MenuItem>
+                ),
+                ...videoInputDevices.map((device) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {getDeviceLabel(device)}
+                  </MenuItem>
+                )),
+              ]
             )}
           </Select>
         </FormControl>
