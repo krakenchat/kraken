@@ -176,7 +176,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
  * Default screen for the Notifications tab
  */
 export const NotificationsScreen: React.FC = () => {
-  const { navigateToDmChat } = useMobileNavigation();
+  const { navigateToChat, navigateToDmChat } = useMobileNavigation();
 
   const {
     notifications,
@@ -209,12 +209,10 @@ export const NotificationsScreen: React.FC = () => {
     }
 
     // Navigate to the source
-    if (notification.directMessageGroupId) {
+    if (notification.communityId && notification.channelId) {
+      navigateToChat(notification.communityId, notification.channelId);
+    } else if (notification.directMessageGroupId) {
       navigateToDmChat(notification.directMessageGroupId);
-    } else if (notification.channelId) {
-      // For channel notifications, we'd need the communityId
-      // This is a limitation - we may need to enhance the notification API
-      logger.dev('Navigate to channel:', notification.channelId);
     }
   };
 
