@@ -160,6 +160,25 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
     onDeviceChange?.('video', deviceId);
   };
 
+  const renderDeviceMenuItems = (devices: MediaDeviceInfo[], selectedId: string) => {
+    if (devices.length === 0) {
+      return <MenuItem value="">No devices found</MenuItem>;
+    }
+    return [
+      selectedId !== 'default' &&
+        !devices.some(d => d.deviceId === selectedId) && (
+        <MenuItem key="__disconnected" value={selectedId} disabled>
+          Previously selected device (disconnected)
+        </MenuItem>
+      ),
+      ...devices.map((device) => (
+        <MenuItem key={device.deviceId} value={device.deviceId}>
+          {getDeviceLabel(device)}
+        </MenuItem>
+      )),
+    ];
+  };
+
   return (
     <Box>
       {showHeader && (
@@ -386,23 +405,7 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
             onChange={(e) => handleAudioInputChange(e.target.value)}
             disabled={!permissions.microphone || audioInputDevices.length === 0}
           >
-            {audioInputDevices.length === 0 ? (
-              <MenuItem value="">No devices found</MenuItem>
-            ) : (
-              [
-                selectedAudioInputId !== 'default' &&
-                  !audioInputDevices.some(d => d.deviceId === selectedAudioInputId) && (
-                  <MenuItem key="__disconnected" value={selectedAudioInputId} disabled>
-                    Previously selected device (disconnected)
-                  </MenuItem>
-                ),
-                ...audioInputDevices.map((device) => (
-                  <MenuItem key={device.deviceId} value={device.deviceId}>
-                    {getDeviceLabel(device)}
-                  </MenuItem>
-                )),
-              ]
-            )}
+            {renderDeviceMenuItems(audioInputDevices, selectedAudioInputId)}
           </Select>
         </FormControl>
       </Box>
@@ -420,23 +423,7 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
             onChange={(e) => setSelectedAudioOutput(e.target.value)}
             disabled={audioOutputDevices.length === 0}
           >
-            {audioOutputDevices.length === 0 ? (
-              <MenuItem value="">No devices found</MenuItem>
-            ) : (
-              [
-                selectedAudioOutputId !== 'default' &&
-                  !audioOutputDevices.some(d => d.deviceId === selectedAudioOutputId) && (
-                  <MenuItem key="__disconnected" value={selectedAudioOutputId} disabled>
-                    Previously selected device (disconnected)
-                  </MenuItem>
-                ),
-                ...audioOutputDevices.map((device) => (
-                  <MenuItem key={device.deviceId} value={device.deviceId}>
-                    {getDeviceLabel(device)}
-                  </MenuItem>
-                )),
-              ]
-            )}
+            {renderDeviceMenuItems(audioOutputDevices, selectedAudioOutputId)}
           </Select>
         </FormControl>
       </Box>
@@ -550,23 +537,7 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
             onChange={(e) => handleVideoInputChange(e.target.value)}
             disabled={!permissions.camera || videoInputDevices.length === 0}
           >
-            {videoInputDevices.length === 0 ? (
-              <MenuItem value="">No devices found</MenuItem>
-            ) : (
-              [
-                selectedVideoInputId !== 'default' &&
-                  !videoInputDevices.some(d => d.deviceId === selectedVideoInputId) && (
-                  <MenuItem key="__disconnected" value={selectedVideoInputId} disabled>
-                    Previously selected device (disconnected)
-                  </MenuItem>
-                ),
-                ...videoInputDevices.map((device) => (
-                  <MenuItem key={device.deviceId} value={device.deviceId}>
-                    {getDeviceLabel(device)}
-                  </MenuItem>
-                )),
-              ]
-            )}
+            {renderDeviceMenuItems(videoInputDevices, selectedVideoInputId)}
           </Select>
         </FormControl>
       </Box>
