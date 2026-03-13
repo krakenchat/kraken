@@ -258,3 +258,65 @@ describe('AudioVideoSettingsPanel — audio processing', () => {
     expect(echoSwitch).not.toBeChecked();
   });
 });
+
+describe('AudioVideoSettingsPanel — disconnected device indicator', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTestingAudio = false;
+    mockAudioLevel = 0;
+    mockRawAudioLevel = 0;
+    mockInputMode = 'voice_activity';
+    mockThreshold = 25;
+    mockEchoCancellation = true;
+    mockNoiseSuppression = true;
+    mockAutoGainControl = true;
+    mockVoiceIsolation = false;
+
+    // Reset device settings to defaults
+    mockDeviceSettings.audioInputDevices = [{ deviceId: 'mic-1', label: 'Test Mic', kind: 'audioinput' as const, groupId: '', toJSON: vi.fn() }];
+    mockDeviceSettings.audioOutputDevices = [{ deviceId: 'spk-1', label: 'Test Speaker', kind: 'audiooutput' as const, groupId: '', toJSON: vi.fn() }];
+    mockDeviceSettings.videoInputDevices = [{ deviceId: 'cam-1', label: 'Test Camera', kind: 'videoinput' as const, groupId: '', toJSON: vi.fn() }];
+    mockDeviceSettings.selectedAudioInputId = 'mic-1';
+    mockDeviceSettings.selectedAudioOutputId = 'spk-1';
+    mockDeviceSettings.selectedVideoInputId = 'cam-1';
+  });
+
+  it('shows disconnected indicator when saved microphone is not in device list', () => {
+    mockDeviceSettings.selectedAudioInputId = 'bt-headset-123';
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.getByText('Previously selected device (disconnected)')).toBeInTheDocument();
+  });
+
+  it('shows disconnected indicator when saved speaker is not in device list', () => {
+    mockDeviceSettings.selectedAudioOutputId = 'bt-speaker-456';
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.getByText('Previously selected device (disconnected)')).toBeInTheDocument();
+  });
+
+  it('shows disconnected indicator when saved camera is not in device list', () => {
+    mockDeviceSettings.selectedVideoInputId = 'usb-cam-789';
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.getByText('Previously selected device (disconnected)')).toBeInTheDocument();
+  });
+
+  it('does NOT show disconnected indicator when selected device is "default"', () => {
+    mockDeviceSettings.selectedAudioInputId = 'default';
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.queryByText('Previously selected device (disconnected)')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show disconnected indicator when device is present in the list', () => {
+    // selectedAudioInputId = 'mic-1' is in audioInputDevices — no indicator
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.queryByText('Previously selected device (disconnected)')).not.toBeInTheDocument();
+  });
+});
