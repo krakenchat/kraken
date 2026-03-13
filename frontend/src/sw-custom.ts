@@ -95,15 +95,15 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   const data = event.notification.data as PushNotificationData['data'];
 
-  // Determine the path to navigate to
-  let path = '/';
+  // Determine the path to navigate to (app uses HashRouter, so paths must be under /#/)
+  let hash = '#/';
   if (data?.communityId && data?.channelId) {
-    path = `/community/${data.communityId}/channel/${data.channelId}`;
+    hash = `#/community/${data.communityId}/channel/${data.channelId}`;
   } else if (data?.directMessageGroupId) {
-    path = `/direct-messages?group=${data.directMessageGroupId}`;
+    hash = `#/direct-messages?group=${data.directMessageGroupId}`;
   }
 
-  const targetUrl = new URL(path, self.location.origin).href;
+  const targetUrl = new URL(`/${hash}`, self.location.origin).href;
 
   // Focus existing same-origin window or open new one
   event.waitUntil(
