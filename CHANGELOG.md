@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-03-12
+
+### Added
+
+- **Jump to Message** — Navigate to any message via around endpoint (#328)
+- **DM Read Receipts** — Watermark-based read receipt indicators in DMs (#329)
+
+### Fixed
+
+- **Health Endpoint** — Check Redis and DB connectivity (#324)
+- **Pinned Messages** — Render attachment previews in pinned messages panel (#325)
+- **DM Hover Actions** — Fix DM message hover actions & Prisma config migration (#326)
+- **Message Readers** — Only fetch message readers on tooltip hover
+- **Push Notifications** — Suppression, service worker click navigation & DM sound suppression (#327)
+- **Push Deep Links** — Push notification deep links use HashRouter paths (#319)
+- **Mobile Notifications** — Mobile notification click navigates to channel instead of no-op (#317)
+- **Replay Cleanup** — Handle ENOENT race in replay segment cleanup crons (#295)
+- **Disconnected Devices** — Show disconnected device indicator in audio/video settings (#331)
+
 ## [0.0.10] - 2026-03-03
 
 ### Added
