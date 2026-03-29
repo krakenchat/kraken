@@ -191,6 +191,20 @@ export class PresenceService {
   }
 
   /**
+   * Check online status for multiple users in a single Redis round-trip.
+   */
+  async areOnline(userIds: string[]): Promise<Record<string, boolean>> {
+    if (userIds.length === 0) return {};
+    const keys = userIds.map((id) => USER_PRESENCE_KEY_PREFIX + id);
+    const results = await this.redis.mget(...keys);
+    const presence: Record<string, boolean> = {};
+    userIds.forEach((id, i) => {
+      presence[id] = !!results[i];
+    });
+    return presence;
+  }
+
+  /**
    * Get all currently online user IDs.
    */
   async getOnlineUsers(): Promise<string[]> {

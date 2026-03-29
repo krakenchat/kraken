@@ -1,5 +1,6 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
+import { isUUID } from 'class-validator';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { PresenceService } from './presence.service';
@@ -44,14 +45,11 @@ export class PresenceController {
   async getMultipleUserPresence(
     @Param('userIds') userIds: string,
   ): Promise<BulkPresenceResponseDto> {
-    const userIdArray = userIds.split(',');
-    const presence: Record<string, boolean> = {};
-
-    for (const userId of userIdArray) {
-      const isOnline = await this.presenceService.isOnline(userId);
-      presence[userId] = isOnline;
-    }
-
+    const userIdArray = userIds
+      .split(',')
+      .filter((id) => isUUID(id))
+      .slice(0, 200);
+    const presence = await this.presenceService.areOnline(userIdArray);
     return { presence };
   }
 }

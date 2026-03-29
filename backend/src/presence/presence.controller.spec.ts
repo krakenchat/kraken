@@ -9,9 +9,9 @@ describe('PresenceController', () => {
   let presenceService: Mocked<PresenceService>;
 
   const mockUsers = [
-    UserFactory.build(),
-    UserFactory.build(),
-    UserFactory.build(),
+    UserFactory.build({ id: '00000000-0000-4000-a000-000000000001' }),
+    UserFactory.build({ id: '00000000-0000-4000-a000-000000000002' }),
+    UserFactory.build({ id: '00000000-0000-4000-a000-000000000003' }),
   ];
 
   beforeEach(async () => {
@@ -102,14 +102,15 @@ describe('PresenceController', () => {
   });
 
   describe('getMultipleUserPresence', () => {
-    it('should return presence for multiple users', async () => {
+    it('should return presence for multiple users via areOnline', async () => {
       const user1 = mockUsers[0].id;
       const user2 = mockUsers[1].id;
       const userIds = `${user1},${user2}`;
 
-      presenceService.isOnline
-        .mockResolvedValueOnce(true) // user1
-        .mockResolvedValueOnce(false); // user2
+      presenceService.areOnline.mockResolvedValue({
+        [user1]: true,
+        [user2]: false,
+      });
 
       const result = await controller.getMultipleUserPresence(userIds);
 
@@ -117,49 +118,44 @@ describe('PresenceController', () => {
         [user1]: true,
         [user2]: false,
       });
-      expect(presenceService.isOnline).toHaveBeenCalledTimes(2);
-      expect(presenceService.isOnline).toHaveBeenCalledWith(user1);
-      expect(presenceService.isOnline).toHaveBeenCalledWith(user2);
+      expect(presenceService.areOnline).toHaveBeenCalledWith([user1, user2]);
     });
 
     it('should handle single user ID', async () => {
       const userId = mockUsers[0].id;
-      presenceService.isOnline.mockResolvedValue(true);
+      presenceService.areOnline.mockResolvedValue({ [userId]: true });
 
       const result = await controller.getMultipleUserPresence(userId);
 
       expect(result.presence).toEqual({
         [userId]: true,
       });
-      expect(presenceService.isOnline).toHaveBeenCalledTimes(1);
+      expect(presenceService.areOnline).toHaveBeenCalledWith([userId]);
     });
 
-    it('should split comma-separated user IDs correctly', async () => {
-      const user1 = 'user-1';
-      const user2 = 'user-2';
-      const user3 = 'user-3';
-      const userIds = `${user1},${user2},${user3}`;
+    it('should filter out non-UUID values', async () => {
+      const validId = mockUsers[0].id;
+      const userIds = `${validId},not-a-uuid,,,also-invalid`;
 
-      presenceService.isOnline.mockResolvedValue(true);
+      presenceService.areOnline.mockResolvedValue({ [validId]: true });
 
-      await controller.getMultipleUserPresence(userIds);
+      const result = await controller.getMultipleUserPresence(userIds);
 
-      expect(presenceService.isOnline).toHaveBeenCalledTimes(3);
-      expect(presenceService.isOnline).toHaveBeenCalledWith(user1);
-      expect(presenceService.isOnline).toHaveBeenCalledWith(user2);
-      expect(presenceService.isOnline).toHaveBeenCalledWith(user3);
+      expect(result.presence).toEqual({ [validId]: true });
+      expect(presenceService.areOnline).toHaveBeenCalledWith([validId]);
     });
 
     it('should handle mixed online/offline status', async () => {
-      const user1 = 'online-user';
-      const user2 = 'offline-user';
-      const user3 = 'also-online';
+      const user1 = mockUsers[0].id;
+      const user2 = mockUsers[1].id;
+      const user3 = mockUsers[2].id;
       const userIds = `${user1},${user2},${user3}`;
 
-      presenceService.isOnline
-        .mockResolvedValueOnce(true) // user1
-        .mockResolvedValueOnce(false) // user2
-        .mockResolvedValueOnce(true); // user3
+      presenceService.areOnline.mockResolvedValue({
+        [user1]: true,
+        [user2]: false,
+        [user3]: true,
+      });
 
       const result = await controller.getMultipleUserPresence(userIds);
 
@@ -171,14 +167,12 @@ describe('PresenceController', () => {
     });
 
     it('should handle empty user IDs gracefully', async () => {
-      presenceService.isOnline.mockResolvedValue(false);
+      presenceService.areOnline.mockResolvedValue({});
 
       const result = await controller.getMultipleUserPresence('');
 
-      expect(result.presence).toEqual({
-        '': false,
-      });
-      expect(presenceService.isOnline).toHaveBeenCalledWith('');
+      expect(result.presence).toEqual({});
+      expect(presenceService.areOnline).toHaveBeenCalledWith([]);
     });
   });
 });
