@@ -52,6 +52,7 @@ export const useParticipantTracks = (
         isMicrophoneEnabled: false,
         isScreenShareEnabled: false,
         isSpeaking: false,
+        isDeafened: false,
         participant: null,
       });
       return;
@@ -73,6 +74,7 @@ export const useParticipantTracks = (
         isMicrophoneEnabled: false,
         isScreenShareEnabled: false,
         isSpeaking: false,
+        isDeafened: false,
         participant: null,
       });
       return;
@@ -160,6 +162,7 @@ export const useParticipantTracks = (
           isMicrophoneEnabled: false,
           isScreenShareEnabled: false,
           isSpeaking: false,
+          isDeafened: false,
           participant: null,
         });
       }

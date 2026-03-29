@@ -28,7 +28,7 @@ const QuotePreview: React.FC<QuotePreviewProps> = ({
   const { communityId } = useParams<{ communityId: string }>();
 
   const { data: author } = useQuery({
-    ...userControllerGetUserByIdOptions({ path: { id: replyTo.authorId! } }),
+    ...userControllerGetUserByIdOptions({ path: { id: replyTo.authorId ?? '' } }),
     enabled: !!replyTo.authorId,
   });
 

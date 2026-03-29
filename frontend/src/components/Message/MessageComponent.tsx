@@ -267,6 +267,7 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevMsg.replyCount === nextMsg.replyCount &&
     prevMsg.lastReplyAt === nextMsg.lastReplyAt &&
     prevMsg.replyToId === nextMsg.replyToId &&
+    prevMsg.deletedAt === nextMsg.deletedAt &&
     prevProps.isSearchHighlight === nextProps.isSearchHighlight &&
     prevProps.isThreadParent === nextProps.isThreadParent &&
     prevProps.isThreadReply === nextProps.isThreadReply &&

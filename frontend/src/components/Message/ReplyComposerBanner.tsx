@@ -22,7 +22,7 @@ const ReplyComposerBanner: React.FC<ReplyComposerBannerProps> = ({
   onCancel,
 }) => {
   const { data: author } = useQuery({
-    ...userControllerGetUserByIdOptions({ path: { id: replyToMessage.authorId! } }),
+    ...userControllerGetUserByIdOptions({ path: { id: replyToMessage.authorId ?? '' } }),
     enabled: !!replyToMessage.authorId,
   });
 

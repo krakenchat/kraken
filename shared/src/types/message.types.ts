@@ -50,12 +50,12 @@ export interface Message {
   replyCount?: number;
   lastReplyAt?: string;
   // Inline reply (quote) fields
-  replyToId?: string;
+  replyToId?: string | null;
   replyTo?: {
     id: string;
     authorId: string | null;
     spans: Span[];
     sentAt: string;
-    deletedAt?: string;
+    deletedAt?: string | null;
   } | null;
 }

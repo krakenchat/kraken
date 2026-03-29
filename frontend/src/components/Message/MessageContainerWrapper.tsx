@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import MessageContainer from "../Message/MessageContainer";
 import MessageInput from "./MessageInput";
 import ReplyComposerBanner from "./ReplyComposerBanner";
@@ -56,8 +56,11 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
   const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
 
-  // Quote reply state
+  // Quote reply state — reset when navigating to a different channel/DM
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  useEffect(() => {
+    setReplyToMessage(null);
+  }, [contextId, contextType]);
   const handleQuoteReply = useCallback((message: Message) => {
     setReplyToMessage(message);
   }, []);

@@ -34,12 +34,7 @@ const MESSAGE_INCLUDE = {
 
 /** MESSAGE_INCLUDE plus the replyToMessage relation for inline quote preview */
 const MESSAGE_INCLUDE_WITH_REPLY = {
-  spans: { orderBy: { position: 'asc' as const } },
-  reactions: true,
-  attachments: {
-    include: { file: { select: FILE_METADATA_SELECT } },
-    orderBy: { position: 'asc' as const },
-  },
+  ...MESSAGE_INCLUDE,
   replyToMessage: {
     include: {
       spans: { orderBy: { position: 'asc' as const } },
@@ -57,6 +52,28 @@ export class MessagesService {
   ) {}
 
   async create(createMessageDto: CreateMessageDto) {
+    // Validate replyToId references a message in the same channel/DM group
+    if (createMessageDto.replyToId) {
+      const replyTarget = await this.databaseService.message.findUnique({
+        where: { id: createMessageDto.replyToId },
+        select: { channelId: true, directMessageGroupId: true },
+      });
+      if (!replyTarget) {
+        throw new NotFoundException('Quoted message not found');
+      }
+      const sameContext =
+        (createMessageDto.channelId &&
+          replyTarget.channelId === createMessageDto.channelId) ||
+        (createMessageDto.directMessageGroupId &&
+          replyTarget.directMessageGroupId ===
+            createMessageDto.directMessageGroupId);
+      if (!sameContext) {
+        throw new ForbiddenException(
+          'Cannot quote a message from a different channel',
+        );
+      }
+    }
+
     const searchText = flattenSpansToText(createMessageDto.spans);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, spans, attachments, ...data } = createMessageDto;
@@ -456,7 +473,11 @@ export class MessagesService {
       include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
-    if (!anchor || anchor[field] !== fieldValue || anchor.parentMessageId !== null) {
+    if (
+      !anchor ||
+      anchor[field] !== fieldValue ||
+      anchor.parentMessageId !== null
+    ) {
       throw new NotFoundException('Message not found');
     }
 
@@ -465,7 +486,11 @@ export class MessagesService {
     // Fetch older messages (sentAt <= anchor, excluding anchor itself, descending)
     // Uses lte + id exclusion to avoid missing messages with identical timestamps.
     const older = await this.databaseService.message.findMany({
-      where: { ...baseWhere, sentAt: { lte: anchor.sentAt }, id: { not: messageId } },
+      where: {
+        ...baseWhere,
+        sentAt: { lte: anchor.sentAt },
+        id: { not: messageId },
+      },
       orderBy: { sentAt: 'desc' as const },
       take: halfLimit,
       include: MESSAGE_INCLUDE_WITH_REPLY,
@@ -473,7 +498,11 @@ export class MessagesService {
 
     // Fetch newer messages (sentAt >= anchor, excluding anchor itself, ascending, then reverse)
     const newer = await this.databaseService.message.findMany({
-      where: { ...baseWhere, sentAt: { gte: anchor.sentAt }, id: { not: messageId } },
+      where: {
+        ...baseWhere,
+        sentAt: { gte: anchor.sentAt },
+        id: { not: messageId },
+      },
       orderBy: { sentAt: 'asc' as const },
       take: halfLimit,
       include: MESSAGE_INCLUDE_WITH_REPLY,
@@ -692,7 +721,9 @@ export class MessagesService {
    */
   private formatMessageWithReply(
     message: Prisma.MessageGetPayload<{ include: typeof MESSAGE_INCLUDE }> & {
-      replyToMessage: (Prisma.MessageGetPayload<{ include: { spans: true } }>) | null;
+      replyToMessage: Prisma.MessageGetPayload<{
+        include: { spans: true };
+      }> | null;
     },
   ) {
     const { replyToMessage, ...messageWithoutReply } = message;
@@ -741,5 +772,4 @@ export class MessagesService {
       hasThumbnail: !!file.thumbnailPath,
     };
   }
-
 }
