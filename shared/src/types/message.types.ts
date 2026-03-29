@@ -49,4 +49,13 @@ export interface Message {
   parentMessageId?: string;
   replyCount?: number;
   lastReplyAt?: string;
+  // Inline reply (quote) fields
+  replyToId?: string;
+  replyTo?: {
+    id: string;
+    authorId: string | null;
+    spans: Span[];
+    sentAt: string;
+    deletedAt?: string;
+  } | null;
 }

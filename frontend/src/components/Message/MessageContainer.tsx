@@ -50,6 +50,7 @@ interface MessageContainerProps {
   contextId?: string;
   communityId?: string;
   onOpenThread?: (message: Message) => void;
+  onQuoteReply?: (message: Message) => void;
 
   // Read receipts
   channelId?: string;
@@ -78,6 +79,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   contextId,
   communityId,
   onOpenThread,
+  onQuoteReply,
   channelId,
   directMessageGroupId,
 }) => {
@@ -270,6 +272,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
                         contextId={contextId}
                         communityId={communityId}
                         onOpenThread={onOpenThread}
+                        onQuoteReply={onQuoteReply}
                         contextType={directMessageGroupId ? VoiceSessionType.Dm : VoiceSessionType.Channel}
                       />
                     </div>

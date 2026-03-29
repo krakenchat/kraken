@@ -78,7 +78,7 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
     }
   });
 
-  const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[]) => {
+  const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[], replyToId?: string) => {
     const msg = {
       ...(contextType === VoiceSessionType.Channel
         ? { channelId: contextId }
@@ -89,6 +89,7 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
       pendingAttachments: files?.length || 0,
       reactions: [],
       sentAt: new Date().toISOString(),
+      ...(replyToId ? { replyToId } : {}),
     };
 
     pendingFilesRef.current = files || null;

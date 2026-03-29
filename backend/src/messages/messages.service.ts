@@ -32,6 +32,21 @@ const MESSAGE_INCLUDE = {
   },
 } as const;
 
+/** MESSAGE_INCLUDE plus the replyToMessage relation for inline quote preview */
+const MESSAGE_INCLUDE_WITH_REPLY = {
+  spans: { orderBy: { position: 'asc' as const } },
+  reactions: true,
+  attachments: {
+    include: { file: { select: FILE_METADATA_SELECT } },
+    orderBy: { position: 'asc' as const },
+  },
+  replyToMessage: {
+    include: {
+      spans: { orderBy: { position: 'asc' as const } },
+    },
+  },
+} as const;
+
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
@@ -64,10 +79,10 @@ export class MessagesService {
             }
           : {}),
       },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
-    return this.formatMessage(message);
+    return this.formatMessageWithReply(message);
   }
 
   /**
@@ -116,14 +131,14 @@ export class MessagesService {
   async findOne(id: string) {
     const message = await this.databaseService.message.findUnique({
       where: { id },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     if (!message) {
       throw new NotFoundException('Message not found');
     }
 
-    return this.formatMessage(message);
+    return this.formatMessageWithReply(message);
   }
 
   async update(
@@ -204,10 +219,10 @@ export class MessagesService {
         const updatedMessage = await tx.message.update({
           where: { id },
           data: { ...restDto, ...dataToUpdate },
-          include: MESSAGE_INCLUDE,
+          include: MESSAGE_INCLUDE_WITH_REPLY,
         });
 
-        return this.formatMessage(updatedMessage);
+        return this.formatMessageWithReply(updatedMessage);
       },
     );
   }
@@ -233,7 +248,7 @@ export class MessagesService {
         // 2. Delete the parent message
         const deletedMessage = await tx.message.delete({
           where: { id },
-          include: MESSAGE_INCLUDE,
+          include: MESSAGE_INCLUDE_WITH_REPLY,
         });
 
         // Mark parent's attachments for deletion
@@ -249,7 +264,7 @@ export class MessagesService {
           );
         }
 
-        return this.formatMessage(deletedMessage);
+        return this.formatMessageWithReply(deletedMessage);
       },
     );
   }
@@ -340,7 +355,7 @@ export class MessagesService {
             ? { pendingAttachments: { decrement: 1 } }
             : {}),
         },
-        include: MESSAGE_INCLUDE,
+        include: MESSAGE_INCLUDE_WITH_REPLY,
       });
     });
   }
@@ -402,7 +417,7 @@ export class MessagesService {
       where,
       orderBy: { sentAt: sortOrder },
       take: limit,
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
       ...(continuationToken
         ? { cursor: { id: continuationToken }, skip: 1 }
         : {}),
@@ -421,7 +436,7 @@ export class MessagesService {
     }
 
     const messagesWithMetadata = messages.map((message) =>
-      this.formatMessage(message),
+      this.formatMessageWithReply(message),
     );
 
     return { messages: messagesWithMetadata, continuationToken: nextToken };
@@ -438,7 +453,7 @@ export class MessagesService {
     // Fetch the anchor message
     const anchor = await this.databaseService.message.findUnique({
       where: { id: messageId },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     if (!anchor || anchor[field] !== fieldValue || anchor.parentMessageId !== null) {
@@ -453,7 +468,7 @@ export class MessagesService {
       where: { ...baseWhere, sentAt: { lte: anchor.sentAt }, id: { not: messageId } },
       orderBy: { sentAt: 'desc' as const },
       take: halfLimit,
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Fetch newer messages (sentAt >= anchor, excluding anchor itself, ascending, then reverse)
@@ -461,7 +476,7 @@ export class MessagesService {
       where: { ...baseWhere, sentAt: { gte: anchor.sentAt }, id: { not: messageId } },
       orderBy: { sentAt: 'asc' as const },
       take: halfLimit,
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     const olderContinuationToken =
@@ -472,7 +487,7 @@ export class MessagesService {
 
     // Combine in newest-first order: [...newerReversed, anchor, ...older]
     const combined = [...[...newer].reverse(), anchor, ...older];
-    const messages = combined.map((m) => this.formatMessage(m));
+    const messages = combined.map((m) => this.formatMessageWithReply(m));
 
     return { messages, olderContinuationToken, newerContinuationToken };
   }
@@ -506,7 +521,7 @@ export class MessagesService {
     const messageIds = rawMessages.map((m) => m.id);
     const messages = await this.databaseService.message.findMany({
       where: { id: { in: messageIds } },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Preserve the ORDER BY sentAt DESC from the raw query
@@ -519,7 +534,7 @@ export class MessagesService {
       `Found ${ordered.length} messages matching query "${query}"`,
     );
 
-    return ordered.map((m) => this.formatMessage(m));
+    return ordered.map((m) => this.formatMessageWithReply(m));
   }
 
   /**
@@ -551,7 +566,7 @@ export class MessagesService {
     const messageIds = rawMessages.map((m) => m.id);
     const messages = await this.databaseService.message.findMany({
       where: { id: { in: messageIds } },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Preserve the ORDER BY sentAt DESC from the raw query
@@ -560,7 +575,7 @@ export class MessagesService {
       .map((id) => messageMap.get(id))
       .filter(Boolean) as typeof messages;
 
-    return ordered.map((m) => this.formatMessage(m));
+    return ordered.map((m) => this.formatMessageWithReply(m));
   }
 
   /**
@@ -617,7 +632,7 @@ export class MessagesService {
     const messageIds = rawMessages.map((m) => m.id);
     const messages = await this.databaseService.message.findMany({
       where: { id: { in: messageIds } },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Preserve the ORDER BY sentAt DESC from the raw query
@@ -627,7 +642,7 @@ export class MessagesService {
       .filter(Boolean) as typeof messages;
 
     return ordered.map((msg) => ({
-      ...this.formatMessage(msg),
+      ...this.formatMessageWithReply(msg),
       channelName: channelMap.get(msg.channelId ?? '') ?? 'Unknown',
     }));
   }
@@ -672,6 +687,40 @@ export class MessagesService {
   }
 
   /**
+   * Format a message and enrich it with the replyTo preview.
+   * Strips the raw replyToMessage Prisma relation from the output.
+   */
+  private formatMessageWithReply(
+    message: Prisma.MessageGetPayload<{ include: typeof MESSAGE_INCLUDE }> & {
+      replyToMessage: (Prisma.MessageGetPayload<{ include: { spans: true } }>) | null;
+    },
+  ) {
+    const { replyToMessage, ...messageWithoutReply } = message;
+    const formatted = this.formatMessage(messageWithoutReply);
+    return {
+      ...formatted,
+      replyTo: replyToMessage
+        ? {
+            id: replyToMessage.id,
+            authorId: replyToMessage.authorId,
+            spans: replyToMessage.deletedAt
+              ? []
+              : replyToMessage.spans.map((s) => ({
+                  type: s.type,
+                  text: s.text,
+                  userId: s.userId,
+                  specialKind: s.specialKind,
+                  communityId: s.communityId,
+                  aliasId: s.aliasId,
+                })),
+            sentAt: replyToMessage.sentAt,
+            deletedAt: replyToMessage.deletedAt,
+          }
+        : null,
+    };
+  }
+
+  /**
    * Transform a Prisma file select result into the FileMetadata shape
    * sent to clients. Converts `thumbnailPath` (internal) to `hasThumbnail` (boolean).
    */
@@ -692,4 +741,5 @@ export class MessagesService {
       hasThumbnail: !!file.thumbnailPath,
     };
   }
+
 }
