@@ -4,8 +4,8 @@ import { renderWithProviders, createDmGroup, createDmGroupMember } from '../test
 import DmListItem from '../../components/DirectMessages/DmListItem';
 
 vi.mock('../../components/Common/UserAvatar', () => ({
-  default: ({ userId }: { userId?: string }) => (
-    <div data-testid="user-avatar">
+  default: ({ userId, showStatus, isOnline }: { userId?: string; showStatus?: boolean; isOnline?: boolean }) => (
+    <div data-testid="user-avatar" data-show-status={showStatus ? 'true' : undefined} data-is-online={isOnline ? 'true' : undefined}>
       {userId || 'unknown'}
     </div>
   ),
@@ -204,6 +204,66 @@ describe('DmListItem', () => {
 
     const button = screen.getByRole('button');
     expect(button).toHaveClass('Mui-selected');
+  });
+
+  describe('online status indicator', () => {
+    it('passes showStatus and isOnline to UserAvatar for 1:1 DM when online', () => {
+      const group = createDmGroup({
+        isGroup: false,
+        members: [currentMember, otherMember],
+      });
+
+      renderWithProviders(
+        <DmListItem
+          group={group}
+          currentUserId={CURRENT_USER_ID}
+          onClick={onClick}
+          isOnline
+        />,
+      );
+
+      const avatar = screen.getByTestId('user-avatar');
+      expect(avatar).toHaveAttribute('data-show-status', 'true');
+      expect(avatar).toHaveAttribute('data-is-online', 'true');
+    });
+
+    it('passes showStatus but not isOnline when user is offline', () => {
+      const group = createDmGroup({
+        isGroup: false,
+        members: [currentMember, otherMember],
+      });
+
+      renderWithProviders(
+        <DmListItem
+          group={group}
+          currentUserId={CURRENT_USER_ID}
+          onClick={onClick}
+          isOnline={false}
+        />,
+      );
+
+      const avatar = screen.getByTestId('user-avatar');
+      expect(avatar).toHaveAttribute('data-show-status', 'true');
+      expect(avatar).not.toHaveAttribute('data-is-online');
+    });
+
+    it('does not show status indicator for group DMs', () => {
+      const group = createDmGroup({
+        isGroup: true,
+        members: [currentMember, otherMember, thirdMember],
+      });
+
+      renderWithProviders(
+        <DmListItem
+          group={group}
+          currentUserId={CURRENT_USER_ID}
+          onClick={onClick}
+          isOnline
+        />,
+      );
+
+      expect(screen.queryByTestId('user-avatar')).not.toBeInTheDocument();
+    });
   });
 
   describe('unread indicators', () => {

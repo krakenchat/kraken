@@ -90,4 +90,10 @@ export class CreateMessageDto {
 
   @Exclude()
   lastReplyAt: Date | null;
+
+  // Inline reply (quote) reference - client-provided
+  @IsOptional()
+  @IsString()
+  @IsUUID()
+  replyToId?: string | null;
 }

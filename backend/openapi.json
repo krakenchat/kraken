@@ -8309,6 +8309,11 @@
             "format": "date-time",
             "type": "string",
             "nullable": true
+          },
+          "replyToId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
           }
         },
         "required": [
@@ -8376,6 +8381,39 @@
           "aliasId"
         ]
       },
+      "ReplyToPreviewDto": {
+        "type": "object",
+        "properties": {
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string",
+            "nullable": true
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorId",
+          "spans",
+          "sentAt"
+        ]
+      },
       "EnrichedAttachment": {
         "type": "object",
         "properties": {
@@ -8435,6 +8473,18 @@
       "EnrichedMessageDto": {
         "type": "object",
         "properties": {
+          "replyToId": {
+            "type": "string",
+            "nullable": true
+          },
+          "replyTo": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReplyToPreviewDto"
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -8582,6 +8632,10 @@
       "MessageDto": {
         "type": "object",
         "properties": {
+          "replyToId": {
+            "type": "string",
+            "nullable": true
+          },
           "id": {
             "type": "string"
           },
@@ -8803,6 +8857,11 @@
             "format": "date-time",
             "type": "string",
             "nullable": true
+          },
+          "replyToId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
           }
         }
       },

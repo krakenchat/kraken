@@ -19,6 +19,7 @@ describe('PresenceService', () => {
       hset: jest.fn(),
       hdel: jest.fn(),
       hmget: jest.fn(),
+      mget: jest.fn(),
     };
 
     const { unit } = await TestBed.solitary(PresenceService)
@@ -299,6 +300,28 @@ describe('PresenceService', () => {
     });
   });
 
+  describe('areOnline', () => {
+    it('should return presence for multiple users via mget', async () => {
+      mockRedis.mget.mockResolvedValue(['1', null, '1']);
+
+      const result = await service.areOnline(['u1', 'u2', 'u3']);
+
+      expect(result).toEqual({ u1: true, u2: false, u3: true });
+      expect(mockRedis.mget).toHaveBeenCalledWith(
+        'presence:user:u1',
+        'presence:user:u2',
+        'presence:user:u3',
+      );
+    });
+
+    it('should return empty object for empty input', async () => {
+      const result = await service.areOnline([]);
+
+      expect(result).toEqual({});
+      expect(mockRedis.mget).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getOnlineUsers', () => {
     it('should return all online user IDs', async () => {
       const onlineUsers = ['user-1', 'user-2', 'user-3'];
@@ -378,10 +401,7 @@ describe('PresenceService', () => {
         'conn-1',
         '1',
       );
-      expect(mockRedis.expire).toHaveBeenCalledWith(
-        'presence:idle:user-1',
-        60,
-      );
+      expect(mockRedis.expire).toHaveBeenCalledWith('presence:idle:user-1', 60);
     });
 
     it('should remove idle flag from Redis hash when idle is false', async () => {
@@ -394,10 +414,7 @@ describe('PresenceService', () => {
         'presence:idle:user-1',
         'conn-1',
       );
-      expect(mockRedis.expire).toHaveBeenCalledWith(
-        'presence:idle:user-1',
-        60,
-      );
+      expect(mockRedis.expire).toHaveBeenCalledWith('presence:idle:user-1', 60);
     });
   });
 

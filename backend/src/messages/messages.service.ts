@@ -32,6 +32,16 @@ const MESSAGE_INCLUDE = {
   },
 } as const;
 
+/** MESSAGE_INCLUDE plus the replyToMessage relation for inline quote preview */
+const MESSAGE_INCLUDE_WITH_REPLY = {
+  ...MESSAGE_INCLUDE,
+  replyToMessage: {
+    include: {
+      spans: { orderBy: { position: 'asc' as const } },
+    },
+  },
+} as const;
+
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
@@ -42,6 +52,28 @@ export class MessagesService {
   ) {}
 
   async create(createMessageDto: CreateMessageDto) {
+    // Validate replyToId references a message in the same channel/DM group
+    if (createMessageDto.replyToId) {
+      const replyTarget = await this.databaseService.message.findUnique({
+        where: { id: createMessageDto.replyToId },
+        select: { channelId: true, directMessageGroupId: true },
+      });
+      if (!replyTarget) {
+        throw new NotFoundException('Quoted message not found');
+      }
+      const sameContext =
+        (createMessageDto.channelId &&
+          replyTarget.channelId === createMessageDto.channelId) ||
+        (createMessageDto.directMessageGroupId &&
+          replyTarget.directMessageGroupId ===
+            createMessageDto.directMessageGroupId);
+      if (!sameContext) {
+        throw new ForbiddenException(
+          'Cannot quote a message from a different channel',
+        );
+      }
+    }
+
     const searchText = flattenSpansToText(createMessageDto.spans);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, spans, attachments, ...data } = createMessageDto;
@@ -64,10 +96,10 @@ export class MessagesService {
             }
           : {}),
       },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
-    return this.formatMessage(message);
+    return this.formatMessageWithReply(message);
   }
 
   /**
@@ -116,14 +148,14 @@ export class MessagesService {
   async findOne(id: string) {
     const message = await this.databaseService.message.findUnique({
       where: { id },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     if (!message) {
       throw new NotFoundException('Message not found');
     }
 
-    return this.formatMessage(message);
+    return this.formatMessageWithReply(message);
   }
 
   async update(
@@ -204,10 +236,10 @@ export class MessagesService {
         const updatedMessage = await tx.message.update({
           where: { id },
           data: { ...restDto, ...dataToUpdate },
-          include: MESSAGE_INCLUDE,
+          include: MESSAGE_INCLUDE_WITH_REPLY,
         });
 
-        return this.formatMessage(updatedMessage);
+        return this.formatMessageWithReply(updatedMessage);
       },
     );
   }
@@ -233,7 +265,7 @@ export class MessagesService {
         // 2. Delete the parent message
         const deletedMessage = await tx.message.delete({
           where: { id },
-          include: MESSAGE_INCLUDE,
+          include: MESSAGE_INCLUDE_WITH_REPLY,
         });
 
         // Mark parent's attachments for deletion
@@ -249,7 +281,7 @@ export class MessagesService {
           );
         }
 
-        return this.formatMessage(deletedMessage);
+        return this.formatMessageWithReply(deletedMessage);
       },
     );
   }
@@ -340,7 +372,7 @@ export class MessagesService {
             ? { pendingAttachments: { decrement: 1 } }
             : {}),
         },
-        include: MESSAGE_INCLUDE,
+        include: MESSAGE_INCLUDE_WITH_REPLY,
       });
     });
   }
@@ -402,7 +434,7 @@ export class MessagesService {
       where,
       orderBy: { sentAt: sortOrder },
       take: limit,
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
       ...(continuationToken
         ? { cursor: { id: continuationToken }, skip: 1 }
         : {}),
@@ -421,7 +453,7 @@ export class MessagesService {
     }
 
     const messagesWithMetadata = messages.map((message) =>
-      this.formatMessage(message),
+      this.formatMessageWithReply(message),
     );
 
     return { messages: messagesWithMetadata, continuationToken: nextToken };
@@ -438,10 +470,14 @@ export class MessagesService {
     // Fetch the anchor message
     const anchor = await this.databaseService.message.findUnique({
       where: { id: messageId },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
-    if (!anchor || anchor[field] !== fieldValue || anchor.parentMessageId !== null) {
+    if (
+      !anchor ||
+      anchor[field] !== fieldValue ||
+      anchor.parentMessageId !== null
+    ) {
       throw new NotFoundException('Message not found');
     }
 
@@ -450,18 +486,26 @@ export class MessagesService {
     // Fetch older messages (sentAt <= anchor, excluding anchor itself, descending)
     // Uses lte + id exclusion to avoid missing messages with identical timestamps.
     const older = await this.databaseService.message.findMany({
-      where: { ...baseWhere, sentAt: { lte: anchor.sentAt }, id: { not: messageId } },
+      where: {
+        ...baseWhere,
+        sentAt: { lte: anchor.sentAt },
+        id: { not: messageId },
+      },
       orderBy: { sentAt: 'desc' as const },
       take: halfLimit,
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Fetch newer messages (sentAt >= anchor, excluding anchor itself, ascending, then reverse)
     const newer = await this.databaseService.message.findMany({
-      where: { ...baseWhere, sentAt: { gte: anchor.sentAt }, id: { not: messageId } },
+      where: {
+        ...baseWhere,
+        sentAt: { gte: anchor.sentAt },
+        id: { not: messageId },
+      },
       orderBy: { sentAt: 'asc' as const },
       take: halfLimit,
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     const olderContinuationToken =
@@ -472,7 +516,7 @@ export class MessagesService {
 
     // Combine in newest-first order: [...newerReversed, anchor, ...older]
     const combined = [...[...newer].reverse(), anchor, ...older];
-    const messages = combined.map((m) => this.formatMessage(m));
+    const messages = combined.map((m) => this.formatMessageWithReply(m));
 
     return { messages, olderContinuationToken, newerContinuationToken };
   }
@@ -506,7 +550,7 @@ export class MessagesService {
     const messageIds = rawMessages.map((m) => m.id);
     const messages = await this.databaseService.message.findMany({
       where: { id: { in: messageIds } },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Preserve the ORDER BY sentAt DESC from the raw query
@@ -519,7 +563,7 @@ export class MessagesService {
       `Found ${ordered.length} messages matching query "${query}"`,
     );
 
-    return ordered.map((m) => this.formatMessage(m));
+    return ordered.map((m) => this.formatMessageWithReply(m));
   }
 
   /**
@@ -551,7 +595,7 @@ export class MessagesService {
     const messageIds = rawMessages.map((m) => m.id);
     const messages = await this.databaseService.message.findMany({
       where: { id: { in: messageIds } },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Preserve the ORDER BY sentAt DESC from the raw query
@@ -560,7 +604,7 @@ export class MessagesService {
       .map((id) => messageMap.get(id))
       .filter(Boolean) as typeof messages;
 
-    return ordered.map((m) => this.formatMessage(m));
+    return ordered.map((m) => this.formatMessageWithReply(m));
   }
 
   /**
@@ -617,7 +661,7 @@ export class MessagesService {
     const messageIds = rawMessages.map((m) => m.id);
     const messages = await this.databaseService.message.findMany({
       where: { id: { in: messageIds } },
-      include: MESSAGE_INCLUDE,
+      include: MESSAGE_INCLUDE_WITH_REPLY,
     });
 
     // Preserve the ORDER BY sentAt DESC from the raw query
@@ -627,7 +671,7 @@ export class MessagesService {
       .filter(Boolean) as typeof messages;
 
     return ordered.map((msg) => ({
-      ...this.formatMessage(msg),
+      ...this.formatMessageWithReply(msg),
       channelName: channelMap.get(msg.channelId ?? '') ?? 'Unknown',
     }));
   }
@@ -668,6 +712,42 @@ export class MessagesService {
       attachments: message.attachments
         ? message.attachments.map((a) => MessagesService.toFileMetadata(a.file))
         : [],
+    };
+  }
+
+  /**
+   * Format a message and enrich it with the replyTo preview.
+   * Strips the raw replyToMessage Prisma relation from the output.
+   */
+  private formatMessageWithReply(
+    message: Prisma.MessageGetPayload<{ include: typeof MESSAGE_INCLUDE }> & {
+      replyToMessage: Prisma.MessageGetPayload<{
+        include: { spans: true };
+      }> | null;
+    },
+  ) {
+    const { replyToMessage, ...messageWithoutReply } = message;
+    const formatted = this.formatMessage(messageWithoutReply);
+    return {
+      ...formatted,
+      replyTo: replyToMessage
+        ? {
+            id: replyToMessage.id,
+            authorId: replyToMessage.authorId,
+            spans: replyToMessage.deletedAt
+              ? []
+              : replyToMessage.spans.map((s) => ({
+                  type: s.type,
+                  text: s.text,
+                  userId: s.userId,
+                  specialKind: s.specialKind,
+                  communityId: s.communityId,
+                  aliasId: s.aliasId,
+                })),
+            sentAt: replyToMessage.sentAt,
+            deletedAt: replyToMessage.deletedAt,
+          }
+        : null,
     };
   }
 

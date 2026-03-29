@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import MessageContainer from "../Message/MessageContainer";
 import MessageInput from "./MessageInput";
+import ReplyComposerBanner from "./ReplyComposerBanner";
 import { useQuery } from "@tanstack/react-query";
 import { userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
 import type { Message, Span } from "../../types/message.type";
@@ -30,7 +31,7 @@ export interface MessageContainerWrapperProps {
   useMessagesHook: () => MessagesHookResult;
   userMentions: UserMention[];
   channelMentions?: ChannelMention[];
-  onSendMessage: (messageContent: string, spans: Span[], files?: File[]) => void;
+  onSendMessage: (messageContent: string, spans: Span[], files?: File[], replyToId?: string) => void;
   memberListComponent?: React.ReactNode;
   placeholder?: string;
   emptyStateMessage?: string;
@@ -54,7 +55,27 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
 }) => {
   const { data: user } = useQuery(userControllerGetProfileOptions());
   const authorId = user?.id || "";
-  
+
+  // Quote reply state — reset when navigating to a different channel/DM
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  useEffect(() => {
+    setReplyToMessage(null);
+  }, [contextId, contextType]);
+  const handleQuoteReply = useCallback((message: Message) => {
+    setReplyToMessage(message);
+  }, []);
+  const handleCancelReply = useCallback(() => {
+    setReplyToMessage(null);
+  }, []);
+
+  const wrappedOnSendMessage = useCallback(
+    (messageContent: string, spans: Span[], files?: File[]) => {
+      onSendMessage(messageContent, spans, files, replyToMessage?.id);
+      setReplyToMessage(null);
+    },
+    [onSendMessage, replyToMessage],
+  );
+
   // Use the injected hook for messages
   const {
     messages,
@@ -73,15 +94,23 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
 
   // Create the message input component
   const messageInput = (
-    <MessageInput
-      contextType={contextType}
-      contextId={contextId}
-      userMentions={userMentions}
-      channelMentions={channelMentions}
-      onSendMessage={onSendMessage}
-      placeholder={placeholder}
-      communityId={communityId}
-    />
+    <>
+      {replyToMessage && (
+        <ReplyComposerBanner
+          replyToMessage={replyToMessage}
+          onCancel={handleCancelReply}
+        />
+      )}
+      <MessageInput
+        contextType={contextType}
+        contextId={contextId}
+        userMentions={userMentions}
+        channelMentions={channelMentions}
+        onSendMessage={wrappedOnSendMessage}
+        placeholder={placeholder}
+        communityId={communityId}
+      />
+    </>
   );
 
   return (
@@ -106,6 +135,7 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       contextId={contextId}
       communityId={communityId}
       onOpenThread={onOpenThread}
+      onQuoteReply={handleQuoteReply}
       channelId={contextType === VoiceSessionType.Channel ? contextId : undefined}
       directMessageGroupId={contextType === VoiceSessionType.Dm ? contextId : undefined}
     />

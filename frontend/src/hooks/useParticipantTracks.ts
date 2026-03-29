@@ -52,6 +52,7 @@ export const useParticipantTracks = (
         isMicrophoneEnabled: false,
         isScreenShareEnabled: false,
         isSpeaking: false,
+        isDeafened: false,
         participant: null,
       });
       return;
@@ -59,7 +60,8 @@ export const useParticipantTracks = (
 
     // Find the participant (local or remote)
     let participant: Participant | null = null;
-    if (room.localParticipant.identity === participantIdentity) {
+    const isLocal = room.localParticipant.identity === participantIdentity;
+    if (isLocal) {
       participant = room.localParticipant;
     } else {
       participant = room.remoteParticipants.get(participantIdentity) || null;
@@ -72,6 +74,7 @@ export const useParticipantTracks = (
         isMicrophoneEnabled: false,
         isScreenShareEnabled: false,
         isSpeaking: false,
+        isDeafened: false,
         participant: null,
       });
       return;
@@ -139,8 +142,13 @@ export const useParticipantTracks = (
     };
 
     // Attach event listeners to participant
-    participant.on('trackPublished', handleTrackPublished);
-    participant.on('trackUnpublished', handleTrackUnpublished);
+    // LocalParticipant fires 'localTrackPublished'/'localTrackUnpublished'
+    // RemoteParticipant fires 'trackPublished'/'trackUnpublished'
+    // trackMuted/trackUnmuted work for both local and remote
+    const publishEvent = isLocal ? 'localTrackPublished' : 'trackPublished';
+    const unpublishEvent = isLocal ? 'localTrackUnpublished' : 'trackUnpublished';
+    participant.on(publishEvent, handleTrackPublished);
+    participant.on(unpublishEvent, handleTrackUnpublished);
     participant.on('trackMuted', handleTrackMuted);
     participant.on('trackUnmuted', handleTrackUnmuted);
     participant.on('isSpeakingChanged', handleIsSpeakingChanged);
@@ -154,6 +162,7 @@ export const useParticipantTracks = (
           isMicrophoneEnabled: false,
           isScreenShareEnabled: false,
           isSpeaking: false,
+          isDeafened: false,
           participant: null,
         });
       }
@@ -164,8 +173,8 @@ export const useParticipantTracks = (
     // Cleanup function
     return () => {
       if (participant) {
-        participant.off('trackPublished', handleTrackPublished);
-        participant.off('trackUnpublished', handleTrackUnpublished);
+        participant.off(publishEvent, handleTrackPublished);
+        participant.off(unpublishEvent, handleTrackUnpublished);
         participant.off('trackMuted', handleTrackMuted);
         participant.off('trackUnmuted', handleTrackUnmuted);
         participant.off('isSpeakingChanged', handleIsSpeakingChanged);

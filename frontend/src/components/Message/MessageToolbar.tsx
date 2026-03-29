@@ -14,6 +14,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { styled } from "@mui/material/styles";
 import { EmojiPicker } from "./EmojiPicker";
 
@@ -50,6 +51,7 @@ export interface MessageToolbarProps {
   onPin: () => void;
   onUnpin: () => void;
   onReplyInThread: () => void;
+  onQuoteReply?: () => void;
 }
 
 export const MessageToolbar: React.FC<MessageToolbarProps> = ({
@@ -67,6 +69,7 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
   onPin,
   onUnpin,
   onReplyInThread,
+  onQuoteReply,
 }) => {
   return (
     <MessageTools
@@ -102,6 +105,13 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
       ) : (
         <>
           <EmojiPicker onEmojiSelect={onEmojiSelect} />
+          {onQuoteReply && (
+            <Tooltip title="Quote reply">
+              <IconButton size="small" onClick={onQuoteReply}>
+                <FormatQuoteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           {canThread && (
             <Tooltip title="Reply in thread">
               <IconButton size="small" onClick={onReplyInThread}>

@@ -184,9 +184,13 @@ export class LocalStorageProvider implements IStorageProvider {
             await this.deleteFile(filePath);
             deletedCount++;
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // File was deleted between listing and stat/unlink (race with other crons or user actions) — skip silently
-          if (error?.code === 'ENOENT') {
+          if (
+            error instanceof Error &&
+            'code' in error &&
+            (error as NodeJS.ErrnoException).code === 'ENOENT'
+          ) {
             continue;
           }
           this.logger.warn(`Failed to process file ${filePath}:`, error);

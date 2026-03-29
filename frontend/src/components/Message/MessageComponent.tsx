@@ -24,6 +24,7 @@ import { isUserMentioned } from "./messageUtils";
 import UserAvatar from "../Common/UserAvatar";
 import ConfirmDialog from "../Common/ConfirmDialog";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
+import QuotePreview from "./QuotePreview";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { SeenByTooltip } from "./SeenByTooltip";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
@@ -37,6 +38,7 @@ interface MessageProps {
   isThreadParent?: boolean;
   isThreadReply?: boolean;
   onOpenThread?: (message: MessageType) => void;
+  onQuoteReply?: (message: MessageType) => void;
   /** Context type to determine if read receipts should be shown */
   contextType?: VoiceSessionType;
 }
@@ -49,6 +51,7 @@ function MessageComponentInner({
   isThreadParent,
   isThreadReply,
   onOpenThread,
+  onQuoteReply,
   contextType,
 }: MessageProps) {
   const { data: author } = useQuery({
@@ -176,6 +179,13 @@ function MessageComponentInner({
             </Tooltip>
           )}
         </Box>
+        {message.replyTo && (
+          <QuotePreview
+            replyTo={message.replyTo}
+            channelId={message.channelId}
+            directMessageGroupId={message.directMessageGroupId}
+          />
+        )}
         {isEditing ? (
           <MessageEditForm
             editText={editText}
@@ -223,6 +233,7 @@ function MessageComponentInner({
           onPin={handlePin}
           onUnpin={handleUnpin}
           onReplyInThread={handleOpenThread}
+          onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
         />
       )}
       <ConfirmDialog
@@ -255,6 +266,8 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevMsg.pinned === nextMsg.pinned &&
     prevMsg.replyCount === nextMsg.replyCount &&
     prevMsg.lastReplyAt === nextMsg.lastReplyAt &&
+    prevMsg.replyToId === nextMsg.replyToId &&
+    prevMsg.deletedAt === nextMsg.deletedAt &&
     prevProps.isSearchHighlight === nextProps.isSearchHighlight &&
     prevProps.isThreadParent === nextProps.isThreadParent &&
     prevProps.isThreadReply === nextProps.isThreadReply &&

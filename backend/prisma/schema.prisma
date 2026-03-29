@@ -35,6 +35,9 @@ model Message {
   replyCount      Int       @default(0) // Number of replies (only on parent messages)
   lastReplyAt     DateTime? // When the last reply was added
 
+  // Inline reply (quote) reference
+  replyToId String? // If set, this message quotes another message
+
   // Relations (composite types → proper tables)
   spans       MessageSpan[]
   reactions   MessageReaction[]
@@ -51,6 +54,10 @@ model Message {
   parentMessage Message?  @relation("ThreadReplies", fields: [parentMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   threadReplies Message[] @relation("ThreadReplies")
 
+  // Inline reply (quote) self-relation
+  replyToMessage Message?  @relation("InlineReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  inlineReplies  Message[] @relation("InlineReplies")
+
   // Thread subscribers
   threadSubscribers ThreadSubscriber[] @relation("MessageThreadSubscribers")
 
@@ -65,6 +72,7 @@ model Message {
   @@index([directMessageGroupId, sentAt]) // DM message loading (cursor pagination)
   @@index([channelId, pinned]) // For fetching pinned messages in a channel
   @@index([parentMessageId]) // For fetching thread replies
+  @@index([replyToId]) // For fetching inline replies
   @@index([authorId]) // Author-based lookups
 }
 

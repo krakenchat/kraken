@@ -30,6 +30,7 @@ interface DmListItemProps {
   isInCall?: boolean;
   unreadCount?: number;
   mentionCount?: number;
+  isOnline?: boolean;
 }
 
 const DmListItem: React.FC<DmListItemProps> = ({
@@ -41,6 +42,7 @@ const DmListItem: React.FC<DmListItemProps> = ({
   isInCall = false,
   unreadCount = 0,
   mentionCount = 0,
+  isOnline = false,
 }) => {
   const isUnread = unreadCount > 0 && !isSelected;
   return (
@@ -65,7 +67,7 @@ const DmListItem: React.FC<DmListItemProps> = ({
               <GroupIcon />
             </Avatar>
           ) : (
-            <UserAvatar userId={getDmOtherUser(group, currentUserId)?.id} size="medium" />
+            <UserAvatar userId={getDmOtherUser(group, currentUserId)?.id} size="medium" showStatus isOnline={isOnline} />
           )}
         </ListItemAvatar>
         <ListItemText

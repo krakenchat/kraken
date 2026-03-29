@@ -1,5 +1,5 @@
 import { FileType, SpanType } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SpanTypeValues, FileTypeValues } from '@/common/enums/swagger-enums';
 
 export class SpanDto {
@@ -27,6 +27,15 @@ export class EnrichedAttachment {
   hasThumbnail: boolean;
 }
 
+export class ReplyToPreviewDto {
+  id: string;
+  authorId: string | null;
+  spans: SpanDto[];
+  sentAt: Date;
+  @ApiPropertyOptional()
+  deletedAt: Date | null;
+}
+
 export class EnrichedMessageDto {
   id: string;
   channelId: string | null;
@@ -44,6 +53,10 @@ export class EnrichedMessageDto {
   sentAt: Date;
   editedAt: Date | null;
   deletedAt: Date | null;
+  @ApiPropertyOptional()
+  replyToId?: string | null;
+  @ApiPropertyOptional({ type: ReplyToPreviewDto })
+  replyTo?: ReplyToPreviewDto | null;
 }
 
 export class MessageDto {
@@ -67,6 +80,8 @@ export class MessageDto {
   deletedBy: string | null;
   deletedByReason: string | null;
   parentMessageId: string | null;
+  @ApiPropertyOptional()
+  replyToId?: string | null;
 }
 
 export class PaginatedMessagesResponseDto {
