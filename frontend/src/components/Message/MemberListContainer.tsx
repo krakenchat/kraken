@@ -5,6 +5,7 @@ import {
   membershipControllerFindAllForCommunityOptions,
   presenceControllerGetMultipleUserPresenceOptions,
   directMessagesControllerFindDmGroupOptions,
+  channelMembershipControllerFindAllForChannelOptions,
 } from "../../api-client/@tanstack/react-query.gen";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
 
@@ -12,21 +13,33 @@ interface MemberListContainerProps {
   contextType: VoiceSessionType;
   contextId: string;
   communityId?: string;
+  isPrivate?: boolean;
 }
 
 const MemberListContainer: React.FC<MemberListContainerProps> = ({
   contextType,
   contextId,
   communityId,
+  isPrivate,
 }) => {
-  // For channel context, fetch community members
+  // For private channels, fetch channel-specific members
+  const {
+    data: channelMembers,
+    isLoading: isChannelMembersLoading,
+    error: channelMembersError,
+  } = useQuery({
+    ...channelMembershipControllerFindAllForChannelOptions({ path: { channelId: contextId } }),
+    enabled: contextType === VoiceSessionType.Channel && !!isPrivate,
+  });
+
+  // For public channels, fetch community members
   const {
     data: communityMembers,
     isLoading: isCommunityLoading,
     error: communityError,
   } = useQuery({
     ...membershipControllerFindAllForCommunityOptions({ path: { communityId: communityId || "" } }),
-    enabled: contextType === VoiceSessionType.Channel && !!communityId,
+    enabled: contextType === VoiceSessionType.Channel && !!communityId && isPrivate === false,
   });
 
   // For DM context, fetch DM group members
@@ -42,8 +55,21 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
   // Get base member data first
   const baseMembers = React.useMemo(() => {
     if (contextType === VoiceSessionType.Channel) {
+      if (isPrivate) {
+        // Private channel: use channel-specific members
+        return (channelMembers || [])
+          .filter((membership) => membership.user)
+          .map((membership) => ({
+            id: membership.user!.id,
+            username: membership.user!.username,
+            displayName: membership.user!.displayName,
+            avatarUrl: membership.user!.avatarUrl,
+            status: membership.user!.status,
+          }));
+      }
+      // Public channel: use community members
       return (communityMembers || [])
-        .filter((membership) => membership.user) // Only include members with user data
+        .filter((membership) => membership.user)
         .map((membership) => ({
           id: membership.user!.id,
           username: membership.user!.username,
@@ -62,7 +88,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
           status: member.user.status,
         }));
     }
-  }, [contextType, communityMembers, dmGroup]);
+  }, [contextType, isPrivate, channelMembers, communityMembers, dmGroup]);
 
   // Extract user IDs for presence lookup
   const userIds = React.useMemo(() => 
@@ -95,12 +121,12 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
         return a.username.localeCompare(b.username);
       });
 
-    const combinedLoading = contextType === VoiceSessionType.Channel 
-      ? isCommunityLoading || isPresenceLoading
+    const combinedLoading = contextType === VoiceSessionType.Channel
+      ? (isPrivate ? isChannelMembersLoading : isCommunityLoading) || isPresenceLoading
       : isDmLoading || isPresenceLoading;
-    
-    const combinedError = contextType === VoiceSessionType.Channel 
-      ? communityError || presenceError
+
+    const combinedError = contextType === VoiceSessionType.Channel
+      ? (isPrivate ? channelMembersError : communityError) || presenceError
       : dmError || presenceError;
 
     const listTitle = contextType === VoiceSessionType.Channel 
@@ -117,9 +143,12 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     baseMembers,
     presenceData,
     contextType,
+    isPrivate,
+    isChannelMembersLoading,
     isCommunityLoading,
     isDmLoading,
     isPresenceLoading,
+    channelMembersError,
     communityError,
     dmError,
     presenceError,
