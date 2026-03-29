@@ -32,6 +32,7 @@ const AdminRolesPage = React.lazy(() => import("./pages/admin").then(m => ({ def
 const AdminStoragePage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminStoragePage })));
 const AdminDebugPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminDebugPage })));
 const NotificationDebugPage = React.lazy(() => import("./pages/debug/NotificationDebugPage"));
+const PWADebugPage = React.lazy(() => import("./pages/debug/PWADebugPage"));
 const DirectMessagesPage = React.lazy(() => import("./pages/DirectMessagesPage"));
 const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
 const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
@@ -102,6 +103,7 @@ function App() {
 
               {/* Debug routes (admin only - access check in component) */}
               <Route path="debug/notifications" element={<NotificationDebugPage />} />
+              <Route path="debug/pwa" element={<PWADebugPage />} />
               <Route path="profile/edit" element={<ProfileEditPage />} />
               <Route path="profile/:userId" element={<ProfilePage />} />
               <Route path="community/create" element={<CreateCommunityPage />} />
