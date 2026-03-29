@@ -83,6 +83,9 @@ function App() {
 
           {/* Authenticated routes — AuthGate validates token + mounts providers */}
           <Route element={<AuthGate />}>
+            {/* Debug routes — outside Layout so they render on mobile too */}
+            <Route path="debug/pwa" element={<PWADebugPage />} />
+
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="direct-messages" element={<DirectMessagesPage />} />
@@ -103,7 +106,6 @@ function App() {
 
               {/* Debug routes (admin only - access check in component) */}
               <Route path="debug/notifications" element={<NotificationDebugPage />} />
-              <Route path="debug/pwa" element={<PWADebugPage />} />
               <Route path="profile/edit" element={<ProfileEditPage />} />
               <Route path="profile/:userId" element={<ProfilePage />} />
               <Route path="community/create" element={<CreateCommunityPage />} />
