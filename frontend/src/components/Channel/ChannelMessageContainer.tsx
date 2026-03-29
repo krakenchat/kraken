@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Box, Typography, Paper, IconButton, Tooltip, Badge, Drawer } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import PushPinIcon from "@mui/icons-material/PushPin";
@@ -88,8 +88,10 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   // Thread state
   const { openThreadId, openThread, closeThread } = useThreadPanel();
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null);
+  const [pendingThreadParentId, setPendingThreadParentId] = useState<string | null>(null);
 
   const handleOpenThread = useCallback((message: Message) => {
+    setPendingThreadParentId(null);
     setThreadParentMessage(message);
     openThread(message.id);
   }, [openThread]);
@@ -135,12 +137,23 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   // Get messages using the jump-to-message hook (supports anchored mode for pinned/search/notification links)
   const messagesHookResult = useJumpToMessage('channel', channelId, highlightMessageId || undefined);
 
+  // When a pinned thread reply is clicked, we jump to the parent and then open the thread
+  useEffect(() => {
+    if (!pendingThreadParentId) return;
+    const parentMsg = messagesHookResult.messages.find((m: Message) => m.id === pendingThreadParentId);
+    if (parentMsg) {
+      handleOpenThread(parentMsg);
+      setPendingThreadParentId(null);
+    }
+  }, [pendingThreadParentId, messagesHookResult.messages, handleOpenThread]);
+
   // Create member list component for the channel
   const memberListComponent = (
     <MemberListContainer
       contextType={VoiceSessionType.Channel}
       contextId={channelId}
       communityId={communityId}
+      isPrivate={channel?.isPrivate}
     />
   );
 
@@ -225,7 +238,14 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
           onClose={() => setPinnedPanelOpen(false)}
           onMessageClick={(messageId) => {
             setPinnedPanelOpen(false);
-            navigate(`/community/${communityId}/channel/${channelId}?highlight=${messageId}`);
+            const pinnedMsg = pinnedMessages.find(m => m.id === messageId);
+            if (pinnedMsg?.parentMessageId) {
+              // Thread reply: jump to parent message and open the thread panel
+              setPendingThreadParentId(pinnedMsg.parentMessageId);
+              navigate(`/community/${communityId}/channel/${channelId}?highlight=${pinnedMsg.parentMessageId}`);
+            } else {
+              navigate(`/community/${communityId}/channel/${channelId}?highlight=${messageId}`);
+            }
           }}
         />
       </Drawer>

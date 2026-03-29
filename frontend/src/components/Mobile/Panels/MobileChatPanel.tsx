@@ -264,6 +264,7 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
                 contextType={VoiceSessionType.Channel}
                 contextId={channelId}
                 communityId={channel.communityId}
+                isPrivate={channel.isPrivate}
               />
             )}
             {dmGroupId && (
