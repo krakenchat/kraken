@@ -88,8 +88,10 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   // Thread state
   const { openThreadId, openThread, closeThread } = useThreadPanel();
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null);
+  const [pendingThreadParentId, setPendingThreadParentId] = useState<string | null>(null);
 
   const handleOpenThread = useCallback((message: Message) => {
+    setPendingThreadParentId(null);
     setThreadParentMessage(message);
     openThread(message.id);
   }, [openThread]);
@@ -136,8 +138,6 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   const messagesHookResult = useJumpToMessage('channel', channelId, highlightMessageId || undefined);
 
   // When a pinned thread reply is clicked, we jump to the parent and then open the thread
-  const [pendingThreadParentId, setPendingThreadParentId] = useState<string | null>(null);
-
   useEffect(() => {
     if (!pendingThreadParentId) return;
     const parentMsg = messagesHookResult.messages.find((m: Message) => m.id === pendingThreadParentId);

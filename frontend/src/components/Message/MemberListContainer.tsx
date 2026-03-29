@@ -122,7 +122,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
       });
 
     const combinedLoading = contextType === VoiceSessionType.Channel
-      ? (isPrivate ? isChannelMembersLoading : isCommunityLoading) || isPresenceLoading
+      ? (isPrivate === undefined ? true : isPrivate ? isChannelMembersLoading : isCommunityLoading) || isPresenceLoading
       : isDmLoading || isPresenceLoading;
 
     const combinedError = contextType === VoiceSessionType.Channel
