@@ -799,8 +799,13 @@ export class LivekitReplayService {
         try {
           const stat = await fs.stat(userPath);
           if (!stat.isDirectory()) continue;
-        } catch (error: any) {
-          if (error?.code === 'ENOENT') continue;
+        } catch (error: unknown) {
+          if (
+            error instanceof Error &&
+            'code' in error &&
+            (error as NodeJS.ErrnoException).code === 'ENOENT'
+          )
+            continue;
           throw error;
         }
 
@@ -813,14 +818,21 @@ export class LivekitReplayService {
               await fs.unlink(filePath);
               cleaned++;
             }
-          } catch (error: any) {
-            if (error?.code === 'ENOENT') continue;
+          } catch (error: unknown) {
+            if (
+              error instanceof Error &&
+              'code' in error &&
+              (error as NodeJS.ErrnoException).code === 'ENOENT'
+            )
+              continue;
             throw error;
           }
         }
 
         // Remove empty user directories
-        const remaining = await fs.readdir(userPath).catch(() => [] as string[]);
+        const remaining = await fs
+          .readdir(userPath)
+          .catch(() => [] as string[]);
         if (remaining.length === 0) {
           await fs.rmdir(userPath).catch(() => {});
         }
