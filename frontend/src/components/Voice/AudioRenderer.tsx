@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { RemoteParticipant, RemoteTrackPublication, Track, AudioTrack, RoomEvent } from 'livekit-client';
 import { useRoom } from '../../hooks/useRoom';
+import { useVoice } from '../../contexts/VoiceContext';
 import { logger } from '../../utils/logger';
 
 /**
@@ -67,6 +68,7 @@ const ParticipantAudio: React.FC<ParticipantAudioProps> = ({ participant, audioP
  */
 export const AudioRenderer: React.FC = () => {
   const { room } = useRoom();
+  const { showVideoTiles } = useVoice();
   const [audioTracks, setAudioTracks] = useState<Map<string, { participant: RemoteParticipant; publication: RemoteTrackPublication }>>(new Map());
 
   // Update audio tracks list when participants/tracks change
@@ -82,8 +84,10 @@ export const AudioRenderer: React.FC = () => {
     logger.debug('[AudioRenderer] Updating audio tracks, remote participants:', room.remoteParticipants.size);
     room.remoteParticipants.forEach((participant) => {
       participant.audioTrackPublications.forEach((publication) => {
-        // Include microphone and screen share audio tracks
-        if ((publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio) && publication.track) {
+        // Include microphone tracks always; screen share audio only when video tiles are open
+        const isMic = publication.source === Track.Source.Microphone;
+        const isScreenShareAudio = publication.source === Track.Source.ScreenShareAudio && showVideoTiles;
+        if ((isMic || isScreenShareAudio) && publication.track) {
           const key = `${participant.identity}-${publication.trackSid}`;
           newTracks.set(key, { participant, publication });
           logger.debug('[AudioRenderer] Found audio track for:', participant.identity);
@@ -93,7 +97,7 @@ export const AudioRenderer: React.FC = () => {
 
     logger.info('[AudioRenderer] Audio tracks updated, count:', newTracks.size);
     setAudioTracks(newTracks);
-  }, [room]);
+  }, [room, showVideoTiles]);
 
   useEffect(() => {
     if (!room) return;

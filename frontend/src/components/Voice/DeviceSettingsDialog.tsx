@@ -11,7 +11,7 @@ import AudioVideoSettingsPanel from '../Settings/AudioVideoSettingsPanel';
 interface DeviceSettingsDialogProps {
   open: boolean;
   onClose: () => void;
-  onDeviceChange?: (type: 'audio' | 'video', deviceId: string) => void;
+  onDeviceChange?: (type: 'audio' | 'video' | 'audioOutput', deviceId: string) => void;
 }
 
 export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({

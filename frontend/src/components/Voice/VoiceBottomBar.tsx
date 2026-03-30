@@ -123,10 +123,12 @@ export const VoiceBottomBar: React.FC = () => {
     setShowDeviceSettings(false);
   }, []);
 
-  const handleDeviceChange = useCallback(async (type: 'audio' | 'video', deviceId: string) => {
+  const handleDeviceChange = useCallback(async (type: 'audio' | 'video' | 'audioOutput', deviceId: string) => {
     try {
       if (type === 'audio') {
         await actions.switchAudioInputDevice(deviceId);
+      } else if (type === 'audioOutput') {
+        await actions.switchAudioOutputDevice(deviceId);
       } else if (type === 'video') {
         await actions.switchVideoInputDevice(deviceId);
       }

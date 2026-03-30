@@ -41,9 +41,9 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
   onShowVideoTiles,
 }) => {
   const theme = useTheme();
-  const speaking = isSpeaking(user.id);
   const livekitState = useParticipantTracks(user.id);
   const userState = deriveUserState(livekitState, user);
+  const speaking = isSpeaking(user.id) && !userState.isMuted && !userState.isServerMuted && !userState.isDeafened;
 
   // Check if locally muted (volume = 0 in localStorage)
   const isLocalUser = localParticipantIdentity === user.id;

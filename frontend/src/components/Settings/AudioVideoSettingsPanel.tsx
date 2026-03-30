@@ -37,7 +37,7 @@ import { useVoiceSettings, VoiceInputMode } from '../../hooks/useVoiceSettings';
 
 interface AudioVideoSettingsPanelProps {
   /** Callback when user changes device selection (for live-switching during calls) */
-  onDeviceChange?: (type: 'audio' | 'video', deviceId: string) => void;
+  onDeviceChange?: (type: 'audio' | 'video' | 'audioOutput', deviceId: string) => void;
   /** When false, stops active device tests. Dialog passes `open` here. Default: true */
   active?: boolean;
   /** Whether to show the "Voice & Video" title row with refresh icon. Default: true */
@@ -420,7 +420,10 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
           <Select
             value={selectedAudioOutputId}
             label="Speakers"
-            onChange={(e) => setSelectedAudioOutput(e.target.value)}
+            onChange={(e) => {
+              setSelectedAudioOutput(e.target.value);
+              onDeviceChange?.('audioOutput', e.target.value);
+            }}
             disabled={audioOutputDevices.length === 0}
           >
             {renderDeviceMenuItems(audioOutputDevices, selectedAudioOutputId)}

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { logger } from '../utils/logger';
+import { computeVoiceLevel } from '../utils/audioLevel';
 
 interface UseDeviceTestOptions {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -124,14 +125,7 @@ export function useDeviceTest({
       const updateLevel = (): void => {
         if (!analyserRef.current) return;
 
-        analyser.getByteFrequencyData(dataArray);
-
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / dataArray.length;
-        const raw = (average / 255) * 100;
+        const raw = computeVoiceLevel(analyser, dataArray);
         const level = Math.min(100, raw * 2);
         setRawAudioLevel(raw);
         setAudioLevel(level);

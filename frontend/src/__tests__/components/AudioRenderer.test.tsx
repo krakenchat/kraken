@@ -76,10 +76,18 @@ vi.mock('../../hooks/useRoom', () => ({
   useRoom: vi.fn(() => ({ room: mockRoom })),
 }));
 
+// --- Mock useVoice hook ---
+let mockShowVideoTiles = false;
+
+vi.mock('../../contexts/VoiceContext', () => ({
+  useVoice: vi.fn(() => ({ showVideoTiles: mockShowVideoTiles })),
+}));
+
 describe('AudioRenderer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     buildMockRoom();
+    mockShowVideoTiles = false;
   });
 
   it('renders nothing when there is no room', () => {
@@ -98,7 +106,8 @@ describe('AudioRenderer', () => {
     expect(audioElements.length).toBe(1);
   });
 
-  it('renders audio elements for screen share audio tracks', () => {
+  it('renders audio elements for screen share audio tracks when video tiles are open', () => {
+    mockShowVideoTiles = true;
     const screenAudioPub = createMockPublication('screen_share_audio');
     const participant = createMockRemoteParticipant('user-1', [screenAudioPub]);
     mockRoom!.remoteParticipants.set('user-1', participant);
@@ -108,7 +117,19 @@ describe('AudioRenderer', () => {
     expect(audioElements.length).toBe(1);
   });
 
-  it('renders audio elements for both microphone and screen share audio from the same participant', () => {
+  it('does NOT render screen share audio when video tiles are closed', () => {
+    mockShowVideoTiles = false;
+    const screenAudioPub = createMockPublication('screen_share_audio');
+    const participant = createMockRemoteParticipant('user-1', [screenAudioPub]);
+    mockRoom!.remoteParticipants.set('user-1', participant);
+
+    const { container } = render(<AudioRenderer />);
+    const audioElements = container.querySelectorAll('audio');
+    expect(audioElements.length).toBe(0);
+  });
+
+  it('renders both mic and screen share audio when video tiles are open', () => {
+    mockShowVideoTiles = true;
     const micPub = createMockPublication('microphone');
     const screenAudioPub = createMockPublication('screen_share_audio');
     const participant = createMockRemoteParticipant('user-1', [micPub, screenAudioPub]);
@@ -117,6 +138,18 @@ describe('AudioRenderer', () => {
     const { container } = render(<AudioRenderer />);
     const audioElements = container.querySelectorAll('audio');
     expect(audioElements.length).toBe(2);
+  });
+
+  it('renders only mic audio when video tiles are closed and both tracks exist', () => {
+    mockShowVideoTiles = false;
+    const micPub = createMockPublication('microphone');
+    const screenAudioPub = createMockPublication('screen_share_audio');
+    const participant = createMockRemoteParticipant('user-1', [micPub, screenAudioPub]);
+    mockRoom!.remoteParticipants.set('user-1', participant);
+
+    const { container } = render(<AudioRenderer />);
+    const audioElements = container.querySelectorAll('audio');
+    expect(audioElements.length).toBe(1);
   });
 
   it('does not render audio for tracks without a track object', () => {
