@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { RoomsGateway } from './rooms.gateway';
 import { RoomSubscriptionHandler } from './room-subscription.handler';
@@ -19,7 +19,8 @@ import { LivekitModule } from '@/livekit/livekit.module';
     DatabaseModule,
     RolesModule,
     VoicePresenceModule,
-    LivekitModule,
+    // forwardRef to break RoomsModule -> LivekitModule -> MessagesModule -> RoomsModule cycle
+    forwardRef(() => LivekitModule),
   ],
 })
 export class RoomsModule {}
