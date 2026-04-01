@@ -7,6 +7,8 @@ import { UserModule } from '@/user/user.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
 import { DatabaseModule } from '@/database/database.module';
 import { RolesModule } from '@/roles/roles.module';
+import { VoicePresenceModule } from '@/voice-presence/voice-presence.module';
+import { LivekitModule } from '@/livekit/livekit.module';
 
 @Module({
   providers: [RoomsGateway, RoomsService, RoomSubscriptionHandler],
@@ -16,6 +18,8 @@ import { RolesModule } from '@/roles/roles.module';
     WebsocketModule,
     DatabaseModule,
     RolesModule,
+    VoicePresenceModule,
+    LivekitModule,
   ],
 })
 export class RoomsModule {}

@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { ChannelType } from '@prisma/client';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
+import { VoicePresenceService } from '@/voice-presence/voice-presence.service';
+import { LivekitService } from '@/livekit/livekit.service';
 import { ServerEvents } from '@semaphore-chat/shared';
 import { RoomName } from '@/common/utils/room-name.util';
 import {
@@ -46,6 +49,8 @@ export class RoomSubscriptionHandler {
   constructor(
     private readonly websocketService: WebsocketService,
     private readonly databaseService: DatabaseService,
+    private readonly voicePresenceService: VoicePresenceService,
+    private readonly livekitService: LivekitService,
   ) {}
 
   // =========================================================================
@@ -115,8 +120,8 @@ export class RoomSubscriptionHandler {
     userId,
     communityId,
   }: ModerationUserBannedEvent): Promise<void> {
-    // Same room cleanup as membership removal
     await this.onMembershipRemoved({ userId, communityId });
+    await this.removeUserFromCommunityVoice(userId, communityId);
   }
 
   @OnEvent(RoomEvents.MODERATION_USER_KICKED)
@@ -124,8 +129,63 @@ export class RoomSubscriptionHandler {
     userId,
     communityId,
   }: ModerationUserKickedEvent): Promise<void> {
-    // Same room cleanup as membership removal
     await this.onMembershipRemoved({ userId, communityId });
+    await this.removeUserFromCommunityVoice(userId, communityId);
+  }
+
+  /**
+   * Remove a user from all voice channels in a community.
+   * Handles both LiveKit session ejection and Redis voice presence cleanup.
+   * Errors are logged but never thrown — moderation actions must not fail
+   * because of voice cleanup issues.
+   */
+  private async removeUserFromCommunityVoice(
+    userId: string,
+    communityId: string,
+  ): Promise<void> {
+    try {
+      const userVoiceChannels =
+        await this.voicePresenceService.getUserVoiceChannels(userId);
+
+      if (userVoiceChannels.length === 0) {
+        return;
+      }
+
+      const communityVoiceChannels =
+        await this.databaseService.channel.findMany({
+          where: { communityId, type: ChannelType.VOICE },
+          select: { id: true },
+        });
+      const communityVoiceChannelIds = new Set(
+        communityVoiceChannels.map((ch) => ch.id),
+      );
+
+      const channelsToRemoveFrom = userVoiceChannels.filter((channelId) =>
+        communityVoiceChannelIds.has(channelId),
+      );
+
+      if (channelsToRemoveFrom.length === 0) {
+        return;
+      }
+
+      await Promise.all(
+        channelsToRemoveFrom.map((channelId) =>
+          Promise.all([
+            this.livekitService.removeParticipant(channelId, userId),
+            this.voicePresenceService.leaveVoiceChannel(channelId, userId),
+          ]),
+        ),
+      );
+
+      this.logger.log(
+        `Removed user ${userId} from ${channelsToRemoveFrom.length} voice channel(s) in community ${communityId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to remove user ${userId} from voice channels in community ${communityId}`,
+        error,
+      );
+    }
   }
 
   // =========================================================================
