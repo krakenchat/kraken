@@ -18,8 +18,8 @@ import { LivekitModule } from '@/livekit/livekit.module';
     WebsocketModule,
     DatabaseModule,
     RolesModule,
-    VoicePresenceModule,
-    // forwardRef to break RoomsModule -> LivekitModule -> MessagesModule -> RoomsModule cycle
+    // forwardRef to break MessagesModule -> RoomsModule -> VoicePresenceModule -> LivekitModule -> MessagesModule cycle
+    forwardRef(() => VoicePresenceModule),
     forwardRef(() => LivekitModule),
   ],
 })
