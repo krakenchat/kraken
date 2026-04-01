@@ -1,6 +1,5 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
-import { ChannelType } from '@prisma/client';
 import { RoomSubscriptionHandler } from './room-subscription.handler';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
@@ -173,14 +172,15 @@ describe('RoomSubscriptionHandler', () => {
       const userId = 'user-123';
       const communityId = 'community-456';
 
-      mockDatabase.channel.findMany
-        .mockResolvedValueOnce([{ id: 'channel-1' }])
-        .mockResolvedValueOnce([{ id: 'voice-in-this-community' }]);
-
       // User is in a voice channel from a different community
       voicePresenceService.getUserVoiceChannels.mockResolvedValue([
         'voice-in-other-community',
       ]);
+
+      mockDatabase.channel.findMany
+        .mockResolvedValueOnce([{ id: 'channel-1' }])
+        // DB intersection returns empty — no matching VOICE channels in this community
+        .mockResolvedValueOnce([]);
 
       await handler.onUserBanned({ userId, communityId });
 

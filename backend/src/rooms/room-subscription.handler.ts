@@ -153,24 +153,23 @@ export class RoomSubscriptionHandler {
 
       const communityVoiceChannels =
         await this.databaseService.channel.findMany({
-          where: { communityId, type: ChannelType.VOICE },
+          where: {
+            communityId,
+            type: ChannelType.VOICE,
+            id: { in: userVoiceChannels },
+          },
           select: { id: true },
         });
-      const communityVoiceChannelIds = new Set(
-        communityVoiceChannels.map((ch) => ch.id),
-      );
 
-      const channelsToRemoveFrom = userVoiceChannels.filter((channelId) =>
-        communityVoiceChannelIds.has(channelId),
-      );
+      const channelsToRemoveFrom = communityVoiceChannels.map((ch) => ch.id);
 
       if (channelsToRemoveFrom.length === 0) {
         return;
       }
 
-      await Promise.all(
+      await Promise.allSettled(
         channelsToRemoveFrom.map((channelId) =>
-          Promise.all([
+          Promise.allSettled([
             this.livekitService.removeParticipant(channelId, userId),
             this.voicePresenceService.leaveVoiceChannel(channelId, userId),
           ]),
