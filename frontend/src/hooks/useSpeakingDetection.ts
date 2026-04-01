@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoom } from "./useRoom";
 import { Participant, Track } from "livekit-client";
 import { getCachedItem } from "../utils/storage";
+import { computeVoiceLevel } from "../utils/audioLevel";
 
 const VOICE_SETTINGS_KEY = 'semaphore_voice_settings';
 const HOLD_OPEN_MS = 300;
@@ -195,15 +196,7 @@ export const useSpeakingDetection = () => {
             cachedSettingsRef.current = readSettings();
           }
 
-          analyser.getByteFrequencyData(dataArray);
-
-          // Compute RMS-like level (0-100)
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
-          }
-          const average = sum / dataArray.length;
-          const level = (average / 255) * 100;
+          const level = computeVoiceLevel(analyser, dataArray);
 
           const { threshold, isVoiceActivity } = cachedSettingsRef.current;
           const now = Date.now();
@@ -228,7 +221,9 @@ export const useSpeakingDetection = () => {
                   gateOpenRef.current = false;
                   gateDisabledTrackRef.current = true;
                   lastGateCloseRef.current = now;
-                  mediaStreamTrack.enabled = false;
+                  // Re-acquire track ref to avoid stale closure after LiveKit track replacement
+                  const currentTrackOff = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+                  if (currentTrackOff) currentTrackOff.enabled = false;
                   setSpeakingMap((prev) => {
                     if (prev.get(local.identity) === false) return prev;
                     const newMap = new Map(prev);
@@ -245,7 +240,9 @@ export const useSpeakingDetection = () => {
                   gateOpenRef.current = true;
                   gateDisabledTrackRef.current = false;
                   lastAboveThresholdRef.current = now;
-                  mediaStreamTrack.enabled = true;
+                  // Re-acquire track ref to avoid stale closure after LiveKit track replacement
+                  const currentTrackOn = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+                  if (currentTrackOn) currentTrackOn.enabled = true;
                   setSpeakingMap((prev) => {
                     if (prev.get(local.identity) === true) return prev;
                     const newMap = new Map(prev);
@@ -260,7 +257,8 @@ export const useSpeakingDetection = () => {
             // Only undo gate-caused disables; never touch track.enabled otherwise
             // (PTT/manual mute control it via LiveKit's publish/unpublish)
             if (gateDisabledTrackRef.current) {
-              mediaStreamTrack.enabled = true;
+              const currentTrackRestore = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+              if (currentTrackRestore) currentTrackRestore.enabled = true;
               gateDisabledTrackRef.current = false;
               gateOpenRef.current = true;
             }

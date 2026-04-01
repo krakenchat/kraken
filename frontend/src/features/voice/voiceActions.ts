@@ -685,6 +685,9 @@ export async function switchAudioInputDevice(
   try {
     await room.switchActiveDevice('audioinput', deviceId);
     dispatch({ type: VoiceActionType.SetSelectedAudioInputId, payload: deviceId });
+    // Persist so the preference survives page refresh
+    const saved = getCachedItem<DevicePreferences>(DEVICE_PREFERENCES_KEY);
+    setCachedItem(DEVICE_PREFERENCES_KEY, { ...saved, audioInputDeviceId: deviceId });
     logger.info('[Voice] Switched audio input device:', deviceId);
   } catch (error) {
     logger.error("Failed to switch audio input device:", error);
@@ -705,6 +708,8 @@ export async function switchAudioOutputDevice(
   try {
     await room.switchActiveDevice('audiooutput', deviceId);
     dispatch({ type: VoiceActionType.SetSelectedAudioOutputId, payload: deviceId });
+    const saved = getCachedItem<DevicePreferences>(DEVICE_PREFERENCES_KEY);
+    setCachedItem(DEVICE_PREFERENCES_KEY, { ...saved, audioOutputDeviceId: deviceId });
     logger.info('[Voice] Switched audio output device:', deviceId);
   } catch (error) {
     logger.error("Failed to switch audio output device:", error);
@@ -725,6 +730,8 @@ export async function switchVideoInputDevice(
   try {
     await room.switchActiveDevice('videoinput', deviceId);
     dispatch({ type: VoiceActionType.SetSelectedVideoInputId, payload: deviceId });
+    const saved = getCachedItem<DevicePreferences>(DEVICE_PREFERENCES_KEY);
+    setCachedItem(DEVICE_PREFERENCES_KEY, { ...saved, videoInputDeviceId: deviceId });
   } catch (error) {
     logger.error("Failed to switch video input device:", error);
     throw error;

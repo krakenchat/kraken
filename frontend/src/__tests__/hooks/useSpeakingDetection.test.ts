@@ -7,12 +7,18 @@ let audioLevel = 0;
 const mockAudioContextClose = vi.fn();
 
 const mockAnalyser = {
-  fftSize: 0,
+  fftSize: 256,
   smoothingTimeConstant: 0,
-  frequencyBinCount: 4,
+  frequencyBinCount: 128,
+  context: { sampleRate: 48000 },
   getByteFrequencyData(arr: Uint8Array) {
     const byteVal = Math.round((audioLevel / 100) * 255);
-    for (let i = 0; i < arr.length; i++) arr[i] = byteVal;
+    // Fill voice-frequency bins (0-21 at 48kHz/256 fftSize) with the test level;
+    // higher bins get near-zero to mimic real speech spectrum.
+    const voiceBins = Math.ceil(4000 / (48000 / 256)); // ~22
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] = i < voiceBins ? byteVal : 0;
+    }
   },
   connect: vi.fn(),
 };
