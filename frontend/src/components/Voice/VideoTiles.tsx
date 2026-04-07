@@ -117,7 +117,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     const localParticipant = state.room.localParticipant;
     const participants = Array.from(state.room.remoteParticipants.values());
 
-    // Add local participant tiles (skip hidden ones)
+    // Add local participant tiles (hidden ones become placeholders)
     if (isCameraEnabled || isScreenShareEnabled) {
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
       const audioTrack = Array.from(localParticipant.audioTrackPublications.values())[0];
@@ -297,6 +297,13 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     dispatch({ type: VoiceActionType.HideLocalTile, payload: type });
   }, [dispatch]);
 
+  // Watch + pin a placeholder tile (subscribe then make it the main sidebar view)
+  const handleWatchAndPin = useCallback((tile: VideoTileData) => {
+    handleWatchTile(tile);
+    const realTileId = tile.tileId.replace('placeholder-', '');
+    setPinnedTileId(realTileId);
+  }, [handleWatchTile]);
+
   // Filter out placeholder tiles for focused layouts
   const watchedTiles = useMemo(
     () => videoTiles.filter(t => !t.tileType.startsWith('placeholder')),
@@ -386,7 +393,11 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const renderSidebarLayout = () => {
     const pinnedTile = watchedTiles.find(tile => tile.tileId === pinnedTileId) || watchedTiles[0];
     if (!pinnedTile) return renderGridLayout(); // Fall back to grid if nothing watched
-    const otherTiles = watchedTiles.filter(tile => tile.tileId !== pinnedTile.tileId).slice(0, GRID_CONSTANTS.MAX_SIDEBAR_TILES);
+
+    // Sidebar: other watched tiles + placeholder tiles for unwatched participants
+    const placeholderTiles = videoTiles.filter(t => t.tileType.startsWith('placeholder'));
+    const otherWatched = watchedTiles.filter(tile => tile.tileId !== pinnedTile.tileId);
+    const sidebarTiles = [...otherWatched, ...placeholderTiles].slice(0, GRID_CONSTANTS.MAX_SIDEBAR_TILES);
 
     return (
       <Box sx={{ display: 'flex', height: '100%', gap: 1, overflow: 'hidden' }}>
@@ -407,8 +418,8 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           />
         </Box>
 
-        {/* Sidebar with other videos */}
-        {otherTiles.length > 0 && (
+        {/* Sidebar with other videos + placeholders */}
+        {sidebarTiles.length > 0 && (
           <Box sx={{
             width: GRID_CONSTANTS.SIDEBAR_WIDTH,
             display: 'flex',
@@ -418,7 +429,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             height: '100%',
             flexShrink: 0
           }}>
-            {otherTiles.map((tile) => (
+            {sidebarTiles.map((tile) => (
               <Box key={tile.tileId} sx={{
                 height: GRID_CONSTANTS.SIDEBAR_TILE_HEIGHT,
                 flexShrink: 0
@@ -430,11 +441,18 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   screenTrack={tile.screenTrack}
                   isLocal={tile.isLocal}
                   isReplayBufferActive={isReplayBufferActive}
-                  onToggleFullscreen={() => handleTilePin(tile.tileId)}
+                  onToggleFullscreen={tile.tileType.startsWith('placeholder') ? undefined : () => handleTilePin(tile.tileId)}
                   onPin={undefined}
                   isPinned={pinnedTileId === tile.tileId}
                   isSpotlighted={spotlightTileId === tile.tileId}
-                  onStopWatching={tile.isLocal ? () => handleHideLocalTile(tile) : () => handleStopWatchingTile(tile)}
+                  isPlaceholder={tile.tileType.startsWith('placeholder')}
+                  placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
+                  onWatch={() => handleWatchAndPin(tile)}
+                  onStopWatching={
+                    tile.tileType.startsWith('placeholder') ? undefined :
+                    tile.isLocal ? () => handleHideLocalTile(tile) :
+                    () => handleStopWatchingTile(tile)
+                  }
                 />
               </Box>
             ))}
