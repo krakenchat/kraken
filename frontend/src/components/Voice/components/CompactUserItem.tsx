@@ -29,6 +29,12 @@ interface CompactUserItemProps {
   onContextMenu: (event: React.MouseEvent<HTMLElement>, user: VoicePresenceUserDto) => void;
   onClickUser: (userId: string) => void;
   onShowVideoTiles: () => void;
+  isWatchingCamera?: boolean;
+  isWatchingScreenShare?: boolean;
+  onWatchCamera?: (userId: string) => void;
+  onStopWatchingCamera?: (userId: string) => void;
+  onWatchScreenShare?: (userId: string) => void;
+  onStopWatchingScreenShare?: (userId: string) => void;
 }
 
 const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
@@ -39,6 +45,12 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
   onContextMenu,
   onClickUser,
   onShowVideoTiles,
+  isWatchingCamera,
+  isWatchingScreenShare,
+  onWatchCamera,
+  onStopWatchingCamera,
+  onWatchScreenShare,
+  onStopWatchingScreenShare,
 }) => {
   const theme = useTheme();
   const livekitState = useParticipantTracks(user.id);
@@ -180,18 +192,33 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
               )}
 
               {userState.isVideoEnabled && (
-                <Tooltip title={isConnectedToThisChannel ? "View camera" : "Camera"}>
+                <Tooltip title={
+                  !isConnectedToThisChannel ? "Camera" :
+                  isWatchingCamera ? "Stop watching camera" : "Watch camera"
+                }>
                   {isConnectedToThisChannel ? (
                     <IconButton
                       size="small"
-                      aria-label="View camera"
+                      aria-label={isWatchingCamera ? "Stop watching camera" : "Watch camera"}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onShowVideoTiles();
+                        if (isWatchingCamera && onStopWatchingCamera) {
+                          onStopWatchingCamera(user.id);
+                        } else if (onWatchCamera) {
+                          onWatchCamera(user.id);
+                          onShowVideoTiles();
+                        } else {
+                          onShowVideoTiles();
+                        }
                       }}
                       sx={{ p: 0.25 }}
                     >
-                      <Videocam sx={{ fontSize: 16, color: theme.palette.semantic.status.positive }} />
+                      <Videocam sx={{
+                        fontSize: 16,
+                        color: isWatchingCamera
+                          ? theme.palette.semantic.status.positive
+                          : theme.palette.text.secondary,
+                      }} />
                     </IconButton>
                   ) : (
                     <Videocam sx={{ fontSize: 16, color: theme.palette.semantic.status.positive }} />
@@ -200,18 +227,33 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
               )}
 
               {userState.isScreenSharing && (
-                <Tooltip title={isConnectedToThisChannel ? "View screen share" : "Screen Share"}>
+                <Tooltip title={
+                  !isConnectedToThisChannel ? "Screen Share" :
+                  isWatchingScreenShare ? "Stop watching screen share" : "Watch screen share"
+                }>
                   {isConnectedToThisChannel ? (
                     <IconButton
                       size="small"
-                      aria-label="View screen share"
+                      aria-label={isWatchingScreenShare ? "Stop watching screen share" : "Watch screen share"}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onShowVideoTiles();
+                        if (isWatchingScreenShare && onStopWatchingScreenShare) {
+                          onStopWatchingScreenShare(user.id);
+                        } else if (onWatchScreenShare) {
+                          onWatchScreenShare(user.id);
+                          onShowVideoTiles();
+                        } else {
+                          onShowVideoTiles();
+                        }
                       }}
                       sx={{ p: 0.25 }}
                     >
-                      <ScreenShare sx={{ fontSize: 16, color: theme.palette.primary.main }} />
+                      <ScreenShare sx={{
+                        fontSize: 16,
+                        color: isWatchingScreenShare
+                          ? theme.palette.primary.main
+                          : theme.palette.text.secondary,
+                      }} />
                     </IconButton>
                   ) : (
                     <ScreenShare sx={{ fontSize: 16, color: theme.palette.primary.main }} />

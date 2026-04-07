@@ -19,6 +19,8 @@ import { getUserInfo } from "../../features/users/userApiHelpers";
 import { useServerEvent } from "../../socket-hub/useServerEvent";
 import { ServerEvents } from "@semaphore-chat/shared";
 import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import { useVoice } from "../../contexts/VoiceContext";
+import { useTrackSubscriptionActions } from "../../hooks/useTrackSubscription";
 import CompactUserItem from "./components/CompactUserItem";
 import UserItem from "./components/UserItem";
 import InlineUserAvatar from "./components/InlineUserAvatar";
@@ -37,6 +39,8 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   const theme = useTheme();
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
   const { isSpeaking } = useSpeakingDetection();
+  const { watchingCameras, watchingScreenShares } = useVoice();
+  const trackActions = useTrackSubscriptionActions();
   const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUserDto[]>([]);
   const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<{
@@ -257,6 +261,12 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
               onContextMenu={handleContextMenu}
               onClickUser={openProfile}
               onShowVideoTiles={() => voiceActions.setShowVideoTiles(true)}
+              isWatchingCamera={watchingCameras.has(user.id)}
+              isWatchingScreenShare={watchingScreenShares.has(user.id)}
+              onWatchCamera={trackActions?.watchCamera}
+              onStopWatchingCamera={trackActions?.stopWatchingCamera}
+              onWatchScreenShare={trackActions?.watchScreenShare}
+              onStopWatchingScreenShare={trackActions?.stopWatchingScreenShare}
             />
           ))}
         </Box>

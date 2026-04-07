@@ -103,6 +103,33 @@ vi.mock('../../contexts/UserProfileContext', () => ({
   })),
 }));
 
+// Mock useVoice to provide watching state
+vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    useVoice: vi.fn(() => ({
+      watchingCameras: new Set<string>(),
+      watchingScreenShares: new Set<string>(),
+    })),
+  };
+});
+
+// Mock useTrackSubscriptionActions
+const mockWatchCamera = vi.fn();
+const mockStopWatchingCamera = vi.fn();
+const mockWatchScreenShare = vi.fn();
+const mockStopWatchingScreenShare = vi.fn();
+
+vi.mock('../../hooks/useTrackSubscription', () => ({
+  useTrackSubscriptionActions: vi.fn(() => ({
+    watchCamera: mockWatchCamera,
+    stopWatchingCamera: mockStopWatchingCamera,
+    watchScreenShare: mockWatchScreenShare,
+    stopWatchingScreenShare: mockStopWatchingScreenShare,
+  })),
+}));
+
 // Mock backend presence for non-connected channels
 vi.mock('../../api-client/@tanstack/react-query.gen', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -190,7 +217,7 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
       expect(button).not.toBeNull();
     });
 
-    it('calls setShowVideoTiles(true) when clicking video icon', async () => {
+    it('calls watchCamera and setShowVideoTiles when clicking video icon', async () => {
       const { user } = renderWithProviders(
         <VoiceChannelUserList channel={voiceChannel} showCompact />,
       );
@@ -199,6 +226,7 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
       const button = videocamIcon.closest('button')!;
       await user.click(button);
 
+      expect(mockWatchCamera).toHaveBeenCalledWith('user-1');
       expect(mockSetShowVideoTiles).toHaveBeenCalledWith(true);
     });
 
@@ -212,7 +240,7 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
       expect(button).not.toBeNull();
     });
 
-    it('calls setShowVideoTiles(true) when clicking screen share icon', async () => {
+    it('calls watchScreenShare and setShowVideoTiles when clicking screen share icon', async () => {
       const { user } = renderWithProviders(
         <VoiceChannelUserList channel={voiceChannel} showCompact />,
       );
@@ -221,6 +249,7 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
       const button = screenShareIcon.closest('button')!;
       await user.click(button);
 
+      expect(mockWatchScreenShare).toHaveBeenCalledWith('user-1');
       expect(mockSetShowVideoTiles).toHaveBeenCalledWith(true);
     });
   });

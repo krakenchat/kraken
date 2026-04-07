@@ -5,6 +5,7 @@ import {
   IconButton,
   Card,
   Fade,
+  Tooltip,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import {
@@ -17,6 +18,7 @@ import {
   PushPin,
   PushPinOutlined,
   FiberManualRecord,
+  VisibilityOff,
 } from '@mui/icons-material';
 import type {
   TrackPublication,
@@ -38,6 +40,10 @@ export interface VideoTileProps {
   onPin?: () => void;
   isPinned?: boolean;
   isSpotlighted?: boolean;
+  isPlaceholder?: boolean;
+  placeholderType?: 'camera' | 'screen';
+  onWatch?: () => void;
+  onStopWatching?: () => void;
 }
 
 const VideoTile: React.FC<VideoTileProps> = ({
@@ -51,6 +57,10 @@ const VideoTile: React.FC<VideoTileProps> = ({
   onPin,
   isPinned = false,
   isSpotlighted = false,
+  isPlaceholder = false,
+  placeholderType,
+  onWatch,
+  onStopWatching,
 }) => {
   const theme = useTheme();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -95,6 +105,66 @@ const VideoTile: React.FC<VideoTileProps> = ({
   const hasAudio = audioTrack && !audioTrack.isMuted;
   const displayName = participant.name || participant.identity;
   const isSharing = hasScreen;
+
+  // Placeholder tile for unwatched streams — whole tile is clickable
+  if (isPlaceholder && onWatch) {
+    return (
+      <Card
+        sx={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'grey.900',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          transition: 'background-color 0.15s',
+          '&:hover': {
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+          },
+        }}
+        onClick={onWatch}
+        role="button"
+        tabIndex={0}
+        aria-label={isLocal
+          ? `Show your ${placeholderType === 'screen' ? 'screen share' : 'camera'}`
+          : `Watch ${displayName} ${placeholderType === 'screen' ? 'screen share' : 'camera'}`
+        }
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onWatch();
+          }
+        }}
+      >
+        <Box
+          sx={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+          }}
+        >
+          <UserAvatar userId={participant.identity} displayName={participant.name} size="xlarge" />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'grey.300', fontWeight: 'bold' }}>
+              {displayName}
+            </Typography>
+            {placeholderType === 'screen' ? (
+              <ScreenShare sx={{ fontSize: 14, color: 'grey.500' }} />
+            ) : (
+              <Videocam sx={{ fontSize: 14, color: 'grey.500' }} />
+            )}
+          </Box>
+          <Typography variant="caption" sx={{ color: 'grey.600', fontSize: '0.7rem' }}>
+            {isLocal ? 'Click to show' : 'Click to watch'}
+          </Typography>
+        </Box>
+      </Card>
+    );
+  }
 
   return (
     <Card
@@ -234,6 +304,31 @@ const VideoTile: React.FC<VideoTileProps> = ({
             gap: 0.5,
           }}
         >
+          {/* Stop watching / hide tile button */}
+          {onStopWatching && (
+            <Tooltip title={isLocal ? "Hide" : "Stop watching"}>
+              <IconButton
+                sx={{
+                  backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                  color: theme.palette.common.white,
+                  width: 32,
+                  height: 32,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.semantic.status.negative, 0.8),
+                  },
+                }}
+                size="small"
+                aria-label={isLocal ? "Hide tile" : "Stop watching"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStopWatching();
+                }}
+              >
+                <VisibilityOff fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
           {/* Screenshare volume control */}
           {hasScreen && !isLocal && (
             <ScreenShareVolumeControl participant={participant as RemoteParticipant} />

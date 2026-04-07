@@ -4,16 +4,43 @@ import { renderWithProviders } from '../test-utils';
 import { VideoTiles } from '../../components/Voice/VideoTiles';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
 
+let mockWatchingCameras = new Set<string>();
+let mockWatchingScreenShares = new Set<string>();
+
 vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../contexts/VoiceContext')>();
   return {
     ...actual,
-    useVoice: vi.fn(() => ({ isDeafened: false })),
+    useVoice: vi.fn(() => ({
+      isDeafened: false,
+      watchingCameras: mockWatchingCameras,
+      watchingScreenShares: mockWatchingScreenShares,
+      hiddenLocalTiles: new Set<string>(),
+    })),
+    useVoiceDispatch: vi.fn(() => ({
+      dispatch: vi.fn(),
+      stateRef: { current: {} },
+    })),
   };
 });
 
+vi.mock('../../hooks/useTrackSubscription', () => ({
+  useTrackSubscriptionActions: vi.fn(() => ({
+    watchCamera: vi.fn(),
+    stopWatchingCamera: vi.fn(),
+    watchScreenShare: vi.fn(),
+    stopWatchingScreenShare: vi.fn(),
+  })),
+}));
+
 vi.mock('../../hooks/useRoom', () => ({
   useRoom: vi.fn(() => ({ room: { on: vi.fn(), off: vi.fn() } })),
+}));
+
+vi.mock('../../components/Common/UserAvatar', () => ({
+  default: ({ userId }: { userId?: string }) => (
+    <div data-testid="user-avatar" data-user-id={userId} />
+  ),
 }));
 
 // jsdom doesn't implement HTMLMediaElement.play() — stub it to return a resolved promise
@@ -215,6 +242,8 @@ describe('VideoTiles', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     buildMockRoom();
+    mockWatchingCameras = new Set<string>();
+    mockWatchingScreenShares = new Set<string>();
     voiceState = { ...defaultVoiceState, room: mockRoom };
     vi.mocked(useVoiceConnection).mockReturnValue({
       state: voiceState,
@@ -364,44 +393,11 @@ describe('VideoTiles', () => {
     });
   });
 
-  describe('auto-show video panel on remote screen share (#71)', () => {
-    it('calls setShowVideoTiles(true) when remote publishes screen share', () => {
-      voiceState = { ...defaultVoiceState, room: mockRoom, showVideoTiles: false };
-      vi.mocked(useVoiceConnection).mockReturnValue({
-        state: voiceState,
-        actions: mockActions,
-      } as never);
-
-      renderWithProviders(<VideoTiles />);
-
-      const screenSharePublication = { source: 'screen_share' };
-      act(() => {
-        emitRoomEvent('trackPublished', screenSharePublication);
-      });
-
-      expect(mockActions.setShowVideoTiles).toHaveBeenCalledWith(true);
-    });
-
-    it('does not auto-show for non-screen-share tracks', () => {
-      voiceState = { ...defaultVoiceState, room: mockRoom, showVideoTiles: false };
-      vi.mocked(useVoiceConnection).mockReturnValue({
-        state: voiceState,
-        actions: mockActions,
-      } as never);
-
-      renderWithProviders(<VideoTiles />);
-
-      const cameraPublication = { source: 'camera' };
-      act(() => {
-        emitRoomEvent('trackPublished', cameraPublication);
-      });
-
-      expect(mockActions.setShowVideoTiles).not.toHaveBeenCalled();
-    });
-  });
+  // Auto-show behavior was removed in #336 — screen share opt-in is now per-participant
 
   describe('spotlight objectFit (#106)', () => {
     it('uses contain objectFit for camera video when spotlighted', async () => {
+      mockWatchingCameras = new Set(['SpotlightUser']);
       const remoteCam = createMockTrackPublication('camera');
       const remoteAudio = createMockTrackPublication('microphone');
       remoteParticipants.set(
@@ -425,6 +421,7 @@ describe('VideoTiles', () => {
 
   describe('grid layout (#83)', () => {
     it('does not set minHeight on video tiles', () => {
+      mockWatchingCameras = new Set(['GridUser']);
       const remoteCam = createMockTrackPublication('camera');
       remoteParticipants.set(
         'remote-1',
@@ -441,6 +438,7 @@ describe('VideoTiles', () => {
     });
 
     it('uses flexbox layout instead of MUI Grid', () => {
+      mockWatchingCameras = new Set(['User1', 'User2']);
       const remoteCam1 = createMockTrackPublication('camera');
       const remoteCam2 = createMockTrackPublication('camera');
       remoteParticipants.set(

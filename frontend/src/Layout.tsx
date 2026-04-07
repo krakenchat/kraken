@@ -11,6 +11,7 @@ import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
 import { VoiceBottomBar, AudioRenderer } from "./components/Voice";
 import { PersistentVideoOverlay } from "./components/Voice/PersistentVideoOverlay";
+import { TrackSubscriptionProvider } from "./components/Voice/TrackSubscriptionProvider";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import { useVoiceRecovery } from "./hooks/useVoiceRecovery";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
@@ -245,12 +246,14 @@ const Layout: React.FC = () => {
               isExpanded={isMenuExpanded}
               appBarHeight={APPBAR_HEIGHT}
             />
-            <LayoutContentArea voiceConnected={voiceState.isConnected} isMenuExpanded={isMenuExpanded} />
+            <TrackSubscriptionProvider>
+              <LayoutContentArea voiceConnected={voiceState.isConnected} isMenuExpanded={isMenuExpanded} />
 
-            {/* Voice Components */}
-            <VoiceBottomBar />
-            <AudioRenderer />
-            <PersistentVideoOverlay />
+              {/* Voice Components */}
+              <VoiceBottomBar />
+              <AudioRenderer />
+              <PersistentVideoOverlay />
+            </TrackSubscriptionProvider>
           </VideoOverlayProvider>
         </IncomingCallProvider>
       </SocketHubProvider>

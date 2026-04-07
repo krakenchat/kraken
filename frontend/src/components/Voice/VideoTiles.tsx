@@ -15,6 +15,8 @@ import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useLocalMediaState } from '../../hooks/useLocalMediaState';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useReplayBufferState } from '../../contexts/ReplayBufferContext';
+import { useVoice, useVoiceDispatch, VoiceActionType } from '../../contexts/VoiceContext';
+import { useTrackSubscriptionActions } from '../../hooks/useTrackSubscription';
 import VideoTile from './VideoTile';
 
 // Constants
@@ -43,7 +45,7 @@ interface VideoTileData {
   screenTrack?: TrackPublication;
   audioTrack?: TrackPublication;
   isLocal: boolean;
-  tileType: 'camera' | 'screen';
+  tileType: 'camera' | 'screen' | 'placeholder-camera' | 'placeholder-screen';
   tileId: string; // unique identifier for this tile
 }
 
@@ -54,10 +56,13 @@ interface VideoTilesProps {
 
 export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const theme = useTheme();
-  const { state, actions } = useVoiceConnection();
+  const { state } = useVoiceConnection();
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
   const { isReplayBufferActive } = useReplayBufferState();
+  const { watchingCameras, watchingScreenShares, hiddenLocalTiles } = useVoice();
+  const { dispatch } = useVoiceDispatch();
+  const trackActions = useTrackSubscriptionActions();
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>(VideoLayoutMode.Grid);
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
   const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
@@ -112,7 +117,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     const localParticipant = state.room.localParticipant;
     const participants = Array.from(state.room.remoteParticipants.values());
 
-    // Add local participant tiles
+    // Add local participant tiles (hidden ones become placeholders)
     if (isCameraEnabled || isScreenShareEnabled) {
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
       const audioTrack = Array.from(localParticipant.audioTrackPublications.values())[0];
@@ -124,46 +129,51 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
-      if (videoTrack && !videoTrack.isMuted && screenTrack) {
-        // Both camera and screen share - create two tiles
-        tiles.push({
-          participant: localParticipant,
-          videoTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'camera',
-          tileId: `${localParticipant.identity}-camera`
-        });
-        tiles.push({
-          participant: localParticipant,
-          screenTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'screen',
-          tileId: `${localParticipant.identity}-screen`
-        });
-      } else if (videoTrack && !videoTrack.isMuted) {
-        tiles.push({
-          participant: localParticipant,
-          videoTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'camera',
-          tileId: `${localParticipant.identity}-camera`
-        });
-      } else if (screenTrack) {
-        tiles.push({
-          participant: localParticipant,
-          screenTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'screen',
-          tileId: `${localParticipant.identity}-screen`
-        });
+      const cameraHidden = hiddenLocalTiles.has('camera');
+      const screenHidden = hiddenLocalTiles.has('screen');
+
+      if (videoTrack && !videoTrack.isMuted) {
+        if (cameraHidden) {
+          tiles.push({
+            participant: localParticipant,
+            isLocal: true,
+            tileType: 'placeholder-camera',
+            tileId: `${localParticipant.identity}-placeholder-camera`
+          });
+        } else {
+          tiles.push({
+            participant: localParticipant,
+            videoTrack,
+            audioTrack,
+            isLocal: true,
+            tileType: 'camera',
+            tileId: `${localParticipant.identity}-camera`
+          });
+        }
+      }
+      if (screenTrack) {
+        if (screenHidden) {
+          tiles.push({
+            participant: localParticipant,
+            isLocal: true,
+            tileType: 'placeholder-screen',
+            tileId: `${localParticipant.identity}-placeholder-screen`
+          });
+        } else {
+          tiles.push({
+            participant: localParticipant,
+            screenTrack,
+            audioTrack,
+            isLocal: true,
+            tileType: 'screen',
+            tileId: `${localParticipant.identity}-screen`
+          });
+        }
       }
     }
 
-    // Add remote participant tiles
+    // Add remote participant tiles — only subscribed (watched) tracks get real tiles;
+    // unwatched tracks get placeholder tiles so users can opt in from the grid.
     participants.forEach(participant => {
       const videoTracks = Array.from(participant.videoTrackPublications.values());
       const audioTrack = Array.from(participant.audioTrackPublications.values())[0];
@@ -175,48 +185,55 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
-      if (videoTrack && !videoTrack.isMuted && screenTrack) {
-        // Both camera and screen share - create two tiles
-        tiles.push({
-          participant,
-          videoTrack,
-          audioTrack,
-          isLocal: false,
-          tileType: 'camera',
-          tileId: `${participant.identity}-camera`
-        });
-        tiles.push({
-          participant,
-          screenTrack,
-          audioTrack,
-          isLocal: false,
-          tileType: 'screen',
-          tileId: `${participant.identity}-screen`
-        });
-      } else if (videoTrack && !videoTrack.isMuted) {
-        tiles.push({
-          participant,
-          videoTrack,
-          audioTrack,
-          isLocal: false,
-          tileType: 'camera',
-          tileId: `${participant.identity}-camera`
-        });
-      } else if (screenTrack) {
-        tiles.push({
-          participant,
-          screenTrack,
-          audioTrack,
-          isLocal: false,
-          tileType: 'screen',
-          tileId: `${participant.identity}-screen`
-        });
+      const isWatchingCamera = watchingCameras.has(participant.identity);
+      const isWatchingScreen = watchingScreenShares.has(participant.identity);
+
+      // Camera tile
+      if (videoTrack && !videoTrack.isMuted) {
+        if (isWatchingCamera) {
+          tiles.push({
+            participant,
+            videoTrack,
+            audioTrack,
+            isLocal: false,
+            tileType: 'camera',
+            tileId: `${participant.identity}-camera`
+          });
+        } else {
+          tiles.push({
+            participant,
+            isLocal: false,
+            tileType: 'placeholder-camera',
+            tileId: `${participant.identity}-placeholder-camera`
+          });
+        }
+      }
+
+      // Screen share tile
+      if (screenTrack) {
+        if (isWatchingScreen) {
+          tiles.push({
+            participant,
+            screenTrack,
+            audioTrack,
+            isLocal: false,
+            tileType: 'screen',
+            tileId: `${participant.identity}-screen`
+          });
+        } else {
+          tiles.push({
+            participant,
+            isLocal: false,
+            tileType: 'placeholder-screen',
+            tileId: `${participant.identity}-placeholder-screen`
+          });
+        }
       }
     });
 
     return tiles;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- trackUpdate triggers recomputation when remote tracks change
-  }, [state.room, isCameraEnabled, isScreenShareEnabled, trackUpdate]);
+  }, [state.room, isCameraEnabled, isScreenShareEnabled, trackUpdate, watchingCameras, watchingScreenShares, hiddenLocalTiles]);
 
   // Listen to LiveKit room events for track publications/unpublications
   useEffect(() => {
@@ -252,21 +269,46 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     };
   }, [state.room]);
 
-  // Auto-show video panel when any remote participant starts screen sharing
-  useEffect(() => {
-    if (!state.room) return;
+  // Callback for placeholder tile watch/show actions
+  const handleWatchTile = useCallback((tile: VideoTileData) => {
+    if (tile.isLocal) {
+      // Local placeholder — show the hidden tile
+      const type = tile.tileType === 'placeholder-camera' ? 'camera' : 'screen';
+      dispatch({ type: VoiceActionType.ShowLocalTile, payload: type });
+    } else if (tile.tileType === 'placeholder-camera') {
+      trackActions?.watchCamera(tile.participant.identity);
+    } else if (tile.tileType === 'placeholder-screen') {
+      trackActions?.watchScreenShare(tile.participant.identity);
+    }
+  }, [trackActions, dispatch]);
 
-    const handleRemoteTrackPublished = (publication: TrackPublication) => {
-      if (publication.source === 'screen_share') {
-        actions.setShowVideoTiles(true);
-      }
-    };
+  // Callback for stopping watching a remote tile
+  const handleStopWatchingTile = useCallback((tile: VideoTileData) => {
+    if (tile.tileType === 'camera') {
+      trackActions?.stopWatchingCamera(tile.participant.identity);
+    } else if (tile.tileType === 'screen') {
+      trackActions?.stopWatchingScreenShare(tile.participant.identity);
+    }
+  }, [trackActions]);
 
-    state.room.on(RoomEvent.TrackPublished, handleRemoteTrackPublished);
-    return () => {
-      state.room?.off(RoomEvent.TrackPublished, handleRemoteTrackPublished);
-    };
-  }, [state.room, actions]);
+  // Callback for hiding a local tile
+  const handleHideLocalTile = useCallback((tile: VideoTileData) => {
+    const type = tile.tileType === 'camera' ? 'camera' : 'screen';
+    dispatch({ type: VoiceActionType.HideLocalTile, payload: type });
+  }, [dispatch]);
+
+  // Watch + pin a placeholder tile (subscribe then make it the main sidebar view)
+  const handleWatchAndPin = useCallback((tile: VideoTileData) => {
+    handleWatchTile(tile);
+    const realTileId = tile.tileId.replace('placeholder-', '');
+    setPinnedTileId(realTileId);
+  }, [handleWatchTile]);
+
+  // Filter out placeholder tiles for focused layouts
+  const watchedTiles = useMemo(
+    () => videoTiles.filter(t => !t.tileType.startsWith('placeholder')),
+    [videoTiles],
+  );
 
   // Early return if not connected
   if (!state.isConnected || !state.room) {
@@ -329,10 +371,18 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
               screenTrack={tile.screenTrack}
               isLocal={tile.isLocal}
               isReplayBufferActive={isReplayBufferActive}
-              onToggleFullscreen={() => handleTileSpotlight(tile.tileId)}
+              onToggleFullscreen={tile.tileType.startsWith('placeholder') ? undefined : () => handleTileSpotlight(tile.tileId)}
               onPin={undefined}
               isPinned={pinnedTileId === tile.tileId}
               isSpotlighted={spotlightTileId === tile.tileId}
+              isPlaceholder={tile.tileType.startsWith('placeholder')}
+              placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
+              onWatch={() => handleWatchTile(tile)}
+              onStopWatching={
+                tile.tileType.startsWith('placeholder') ? undefined :
+                tile.isLocal ? () => handleHideLocalTile(tile) :
+                () => handleStopWatchingTile(tile)
+              }
             />
           </Box>
         ))}
@@ -341,8 +391,13 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   };
 
   const renderSidebarLayout = () => {
-    const pinnedTile = videoTiles.find(tile => tile.tileId === pinnedTileId) || videoTiles[0];
-    const otherTiles = videoTiles.filter(tile => tile.tileId !== pinnedTile.tileId).slice(0, GRID_CONSTANTS.MAX_SIDEBAR_TILES);
+    const pinnedTile = watchedTiles.find(tile => tile.tileId === pinnedTileId) || watchedTiles[0];
+    if (!pinnedTile) return renderGridLayout(); // Fall back to grid if nothing watched
+
+    // Sidebar: other watched tiles + placeholder tiles for unwatched participants
+    const placeholderTiles = videoTiles.filter(t => t.tileType.startsWith('placeholder'));
+    const otherWatched = watchedTiles.filter(tile => tile.tileId !== pinnedTile.tileId);
+    const sidebarTiles = [...otherWatched, ...placeholderTiles].slice(0, GRID_CONSTANTS.MAX_SIDEBAR_TILES);
 
     return (
       <Box sx={{ display: 'flex', height: '100%', gap: 1, overflow: 'hidden' }}>
@@ -359,23 +414,24 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             onPin={undefined}
             isPinned={true}
             isSpotlighted={spotlightTileId === pinnedTile.tileId}
+            onStopWatching={pinnedTile.isLocal ? () => handleHideLocalTile(pinnedTile) : () => handleStopWatchingTile(pinnedTile)}
           />
         </Box>
-        
-        {/* Sidebar with other videos */}
-        {otherTiles.length > 0 && (
-          <Box sx={{ 
-            width: GRID_CONSTANTS.SIDEBAR_WIDTH, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 1, 
+
+        {/* Sidebar with other videos + placeholders */}
+        {sidebarTiles.length > 0 && (
+          <Box sx={{
+            width: GRID_CONSTANTS.SIDEBAR_WIDTH,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
             overflowY: 'auto',
             height: '100%',
             flexShrink: 0
           }}>
-            {otherTiles.map((tile) => (
-              <Box key={tile.tileId} sx={{ 
-                height: GRID_CONSTANTS.SIDEBAR_TILE_HEIGHT, 
+            {sidebarTiles.map((tile) => (
+              <Box key={tile.tileId} sx={{
+                height: GRID_CONSTANTS.SIDEBAR_TILE_HEIGHT,
                 flexShrink: 0
               }}>
                 <VideoTile
@@ -385,10 +441,18 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   screenTrack={tile.screenTrack}
                   isLocal={tile.isLocal}
                   isReplayBufferActive={isReplayBufferActive}
-                  onToggleFullscreen={() => handleTilePin(tile.tileId)}
+                  onToggleFullscreen={tile.tileType.startsWith('placeholder') ? undefined : () => handleTilePin(tile.tileId)}
                   onPin={undefined}
                   isPinned={pinnedTileId === tile.tileId}
                   isSpotlighted={spotlightTileId === tile.tileId}
+                  isPlaceholder={tile.tileType.startsWith('placeholder')}
+                  placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
+                  onWatch={() => handleWatchAndPin(tile)}
+                  onStopWatching={
+                    tile.tileType.startsWith('placeholder') ? undefined :
+                    tile.isLocal ? () => handleHideLocalTile(tile) :
+                    () => handleStopWatchingTile(tile)
+                  }
                 />
               </Box>
             ))}
@@ -399,7 +463,8 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   };
 
   const renderSpotlightLayout = () => {
-    const spotlightedTile = videoTiles.find(tile => tile.tileId === spotlightTileId) || videoTiles[0];
+    const spotlightedTile = watchedTiles.find(tile => tile.tileId === spotlightTileId) || watchedTiles[0];
+    if (!spotlightedTile) return renderGridLayout(); // Fall back to grid if nothing watched
 
     return (
       <Box sx={{ height: '100%', width: '100%' }}>
@@ -414,6 +479,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           onPin={() => handleTilePin(spotlightedTile.tileId)}
           isPinned={pinnedTileId === spotlightedTile.tileId}
           isSpotlighted={true}
+          onStopWatching={spotlightedTile.isLocal ? () => handleHideLocalTile(spotlightedTile) : () => handleStopWatchingTile(spotlightedTile)}
         />
       </Box>
     );

@@ -13,6 +13,7 @@ import { useVoiceRecovery } from '../../../hooks/useVoiceRecovery';
 import { VoiceBottomBar } from '../../Voice/VoiceBottomBar';
 import { AudioRenderer } from '../../Voice/AudioRenderer';
 import { PersistentVideoOverlay } from '../../Voice/PersistentVideoOverlay';
+import { TrackSubscriptionProvider } from '../../Voice/TrackSubscriptionProvider';
 import { MobileNavigationProvider, useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { MobileBottomNavigation } from '../Navigation/MobileBottomNavigation';
 import MobileCommunityDrawer from '../Navigation/MobileCommunityDrawer';
@@ -56,33 +57,35 @@ const TabletLayoutInner: React.FC = () => {
       <MobileCommunityDrawer />
 
       {/* Main content area */}
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Sidebar - channel list (only visible on home tab with community selected) */}
-        {showSidebar && state.communityId && (
-          <TabletSidebar communityId={state.communityId} />
-        )}
+      <TrackSubscriptionProvider>
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Sidebar - channel list (only visible on home tab with community selected) */}
+          {showSidebar && state.communityId && (
+            <TabletSidebar communityId={state.communityId} />
+          )}
 
-        {/* Content area */}
-        <TabletContentArea
-          showSidebar={showSidebar && !!state.communityId}
-          bottomOffset={hasVoiceBar ? LAYOUT_CONSTANTS.VOICE_BAR_HEIGHT_MOBILE : 0}
-        />
-      </Box>
+          {/* Content area */}
+          <TabletContentArea
+            showSidebar={showSidebar && !!state.communityId}
+            bottomOffset={hasVoiceBar ? LAYOUT_CONSTANTS.VOICE_BAR_HEIGHT_MOBILE : 0}
+          />
+        </Box>
 
-      {/* Voice bar (only shows when in call) */}
-      {hasVoiceBar && <VoiceBottomBar />}
+        {/* Voice bar (only shows when in call) */}
+        {hasVoiceBar && <VoiceBottomBar />}
 
-      {/* Audio renderer for remote participants */}
-      <AudioRenderer />
+        {/* Audio renderer for remote participants */}
+        <AudioRenderer />
 
-      {/* Floating video overlay */}
-      <PersistentVideoOverlay />
+        {/* Floating video overlay */}
+        <PersistentVideoOverlay />
+      </TrackSubscriptionProvider>
 
       {/* Bottom navigation - always visible */}
       <MobileBottomNavigation />

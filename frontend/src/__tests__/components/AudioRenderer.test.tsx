@@ -77,17 +77,17 @@ vi.mock('../../hooks/useRoom', () => ({
 }));
 
 // --- Mock useVoice hook ---
-let mockShowVideoTiles = false;
+let mockWatchingScreenShares = new Set<string>();
 
 vi.mock('../../contexts/VoiceContext', () => ({
-  useVoice: vi.fn(() => ({ showVideoTiles: mockShowVideoTiles })),
+  useVoice: vi.fn(() => ({ watchingScreenShares: mockWatchingScreenShares })),
 }));
 
 describe('AudioRenderer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     buildMockRoom();
-    mockShowVideoTiles = false;
+    mockWatchingScreenShares = new Set<string>();
   });
 
   it('renders nothing when there is no room', () => {
@@ -106,8 +106,8 @@ describe('AudioRenderer', () => {
     expect(audioElements.length).toBe(1);
   });
 
-  it('renders audio elements for screen share audio tracks when video tiles are open', () => {
-    mockShowVideoTiles = true;
+  it('renders screen share audio when watching that participant', () => {
+    mockWatchingScreenShares = new Set(['user-1']);
     const screenAudioPub = createMockPublication('screen_share_audio');
     const participant = createMockRemoteParticipant('user-1', [screenAudioPub]);
     mockRoom!.remoteParticipants.set('user-1', participant);
@@ -117,8 +117,8 @@ describe('AudioRenderer', () => {
     expect(audioElements.length).toBe(1);
   });
 
-  it('does NOT render screen share audio when video tiles are closed', () => {
-    mockShowVideoTiles = false;
+  it('does NOT render screen share audio when NOT watching that participant', () => {
+    mockWatchingScreenShares = new Set<string>();
     const screenAudioPub = createMockPublication('screen_share_audio');
     const participant = createMockRemoteParticipant('user-1', [screenAudioPub]);
     mockRoom!.remoteParticipants.set('user-1', participant);
@@ -128,8 +128,22 @@ describe('AudioRenderer', () => {
     expect(audioElements.length).toBe(0);
   });
 
-  it('renders both mic and screen share audio when video tiles are open', () => {
-    mockShowVideoTiles = true;
+  it('renders screen share audio only for watched participants when multiple are present', () => {
+    mockWatchingScreenShares = new Set(['user-1']);
+    const screenAudioPub1 = createMockPublication('screen_share_audio');
+    const screenAudioPub2 = createMockPublication('screen_share_audio');
+    const participant1 = createMockRemoteParticipant('user-1', [screenAudioPub1]);
+    const participant2 = createMockRemoteParticipant('user-2', [screenAudioPub2]);
+    mockRoom!.remoteParticipants.set('user-1', participant1);
+    mockRoom!.remoteParticipants.set('user-2', participant2);
+
+    const { container } = render(<AudioRenderer />);
+    const audioElements = container.querySelectorAll('audio');
+    expect(audioElements.length).toBe(1);
+  });
+
+  it('renders both mic and screen share audio when watching participant', () => {
+    mockWatchingScreenShares = new Set(['user-1']);
     const micPub = createMockPublication('microphone');
     const screenAudioPub = createMockPublication('screen_share_audio');
     const participant = createMockRemoteParticipant('user-1', [micPub, screenAudioPub]);
@@ -140,8 +154,8 @@ describe('AudioRenderer', () => {
     expect(audioElements.length).toBe(2);
   });
 
-  it('renders only mic audio when video tiles are closed and both tracks exist', () => {
-    mockShowVideoTiles = false;
+  it('renders only mic audio when not watching participant screen share', () => {
+    mockWatchingScreenShares = new Set<string>();
     const micPub = createMockPublication('microphone');
     const screenAudioPub = createMockPublication('screen_share_audio');
     const participant = createMockRemoteParticipant('user-1', [micPub, screenAudioPub]);
