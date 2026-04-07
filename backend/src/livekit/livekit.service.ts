@@ -104,6 +104,38 @@ export class LivekitService {
   }
 
   /**
+   * Remove a participant from a LiveKit room.
+   * Errors are swallowed — the caller (e.g. ban/kick) must succeed regardless of LiveKit state.
+   */
+  async removeParticipant(
+    roomId: string,
+    participantIdentity: string,
+  ): Promise<void> {
+    if (!this.roomServiceClient) {
+      this.logger.warn(
+        'LiveKit credentials not configured, cannot remove participant',
+      );
+      return;
+    }
+
+    try {
+      await this.roomServiceClient.removeParticipant(
+        roomId,
+        participantIdentity,
+      );
+      this.logger.log(
+        `Removed participant ${participantIdentity} from room ${roomId}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to remove participant ${participantIdentity} from room ${roomId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  /**
    * Mute or unmute a participant's audio tracks in a room
    */
   async muteParticipant(

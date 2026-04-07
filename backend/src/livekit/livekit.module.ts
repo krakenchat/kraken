@@ -28,7 +28,8 @@ import { ThumbnailService } from '@/file/thumbnail.service';
     DatabaseModule,
     StorageModule,
     WebsocketModule,
-    MessagesModule,
+    // forwardRef to break MessagesModule -> RoomsModule -> VoicePresenceModule -> LivekitModule -> MessagesModule cycle
+    forwardRef(() => MessagesModule),
     UserModule,
     RolesModule,
     // Use forwardRef to handle circular dependency (VoicePresenceModule imports LivekitModule)

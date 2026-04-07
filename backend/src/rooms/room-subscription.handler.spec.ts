@@ -3,12 +3,16 @@ import type { Mocked } from '@suites/doubles.jest';
 import { RoomSubscriptionHandler } from './room-subscription.handler';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { DatabaseService } from '@/database/database.service';
+import { VoicePresenceService } from '@/voice-presence/voice-presence.service';
+import { LivekitService } from '@/livekit/livekit.service';
 import { createMockDatabase } from '@/test-utils';
 import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('RoomSubscriptionHandler', () => {
   let handler: RoomSubscriptionHandler;
   let websocketService: Mocked<WebsocketService>;
+  let voicePresenceService: Mocked<VoicePresenceService>;
+  let livekitService: Mocked<LivekitService>;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   beforeEach(async () => {
@@ -21,6 +25,11 @@ describe('RoomSubscriptionHandler', () => {
 
     handler = unit;
     websocketService = unitRef.get(WebsocketService);
+    voicePresenceService = unitRef.get(VoicePresenceService);
+    livekitService = unitRef.get(LivekitService);
+
+    // Default: user not in any voice channel
+    voicePresenceService.getUserVoiceChannels.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -120,7 +129,7 @@ describe('RoomSubscriptionHandler', () => {
   // =========================================================================
 
   describe('onUserBanned', () => {
-    it('should remove user from all community rooms (same as membership removal)', async () => {
+    it('should remove user from all community rooms', async () => {
       const userId = 'user-123';
       const communityId = 'community-456';
       const channels = [{ id: 'channel-1' }];
@@ -134,10 +143,86 @@ describe('RoomSubscriptionHandler', () => {
         [`community:${communityId}`, 'channel-1'],
       );
     });
+
+    it('should remove user from voice channels in the community', async () => {
+      const userId = 'user-123';
+      const communityId = 'community-456';
+
+      // First findMany call: onMembershipRemoved (all channels)
+      // Second findMany call: removeUserFromCommunityVoice (VOICE channels)
+      mockDatabase.channel.findMany
+        .mockResolvedValueOnce([{ id: 'channel-1' }, { id: 'voice-1' }])
+        .mockResolvedValueOnce([{ id: 'voice-1' }]);
+
+      voicePresenceService.getUserVoiceChannels.mockResolvedValue(['voice-1']);
+
+      await handler.onUserBanned({ userId, communityId });
+
+      expect(livekitService.removeParticipant).toHaveBeenCalledWith(
+        'voice-1',
+        userId,
+      );
+      expect(voicePresenceService.leaveVoiceChannel).toHaveBeenCalledWith(
+        'voice-1',
+        userId,
+      );
+    });
+
+    it('should not remove user from voice channels in other communities', async () => {
+      const userId = 'user-123';
+      const communityId = 'community-456';
+
+      // User is in a voice channel from a different community
+      voicePresenceService.getUserVoiceChannels.mockResolvedValue([
+        'voice-in-other-community',
+      ]);
+
+      mockDatabase.channel.findMany
+        .mockResolvedValueOnce([{ id: 'channel-1' }])
+        // DB intersection returns empty — no matching VOICE channels in this community
+        .mockResolvedValueOnce([]);
+
+      await handler.onUserBanned({ userId, communityId });
+
+      expect(livekitService.removeParticipant).not.toHaveBeenCalled();
+      expect(voicePresenceService.leaveVoiceChannel).not.toHaveBeenCalled();
+    });
+
+    it('should skip voice cleanup when user is not in any voice channel', async () => {
+      const userId = 'user-123';
+      const communityId = 'community-456';
+
+      mockDatabase.channel.findMany.mockResolvedValue([{ id: 'channel-1' }]);
+      voicePresenceService.getUserVoiceChannels.mockResolvedValue([]);
+
+      await handler.onUserBanned({ userId, communityId });
+
+      // Should not query for community voice channels
+      expect(mockDatabase.channel.findMany).toHaveBeenCalledTimes(1);
+      expect(livekitService.removeParticipant).not.toHaveBeenCalled();
+    });
+
+    it('should not throw when voice cleanup fails', async () => {
+      const userId = 'user-123';
+      const communityId = 'community-456';
+
+      mockDatabase.channel.findMany
+        .mockResolvedValueOnce([{ id: 'channel-1' }])
+        .mockResolvedValueOnce([{ id: 'voice-1' }]);
+
+      voicePresenceService.getUserVoiceChannels.mockResolvedValue(['voice-1']);
+      livekitService.removeParticipant.mockRejectedValue(
+        new Error('LiveKit error'),
+      );
+
+      await expect(
+        handler.onUserBanned({ userId, communityId }),
+      ).resolves.toBeUndefined();
+    });
   });
 
   describe('onUserKicked', () => {
-    it('should remove user from all community rooms (same as membership removal)', async () => {
+    it('should remove user from all community rooms', async () => {
       const userId = 'user-123';
       const communityId = 'community-456';
       const channels = [{ id: 'channel-1' }];
@@ -149,6 +234,28 @@ describe('RoomSubscriptionHandler', () => {
       expect(websocketService.removeSocketsFromRoom).toHaveBeenCalledWith(
         `user:${userId}`,
         [`community:${communityId}`, 'channel-1'],
+      );
+    });
+
+    it('should remove user from voice channels in the community', async () => {
+      const userId = 'user-123';
+      const communityId = 'community-456';
+
+      mockDatabase.channel.findMany
+        .mockResolvedValueOnce([{ id: 'channel-1' }, { id: 'voice-1' }])
+        .mockResolvedValueOnce([{ id: 'voice-1' }]);
+
+      voicePresenceService.getUserVoiceChannels.mockResolvedValue(['voice-1']);
+
+      await handler.onUserKicked({ userId, communityId });
+
+      expect(livekitService.removeParticipant).toHaveBeenCalledWith(
+        'voice-1',
+        userId,
+      );
+      expect(voicePresenceService.leaveVoiceChannel).toHaveBeenCalledWith(
+        'voice-1',
+        userId,
       );
     });
   });

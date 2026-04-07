@@ -32,6 +32,7 @@ describe('LivekitService', () => {
   const mockRoomServiceClient = {
     getParticipant: jest.fn(),
     mutePublishedTrack: jest.fn(),
+    removeParticipant: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -408,6 +409,63 @@ describe('LivekitService', () => {
       await service.muteParticipant('room-1', 'user-1', true);
 
       expect(mockRoomServiceClient.mutePublishedTrack).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeParticipant', () => {
+    it('should call roomServiceClient.removeParticipant with correct arguments', async () => {
+      await service.removeParticipant('room-1', 'user-1');
+
+      expect(mockRoomServiceClient.removeParticipant).toHaveBeenCalledWith(
+        'room-1',
+        'user-1',
+      );
+    });
+
+    it('should log success when participant is removed', async () => {
+      const loggerSpy = jest.spyOn(service['logger'], 'log');
+
+      await service.removeParticipant('room-1', 'user-1');
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Removed participant user-1 from room room-1',
+      );
+    });
+
+    it('should swallow errors and log a warning', async () => {
+      mockRoomServiceClient.removeParticipant.mockRejectedValue(
+        new Error('participant not found'),
+      );
+      const warnSpy = jest.spyOn(service['logger'], 'warn');
+
+      await expect(
+        service.removeParticipant('room-1', 'user-1'),
+      ).resolves.toBeUndefined();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to remove participant user-1'),
+      );
+    });
+
+    it('should gracefully no-op when roomServiceClient is null', async () => {
+      const { unit: serviceWithoutClient } = await TestBed.solitary(
+        LivekitService,
+      )
+        .mock(ConfigService)
+        .final(createMockConfigService(mockConfig))
+        .mock(ROOM_SERVICE_CLIENT)
+        .final(null as any)
+        .compile();
+
+      const warnSpy = jest.spyOn(serviceWithoutClient['logger'], 'warn');
+
+      await expect(
+        serviceWithoutClient.removeParticipant('room-1', 'user-1'),
+      ).resolves.toBeUndefined();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        'LiveKit credentials not configured, cannot remove participant',
+      );
     });
   });
 });
