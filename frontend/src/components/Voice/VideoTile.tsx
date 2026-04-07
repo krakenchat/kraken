@@ -18,7 +18,6 @@ import {
   PushPin,
   PushPinOutlined,
   FiberManualRecord,
-  Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
 import type {
@@ -107,7 +106,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
   const displayName = participant.name || participant.identity;
   const isSharing = hasScreen;
 
-  // Placeholder tile for unwatched streams — shows avatar + "Watch" button
+  // Placeholder tile for unwatched streams — whole tile is clickable
   if (isPlaceholder && onWatch) {
     return (
       <Card
@@ -118,8 +117,9 @@ const VideoTile: React.FC<VideoTileProps> = ({
           backgroundColor: 'grey.900',
           overflow: 'hidden',
           cursor: 'pointer',
+          transition: 'background-color 0.15s',
           '&:hover': {
-            backgroundColor: 'grey.800',
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
           },
         }}
         onClick={onWatch}
@@ -141,40 +141,23 @@ const VideoTile: React.FC<VideoTileProps> = ({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 1.5,
+            gap: 1,
           }}
         >
           <UserAvatar userId={participant.identity} displayName={participant.name} size="xlarge" />
-          <Typography variant="caption" sx={{ color: 'grey.300', fontWeight: 'bold' }}>
-            {displayName}
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              backgroundColor: alpha(theme.palette.primary.main, 0.2),
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
-            }}
-          >
-            <Visibility sx={{ fontSize: 16, color: theme.palette.primary.light }} />
-            <Typography variant="caption" sx={{ color: theme.palette.primary.light, fontWeight: 600 }}>
-              {placeholderType === 'screen' ? 'Watch Screen Share' : 'Watch Camera'}
-            </Typography>
-          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'grey.300', fontWeight: 'bold' }}>
+              {displayName}
+            </Typography>
             {placeholderType === 'screen' ? (
               <ScreenShare sx={{ fontSize: 14, color: 'grey.500' }} />
             ) : (
               <Videocam sx={{ fontSize: 14, color: 'grey.500' }} />
             )}
-            <Typography variant="caption" sx={{ color: 'grey.500', fontSize: '0.7rem' }}>
-              {placeholderType === 'screen' ? 'Sharing screen' : 'Camera on'}
-            </Typography>
           </Box>
+          <Typography variant="caption" sx={{ color: 'grey.600', fontSize: '0.7rem' }}>
+            Click to watch
+          </Typography>
         </Box>
       </Card>
     );
@@ -318,9 +301,9 @@ const VideoTile: React.FC<VideoTileProps> = ({
             gap: 0.5,
           }}
         >
-          {/* Stop watching button */}
-          {onStopWatching && !isLocal && (
-            <Tooltip title="Stop watching">
+          {/* Stop watching / hide tile button */}
+          {onStopWatching && (
+            <Tooltip title={isLocal ? "Hide" : "Stop watching"}>
               <IconButton
                 sx={{
                   backgroundColor: alpha(theme.palette.background.paper, 0.5),
@@ -332,7 +315,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
                   },
                 }}
                 size="small"
-                aria-label="Stop watching"
+                aria-label={isLocal ? "Hide tile" : "Stop watching"}
                 onClick={(e) => {
                   e.stopPropagation();
                   onStopWatching();

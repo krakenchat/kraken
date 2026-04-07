@@ -28,6 +28,7 @@ export interface VoiceState {
   isServerMuted: boolean;
   watchingCameras: Set<string>;
   watchingScreenShares: Set<string>;
+  hiddenLocalTiles: Set<string>;
 }
 
 export enum VoiceActionType {
@@ -49,6 +50,8 @@ export enum VoiceActionType {
   StopWatchingCamera = 'STOP_WATCHING_CAMERA',
   WatchScreenShare = 'WATCH_SCREEN_SHARE',
   StopWatchingScreenShare = 'STOP_WATCHING_SCREEN_SHARE',
+  HideLocalTile = 'HIDE_LOCAL_TILE',
+  ShowLocalTile = 'SHOW_LOCAL_TILE',
 }
 
 export type VoiceAction =
@@ -69,7 +72,9 @@ export type VoiceAction =
   | { type: VoiceActionType.WatchCamera; payload: string }
   | { type: VoiceActionType.StopWatchingCamera; payload: string }
   | { type: VoiceActionType.WatchScreenShare; payload: string }
-  | { type: VoiceActionType.StopWatchingScreenShare; payload: string };
+  | { type: VoiceActionType.StopWatchingScreenShare; payload: string }
+  | { type: VoiceActionType.HideLocalTile; payload: string }
+  | { type: VoiceActionType.ShowLocalTile; payload: string };
 
 const initialState: VoiceState = {
   isConnected: false,
@@ -94,6 +99,7 @@ const initialState: VoiceState = {
   isServerMuted: false,
   watchingCameras: new Set<string>(),
   watchingScreenShares: new Set<string>(),
+  hiddenLocalTiles: new Set<string>(),
 };
 
 function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
@@ -178,6 +184,16 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
       const next = new Set(state.watchingScreenShares);
       next.delete(action.payload);
       return { ...state, watchingScreenShares: next };
+    }
+    case VoiceActionType.HideLocalTile: {
+      const next = new Set(state.hiddenLocalTiles);
+      next.add(action.payload);
+      return { ...state, hiddenLocalTiles: next };
+    }
+    case VoiceActionType.ShowLocalTile: {
+      const next = new Set(state.hiddenLocalTiles);
+      next.delete(action.payload);
+      return { ...state, hiddenLocalTiles: next };
     }
     default:
       return state;

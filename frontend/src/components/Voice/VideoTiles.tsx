@@ -15,7 +15,7 @@ import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useLocalMediaState } from '../../hooks/useLocalMediaState';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useReplayBufferState } from '../../contexts/ReplayBufferContext';
-import { useVoice } from '../../contexts/VoiceContext';
+import { useVoice, useVoiceDispatch, VoiceActionType } from '../../contexts/VoiceContext';
 import { useTrackSubscriptionActions } from '../../hooks/useTrackSubscription';
 import VideoTile from './VideoTile';
 
@@ -60,7 +60,8 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
   const { isReplayBufferActive } = useReplayBufferState();
-  const { watchingCameras, watchingScreenShares } = useVoice();
+  const { watchingCameras, watchingScreenShares, hiddenLocalTiles } = useVoice();
+  const { dispatch } = useVoiceDispatch();
   const trackActions = useTrackSubscriptionActions();
   const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>(VideoLayoutMode.Grid);
   const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
@@ -116,7 +117,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     const localParticipant = state.room.localParticipant;
     const participants = Array.from(state.room.remoteParticipants.values());
 
-    // Add local participant tiles
+    // Add local participant tiles (skip hidden ones)
     if (isCameraEnabled || isScreenShareEnabled) {
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
       const audioTrack = Array.from(localParticipant.audioTrackPublications.values())[0];
@@ -128,8 +129,10 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
         track.source === 'screen_share' || track.source === 'screen_share_audio'
       );
 
-      if (videoTrack && !videoTrack.isMuted && screenTrack) {
-        // Both camera and screen share - create two tiles
+      const cameraHidden = hiddenLocalTiles.has('camera');
+      const screenHidden = hiddenLocalTiles.has('screen');
+
+      if (videoTrack && !videoTrack.isMuted && !cameraHidden) {
         tiles.push({
           participant: localParticipant,
           videoTrack,
@@ -138,24 +141,8 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           tileType: 'camera',
           tileId: `${localParticipant.identity}-camera`
         });
-        tiles.push({
-          participant: localParticipant,
-          screenTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'screen',
-          tileId: `${localParticipant.identity}-screen`
-        });
-      } else if (videoTrack && !videoTrack.isMuted) {
-        tiles.push({
-          participant: localParticipant,
-          videoTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'camera',
-          tileId: `${localParticipant.identity}-camera`
-        });
-      } else if (screenTrack) {
+      }
+      if (screenTrack && !screenHidden) {
         tiles.push({
           participant: localParticipant,
           screenTrack,
@@ -228,7 +215,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
 
     return tiles;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- trackUpdate triggers recomputation when remote tracks change
-  }, [state.room, isCameraEnabled, isScreenShareEnabled, trackUpdate, watchingCameras, watchingScreenShares]);
+  }, [state.room, isCameraEnabled, isScreenShareEnabled, trackUpdate, watchingCameras, watchingScreenShares, hiddenLocalTiles]);
 
   // Listen to LiveKit room events for track publications/unpublications
   useEffect(() => {
@@ -273,7 +260,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     }
   }, [trackActions]);
 
-  // Callback for stopping watching a tile
+  // Callback for stopping watching a remote tile
   const handleStopWatchingTile = useCallback((tile: VideoTileData) => {
     if (tile.tileType === 'camera') {
       trackActions?.stopWatchingCamera(tile.participant.identity);
@@ -281,6 +268,12 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
       trackActions?.stopWatchingScreenShare(tile.participant.identity);
     }
   }, [trackActions]);
+
+  // Callback for hiding a local tile
+  const handleHideLocalTile = useCallback((tile: VideoTileData) => {
+    const type = tile.tileType === 'camera' ? 'camera' : 'screen';
+    dispatch({ type: VoiceActionType.HideLocalTile, payload: type });
+  }, [dispatch]);
 
   // Filter out placeholder tiles for focused layouts
   const watchedTiles = useMemo(
@@ -356,7 +349,11 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
               isPlaceholder={tile.tileType.startsWith('placeholder')}
               placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
               onWatch={() => handleWatchTile(tile)}
-              onStopWatching={!tile.isLocal && !tile.tileType.startsWith('placeholder') ? () => handleStopWatchingTile(tile) : undefined}
+              onStopWatching={
+                tile.tileType.startsWith('placeholder') ? undefined :
+                tile.isLocal ? () => handleHideLocalTile(tile) :
+                () => handleStopWatchingTile(tile)
+              }
             />
           </Box>
         ))}
@@ -384,7 +381,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             onPin={undefined}
             isPinned={true}
             isSpotlighted={spotlightTileId === pinnedTile.tileId}
-            onStopWatching={!pinnedTile.isLocal ? () => handleStopWatchingTile(pinnedTile) : undefined}
+            onStopWatching={pinnedTile.isLocal ? () => handleHideLocalTile(pinnedTile) : () => handleStopWatchingTile(pinnedTile)}
           />
         </Box>
 
@@ -415,7 +412,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   onPin={undefined}
                   isPinned={pinnedTileId === tile.tileId}
                   isSpotlighted={spotlightTileId === tile.tileId}
-                  onStopWatching={!tile.isLocal ? () => handleStopWatchingTile(tile) : undefined}
+                  onStopWatching={tile.isLocal ? () => handleHideLocalTile(tile) : () => handleStopWatchingTile(tile)}
                 />
               </Box>
             ))}
@@ -442,7 +439,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           onPin={() => handleTilePin(spotlightedTile.tileId)}
           isPinned={pinnedTileId === spotlightedTile.tileId}
           isSpotlighted={true}
-          onStopWatching={!spotlightedTile.isLocal ? () => handleStopWatchingTile(spotlightedTile) : undefined}
+          onStopWatching={spotlightedTile.isLocal ? () => handleHideLocalTile(spotlightedTile) : () => handleStopWatchingTile(spotlightedTile)}
         />
       </Box>
     );

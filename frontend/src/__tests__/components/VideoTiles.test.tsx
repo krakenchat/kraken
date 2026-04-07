@@ -15,6 +15,11 @@ vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
       isDeafened: false,
       watchingCameras: mockWatchingCameras,
       watchingScreenShares: mockWatchingScreenShares,
+      hiddenLocalTiles: new Set<string>(),
+    })),
+    useVoiceDispatch: vi.fn(() => ({
+      dispatch: vi.fn(),
+      stateRef: { current: {} },
     })),
   };
 });
