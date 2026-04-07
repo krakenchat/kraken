@@ -19,8 +19,8 @@ import {
   Groups as GroupsIcon,
 } from '@mui/icons-material';
 import { OnboardingData } from './OnboardingWizard';
-import { useMutation } from '@tanstack/react-query';
-import { onboardingControllerSetupInstanceMutation, authControllerLoginMutation } from '../../api-client/@tanstack/react-query.gen';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { onboardingControllerSetupInstanceMutation, authControllerLoginMutation, onboardingControllerGetStatusQueryKey } from '../../api-client/@tanstack/react-query.gen';
 import { logger } from '../../utils/logger';
 import { setAccessToken, storeElectronRefreshToken } from '../../utils/tokenService';
 
@@ -37,6 +37,7 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
   onBack,
   onComplete,
 }) => {
+  const queryClient = useQueryClient();
   const { mutateAsync: setupInstance, isPending: isLoading, error } = useMutation({
     ...onboardingControllerSetupInstanceMutation(),
   });
@@ -74,13 +75,15 @@ const CompletionStep: React.FC<CompletionStepProps> = ({
           }
           
           // Give user a moment to see the success message, then redirect
-          setTimeout(() => {
+          setTimeout(async () => {
+            await queryClient.invalidateQueries({ queryKey: onboardingControllerGetStatusQueryKey() });
             onComplete();
           }, 2000);
         } catch (loginError) {
           logger.error('Auto-login failed:', loginError);
           // Still complete but redirect to login page
-          setTimeout(() => {
+          setTimeout(async () => {
+            await queryClient.invalidateQueries({ queryKey: onboardingControllerGetStatusQueryKey() });
             onComplete();
           }, 2000);
         }
