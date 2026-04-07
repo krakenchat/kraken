@@ -11,12 +11,12 @@ import { logger } from '../utils/logger';
 
 /**
  * Unsubscribes a remote track publication from the SFU (saves bandwidth).
+ * Always calls setSubscribed(false) to ensure the SFU knows we don't want this track,
+ * regardless of current subscription state (important with autoSubscribe: false).
  */
 function unsubscribePublication(publication: RemoteTrackPublication, reason: string) {
-  if (publication.isSubscribed || publication.subscriptionStatus === 'desired') {
-    logger.info('[TrackSubscription] Unsubscribing', reason, publication.trackSid, publication.source);
-    publication.setSubscribed(false);
-  }
+  logger.info('[TrackSubscription] Unsubscribing', reason, publication.trackSid, publication.source);
+  publication.setSubscribed(false);
 }
 
 /**
@@ -31,11 +31,25 @@ function isOptInSource(source: Track.Source | string): boolean {
 }
 
 /**
- * Iterates a remote participant's track publications and unsubscribes all opt-in sources.
+ * Subscribes to a remote track publication.
  */
-function unsubscribeAllOptInTracks(participant: RemoteParticipant) {
+function subscribePublication(publication: RemoteTrackPublication, reason: string) {
+  if (!publication.isSubscribed) {
+    logger.info('[TrackSubscription] Subscribing', reason, publication.trackSid, publication.source);
+    publication.setSubscribed(true);
+  }
+}
+
+/**
+ * Applies subscription policy to a participant: subscribe mic, unsubscribe opt-in sources.
+ * Called on mount for existing participants and when new participants connect.
+ */
+function applySubscriptionPolicy(participant: RemoteParticipant) {
   for (const [, publication] of participant.trackPublications) {
-    if (isOptInSource(publication.source) && publication instanceof RemoteTrackPublication) {
+    if (!(publication instanceof RemoteTrackPublication)) continue;
+    if (publication.source === Track.Source.Microphone) {
+      subscribePublication(publication, `auto-subscribe-mic:${participant.identity}`);
+    } else if (isOptInSource(publication.source)) {
       unsubscribePublication(publication, `initial-unsubscribe:${participant.identity}`);
     }
   }
@@ -57,9 +71,11 @@ export function useTrackSubscriptionActions(): TrackSubscriptionActions | null {
 /**
  * Hook that manages per-participant track subscriptions via LiveKit's setSubscribed API.
  *
- * - Mic tracks: always auto-subscribed (do nothing)
- * - Camera/ScreenShare/ScreenShareAudio: immediately unsubscribed on publish,
- *   then selectively re-subscribed when the user opts in via watch/stop actions.
+ * Room is created with autoSubscribe: false, so this hook is responsible for all
+ * subscription decisions:
+ * - Mic tracks: always subscribed immediately on publish
+ * - Camera/ScreenShare/ScreenShareAudio: unsubscribed on publish, selectively
+ *   re-subscribed when the user opts in via watch/stop actions.
  *
  * Returns actions to be provided via TrackSubscriptionContext.
  */
@@ -76,8 +92,12 @@ export function useTrackSubscription(): TrackSubscriptionActions {
       publication: RemoteTrackPublication,
       participant: RemoteParticipant,
     ) => {
-      if (!isOptInSource(publication.source)) return;
-      unsubscribePublication(publication, `published:${participant.identity}`);
+      if (!(publication instanceof RemoteTrackPublication)) return;
+      if (publication.source === Track.Source.Microphone) {
+        subscribePublication(publication, `published-mic:${participant.identity}`);
+      } else if (isOptInSource(publication.source)) {
+        unsubscribePublication(publication, `published:${participant.identity}`);
+      }
     };
 
     const handleTrackUnpublished = (
@@ -94,12 +114,12 @@ export function useTrackSubscription(): TrackSubscriptionActions {
 
     const handleParticipantConnected = (participant: RemoteParticipant) => {
       // Participant may already have published tracks by the time we get this event
-      unsubscribeAllOptInTracks(participant);
+      applySubscriptionPolicy(participant);
     };
 
-    // Unsubscribe existing participants' opt-in tracks on mount
+    // Apply subscription policy to existing participants on mount
     for (const [, participant] of room.remoteParticipants) {
-      unsubscribeAllOptInTracks(participant);
+      applySubscriptionPolicy(participant);
     }
 
     room.on(RoomEvent.TrackPublished, handleTrackPublished);

@@ -106,7 +106,9 @@ async function connectToLiveKitRoom(
   setRoom: (room: Room | null) => void
 ): Promise<Room> {
   logger.info('[Voice] Creating new LiveKit room instance');
-  const room = new Room();
+  const room = new Room({
+    autoSubscribe: false,
+  });
 
   try {
     logger.info('[Voice] Connecting to LiveKit server:', url);
