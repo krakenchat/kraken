@@ -57,27 +57,27 @@ const TabletLayoutInner: React.FC = () => {
       <MobileCommunityDrawer />
 
       {/* Main content area */}
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Sidebar - channel list (only visible on home tab with community selected) */}
-        {showSidebar && state.communityId && (
-          <TabletSidebar communityId={state.communityId} />
-        )}
-
-        {/* Content area */}
-        <TabletContentArea
-          showSidebar={showSidebar && !!state.communityId}
-          bottomOffset={hasVoiceBar ? LAYOUT_CONSTANTS.VOICE_BAR_HEIGHT_MOBILE : 0}
-        />
-      </Box>
-
-      {/* Voice bar (only shows when in call) */}
       <TrackSubscriptionProvider>
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Sidebar - channel list (only visible on home tab with community selected) */}
+          {showSidebar && state.communityId && (
+            <TabletSidebar communityId={state.communityId} />
+          )}
+
+          {/* Content area */}
+          <TabletContentArea
+            showSidebar={showSidebar && !!state.communityId}
+            bottomOffset={hasVoiceBar ? LAYOUT_CONSTANTS.VOICE_BAR_HEIGHT_MOBILE : 0}
+          />
+        </Box>
+
+        {/* Voice bar (only shows when in call) */}
         {hasVoiceBar && <VoiceBottomBar />}
 
         {/* Audio renderer for remote participants */}

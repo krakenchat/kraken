@@ -207,6 +207,8 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
                         } else if (onWatchCamera) {
                           onWatchCamera(user.id);
                           onShowVideoTiles();
+                        } else {
+                          onShowVideoTiles();
                         }
                       }}
                       sx={{ p: 0.25 }}
@@ -239,6 +241,8 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
                           onStopWatchingScreenShare(user.id);
                         } else if (onWatchScreenShare) {
                           onWatchScreenShare(user.id);
+                          onShowVideoTiles();
+                        } else {
                           onShowVideoTiles();
                         }
                       }}

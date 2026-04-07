@@ -10,15 +10,13 @@
 #   - Local dev stack running: docker compose up
 #
 # Usage:
-#   ./scripts/livekit-test-participant.sh <room-name> [identity] [--screen-share]
+#   ./scripts/livekit-test-participant.sh <room-name> [identity]
 #
 # Arguments:
 #   room-name     The LiveKit room to join. In Semaphore Chat, this is the channel ID.
 #                 Find it by joining a voice channel and checking the URL or backend logs.
 #   identity      Participant identity (default: "test-bot"). Must match a real user ID
 #                 if you want avatar/name resolution, otherwise shows as the raw identity.
-#   --screen-share  Publish as screen share source instead of camera (not supported by
-#                   --publish-demo; use a file with --publish instead).
 #
 # Examples:
 #   # Join room with demo video as "test-bot":

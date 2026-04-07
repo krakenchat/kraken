@@ -56,22 +56,22 @@ export const MobileLayout: React.FC = () => {
           paddingTop: 'env(safe-area-inset-top)',
         }}
       >
-        {/* Community drawer - swipe from left edge */}
-        <MobileCommunityDrawer />
-
-        {/* Screen container - main content area */}
-        <Box
-          sx={{
-            flex: 1,
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
-          <MobileScreenContainer bottomOffset={voiceBarOffset} />
-        </Box>
-
-        {/* Voice bar (only shows when in call) */}
         <TrackSubscriptionProvider>
+          {/* Community drawer - swipe from left edge */}
+          <MobileCommunityDrawer />
+
+          {/* Screen container - main content area */}
+          <Box
+            sx={{
+              flex: 1,
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            <MobileScreenContainer bottomOffset={voiceBarOffset} />
+          </Box>
+
+          {/* Voice bar (only shows when in call) */}
           {hasVoiceBar && <VoiceBottomBar />}
 
           {/* Audio renderer for remote participants */}

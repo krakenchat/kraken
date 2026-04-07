@@ -246,10 +246,10 @@ const Layout: React.FC = () => {
               isExpanded={isMenuExpanded}
               appBarHeight={APPBAR_HEIGHT}
             />
-            <LayoutContentArea voiceConnected={voiceState.isConnected} isMenuExpanded={isMenuExpanded} />
-
-            {/* Voice Components */}
             <TrackSubscriptionProvider>
+              <LayoutContentArea voiceConnected={voiceState.isConnected} isMenuExpanded={isMenuExpanded} />
+
+              {/* Voice Components */}
               <VoiceBottomBar />
               <AudioRenderer />
               <PersistentVideoOverlay />

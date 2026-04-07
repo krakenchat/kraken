@@ -56,7 +56,7 @@ interface VideoTilesProps {
 
 export const VideoTiles: React.FC<VideoTilesProps> = () => {
   const theme = useTheme();
-  const { state, actions } = useVoiceConnection();
+  const { state } = useVoiceConnection();
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
   const { isReplayBufferActive } = useReplayBufferState();

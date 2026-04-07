@@ -119,6 +119,15 @@ const VideoTile: React.FC<VideoTileProps> = ({
           },
         }}
         onClick={onWatch}
+        role="button"
+        tabIndex={0}
+        aria-label={`Watch ${displayName} ${placeholderType === 'screen' ? 'screen share' : 'camera'}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onWatch();
+          }
+        }}
       >
         <Box
           sx={{
