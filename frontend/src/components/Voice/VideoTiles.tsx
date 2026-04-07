@@ -132,25 +132,43 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
       const cameraHidden = hiddenLocalTiles.has('camera');
       const screenHidden = hiddenLocalTiles.has('screen');
 
-      if (videoTrack && !videoTrack.isMuted && !cameraHidden) {
-        tiles.push({
-          participant: localParticipant,
-          videoTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'camera',
-          tileId: `${localParticipant.identity}-camera`
-        });
+      if (videoTrack && !videoTrack.isMuted) {
+        if (cameraHidden) {
+          tiles.push({
+            participant: localParticipant,
+            isLocal: true,
+            tileType: 'placeholder-camera',
+            tileId: `${localParticipant.identity}-placeholder-camera`
+          });
+        } else {
+          tiles.push({
+            participant: localParticipant,
+            videoTrack,
+            audioTrack,
+            isLocal: true,
+            tileType: 'camera',
+            tileId: `${localParticipant.identity}-camera`
+          });
+        }
       }
-      if (screenTrack && !screenHidden) {
-        tiles.push({
-          participant: localParticipant,
-          screenTrack,
-          audioTrack,
-          isLocal: true,
-          tileType: 'screen',
-          tileId: `${localParticipant.identity}-screen`
-        });
+      if (screenTrack) {
+        if (screenHidden) {
+          tiles.push({
+            participant: localParticipant,
+            isLocal: true,
+            tileType: 'placeholder-screen',
+            tileId: `${localParticipant.identity}-placeholder-screen`
+          });
+        } else {
+          tiles.push({
+            participant: localParticipant,
+            screenTrack,
+            audioTrack,
+            isLocal: true,
+            tileType: 'screen',
+            tileId: `${localParticipant.identity}-screen`
+          });
+        }
       }
     }
 
@@ -251,14 +269,18 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     };
   }, [state.room]);
 
-  // Callback for placeholder tile watch actions
+  // Callback for placeholder tile watch/show actions
   const handleWatchTile = useCallback((tile: VideoTileData) => {
-    if (tile.tileType === 'placeholder-camera') {
+    if (tile.isLocal) {
+      // Local placeholder — show the hidden tile
+      const type = tile.tileType === 'placeholder-camera' ? 'camera' : 'screen';
+      dispatch({ type: VoiceActionType.ShowLocalTile, payload: type });
+    } else if (tile.tileType === 'placeholder-camera') {
       trackActions?.watchCamera(tile.participant.identity);
     } else if (tile.tileType === 'placeholder-screen') {
       trackActions?.watchScreenShare(tile.participant.identity);
     }
-  }, [trackActions]);
+  }, [trackActions, dispatch]);
 
   // Callback for stopping watching a remote tile
   const handleStopWatchingTile = useCallback((tile: VideoTileData) => {

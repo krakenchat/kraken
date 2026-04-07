@@ -125,7 +125,10 @@ const VideoTile: React.FC<VideoTileProps> = ({
         onClick={onWatch}
         role="button"
         tabIndex={0}
-        aria-label={`Watch ${displayName} ${placeholderType === 'screen' ? 'screen share' : 'camera'}`}
+        aria-label={isLocal
+          ? `Show your ${placeholderType === 'screen' ? 'screen share' : 'camera'}`
+          : `Watch ${displayName} ${placeholderType === 'screen' ? 'screen share' : 'camera'}`
+        }
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -156,7 +159,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
             )}
           </Box>
           <Typography variant="caption" sx={{ color: 'grey.600', fontSize: '0.7rem' }}>
-            Click to watch
+            {isLocal ? 'Click to show' : 'Click to watch'}
           </Typography>
         </Box>
       </Card>
