@@ -13,6 +13,7 @@ import { useVoiceRecovery } from '../../../hooks/useVoiceRecovery';
 import { VoiceBottomBar } from '../../Voice/VoiceBottomBar';
 import { AudioRenderer } from '../../Voice/AudioRenderer';
 import { PersistentVideoOverlay } from '../../Voice/PersistentVideoOverlay';
+import { TrackSubscriptionProvider } from '../../Voice/TrackSubscriptionProvider';
 import { MobileNavigationProvider, useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { MobileBottomNavigation } from '../Navigation/MobileBottomNavigation';
 import MobileCommunityDrawer from '../Navigation/MobileCommunityDrawer';
@@ -76,13 +77,15 @@ const TabletLayoutInner: React.FC = () => {
       </Box>
 
       {/* Voice bar (only shows when in call) */}
-      {hasVoiceBar && <VoiceBottomBar />}
+      <TrackSubscriptionProvider>
+        {hasVoiceBar && <VoiceBottomBar />}
 
-      {/* Audio renderer for remote participants */}
-      <AudioRenderer />
+        {/* Audio renderer for remote participants */}
+        <AudioRenderer />
 
-      {/* Floating video overlay */}
-      <PersistentVideoOverlay />
+        {/* Floating video overlay */}
+        <PersistentVideoOverlay />
+      </TrackSubscriptionProvider>
 
       {/* Bottom navigation - always visible */}
       <MobileBottomNavigation />

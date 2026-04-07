@@ -270,14 +270,13 @@ describe('VoiceBottomBar', () => {
     expect(screen.getByTestId('HeadsetOffIcon')).toBeInTheDocument();
   });
 
-  it('video toggle calls toggleVideo and enables tiles', async () => {
+  it('video toggle calls toggleVideo', async () => {
     const { user } = renderWithProviders(<VoiceBottomBar />);
 
     const videoButton = screen.getByRole('button', { name: /turn on camera/i });
     await user.click(videoButton);
 
     expect(mockActions.toggleVideo).toHaveBeenCalled();
-    expect(mockActions.setShowVideoTiles).toHaveBeenCalledWith(true);
   });
 
   it('disconnect button calls leaveVoiceChannel', async () => {
@@ -349,8 +348,6 @@ describe('VoiceBottomBar', () => {
     const shareButton = shareIcon.closest('button')!;
     await user.click(shareButton);
 
-    // handleToggleScreenShare calls actions.setShowVideoTiles(true) then screenShare.toggleScreenShare()
-    expect(mockActions.setShowVideoTiles).toHaveBeenCalledWith(true);
     expect(mockToggleScreenShare).toHaveBeenCalled();
   });
 

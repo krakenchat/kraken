@@ -109,10 +109,7 @@ export const VoiceBottomBar: React.FC = () => {
 
   const handleToggleVideo = useCallback(() => {
     actions.toggleVideo();
-    if (!isCameraEnabled) {
-      actions.setShowVideoTiles(true);
-    }
-  }, [actions, isCameraEnabled]);
+  }, [actions]);
 
   const handleDeviceSettingsOpen = useCallback(() => {
     setShowDeviceSettings(true);
@@ -138,11 +135,8 @@ export const VoiceBottomBar: React.FC = () => {
   }, [actions]);
 
   const handleToggleScreenShare = useCallback(() => {
-    if (!screenShare.isScreenSharing) {
-      actions.setShowVideoTiles(true);
-    }
     screenShare.toggleScreenShare();
-  }, [screenShare, actions]);
+  }, [screenShare]);
 
   // Check if browser supports audio output switching (setSinkId)
   const supportsSpeakerToggle = isMobile && 'setSinkId' in HTMLMediaElement.prototype;

@@ -18,6 +18,7 @@ import {
   switchAudioOutputDevice,
   switchVideoInputDevice,
 } from "../features/voice/voiceActions";
+import { useTrackSubscriptionActions } from "./useTrackSubscription";
 
 type LivekitConnectionInfo = {
   url: string;
@@ -204,6 +205,8 @@ export const useVoiceConnection = () => {
     dispatch({ type: VoiceActionType.SetRequestMaximize, payload: true });
   }, [dispatch]);
 
+  const trackActions = useTrackSubscriptionActions();
+
   return {
     state: { ...voiceState, room },
     actions: {
@@ -220,6 +223,10 @@ export const useVoiceConnection = () => {
       switchAudioOutputDevice: handleSwitchAudioOutputDevice,
       switchVideoInputDevice: handleSwitchVideoInputDevice,
       requestMaximize: handleRequestMaximize,
+      watchCamera: trackActions?.watchCamera ?? undefined,
+      stopWatchingCamera: trackActions?.stopWatchingCamera ?? undefined,
+      watchScreenShare: trackActions?.watchScreenShare ?? undefined,
+      stopWatchingScreenShare: trackActions?.stopWatchingScreenShare ?? undefined,
     },
   };
 };

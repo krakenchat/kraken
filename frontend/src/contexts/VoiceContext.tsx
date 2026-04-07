@@ -26,6 +26,8 @@ export interface VoiceState {
   selectedVideoInputId: string | null;
   wasMutedBeforeDeafen: boolean;
   isServerMuted: boolean;
+  watchingCameras: Set<string>;
+  watchingScreenShares: Set<string>;
 }
 
 export enum VoiceActionType {
@@ -43,6 +45,10 @@ export enum VoiceActionType {
   SetSelectedVideoInputId = 'SET_SELECTED_VIDEO_INPUT_ID',
   SetWasMutedBeforeDeafen = 'SET_WAS_MUTED_BEFORE_DEAFEN',
   SetServerMuted = 'SET_SERVER_MUTED',
+  WatchCamera = 'WATCH_CAMERA',
+  StopWatchingCamera = 'STOP_WATCHING_CAMERA',
+  WatchScreenShare = 'WATCH_SCREEN_SHARE',
+  StopWatchingScreenShare = 'STOP_WATCHING_SCREEN_SHARE',
 }
 
 export type VoiceAction =
@@ -59,7 +65,11 @@ export type VoiceAction =
   | { type: VoiceActionType.SetRequestMaximize; payload: boolean }
   | { type: VoiceActionType.SetSelectedVideoInputId; payload: string | null }
   | { type: VoiceActionType.SetWasMutedBeforeDeafen; payload: boolean }
-  | { type: VoiceActionType.SetServerMuted; payload: boolean };
+  | { type: VoiceActionType.SetServerMuted; payload: boolean }
+  | { type: VoiceActionType.WatchCamera; payload: string }
+  | { type: VoiceActionType.StopWatchingCamera; payload: string }
+  | { type: VoiceActionType.WatchScreenShare; payload: string }
+  | { type: VoiceActionType.StopWatchingScreenShare; payload: string };
 
 const initialState: VoiceState = {
   isConnected: false,
@@ -82,6 +92,8 @@ const initialState: VoiceState = {
   selectedVideoInputId: null,
   wasMutedBeforeDeafen: false,
   isServerMuted: false,
+  watchingCameras: new Set<string>(),
+  watchingScreenShares: new Set<string>(),
 };
 
 function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
@@ -147,6 +159,26 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
       return { ...state, wasMutedBeforeDeafen: action.payload };
     case VoiceActionType.SetServerMuted:
       return { ...state, isServerMuted: action.payload };
+    case VoiceActionType.WatchCamera: {
+      const next = new Set(state.watchingCameras);
+      next.add(action.payload);
+      return { ...state, watchingCameras: next };
+    }
+    case VoiceActionType.StopWatchingCamera: {
+      const next = new Set(state.watchingCameras);
+      next.delete(action.payload);
+      return { ...state, watchingCameras: next };
+    }
+    case VoiceActionType.WatchScreenShare: {
+      const next = new Set(state.watchingScreenShares);
+      next.add(action.payload);
+      return { ...state, watchingScreenShares: next };
+    }
+    case VoiceActionType.StopWatchingScreenShare: {
+      const next = new Set(state.watchingScreenShares);
+      next.delete(action.payload);
+      return { ...state, watchingScreenShares: next };
+    }
     default:
       return state;
   }

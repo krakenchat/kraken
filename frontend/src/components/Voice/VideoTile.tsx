@@ -17,6 +17,7 @@ import {
   PushPin,
   PushPinOutlined,
   FiberManualRecord,
+  Visibility,
 } from '@mui/icons-material';
 import type {
   TrackPublication,
@@ -38,6 +39,9 @@ export interface VideoTileProps {
   onPin?: () => void;
   isPinned?: boolean;
   isSpotlighted?: boolean;
+  isPlaceholder?: boolean;
+  placeholderType?: 'camera' | 'screen';
+  onWatch?: () => void;
 }
 
 const VideoTile: React.FC<VideoTileProps> = ({
@@ -51,6 +55,9 @@ const VideoTile: React.FC<VideoTileProps> = ({
   onPin,
   isPinned = false,
   isSpotlighted = false,
+  isPlaceholder = false,
+  placeholderType,
+  onWatch,
 }) => {
   const theme = useTheme();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -95,6 +102,70 @@ const VideoTile: React.FC<VideoTileProps> = ({
   const hasAudio = audioTrack && !audioTrack.isMuted;
   const displayName = participant.name || participant.identity;
   const isSharing = hasScreen;
+
+  // Placeholder tile for unwatched streams — shows avatar + "Watch" button
+  if (isPlaceholder && onWatch) {
+    return (
+      <Card
+        sx={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'grey.900',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'grey.800',
+          },
+        }}
+        onClick={onWatch}
+      >
+        <Box
+          sx={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1.5,
+          }}
+        >
+          <UserAvatar userId={participant.identity} displayName={participant.name} size="xlarge" />
+          <Typography variant="caption" sx={{ color: 'grey.300', fontWeight: 'bold' }}>
+            {displayName}
+          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 1,
+              backgroundColor: alpha(theme.palette.primary.main, 0.2),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+            }}
+          >
+            <Visibility sx={{ fontSize: 16, color: theme.palette.primary.light }} />
+            <Typography variant="caption" sx={{ color: theme.palette.primary.light, fontWeight: 600 }}>
+              {placeholderType === 'screen' ? 'Watch Screen Share' : 'Watch Camera'}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {placeholderType === 'screen' ? (
+              <ScreenShare sx={{ fontSize: 14, color: 'grey.500' }} />
+            ) : (
+              <Videocam sx={{ fontSize: 14, color: 'grey.500' }} />
+            )}
+            <Typography variant="caption" sx={{ color: 'grey.500', fontSize: '0.7rem' }}>
+              {placeholderType === 'screen' ? 'Sharing screen' : 'Camera on'}
+            </Typography>
+          </Box>
+        </Box>
+      </Card>
+    );
+  }
 
   return (
     <Card

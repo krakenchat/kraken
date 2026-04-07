@@ -68,7 +68,7 @@ const ParticipantAudio: React.FC<ParticipantAudioProps> = ({ participant, audioP
  */
 export const AudioRenderer: React.FC = () => {
   const { room } = useRoom();
-  const { showVideoTiles } = useVoice();
+  const { watchingScreenShares } = useVoice();
   const [audioTracks, setAudioTracks] = useState<Map<string, { participant: RemoteParticipant; publication: RemoteTrackPublication }>>(new Map());
 
   // Update audio tracks list when participants/tracks change
@@ -84,9 +84,9 @@ export const AudioRenderer: React.FC = () => {
     logger.debug('[AudioRenderer] Updating audio tracks, remote participants:', room.remoteParticipants.size);
     room.remoteParticipants.forEach((participant) => {
       participant.audioTrackPublications.forEach((publication) => {
-        // Include microphone tracks always; screen share audio only when video tiles are open
+        // Include microphone tracks always; screen share audio only when watching that participant's screen share
         const isMic = publication.source === Track.Source.Microphone;
-        const isScreenShareAudio = publication.source === Track.Source.ScreenShareAudio && showVideoTiles;
+        const isScreenShareAudio = publication.source === Track.Source.ScreenShareAudio && watchingScreenShares.has(participant.identity);
         if ((isMic || isScreenShareAudio) && publication.track) {
           const key = `${participant.identity}-${publication.trackSid}`;
           newTracks.set(key, { participant, publication });
@@ -97,7 +97,7 @@ export const AudioRenderer: React.FC = () => {
 
     logger.info('[AudioRenderer] Audio tracks updated, count:', newTracks.size);
     setAudioTracks(newTracks);
-  }, [room, showVideoTiles]);
+  }, [room, watchingScreenShares]);
 
   useEffect(() => {
     if (!room) return;

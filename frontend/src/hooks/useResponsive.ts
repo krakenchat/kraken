@@ -8,6 +8,7 @@
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { DEVICE_BREAKPOINTS } from '../utils/breakpoints';
+import { isElectron } from '../utils/platform';
 
 export type DeviceType = 'phone' | 'tablet' | 'desktop';
 
@@ -30,8 +31,11 @@ export const useResponsive = () => {
   );
   const isDesktop = useMediaQuery(`(min-width: ${DEVICE_BREAKPOINTS.DESKTOP}px)`);
 
+  // Electron is a desktop app — never use mobile layout regardless of window size
+  const electron = isElectron();
+
   // Grouped checks for convenience
-  const isMobile = isPhone || isPhoneLandscape; // < 768px (use single-column mobile layout)
+  const isMobile = electron ? false : (isPhone || isPhoneLandscape); // < 768px (use single-column mobile layout)
   const isTablet = isTabletPortrait || isTabletLandscape; // 768-1199px (use split-view tablet layout)
 
   // MUI breakpoint checks (for backward compatibility)
@@ -46,24 +50,26 @@ export const useResponsive = () => {
   const isLandscape = useMediaQuery('(orientation: landscape)');
 
   // Device type
+  const effectiveIsPhone = electron ? false : isPhone;
+  const effectiveIsPhoneLandscape = electron ? false : isPhoneLandscape;
   const deviceType: DeviceType = isMobile ? 'phone' : isTablet ? 'tablet' : 'desktop';
 
   // Touch capability
   const isTouchDevice = useMediaQuery('(hover: none) and (pointer: coarse)');
 
   // Should use mobile/tablet-optimized UI (touch-friendly, larger targets)
-  const shouldUseTouchUI = isTouchDevice || isMobile || isTablet;
+  const shouldUseTouchUI = electron ? false : (isTouchDevice || isMobile || isTablet);
 
   return {
     // Device type
-    isMobile,    // < 768px - single column layout
+    isMobile,    // < 768px - single column layout (always false on Electron)
     isTablet,    // 768-1199px - split view layout
     isDesktop,   // >= 1200px - full desktop layout
     deviceType,
 
     // Granular phone/tablet detection
-    isPhone,           // < 600px
-    isPhoneLandscape,  // 600-767px
+    isPhone: effectiveIsPhone,           // < 600px (always false on Electron)
+    isPhoneLandscape: effectiveIsPhoneLandscape,  // 600-767px (always false on Electron)
     isTabletPortrait,  // 768-1023px
     isTabletLandscape, // 1024-1199px
 
