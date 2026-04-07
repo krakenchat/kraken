@@ -5,6 +5,7 @@ import {
   IconButton,
   Card,
   Fade,
+  Tooltip,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import {
@@ -18,6 +19,7 @@ import {
   PushPinOutlined,
   FiberManualRecord,
   Visibility,
+  VisibilityOff,
 } from '@mui/icons-material';
 import type {
   TrackPublication,
@@ -42,6 +44,7 @@ export interface VideoTileProps {
   isPlaceholder?: boolean;
   placeholderType?: 'camera' | 'screen';
   onWatch?: () => void;
+  onStopWatching?: () => void;
 }
 
 const VideoTile: React.FC<VideoTileProps> = ({
@@ -58,6 +61,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
   isPlaceholder = false,
   placeholderType,
   onWatch,
+  onStopWatching,
 }) => {
   const theme = useTheme();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -314,6 +318,31 @@ const VideoTile: React.FC<VideoTileProps> = ({
             gap: 0.5,
           }}
         >
+          {/* Stop watching button */}
+          {onStopWatching && !isLocal && (
+            <Tooltip title="Stop watching">
+              <IconButton
+                sx={{
+                  backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                  color: theme.palette.common.white,
+                  width: 32,
+                  height: 32,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.semantic.status.negative, 0.8),
+                  },
+                }}
+                size="small"
+                aria-label="Stop watching"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStopWatching();
+                }}
+              >
+                <VisibilityOff fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
           {/* Screenshare volume control */}
           {hasScreen && !isLocal && (
             <ScreenShareVolumeControl participant={participant as RemoteParticipant} />

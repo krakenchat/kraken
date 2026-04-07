@@ -273,6 +273,15 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     }
   }, [trackActions]);
 
+  // Callback for stopping watching a tile
+  const handleStopWatchingTile = useCallback((tile: VideoTileData) => {
+    if (tile.tileType === 'camera') {
+      trackActions?.stopWatchingCamera(tile.participant.identity);
+    } else if (tile.tileType === 'screen') {
+      trackActions?.stopWatchingScreenShare(tile.participant.identity);
+    }
+  }, [trackActions]);
+
   // Filter out placeholder tiles for focused layouts
   const watchedTiles = useMemo(
     () => videoTiles.filter(t => !t.tileType.startsWith('placeholder')),
@@ -347,6 +356,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
               isPlaceholder={tile.tileType.startsWith('placeholder')}
               placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
               onWatch={() => handleWatchTile(tile)}
+              onStopWatching={!tile.isLocal && !tile.tileType.startsWith('placeholder') ? () => handleStopWatchingTile(tile) : undefined}
             />
           </Box>
         ))}
@@ -374,23 +384,24 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             onPin={undefined}
             isPinned={true}
             isSpotlighted={spotlightTileId === pinnedTile.tileId}
+            onStopWatching={!pinnedTile.isLocal ? () => handleStopWatchingTile(pinnedTile) : undefined}
           />
         </Box>
-        
+
         {/* Sidebar with other videos */}
         {otherTiles.length > 0 && (
-          <Box sx={{ 
-            width: GRID_CONSTANTS.SIDEBAR_WIDTH, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 1, 
+          <Box sx={{
+            width: GRID_CONSTANTS.SIDEBAR_WIDTH,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
             overflowY: 'auto',
             height: '100%',
             flexShrink: 0
           }}>
             {otherTiles.map((tile) => (
-              <Box key={tile.tileId} sx={{ 
-                height: GRID_CONSTANTS.SIDEBAR_TILE_HEIGHT, 
+              <Box key={tile.tileId} sx={{
+                height: GRID_CONSTANTS.SIDEBAR_TILE_HEIGHT,
                 flexShrink: 0
               }}>
                 <VideoTile
@@ -404,6 +415,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   onPin={undefined}
                   isPinned={pinnedTileId === tile.tileId}
                   isSpotlighted={spotlightTileId === tile.tileId}
+                  onStopWatching={!tile.isLocal ? () => handleStopWatchingTile(tile) : undefined}
                 />
               </Box>
             ))}
@@ -430,6 +442,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           onPin={() => handleTilePin(spotlightedTile.tileId)}
           isPinned={pinnedTileId === spotlightedTile.tileId}
           isSpotlighted={true}
+          onStopWatching={!spotlightedTile.isLocal ? () => handleStopWatchingTile(spotlightedTile) : undefined}
         />
       </Box>
     );
