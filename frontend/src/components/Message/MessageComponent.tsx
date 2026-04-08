@@ -5,7 +5,7 @@
  * Orchestrates message rendering, editing, deletion, and reactions.
  */
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { Typography, Tooltip, Box, Link } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import type { Message as MessageType } from "../../types/message.type";
@@ -28,6 +28,9 @@ import QuotePreview from "./QuotePreview";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { SeenByTooltip } from "./SeenByTooltip";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
+import { isElectron } from "../../utils/platform";
+import MessageContextMenu from "./MessageContextMenu";
+import { EmojiPickerPopover } from "./EmojiPicker";
 
 interface MessageProps {
   message: MessageType;
@@ -105,12 +108,33 @@ function MessageComponentInner({
     handleUnpin,
   } = useMessageActions(message, currentUser?.id);
 
+  // Context menu state (Electron only)
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const handleContextMenu = useCallback((event: React.MouseEvent) => {
+    if (!isElectron()) return; // Allow native browser context menu on web
+    event.preventDefault();
+    setContextMenuPosition({ top: event.clientY, left: event.clientX });
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenuPosition(null);
+  }, []);
+
+  const handleAddReaction = useCallback(() => {
+    // Save position for emoji picker, close context menu
+    setEmojiPickerPosition(contextMenuPosition);
+    setContextMenuPosition(null);
+  }, [contextMenuPosition]);
+
   return (
     <Container
       stagedForDelete={stagedForDelete}
       isDeleting={isDeleting}
       isHighlighted={isMentioned}
       isSearchHighlight={isSearchHighlight}
+      onContextMenu={handleContextMenu}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
         <UserAvatar
@@ -245,6 +269,38 @@ function MessageComponentInner({
         onConfirm={handleConfirmThreadDelete}
         onCancel={handleCancelThreadDelete}
       />
+      {isElectron() && (
+        <>
+          <MessageContextMenu
+            anchorPosition={contextMenuPosition}
+            open={Boolean(contextMenuPosition)}
+            onClose={handleCloseContextMenu}
+            message={message}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            canPin={canPin}
+            canReact={canReact}
+            canThread={canThread}
+            isPinned={isPinned}
+            onEdit={() => { handleEditClick(); handleCloseContextMenu(); }}
+            onDelete={() => { handleDeleteClick(); handleCloseContextMenu(); }}
+            onPin={() => { handlePin(); handleCloseContextMenu(); }}
+            onUnpin={() => { handleUnpin(); handleCloseContextMenu(); }}
+            onReplyInThread={() => { handleOpenThread(); handleCloseContextMenu(); }}
+            onQuoteReply={onQuoteReply && !message.deletedAt ? () => { onQuoteReply(message); handleCloseContextMenu(); } : undefined}
+            onAddReaction={handleAddReaction}
+          />
+          <EmojiPickerPopover
+            open={Boolean(emojiPickerPosition)}
+            anchorPosition={emojiPickerPosition}
+            onClose={() => setEmojiPickerPosition(null)}
+            onEmojiSelect={(emoji) => {
+              handleEmojiSelect(emoji);
+              setEmojiPickerPosition(null);
+            }}
+          />
+        </>
+      )}
     </Container>
   );
 }
