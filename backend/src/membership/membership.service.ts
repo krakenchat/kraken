@@ -172,8 +172,36 @@ export class MembershipService {
       take: 1000,
     });
 
+    // Batch fetch all user roles for this community
+    const userRoles = await this.databaseService.userRoles.findMany({
+      where: { communityId },
+      include: { role: true },
+    });
+
+    // Group roles by userId
+    const rolesByUserId = new Map<
+      string,
+      Array<{ id: string; name: string; actions: any[]; createdAt: Date; isDefault: boolean; position: number }>
+    >();
+    for (const ur of userRoles) {
+      const existing = rolesByUserId.get(ur.userId) || [];
+      existing.push({
+        id: ur.role.id,
+        name: ur.role.name,
+        actions: ur.role.actions,
+        createdAt: ur.role.createdAt,
+        isDefault: ur.role.isDefault,
+        position: ur.role.position,
+      });
+      rolesByUserId.set(ur.userId, existing);
+    }
+
     return memberships.map(
-      (membership) => new MembershipResponseDto(membership),
+      (membership) =>
+        new MembershipResponseDto(
+          membership,
+          rolesByUserId.get(membership.userId),
+        ),
     );
   }
 

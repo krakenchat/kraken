@@ -30,13 +30,14 @@ describe('roleHandlers', () => {
       expect(queryKeysInvalidated()).toContain('rolesControllerGetCommunityRoles');
     });
 
-    it('does NOT invalidate my roles or members (no assignment change)', () => {
+    it('does NOT invalidate my roles or legacy members (no assignment change)', () => {
       handleRoleCreated({} as never, queryClient);
 
       const keys = queryKeysInvalidated();
       expect(keys).not.toContain('rolesControllerGetMyRolesForCommunity');
       expect(keys).not.toContain('membershipControllerGetMembers');
-      expect(invalidateSpy).toHaveBeenCalledTimes(1);
+      // Invalidates community roles + membership (roles included in membership response)
+      expect(invalidateSpy).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -49,12 +50,13 @@ describe('roleHandlers', () => {
       expect(keys).toContain('rolesControllerGetMyRolesForCommunity');
     });
 
-    it('does NOT invalidate members (permissions may change but no role reassignment)', () => {
+    it('does NOT invalidate legacy members (permissions may change but no role reassignment)', () => {
       handleRoleUpdated({} as never, queryClient);
 
       const keys = queryKeysInvalidated();
       expect(keys).not.toContain('membershipControllerGetMembers');
-      expect(invalidateSpy).toHaveBeenCalledTimes(2);
+      // Invalidates community roles + my roles + membership
+      expect(invalidateSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -65,7 +67,8 @@ describe('roleHandlers', () => {
       const keys = queryKeysInvalidated();
       expect(keys).toContain('rolesControllerGetCommunityRoles');
       expect(keys).toContain('rolesControllerGetMyRolesForCommunity');
-      expect(invalidateSpy).toHaveBeenCalledTimes(2);
+      expect(keys).toContain('membershipControllerFindAllForCommunity');
+      expect(invalidateSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -77,7 +80,8 @@ describe('roleHandlers', () => {
       expect(keys).toContain('rolesControllerGetCommunityRoles');
       expect(keys).toContain('rolesControllerGetMyRolesForCommunity');
       expect(keys).toContain('membershipControllerGetMembers');
-      expect(invalidateSpy).toHaveBeenCalledTimes(3);
+      expect(keys).toContain('membershipControllerFindAllForCommunity');
+      expect(invalidateSpy).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -89,7 +93,8 @@ describe('roleHandlers', () => {
       expect(keys).toContain('rolesControllerGetCommunityRoles');
       expect(keys).toContain('rolesControllerGetMyRolesForCommunity');
       expect(keys).toContain('membershipControllerGetMembers');
-      expect(invalidateSpy).toHaveBeenCalledTimes(3);
+      expect(keys).toContain('membershipControllerFindAllForCommunity');
+      expect(invalidateSpy).toHaveBeenCalledTimes(4);
     });
   });
 });

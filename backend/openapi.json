@@ -1136,6 +1136,49 @@
         ]
       }
     },
+    "/api/roles/community/{communityId}/reorder": {
+      "patch": {
+        "operationId": "RolesController_reorderRoles",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderRolesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Roles"
+        ]
+      }
+    },
     "/api/roles/community/{communityId}/reset-defaults": {
       "post": {
         "operationId": "RolesController_resetDefaultCommunityRoles",
@@ -2897,6 +2940,785 @@
         },
         "tags": [
           "Messages"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/voice-presence": {
+      "get": {
+        "operationId": "VoicePresenceController_getChannelPresence",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelVoicePresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/voice-presence/refresh": {
+      "post": {
+        "operationId": "VoicePresenceController_refreshPresence",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/voice-presence/join": {
+      "post": {
+        "operationId": "VoicePresenceController_joinPresence",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/voice-presence/leave": {
+      "post": {
+        "operationId": "VoicePresenceController_leavePresence",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/voice-presence/deafen": {
+      "post": {
+        "operationId": "VoicePresenceController_updateDeafenState",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDeafenStateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "VoicePresence"
+        ]
+      }
+    },
+    "/api/voice-presence/me": {
+      "get": {
+        "operationId": "UserVoicePresenceController_getMyVoiceChannels",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserVoiceChannelsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserVoicePresence"
+        ]
+      }
+    },
+    "/api/dm-groups/{dmGroupId}/voice-presence": {
+      "get": {
+        "operationId": "DmVoicePresenceController_getDmPresence",
+        "parameters": [
+          {
+            "name": "dmGroupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DmVoicePresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "DmVoicePresence"
+        ]
+      }
+    },
+    "/api/dm-groups/{dmGroupId}/voice-presence/refresh": {
+      "post": {
+        "operationId": "DmVoicePresenceController_refreshDmPresence",
+        "parameters": [
+          {
+            "name": "dmGroupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshDmPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "DmVoicePresence"
+        ]
+      }
+    },
+    "/api/livekit/token": {
+      "post": {
+        "operationId": "LivekitController_generateToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/dm-token": {
+      "post": {
+        "operationId": "LivekitController_generateDmToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/channels/{channelId}/mute-participant": {
+      "post": {
+        "operationId": "LivekitController_muteParticipant",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MuteParticipantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/connection-info": {
+      "get": {
+        "operationId": "LivekitController_getConnectionInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionInfoResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/health": {
+      "get": {
+        "operationId": "LivekitController_validateConfiguration",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivekitHealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/replay/start": {
+      "post": {
+        "operationId": "LivekitController_startReplayBuffer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartReplayBufferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartReplayResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Start replay buffer egress for screen share",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/replay/stop": {
+      "post": {
+        "operationId": "LivekitController_stopReplayBuffer",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopReplayResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Stop replay buffer egress for current user",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/replay/stream": {
+      "get": {
+        "operationId": "LivekitController_streamReplay",
+        "parameters": [
+          {
+            "name": "durationMinutes",
+            "required": true,
+            "in": "query",
+            "description": "Duration preset in minutes\nUser selects from: 1, 2, 5, or 10 minutes",
+            "schema": {
+              "minimum": 1,
+              "maximum": 10,
+              "type": "number",
+              "enum": [
+                1,
+                2,
+                5,
+                10
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Stream a replay clip directly (download-only, no persistence)\nCreates a temporary file, streams it, and deletes it after streaming completes",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/replay/session-info": {
+      "get": {
+        "operationId": "LivekitController_getSessionInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfoResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get session info for active replay buffer (for trim UI)",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/replay/preview/playlist.m3u8": {
+      "get": {
+        "operationId": "LivekitController_getPreviewPlaylist",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Serve HLS playlist (m3u8) for preview\nReturns the playlist file for the user's active session",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/replay/preview/segment/{segmentFile}": {
+      "get": {
+        "operationId": "LivekitController_getPreviewSegment",
+        "parameters": [
+          {
+            "name": "segmentFile",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Serve individual HLS segment (.ts file) for preview\nSegments are remuxed on-the-fly to standard MPEG-TS format\nfor HLS.js compatibility (LiveKit egress creates HDMV-style TS)",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/replay/capture": {
+      "post": {
+        "operationId": "LivekitController_captureReplay",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureReplayDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureReplayResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Capture a replay clip from the buffer and post to channel or DM\nRate limited: 3 per minute, 15 per hour to prevent abuse",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/clips": {
+      "get": {
+        "operationId": "LivekitController_getMyClips",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClipResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get current user's clip library",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/clips/user/{userId}": {
+      "get": {
+        "operationId": "LivekitController_getUserPublicClips",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClipResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get public clips for a specific user (for profile viewing)",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/clips/{clipId}": {
+      "put": {
+        "operationId": "LivekitController_updateClip",
+        "parameters": [
+          {
+            "name": "clipId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClipResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a clip (e.g., toggle public visibility)",
+        "tags": [
+          "Livekit"
+        ]
+      },
+      "delete": {
+        "operationId": "LivekitController_deleteClip",
+        "parameters": [
+          {
+            "name": "clipId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete a clip from user's library",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/clips/{clipId}/share": {
+      "post": {
+        "operationId": "LivekitController_shareClip",
+        "parameters": [
+          {
+            "name": "clipId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareClipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareClipResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Share an existing clip to a channel or DM",
+        "tags": [
+          "Livekit"
+        ]
+      }
+    },
+    "/api/livekit/webhook": {
+      "post": {
+        "operationId": "LivekitWebhookController_handleWebhook",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveKitWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Handle LiveKit webhook events\n\nVerifies webhook signature and processes egress_ended events",
+        "tags": [
+          "LivekitWebhook"
         ]
       }
     },
@@ -4865,785 +5687,6 @@
         "summary": "Get all users who have read a specific message\nGET /read-receipts/message/:messageId/readers?channelId=xxx or ?directMessageGroupId=xxx",
         "tags": [
           "ReadReceipts"
-        ]
-      }
-    },
-    "/api/livekit/token": {
-      "post": {
-        "operationId": "LivekitController_generateToken",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/dm-token": {
-      "post": {
-        "operationId": "LivekitController_generateDmToken",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/channels/{channelId}/mute-participant": {
-      "post": {
-        "operationId": "LivekitController_muteParticipant",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MuteParticipantDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/connection-info": {
-      "get": {
-        "operationId": "LivekitController_getConnectionInfo",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectionInfoResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/health": {
-      "get": {
-        "operationId": "LivekitController_validateConfiguration",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LivekitHealthResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/replay/start": {
-      "post": {
-        "operationId": "LivekitController_startReplayBuffer",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StartReplayBufferDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StartReplayResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Start replay buffer egress for screen share",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/replay/stop": {
-      "post": {
-        "operationId": "LivekitController_stopReplayBuffer",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StopReplayResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Stop replay buffer egress for current user",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/replay/stream": {
-      "get": {
-        "operationId": "LivekitController_streamReplay",
-        "parameters": [
-          {
-            "name": "durationMinutes",
-            "required": true,
-            "in": "query",
-            "description": "Duration preset in minutes\nUser selects from: 1, 2, 5, or 10 minutes",
-            "schema": {
-              "minimum": 1,
-              "maximum": 10,
-              "type": "number",
-              "enum": [
-                1,
-                2,
-                5,
-                10
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Stream a replay clip directly (download-only, no persistence)\nCreates a temporary file, streams it, and deletes it after streaming completes",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/replay/session-info": {
-      "get": {
-        "operationId": "LivekitController_getSessionInfo",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionInfoResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get session info for active replay buffer (for trim UI)",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/replay/preview/playlist.m3u8": {
-      "get": {
-        "operationId": "LivekitController_getPreviewPlaylist",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Serve HLS playlist (m3u8) for preview\nReturns the playlist file for the user's active session",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/replay/preview/segment/{segmentFile}": {
-      "get": {
-        "operationId": "LivekitController_getPreviewSegment",
-        "parameters": [
-          {
-            "name": "segmentFile",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Serve individual HLS segment (.ts file) for preview\nSegments are remuxed on-the-fly to standard MPEG-TS format\nfor HLS.js compatibility (LiveKit egress creates HDMV-style TS)",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/replay/capture": {
-      "post": {
-        "operationId": "LivekitController_captureReplay",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CaptureReplayDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CaptureReplayResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Capture a replay clip from the buffer and post to channel or DM\nRate limited: 3 per minute, 15 per hour to prevent abuse",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/clips": {
-      "get": {
-        "operationId": "LivekitController_getMyClips",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ClipResponseDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get current user's clip library",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/clips/user/{userId}": {
-      "get": {
-        "operationId": "LivekitController_getUserPublicClips",
-        "parameters": [
-          {
-            "name": "userId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ClipResponseDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get public clips for a specific user (for profile viewing)",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/clips/{clipId}": {
-      "put": {
-        "operationId": "LivekitController_updateClip",
-        "parameters": [
-          {
-            "name": "clipId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateClipDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClipResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Update a clip (e.g., toggle public visibility)",
-        "tags": [
-          "Livekit"
-        ]
-      },
-      "delete": {
-        "operationId": "LivekitController_deleteClip",
-        "parameters": [
-          {
-            "name": "clipId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Delete a clip from user's library",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/clips/{clipId}/share": {
-      "post": {
-        "operationId": "LivekitController_shareClip",
-        "parameters": [
-          {
-            "name": "clipId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ShareClipDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ShareClipResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Share an existing clip to a channel or DM",
-        "tags": [
-          "Livekit"
-        ]
-      }
-    },
-    "/api/livekit/webhook": {
-      "post": {
-        "operationId": "LivekitWebhookController_handleWebhook",
-        "parameters": [
-          {
-            "name": "authorization",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveKitWebhookDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Handle LiveKit webhook events\n\nVerifies webhook signature and processes egress_ended events",
-        "tags": [
-          "LivekitWebhook"
-        ]
-      }
-    },
-    "/api/channels/{channelId}/voice-presence": {
-      "get": {
-        "operationId": "VoicePresenceController_getChannelPresence",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChannelVoicePresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "VoicePresence"
-        ]
-      }
-    },
-    "/api/channels/{channelId}/voice-presence/refresh": {
-      "post": {
-        "operationId": "VoicePresenceController_refreshPresence",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "VoicePresence"
-        ]
-      }
-    },
-    "/api/channels/{channelId}/voice-presence/join": {
-      "post": {
-        "operationId": "VoicePresenceController_joinPresence",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "VoicePresence"
-        ]
-      }
-    },
-    "/api/channels/{channelId}/voice-presence/leave": {
-      "post": {
-        "operationId": "VoicePresenceController_leavePresence",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "VoicePresence"
-        ]
-      }
-    },
-    "/api/channels/{channelId}/voice-presence/deafen": {
-      "post": {
-        "operationId": "VoicePresenceController_updateDeafenState",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateDeafenStateDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "VoicePresence"
-        ]
-      }
-    },
-    "/api/voice-presence/me": {
-      "get": {
-        "operationId": "UserVoicePresenceController_getMyVoiceChannels",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserVoiceChannelsResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "UserVoicePresence"
-        ]
-      }
-    },
-    "/api/dm-groups/{dmGroupId}/voice-presence": {
-      "get": {
-        "operationId": "DmVoicePresenceController_getDmPresence",
-        "parameters": [
-          {
-            "name": "dmGroupId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DmVoicePresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "DmVoicePresence"
-        ]
-      }
-    },
-    "/api/dm-groups/{dmGroupId}/voice-presence/refresh": {
-      "post": {
-        "operationId": "DmVoicePresenceController_refreshDmPresence",
-        "parameters": [
-          {
-            "name": "dmGroupId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshDmPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "DmVoicePresence"
         ]
       }
     },
@@ -7618,6 +7661,9 @@
           },
           "isDefault": {
             "type": "boolean"
+          },
+          "position": {
+            "type": "number"
           }
         },
         "required": [
@@ -7625,7 +7671,8 @@
           "id",
           "name",
           "createdAt",
-          "isDefault"
+          "isDefault",
+          "position"
         ]
       },
       "UserRolesResponseDto": {
@@ -7677,6 +7724,21 @@
         "required": [
           "communityId",
           "roles"
+        ]
+      },
+      "ReorderRolesDto": {
+        "type": "object",
+        "properties": {
+          "roleIds": {
+            "description": "Ordered array of role IDs. First role gets highest priority (lowest position).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "roleIds"
         ]
       },
       "CreateRoleDto": {
@@ -7745,6 +7807,10 @@
                 "MUTE_PARTICIPANT"
               ]
             }
+          },
+          "position": {
+            "type": "number",
+            "description": "Position for ordering (lower = higher priority)"
           },
           "name": {
             "type": "string",
@@ -7822,6 +7888,10 @@
                 "MUTE_PARTICIPANT"
               ]
             }
+          },
+          "position": {
+            "type": "number",
+            "description": "Position for ordering (lower = higher priority)"
           },
           "name": {
             "type": "string",
@@ -8865,6 +8935,640 @@
           }
         }
       },
+      "VoicePresenceUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isDeafened": {
+            "type": "boolean"
+          },
+          "isServerMuted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "joinedAt",
+          "isDeafened",
+          "isServerMuted"
+        ]
+      },
+      "ChannelVoicePresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoicePresenceUserDto"
+            }
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "channelId",
+          "users",
+          "count"
+        ]
+      },
+      "RefreshPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "channelId"
+        ]
+      },
+      "UpdateDeafenStateDto": {
+        "type": "object",
+        "properties": {
+          "isDeafened": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isDeafened"
+        ]
+      },
+      "UserVoiceChannelsResponseDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "voiceChannels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "userId",
+          "voiceChannels"
+        ]
+      },
+      "DmVoicePresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "dmGroupId": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoicePresenceUserDto"
+            }
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dmGroupId",
+          "users",
+          "count"
+        ]
+      },
+      "RefreshDmPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "dmGroupId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "dmGroupId"
+        ]
+      },
+      "CreateTokenDto": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ttl": {
+            "type": "number",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "identity",
+          "roomId"
+        ]
+      },
+      "TokenResponseDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "identity": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "identity",
+          "roomId"
+        ]
+      },
+      "MuteParticipantDto": {
+        "type": "object",
+        "properties": {
+          "participantIdentity": {
+            "type": "string"
+          },
+          "mute": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "participantIdentity",
+          "mute"
+        ]
+      },
+      "ConnectionInfoResponseDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "LivekitHealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "configured"
+        ]
+      },
+      "StartReplayBufferDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roomName": {
+            "type": "string"
+          },
+          "videoTrackId": {
+            "type": "string"
+          },
+          "audioTrackId": {
+            "type": "string"
+          },
+          "participantIdentity": {
+            "type": "string",
+            "description": "Participant identity (usually the user ID)\nUsed to query track resolution for matching egress encoding to source quality"
+          }
+        },
+        "required": [
+          "channelId",
+          "roomName",
+          "videoTrackId"
+        ]
+      },
+      "StartReplayResponseDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "egressId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "egressId",
+          "status"
+        ]
+      },
+      "StopReplayResponseDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "egressId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "egressId",
+          "status"
+        ]
+      },
+      "SessionInfoResponseDto": {
+        "type": "object",
+        "properties": {
+          "hasActiveSession": {
+            "type": "boolean",
+            "description": "Whether there's an active replay buffer session"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Session ID (if active)"
+          },
+          "totalSegments": {
+            "type": "number",
+            "description": "Total number of segments available"
+          },
+          "totalDurationSeconds": {
+            "type": "number",
+            "description": "Total buffer duration in seconds"
+          },
+          "bufferStartTime": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Oldest segment timestamp (when buffer started)"
+          },
+          "bufferEndTime": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Most recent segment timestamp"
+          }
+        },
+        "required": [
+          "hasActiveSession"
+        ]
+      },
+      "CaptureReplayDto": {
+        "type": "object",
+        "properties": {
+          "durationMinutes": {
+            "type": "number",
+            "description": "Duration preset in minutes (optional if using custom range)\nUser selects from: 1, 2, 5, or 10 minutes",
+            "enum": [
+              1,
+              2,
+              5,
+              10
+            ]
+          },
+          "destination": {
+            "type": "string",
+            "description": "Where to save/post the clip\n- 'library': Save to user's clip library only\n- 'dm': Save to library and send to specified DM group\n- 'channel': Save to library and post to specified channel",
+            "enum": [
+              "library",
+              "dm",
+              "channel"
+            ]
+          },
+          "startSeconds": {
+            "type": "number",
+            "description": "Custom clip start time in seconds from buffer start\nRequired if using custom range (no durationMinutes)",
+            "minimum": 0
+          },
+          "endSeconds": {
+            "type": "number",
+            "description": "Custom clip end time in seconds from buffer start\nRequired if using custom range (no durationMinutes)",
+            "minimum": 1
+          },
+          "targetChannelId": {
+            "type": "string",
+            "description": "Required if destination is 'channel'\nChannel ID to post the clip to",
+            "format": "uuid"
+          },
+          "targetDirectMessageGroupId": {
+            "type": "string",
+            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      },
+      "CaptureReplayResponseDto": {
+        "type": "object",
+        "properties": {
+          "clipId": {
+            "type": "string",
+            "description": "ID of the created ReplayClip record"
+          },
+          "fileId": {
+            "type": "string",
+            "description": "ID of the created File record"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "description": "Actual duration of the clip in seconds"
+          },
+          "requestedDurationSeconds": {
+            "type": "number",
+            "description": "Requested duration in seconds (for comparison)"
+          },
+          "sizeBytes": {
+            "type": "number",
+            "description": "File size in bytes"
+          },
+          "downloadUrl": {
+            "type": "string",
+            "description": "Download URL for the clip"
+          },
+          "messageId": {
+            "type": "string",
+            "description": "Optional: Message ID if auto-posted to channel/DM"
+          }
+        },
+        "required": [
+          "clipId",
+          "fileId",
+          "durationSeconds",
+          "requestedDurationSeconds",
+          "sizeBytes",
+          "downloadUrl"
+        ]
+      },
+      "ClipResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "downloadUrl": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "filename": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fileId",
+          "channelId",
+          "durationSeconds",
+          "isPublic",
+          "capturedAt",
+          "downloadUrl",
+          "sizeBytes",
+          "filename"
+        ]
+      },
+      "UpdateClipDto": {
+        "type": "object",
+        "properties": {
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether the clip should be publicly visible on user's profile"
+          }
+        }
+      },
+      "ShareClipDto": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "description": "Where to share the clip\n- 'channel': Post to specified channel\n- 'dm': Send to specified DM group",
+            "enum": [
+              "channel",
+              "dm"
+            ]
+          },
+          "targetChannelId": {
+            "type": "string",
+            "description": "Required if destination is 'channel'\nChannel ID to post the clip to",
+            "format": "uuid"
+          },
+          "targetDirectMessageGroupId": {
+            "type": "string",
+            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      },
+      "ShareClipResponseDto": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "enum": [
+              "channel",
+              "dm"
+            ]
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "clipId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "destination",
+          "messageId",
+          "clipId"
+        ]
+      },
+      "LiveKitRoomInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sid": {
+            "type": "string"
+          },
+          "numParticipants": {
+            "type": "number"
+          },
+          "creationTime": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "LiveKitParticipantInfo": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sid": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "identity"
+        ]
+      },
+      "LiveKitEgressInfo": {
+        "type": "object",
+        "properties": {
+          "egressId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "EGRESS_STARTING",
+              "EGRESS_ACTIVE",
+              "EGRESS_ENDING",
+              "EGRESS_COMPLETE",
+              "EGRESS_FAILED",
+              "EGRESS_ABORTED"
+            ]
+          },
+          "error": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "number"
+          },
+          "endedAt": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "egressId",
+          "status"
+        ]
+      },
+      "LiveKitWebhookDto": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "room_started",
+              "room_finished",
+              "participant_joined",
+              "participant_left",
+              "egress_started",
+              "egress_updated",
+              "egress_ended"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          },
+          "room": {
+            "$ref": "#/components/schemas/LiveKitRoomInfo"
+          },
+          "participant": {
+            "$ref": "#/components/schemas/LiveKitParticipantInfo"
+          },
+          "egressInfo": {
+            "$ref": "#/components/schemas/LiveKitEgressInfo"
+          }
+        },
+        "required": [
+          "event"
+        ]
+      },
       "FileMetadataResponseDto": {
         "type": "object",
         "properties": {
@@ -8948,6 +9652,12 @@
       "MembershipResponseDto": {
         "type": "object",
         "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleDto"
+            }
+          },
           "id": {
             "type": "string"
           },
@@ -10256,640 +10966,6 @@
           "displayName",
           "avatarUrl",
           "readAt"
-        ]
-      },
-      "CreateTokenDto": {
-        "type": "object",
-        "properties": {
-          "identity": {
-            "type": "string"
-          },
-          "roomId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "ttl": {
-            "type": "number",
-            "minimum": 1
-          }
-        },
-        "required": [
-          "identity",
-          "roomId"
-        ]
-      },
-      "TokenResponseDto": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string"
-          },
-          "identity": {
-            "type": "string"
-          },
-          "roomId": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "token",
-          "identity",
-          "roomId"
-        ]
-      },
-      "MuteParticipantDto": {
-        "type": "object",
-        "properties": {
-          "participantIdentity": {
-            "type": "string"
-          },
-          "mute": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "participantIdentity",
-          "mute"
-        ]
-      },
-      "ConnectionInfoResponseDto": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string"
-          }
-        }
-      },
-      "LivekitHealthResponseDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "configured": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "status",
-          "configured"
-        ]
-      },
-      "StartReplayBufferDto": {
-        "type": "object",
-        "properties": {
-          "channelId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "roomName": {
-            "type": "string"
-          },
-          "videoTrackId": {
-            "type": "string"
-          },
-          "audioTrackId": {
-            "type": "string"
-          },
-          "participantIdentity": {
-            "type": "string",
-            "description": "Participant identity (usually the user ID)\nUsed to query track resolution for matching egress encoding to source quality"
-          }
-        },
-        "required": [
-          "channelId",
-          "roomName",
-          "videoTrackId"
-        ]
-      },
-      "StartReplayResponseDto": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "egressId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "sessionId",
-          "egressId",
-          "status"
-        ]
-      },
-      "StopReplayResponseDto": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "egressId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "sessionId",
-          "egressId",
-          "status"
-        ]
-      },
-      "SessionInfoResponseDto": {
-        "type": "object",
-        "properties": {
-          "hasActiveSession": {
-            "type": "boolean",
-            "description": "Whether there's an active replay buffer session"
-          },
-          "sessionId": {
-            "type": "string",
-            "description": "Session ID (if active)"
-          },
-          "totalSegments": {
-            "type": "number",
-            "description": "Total number of segments available"
-          },
-          "totalDurationSeconds": {
-            "type": "number",
-            "description": "Total buffer duration in seconds"
-          },
-          "bufferStartTime": {
-            "format": "date-time",
-            "type": "string",
-            "description": "Oldest segment timestamp (when buffer started)"
-          },
-          "bufferEndTime": {
-            "format": "date-time",
-            "type": "string",
-            "description": "Most recent segment timestamp"
-          }
-        },
-        "required": [
-          "hasActiveSession"
-        ]
-      },
-      "CaptureReplayDto": {
-        "type": "object",
-        "properties": {
-          "durationMinutes": {
-            "type": "number",
-            "description": "Duration preset in minutes (optional if using custom range)\nUser selects from: 1, 2, 5, or 10 minutes",
-            "enum": [
-              1,
-              2,
-              5,
-              10
-            ]
-          },
-          "destination": {
-            "type": "string",
-            "description": "Where to save/post the clip\n- 'library': Save to user's clip library only\n- 'dm': Save to library and send to specified DM group\n- 'channel': Save to library and post to specified channel",
-            "enum": [
-              "library",
-              "dm",
-              "channel"
-            ]
-          },
-          "startSeconds": {
-            "type": "number",
-            "description": "Custom clip start time in seconds from buffer start\nRequired if using custom range (no durationMinutes)",
-            "minimum": 0
-          },
-          "endSeconds": {
-            "type": "number",
-            "description": "Custom clip end time in seconds from buffer start\nRequired if using custom range (no durationMinutes)",
-            "minimum": 1
-          },
-          "targetChannelId": {
-            "type": "string",
-            "description": "Required if destination is 'channel'\nChannel ID to post the clip to",
-            "format": "uuid"
-          },
-          "targetDirectMessageGroupId": {
-            "type": "string",
-            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "destination"
-        ]
-      },
-      "CaptureReplayResponseDto": {
-        "type": "object",
-        "properties": {
-          "clipId": {
-            "type": "string",
-            "description": "ID of the created ReplayClip record"
-          },
-          "fileId": {
-            "type": "string",
-            "description": "ID of the created File record"
-          },
-          "durationSeconds": {
-            "type": "number",
-            "description": "Actual duration of the clip in seconds"
-          },
-          "requestedDurationSeconds": {
-            "type": "number",
-            "description": "Requested duration in seconds (for comparison)"
-          },
-          "sizeBytes": {
-            "type": "number",
-            "description": "File size in bytes"
-          },
-          "downloadUrl": {
-            "type": "string",
-            "description": "Download URL for the clip"
-          },
-          "messageId": {
-            "type": "string",
-            "description": "Optional: Message ID if auto-posted to channel/DM"
-          }
-        },
-        "required": [
-          "clipId",
-          "fileId",
-          "durationSeconds",
-          "requestedDurationSeconds",
-          "sizeBytes",
-          "downloadUrl"
-        ]
-      },
-      "ClipResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "fileId": {
-            "type": "string"
-          },
-          "channelId": {
-            "type": "string",
-            "nullable": true
-          },
-          "durationSeconds": {
-            "type": "number"
-          },
-          "isPublic": {
-            "type": "boolean"
-          },
-          "capturedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "downloadUrl": {
-            "type": "string"
-          },
-          "sizeBytes": {
-            "type": "number"
-          },
-          "filename": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "fileId",
-          "channelId",
-          "durationSeconds",
-          "isPublic",
-          "capturedAt",
-          "downloadUrl",
-          "sizeBytes",
-          "filename"
-        ]
-      },
-      "UpdateClipDto": {
-        "type": "object",
-        "properties": {
-          "isPublic": {
-            "type": "boolean",
-            "description": "Whether the clip should be publicly visible on user's profile"
-          }
-        }
-      },
-      "ShareClipDto": {
-        "type": "object",
-        "properties": {
-          "destination": {
-            "type": "string",
-            "description": "Where to share the clip\n- 'channel': Post to specified channel\n- 'dm': Send to specified DM group",
-            "enum": [
-              "channel",
-              "dm"
-            ]
-          },
-          "targetChannelId": {
-            "type": "string",
-            "description": "Required if destination is 'channel'\nChannel ID to post the clip to",
-            "format": "uuid"
-          },
-          "targetDirectMessageGroupId": {
-            "type": "string",
-            "description": "Required if destination is 'dm'\nDirect message group ID to send clip to",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "destination"
-        ]
-      },
-      "ShareClipResponseDto": {
-        "type": "object",
-        "properties": {
-          "destination": {
-            "type": "string",
-            "enum": [
-              "channel",
-              "dm"
-            ]
-          },
-          "messageId": {
-            "type": "string"
-          },
-          "clipId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "destination",
-          "messageId",
-          "clipId"
-        ]
-      },
-      "LiveKitRoomInfo": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "sid": {
-            "type": "string"
-          },
-          "numParticipants": {
-            "type": "number"
-          },
-          "creationTime": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "name"
-        ]
-      },
-      "LiveKitParticipantInfo": {
-        "type": "object",
-        "properties": {
-          "identity": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "sid": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "string"
-          },
-          "joinedAt": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "identity"
-        ]
-      },
-      "LiveKitEgressInfo": {
-        "type": "object",
-        "properties": {
-          "egressId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "EGRESS_STARTING",
-              "EGRESS_ACTIVE",
-              "EGRESS_ENDING",
-              "EGRESS_COMPLETE",
-              "EGRESS_FAILED",
-              "EGRESS_ABORTED"
-            ]
-          },
-          "error": {
-            "type": "string"
-          },
-          "startedAt": {
-            "type": "number"
-          },
-          "endedAt": {
-            "type": "number"
-          },
-          "updatedAt": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "egressId",
-          "status"
-        ]
-      },
-      "LiveKitWebhookDto": {
-        "type": "object",
-        "properties": {
-          "event": {
-            "type": "string",
-            "enum": [
-              "room_started",
-              "room_finished",
-              "participant_joined",
-              "participant_left",
-              "egress_started",
-              "egress_updated",
-              "egress_ended"
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "number"
-          },
-          "room": {
-            "$ref": "#/components/schemas/LiveKitRoomInfo"
-          },
-          "participant": {
-            "$ref": "#/components/schemas/LiveKitParticipantInfo"
-          },
-          "egressInfo": {
-            "$ref": "#/components/schemas/LiveKitEgressInfo"
-          }
-        },
-        "required": [
-          "event"
-        ]
-      },
-      "VoicePresenceUserDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "avatarUrl": {
-            "type": "string"
-          },
-          "joinedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "isDeafened": {
-            "type": "boolean"
-          },
-          "isServerMuted": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id",
-          "username",
-          "joinedAt",
-          "isDeafened",
-          "isServerMuted"
-        ]
-      },
-      "ChannelVoicePresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "channelId": {
-            "type": "string"
-          },
-          "users": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/VoicePresenceUserDto"
-            }
-          },
-          "count": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "channelId",
-          "users",
-          "count"
-        ]
-      },
-      "RefreshPresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "message": {
-            "type": "string"
-          },
-          "channelId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "channelId"
-        ]
-      },
-      "UpdateDeafenStateDto": {
-        "type": "object",
-        "properties": {
-          "isDeafened": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "isDeafened"
-        ]
-      },
-      "UserVoiceChannelsResponseDto": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string"
-          },
-          "voiceChannels": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "userId",
-          "voiceChannels"
-        ]
-      },
-      "DmVoicePresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "dmGroupId": {
-            "type": "string"
-          },
-          "users": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/VoicePresenceUserDto"
-            }
-          },
-          "count": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "dmGroupId",
-          "users",
-          "count"
-        ]
-      },
-      "RefreshDmPresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "message": {
-            "type": "string"
-          },
-          "dmGroupId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "dmGroupId"
         ]
       },
       "OnboardingStatusDto": {

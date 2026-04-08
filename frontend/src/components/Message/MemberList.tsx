@@ -23,6 +23,7 @@ export interface MemberData {
   avatarUrl?: string | null;
   isOnline?: boolean;
   status?: string | null;
+  displayRole?: { id: string; name: string; position: number };
 }
 
 interface MemberListProps {
@@ -50,6 +51,34 @@ interface ContextMenuState {
   member: MemberData | null;
 }
 
+interface RoleGroup {
+  roleId: string;
+  roleName: string;
+  position: number;
+  members: MemberData[];
+}
+
+/**
+ * Section header for role groups and online/offline sections.
+ * Styled like Discord's uppercase, muted section headers.
+ */
+const SectionHeader: React.FC<{ label: string; count: number }> = ({ label, count }) => (
+  <ListItem sx={{ px: 2, pt: 2, pb: 0.5 }}>
+    <Typography
+      variant="overline"
+      sx={{
+        fontSize: "11px",
+        fontWeight: 600,
+        letterSpacing: "0.05em",
+        color: "text.secondary",
+        lineHeight: 1.5,
+      }}
+    >
+      {label} — {count}
+    </Typography>
+  </ListItem>
+);
+
 const MemberList: React.FC<MemberListProps> = ({
   members,
   isLoading = false,
@@ -76,6 +105,117 @@ const MemberList: React.FC<MemberListProps> = ({
     setContextMenu({ position: null, member: null });
   };
 
+  // Group members by display role
+  const { roleGroups, onlineMembers, offlineMembers } = React.useMemo(() => {
+    const groupMap = new Map<string, RoleGroup>();
+    const ungroupedOnline: MemberData[] = [];
+    const ungroupedOffline: MemberData[] = [];
+
+    for (const member of members) {
+      if (member.displayRole) {
+        const key = member.displayRole.id;
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            roleId: member.displayRole.id,
+            roleName: member.displayRole.name,
+            position: member.displayRole.position,
+            members: [],
+          });
+        }
+        groupMap.get(key)!.members.push(member);
+      } else if (member.isOnline) {
+        ungroupedOnline.push(member);
+      } else {
+        ungroupedOffline.push(member);
+      }
+    }
+
+    // Sort role groups by position (lowest first = highest priority)
+    const sortedGroups = Array.from(groupMap.values()).sort(
+      (a, b) => a.position - b.position,
+    );
+
+    // Sort members within each group: online first, then alphabetically
+    for (const group of sortedGroups) {
+      group.members.sort((a, b) => {
+        if (a.isOnline && !b.isOnline) return -1;
+        if (!a.isOnline && b.isOnline) return 1;
+        return (a.displayName || a.username).localeCompare(b.displayName || b.username);
+      });
+    }
+
+    // Sort ungrouped members alphabetically
+    ungroupedOnline.sort((a, b) =>
+      (a.displayName || a.username).localeCompare(b.displayName || b.username),
+    );
+    ungroupedOffline.sort((a, b) =>
+      (a.displayName || a.username).localeCompare(b.displayName || b.username),
+    );
+
+    return {
+      roleGroups: sortedGroups,
+      onlineMembers: ungroupedOnline,
+      offlineMembers: ungroupedOffline,
+    };
+  }, [members]);
+
+  const renderMember = (member: MemberData) => (
+    <ListItemButton
+      key={member.id}
+      onClick={() => openProfile(member.id)}
+      onContextMenu={(e) => handleContextMenu(e, member)}
+      sx={{
+        px: 2,
+        py: 0.5,
+        "&:hover": {
+          backgroundColor: theme.palette.semantic.overlay.light,
+        },
+      }}
+    >
+      <ListItemAvatar sx={{ minWidth: 40 }}>
+        <UserAvatar
+          userId={member.id}
+          size="small"
+          showStatus={true}
+          isOnline={member.isOnline}
+        />
+      </ListItemAvatar>
+      <ListItemText
+        primary={
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 500,
+              fontSize: "14px",
+              lineHeight: 1.2,
+            }}
+          >
+            {member.displayName || member.username}
+          </Typography>
+        }
+        secondary={
+          member.status ? (
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                fontSize: "11px",
+                lineHeight: 1.2,
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 150,
+              }}
+            >
+              {member.status}
+            </Typography>
+          ) : null
+        }
+      />
+    </ListItemButton>
+  );
+
   if (error) {
     return (
       <Box sx={{ width: 240, p: 2 }}>
@@ -85,6 +225,8 @@ const MemberList: React.FC<MemberListProps> = ({
       </Box>
     );
   }
+
+  const hasRoleGroups = roleGroups.length > 0;
 
   return (
     <Box
@@ -125,62 +267,36 @@ const MemberList: React.FC<MemberListProps> = ({
             ? Array.from({ length: 6 }).map((_, index) => (
                 <MemberListSkeleton key={index} />
               ))
-            : members.map((member) => (
-                <ListItemButton
-                  key={member.id}
-                  onClick={() => openProfile(member.id)}
-                  onContextMenu={(e) => handleContextMenu(e, member)}
-                  sx={{
-                    px: 2,
-                    py: 0.5,
-                    "&:hover": {
-                      backgroundColor: theme.palette.semantic.overlay.light,
-                    },
-                  }}
-                >
-                  <ListItemAvatar sx={{ minWidth: 40 }}>
-                    <UserAvatar
-                      userId={member.id}
-                      size="small"
-                      showStatus={true}
-                      isOnline={member.isOnline}
+            : (
+              <>
+                {/* Role groups */}
+                {roleGroups.map((group) => (
+                  <React.Fragment key={group.roleId}>
+                    <SectionHeader label={group.roleName} count={group.members.length} />
+                    {group.members.map(renderMember)}
+                  </React.Fragment>
+                ))}
+
+                {/* Online members without special roles */}
+                {onlineMembers.length > 0 && (
+                  <>
+                    <SectionHeader
+                      label={hasRoleGroups ? "Online" : "Online"}
+                      count={onlineMembers.length}
                     />
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 500,
-                          fontSize: "14px",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {member.displayName || member.username}
-                      </Typography>
-                    }
-                    secondary={
-                      member.status ? (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "text.secondary",
-                            fontSize: "11px",
-                            lineHeight: 1.2,
-                            display: "block",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            maxWidth: 150,
-                          }}
-                        >
-                          {member.status}
-                        </Typography>
-                      ) : null
-                    }
-                  />
-                </ListItemButton>
-              ))}
+                    {onlineMembers.map(renderMember)}
+                  </>
+                )}
+
+                {/* Offline members without special roles */}
+                {offlineMembers.length > 0 && (
+                  <>
+                    <SectionHeader label="Offline" count={offlineMembers.length} />
+                    {offlineMembers.map(renderMember)}
+                  </>
+                )}
+              </>
+            )}
         </List>
 
         {/* Empty State */}

@@ -256,6 +256,7 @@ export class RolesService implements OnModuleInit {
       actions: ur.role.actions,
       createdAt: ur.role.createdAt,
       isDefault: ur.role.isDefault,
+      position: ur.role.position,
     }));
 
     return {
@@ -305,6 +306,7 @@ export class RolesService implements OnModuleInit {
       actions: ur.role.actions,
       createdAt: ur.role.createdAt,
       isDefault: ur.role.isDefault,
+      position: ur.role.position,
     }));
 
     return {
@@ -332,6 +334,7 @@ export class RolesService implements OnModuleInit {
       actions: ur.role.actions,
       createdAt: ur.role.createdAt,
       isDefault: ur.role.isDefault,
+      position: ur.role.position,
     }));
 
     return {
@@ -361,6 +364,7 @@ export class RolesService implements OnModuleInit {
           name: defaultRole.name,
           communityId,
           isDefault: true,
+          position: defaultRole.position,
           actions: defaultRole.actions,
         },
       });
@@ -430,6 +434,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 
@@ -454,6 +459,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 
@@ -476,6 +482,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 
@@ -493,6 +500,7 @@ export class RolesService implements OnModuleInit {
         name: DEFAULT_MEMBER_ROLE.name,
         communityId,
         isDefault: true,
+        position: DEFAULT_MEMBER_ROLE.position,
         actions: DEFAULT_MEMBER_ROLE.actions,
       },
     });
@@ -519,7 +527,11 @@ export class RolesService implements OnModuleInit {
         if (existing) {
           await tx.role.update({
             where: { id: existing.id },
-            data: { actions: defaultRole.actions, isDefault: true },
+            data: {
+              actions: defaultRole.actions,
+              isDefault: true,
+              position: defaultRole.position,
+            },
           });
         } else {
           await tx.role.create({
@@ -527,6 +539,7 @@ export class RolesService implements OnModuleInit {
               name: defaultRole.name,
               communityId,
               isDefault: true,
+              position: defaultRole.position,
               actions: defaultRole.actions,
             },
           });
@@ -546,7 +559,7 @@ export class RolesService implements OnModuleInit {
   ): Promise<CommunityRolesResponseDto> {
     const roles = await this.databaseService.role.findMany({
       where: { communityId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     });
 
     const roleDtos: RoleDto[] = roles.map((role) => ({
@@ -555,12 +568,73 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     }));
 
     return {
       communityId,
       roles: roleDtos,
     };
+  }
+
+  /**
+   * Reorder roles for a community.
+   * Accepts an ordered array of role IDs.
+   * Sets position = index * 10 + 10 for each (first=10, second=20, etc.).
+   * The "Member" default role is always last (position 100).
+   */
+  async reorderRoles(
+    communityId: string,
+    roleIds: string[],
+  ): Promise<RoleDto[]> {
+    // Fetch all roles for this community
+    const communityRoles = await this.databaseService.role.findMany({
+      where: { communityId },
+    });
+
+    // Validate all roleIds belong to this community
+    const communityRoleIds = new Set(communityRoles.map((r) => r.id));
+    const memberRole = communityRoles.find(
+      (r) => r.name === DEFAULT_MEMBER_ROLE.name && r.isDefault,
+    );
+
+    for (const roleId of roleIds) {
+      if (!communityRoleIds.has(roleId)) {
+        throw new BadRequestException(
+          `Role ${roleId} does not belong to community ${communityId}`,
+        );
+      }
+    }
+
+    // Filter out the Member role from the reorder list — it's always last
+    const reorderableIds = roleIds.filter(
+      (id) => !memberRole || id !== memberRole.id,
+    );
+
+    await this.databaseService.$transaction(async (tx) => {
+      for (let i = 0; i < reorderableIds.length; i++) {
+        await tx.role.update({
+          where: { id: reorderableIds[i] },
+          data: { position: (i + 1) * 10 },
+        });
+      }
+
+      // Ensure the Member role is always at position 100
+      if (memberRole) {
+        await tx.role.update({
+          where: { id: memberRole.id },
+          data: { position: 100 },
+        });
+      }
+    });
+
+    this.logger.log(`Reordered roles for community ${communityId}`);
+
+    this.eventEmitter.emit(RoomEvents.ROLE_UPDATED, {
+      communityId,
+    });
+
+    return (await this.getCommunityRoles(communityId)).roles;
   }
 
   /**
@@ -622,11 +696,29 @@ export class RolesService implements OnModuleInit {
       }
     }
 
+    // Auto-assign position if not provided: use max position among non-Member roles + 1
+    let position = createRoleDto.position;
+    if (position === undefined) {
+      const maxPositionResult = await database.role.aggregate({
+        where: {
+          communityId,
+          name: { not: DEFAULT_MEMBER_ROLE.name },
+        },
+        _max: { position: true },
+      });
+      position = (maxPositionResult._max.position ?? 0) + 1;
+      // Ensure position stays below the Member role position (100)
+      if (position >= 100) {
+        position = 99;
+      }
+    }
+
     const role = await database.role.create({
       data: {
         name: createRoleDto.name,
         communityId,
         isDefault: false,
+        position,
         actions: createRoleDto.actions,
       },
     });
@@ -650,6 +742,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 
@@ -753,6 +846,9 @@ export class RolesService implements OnModuleInit {
       data: {
         name: newName,
         actions: updateRoleDto.actions,
+        ...(updateRoleDto.position !== undefined && {
+          position: updateRoleDto.position,
+        }),
       },
     });
 
@@ -772,6 +868,7 @@ export class RolesService implements OnModuleInit {
       actions: updatedRole.actions,
       createdAt: updatedRole.createdAt,
       isDefault: updatedRole.isDefault,
+      position: updatedRole.position,
     };
   }
 
@@ -930,6 +1027,7 @@ export class RolesService implements OnModuleInit {
       data: {
         name: DEFAULT_INSTANCE_ADMIN_ROLE.name,
         actions: DEFAULT_INSTANCE_ADMIN_ROLE.actions,
+        position: DEFAULT_INSTANCE_ADMIN_ROLE.position,
         communityId: null,
         isDefault: true,
       },
@@ -959,7 +1057,7 @@ export class RolesService implements OnModuleInit {
           { UserRoles: { some: { isInstanceRole: true } } },
         ],
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     });
 
     return roles.map((role) => ({
@@ -968,6 +1066,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     }));
   }
 
@@ -1014,6 +1113,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 
@@ -1088,6 +1188,7 @@ export class RolesService implements OnModuleInit {
       actions: updated.actions,
       createdAt: updated.createdAt,
       isDefault: updated.isDefault,
+      position: updated.position,
     };
   }
 
@@ -1260,6 +1361,7 @@ export class RolesService implements OnModuleInit {
       data: {
         name: DEFAULT_COMMUNITY_CREATOR_ROLE.name,
         actions: DEFAULT_COMMUNITY_CREATOR_ROLE.actions,
+        position: DEFAULT_COMMUNITY_CREATOR_ROLE.position,
         communityId: null,
         isDefault: true,
       },
@@ -1285,6 +1387,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 
@@ -1334,6 +1437,7 @@ export class RolesService implements OnModuleInit {
         data: {
           name: roleConfig.name,
           actions: roleConfig.actions,
+          position: roleConfig.position,
           communityId: null,
           isDefault: true,
         },
@@ -1369,6 +1473,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 
@@ -1388,6 +1493,7 @@ export class RolesService implements OnModuleInit {
       actions: role.actions,
       createdAt: role.createdAt,
       isDefault: role.isDefault,
+      position: role.position,
     };
   }
 }

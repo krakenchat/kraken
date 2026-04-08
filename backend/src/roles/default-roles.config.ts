@@ -2,6 +2,7 @@ import { RbacActions } from '@prisma/client';
 
 export interface DefaultRoleConfig {
   name: string;
+  position: number;
   actions: RbacActions[];
 }
 
@@ -11,6 +12,7 @@ export interface DefaultRoleConfig {
  */
 export const DEFAULT_INSTANCE_ADMIN_ROLE: DefaultRoleConfig = {
   name: 'Instance Admin',
+  position: 10,
   actions: [
     // Instance administration
     RbacActions.READ_INSTANCE_SETTINGS,
@@ -45,6 +47,7 @@ export function getInstanceAdminActions(): RbacActions[] {
  */
 export const DEFAULT_COMMUNITY_CREATOR_ROLE: DefaultRoleConfig = {
   name: 'Community Creator',
+  position: 20,
   actions: [
     // Community creation and full management of own communities
     RbacActions.CREATE_COMMUNITY,
@@ -123,6 +126,7 @@ export function getCommunityCreatorActions(): RbacActions[] {
  */
 export const DEFAULT_USER_MANAGER_ROLE: DefaultRoleConfig = {
   name: 'User Manager',
+  position: 30,
   actions: [
     // User management
     RbacActions.READ_USER,
@@ -142,6 +146,7 @@ export const DEFAULT_USER_MANAGER_ROLE: DefaultRoleConfig = {
  */
 export const DEFAULT_INVITE_MANAGER_ROLE: DefaultRoleConfig = {
   name: 'Invite Manager',
+  position: 40,
   actions: [
     // Instance invite management
     RbacActions.READ_INSTANCE_INVITE,
@@ -168,6 +173,7 @@ export function getDefaultInstanceRoles(): DefaultRoleConfig[] {
  */
 export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
   name: 'Community Admin',
+  position: 10,
   actions: [
     // All CRUD operations for communities
     RbacActions.UPDATE_COMMUNITY,
@@ -239,6 +245,7 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
  */
 export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
   name: 'Moderator',
+  position: 20,
   actions: [
     // Read permissions
     RbacActions.READ_COMMUNITY,
@@ -289,6 +296,7 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
  */
 export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
   name: 'Member',
+  position: 100,
   actions: [
     // Basic read permissions
     RbacActions.READ_COMMUNITY,

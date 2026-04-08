@@ -621,6 +621,7 @@ describe('RolesService', () => {
             actions: role.actions,
             createdAt: role.createdAt,
             isDefault: role.isDefault,
+            position: role.position,
           },
         ],
       });
@@ -823,7 +824,7 @@ describe('RolesService', () => {
   });
 
   describe('createCommunityRole', () => {
-    it('should create custom community role', async () => {
+    it('should create custom community role with auto-assigned position', async () => {
       const communityId = 'community-123';
       const createRoleDto = {
         name: 'Custom Role',
@@ -833,10 +834,14 @@ describe('RolesService', () => {
         name: 'Custom Role',
         communityId,
         isDefault: false,
+        position: 21,
         actions: createRoleDto.actions,
       });
 
       mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.aggregate.mockResolvedValue({
+        _max: { position: 20 },
+      });
       mockDatabase.role.create.mockResolvedValue(createdRole);
 
       const result = await service.createCommunityRole(
@@ -847,14 +852,23 @@ describe('RolesService', () => {
       expect(result.name).toBe('Custom Role');
       expect(result.actions).toEqual(createRoleDto.actions);
       expect(result.isDefault).toBe(false);
+      expect(result.position).toBe(21);
       expect(mockDatabase.role.findFirst).toHaveBeenCalledWith({
         where: { name: 'Custom Role', communityId },
+      });
+      expect(mockDatabase.role.aggregate).toHaveBeenCalledWith({
+        where: {
+          communityId,
+          name: { not: 'Member' },
+        },
+        _max: { position: true },
       });
       expect(mockDatabase.role.create).toHaveBeenCalledWith({
         data: {
           name: 'Custom Role',
           communityId,
           isDefault: false,
+          position: 21,
           actions: createRoleDto.actions,
         },
       });
@@ -956,6 +970,9 @@ describe('RolesService', () => {
           },
         ]);
 
+        mockDatabase.role.aggregate.mockResolvedValue({
+          _max: { position: 20 },
+        });
         mockDatabase.role.create.mockResolvedValue(createdRole);
 
         const result = await service.createCommunityRole(
@@ -982,6 +999,9 @@ describe('RolesService', () => {
         });
 
         mockDatabase.role.findFirst.mockResolvedValue(null);
+        mockDatabase.role.aggregate.mockResolvedValue({
+          _max: { position: 20 },
+        });
         mockDatabase.role.create.mockResolvedValue(createdRole);
 
         // Call without userId — should not check user permissions
@@ -1478,9 +1498,7 @@ describe('RolesService', () => {
       expect(result.roles[0].isDefault).toBe(true);
       expect(mockDatabase.role.findMany).toHaveBeenCalledWith({
         where: { communityId },
-        orderBy: {
-          createdAt: 'asc',
-        },
+        orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
       });
     });
 
@@ -1553,7 +1571,7 @@ describe('RolesService', () => {
       // Existing role gets updated by id
       expect(mockDatabase.role.update).toHaveBeenCalledWith({
         where: { id: 'admin-role-id' },
-        data: { actions: expect.any(Array), isDefault: true },
+        data: { actions: expect.any(Array), isDefault: true, position: 10 },
       });
 
       // Missing roles get created
@@ -1562,6 +1580,7 @@ describe('RolesService', () => {
           name: 'Moderator',
           communityId,
           isDefault: true,
+          position: 20,
           actions: expect.any(Array),
         },
       });
@@ -1570,6 +1589,7 @@ describe('RolesService', () => {
           name: 'Member',
           communityId,
           isDefault: true,
+          position: 100,
           actions: expect.any(Array),
         },
       });
@@ -1588,12 +1608,13 @@ describe('RolesService', () => {
 
       await service.resetDefaultCommunityRoles(communityId);
 
-      // Update only touches actions and isDefault — not UserRoles
+      // Update only touches actions, isDefault, and position — not UserRoles
       for (const call of mockDatabase.role.update.mock.calls) {
         const args = call[0];
         expect(args.data).toEqual({
           actions: expect.any(Array),
           isDefault: true,
+          position: expect.any(Number),
         });
         expect(args.data).not.toHaveProperty('UserRoles');
       }
@@ -1623,6 +1644,7 @@ describe('RolesService', () => {
           data: {
             name: 'Instance Admin',
             actions: expect.any(Array),
+            position: 10,
             communityId: null,
             isDefault: true,
           },
@@ -1693,7 +1715,7 @@ describe('RolesService', () => {
               { UserRoles: { some: { isInstanceRole: true } } },
             ],
           },
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
         });
       });
     });
@@ -2087,6 +2109,7 @@ describe('RolesService', () => {
           data: {
             name: 'Community Creator',
             actions: expect.any(Array),
+            position: 20,
             communityId: null,
             isDefault: true,
           },
@@ -2314,6 +2337,259 @@ describe('RolesService', () => {
         // Should not throw
         await expect(service.onModuleInit()).resolves.not.toThrow();
       });
+    });
+  });
+
+  describe('reorderRoles', () => {
+    it('should reorder roles and set positions correctly', async () => {
+      const communityId = 'community-123';
+      const adminRole = RoleFactory.buildAdmin({ communityId });
+      const modRole = RoleFactory.buildModerator({ communityId });
+      const memberRole = RoleFactory.buildMember({
+        communityId,
+        name: 'Member',
+      });
+      const customRole = RoleFactory.build({
+        communityId,
+        name: 'Custom',
+        position: 30,
+      });
+
+      mockDatabase.role.findMany.mockResolvedValueOnce([
+        adminRole,
+        modRole,
+        memberRole,
+        customRole,
+      ]);
+
+      // Mock the transaction
+      mockDatabase.role.update.mockResolvedValue({});
+
+      // Mock getCommunityRoles called at the end
+      mockDatabase.role.findMany.mockResolvedValueOnce([
+        { ...customRole, position: 10 },
+        { ...modRole, position: 20 },
+        { ...adminRole, position: 30 },
+        { ...memberRole, position: 100 },
+      ]);
+
+      const result = await service.reorderRoles(communityId, [
+        customRole.id,
+        modRole.id,
+        adminRole.id,
+      ]);
+
+      expect(result).toHaveLength(4);
+      // Verify update calls within the transaction
+      expect(mockDatabase.role.update).toHaveBeenCalledWith({
+        where: { id: customRole.id },
+        data: { position: 10 },
+      });
+      expect(mockDatabase.role.update).toHaveBeenCalledWith({
+        where: { id: modRole.id },
+        data: { position: 20 },
+      });
+      expect(mockDatabase.role.update).toHaveBeenCalledWith({
+        where: { id: adminRole.id },
+        data: { position: 30 },
+      });
+      // Member role should always be at 100
+      expect(mockDatabase.role.update).toHaveBeenCalledWith({
+        where: { id: memberRole.id },
+        data: { position: 100 },
+      });
+    });
+
+    it('should throw BadRequestException when roleId does not belong to community', async () => {
+      const communityId = 'community-123';
+      const adminRole = RoleFactory.buildAdmin({ communityId });
+      const memberRole = RoleFactory.buildMember({ communityId });
+
+      mockDatabase.role.findMany.mockResolvedValue([adminRole, memberRole]);
+
+      await expect(
+        service.reorderRoles(communityId, ['non-existent-role-id']),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should filter out Member role from reorder list and keep at position 100', async () => {
+      const communityId = 'community-123';
+      const adminRole = RoleFactory.buildAdmin({ communityId });
+      const memberRole = RoleFactory.buildMember({
+        communityId,
+        name: 'Member',
+      });
+
+      mockDatabase.role.findMany.mockResolvedValueOnce([
+        adminRole,
+        memberRole,
+      ]);
+      mockDatabase.role.update.mockResolvedValue({});
+
+      // Mock getCommunityRoles
+      mockDatabase.role.findMany.mockResolvedValueOnce([
+        { ...adminRole, position: 10 },
+        { ...memberRole, position: 100 },
+      ]);
+
+      // Include the Member role ID in the reorder list — it should be filtered out
+      await service.reorderRoles(communityId, [
+        memberRole.id,
+        adminRole.id,
+      ]);
+
+      // adminRole should get position 10 (first non-member role)
+      expect(mockDatabase.role.update).toHaveBeenCalledWith({
+        where: { id: adminRole.id },
+        data: { position: 10 },
+      });
+      // Member role should be at 100
+      expect(mockDatabase.role.update).toHaveBeenCalledWith({
+        where: { id: memberRole.id },
+        data: { position: 100 },
+      });
+    });
+  });
+
+  describe('createCommunityRole position auto-assignment', () => {
+    it('should cap auto-assigned position below 100', async () => {
+      const communityId = 'community-123';
+      const createRoleDto = {
+        name: 'High Position Role',
+        actions: [RbacActions.CREATE_MESSAGE],
+      };
+      const createdRole = RoleFactory.build({
+        name: 'High Position Role',
+        communityId,
+        isDefault: false,
+        position: 99,
+        actions: createRoleDto.actions,
+      });
+
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.aggregate.mockResolvedValue({
+        _max: { position: 99 },
+      });
+      mockDatabase.role.create.mockResolvedValue(createdRole);
+
+      await service.createCommunityRole(communityId, createRoleDto);
+
+      expect(mockDatabase.role.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          position: 99,
+        }),
+      });
+    });
+
+    it('should use provided position when explicitly set', async () => {
+      const communityId = 'community-123';
+      const createRoleDto = {
+        name: 'Explicit Position Role',
+        actions: [RbacActions.CREATE_MESSAGE],
+        position: 15,
+      };
+      const createdRole = RoleFactory.build({
+        name: 'Explicit Position Role',
+        communityId,
+        isDefault: false,
+        position: 15,
+        actions: createRoleDto.actions,
+      });
+
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.create.mockResolvedValue(createdRole);
+
+      await service.createCommunityRole(communityId, createRoleDto);
+
+      // aggregate should NOT be called when position is explicitly provided
+      expect(mockDatabase.role.aggregate).not.toHaveBeenCalled();
+      expect(mockDatabase.role.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          position: 15,
+        }),
+      });
+    });
+
+    it('should default to position 1 when no non-Member roles exist', async () => {
+      const communityId = 'community-123';
+      const createRoleDto = {
+        name: 'First Custom Role',
+        actions: [RbacActions.CREATE_MESSAGE],
+      };
+      const createdRole = RoleFactory.build({
+        name: 'First Custom Role',
+        communityId,
+        isDefault: false,
+        position: 1,
+        actions: createRoleDto.actions,
+      });
+
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
+      mockDatabase.role.create.mockResolvedValue(createdRole);
+
+      await service.createCommunityRole(communityId, createRoleDto);
+
+      expect(mockDatabase.role.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          position: 1,
+        }),
+      });
+    });
+  });
+
+  describe('RoleDto includes position field', () => {
+    it('getCommunityRoles should include position in response', async () => {
+      const communityId = 'community-123';
+      const roles = [
+        RoleFactory.build({
+          name: 'Admin',
+          communityId,
+          isDefault: true,
+          position: 10,
+        }),
+        RoleFactory.build({
+          name: 'Member',
+          communityId,
+          isDefault: true,
+          position: 100,
+        }),
+      ];
+
+      mockDatabase.role.findMany.mockResolvedValue(roles);
+
+      const result = await service.getCommunityRoles(communityId);
+
+      expect(result.roles[0].position).toBe(10);
+      expect(result.roles[1].position).toBe(100);
+    });
+
+    it('getUserRolesForCommunity should include position in response', async () => {
+      const userId = 'user-123';
+      const communityId = 'community-123';
+      const role = RoleFactory.buildAdmin({
+        communityId,
+        position: 10,
+      });
+
+      mockDatabase.userRoles.findMany.mockResolvedValue([
+        {
+          userId,
+          communityId,
+          roleId: role.id,
+          isInstanceRole: false,
+          role,
+        },
+      ]);
+
+      const result = await service.getUserRolesForCommunity(
+        userId,
+        communityId,
+      );
+
+      expect(result.roles[0].position).toBe(10);
     });
   });
 });

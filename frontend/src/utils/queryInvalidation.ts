@@ -19,6 +19,8 @@ export function invalidateAllRoleQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForCommunity' }] });
   queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserRolesForChannel' }] });
   queryClient.invalidateQueries({ queryKey: [{ _id: 'rolesControllerGetUserInstanceRoles' }] });
+  // Membership responses now include roles, so invalidate when roles change
+  queryClient.invalidateQueries({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
 }
 
 export function invalidateMemberQueries(queryClient: QueryClient) {
