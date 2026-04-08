@@ -23,6 +23,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import type { Message } from '../../types/message.type';
 import { spansToText } from '../../utils/mentionParser';
+import { copyToClipboard } from '../../utils/clipboard';
 
 export interface MessageContextMenuProps {
   anchorPosition: { top: number; left: number } | null;
@@ -67,11 +68,7 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
 }) => {
   const handleCopyContent = useCallback(() => {
     const text = spansToText(message.spans);
-    if (window.electronAPI?.writeClipboard) {
-      window.electronAPI.writeClipboard(text);
-    } else {
-      navigator.clipboard.writeText(text);
-    }
+    copyToClipboard(text);
     onClose();
   }, [message.spans, onClose]);
 

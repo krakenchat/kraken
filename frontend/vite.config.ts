@@ -64,13 +64,13 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://backend:3000",
+        target: process.env.VITE_BACKEND_URL || "http://backend:3000",
         changeOrigin: true,
         secure: false, // Set to true if using HTTPS
       },
       // Proxy websocket requests
       "/socket.io": {
-        target: "ws://backend:3000",
+        target: (process.env.VITE_BACKEND_URL || "http://backend:3000").replace("http", "ws"),
         ws: true,
         changeOrigin: true,
         secure: false,

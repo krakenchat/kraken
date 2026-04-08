@@ -13,6 +13,11 @@ vi.mock('../../utils/platform', () => ({
   isWeb: vi.fn(() => false),
 }));
 
+// Mock clipboard utility
+vi.mock('../../utils/clipboard', () => ({
+  copyToClipboard: vi.fn().mockResolvedValue(undefined),
+}));
+
 function defaultProps(
   overrides: Partial<MessageContextMenuProps> = {},
 ): MessageContextMenuProps {
@@ -217,13 +222,9 @@ describe('MessageContextMenu', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('copies message content using electronAPI when available', async () => {
-    const writeClipboard = vi.fn();
-    Object.defineProperty(window, 'electronAPI', {
-      value: { writeClipboard, isElectron: true },
-      writable: true,
-      configurable: true,
-    });
+  it('copies message content using copyToClipboard', async () => {
+    const { copyToClipboard } = await import('../../utils/clipboard');
+    vi.mocked(copyToClipboard).mockResolvedValue(undefined);
 
     const onClose = vi.fn();
     const props = defaultProps({
@@ -237,25 +238,13 @@ describe('MessageContextMenu', () => {
     );
 
     await user.click(screen.getByText('Copy Message Content'));
-    expect(writeClipboard).toHaveBeenCalledWith('Copy me');
+    expect(copyToClipboard).toHaveBeenCalledWith('Copy me');
     expect(onClose).toHaveBeenCalledOnce();
-
-    // Clean up
-    Object.defineProperty(window, 'electronAPI', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
   });
 
-  it('copies multi-span message content using electronAPI.writeClipboard', async () => {
-    // Test that multi-span messages (e.g. text + mention) are serialized correctly
-    const writeClipboard = vi.fn();
-    Object.defineProperty(window, 'electronAPI', {
-      value: { writeClipboard, isElectron: true },
-      writable: true,
-      configurable: true,
-    });
+  it('copies multi-span message content correctly', async () => {
+    const { copyToClipboard } = await import('../../utils/clipboard');
+    vi.mocked(copyToClipboard).mockResolvedValue(undefined);
 
     const onClose = vi.fn();
     const props = defaultProps({
@@ -272,15 +261,8 @@ describe('MessageContextMenu', () => {
     );
 
     await user.click(screen.getByText('Copy Message Content'));
-    expect(writeClipboard).toHaveBeenCalledWith('Hello @alice');
+    expect(copyToClipboard).toHaveBeenCalledWith('Hello @alice');
     expect(onClose).toHaveBeenCalledOnce();
-
-    // Clean up
-    Object.defineProperty(window, 'electronAPI', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
   });
 
   it('does not render when open is false', () => {
