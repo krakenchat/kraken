@@ -9,6 +9,7 @@ export class RoleDto {
   actions: RbacActions[];
   createdAt: Date;
   isDefault: boolean;
+  position: number;
 }
 
 export class UserRolesResponseDto {

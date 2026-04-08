@@ -7,7 +7,7 @@
  * Security: nodeIntegration is disabled, contextIsolation is enabled
  */
 
-import { contextBridge, ipcRenderer, IpcRendererEvent, clipboard } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 /**
  * Update information passed from main process
@@ -160,7 +160,7 @@ const electronAPI = {
 
   // Clipboard
   writeClipboard: (text: string) => {
-    clipboard.writeText(text);
+    ipcRenderer.send('clipboard:write', text);
   },
 
   // Notifications

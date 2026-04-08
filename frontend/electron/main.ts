@@ -8,7 +8,7 @@
 import {
   app, BrowserWindow, ipcMain, session, desktopCapturer, Notification,
   Tray, Menu, nativeImage, screen, dialog, safeStorage, shell,
-  powerSaveBlocker,
+  powerSaveBlocker, clipboard,
 } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
@@ -633,6 +633,11 @@ function setupIpcHandlers() {
         activePowerSaveId = null;
       }
     }
+  });
+
+  // Clipboard
+  ipcMain.on('clipboard:write', (_event, text: string) => {
+    clipboard.writeText(text);
   });
 }
 

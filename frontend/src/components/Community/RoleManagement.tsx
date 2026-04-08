@@ -29,6 +29,8 @@ import {
   People as PeopleIcon,
   Security as SecurityIcon,
   RestartAlt as RestartAltIcon,
+  ArrowUpward as ArrowUpIcon,
+  ArrowDownward as ArrowDownIcon,
 } from "@mui/icons-material";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +41,7 @@ import {
   rolesControllerDeleteRoleMutation,
   rolesControllerGetUsersForRoleOptions,
   rolesControllerResetDefaultCommunityRolesMutation,
+  rolesControllerReorderRolesMutation,
 } from "../../api-client/@tanstack/react-query.gen";
 import type { RoleDto } from "../../api-client/types.gen";
 import { invalidateRoleQueries, invalidateAllRoleQueries } from "../../utils/queryInvalidation";
@@ -121,6 +124,11 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     onSuccess: () => invalidateAllRoleQueries(queryClient),
   });
 
+  const { mutateAsync: reorderRoles } = useMutation({
+    ...rolesControllerReorderRolesMutation(),
+    onSuccess: () => invalidateAllRoleQueries(queryClient),
+  });
+
   const handleCreateRole = useCallback(async (data: { name?: string; actions: string[] }) => {
     try {
       await createRole({
@@ -170,6 +178,41 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
       // Error handled by mutation
     }
   }, [communityId, resetDefaults]);
+
+  const handleMoveRole = useCallback(async (roleId: string, direction: "up" | "down") => {
+    if (!communityRoles) return;
+    const roles = communityRoles.roles;
+    const currentIndex = roles.findIndex((r) => r.id === roleId);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= roles.length) return;
+
+    // Don't allow swapping with the Member default role
+    const targetRole = roles[targetIndex];
+    if (targetRole.isDefault && targetRole.name === "Member") return;
+
+    // Build new order (excluding Member role)
+    const reorderedIds = roles
+      .filter((r) => !(r.isDefault && r.name === "Member"))
+      .map((r) => r.id);
+
+    const fromIdx = reorderedIds.indexOf(roleId);
+    const swapIdx = direction === "up" ? fromIdx - 1 : fromIdx + 1;
+    if (swapIdx < 0 || swapIdx >= reorderedIds.length) return;
+
+    // Swap
+    [reorderedIds[fromIdx], reorderedIds[swapIdx]] = [reorderedIds[swapIdx], reorderedIds[fromIdx]];
+
+    try {
+      await reorderRoles({
+        path: { communityId },
+        body: { roleIds: reorderedIds },
+      });
+    } catch {
+      // Error handled by mutation
+    }
+  }, [communityRoles, communityId, reorderRoles]);
 
   const handleCancelEdit = useCallback(() => {
     setCreatingRole(false);
@@ -274,6 +317,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
               <Table>
                 <TableHead>
                   <TableRow>
+                    {canUpdateRoles && <TableCell sx={{ width: 80 }}>Order</TableCell>}
                     <TableCell>Role Name</TableCell>
                     <TableCell>Permissions</TableCell>
                     <TableCell>Type</TableCell>
@@ -282,8 +326,38 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {communityRoles.roles.map((role) => (
+                  {communityRoles.roles.map((role, index) => {
+                    const isMemberRole = role.isDefault && role.name === "Member";
+                    const isFirst = index === 0;
+                    const isLastBeforeMember = index === communityRoles.roles.length - 2 && communityRoles.roles[communityRoles.roles.length - 1]?.isDefault && communityRoles.roles[communityRoles.roles.length - 1]?.name === "Member";
+                    const isLast = index === communityRoles.roles.length - 1;
+
+                    return (
                     <TableRow key={role.id}>
+                      {canUpdateRoles && (
+                        <TableCell>
+                          {!isMemberRole && (
+                            <Box display="flex" gap={0}>
+                              <IconButton
+                                size="small"
+                                disabled={isFirst}
+                                onClick={() => handleMoveRole(role.id, "up")}
+                                aria-label={`Move ${role.name} up`}
+                              >
+                                <ArrowUpIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                disabled={isLastBeforeMember || (isLast && !isMemberRole && communityRoles.roles.length === 1)}
+                                onClick={() => handleMoveRole(role.id, "down")}
+                                aria-label={`Move ${role.name} down`}
+                              >
+                                <ArrowDownIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
                           <SecurityIcon color="action" fontSize="small" />
@@ -361,7 +435,8 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
                         </Box>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

@@ -44,9 +44,9 @@ describe('queryInvalidation', () => {
   });
 
   describe('invalidateAllRoleQueries', () => {
-    it('calls invalidateQueries 8 times (2 from invalidateRoleQueries + 6 more)', () => {
+    it('calls invalidateQueries 9 times (2 from invalidateRoleQueries + 6 more + membership)', () => {
       invalidateAllRoleQueries(mockQueryClient);
-      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledTimes(8);
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledTimes(9);
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'rolesControllerGetCommunityRoles' }] });
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'rolesControllerGetUsersForRole' }] });
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'rolesControllerGetMyRolesForCommunity' }] });
@@ -55,6 +55,7 @@ describe('queryInvalidation', () => {
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'rolesControllerGetUserRolesForCommunity' }] });
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'rolesControllerGetUserRolesForChannel' }] });
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'rolesControllerGetUserInstanceRoles' }] });
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [{ _id: 'membershipControllerFindAllForCommunity' }] });
     });
   });
 

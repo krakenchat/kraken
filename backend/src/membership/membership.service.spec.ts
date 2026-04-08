@@ -338,7 +338,7 @@ describe('MembershipService', () => {
   });
 
   describe('findAllForCommunity', () => {
-    it('should return all memberships for a community with user info', async () => {
+    it('should return all memberships for a community with user info and roles', async () => {
       const community = CommunityFactory.build();
       const user1 = UserFactory.build();
       const user2 = UserFactory.build();
@@ -359,12 +359,50 @@ describe('MembershipService', () => {
         },
       ];
 
+      const adminRole = RoleFactory.buildAdmin({
+        communityId: community.id,
+        position: 10,
+      });
+      const memberRole = RoleFactory.buildMember({
+        communityId: community.id,
+        position: 100,
+      });
+
       mockDatabase.membership.findMany.mockResolvedValue(memberships);
+      mockDatabase.userRoles.findMany.mockResolvedValue([
+        {
+          userId: user1.id,
+          communityId: community.id,
+          roleId: adminRole.id,
+          isInstanceRole: false,
+          role: adminRole,
+        },
+        {
+          userId: user2.id,
+          communityId: community.id,
+          roleId: memberRole.id,
+          isInstanceRole: false,
+          role: memberRole,
+        },
+      ]);
 
       const result = await service.findAllForCommunity(community.id);
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
+
+      // User1 should have admin role
+      const user1Membership = result.find((m) => m.userId === user1.id);
+      expect(user1Membership?.roles).toHaveLength(1);
+      expect(user1Membership?.roles?.[0].name).toBe('Admin');
+      expect(user1Membership?.roles?.[0].position).toBe(10);
+
+      // User2 should have member role
+      const user2Membership = result.find((m) => m.userId === user2.id);
+      expect(user2Membership?.roles).toHaveLength(1);
+      expect(user2Membership?.roles?.[0].name).toBe('Member');
+      expect(user2Membership?.roles?.[0].position).toBe(100);
+
       expect(mockDatabase.membership.findMany).toHaveBeenCalledWith({
         where: { communityId: community.id },
         include: {
@@ -372,15 +410,43 @@ describe('MembershipService', () => {
         },
         take: 1000,
       });
+
+      expect(mockDatabase.userRoles.findMany).toHaveBeenCalledWith({
+        where: { communityId: community.id, userId: { in: [user1.id, user2.id] } },
+        include: { role: true },
+      });
     });
 
     it('should return empty array when no memberships exist', async () => {
       const community = CommunityFactory.build();
       mockDatabase.membership.findMany.mockResolvedValue([]);
+      mockDatabase.userRoles.findMany.mockResolvedValue([]);
 
       const result = await service.findAllForCommunity(community.id);
 
       expect(result).toEqual([]);
+    });
+
+    it('should return memberships without roles when no user roles exist', async () => {
+      const community = CommunityFactory.build();
+      const user1 = UserFactory.build();
+      const memberships = [
+        {
+          ...MembershipFactory.build({
+            communityId: community.id,
+            userId: user1.id,
+          }),
+          user: user1,
+        },
+      ];
+
+      mockDatabase.membership.findMany.mockResolvedValue(memberships);
+      mockDatabase.userRoles.findMany.mockResolvedValue([]);
+
+      const result = await service.findAllForCommunity(community.id);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].roles).toBeUndefined();
     });
 
     it('should rethrow errors', async () => {

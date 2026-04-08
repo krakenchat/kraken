@@ -518,6 +518,7 @@ model Role {
   communityId String?
   community   Community?    @relation(fields: [communityId], references: [id], onDelete: Cascade)
   isDefault   Boolean       @default(false)
+  position    Int           @default(50)
   actions     RbacActions[] @default([])
   createdAt   DateTime      @default(now())
 

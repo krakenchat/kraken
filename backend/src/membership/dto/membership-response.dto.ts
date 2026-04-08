@@ -1,5 +1,7 @@
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { Community, Membership, User } from '@prisma/client';
+import { RoleDto } from '@/roles/dto/user-roles-response.dto';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CommunityInfoDto {
   id: string;
@@ -16,11 +18,15 @@ export class MembershipResponseDto {
   communityId: string;
   joinedAt: Date;
 
+  @ApiProperty({ type: [RoleDto], required: false })
+  roles?: RoleDto[];
+
   constructor(
     membership: Membership & {
       user?: Partial<User>;
       community?: Partial<Community>;
     },
+    roles?: RoleDto[],
   ) {
     this.id = membership.id;
     this.userId = membership.userId;
@@ -38,6 +44,10 @@ export class MembershipResponseDto {
         description: membership.community.description ?? null,
         avatar: membership.community.avatar ?? null,
       };
+    }
+
+    if (roles) {
+      this.roles = roles;
     }
   }
 }

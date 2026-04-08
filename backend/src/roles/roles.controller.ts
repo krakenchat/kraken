@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Param,
   Body,
@@ -27,6 +28,7 @@ import { UserRolesResponseDto, RoleDto } from './dto/user-roles-response.dto';
 import { RoleUserDto } from './dto/role-users-response.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { ReorderRolesDto } from './dto/reorder-roles.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { AssignInstanceRoleDto } from './dto/assign-instance-role.dto';
 import { CommunityRolesResponseDto } from './dto/community-roles-response.dto';
@@ -114,6 +116,22 @@ export class RolesController {
     @Param('communityId', ParseUUIDPipe) communityId: string,
   ): Promise<CommunityRolesResponseDto> {
     return this.rolesService.getCommunityRoles(communityId);
+  }
+
+  @Patch('community/:communityId/reorder')
+  @UseGuards(RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_ROLE)
+  @RbacResource({
+    type: RbacResourceType.COMMUNITY,
+    idKey: 'communityId',
+    source: ResourceIdSource.PARAM,
+  })
+  @ApiOkResponse({ type: [RoleDto] })
+  async reorderRoles(
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Body() dto: ReorderRolesDto,
+  ): Promise<RoleDto[]> {
+    return this.rolesService.reorderRoles(communityId, dto.roleIds);
   }
 
   @Post('community/:communityId/reset-defaults')

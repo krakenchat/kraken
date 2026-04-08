@@ -7,6 +7,7 @@ import {
   directMessagesControllerFindDmGroupOptions,
   channelMembershipControllerFindAllForChannelOptions,
 } from "../../api-client/@tanstack/react-query.gen";
+import type { RoleDto } from "../../api-client/types.gen";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 interface MemberListContainerProps {
@@ -14,6 +15,35 @@ interface MemberListContainerProps {
   contextId: string;
   communityId?: string;
   isPrivate?: boolean;
+}
+
+/**
+ * Compute a member's "display role" from their roles list.
+ * The display role is the role with the lowest position (highest priority),
+ * excluding the default "Member" role (position 100, isDefault=true).
+ */
+function computeDisplayRole(
+  roles?: RoleDto[],
+): MemberData["displayRole"] | undefined {
+  if (!roles || roles.length === 0) return undefined;
+
+  // Filter out the default Member role (catch-all)
+  const nonMemberRoles = roles.filter(
+    (r) => !(r.isDefault && r.name === "Member"),
+  );
+
+  if (nonMemberRoles.length === 0) return undefined;
+
+  // Find the role with the lowest position (highest priority)
+  const bestRole = nonMemberRoles.reduce((best, role) =>
+    role.position < best.position ? role : best,
+  );
+
+  return {
+    id: bestRole.id,
+    name: bestRole.name,
+    position: bestRole.position,
+  };
 }
 
 const MemberListContainer: React.FC<MemberListContainerProps> = ({
@@ -56,7 +86,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
   const baseMembers = React.useMemo(() => {
     if (contextType === VoiceSessionType.Channel) {
       if (isPrivate) {
-        // Private channel: use channel-specific members
+        // Private channel: use channel-specific members (no roles available)
         return (channelMembers || [])
           .filter((membership) => membership.user)
           .map((membership) => ({
@@ -67,7 +97,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
             status: membership.user!.status,
           }));
       }
-      // Public channel: use community members
+      // Public channel: use community members (includes roles)
       return (communityMembers || [])
         .filter((membership) => membership.user)
         .map((membership) => ({
@@ -76,6 +106,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
           displayName: membership.user!.displayName,
           avatarUrl: membership.user!.avatarUrl,
           status: membership.user!.status,
+          displayRole: computeDisplayRole(membership.roles),
         }));
     } else {
       // DM context
@@ -91,8 +122,8 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
   }, [contextType, isPrivate, channelMembers, communityMembers, dmGroup]);
 
   // Extract user IDs for presence lookup
-  const userIds = React.useMemo(() => 
-    baseMembers.map(member => member.id), 
+  const userIds = React.useMemo(() =>
+    baseMembers.map(member => member.id),
     [baseMembers]
   );
 
@@ -113,13 +144,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
       .map((member) => ({
         ...member,
         isOnline: presenceData?.presence?.[member.id] || false,
-      }))
-      .sort((a, b) => {
-        // Sort by online status first (online users first), then alphabetically
-        if (a.isOnline && !b.isOnline) return -1;
-        if (!a.isOnline && b.isOnline) return 1;
-        return a.username.localeCompare(b.username);
-      });
+      }));
 
     const combinedLoading = contextType === VoiceSessionType.Channel
       ? (isPrivate === undefined ? true : isPrivate ? isChannelMembersLoading : isCommunityLoading) || isPresenceLoading
@@ -129,8 +154,8 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
       ? (isPrivate ? channelMembersError : communityError) || presenceError
       : dmError || presenceError;
 
-    const listTitle = contextType === VoiceSessionType.Channel 
-      ? "Members" 
+    const listTitle = contextType === VoiceSessionType.Channel
+      ? "Members"
       : (dmGroup?.isGroup ? "Group Members" : "Participants");
 
     return {
