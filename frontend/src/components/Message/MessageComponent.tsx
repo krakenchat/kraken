@@ -282,12 +282,12 @@ function MessageComponentInner({
             canReact={canReact}
             canThread={canThread}
             isPinned={isPinned}
-            onEdit={() => { handleEditClick(); handleCloseContextMenu(); }}
-            onDelete={() => { handleDeleteClick(); handleCloseContextMenu(); }}
-            onPin={() => { handlePin(); handleCloseContextMenu(); }}
-            onUnpin={() => { handleUnpin(); handleCloseContextMenu(); }}
-            onReplyInThread={() => { handleOpenThread(); handleCloseContextMenu(); }}
-            onQuoteReply={onQuoteReply && !message.deletedAt ? () => { onQuoteReply(message); handleCloseContextMenu(); } : undefined}
+            onEdit={handleEditClick}
+            onDelete={handleDeleteClick}
+            onPin={handlePin}
+            onUnpin={handleUnpin}
+            onReplyInThread={handleOpenThread}
+            onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
             onAddReaction={handleAddReaction}
           />
           <EmojiPickerPopover

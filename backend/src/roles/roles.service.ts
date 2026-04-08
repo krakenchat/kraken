@@ -594,9 +594,15 @@ export class RolesService implements OnModuleInit {
 
     // Validate all roleIds belong to this community
     const communityRoleIds = new Set(communityRoles.map((r) => r.id));
+    const communityRoleMap = new Map(communityRoles.map((r) => [r.id, r]));
     const memberRole = communityRoles.find(
       (r) => r.name === DEFAULT_MEMBER_ROLE.name && r.isDefault,
     );
+
+    // Validate no duplicates
+    if (new Set(roleIds).size !== roleIds.length) {
+      throw new BadRequestException('Duplicate role IDs in reorder list');
+    }
 
     for (const roleId of roleIds) {
       if (!communityRoleIds.has(roleId)) {
@@ -610,6 +616,16 @@ export class RolesService implements OnModuleInit {
     const reorderableIds = roleIds.filter(
       (id) => !memberRole || id !== memberRole.id,
     );
+
+    // Validate completeness: all non-Member roles must be included
+    const expectedReorderableIds = communityRoles
+      .filter((r) => !memberRole || r.id !== memberRole.id)
+      .map((r) => r.id);
+    if (reorderableIds.length !== expectedReorderableIds.length) {
+      throw new BadRequestException(
+        'All non-Member roles must be included in the reorder list',
+      );
+    }
 
     await this.databaseService.$transaction(async (tx) => {
       for (let i = 0; i < reorderableIds.length; i++) {
@@ -630,9 +646,17 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Reordered roles for community ${communityId}`);
 
-    this.eventEmitter.emit(RoomEvents.ROLE_UPDATED, {
-      communityId,
-    });
+    // Emit per-role events with correct payload shape
+    for (const roleId of reorderableIds) {
+      const role = communityRoleMap.get(roleId);
+      if (role) {
+        this.eventEmitter.emit(RoomEvents.ROLE_UPDATED, {
+          communityId,
+          roleId: role.id,
+          roleName: role.name,
+        });
+      }
+    }
 
     return (await this.getCommunityRoles(communityId)).roles;
   }

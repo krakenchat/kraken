@@ -412,7 +412,7 @@ describe('MembershipService', () => {
       });
 
       expect(mockDatabase.userRoles.findMany).toHaveBeenCalledWith({
-        where: { communityId: community.id },
+        where: { communityId: community.id, userId: { in: [user1.id, user2.id] } },
         include: { role: true },
       });
     });

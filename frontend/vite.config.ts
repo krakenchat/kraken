@@ -70,7 +70,11 @@ export default defineConfig({
       },
       // Proxy websocket requests
       "/socket.io": {
-        target: (process.env.VITE_BACKEND_URL || "http://backend:3000").replace("http", "ws"),
+        target: (() => {
+          const url = new URL(process.env.VITE_BACKEND_URL || "http://backend:3000");
+          url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+          return url.toString().replace(/\/$/, "");
+        })(),
         ws: true,
         changeOrigin: true,
         secure: false,

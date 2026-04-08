@@ -126,7 +126,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
 
   const { mutateAsync: reorderRoles } = useMutation({
     ...rolesControllerReorderRolesMutation(),
-    onSuccess: () => invalidateRoleQueries(queryClient),
+    onSuccess: () => invalidateAllRoleQueries(queryClient),
   });
 
   const handleCreateRole = useCallback(async (data: { name?: string; actions: string[] }) => {

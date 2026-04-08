@@ -66,9 +66,13 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   onQuoteReply,
   onAddReaction,
 }) => {
-  const handleCopyContent = useCallback(() => {
+  const handleCopyContent = useCallback(async () => {
     const text = spansToText(message.spans);
-    copyToClipboard(text);
+    try {
+      await copyToClipboard(text);
+    } catch {
+      // Clipboard write can fail in non-secure contexts; fail silently
+    }
     onClose();
   }, [message.spans, onClose]);
 

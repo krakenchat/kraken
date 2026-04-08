@@ -172,11 +172,14 @@ export class MembershipService {
       take: 1000,
     });
 
-    // Batch fetch all user roles for this community
-    const userRoles = await this.databaseService.userRoles.findMany({
-      where: { communityId },
-      include: { role: true },
-    });
+    // Batch fetch user roles scoped to returned members (not entire community)
+    const memberUserIds = memberships.map((m) => m.userId);
+    const userRoles = memberUserIds.length > 0
+      ? await this.databaseService.userRoles.findMany({
+          where: { communityId, userId: { in: memberUserIds } },
+          include: { role: true },
+        })
+      : [];
 
     // Group roles by userId
     const rolesByUserId = new Map<
