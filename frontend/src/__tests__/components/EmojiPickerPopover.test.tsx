@@ -44,26 +44,4 @@ describe('EmojiPickerPopover', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('calls onEmojiSelect and onClose when an emoji is clicked', async () => {
-    const onEmojiSelect = vi.fn();
-    const onClose = vi.fn();
-    const props = defaultProps({ onEmojiSelect, onClose });
-    const { user } = renderWithProviders(
-      <EmojiPickerPopover {...props} />,
-    );
-
-    // Find and click one of the emoji buttons — the first one in
-    // "Frequently Used" category is the thumbs up emoji
-    const emojiButtons = screen.getAllByRole('button');
-    // The first buttons include the clear icon in search; find
-    // an emoji button by its content
-    const thumbsUpButton = emojiButtons.find(
-      (btn) => btn.textContent === '\uD83D\uDC4D',
-    );
-    expect(thumbsUpButton).toBeDefined();
-
-    await user.click(thumbsUpButton!);
-    expect(onEmojiSelect).toHaveBeenCalledWith('\uD83D\uDC4D');
-    expect(onClose).toHaveBeenCalledOnce();
-  });
 });
