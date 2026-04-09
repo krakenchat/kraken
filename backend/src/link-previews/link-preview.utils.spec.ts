@@ -15,7 +15,8 @@ jest.mock('dns', () => ({
   },
 }));
 
-const mockLookup = dns.lookup as jest.MockedFunction<typeof dns.lookup>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockLookup = dns.lookup as jest.Mock<any>;
 
 describe('link-preview.utils', () => {
   afterEach(() => {
@@ -289,57 +290,57 @@ describe('link-preview.utils', () => {
 
   describe('isPublicUrl', () => {
     it('should block localhost (127.0.0.1)', async () => {
-      mockLookup.mockResolvedValue({ address: '127.0.0.1', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
       expect(await isPublicUrl('localhost')).toBe(false);
     });
 
     it('should block 127.x.x.x range', async () => {
-      mockLookup.mockResolvedValue({ address: '127.0.0.2', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '127.0.0.2', family: 4 }]);
       expect(await isPublicUrl('some-host')).toBe(false);
     });
 
     it('should block 10.x.x.x private range', async () => {
-      mockLookup.mockResolvedValue({ address: '10.0.0.5', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
       expect(await isPublicUrl('internal.corp')).toBe(false);
     });
 
     it('should block 172.16.x.x private range', async () => {
-      mockLookup.mockResolvedValue({ address: '172.16.0.1', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '172.16.0.1', family: 4 }]);
       expect(await isPublicUrl('internal.corp')).toBe(false);
     });
 
     it('should block 172.31.x.x private range', async () => {
-      mockLookup.mockResolvedValue({ address: '172.31.255.1', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '172.31.255.1', family: 4 }]);
       expect(await isPublicUrl('internal.corp')).toBe(false);
     });
 
     it('should block 192.168.x.x private range', async () => {
-      mockLookup.mockResolvedValue({ address: '192.168.1.1', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '192.168.1.1', family: 4 }]);
       expect(await isPublicUrl('home.local')).toBe(false);
     });
 
     it('should block 169.254.x.x link-local range', async () => {
-      mockLookup.mockResolvedValue({ address: '169.254.169.254', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '169.254.169.254', family: 4 }]);
       expect(await isPublicUrl('metadata.cloud')).toBe(false);
     });
 
     it('should block IPv6 loopback ::1', async () => {
-      mockLookup.mockResolvedValue({ address: '::1', family: 6 });
+      mockLookup.mockResolvedValue([{ address: '::1', family: 6 }]);
       expect(await isPublicUrl('localhost6')).toBe(false);
     });
 
     it('should block IPv6 unspecified ::', async () => {
-      mockLookup.mockResolvedValue({ address: '::', family: 6 });
+      mockLookup.mockResolvedValue([{ address: '::', family: 6 }]);
       expect(await isPublicUrl('any')).toBe(false);
     });
 
     it('should allow public IP addresses', async () => {
-      mockLookup.mockResolvedValue({ address: '93.184.216.34', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
       expect(await isPublicUrl('example.com')).toBe(true);
     });
 
     it('should allow another public IP', async () => {
-      mockLookup.mockResolvedValue({ address: '8.8.8.8', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '8.8.8.8', family: 4 }]);
       expect(await isPublicUrl('dns.google')).toBe(true);
     });
 
@@ -349,12 +350,12 @@ describe('link-preview.utils', () => {
     });
 
     it('should not block 172.15.x.x (outside private range)', async () => {
-      mockLookup.mockResolvedValue({ address: '172.15.0.1', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '172.15.0.1', family: 4 }]);
       expect(await isPublicUrl('edge-case.net')).toBe(true);
     });
 
     it('should not block 172.32.x.x (outside private range)', async () => {
-      mockLookup.mockResolvedValue({ address: '172.32.0.1', family: 4 });
+      mockLookup.mockResolvedValue([{ address: '172.32.0.1', family: 4 }]);
       expect(await isPublicUrl('edge-case.net')).toBe(true);
     });
   });

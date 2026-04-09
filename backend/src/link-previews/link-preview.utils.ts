@@ -330,6 +330,57 @@ export async function fetchLinkMetadata(
   }
 }
 
+const MAX_REDIRECTS = 5;
+
+/**
+ * Follow redirects manually, validating each hop's destination against SSRF.
+ * Returns the final Response or null if blocked/failed.
+ */
+async function fetchWithRedirectValidation(
+  url: string,
+  signal: AbortSignal,
+): Promise<Response | null> {
+  let currentUrl = url;
+
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    const response = await fetch(currentUrl, {
+      signal,
+      redirect: 'manual',
+      headers: FETCH_HEADERS,
+    });
+
+    // Not a redirect — return the response
+    if (response.status < 300 || response.status >= 400) {
+      return response;
+    }
+
+    // Handle redirect: validate destination before following
+    const location = response.headers.get('location');
+    if (!location) return null;
+
+    let nextUrl: URL;
+    try {
+      nextUrl = new URL(location, currentUrl);
+    } catch {
+      return null;
+    }
+
+    // Only follow http/https redirects
+    if (nextUrl.protocol !== 'http:' && nextUrl.protocol !== 'https:') {
+      return null;
+    }
+
+    // SSRF check on redirect destination
+    const safe = await isPublicUrl(nextUrl.hostname);
+    if (!safe) return null;
+
+    currentUrl = nextUrl.href;
+  }
+
+  // Too many redirects
+  return null;
+}
+
 /**
  * Fetch and parse OG tags from an HTML page.
  * Separated from fetchLinkMetadata to allow parallel oEmbed fetching.
@@ -339,11 +390,12 @@ async function fetchOgTags(
   parsedUrl: URL,
 ): Promise<Partial<LinkPreviewData> | null> {
   try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      redirect: 'follow',
-      headers: FETCH_HEADERS,
-    });
+    const response = await fetchWithRedirectValidation(
+      url,
+      AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    );
+
+    if (!response) return null;
 
     // Detect Cloudflare challenge responses via official cf-mitigated header
     // See: https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/detect-response/
@@ -362,9 +414,10 @@ async function fetchOgTags(
 
     const contentType = response.headers.get('content-type') || '';
 
-    // Direct image URL — return as image preview
+    // Direct image URL — set hostname as title so the preview isn't discarded
     if (contentType.startsWith('image/')) {
       return {
+        title: parsedUrl.pathname.split('/').pop() || parsedUrl.hostname,
         imageUrl: url,
         siteName: parsedUrl.hostname,
       };
@@ -403,8 +456,8 @@ async function fetchOgTags(
   }
 }
 
-/** Private/reserved IPv4 and IPv6 ranges */
-const PRIVATE_RANGES = [
+/** Private/reserved IPv4 ranges */
+const PRIVATE_IPV4_RANGES = [
   /^127\./, // loopback
   /^10\./, // Class A private
   /^172\.(1[6-9]|2\d|3[01])\./, // Class B private
@@ -413,25 +466,61 @@ const PRIVATE_RANGES = [
   /^0\./, // unspecified
 ];
 
-const PRIVATE_IPV6 = ['::1', '::'];
+/** Private/reserved IPv6 patterns */
+const PRIVATE_IPV6_PATTERNS = [
+  /^::1$/, // loopback
+  /^::$/, // unspecified
+  /^fe80:/i, // link-local
+  /^fc00:/i, // unique local (fc00::/7)
+  /^fd/i, // unique local (fd00::/8)
+  /^::ffff:/i, // IPv4-mapped IPv6 (e.g., ::ffff:127.0.0.1)
+];
+
+/**
+ * Check if an IP address is private/reserved.
+ */
+export function isPrivateIp(address: string): boolean {
+  // Check IPv4-mapped IPv6 addresses against IPv4 ranges
+  if (address.toLowerCase().startsWith('::ffff:')) {
+    const ipv4 = address.slice(7); // strip ::ffff: prefix
+    for (const range of PRIVATE_IPV4_RANGES) {
+      if (range.test(ipv4)) return true;
+    }
+  }
+
+  // Check IPv4 private ranges
+  for (const range of PRIVATE_IPV4_RANGES) {
+    if (range.test(address)) return true;
+  }
+
+  // Check IPv6 private ranges
+  for (const pattern of PRIVATE_IPV6_PATTERNS) {
+    if (pattern.test(address)) return true;
+  }
+
+  return false;
+}
 
 /**
  * Check if a hostname resolves to a public IP address.
- * Blocks private/reserved ranges to prevent SSRF.
+ * Resolves ALL addresses and blocks if ANY is private/reserved.
+ *
+ * Note: There is an inherent TOCTOU gap between this DNS check and the
+ * subsequent fetch() call — a malicious DNS server could return different
+ * results (DNS rebinding). This is accepted risk for a self-hosted app
+ * behind a firewall. The redirect validation in fetchOgTags provides an
+ * additional layer of defense.
  */
 export async function isPublicUrl(hostname: string): Promise<boolean> {
   try {
-    const { address } = await dns.lookup(hostname);
+    const results = await dns.lookup(hostname, { all: true });
 
-    // Check IPv4 private ranges
-    for (const range of PRIVATE_RANGES) {
-      if (range.test(address)) return false;
+    // Block if ANY resolved address is private
+    for (const { address } of results) {
+      if (isPrivateIp(address)) return false;
     }
 
-    // Check IPv6 private
-    if (PRIVATE_IPV6.includes(address)) return false;
-
-    return true;
+    return results.length > 0;
   } catch {
     // DNS resolution failed — treat as unsafe
     return false;
