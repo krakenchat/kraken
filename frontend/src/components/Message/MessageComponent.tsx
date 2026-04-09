@@ -15,6 +15,7 @@ import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useMessagePermissions } from "../../hooks/useMessagePermissions";
 import { MessageReactions } from "./MessageReactions";
 import { MessageAttachments } from "./MessageAttachments";
+import { MessageLinkPreviews } from "./MessageLinkPreviews";
 import { MessageEditForm } from "./MessageEditForm";
 import { MessageToolbar } from "./MessageToolbar";
 import { renderMessageSpans } from "./MessageSpan";
@@ -225,6 +226,7 @@ function MessageComponentInner({
               {renderMessageSpans(message.spans)}
             </Typography>
             <MessageAttachments attachments={message.attachments} />
+            <MessageLinkPreviews linkPreviews={message.linkPreviews} />
             <MessageReactions
               messageId={message.id}
               reactions={message.reactions}
@@ -348,7 +350,14 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     }) &&
     // Deep compare attachments array
     prevMsg.attachments?.length === nextMsg.attachments?.length &&
-    prevMsg.attachments?.every((a, i) => a.id === nextMsg.attachments?.[i]?.id)
+    prevMsg.attachments?.every((a, i) => a.id === nextMsg.attachments?.[i]?.id) &&
+    // Compare link previews (length + URLs + titles cover content changes)
+    (prevMsg.linkPreviews?.length ?? 0) === (nextMsg.linkPreviews?.length ?? 0) &&
+    (prevMsg.linkPreviews?.every((lp, i) =>
+      lp.url === nextMsg.linkPreviews?.[i]?.url &&
+      lp.title === nextMsg.linkPreviews?.[i]?.title &&
+      lp.imageUrl === nextMsg.linkPreviews?.[i]?.imageUrl
+    ) ?? true)
   );
 });
 

@@ -1249,9 +1249,7 @@ describe('MessagesService', () => {
 
       mockDatabase.message.findUnique.mockResolvedValue(anchor);
       mockDatabase.message.findMany
-        .mockResolvedValueOnce([
-          buildMessageWithIncludes({ channelId }),
-        ]) // 1 older
+        .mockResolvedValueOnce([buildMessageWithIncludes({ channelId })]) // 1 older
         .mockResolvedValueOnce([]); // 0 newer
 
       const result = await service.findAroundForChannel(channelId, anchorId);

@@ -38,6 +38,9 @@ model Message {
   // Inline reply (quote) reference
   replyToId String? // If set, this message quotes another message
 
+  // Link preview metadata (fetched asynchronously after message creation)
+  linkPreviews Json? // [{url, title, description, imageUrl, siteName, faviconUrl}]
+
   // Relations (composite types → proper tables)
   spans       MessageSpan[]
   reactions   MessageReaction[]

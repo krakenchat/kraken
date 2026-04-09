@@ -7,6 +7,7 @@ import { ServerEvents } from '@semaphore-chat/shared';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
 import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
+import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 import type { Mocked } from '@suites/doubles.jest';
 
 describe('MessagesGateway', () => {
@@ -17,6 +18,7 @@ describe('MessagesGateway', () => {
   let notificationsService: Mocked<NotificationsService>;
   let moderationService: Mocked<ModerationService>;
   let readReceiptsService: Mocked<ReadReceiptsService>;
+  let linkPreviewsService: Mocked<LinkPreviewsService>;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(MessagesGateway).compile();
@@ -28,6 +30,7 @@ describe('MessagesGateway', () => {
     notificationsService = unitRef.get(NotificationsService);
     moderationService = unitRef.get(ModerationService);
     readReceiptsService = unitRef.get(ReadReceiptsService);
+    linkPreviewsService = unitRef.get(LinkPreviewsService);
 
     // Set up default return values that tests rely on
     messagesService.checkSlowmode.mockResolvedValue(undefined);
@@ -40,6 +43,7 @@ describe('MessagesGateway', () => {
     notificationsService.processMessageForNotifications.mockResolvedValue(
       undefined,
     );
+    linkPreviewsService.processMessageLinkPreviews.mockResolvedValue(undefined);
     readReceiptsService.markAsRead.mockResolvedValue({
       channelId: null,
       directMessageGroupId: null,

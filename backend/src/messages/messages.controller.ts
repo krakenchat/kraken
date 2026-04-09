@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   HttpCode,
+  Logger,
   Query,
   Req,
   DefaultValuePipe,
@@ -44,14 +45,18 @@ import {
 } from './dto/message-response.dto';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { RoomName } from '@/common/utils/room-name.util';
+import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class MessagesController {
+  private readonly logger = new Logger(MessagesController.name);
+
   constructor(
     private readonly messagesService: MessagesService,
     private readonly reactionsService: ReactionsService,
     private readonly websocketService: WebsocketService,
+    private readonly linkPreviewsService: LinkPreviewsService,
   ) {}
 
   @Post()
@@ -140,7 +145,11 @@ export class MessagesController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ): Promise<AnchoredMessagesResponseDto> {
     limit = Math.min(limit, 100);
-    return this.messagesService.findAroundForChannel(channelId, messageId, limit);
+    return this.messagesService.findAroundForChannel(
+      channelId,
+      messageId,
+      limit,
+    );
   }
 
   @Get('/group/:groupId/around/:messageId')
@@ -157,7 +166,11 @@ export class MessagesController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ): Promise<AnchoredMessagesResponseDto> {
     limit = Math.min(limit, 100);
-    return this.messagesService.findAroundForDirectMessageGroup(groupId, messageId, limit);
+    return this.messagesService.findAroundForDirectMessageGroup(
+      groupId,
+      messageId,
+      limit,
+    );
   }
 
   @Get('search/channel/:channelId')
@@ -381,6 +394,20 @@ export class MessagesController {
       this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
         message: enrichedMessage,
       });
+
+      // Re-process link previews if spans changed (async, non-blocking)
+      if (updateMessageDto.spans) {
+        this.linkPreviewsService
+          .processMessageLinkPreviews(
+            id,
+            updatedMessage.spans,
+            roomId,
+            ServerEvents.UPDATE_MESSAGE,
+          )
+          .catch((error) =>
+            this.logger.warn('Failed to process link previews on edit', error),
+          );
+      }
     }
 
     return enrichedMessage;

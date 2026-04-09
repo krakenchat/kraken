@@ -30,9 +30,7 @@ describe('ReadReceiptsController', () => {
     const mockReq = { user: { id: userId } } as any;
 
     it('should pass correct args to service', async () => {
-      const mockPeerReads = [
-        { userId: 'peer-1', lastReadAt: new Date() },
-      ];
+      const mockPeerReads = [{ userId: 'peer-1', lastReadAt: new Date() }];
 
       readReceiptsService.getDmPeerReads.mockResolvedValue(mockPeerReads);
 

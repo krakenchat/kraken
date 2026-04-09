@@ -31,6 +31,7 @@ import { NotificationsService } from '@/notifications/notifications.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
 import { DatabaseService } from '@/database/database.service';
 import { RoomName } from '@/common/utils/room-name.util';
+import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -57,6 +58,7 @@ export class ThreadsGateway
     private readonly websocketService: WebsocketService,
     private readonly notificationsService: NotificationsService,
     private readonly databaseService: DatabaseService,
+    private readonly linkPreviewsService: LinkPreviewsService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -149,6 +151,23 @@ export class ThreadsGateway
           error,
         ),
       );
+
+    // Process link previews for thread reply (async, non-blocking)
+    if (roomId) {
+      this.linkPreviewsService
+        .processMessageLinkPreviews(
+          reply.id,
+          reply.spans,
+          roomId,
+          ServerEvents.UPDATE_MESSAGE,
+        )
+        .catch((error) =>
+          this.logger.error(
+            'Failed to process link previews for thread reply',
+            error,
+          ),
+        );
+    }
 
     return reply.id;
   }

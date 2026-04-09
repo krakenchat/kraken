@@ -29,6 +29,16 @@ export interface FileMetadata {
   hasThumbnail?: boolean;
 }
 
+export interface LinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  siteName?: string;
+  faviconUrl?: string;
+  authorName?: string;
+}
+
 export interface Message {
   id: string;
   channelId?: string;
@@ -38,6 +48,7 @@ export interface Message {
   attachments: FileMetadata[];
   pendingAttachments?: number;
   reactions: Reaction[];
+  linkPreviews?: LinkPreview[];
   sentAt: string;
   editedAt?: string;
   deletedAt?: string;

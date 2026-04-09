@@ -889,12 +889,12 @@ describe('ReadReceiptsService', () => {
     it('should throw ForbiddenException when user is not a member', async () => {
       mockDatabase.directMessageGroupMember.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.getDmPeerReads(userId, dmGroupId),
-      ).rejects.toThrow(ForbiddenException);
-      await expect(
-        service.getDmPeerReads(userId, dmGroupId),
-      ).rejects.toThrow('You are not a member of this DM group');
+      await expect(service.getDmPeerReads(userId, dmGroupId)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(service.getDmPeerReads(userId, dmGroupId)).rejects.toThrow(
+        'You are not a member of this DM group',
+      );
     });
   });
 

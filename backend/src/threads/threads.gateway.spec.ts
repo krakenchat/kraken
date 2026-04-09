@@ -5,6 +5,7 @@ import { ThreadsService } from './threads.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { DatabaseService } from '@/database/database.service';
+import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 import { WsException } from '@nestjs/websockets';
 import { ServerEvents } from '@semaphore-chat/shared';
 
@@ -14,6 +15,7 @@ describe('ThreadsGateway', () => {
   let websocketService: Mocked<WebsocketService>;
   let notificationsService: Mocked<NotificationsService>;
   let databaseService: Mocked<DatabaseService>;
+  let linkPreviewsService: Mocked<LinkPreviewsService>;
 
   const mockClient = {
     id: 'socket-1',
@@ -57,12 +59,16 @@ describe('ThreadsGateway', () => {
     websocketService = unitRef.get(WebsocketService);
     notificationsService = unitRef.get(NotificationsService);
     databaseService = unitRef.get(DatabaseService);
+    linkPreviewsService = unitRef.get(LinkPreviewsService);
 
     threadsService.createThreadReply = jest.fn().mockResolvedValue(mockReply);
     (databaseService.message as any) = {
       findUnique: jest.fn().mockResolvedValue(mockParentMessage),
     };
     notificationsService.processThreadReplyNotifications = jest
+      .fn()
+      .mockResolvedValue(undefined);
+    linkPreviewsService.processMessageLinkPreviews = jest
       .fn()
       .mockResolvedValue(undefined);
     websocketService.sendToRoom = jest.fn();

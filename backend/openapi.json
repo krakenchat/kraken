@@ -8408,6 +8408,35 @@
           "lastReplyAt"
         ]
       },
+      "LinkPreviewDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "siteName": {
+            "type": "string"
+          },
+          "faviconUrl": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
       "SpanDto": {
         "type": "object",
         "properties": {
@@ -8543,6 +8572,12 @@
       "EnrichedMessageDto": {
         "type": "object",
         "properties": {
+          "linkPreviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkPreviewDto"
+            }
+          },
           "replyToId": {
             "type": "string",
             "nullable": true
@@ -8702,6 +8737,12 @@
       "MessageDto": {
         "type": "object",
         "properties": {
+          "linkPreviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkPreviewDto"
+            }
+          },
           "replyToId": {
             "type": "string",
             "nullable": true

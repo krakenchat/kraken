@@ -8,6 +8,7 @@ import { WebsocketModule } from '@/websocket/websocket.module';
 import { AuthModule } from '@/auth/auth.module';
 import { NotificationsModule } from '@/notifications/notifications.module';
 import { UserModule } from '@/user/user.module';
+import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
 
 @Module({
   controllers: [ThreadsController],
@@ -19,6 +20,7 @@ import { UserModule } from '@/user/user.module';
     AuthModule,
     NotificationsModule,
     UserModule,
+    LinkPreviewsModule,
   ],
   exports: [ThreadsService],
 })

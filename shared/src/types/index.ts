@@ -3,6 +3,7 @@ export {
   type Span,
   type Reaction,
   type FileMetadata,
+  type LinkPreview,
   type Message,
 } from './message.types';
 
