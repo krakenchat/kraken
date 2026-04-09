@@ -11,12 +11,14 @@ import { AddReactionDto } from './dto/add-reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { AddAttachmentDto } from './dto/add-attachment.dto';
 import { ServerEvents } from '@semaphore-chat/shared';
+import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 
 describe('MessagesController', () => {
   let controller: MessagesController;
   let service: Mocked<MessagesService>;
   let reactionsService: Mocked<ReactionsService>;
   let websocketService: Mocked<WebsocketService>;
+  let linkPreviewsService: Mocked<LinkPreviewsService>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -31,6 +33,8 @@ describe('MessagesController', () => {
     service = unitRef.get(MessagesService);
     reactionsService = unitRef.get(ReactionsService);
     websocketService = unitRef.get(WebsocketService);
+    linkPreviewsService = unitRef.get(LinkPreviewsService);
+    linkPreviewsService.processMessageLinkPreviews.mockResolvedValue(undefined);
   });
 
   afterEach(() => {

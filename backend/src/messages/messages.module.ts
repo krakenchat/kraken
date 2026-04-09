@@ -14,6 +14,7 @@ import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
 import { NotificationsModule } from '@/notifications/notifications.module';
 import { ModerationModule } from '@/moderation/moderation.module';
 import { ReadReceiptsModule } from '@/read-receipts/read-receipts.module';
+import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
 
 @Module({
   controllers: [MessagesController],
@@ -34,6 +35,7 @@ import { ReadReceiptsModule } from '@/read-receipts/read-receipts.module';
     NotificationsModule,
     ModerationModule,
     ReadReceiptsModule,
+    LinkPreviewsModule,
   ],
   exports: [MessagesService, ReactionsService],
 })

@@ -37,6 +37,7 @@ import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { RoomName } from '@/common/utils/room-name.util';
+import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -65,6 +66,7 @@ export class MessagesGateway
     private readonly notificationsService: NotificationsService,
     private readonly moderationService: ModerationService,
     private readonly readReceiptsService: ReadReceiptsService,
+    private readonly linkPreviewsService: LinkPreviewsService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -158,6 +160,18 @@ export class MessagesGateway
         this.logger.error('Failed to process notifications for message', error),
       );
 
+    // Process link previews (async, non-blocking)
+    this.linkPreviewsService
+      .processMessageLinkPreviews(
+        message.id,
+        message.spans,
+        payload.channelId,
+        ServerEvents.UPDATE_MESSAGE,
+      )
+      .catch((error) =>
+        this.logger.error('Failed to process link previews', error),
+      );
+
     // Enrich message with file metadata before emitting
     const enrichedMessage =
       this.messagesService.enrichMessageWithFileMetadata(message);
@@ -224,6 +238,18 @@ export class MessagesGateway
       .processMessageForNotifications(message)
       .catch((error) =>
         this.logger.error('Failed to process notifications for DM', error),
+      );
+
+    // Process link previews (async, non-blocking)
+    this.linkPreviewsService
+      .processMessageLinkPreviews(
+        message.id,
+        message.spans,
+        RoomName.dmGroup(payload.directMessageGroupId),
+        ServerEvents.UPDATE_MESSAGE,
+      )
+      .catch((error) =>
+        this.logger.error('Failed to process link previews for DM', error),
       );
 
     // Enrich message with file metadata before emitting

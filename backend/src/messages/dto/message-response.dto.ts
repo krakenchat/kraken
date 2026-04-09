@@ -1,4 +1,4 @@
-import { FileType, SpanType } from '@prisma/client';
+import { FileType, Prisma, SpanType } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SpanTypeValues, FileTypeValues } from '@/common/enums/swagger-enums';
 
@@ -36,6 +36,22 @@ export class ReplyToPreviewDto {
   deletedAt: Date | null;
 }
 
+export class LinkPreviewDto {
+  url: string;
+  @ApiPropertyOptional()
+  title?: string;
+  @ApiPropertyOptional()
+  description?: string;
+  @ApiPropertyOptional()
+  imageUrl?: string;
+  @ApiPropertyOptional()
+  siteName?: string;
+  @ApiPropertyOptional()
+  faviconUrl?: string;
+  @ApiPropertyOptional()
+  authorName?: string;
+}
+
 export class EnrichedMessageDto {
   id: string;
   channelId: string | null;
@@ -45,6 +61,8 @@ export class EnrichedMessageDto {
   attachments: EnrichedAttachment[];
   pendingAttachments: number | null;
   reactions: ReactionDto[];
+  @ApiPropertyOptional({ type: [LinkPreviewDto] })
+  linkPreviews?: LinkPreviewDto[] | Prisma.JsonValue | null;
   replyCount: number;
   lastReplyAt: Date | null;
   pinned: boolean;
@@ -68,6 +86,8 @@ export class MessageDto {
   attachments: string[];
   pendingAttachments: number | null;
   reactions: ReactionDto[];
+  @ApiPropertyOptional({ type: [LinkPreviewDto] })
+  linkPreviews?: LinkPreviewDto[] | Prisma.JsonValue | null;
   replyCount: number;
   lastReplyAt: Date | null;
   pinned: boolean;
