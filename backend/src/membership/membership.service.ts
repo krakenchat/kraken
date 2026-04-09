@@ -174,17 +174,25 @@ export class MembershipService {
 
     // Batch fetch user roles scoped to returned members (not entire community)
     const memberUserIds = memberships.map((m) => m.userId);
-    const userRoles = memberUserIds.length > 0
-      ? await this.databaseService.userRoles.findMany({
-          where: { communityId, userId: { in: memberUserIds } },
-          include: { role: true },
-        })
-      : [];
+    const userRoles =
+      memberUserIds.length > 0
+        ? await this.databaseService.userRoles.findMany({
+            where: { communityId, userId: { in: memberUserIds } },
+            include: { role: true },
+          })
+        : [];
 
     // Group roles by userId
     const rolesByUserId = new Map<
       string,
-      Array<{ id: string; name: string; actions: any[]; createdAt: Date; isDefault: boolean; position: number }>
+      Array<{
+        id: string;
+        name: string;
+        actions: any[];
+        createdAt: Date;
+        isDefault: boolean;
+        position: number;
+      }>
     >();
     for (const ur of userRoles) {
       const existing = rolesByUserId.get(ur.userId) || [];

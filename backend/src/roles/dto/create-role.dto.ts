@@ -22,7 +22,9 @@ export class CreateRoleDto {
   @ArrayMinSize(1, { message: 'Role must have at least one permission' })
   actions: RbacActions[];
 
-  @ApiPropertyOptional({ description: 'Position for ordering (lower = higher priority)' })
+  @ApiPropertyOptional({
+    description: 'Position for ordering (lower = higher priority)',
+  })
   @IsOptional()
   @IsNumber()
   position?: number;

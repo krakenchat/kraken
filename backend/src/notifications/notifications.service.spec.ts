@@ -1118,7 +1118,9 @@ describe('NotificationsService', () => {
 
       const settings = UserNotificationSettingsFactory.build();
       mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
-      mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(null);
+      mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
+        null,
+      );
 
       return MessageFactory.build({
         id: 'msg-1',

@@ -553,9 +553,7 @@ export class ReadReceiptsService {
         where: { groupId: directMessageGroupId, userId },
       });
     if (!membership) {
-      throw new ForbiddenException(
-        'You are not a member of this DM group',
-      );
+      throw new ForbiddenException('You are not a member of this DM group');
     }
 
     return this.databaseService.readReceipt.findMany({

@@ -2420,10 +2420,7 @@ describe('RolesService', () => {
         name: 'Member',
       });
 
-      mockDatabase.role.findMany.mockResolvedValueOnce([
-        adminRole,
-        memberRole,
-      ]);
+      mockDatabase.role.findMany.mockResolvedValueOnce([adminRole, memberRole]);
       mockDatabase.role.update.mockResolvedValue({});
 
       // Mock getCommunityRoles
@@ -2433,10 +2430,7 @@ describe('RolesService', () => {
       ]);
 
       // Include the Member role ID in the reorder list — it should be filtered out
-      await service.reorderRoles(communityId, [
-        memberRole.id,
-        adminRole.id,
-      ]);
+      await service.reorderRoles(communityId, [memberRole.id, adminRole.id]);
 
       // adminRole should get position 10 (first non-member role)
       expect(mockDatabase.role.update).toHaveBeenCalledWith({
