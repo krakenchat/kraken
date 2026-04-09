@@ -73,7 +73,9 @@ describe('LinkPreviewsService', () => {
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
 
-    it('should return early when text has no URLs', async () => {
+    it('should not fetch or broadcast when text has no URLs and no stale previews', async () => {
+      mockDatabase.message.findUnique.mockResolvedValue({ linkPreviews: null });
+
       const spans = [{ text: 'Hello world, no links here!' }];
       await service.processMessageLinkPreviews(
         messageId,
@@ -83,7 +85,7 @@ describe('LinkPreviewsService', () => {
       );
 
       expect(mockFetchLinkMetadata).not.toHaveBeenCalled();
-      expect(mockDatabase.message.findUnique).not.toHaveBeenCalled();
+      expect(mockDatabase.message.update).not.toHaveBeenCalled();
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
 

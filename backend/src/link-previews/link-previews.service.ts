@@ -10,6 +10,32 @@ import {
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { Prisma } from '@prisma/client';
 
+/** Full includes for re-reading a message before broadcast */
+const MESSAGE_INCLUDE = {
+  spans: { orderBy: { position: 'asc' as const } },
+  reactions: true,
+  attachments: {
+    include: {
+      file: {
+        select: {
+          id: true,
+          filename: true,
+          mimeType: true,
+          fileType: true,
+          size: true,
+          thumbnailPath: true,
+        },
+      },
+    },
+    orderBy: { position: 'asc' as const },
+  },
+  replyToMessage: {
+    include: {
+      spans: { orderBy: { position: 'asc' as const } },
+    },
+  },
+} as const;
+
 @Injectable()
 export class LinkPreviewsService {
   private readonly logger = new Logger(LinkPreviewsService.name);
@@ -33,17 +59,24 @@ export class LinkPreviewsService {
     if (!text) return;
 
     const urls = extractUrls(text);
-    if (urls.length === 0) return;
+
+    // No URLs → clear any stale previews from a previous edit
+    if (urls.length === 0) {
+      await this.clearAndBroadcast(messageId, roomId, serverEvent);
+      return;
+    }
+
+    // Fetch all URLs in parallel
+    const results = await Promise.allSettled(
+      urls.map((url) => fetchLinkMetadata(url)),
+    );
 
     const previews: LinkPreviewData[] = [];
-    for (const url of urls) {
-      try {
-        const metadata = await fetchLinkMetadata(url);
-        if (metadata) {
-          previews.push(metadata);
-        }
-      } catch (error) {
-        this.logger.warn(`Failed to fetch link preview for ${url}`, error);
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        previews.push(result.value);
+      } else if (result.status === 'rejected') {
+        this.logger.warn('Failed to fetch link preview', result.reason);
       }
     }
 
@@ -57,47 +90,64 @@ export class LinkPreviewsService {
 
     if (!existing || existing.deletedAt) return;
 
-    // Store previews
+    // Store previews and broadcast
     await this.databaseService.message.update({
       where: { id: messageId },
       data: { linkPreviews: previews as unknown as Prisma.InputJsonValue },
     });
 
-    // Re-read with full includes for broadcast
-    const MESSAGE_INCLUDE = {
-      spans: { orderBy: { position: 'asc' as const } },
-      reactions: true,
-      attachments: {
-        include: {
-          file: {
-            select: {
-              id: true,
-              filename: true,
-              mimeType: true,
-              fileType: true,
-              size: true,
-              thumbnailPath: true,
-            },
-          },
-        },
-        orderBy: { position: 'asc' as const },
-      },
-    } as const;
+    await this.broadcastMessage(messageId, roomId, serverEvent);
+  }
 
-    const updatedMessage = await this.databaseService.message.findUnique({
+  /**
+   * Clear link previews for a message and broadcast the update.
+   * Used when a message edit removes all URLs.
+   */
+  private async clearAndBroadcast(
+    messageId: string,
+    roomId: string,
+    serverEvent: string,
+  ): Promise<void> {
+    const existing = await this.databaseService.message.findUnique({
+      where: { id: messageId },
+      select: { linkPreviews: true },
+    });
+
+    // Only update + broadcast if there were previews to clear
+    if (!existing?.linkPreviews) return;
+
+    await this.databaseService.message.update({
+      where: { id: messageId },
+      data: { linkPreviews: Prisma.DbNull },
+    });
+
+    await this.broadcastMessage(messageId, roomId, serverEvent);
+  }
+
+  /**
+   * Re-read a message with full includes and broadcast it.
+   * Matches the same shape as MessagesService.formatMessageWithReply().
+   */
+  private async broadcastMessage(
+    messageId: string,
+    roomId: string,
+    serverEvent: string,
+  ): Promise<void> {
+    const msg = await this.databaseService.message.findUnique({
       where: { id: messageId },
       include: MESSAGE_INCLUDE,
     });
 
-    if (!updatedMessage) return;
+    if (!msg) return;
 
-    // Format the message for broadcast (same shape clients expect)
+    const { replyToMessage, ...rest } = msg;
+
     const formatted = {
-      ...updatedMessage,
+      ...rest,
       linkPreviews:
-        (updatedMessage.linkPreviews as LinkPreviewData[] | null) ?? undefined,
-      reactions: groupReactions(updatedMessage.reactions),
-      attachments: updatedMessage.attachments.map((a) => ({
+        (rest.linkPreviews as LinkPreviewData[] | null) ?? undefined,
+      reactions: groupReactions(msg.reactions),
+      attachments: msg.attachments.map((a) => ({
         id: a.file.id,
         filename: a.file.filename,
         mimeType: a.file.mimeType,
@@ -105,6 +155,24 @@ export class LinkPreviewsService {
         size: a.file.size,
         hasThumbnail: !!a.file.thumbnailPath,
       })),
+      replyTo: replyToMessage
+        ? {
+            id: replyToMessage.id,
+            authorId: replyToMessage.authorId,
+            spans: replyToMessage.deletedAt
+              ? []
+              : replyToMessage.spans.map((s) => ({
+                  type: s.type,
+                  text: s.text,
+                  userId: s.userId,
+                  specialKind: s.specialKind,
+                  communityId: s.communityId,
+                  aliasId: s.aliasId,
+                })),
+            sentAt: replyToMessage.sentAt,
+            deletedAt: replyToMessage.deletedAt,
+          }
+        : null,
     };
 
     this.websocketService.sendToRoom(roomId, serverEvent, {

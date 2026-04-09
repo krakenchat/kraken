@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   HttpCode,
+  Logger,
   Query,
   Req,
   DefaultValuePipe,
@@ -49,6 +50,8 @@ import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class MessagesController {
+  private readonly logger = new Logger(MessagesController.name);
+
   constructor(
     private readonly messagesService: MessagesService,
     private readonly reactionsService: ReactionsService,
@@ -401,7 +404,9 @@ export class MessagesController {
             roomId,
             ServerEvents.UPDATE_MESSAGE,
           )
-          .catch(() => {});
+          .catch((error) =>
+            this.logger.warn('Failed to process link previews on edit', error),
+          );
       }
     }
 

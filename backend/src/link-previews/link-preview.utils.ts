@@ -34,10 +34,11 @@ export function parseOpenGraphTags(
   const result: Partial<LinkPreviewData> = {};
 
   // Extract og: meta tags (property or name attribute)
+  // Captures colon-separated variants like og:image:secure_url
   const metaPattern =
-    /<meta\s+[^>]*(?:property|name)\s*=\s*["']og:(\w+)["'][^>]*content\s*=\s*["']([^"']*)["'][^>]*\/?>/gi;
+    /<meta\s+[^>]*(?:property|name)\s*=\s*["']og:([\w:]+)["'][^>]*content\s*=\s*["']([^"']*)["'][^>]*\/?>/gi;
   const metaPatternReverse =
-    /<meta\s+[^>]*content\s*=\s*["']([^"']*)["'][^>]*(?:property|name)\s*=\s*["']og:(\w+)["'][^>]*\/?>/gi;
+    /<meta\s+[^>]*content\s*=\s*["']([^"']*)["'][^>]*(?:property|name)\s*=\s*["']og:([\w:]+)["'][^>]*\/?>/gi;
 
   const ogTags: Record<string, string> = {};
 
@@ -51,7 +52,10 @@ export function parseOpenGraphTags(
 
   if (ogTags['title']) result.title = ogTags['title'];
   if (ogTags['description']) result.description = ogTags['description'];
-  if (ogTags['image']) result.imageUrl = resolveUrl(ogTags['image'], baseUrl);
+  // og:image with fallback to og:image:secure_url and og:image:url
+  const ogImage =
+    ogTags['image'] || ogTags['image:secure_url'] || ogTags['image:url'];
+  if (ogImage) result.imageUrl = resolveUrl(ogImage, baseUrl);
   if (ogTags['site_name']) result.siteName = ogTags['site_name'];
 
   // Fallback: <title> tag

@@ -8426,6 +8426,9 @@
           "faviconUrl": {
             "type": "string"
           },
+          "authorName": {
+            "type": "string"
+          },
           "url": {
             "type": "string"
           }

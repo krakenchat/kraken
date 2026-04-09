@@ -351,8 +351,13 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     // Deep compare attachments array
     prevMsg.attachments?.length === nextMsg.attachments?.length &&
     prevMsg.attachments?.every((a, i) => a.id === nextMsg.attachments?.[i]?.id) &&
-    // Compare link previews
-    (prevMsg.linkPreviews?.length ?? 0) === (nextMsg.linkPreviews?.length ?? 0)
+    // Compare link previews (length + URLs + titles cover content changes)
+    (prevMsg.linkPreviews?.length ?? 0) === (nextMsg.linkPreviews?.length ?? 0) &&
+    (prevMsg.linkPreviews?.every((lp, i) =>
+      lp.url === nextMsg.linkPreviews?.[i]?.url &&
+      lp.title === nextMsg.linkPreviews?.[i]?.title &&
+      lp.imageUrl === nextMsg.linkPreviews?.[i]?.imageUrl
+    ) ?? true)
   );
 });
 

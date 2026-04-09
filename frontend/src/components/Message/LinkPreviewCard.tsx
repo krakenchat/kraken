@@ -66,10 +66,31 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = React.memo(
       window.open(preview.url, "_blank", "noopener,noreferrer");
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleClick();
+      }
+    };
+
+    let hostname = "";
+    try {
+      hostname = new URL(preview.url).hostname;
+    } catch {
+      hostname = preview.url;
+    }
+
     const showBannerImage = preview.imageUrl && !imageError;
 
     return (
-      <PreviewCard elevation={0} onClick={handleClick}>
+      <PreviewCard
+        elevation={0}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        role="link"
+        tabIndex={0}
+        aria-label={preview.title || preview.url}
+      >
         <Box sx={{ p: 1.25, pb: showBannerImage ? 0.75 : 1.25 }}>
           {/* Site name + favicon */}
           <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
@@ -87,7 +108,7 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = React.memo(
               </FallbackDot>
             )}
             <Typography variant="caption" color="text.secondary" noWrap>
-              {preview.siteName || new URL(preview.url).hostname}
+              {preview.siteName || hostname}
               {preview.authorName && ` · ${preview.authorName}`}
             </Typography>
           </Box>
