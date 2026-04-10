@@ -1,6 +1,6 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback, useMemo, useState } from "react";
 import { Room } from "livekit-client";
-import { useVoice } from "./VoiceContext";
+import { useVoiceDispatch } from "./VoiceContext";
 import { RoomContext, RoomContextType } from "./RoomContextDef";
 import { getApiBaseUrl } from "../config/env";
 import { getAccessToken } from "../utils/tokenService";
@@ -11,33 +11,21 @@ interface RoomProviderProps {
 
 export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   const roomRef = useRef<Room | null>(null);
-  const { isConnected, currentChannelId, currentDmGroupId } = useVoice();
-
-  // Use refs to access current values in beforeunload handler without re-registering
-  const channelIdRef = useRef(currentChannelId);
-  const dmGroupIdRef = useRef(currentDmGroupId);
-  const roomRefForUnload = useRef(roomRef.current);
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    channelIdRef.current = currentChannelId;
-  }, [currentChannelId]);
-
-  useEffect(() => {
-    dmGroupIdRef.current = currentDmGroupId;
-  }, [currentDmGroupId]);
-
-  useEffect(() => {
-    roomRefForUnload.current = roomRef.current;
-  });
+  // Use stateRef from dispatch context (stable, no re-renders from voice state changes)
+  // instead of useVoice() which subscribes to ALL state changes and causes
+  // cascading re-renders through every useRoom() consumer (12+ hooks).
+  const { stateRef } = useVoiceDispatch();
+  // Track the room object in state so context consumers re-render when the room changes
+  const [room, setRoomState] = useState<Room | null>(null);
 
   // Handle page unload - notify backend before disconnect
   useEffect(() => {
     const handleBeforeUnload = () => {
       const token = getAccessToken();
       const baseUrl = getApiBaseUrl();
-      const channelId = channelIdRef.current;
-      const dmGroupId = dmGroupIdRef.current;
+      const state = stateRef.current;
+      const channelId = state.currentChannelId;
+      const dmGroupId = state.currentDmGroupId;
 
       // Use fetch with keepalive to ensure request completes during page unload
       if (channelId) {
@@ -67,8 +55,8 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       }
 
       // Also disconnect LiveKit room immediately
-      if (roomRefForUnload.current) {
-        roomRefForUnload.current.disconnect();
+      if (roomRef.current) {
+        roomRef.current.disconnect();
       }
     };
 
@@ -76,15 +64,18 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, []);
+  }, [stateRef]);
 
-  // Clean up room when disconnected
+  // Clean up room when voice state transitions to disconnected
   useEffect(() => {
-    if (!isConnected && roomRef.current) {
+    // Poll isConnected via stateRef to avoid subscribing to VoiceState context.
+    // This effect only needs to run when the room state variable changes.
+    if (!stateRef.current.isConnected && roomRef.current) {
       roomRef.current.disconnect();
       roomRef.current = null;
+      setRoomState(null);
     }
-  }, [isConnected]);
+  });
 
   // Cleanup on unmount
   useEffect(() => {
@@ -96,20 +87,21 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const setRoom = (room: Room | null) => {
-    if (roomRef.current && roomRef.current !== room) {
+  const setRoom = useCallback((newRoom: Room | null) => {
+    if (roomRef.current && roomRef.current !== newRoom) {
       roomRef.current.disconnect();
     }
-    roomRef.current = room;
-  };
+    roomRef.current = newRoom;
+    setRoomState(newRoom);
+  }, []);
 
-  const getRoom = () => roomRef.current;
+  const getRoom = useCallback(() => roomRef.current, []);
 
-  const value: RoomContextType = {
-    room: roomRef.current,
+  const value = useMemo<RoomContextType>(() => ({
+    room,
     setRoom,
     getRoom,
-  };
+  }), [room, setRoom, getRoom]);
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
 };

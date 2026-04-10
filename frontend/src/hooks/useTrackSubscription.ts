@@ -11,10 +11,13 @@ import { logger } from '../utils/logger';
 
 /**
  * Unsubscribes a remote track publication from the SFU (saves bandwidth).
- * Always calls setSubscribed(false) to ensure the SFU knows we don't want this track,
- * regardless of current subscription state (important with autoSubscribe: false).
+ * Only sends the signal if the track is actually subscribed to avoid redundant
+ * WebSocket messages. With autoSubscribe: false, tracks start unsubscribed so
+ * calling setSubscribed(false) on them would send a no-op signal to the SFU
+ * that still consumes signaling bandwidth.
  */
 function unsubscribePublication(publication: RemoteTrackPublication, reason: string) {
+  if (!publication.isSubscribed) return;
   logger.info('[TrackSubscription] Unsubscribing', reason, publication.trackSid, publication.source);
   publication.setSubscribed(false);
 }

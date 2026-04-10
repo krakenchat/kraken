@@ -166,31 +166,37 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
     case VoiceActionType.SetServerMuted:
       return { ...state, isServerMuted: action.payload };
     case VoiceActionType.WatchCamera: {
+      if (state.watchingCameras.has(action.payload)) return state;
       const next = new Set(state.watchingCameras);
       next.add(action.payload);
       return { ...state, watchingCameras: next };
     }
     case VoiceActionType.StopWatchingCamera: {
+      if (!state.watchingCameras.has(action.payload)) return state;
       const next = new Set(state.watchingCameras);
       next.delete(action.payload);
       return { ...state, watchingCameras: next };
     }
     case VoiceActionType.WatchScreenShare: {
+      if (state.watchingScreenShares.has(action.payload)) return state;
       const next = new Set(state.watchingScreenShares);
       next.add(action.payload);
       return { ...state, watchingScreenShares: next };
     }
     case VoiceActionType.StopWatchingScreenShare: {
+      if (!state.watchingScreenShares.has(action.payload)) return state;
       const next = new Set(state.watchingScreenShares);
       next.delete(action.payload);
       return { ...state, watchingScreenShares: next };
     }
     case VoiceActionType.HideLocalTile: {
+      if (state.hiddenLocalTiles.has(action.payload)) return state;
       const next = new Set(state.hiddenLocalTiles);
       next.add(action.payload);
       return { ...state, hiddenLocalTiles: next };
     }
     case VoiceActionType.ShowLocalTile: {
+      if (!state.hiddenLocalTiles.has(action.payload)) return state;
       const next = new Set(state.hiddenLocalTiles);
       next.delete(action.payload);
       return { ...state, hiddenLocalTiles: next };

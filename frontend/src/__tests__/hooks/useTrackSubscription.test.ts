@@ -160,10 +160,41 @@ describe('useTrackSubscription', () => {
       expect(micPub.setSubscribed).toHaveBeenCalledWith(true);
     });
 
-    it('unsubscribes newly published camera tracks', () => {
+    it('does not call setSubscribed(false) on never-subscribed camera tracks', () => {
       renderHook(() => useTrackSubscription());
 
       const camPub = createMockPublication('camera');
+      // camPub.isSubscribed is false by default (never subscribed)
+      const participant = createMockParticipant('user-1', [camPub]);
+
+      act(() => {
+        emitRoomEvent('trackPublished', camPub, participant);
+      });
+
+      // With the guard, setSubscribed(false) is NOT called on never-subscribed tracks
+      // to avoid sending redundant signals to the SFU
+      expect(camPub.setSubscribed).not.toHaveBeenCalled();
+    });
+
+    it('does not call setSubscribed(false) on never-subscribed screen share tracks', () => {
+      renderHook(() => useTrackSubscription());
+
+      const screenPub = createMockPublication('screen_share');
+      // screenPub.isSubscribed is false by default (never subscribed)
+      const participant = createMockParticipant('user-1', [screenPub]);
+
+      act(() => {
+        emitRoomEvent('trackPublished', screenPub, participant);
+      });
+
+      expect(screenPub.setSubscribed).not.toHaveBeenCalled();
+    });
+
+    it('unsubscribes previously-subscribed opt-in tracks on re-publish', () => {
+      renderHook(() => useTrackSubscription());
+
+      const camPub = createMockPublication('camera');
+      camPub.isSubscribed = true; // simulate a previously subscribed track
       const participant = createMockParticipant('user-1', [camPub]);
 
       act(() => {
@@ -171,19 +202,6 @@ describe('useTrackSubscription', () => {
       });
 
       expect(camPub.setSubscribed).toHaveBeenCalledWith(false);
-    });
-
-    it('unsubscribes newly published screen share tracks', () => {
-      renderHook(() => useTrackSubscription());
-
-      const screenPub = createMockPublication('screen_share');
-      const participant = createMockParticipant('user-1', [screenPub]);
-
-      act(() => {
-        emitRoomEvent('trackPublished', screenPub, participant);
-      });
-
-      expect(screenPub.setSubscribed).toHaveBeenCalledWith(false);
     });
   });
 

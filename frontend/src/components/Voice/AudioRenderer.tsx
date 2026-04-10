@@ -61,6 +61,10 @@ const ParticipantAudio: React.FC<ParticipantAudioProps> = ({ participant, audioP
  * The deafen functionality is handled by the useDeafenEffect hook which sets
  * track volume to 0 when deafened.
  *
+ * IMPORTANT: This component uses a ref for watchingScreenShares to keep the
+ * updateAudioTracks callback and its event listener registrations stable.
+ * Mic audio management must never be disrupted by screen share watching state changes.
+ *
  * @example
  * // In Layout.tsx or MobileLayout.tsx, alongside VoiceBottomBar
  * <VoiceBottomBar />
@@ -71,6 +75,14 @@ export const AudioRenderer: React.FC = () => {
   const { watchingScreenShares } = useVoice();
   const [audioTracks, setAudioTracks] = useState<Map<string, { participant: RemoteParticipant; publication: RemoteTrackPublication }>>(new Map());
 
+  // Use a ref for watchingScreenShares so updateAudioTracks callback stays stable.
+  // This prevents event listener teardown/re-registration when watching state changes,
+  // which could cause missed events and audio drops.
+  const watchingScreenSharesRef = useRef(watchingScreenShares);
+  useEffect(() => {
+    watchingScreenSharesRef.current = watchingScreenShares;
+  }, [watchingScreenShares]);
+
   // Update audio tracks list when participants/tracks change
   const updateAudioTracks = useCallback(() => {
     if (!room) {
@@ -80,13 +92,14 @@ export const AudioRenderer: React.FC = () => {
     }
 
     const newTracks = new Map<string, { participant: RemoteParticipant; publication: RemoteTrackPublication }>();
+    const currentWatching = watchingScreenSharesRef.current;
 
     logger.debug('[AudioRenderer] Updating audio tracks, remote participants:', room.remoteParticipants.size);
     room.remoteParticipants.forEach((participant) => {
       participant.audioTrackPublications.forEach((publication) => {
         // Include microphone tracks always; screen share audio only when watching that participant's screen share
         const isMic = publication.source === Track.Source.Microphone;
-        const isScreenShareAudio = publication.source === Track.Source.ScreenShareAudio && watchingScreenShares.has(participant.identity);
+        const isScreenShareAudio = publication.source === Track.Source.ScreenShareAudio && currentWatching.has(participant.identity);
         if ((isMic || isScreenShareAudio) && publication.track) {
           const key = `${participant.identity}-${publication.trackSid}`;
           newTracks.set(key, { participant, publication });
@@ -97,8 +110,9 @@ export const AudioRenderer: React.FC = () => {
 
     logger.info('[AudioRenderer] Audio tracks updated, count:', newTracks.size);
     setAudioTracks(newTracks);
-  }, [room, watchingScreenShares]);
+  }, [room]);
 
+  // Register room event listeners — stable because updateAudioTracks only depends on room
   useEffect(() => {
     if (!room) return;
 
@@ -119,6 +133,12 @@ export const AudioRenderer: React.FC = () => {
       events.forEach((event) => room.off(event, updateAudioTracks));
     };
   }, [room, updateAudioTracks]);
+
+  // When watchingScreenShares changes, rebuild audio tracks to pick up
+  // screen share audio subscriptions without re-registering event listeners.
+  useEffect(() => {
+    updateAudioTracks();
+  }, [watchingScreenShares, updateAudioTracks]);
 
   // Don't render anything visible - just hidden audio elements
   if (!room || audioTracks.size === 0) {
