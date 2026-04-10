@@ -66,16 +66,16 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     };
   }, [stateRef]);
 
-  // Clean up room when voice state transitions to disconnected
+  // Clean up room when voice state transitions to disconnected.
+  // Uses stateRef to check isConnected without subscribing to VoiceState context.
+  // Runs when the room state variable changes (setRoom triggers setRoomState).
   useEffect(() => {
-    // Poll isConnected via stateRef to avoid subscribing to VoiceState context.
-    // This effect only needs to run when the room state variable changes.
     if (!stateRef.current.isConnected && roomRef.current) {
       roomRef.current.disconnect();
       roomRef.current = null;
       setRoomState(null);
     }
-  });
+  }, [room, stateRef]);
 
   // Cleanup on unmount
   useEffect(() => {
