@@ -29,9 +29,17 @@ vi.mock('livekit-client', () => {
     state = mockRoomInstance.state;
     localParticipant = mockRoomInstance.localParticipant;
     switchActiveDevice = mockRoomInstance.switchActiveDevice;
+    on = vi.fn().mockReturnThis();
   }
   return {
     Room: MockRoom,
+    RoomEvent: {
+      Reconnecting: 'reconnecting',
+      Reconnected: 'reconnected',
+      SignalConnected: 'signalConnected',
+      Disconnected: 'disconnected',
+    },
+    DisconnectReason: {},
     VideoCaptureOptions: {},
     AudioCaptureOptions: {},
   };

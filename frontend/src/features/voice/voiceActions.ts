@@ -1,4 +1,4 @@
-import { Room, VideoCaptureOptions, AudioCaptureOptions } from "livekit-client";
+import { Room, RoomEvent, DisconnectReason, VideoCaptureOptions, AudioCaptureOptions } from "livekit-client";
 import { VoiceSessionType, VoiceActionType, type VoiceAction, type VoiceState } from "../../contexts/VoiceContext";
 import { livekitControllerGenerateToken, livekitControllerGenerateDmToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from "../../api-client/sdk.gen";
 import { queryClient } from "../../queryClient";
@@ -108,6 +108,25 @@ async function connectToLiveKitRoom(
   logger.info('[Voice] Creating new LiveKit room instance');
   const room = new Room({
     autoSubscribe: false,
+  });
+
+  // Register connection state monitoring before connecting so we catch
+  // any events that fire during the connection handshake.
+  room.on(RoomEvent.Reconnecting, () => {
+    logger.warn('[Voice] LiveKit reconnecting...');
+  });
+  room.on(RoomEvent.Reconnected, () => {
+    logger.info('[Voice] LiveKit reconnected');
+  });
+  room.on(RoomEvent.SignalConnected, () => {
+    logger.info('[Voice] LiveKit signal connected');
+  });
+  room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+    if (reason === DisconnectReason.CLIENT_INITIATED) {
+      logger.info('[Voice] LiveKit disconnected by client');
+      return;
+    }
+    logger.error('[Voice] LiveKit disconnected unexpectedly, reason:', reason);
   });
 
   try {

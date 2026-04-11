@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useRef, useEffect } from "react";
+import React, { createContext, useContext, useReducer, useRef, useEffect, useMemo } from "react";
 
 export enum VoiceSessionType {
   Channel = 'channel',
@@ -166,31 +166,37 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
     case VoiceActionType.SetServerMuted:
       return { ...state, isServerMuted: action.payload };
     case VoiceActionType.WatchCamera: {
+      if (state.watchingCameras.has(action.payload)) return state;
       const next = new Set(state.watchingCameras);
       next.add(action.payload);
       return { ...state, watchingCameras: next };
     }
     case VoiceActionType.StopWatchingCamera: {
+      if (!state.watchingCameras.has(action.payload)) return state;
       const next = new Set(state.watchingCameras);
       next.delete(action.payload);
       return { ...state, watchingCameras: next };
     }
     case VoiceActionType.WatchScreenShare: {
+      if (state.watchingScreenShares.has(action.payload)) return state;
       const next = new Set(state.watchingScreenShares);
       next.add(action.payload);
       return { ...state, watchingScreenShares: next };
     }
     case VoiceActionType.StopWatchingScreenShare: {
+      if (!state.watchingScreenShares.has(action.payload)) return state;
       const next = new Set(state.watchingScreenShares);
       next.delete(action.payload);
       return { ...state, watchingScreenShares: next };
     }
     case VoiceActionType.HideLocalTile: {
+      if (state.hiddenLocalTiles.has(action.payload)) return state;
       const next = new Set(state.hiddenLocalTiles);
       next.add(action.payload);
       return { ...state, hiddenLocalTiles: next };
     }
     case VoiceActionType.ShowLocalTile: {
+      if (!state.hiddenLocalTiles.has(action.payload)) return state;
       const next = new Set(state.hiddenLocalTiles);
       next.delete(action.payload);
       return { ...state, hiddenLocalTiles: next };
@@ -215,8 +221,12 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stateRef.current = state;
   }, [state]);
 
+  // Memoize dispatch context value so consumers (like RoomProvider) that only
+  // need dispatch/stateRef don't re-render on every VoiceState change.
+  const dispatchValue = useMemo(() => ({ dispatch, stateRef }), [dispatch, stateRef]);
+
   return (
-    <VoiceDispatchContext.Provider value={{ dispatch, stateRef }}>
+    <VoiceDispatchContext.Provider value={dispatchValue}>
       <VoiceStateContext.Provider value={state}>
         {children}
       </VoiceStateContext.Provider>
