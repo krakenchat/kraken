@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useRef, useEffect } from "react";
+import React, { createContext, useContext, useReducer, useRef, useEffect, useMemo } from "react";
 
 export enum VoiceSessionType {
   Channel = 'channel',
@@ -221,8 +221,12 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stateRef.current = state;
   }, [state]);
 
+  // Memoize dispatch context value so consumers (like RoomProvider) that only
+  // need dispatch/stateRef don't re-render on every VoiceState change.
+  const dispatchValue = useMemo(() => ({ dispatch, stateRef }), [dispatch, stateRef]);
+
   return (
-    <VoiceDispatchContext.Provider value={{ dispatch, stateRef }}>
+    <VoiceDispatchContext.Provider value={dispatchValue}>
       <VoiceStateContext.Provider value={state}>
         {children}
       </VoiceStateContext.Provider>

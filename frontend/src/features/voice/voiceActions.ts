@@ -119,10 +119,14 @@ async function connectToLiveKitRoom(
     logger.info('[Voice] LiveKit reconnected');
   });
   room.on(RoomEvent.SignalConnected, () => {
-    logger.info('[Voice] LiveKit signal reconnected');
+    logger.info('[Voice] LiveKit signal connected');
   });
   room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
-    logger.error('[Voice] LiveKit disconnected, reason:', reason);
+    if (reason === DisconnectReason.CLIENT_INITIATED) {
+      logger.info('[Voice] LiveKit disconnected by client');
+      return;
+    }
+    logger.error('[Voice] LiveKit disconnected unexpectedly, reason:', reason);
   });
 
   try {

@@ -96,6 +96,7 @@ export function useTrackSubscription(): TrackSubscriptionActions {
       participant: RemoteParticipant,
     ) => {
       if (!(publication instanceof RemoteTrackPublication)) return;
+      logger.info('[TrackSubscription] TrackPublished', participant.identity, publication.source, publication.trackSid);
       if (publication.source === Track.Source.Microphone) {
         subscribePublication(publication, `published-mic:${participant.identity}`);
       } else if (isOptInSource(publication.source)) {
@@ -107,6 +108,7 @@ export function useTrackSubscription(): TrackSubscriptionActions {
       publication: RemoteTrackPublication,
       participant: RemoteParticipant,
     ) => {
+      logger.info('[TrackSubscription] TrackUnpublished', participant.identity, publication.source, publication.trackSid);
       // Clean up watching state when a participant stops sharing
       if (publication.source === Track.Source.Camera) {
         dispatch({ type: VoiceActionType.StopWatchingCamera, payload: participant.identity });
@@ -116,11 +118,13 @@ export function useTrackSubscription(): TrackSubscriptionActions {
     };
 
     const handleParticipantConnected = (participant: RemoteParticipant) => {
+      logger.info('[TrackSubscription] ParticipantConnected', participant.identity, 'tracks:', participant.trackPublications.size);
       // Participant may already have published tracks by the time we get this event
       applySubscriptionPolicy(participant);
     };
 
     // Apply subscription policy to existing participants on mount
+    logger.info('[TrackSubscription] Applying initial subscription policy to', room.remoteParticipants.size, 'participants');
     for (const [, participant] of room.remoteParticipants) {
       applySubscriptionPolicy(participant);
     }
