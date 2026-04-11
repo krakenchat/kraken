@@ -69,8 +69,11 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   // Clean up room when voice state transitions to disconnected.
   // Uses stateRef to check isConnected without subscribing to VoiceState context.
   // Runs when the room state variable changes (setRoom triggers setRoomState).
+  // IMPORTANT: Must also check isConnecting to avoid disconnecting during the
+  // connection window (room exists but SetConnected hasn't been dispatched yet).
   useEffect(() => {
-    if (!stateRef.current.isConnected && roomRef.current) {
+    const state = stateRef.current;
+    if (!state.isConnected && !state.isConnecting && roomRef.current) {
       roomRef.current.disconnect();
       roomRef.current = null;
       setRoomState(null);
