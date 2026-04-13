@@ -37,6 +37,29 @@ vi.mock('livekit-client', () => ({
   },
 }));
 
+// Mock SDK for voice presence seed
+const mockGetChannelPresence = vi.fn().mockResolvedValue({
+  data: {
+    channelId: 'voice-ch-1',
+    users: [
+      {
+        id: 'user-1',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+        joinedAt: '2025-06-15T10:00:00Z',
+        isDeafened: false,
+        isServerMuted: false,
+      },
+    ],
+    count: 1,
+  },
+});
+
+vi.mock('../../api-client/sdk.gen', () => ({
+  voicePresenceControllerGetChannelPresence: (...args: unknown[]) => mockGetChannelPresence(...args),
+}));
+
 // Mock getUserInfo
 vi.mock('../../features/users/userApiHelpers', () => ({
   getUserInfo: vi.fn().mockResolvedValue({ avatarUrl: null }),
@@ -251,6 +274,28 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
 
       expect(mockWatchScreenShare).toHaveBeenCalledWith('user-1');
       expect(mockSetShowVideoTiles).toHaveBeenCalledWith(true);
+    });
+
+    it('seeds joinedAt timestamps from the backend REST API and applies them', async () => {
+      renderWithProviders(
+        <VoiceChannelUserList channel={voiceChannel} />,
+      );
+
+      // Wait for the seed effect to call the REST API and update participants
+      await waitFor(() => {
+        expect(mockGetChannelPresence).toHaveBeenCalledWith(
+          expect.objectContaining({
+            path: { channelId: 'voice-ch-1' },
+          }),
+        );
+      });
+
+      // The seeded timestamp (2025-06-15) should be applied to the rendered participant,
+      // showing a time much older than "less than a minute ago"
+      await waitFor(() => {
+        const joinedText = screen.getByText(/Joined/);
+        expect(joinedText.textContent).not.toContain('less than a minute');
+      });
     });
   });
 
