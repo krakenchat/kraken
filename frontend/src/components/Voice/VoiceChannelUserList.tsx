@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -9,6 +9,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import { voicePresenceControllerGetChannelPresenceOptions } from "../../api-client/@tanstack/react-query.gen";
+import { voicePresenceControllerGetChannelPresence } from "../../api-client/sdk.gen";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 import { ChannelType, type Channel } from "../../types/channel.type";
 import { useVoiceConnection } from "../../hooks/useVoiceConnection";
@@ -42,6 +43,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   const { watchingCameras, watchingScreenShares } = useVoice();
   const trackActions = useTrackSubscriptionActions();
   const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUserDto[]>([]);
+  const joinedAtCacheRef = useRef<Map<string, string>>(new Map());
   const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<{
     position: { top: number; left: number } | null;
@@ -59,6 +61,32 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 
   // Check if we're connected to this specific channel
   const isConnectedToThisChannel = voiceState.currentChannelId === channel.id && voiceState.isConnected;
+
+  // Seed joinedAt cache from backend when first connecting
+  useEffect(() => {
+    if (!isConnectedToThisChannel) {
+      joinedAtCacheRef.current.clear();
+      return;
+    }
+
+    const abortController = new AbortController();
+    voicePresenceControllerGetChannelPresence({
+      path: { channelId: channel.id },
+      signal: abortController.signal,
+    }).then((response) => {
+      if (abortController.signal.aborted) return;
+      const data = response.data;
+      if (data?.users) {
+        for (const user of data.users) {
+          if (!joinedAtCacheRef.current.has(user.id)) {
+            joinedAtCacheRef.current.set(user.id, user.joinedAt);
+          }
+        }
+      }
+    }).catch(() => { /* ignore — fallback to new Date() is acceptable */ });
+
+    return () => abortController.abort();
+  }, [isConnectedToThisChannel, channel.id]);
 
   // Use backend presence query only when NOT connected to this channel
   // (for viewing other voice channels we're not in)
@@ -122,7 +150,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         username: p.name || p.identity,
         displayName: p.name || undefined,
         avatarUrl: userInfos[i]?.avatarUrl ?? undefined,
-        joinedAt: new Date().toISOString(),
+        joinedAt: joinedAtCacheRef.current.get(p.identity) || new Date().toISOString(),
         isDeafened: p.isDeafened,
       }));
 
@@ -167,6 +195,22 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
           : p,
       ),
     );
+  });
+
+  // Keep joinedAt cache in sync with new joins/leaves
+  useServerEvent(ServerEvents.VOICE_CHANNEL_USER_JOINED, (payload) => {
+    if (!isConnectedToThisChannel || payload.channelId !== channel.id) return;
+    if (payload.user?.joinedAt) {
+      const ts = typeof payload.user.joinedAt === 'string'
+        ? payload.user.joinedAt
+        : new Date(payload.user.joinedAt).toISOString();
+      joinedAtCacheRef.current.set(payload.user.id, ts);
+    }
+  });
+
+  useServerEvent(ServerEvents.VOICE_CHANNEL_USER_LEFT, (payload) => {
+    if (payload.channelId !== channel.id) return;
+    joinedAtCacheRef.current.delete(payload.userId);
   });
 
   // Determine which data source to use

@@ -15,7 +15,6 @@ jest.mock('dns', () => ({
   },
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockLookup = dns.lookup as jest.Mock<any>;
 
 describe('link-preview.utils', () => {
@@ -362,8 +361,12 @@ describe('link-preview.utils', () => {
 
   describe('findOEmbedProvider', () => {
     it('should match YouTube watch URLs', () => {
-      expect(findOEmbedProvider('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).not.toBeNull();
-      expect(findOEmbedProvider('https://youtube.com/watch?v=abc')).not.toBeNull();
+      expect(
+        findOEmbedProvider('https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+      ).not.toBeNull();
+      expect(
+        findOEmbedProvider('https://youtube.com/watch?v=abc'),
+      ).not.toBeNull();
     });
 
     it('should match YouTube short URLs', () => {
@@ -371,11 +374,15 @@ describe('link-preview.utils', () => {
     });
 
     it('should match YouTube Shorts', () => {
-      expect(findOEmbedProvider('https://www.youtube.com/shorts/abc123')).not.toBeNull();
+      expect(
+        findOEmbedProvider('https://www.youtube.com/shorts/abc123'),
+      ).not.toBeNull();
     });
 
     it('should match Spotify URLs', () => {
-      expect(findOEmbedProvider('https://open.spotify.com/track/abc')).not.toBeNull();
+      expect(
+        findOEmbedProvider('https://open.spotify.com/track/abc'),
+      ).not.toBeNull();
     });
 
     it('should match Vimeo URLs', () => {
@@ -383,7 +390,9 @@ describe('link-preview.utils', () => {
     });
 
     it('should match TikTok URLs', () => {
-      expect(findOEmbedProvider('https://www.tiktok.com/@user/video/123')).not.toBeNull();
+      expect(
+        findOEmbedProvider('https://www.tiktok.com/@user/video/123'),
+      ).not.toBeNull();
     });
 
     it('should return null for non-matching URLs', () => {

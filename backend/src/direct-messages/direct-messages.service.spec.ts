@@ -131,6 +131,45 @@ describe('DirectMessagesService', () => {
       expect(result[0].lastMessage).toBeNull();
     });
 
+    it('should sort groups by most recent message first, falling back to createdAt', async () => {
+      const user = UserFactory.build();
+
+      const jan1 = new Date('2025-01-01T00:00:00Z');
+      const feb1 = new Date('2025-02-01T00:00:00Z');
+      const feb15 = new Date('2025-02-15T00:00:00Z');
+      const mar1 = new Date('2025-03-01T00:00:00Z');
+      const mar15 = new Date('2025-03-15T00:00:00Z');
+
+      const msgA = MessageFactory.buildDirectMessage({
+        directMessageGroupId: 'dm-A',
+        sentAt: mar1,
+      });
+      const msgB = MessageFactory.buildDirectMessage({
+        directMessageGroupId: 'dm-B',
+        sentAt: feb15,
+      });
+
+      mockDatabase.directMessageGroupMember.findMany
+        .mockResolvedValueOnce([
+          { groupId: 'dm-A' },
+          { groupId: 'dm-B' },
+          { groupId: 'dm-C' },
+        ])
+        .mockResolvedValueOnce([]);
+
+      mockDatabase.directMessageGroup.findMany.mockResolvedValue([
+        { id: 'dm-C', name: null, isGroup: false, createdAt: mar15 },
+        { id: 'dm-B', name: null, isGroup: false, createdAt: feb1 },
+        { id: 'dm-A', name: null, isGroup: false, createdAt: jan1 },
+      ]);
+
+      mockDatabase.message.findMany.mockResolvedValue([msgA, msgB]);
+
+      const result = await service.findUserDmGroups(user.id);
+
+      expect(result.map((g) => g.id)).toEqual(['dm-C', 'dm-A', 'dm-B']);
+    });
+
     it('should rethrow errors', async () => {
       const user = UserFactory.build();
       mockDatabase.directMessageGroupMember.findMany.mockRejectedValue(

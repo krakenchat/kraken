@@ -37,6 +37,29 @@ vi.mock('livekit-client', () => ({
   },
 }));
 
+// Mock SDK for voice presence seed
+const mockGetChannelPresence = vi.fn().mockResolvedValue({
+  data: {
+    channelId: 'voice-ch-1',
+    users: [
+      {
+        id: 'user-1',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+        joinedAt: '2025-06-15T10:00:00Z',
+        isDeafened: false,
+        isServerMuted: false,
+      },
+    ],
+    count: 1,
+  },
+});
+
+vi.mock('../../api-client/sdk.gen', () => ({
+  voicePresenceControllerGetChannelPresence: (...args: unknown[]) => mockGetChannelPresence(...args),
+}));
+
 // Mock getUserInfo
 vi.mock('../../features/users/userApiHelpers', () => ({
   getUserInfo: vi.fn().mockResolvedValue({ avatarUrl: null }),
@@ -251,6 +274,22 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
 
       expect(mockWatchScreenShare).toHaveBeenCalledWith('user-1');
       expect(mockSetShowVideoTiles).toHaveBeenCalledWith(true);
+    });
+
+    it('seeds joinedAt timestamps from the backend REST API', async () => {
+      renderWithProviders(
+        <VoiceChannelUserList channel={voiceChannel} showCompact />,
+      );
+
+      await screen.findByTestId('VideocamIcon');
+
+      await waitFor(() => {
+        expect(mockGetChannelPresence).toHaveBeenCalledWith(
+          expect.objectContaining({
+            path: { channelId: 'voice-ch-1' },
+          }),
+        );
+      });
     });
   });
 

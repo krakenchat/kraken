@@ -92,8 +92,8 @@ export class DirectMessagesService {
       }
     }
 
-    // Step 4: Assemble response
-    return groups.map((group) => ({
+    // Step 4: Assemble and sort by most recent activity
+    const result = groups.map((group) => ({
       id: group.id,
       name: group.name,
       isGroup: group.isGroup,
@@ -101,6 +101,18 @@ export class DirectMessagesService {
       members: membersByGroupId.get(group.id) || [],
       lastMessage: lastMessageByGroupId.get(group.id) || null,
     }));
+
+    result.sort((a, b) => {
+      const aTime = a.lastMessage
+        ? new Date(a.lastMessage.sentAt).getTime()
+        : a.createdAt.getTime();
+      const bTime = b.lastMessage
+        ? new Date(b.lastMessage.sentAt).getTime()
+        : b.createdAt.getTime();
+      return bTime - aTime;
+    });
+
+    return result;
   }
 
   async createDmGroup(
