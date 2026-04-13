@@ -77,10 +77,27 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
       if (abortController.signal.aborted) return;
       const data = response.data;
       if (data?.users) {
+        let cacheUpdated = false;
         for (const user of data.users) {
           if (!joinedAtCacheRef.current.has(user.id)) {
             joinedAtCacheRef.current.set(user.id, user.joinedAt);
+            cacheUpdated = true;
           }
+        }
+
+        if (cacheUpdated) {
+          setLivekitParticipants((prev) => {
+            let changed = false;
+            const next = prev.map((p) => {
+              const joinedAt = joinedAtCacheRef.current.get(p.id);
+              if (joinedAt && p.joinedAt !== joinedAt) {
+                changed = true;
+                return { ...p, joinedAt };
+              }
+              return p;
+            });
+            return changed ? next : prev;
+          });
         }
       }
     }).catch(() => { /* ignore — fallback to new Date() is acceptable */ });

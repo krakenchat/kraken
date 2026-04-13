@@ -276,19 +276,25 @@ describe('VoiceChannelUserList - Clickable Icons', () => {
       expect(mockSetShowVideoTiles).toHaveBeenCalledWith(true);
     });
 
-    it('seeds joinedAt timestamps from the backend REST API', async () => {
+    it('seeds joinedAt timestamps from the backend REST API and applies them', async () => {
       renderWithProviders(
-        <VoiceChannelUserList channel={voiceChannel} showCompact />,
+        <VoiceChannelUserList channel={voiceChannel} />,
       );
 
-      await screen.findByTestId('VideocamIcon');
-
+      // Wait for the seed effect to call the REST API and update participants
       await waitFor(() => {
         expect(mockGetChannelPresence).toHaveBeenCalledWith(
           expect.objectContaining({
             path: { channelId: 'voice-ch-1' },
           }),
         );
+      });
+
+      // The seeded timestamp (2025-06-15) should be applied to the rendered participant,
+      // showing a time much older than "less than a minute ago"
+      await waitFor(() => {
+        const joinedText = screen.getByText(/Joined/);
+        expect(joinedText.textContent).not.toContain('less than a minute');
       });
     });
   });
