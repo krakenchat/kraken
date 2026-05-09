@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { RoomEvent, ConnectionQuality, Track } from 'livekit-client';
 import type {
   RemoteParticipant,
@@ -14,10 +14,50 @@ import { useRoom } from './useRoom';
 import {
   VoiceEventLogContext,
   type VoiceEventEntry,
+  type VoiceEventLogStore,
   type VoiceEventSeverity,
 } from './useVoiceEventLogDef';
 
 const MAX_EVENTS = 250;
+
+/**
+ * Creates a store that holds the event ring buffer outside React state.
+ * Writes don't trigger Provider re-renders; consumers update via
+ * useSyncExternalStore subscription.
+ */
+function createVoiceEventLogStore(): VoiceEventLogStore {
+  let events: VoiceEventEntry[] = [];
+  let idCounter = 0;
+  const listeners = new Set<() => void>();
+
+  const notify = () => listeners.forEach((l) => l());
+
+  return {
+    getSnapshot: () => events,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    push: (entry) => {
+      const next = events.length >= MAX_EVENTS ? events.slice(events.length - MAX_EVENTS + 1) : events.slice();
+      next.push({
+        ...entry,
+        id: idCounter++,
+        timestamp: Date.now(),
+      });
+      events = next;
+      notify();
+    },
+    clear: () => {
+      if (events.length === 0 && idCounter === 0) return;
+      events = [];
+      idCounter = 0;
+      notify();
+    },
+  };
+}
 
 /**
  * Subscribes to a room's lifecycle and subscription events whenever a Room is
@@ -25,58 +65,68 @@ const MAX_EVENTS = 250;
  * (next to TrackSubscriptionProvider) so the log starts collecting immediately
  * on voice join — not only when the debug panel is opened.
  *
+ * The buffer is reset whenever the underlying Room reference changes (e.g.
+ * the user leaves voice or joins a different channel) so events from prior
+ * sessions don't bleed into the next.
+ *
  * Chatty/uninteresting events (active speakers, data packets, transcription)
  * are intentionally filtered out to keep the log readable.
  */
 export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { room } = useRoom();
-  const [events, setEvents] = useState<VoiceEventEntry[]>([]);
-  const idCounter = useRef(0);
-
-  const push = useCallback((entry: Omit<VoiceEventEntry, 'id' | 'timestamp'>) => {
-    setEvents((prev) => {
-      const next = prev.length >= MAX_EVENTS ? prev.slice(prev.length - MAX_EVENTS + 1) : prev.slice();
-      next.push({
-        ...entry,
-        id: idCounter.current++,
-        timestamp: Date.now(),
-      });
-      return next;
-    });
-  }, []);
-
-  const clear = useCallback(() => setEvents([]), []);
+  const storeRef = useRef<VoiceEventLogStore | null>(null);
+  if (storeRef.current === null) {
+    storeRef.current = createVoiceEventLogStore();
+  }
+  const store = storeRef.current;
 
   useEffect(() => {
+    // Reset on room changes so the log only contains events for the current
+    // session. `null → Room` (joining), `Room → null` (leaving), and
+    // `RoomA → RoomB` (channel switch) all clear the buffer.
+    store.clear();
+
     if (!room) return;
 
-    push({ severity: 'success', category: 'connection', message: `Room available (state: ${room.state})` });
+    store.push({
+      severity: 'success',
+      category: 'connection',
+      message: `Room available (state: ${room.state})`,
+    });
 
     // ---------------- Connection lifecycle ----------------
     const onReconnecting = () =>
-      push({ severity: 'warn', category: 'connection', message: 'Reconnecting…' });
+      store.push({ severity: 'warn', category: 'connection', message: 'Reconnecting…' });
     const onReconnected = () =>
-      push({ severity: 'success', category: 'connection', message: 'Reconnected — re-subscribing to mics' });
+      store.push({
+        severity: 'success',
+        category: 'connection',
+        message: 'Reconnected — re-subscribing to mics',
+      });
     const onSignalConnected = () =>
-      push({ severity: 'info', category: 'connection', message: 'Signal connected' });
+      store.push({ severity: 'info', category: 'connection', message: 'Signal connected' });
     const onDisconnected = (reason?: DisconnectReason) =>
-      push({
+      store.push({
         severity: 'error',
         category: 'connection',
         message: `Disconnected${reason !== undefined ? ` (reason: ${reason})` : ''}`,
       });
     const onConnectionStateChanged = (state: ConnectionState) =>
-      push({ severity: 'info', category: 'connection', message: `Connection state → ${state}` });
+      store.push({
+        severity: 'info',
+        category: 'connection',
+        message: `Connection state → ${state}`,
+      });
 
     // ---------------- Participants ----------------
     const onParticipantConnected = (p: RemoteParticipant) =>
-      push({
+      store.push({
         severity: 'success',
         category: 'participant',
         message: `${shortName(p)} connected (${p.trackPublications.size} tracks)`,
       });
     const onParticipantDisconnected = (p: RemoteParticipant) =>
-      push({
+      store.push({
         severity: 'info',
         category: 'participant',
         message: `${shortName(p)} disconnected`,
@@ -84,13 +134,13 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // ---------------- Tracks (publish/unpublish) ----------------
     const onTrackPublished = (pub: RemoteTrackPublication, p: RemoteParticipant) =>
-      push({
+      store.push({
         severity: 'info',
         category: 'track',
         message: `${shortName(p)} published ${pub.source} (${pub.trackSid.slice(0, 8)}…)`,
       });
     const onTrackUnpublished = (pub: RemoteTrackPublication, p: RemoteParticipant) =>
-      push({
+      store.push({
         severity: 'info',
         category: 'track',
         message: `${shortName(p)} unpublished ${pub.source}`,
@@ -98,19 +148,11 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
     const onTrackMuted = (pub: TrackPublication, p: Participant) => {
       // Only log mic mutes — video mute is noisy and less actionable here.
       if (pub.source !== Track.Source.Microphone) return;
-      push({
-        severity: 'info',
-        category: 'track',
-        message: `${shortName(p)} muted mic`,
-      });
+      store.push({ severity: 'info', category: 'track', message: `${shortName(p)} muted mic` });
     };
     const onTrackUnmuted = (pub: TrackPublication, p: Participant) => {
       if (pub.source !== Track.Source.Microphone) return;
-      push({
-        severity: 'info',
-        category: 'track',
-        message: `${shortName(p)} unmuted mic`,
-      });
+      store.push({ severity: 'info', category: 'track', message: `${shortName(p)} unmuted mic` });
     };
 
     // ---------------- Subscriptions (the asymmetric-audio signal) ----------------
@@ -119,7 +161,7 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
       pub: RemoteTrackPublication,
       p: RemoteParticipant,
     ) =>
-      push({
+      store.push({
         severity: 'success',
         category: 'subscription',
         message: `subscribed to ${shortName(p)}'s ${pub.source}`,
@@ -129,7 +171,7 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
       pub: RemoteTrackPublication,
       p: RemoteParticipant,
     ) =>
-      push({
+      store.push({
         severity: 'warn',
         category: 'subscription',
         message: `unsubscribed from ${shortName(p)}'s ${pub.source}`,
@@ -139,7 +181,7 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
       p: RemoteParticipant,
       reason?: SubscriptionError,
     ) =>
-      push({
+      store.push({
         severity: 'error',
         category: 'subscription',
         message: `subscription FAILED for ${shortName(p)} (${trackSid.slice(0, 8)}…)${
@@ -151,11 +193,10 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
       status: TrackPublication.SubscriptionStatus,
       p: RemoteParticipant,
     ) => {
-      // Only log mic transitions to keep noise down.
       if (pub.source !== Track.Source.Microphone) return;
       const severity: VoiceEventSeverity =
         status === 'subscribed' ? 'success' : status === 'unsubscribed' ? 'error' : 'info';
-      push({
+      store.push({
         severity,
         category: 'subscription',
         message: `${shortName(p)} mic subscription → ${status}`,
@@ -175,7 +216,7 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
           : quality === ConnectionQuality.Poor
           ? 'warn'
           : 'info';
-      push({
+      store.push({
         severity,
         category: 'quality',
         message: `${isLocal ? 'local' : shortName(p)} quality → ${quality}`,
@@ -217,11 +258,9 @@ export const VoiceEventLogProvider: React.FC<{ children: React.ReactNode }> = ({
       room.off(RoomEvent.TrackSubscriptionStatusChanged, onTrackSubscriptionStatusChanged);
       room.off(RoomEvent.ConnectionQualityChanged, onConnectionQualityChanged);
     };
-  }, [room, push]);
+  }, [room, store]);
 
-  const value = useMemo(() => ({ events, clear }), [events, clear]);
-
-  return <VoiceEventLogContext.Provider value={value}>{children}</VoiceEventLogContext.Provider>;
+  return <VoiceEventLogContext.Provider value={store}>{children}</VoiceEventLogContext.Provider>;
 };
 
 function shortName(p: { name?: string; identity: string }): string {

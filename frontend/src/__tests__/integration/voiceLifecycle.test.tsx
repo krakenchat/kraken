@@ -254,12 +254,20 @@ function ActionsBridge({ onActions }: { onActions?: HarnessProps['onActions'] })
 }
 
 function Harness({ room, deafened = false, onActions }: HarnessProps) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const roomCtx = {
-    room: room as unknown as LKRoom,
-    setRoom: () => {},
-    getRoom: () => room as unknown as LKRoom,
-  };
+  // Stable QueryClient + RoomContext value across rerenders so React Query
+  // state isn't reset and consumers don't see a flapping context value.
+  const queryClient = React.useMemo(
+    () => new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    [],
+  );
+  const roomCtx = React.useMemo(
+    () => ({
+      room: room as unknown as LKRoom,
+      setRoom: () => {},
+      getRoom: () => room as unknown as LKRoom,
+    }),
+    [room],
+  );
 
   return (
     <QueryClientProvider client={queryClient}>

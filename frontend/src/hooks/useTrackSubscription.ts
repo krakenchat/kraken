@@ -215,8 +215,22 @@ export function useTrackSubscription(): TrackSubscriptionActions {
     };
 
     // Surface subscription failures so we can see them in logs / debug panel.
-    const handleSubscriptionFailed = (trackSid: string, reason?: SubscriptionError) => {
-      logger.error('[TrackSubscription] Subscription failed', trackSid, reason);
+    // The participant argument is essential for diagnosing asymmetric audio:
+    // it tells us *which* remote peer's mic we failed to subscribe to.
+    const handleSubscriptionFailed = (
+      trackSid: string,
+      participant: RemoteParticipant,
+      reason?: SubscriptionError,
+    ) => {
+      logger.error(
+        '[TrackSubscription] Subscription failed',
+        'participant:',
+        participant.identity,
+        'trackSid:',
+        trackSid,
+        'reason:',
+        reason,
+      );
     };
 
     // Apply subscription policy to existing participants on mount

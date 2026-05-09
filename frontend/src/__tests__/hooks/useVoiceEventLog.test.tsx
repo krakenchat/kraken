@@ -169,6 +169,34 @@ describe('useVoiceEventLog', () => {
     expect(result.current!.events.length).toBe(0);
   });
 
+  it('resets the buffer when the room reference changes', () => {
+    const { result, rerender } = renderHook(() => useVoiceEventLog(), {
+      wrapper: wrapWithProvider,
+    });
+    act(() => mockRoom!.emit('reconnected'));
+    expect(result.current!.events.length).toBeGreaterThan(1);
+
+    // Swap to a brand-new room — simulates leaving and re-joining a channel.
+    mockRoom = createMockRoom();
+    rerender();
+
+    // Buffer should reset and contain only the new "Room available" entry.
+    expect(result.current!.events.length).toBe(1);
+    expect(result.current!.events[0].message).toMatch(/Room available/);
+  });
+
+  it('clears the buffer when the room becomes null', () => {
+    const { result, rerender } = renderHook(() => useVoiceEventLog(), {
+      wrapper: wrapWithProvider,
+    });
+    expect(result.current!.events.length).toBe(1);
+
+    mockRoom = null;
+    rerender();
+
+    expect(result.current!.events.length).toBe(0);
+  });
+
   it('caps the buffer at 250 entries (oldest dropped)', () => {
     const { result } = renderHook(() => useVoiceEventLog(), { wrapper: wrapWithProvider });
     const alice = { identity: 'alice', name: 'Alice', trackPublications: new Map() };
