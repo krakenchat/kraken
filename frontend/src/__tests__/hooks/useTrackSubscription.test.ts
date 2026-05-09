@@ -7,6 +7,9 @@ vi.mock('livekit-client', () => ({
     TrackPublished: 'trackPublished',
     TrackUnpublished: 'trackUnpublished',
     ParticipantConnected: 'participantConnected',
+    Reconnected: 'reconnected',
+    TrackSubscriptionStatusChanged: 'trackSubscriptionStatusChanged',
+    TrackSubscriptionFailed: 'trackSubscriptionFailed',
   },
   Track: {
     Source: {
@@ -328,8 +331,125 @@ describe('useTrackSubscription', () => {
     });
   });
 
+  describe('on Reconnected', () => {
+    it('re-applies subscription policy to all participants with force=true', () => {
+      // Pre-populate room with one participant whose mic is already subscribed
+      // (mirroring the steady-state right before a reconnect)
+      const micPub = createMockPublication('microphone');
+      micPub.isSubscribed = true;
+      micPub.subscriptionStatus = 'subscribed';
+      const participant = createMockParticipant('user-1', [micPub]);
+      mockRoom!.remoteParticipants.set('user-1', participant);
+
+      renderHook(() => useTrackSubscription());
+      // setSubscribed call from the initial mount
+      const initialCallCount = micPub.setSubscribed.mock.calls.length;
+
+      act(() => {
+        emitRoomEvent('reconnected');
+      });
+
+      // forceResubscribePublication toggles false→true to force a fresh signal,
+      // so we expect TWO additional setSubscribed calls after Reconnected.
+      const newCalls = micPub.setSubscribed.mock.calls.slice(initialCallCount);
+      expect(newCalls).toEqual([[false], [true]]);
+    });
+
+    it('force-resubscribes mics for multiple participants', () => {
+      const micA = createMockPublication('microphone');
+      micA.isSubscribed = true;
+      const micB = createMockPublication('microphone');
+      micB.isSubscribed = true;
+      mockRoom!.remoteParticipants.set('a', createMockParticipant('a', [micA]));
+      mockRoom!.remoteParticipants.set('b', createMockParticipant('b', [micB]));
+
+      renderHook(() => useTrackSubscription());
+      const aBefore = micA.setSubscribed.mock.calls.length;
+      const bBefore = micB.setSubscribed.mock.calls.length;
+
+      act(() => {
+        emitRoomEvent('reconnected');
+      });
+
+      expect(micA.setSubscribed.mock.calls.slice(aBefore)).toEqual([[false], [true]]);
+      expect(micB.setSubscribed.mock.calls.slice(bBefore)).toEqual([[false], [true]]);
+    });
+  });
+
+  describe('on TrackSubscriptionStatusChanged', () => {
+    it('forces re-subscribe when a mic transitions to unsubscribed', () => {
+      renderHook(() => useTrackSubscription());
+
+      const micPub = createMockPublication('microphone');
+      micPub.isSubscribed = false; // post-status-change state
+      const participant = createMockParticipant('user-1', [micPub]);
+
+      act(() => {
+        emitRoomEvent('trackSubscriptionStatusChanged', micPub, 'unsubscribed', participant);
+      });
+
+      // forceResubscribePublication: skips the false call (already false), then sets true
+      expect(micPub.setSubscribed).toHaveBeenCalledWith(true);
+    });
+
+    it('ignores non-mic publication status changes', () => {
+      renderHook(() => useTrackSubscription());
+
+      const camPub = createMockPublication('camera');
+      const participant = createMockParticipant('user-1', [camPub]);
+
+      act(() => {
+        emitRoomEvent('trackSubscriptionStatusChanged', camPub, 'unsubscribed', participant);
+      });
+
+      // No re-subscribe attempt for camera tracks via the status-changed path
+      expect(camPub.setSubscribed).not.toHaveBeenCalled();
+    });
+
+    it('ignores subscribed→subscribed (not a drop)', () => {
+      renderHook(() => useTrackSubscription());
+
+      const micPub = createMockPublication('microphone');
+      micPub.isSubscribed = true;
+      const participant = createMockParticipant('user-1', [micPub]);
+
+      act(() => {
+        emitRoomEvent('trackSubscriptionStatusChanged', micPub, 'subscribed', participant);
+      });
+
+      expect(micPub.setSubscribed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('forceResubscribeMic action', () => {
+    it('toggles a subscribed mic false→true to issue a fresh subscribe', () => {
+      const micPub = createMockPublication('microphone');
+      micPub.isSubscribed = true;
+      const participant = createMockParticipant('user-1', [micPub]);
+      mockRoom!.remoteParticipants.set('user-1', participant);
+
+      const { result } = renderHook(() => useTrackSubscription());
+      const before = micPub.setSubscribed.mock.calls.length;
+
+      act(() => {
+        result.current.forceResubscribeMic('user-1');
+      });
+
+      expect(micPub.setSubscribed.mock.calls.slice(before)).toEqual([[false], [true]]);
+    });
+
+    it('does nothing when participant not found', () => {
+      const { result } = renderHook(() => useTrackSubscription());
+      expect(() => {
+        act(() => {
+          result.current.forceResubscribeMic('nonexistent');
+        });
+      }).not.toThrow();
+    });
+  });
+
   describe('cleanup', () => {
-    it('removes event listeners on unmount', () => {
+    it('removes all event listeners on unmount', () => {
       const { unmount } = renderHook(() => useTrackSubscription());
 
       unmount();
@@ -337,6 +457,9 @@ describe('useTrackSubscription', () => {
       expect(mockRoom!.off).toHaveBeenCalledWith('trackPublished', expect.any(Function));
       expect(mockRoom!.off).toHaveBeenCalledWith('trackUnpublished', expect.any(Function));
       expect(mockRoom!.off).toHaveBeenCalledWith('participantConnected', expect.any(Function));
+      expect(mockRoom!.off).toHaveBeenCalledWith('reconnected', expect.any(Function));
+      expect(mockRoom!.off).toHaveBeenCalledWith('trackSubscriptionStatusChanged', expect.any(Function));
+      expect(mockRoom!.off).toHaveBeenCalledWith('trackSubscriptionFailed', expect.any(Function));
     });
 
     it('does nothing when room is null', () => {
@@ -346,6 +469,7 @@ describe('useTrackSubscription', () => {
       // Should return actions without crashing
       expect(result.current.watchCamera).toBeDefined();
       expect(result.current.stopWatchingCamera).toBeDefined();
+      expect(result.current.forceResubscribeMic).toBeDefined();
     });
   });
 });

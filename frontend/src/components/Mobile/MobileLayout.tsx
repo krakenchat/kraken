@@ -19,6 +19,7 @@ import { VoiceBottomBar } from '../Voice/VoiceBottomBar';
 import { AudioRenderer } from '../Voice/AudioRenderer';
 import { PersistentVideoOverlay } from '../Voice/PersistentVideoOverlay';
 import { TrackSubscriptionProvider } from '../Voice/TrackSubscriptionProvider';
+import { VoiceEventLogProvider } from '../../hooks/useVoiceEventLog';
 import { MobileNavigationProvider } from './Navigation/MobileNavigationContext';
 import { MobileBottomNavigation } from './Navigation/MobileBottomNavigation';
 import MobileCommunityDrawer from './Navigation/MobileCommunityDrawer';
@@ -57,28 +58,30 @@ export const MobileLayout: React.FC = () => {
         }}
       >
         <TrackSubscriptionProvider>
-          {/* Community drawer - swipe from left edge */}
-          <MobileCommunityDrawer />
+          <VoiceEventLogProvider>
+            {/* Community drawer - swipe from left edge */}
+            <MobileCommunityDrawer />
 
-          {/* Screen container - main content area */}
-          <Box
-            sx={{
-              flex: 1,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <MobileScreenContainer bottomOffset={voiceBarOffset} />
-          </Box>
+            {/* Screen container - main content area */}
+            <Box
+              sx={{
+                flex: 1,
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <MobileScreenContainer bottomOffset={voiceBarOffset} />
+            </Box>
 
-          {/* Voice bar (only shows when in call) */}
-          {hasVoiceBar && <VoiceBottomBar />}
+            {/* Voice bar (only shows when in call) */}
+            {hasVoiceBar && <VoiceBottomBar />}
 
-          {/* Audio renderer for remote participants */}
-          <AudioRenderer />
+            {/* Audio renderer for remote participants */}
+            <AudioRenderer />
 
-          {/* Floating video overlay */}
-          <PersistentVideoOverlay />
+            {/* Floating video overlay */}
+            <PersistentVideoOverlay />
+          </VoiceEventLogProvider>
         </TrackSubscriptionProvider>
 
         {/* Bottom navigation - always visible */}

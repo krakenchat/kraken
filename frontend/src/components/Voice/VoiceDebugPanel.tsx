@@ -1,25 +1,73 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Paper, Typography, Chip, Divider } from '@mui/material';
-import { useTheme, alpha } from '@mui/material/styles';
+import React, { useEffect, useRef, useState } from 'react';
+import { Box, Paper, Typography, Chip, Divider, Button, Stack, Tooltip } from '@mui/material';
+import { useTheme, alpha, type Theme } from '@mui/material/styles';
+import {
+  ConnectionQuality,
+  RemoteParticipant,
+  RemoteTrackPublication,
+  Track,
+  RoomEvent,
+} from 'livekit-client';
 import { useRoom } from '../../hooks/useRoom';
 import { useSpeakingDetection } from '../../hooks/useSpeakingDetection';
+import { useTrackSubscriptionActions } from '../../hooks/useTrackSubscription';
+import {
+  useVoiceEventLog,
+  type VoiceEventEntry,
+  type VoiceEventSeverity,
+} from '../../hooks/useVoiceEventLogDef';
 import { useQuery } from '@tanstack/react-query';
 import { userControllerGetProfileOptions } from '../../api-client/@tanstack/react-query.gen';
+import { VOLUME_STORAGE_PREFIX } from '../../constants/voice';
 
 /**
- * Debug panel to help diagnose voice and speaking detection issues
+ * Debug panel for diagnosing voice and remote-audio issues.
+ *
+ * Toggle with Ctrl+Shift+D while in a voice channel.
+ *
  * Shows:
- * - LiveKit room connection status
- * - Microphone track status
- * - Speaking detection state
- * - Audio levels
+ * - Room connection state and counts
+ * - Local participant: mic publish state, speaking detection, audio level
+ * - **Per-remote-participant audio diagnostics** — the part that helps users
+ *   pinpoint asymmetric audio: subscription state, track presence, attached
+ *   `<audio>` element count, current volume, and a manual "Force resubscribe"
+ *   button as a last-resort recovery action.
  */
 export const VoiceDebugPanel: React.FC = () => {
   const theme = useTheme();
   const { room } = useRoom();
   const { speakingMap, isSpeaking } = useSpeakingDetection();
+  const trackActions = useTrackSubscriptionActions();
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const [audioLevel, setAudioLevel] = useState(0);
+
+  // Force re-renders on relevant LiveKit events so per-participant chips stay
+  // current even when no React state update would otherwise fire.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!room) return;
+    const refresh = () => setTick((t) => t + 1);
+    const events = [
+      RoomEvent.ParticipantConnected,
+      RoomEvent.ParticipantDisconnected,
+      RoomEvent.TrackPublished,
+      RoomEvent.TrackUnpublished,
+      RoomEvent.TrackSubscribed,
+      RoomEvent.TrackUnsubscribed,
+      RoomEvent.TrackMuted,
+      RoomEvent.TrackUnmuted,
+      RoomEvent.ConnectionQualityChanged,
+      RoomEvent.TrackSubscriptionStatusChanged,
+      RoomEvent.Reconnected,
+    ] as const;
+    events.forEach((e) => room.on(e, refresh));
+    // Also tick at 1Hz so derived fields like volume/attachedElements stay live.
+    const interval = setInterval(refresh, 1000);
+    return () => {
+      events.forEach((e) => room.off(e, refresh));
+      clearInterval(interval);
+    };
+  }, [room]);
 
   const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;
 
@@ -34,7 +82,6 @@ export const VoiceDebugPanel: React.FC = () => {
 
     if (!audioTrack?.track) return;
 
-    // Create audio context to monitor levels
     const audioContext = new AudioContext();
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
@@ -78,7 +125,9 @@ export const VoiceDebugPanel: React.FC = () => {
           right: 16,
           p: 2,
           zIndex: 9999,
-          minWidth: 300,
+          minWidth: 320,
+          maxHeight: '85vh',
+          overflowY: 'auto',
           backgroundColor: alpha(theme.palette.background.paper, 0.95),
           color: theme.palette.text.primary,
         }}
@@ -93,13 +142,11 @@ export const VoiceDebugPanel: React.FC = () => {
   }
 
   const localParticipant = room.localParticipant;
-  const audioPublication = Array.from(localParticipant.trackPublications.values()).find(
+  const localAudioPub = Array.from(localParticipant.trackPublications.values()).find(
     (pub) => pub.kind === 'audio'
   );
 
-  const allSpeakingUsers = Array.from(speakingMap.entries())
-    .filter(([, speaking]) => speaking)
-    .map(([identity]) => identity);
+  const remoteParticipants = Array.from(room.remoteParticipants.values());
 
   return (
     <Paper
@@ -109,8 +156,10 @@ export const VoiceDebugPanel: React.FC = () => {
         right: 16,
         p: 2,
         zIndex: 9999,
-        minWidth: 300,
-        maxWidth: 400,
+        minWidth: 360,
+        maxWidth: 480,
+        maxHeight: '85vh',
+        overflowY: 'auto',
         backgroundColor: alpha(theme.palette.background.paper, 0.95),
         color: theme.palette.text.primary,
       }}
@@ -118,17 +167,20 @@ export const VoiceDebugPanel: React.FC = () => {
       <Typography variant="h6" gutterBottom>
         🔧 Voice Debug Panel
       </Typography>
+      <Typography variant="caption" sx={{ color: 'grey.500', display: 'block', mb: 1 }}>
+        Refresh tick: {tick} (auto-updates on events + 1s interval)
+      </Typography>
       <Divider sx={{ mb: 2, borderColor: 'grey.700' }} />
 
-      {/* Room Status */}
+      {/* ────────────── Room ────────────── */}
       <Box sx={{ mb: 2 }}>
         <Typography variant="caption" sx={{ color: 'grey.400' }}>
-          Room Status
+          Room
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
           <Chip
-            label={`Connected: ${room.state}`}
-            color="success"
+            label={`State: ${room.state}`}
+            color={room.state === 'connected' ? 'success' : 'warning'}
             size="small"
           />
           <Chip
@@ -136,74 +188,54 @@ export const VoiceDebugPanel: React.FC = () => {
             color="info"
             size="small"
           />
-        </Box>
-      </Box>
-
-      {/* Audio Track Status */}
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: 'grey.400' }}>
-          Microphone Track
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
-          {audioPublication ? (
-            <>
-              <Chip
-                label={audioPublication.isMuted ? 'MUTED' : 'UNMUTED'}
-                color={audioPublication.isMuted ? 'error' : 'success'}
-                size="small"
-              />
-              <Chip
-                label={audioPublication.track ? 'Track Active' : 'No Track'}
-                color={audioPublication.track ? 'success' : 'error'}
-                size="small"
-              />
-            </>
-          ) : (
-            <Chip label="NO AUDIO TRACK" color="error" size="small" />
-          )}
-        </Box>
-      </Box>
-
-      {/* Speaking Detection */}
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: 'grey.400' }}>
-          Speaking Detection
-        </Typography>
-        <Box sx={{ mt: 0.5 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              mb: 1,
-            }}
-          >
-            <Box
-              sx={{
-                width: 16,
-                height: 16,
-                borderRadius: '50%',
-                backgroundColor: isCurrentUserSpeaking ? theme.palette.semantic.status.positive : theme.palette.action.disabled,
-                transition: 'background-color 0.2s',
-              }}
-            />
-            <Typography variant="body2">
-              {isCurrentUserSpeaking ? 'YOU ARE SPEAKING' : 'Not speaking'}
-            </Typography>
-          </Box>
           <Chip
-            label={`LiveKit isSpeaking: ${localParticipant.isSpeaking}`}
-            color={localParticipant.isSpeaking ? 'success' : 'default'}
+            label={`Local quality: ${localParticipant.connectionQuality}`}
+            color={qualityColor(localParticipant.connectionQuality)}
             size="small"
           />
         </Box>
       </Box>
 
-      {/* Audio Level Meter */}
-      {audioPublication && !audioPublication.isMuted && (
+      {/* ────────────── Local participant ────────────── */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="caption" sx={{ color: 'grey.400' }}>
+          Local Mic
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+          {localAudioPub ? (
+            <>
+              <Chip
+                label={localAudioPub.isMuted ? 'MUTED' : 'UNMUTED'}
+                color={localAudioPub.isMuted ? 'error' : 'success'}
+                size="small"
+              />
+              <Chip
+                label={localAudioPub.track ? 'Track Active' : 'No Track'}
+                color={localAudioPub.track ? 'success' : 'error'}
+                size="small"
+              />
+              <Chip
+                label={localParticipant.isSpeaking ? 'Speaking' : 'Silent'}
+                color={localParticipant.isSpeaking ? 'success' : 'default'}
+                size="small"
+              />
+              <Chip
+                label={isCurrentUserSpeaking ? 'Gate: open' : 'Gate: closed'}
+                color={isCurrentUserSpeaking ? 'success' : 'default'}
+                size="small"
+              />
+            </>
+          ) : (
+            <Chip label="NO MIC PUBLICATION" color="error" size="small" />
+          )}
+        </Box>
+      </Box>
+
+      {/* ────────────── Local audio level ────────────── */}
+      {localAudioPub && !localAudioPub.isMuted && (
         <Box sx={{ mb: 2 }}>
           <Typography variant="caption" sx={{ color: 'grey.400' }}>
-            Audio Level: {Math.round(audioLevel)}%
+            Mic Level: {Math.round(audioLevel)}%
           </Typography>
           <Box
             sx={{
@@ -228,43 +260,416 @@ export const VoiceDebugPanel: React.FC = () => {
         </Box>
       )}
 
-      {/* All Speaking Users */}
-      {allSpeakingUsers.length > 0 && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="caption" sx={{ color: 'grey.400' }}>
-            Currently Speaking ({allSpeakingUsers.length})
-          </Typography>
-          <Box sx={{ mt: 0.5 }}>
-            {allSpeakingUsers.map((identity) => (
-              <Chip
-                key={identity}
-                label={identity === currentUser?.id ? 'YOU' : identity.slice(0, 8)}
-                color="success"
-                size="small"
-                sx={{ mr: 0.5, mb: 0.5 }}
-              />
-            ))}
-          </Box>
-        </Box>
+      <Divider sx={{ my: 2, borderColor: 'grey.700' }} />
+
+      {/* ────────────── Remote participants ────────────── */}
+      <Typography variant="subtitle2" sx={{ color: 'grey.300', mb: 1 }}>
+        Remote Participants ({remoteParticipants.length})
+      </Typography>
+      {remoteParticipants.length === 0 ? (
+        <Typography variant="caption" sx={{ color: 'grey.500' }}>
+          No other participants in the room.
+        </Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {remoteParticipants.map((p) => (
+            <RemoteParticipantDiagnostic
+              key={p.identity}
+              participant={p}
+              speaking={speakingMap.get(p.identity) ?? false}
+              onForceResubscribe={trackActions?.forceResubscribeMic}
+            />
+          ))}
+        </Stack>
       )}
 
-      {/* Instructions */}
-      <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'grey.700' }}>
-        <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
-          <strong>How to test:</strong>
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'grey.500', display: 'block', mt: 0.5 }}>
-          1. Check if "Microphone Track" shows UNMUTED
-          <br />
-          2. Speak - watch "Audio Level" bar move
-          <br />
-          3. If audio level moves but no speaking detection:
-          <br />
-          &nbsp;&nbsp;→ LiveKit threshold may be too high
-          <br />
-          4. Green dot appears when LiveKit detects speaking
-        </Typography>
-      </Box>
+      <Divider sx={{ my: 2, borderColor: 'grey.700' }} />
+
+      {/* ────────────── Live event log ────────────── */}
+      <EventLogSection />
+
+      <Divider sx={{ my: 2, borderColor: 'grey.700' }} />
+
+      <Typography variant="caption" sx={{ color: 'grey.500', display: 'block' }}>
+        <strong>Toggle:</strong> Ctrl+Shift+D
+      </Typography>
+      <Typography variant="caption" sx={{ color: 'grey.500', display: 'block', mt: 0.5 }}>
+        If a remote shows <strong>NOT SUBSCRIBED</strong>, <strong>NO TRACK</strong>, or
+        attached element count = 0, click <em>Force resubscribe</em> to re-issue the
+        subscription. If volume is 0, you may have muted them via the user context menu.
+      </Typography>
     </Paper>
   );
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Newest-first scrollable feed of LiveKit room events. Sourced from
+ * VoiceEventLogProvider (mounted in Layout/MobileLayout/TabletLayout) so the
+ * log includes events that fired before the user opened the panel.
+ */
+const EventLogSection: React.FC = () => {
+  const theme = useTheme();
+  const log = useVoiceEventLog();
+  const [paused, setPaused] = useState(false);
+  // Snapshot the events when paused, so the rendered list freezes for inspection.
+  const snapshotRef = useRef<VoiceEventEntry[] | null>(null);
+
+  if (!log) {
+    return (
+      <Box>
+        <Typography variant="subtitle2" sx={{ color: 'grey.300', mb: 1 }}>
+          Event Log
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'grey.500' }}>
+          (VoiceEventLogProvider not mounted — log unavailable)
+        </Typography>
+      </Box>
+    );
+  }
+
+  const displayEvents = paused
+    ? snapshotRef.current ?? log.events
+    : log.events;
+
+  // Newest-first: render in reverse without mutating the source array.
+  const ordered = [...displayEvents].reverse();
+
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 1,
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ color: 'grey.300' }}>
+          Event Log ({log.events.length})
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            onClick={() => {
+              if (!paused) snapshotRef.current = log.events;
+              setPaused((p) => !p);
+            }}
+            sx={{ minWidth: 0, px: 1 }}
+          >
+            {paused ? 'Resume' : 'Pause'}
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            onClick={() => {
+              log.clear();
+              snapshotRef.current = null;
+            }}
+            sx={{ minWidth: 0, px: 1 }}
+          >
+            Clear
+          </Button>
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          fontFamily: 'monospace',
+          fontSize: 11,
+          backgroundColor: 'grey.900',
+          color: 'grey.100',
+          borderRadius: 1,
+          maxHeight: 220,
+          overflowY: 'auto',
+          p: 0.75,
+          border: 1,
+          borderColor: 'grey.800',
+        }}
+      >
+        {ordered.length === 0 ? (
+          <Typography variant="caption" sx={{ color: 'grey.500' }}>
+            (no events yet — connection events will appear here)
+          </Typography>
+        ) : (
+          ordered.map((e) => (
+            <Box
+              key={e.id}
+              sx={{
+                py: 0.25,
+                color: severityColor(e.severity, theme),
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              <span style={{ color: theme.palette.grey[500] }}>
+                {formatTime(e.timestamp)}
+              </span>{' '}
+              <span style={{ color: theme.palette.grey[400] }}>
+                [{e.category}]
+              </span>{' '}
+              {e.message}
+            </Box>
+          ))
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+function severityColor(severity: VoiceEventSeverity, theme: Theme): string {
+  switch (severity) {
+    case 'success':
+      return theme.palette.success.light;
+    case 'warn':
+      return theme.palette.warning.light;
+    case 'error':
+      return theme.palette.error.light;
+    default:
+      return theme.palette.grey[200];
+  }
+}
+
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  return `${hh}:${mm}:${ss}.${ms}`;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+interface RemoteParticipantDiagnosticProps {
+  participant: RemoteParticipant;
+  speaking: boolean;
+  onForceResubscribe?: (identity: string) => void;
+}
+
+const RemoteParticipantDiagnostic: React.FC<RemoteParticipantDiagnosticProps> = ({
+  participant,
+  speaking,
+  onForceResubscribe,
+}) => {
+  const theme = useTheme();
+
+  const micPub = findMicPublication(participant);
+  const summary = summarizeMicState(micPub);
+  const storedVolume = readStoredVolume(participant.identity);
+
+  const cardColor =
+    summary.severity === 'error'
+      ? alpha(theme.palette.error.main, 0.08)
+      : summary.severity === 'warn'
+      ? alpha(theme.palette.warning.main, 0.06)
+      : alpha(theme.palette.success.main, 0.06);
+
+  return (
+    <Box
+      sx={{
+        p: 1,
+        borderRadius: 1,
+        backgroundColor: cardColor,
+        border: 1,
+        borderColor:
+          summary.severity === 'error'
+            ? theme.palette.error.dark
+            : summary.severity === 'warn'
+            ? theme.palette.warning.dark
+            : 'grey.700',
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {participant.name || participant.identity.slice(0, 12)}
+        </Typography>
+        <Chip
+          label={participant.connectionQuality}
+          color={qualityColor(participant.connectionQuality)}
+          size="small"
+        />
+      </Box>
+
+      <Typography variant="caption" sx={{ color: 'grey.500', display: 'block', mb: 0.75 }}>
+        identity: <code>{participant.identity}</code>
+      </Typography>
+
+      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.75 }}>
+        <Chip
+          label={micPub ? 'mic published' : 'NO MIC PUB'}
+          color={micPub ? 'success' : 'error'}
+          size="small"
+        />
+        {micPub && (
+          <>
+            <Tooltip title="livekit publication.subscriptionStatus">
+              <Chip
+                label={`sub: ${micPub.subscriptionStatus}`}
+                color={micPub.subscriptionStatus === 'subscribed' ? 'success' : 'error'}
+                size="small"
+              />
+            </Tooltip>
+            <Tooltip title="publication.track is set (data is flowing)">
+              <Chip
+                label={micPub.track ? 'track ✓' : 'track ✗'}
+                color={micPub.track ? 'success' : 'error'}
+                size="small"
+              />
+            </Tooltip>
+            <Tooltip title="publication.isMuted (sender muted their mic)">
+              <Chip
+                label={micPub.isMuted ? 'sender muted' : 'sender live'}
+                color={micPub.isMuted ? 'warning' : 'default'}
+                size="small"
+              />
+            </Tooltip>
+            <Chip
+              label={speaking ? 'speaking' : 'silent'}
+              color={speaking ? 'success' : 'default'}
+              size="small"
+            />
+            {micPub.track && (
+              <>
+                <Tooltip title="Number of <audio> elements this track is attached to">
+                  <Chip
+                    label={`attached: ${micPub.track.attachedElements?.length ?? 0}`}
+                    color={(micPub.track.attachedElements?.length ?? 0) > 0 ? 'success' : 'error'}
+                    size="small"
+                  />
+                </Tooltip>
+                <Tooltip title="Current playback volume on the audio track">
+                  <Chip
+                    label={`vol: ${formatVolume(getTrackVolume(micPub))}`}
+                    color={
+                      getTrackVolume(micPub) === 0
+                        ? 'error'
+                        : (getTrackVolume(micPub) ?? 1) < 0.05
+                        ? 'warning'
+                        : 'default'
+                    }
+                    size="small"
+                  />
+                </Tooltip>
+              </>
+            )}
+          </>
+        )}
+      </Box>
+
+      {storedVolume !== null && (
+        <Typography variant="caption" sx={{ color: 'grey.500', display: 'block' }}>
+          stored localStorage volume: {storedVolume.toFixed(2)}{' '}
+          {storedVolume === 0 && (
+            <span style={{ color: theme.palette.error.light }}>
+              (← user-muted via context menu)
+            </span>
+          )}
+        </Typography>
+      )}
+
+      <Box sx={{ mt: 0.75, display: 'flex', gap: 0.5, alignItems: 'center' }}>
+        <Chip
+          label={summary.label}
+          color={summary.severity === 'ok' ? 'success' : summary.severity === 'warn' ? 'warning' : 'error'}
+          size="small"
+          sx={{ flex: 1, justifyContent: 'flex-start' }}
+        />
+        {onForceResubscribe && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="warning"
+            onClick={() => onForceResubscribe(participant.identity)}
+            disabled={!micPub}
+          >
+            Force resubscribe
+          </Button>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Helpers
+
+function findMicPublication(participant: RemoteParticipant): RemoteTrackPublication | undefined {
+  for (const [, pub] of participant.trackPublications) {
+    if (pub.source === Track.Source.Microphone) return pub as RemoteTrackPublication;
+  }
+  return undefined;
+}
+
+interface MicSummary {
+  severity: 'ok' | 'warn' | 'error';
+  label: string;
+}
+
+function summarizeMicState(micPub: RemoteTrackPublication | undefined): MicSummary {
+  if (!micPub) {
+    return { severity: 'warn', label: 'No mic published — they may have joined muted' };
+  }
+  if (micPub.subscriptionStatus !== 'subscribed') {
+    return { severity: 'error', label: `Not subscribed (${micPub.subscriptionStatus}) — try Force resubscribe` };
+  }
+  if (!micPub.track) {
+    return { severity: 'error', label: 'Subscribed but no track yet — SFU not forwarding' };
+  }
+  const attached = micPub.track.attachedElements?.length ?? 0;
+  if (attached === 0) {
+    return { severity: 'error', label: 'Track present but not attached to any <audio> element' };
+  }
+  const volume = getTrackVolume(micPub);
+  if (volume === 0) {
+    return { severity: 'error', label: 'Track volume is 0 (deafened or muted-for-me)' };
+  }
+  if (micPub.isMuted) {
+    return { severity: 'ok', label: 'Healthy — sender is muted' };
+  }
+  return { severity: 'ok', label: 'Healthy' };
+}
+
+function getTrackVolume(pub: RemoteTrackPublication): number | undefined {
+  const track = pub.track as { getVolume?: () => number } | undefined;
+  if (!track || typeof track.getVolume !== 'function') return undefined;
+  try {
+    return track.getVolume();
+  } catch {
+    return undefined;
+  }
+}
+
+function formatVolume(v: number | undefined): string {
+  if (v === undefined) return 'n/a';
+  return v.toFixed(2);
+}
+
+function readStoredVolume(identity: string): number | null {
+  try {
+    const raw = localStorage.getItem(`${VOLUME_STORAGE_PREFIX}${identity}`);
+    if (raw === null) return null;
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function qualityColor(q: ConnectionQuality): 'success' | 'warning' | 'error' | 'default' {
+  switch (q) {
+    case ConnectionQuality.Excellent:
+    case ConnectionQuality.Good:
+      return 'success';
+    case ConnectionQuality.Poor:
+      return 'warning';
+    case ConnectionQuality.Lost:
+      return 'error';
+    default:
+      return 'default';
+  }
+}
