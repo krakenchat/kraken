@@ -222,32 +222,6 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
         </Typography>
       </Box>
 
-      {/* Input Sensitivity (only shown when voice_activity mode is selected) */}
-      {inputMode === 'voice_activity' && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Input Sensitivity
-          </Typography>
-          <Slider
-            value={voiceActivityThreshold}
-            onChange={(_, val) => setVoiceActivityThreshold(val as number)}
-            min={0}
-            max={100}
-            marks={[
-              { value: 0, label: 'High' },
-              { value: 50, label: 'Medium' },
-              { value: 100, label: 'Low' },
-            ]}
-            valueLabelDisplay="auto"
-            valueLabelFormat={(v) => `Sensitivity: ${100 - v}%`}
-            size="small"
-          />
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            Move the slider left for higher sensitivity (picks up quieter sounds), right for lower sensitivity.
-          </Typography>
-        </Box>
-      )}
-
       {/* Push to Talk Key (only shown when PTT mode is selected) */}
       {inputMode === 'push_to_talk' && (
         <Box sx={{ mb: 3 }}>
@@ -445,6 +419,31 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
             {testingAudio ? 'Stop' : 'Test'}
           </Button>
         </Box>
+        {inputMode === 'voice_activity' && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              Input Sensitivity
+            </Typography>
+            <Slider
+              value={voiceActivityThreshold}
+              onChange={(_, val) => setVoiceActivityThreshold(val as number)}
+              min={0}
+              max={100}
+              marks={[
+                { value: 0, label: 'High' },
+                { value: 50, label: 'Medium' },
+                { value: 100, label: 'Low' },
+              ]}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(v) => `Sensitivity: ${100 - v}%`}
+              size="small"
+              aria-label="Input sensitivity"
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Drag the slider — or the marker on the meter below — to set the threshold.
+            </Typography>
+          </Box>
+        )}
         {testingAudio && (
           <Box sx={{ mt: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -465,7 +464,7 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
                 </Typography>
               )}
             </Box>
-            <Box sx={{ position: 'relative' }}>
+            <Box sx={{ position: 'relative', height: 8 }}>
               <LinearProgress
                 variant="determinate"
                 value={inputMode === 'voice_activity' ? rawAudioLevel : audioLevel}
@@ -481,18 +480,32 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
                 }}
               />
               {inputMode === 'voice_activity' && (
-                <Box
+                <Slider
                   data-testid="threshold-marker"
+                  value={voiceActivityThreshold}
+                  onChange={(_, val) => setVoiceActivityThreshold(val as number)}
+                  min={0}
+                  max={100}
+                  size="small"
+                  aria-label="Voice activity threshold"
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => `Sensitivity: ${100 - v}%`}
                   sx={{
                     position: 'absolute',
-                    // Marker position matches the raw-scale progress bar.
-                    left: `${voiceActivityThreshold}%`,
-                    top: -2,
-                    bottom: -2,
-                    width: 2,
-                    backgroundColor: 'warning.main',
-                    borderRadius: 1,
-                    pointerEvents: 'none',
+                    inset: 0,
+                    padding: 0,
+                    height: 8,
+                    '& .MuiSlider-rail': { opacity: 0 },
+                    '& .MuiSlider-track': { display: 'none' },
+                    '& .MuiSlider-thumb': {
+                      width: 4,
+                      height: 16,
+                      borderRadius: 1,
+                      backgroundColor: 'warning.main',
+                      boxShadow: 'none',
+                      '&:hover, &.Mui-focusVisible, &.Mui-active': { boxShadow: 'none' },
+                      '&::before, &::after': { display: 'none' },
+                    },
                   }}
                 />
               )}
