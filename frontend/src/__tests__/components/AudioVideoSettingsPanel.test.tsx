@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 
 // --- Mock hooks ---
@@ -50,6 +50,7 @@ let mockNoiseSuppression = true;
 let mockAutoGainControl = true;
 let mockVoiceIsolation = false;
 const mockSetAudioProcessing = vi.fn();
+const mockSetVoiceActivityThreshold = vi.fn();
 
 vi.mock('../../hooks/useVoiceSettings', () => ({
   useVoiceSettings: () => ({
@@ -62,7 +63,7 @@ vi.mock('../../hooks/useVoiceSettings', () => ({
     voiceIsolation: mockVoiceIsolation,
     setInputMode: vi.fn(),
     setPushToTalkKey: vi.fn(),
-    setVoiceActivityThreshold: vi.fn(),
+    setVoiceActivityThreshold: mockSetVoiceActivityThreshold,
     setAudioProcessing: mockSetAudioProcessing,
   }),
   VoiceInputMode: {},
@@ -155,6 +156,48 @@ describe('AudioVideoSettingsPanel — threshold preview', () => {
     renderWithProviders(<AudioVideoSettingsPanel />);
 
     expect(screen.getByText(/marker shows your sensitivity threshold/i)).toBeInTheDocument();
+  });
+
+  it('renders Input Sensitivity control inside the Test Microphone section', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const sensitivityLabel = screen.getByText('Input Sensitivity');
+    const testMicLabel = screen.getByText('Test Microphone');
+    // Both labels live inside the same Paper card.
+    expect(sensitivityLabel.closest('.MuiPaper-root')).toBe(
+      testMicLabel.closest('.MuiPaper-root')
+    );
+  });
+
+  it('hides the Input Sensitivity control in push_to_talk mode', () => {
+    mockInputMode = 'push_to_talk';
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(screen.queryByText('Input Sensitivity')).not.toBeInTheDocument();
+  });
+
+  it('calls setVoiceActivityThreshold when the Input Sensitivity slider moves', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const slider = screen.getByRole('slider', { name: /input sensitivity/i });
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+
+    expect(mockSetVoiceActivityThreshold).toHaveBeenCalled();
+    expect(mockSetVoiceActivityThreshold).toHaveBeenLastCalledWith(26);
+  });
+
+  it('threshold marker on the volume meter is keyboard-interactive and calls setVoiceActivityThreshold', () => {
+    mockTestingAudio = true;
+    mockRawAudioLevel = 30;
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const thresholdSlider = screen.getByRole('slider', { name: /voice activity threshold/i });
+    fireEvent.keyDown(thresholdSlider, { key: 'ArrowLeft' });
+
+    expect(mockSetVoiceActivityThreshold).toHaveBeenCalled();
+    expect(mockSetVoiceActivityThreshold).toHaveBeenLastCalledWith(24);
   });
 });
 
