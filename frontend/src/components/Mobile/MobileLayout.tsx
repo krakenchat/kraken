@@ -20,6 +20,7 @@ import { AudioRenderer } from '../Voice/AudioRenderer';
 import { PersistentVideoOverlay } from '../Voice/PersistentVideoOverlay';
 import { TrackSubscriptionProvider } from '../Voice/TrackSubscriptionProvider';
 import { VoiceEventLogProvider } from '../../hooks/useVoiceEventLog';
+import { VoiceTestHooks } from '../../features/voice/VoiceTestHooks';
 import { MobileNavigationProvider } from './Navigation/MobileNavigationContext';
 import { MobileBottomNavigation } from './Navigation/MobileBottomNavigation';
 import MobileCommunityDrawer from './Navigation/MobileCommunityDrawer';
@@ -59,6 +60,7 @@ export const MobileLayout: React.FC = () => {
       >
         <TrackSubscriptionProvider>
           <VoiceEventLogProvider>
+            <VoiceTestHooks />
             {/* Community drawer - swipe from left edge */}
             <MobileCommunityDrawer />
 

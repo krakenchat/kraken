@@ -38,6 +38,7 @@ export const VoiceDebugPanel: React.FC = () => {
   const { room } = useRoom();
   const { speakingMap, isSpeaking } = useSpeakingDetection();
   const trackActions = useTrackSubscriptionActions();
+  const log = useVoiceEventLog();
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const [audioLevel, setAudioLevel] = useState(0);
 
@@ -68,6 +69,86 @@ export const VoiceDebugPanel: React.FC = () => {
       clearInterval(interval);
     };
   }, [room]);
+
+  // Per-participant live WebRTC stats (RTT, jitter, packet loss, bitrate,
+  // inbound audio level). Polled at 1Hz; bitrate derived from byte deltas.
+  const [liveStats, setLiveStats] = useState<Map<string, LiveStatRow>>(new Map());
+  const prevSamplesRef = useRef<Map<string, { bytes: number; ts: number }>>(new Map());
+  useEffect(() => {
+    if (!room) return;
+    let cancelled = false;
+    const poll = async () => {
+      const next = new Map<string, LiveStatRow>();
+      for (const [, p] of room.remoteParticipants) {
+        let micTrack:
+          | { getRTCStatsReport?: () => Promise<RTCStatsReport | undefined> }
+          | undefined;
+        for (const [, pub] of p.trackPublications) {
+          if (pub.source === Track.Source.Microphone && pub.track) {
+            micTrack = pub.track as typeof micTrack;
+            break;
+          }
+        }
+        if (!micTrack?.getRTCStatsReport) continue;
+        try {
+          const report = await micTrack.getRTCStatsReport();
+          const parsed = parseInboundAudio(report);
+          const prev = prevSamplesRef.current.get(p.identity);
+          const now = Date.now();
+          let bitrateKbps: number | undefined;
+          if (prev && parsed.bytesReceived != null) {
+            const dt = (now - prev.ts) / 1000;
+            if (dt > 0) bitrateKbps = ((parsed.bytesReceived - prev.bytes) * 8) / 1000 / dt;
+          }
+          if (parsed.bytesReceived != null) {
+            prevSamplesRef.current.set(p.identity, { bytes: parsed.bytesReceived, ts: now });
+          }
+          next.set(p.identity, { ...parsed, bitrateKbps });
+        } catch {
+          // ignore transient getStats failures
+        }
+      }
+      if (!cancelled) setLiveStats(next);
+    };
+    poll();
+    const statsInterval = setInterval(poll, 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(statsInterval);
+    };
+  }, [room]);
+
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const handleExport = async () => {
+    setExporting(true);
+    setExportMsg(null);
+    try {
+      const snapshot = await captureDiagnostics(room, log?.events ?? []);
+      const json = JSON.stringify(snapshot, null, 2);
+      // Clipboard (best-effort) + file download — same snapshot the window hook returns.
+      try {
+        await navigator.clipboard?.writeText(json);
+      } catch {
+        // clipboard may be unavailable (no permission / insecure context)
+      }
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `voice-diagnostics-${snapshot.capturedAt}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportMsg('Copied to clipboard + downloaded');
+    } catch (err) {
+      logger.error('[VoiceDebugPanel] export failed', err);
+      setExportMsg('Export failed — see console');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const isCurrentUserSpeaking = currentUser ? isSpeaking(currentUser.id) : false;
 
@@ -164,11 +245,24 @@ export const VoiceDebugPanel: React.FC = () => {
         color: theme.palette.text.primary,
       }}
     >
-      <Typography variant="h6" gutterBottom>
-        🔧 Voice Debug Panel
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h6" gutterBottom>
+          🔧 Voice Debug Panel
+        </Typography>
+        <Button
+          size="small"
+          variant="contained"
+          color="primary"
+          onClick={handleExport}
+          disabled={exporting}
+          data-testid="export-diagnostics"
+        >
+          {exporting ? 'Exporting…' : 'Export'}
+        </Button>
+      </Box>
       <Typography variant="caption" sx={{ color: 'grey.500', display: 'block', mb: 1 }}>
         Refresh tick: {tick} (auto-updates on events + 1s interval)
+        {exportMsg ? ` · ${exportMsg}` : ''}
       </Typography>
       <Divider sx={{ mb: 2, borderColor: 'grey.700' }} />
 
@@ -277,6 +371,7 @@ export const VoiceDebugPanel: React.FC = () => {
               key={p.identity}
               participant={p}
               speaking={speakingMap.get(p.identity) ?? false}
+              stats={liveStats.get(p.identity)}
               onForceResubscribe={trackActions?.forceResubscribeMic}
             />
           ))}
@@ -448,12 +543,14 @@ function formatTime(ts: number): string {
 interface RemoteParticipantDiagnosticProps {
   participant: RemoteParticipant;
   speaking: boolean;
+  stats?: LiveStatRow;
   onForceResubscribe?: (identity: string) => void;
 }
 
 const RemoteParticipantDiagnostic: React.FC<RemoteParticipantDiagnosticProps> = ({
   participant,
   speaking,
+  stats,
   onForceResubscribe,
 }) => {
   const theme = useTheme();
@@ -572,6 +669,39 @@ const RemoteParticipantDiagnostic: React.FC<RemoteParticipantDiagnosticProps> = 
         </Typography>
       )}
 
+      {stats && (
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.75 }}>
+          <Tooltip title="Inbound audio bitrate (derived from byte delta)">
+            <Chip
+              label={`${stats.bitrateKbps != null ? Math.round(stats.bitrateKbps) : '—'} kbps`}
+              color={stats.bitrateKbps && stats.bitrateKbps > 1 ? 'success' : 'warning'}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title="WebRTC inbound audioLevel (0–1)">
+            <Chip label={`lvl: ${formatStat(stats.audioLevel, 3)}`} size="small" />
+          </Tooltip>
+          <Tooltip title="Total audio energy — increases while audio flows">
+            <Chip label={`energy: ${formatStat(stats.totalAudioEnergy, 2)}`} size="small" />
+          </Tooltip>
+          <Tooltip title="Packets received / lost">
+            <Chip
+              label={`pkts: ${stats.packetsReceived ?? '—'}/${stats.packetsLost ?? 0} lost`}
+              color={(stats.packetsLost ?? 0) > 0 ? 'warning' : 'default'}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title="Jitter (ms)">
+            <Chip label={`jitter: ${formatMs(stats.jitter)}`} size="small" />
+          </Tooltip>
+          {stats.rtt != null && (
+            <Tooltip title="Round-trip time (ms)">
+              <Chip label={`rtt: ${formatMs(stats.rtt)}`} size="small" />
+            </Tooltip>
+          )}
+        </Box>
+      )}
+
       <Box sx={{ mt: 0.75, display: 'flex', gap: 0.5, alignItems: 'center' }}>
         <Chip
           label={summary.label}
@@ -597,6 +727,19 @@ const RemoteParticipantDiagnostic: React.FC<RemoteParticipantDiagnosticProps> = 
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
+
+/** Live WebRTC stats row for a remote participant (inbound audio + derived bitrate). */
+interface LiveStatRow extends InboundAudioStats {
+  bitrateKbps?: number;
+}
+
+function formatStat(v: number | undefined, digits: number): string {
+  return v == null ? '—' : v.toFixed(digits);
+}
+
+function formatMs(seconds: number | undefined): string {
+  return seconds == null ? '—' : `${Math.round(seconds * 1000)}`;
+}
 
 function findMicPublication(participant: RemoteParticipant): RemoteTrackPublication | undefined {
   for (const [, pub] of participant.trackPublications) {
