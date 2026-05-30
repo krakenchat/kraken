@@ -20,13 +20,23 @@
 services:
   livekit-e2e:
     image: livekit/livekit-server:latest
-    command: --config /etc/livekit.yaml
     environment:
       LIVEKIT_CONFIG: |
         port: 7880
         rtc:
           tcp_port: 7881
-          udp_port: 7882
+          # ICE UDP PORT RANGE rather than single-port mux (udp_port). Single-port
+          # mux fails container-to-container: the Playwright browsers share one
+          # source container IP, so the server's per-5-tuple demux is ambiguous
+          # behind Docker's bridge — ICE connects but the DTLS handshake packets
+          # are misrouted, so every peer hits "dtls timeout" and disconnects after
+          # ~45s with no media (mic never finishes publishing). A port range gives
+          # each peer connection its own server-side UDP port, removing the
+          # ambiguity. 20 ports is ample for a few participants; the 50000-60000
+          # default would make compose port-binding crawl.
+          # Refs: livekit#4149, https://docs.livekit.io/home/self-hosting/ports-firewall/
+          port_range_start: 50000
+          port_range_end: 50019
           use_external_ip: false
         redis:
           address: redis-test:6379
