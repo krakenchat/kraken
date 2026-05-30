@@ -49,6 +49,8 @@
     "test:e2e:docker:all": "../scripts/run-e2e.sh --all",
     "test:e2e:docker:ui": "../scripts/run-e2e.sh --ui",
     "test:e2e:docker:clean": "../scripts/run-e2e.sh --clean",
+    "test:e2e:voice": "playwright test --project=voice",
+    "test:e2e:voice:docker": "../scripts/run-voice-e2e.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",

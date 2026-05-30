@@ -1,0 +1,74 @@
+# Voice E2E overlay — layers a REAL LiveKit server onto the e2e stack so
+# Playwright can validate actual voice behaviour (audio flow, reconnect
+# self-heal, live device switching) without a second human.
+#
+# Usage (default, fully dockerized — browser + LiveKit share e2e-network):
+#   docker compose -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml up -d \
+#     postgres-test redis-test livekit-e2e backend-test frontend-test
+#   docker compose -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml \
+#     run --rm playwright npx playwright test --project=voice
+#
+# Or just: scripts/run-voice-e2e.sh
+#
+# Why this works where the placeholder e2e LiveKit doesn't: the Playwright
+# Chromium and livekit-e2e are on the same docker bridge network, so WebRTC ICE
+# uses directly-reachable container IPs — no host UDP port mapping, no 127.0.0.1
+# NAT. LiveKit auto-detects and advertises its e2e-network container IP
+# (use_external_ip: false, no node_ip pin — unlike the dev compose, which pins
+# 127.0.0.1 because there the browser runs on the host).
+
+services:
+  livekit-e2e:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+        redis:
+          address: redis-test:6379
+        keys:
+          devkey: secret-that-is-at-least-32-characters-long
+    # No host port publishing needed for the dockerized path — the playwright
+    # container reaches livekit-e2e directly over e2e-network. (For host-browser
+    # debugging, layer docker-compose.voice-e2e.host.yml on top.)
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:7880"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - e2e-network
+    depends_on:
+      redis-test:
+        condition: service_healthy
+
+  backend-test:
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://semaphore:semaphore@postgres-test:5432/semaphore_e2e_test
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - JWT_SECRET=e2e-test-jwt-secret-change-in-production
+      - JWT_REFRESH_SECRET=e2e-test-refresh-secret-change-in-production
+      - SKIP_INVITE_CODE=true
+      # Real LiveKit for voice E2E. Browser (in playwright container) connects to
+      # the client URL; backend mints tokens against the internal URL. Both
+      # resolve livekit-e2e via docker DNS on e2e-network.
+      - LIVEKIT_URL=ws://livekit-e2e:7880
+      - LIVEKIT_INTERNAL_URL=http://livekit-e2e:7880
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=secret-that-is-at-least-32-characters-long
+    depends_on:
+      livekit-e2e:
+        condition: service_started
+
+  frontend-test:
+    environment:
+      - NODE_ENV=test
+      # Activate the window test hooks (vite dev already sets import.meta.env.DEV,
+      # but this is explicit and survives a non-dev build).
+      - VITE_LIVEKIT_TEST_HOOK=true

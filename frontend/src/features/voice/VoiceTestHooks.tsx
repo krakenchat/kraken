@@ -39,6 +39,15 @@ export const VoiceTestHooks: FC = () => {
     w.__lkGetInboundAudio = (identity: string) => getRemoteInboundAudio(room, identity);
     w.__lkForceResubscribeMic = (identity: string) =>
       trackActions?.forceResubscribeMic(identity);
+    w.__lkGetLocalMicDeviceId = () => {
+      if (!room) return null;
+      for (const [, pub] of room.localParticipant.trackPublications) {
+        if (pub.kind === 'audio' && pub.track) {
+          return pub.track.mediaStreamTrack?.getSettings().deviceId ?? null;
+        }
+      }
+      return null;
+    };
     // A simple readiness flag tests can poll before driving the room.
     w.__lkTestHooksReady = true;
 

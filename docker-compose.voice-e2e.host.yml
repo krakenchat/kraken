@@ -1,0 +1,40 @@
+# Host-fallback overlay for voice E2E — ONLY needed when running Playwright on
+# the HOST (e.g. `--headed` debugging, or if a host's containerized UDP is flaky,
+# as on some WSL2 setups). Publishes LiveKit's ports so a host browser can reach
+# it at ws://localhost:7882, and pins node_ip so advertised ICE candidates point
+# at the host.
+#
+# Usage:
+#   docker compose -f docker-compose.e2e.yml \
+#     -f docker-compose.voice-e2e.yml \
+#     -f docker-compose.voice-e2e.host.yml up -d ...
+#   (then run Playwright on the host with E2E_BASE_URL=http://localhost:5174
+#    and a LiveKit URL of ws://localhost:7882)
+#
+# Ports chosen to avoid the dev stack (7880-7882) and the e2e stack (5433/6380/
+# 3001/5174).
+
+services:
+  livekit-e2e:
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+          node_ip: 127.0.0.1
+        redis:
+          address: redis-test:6379
+        keys:
+          devkey: secret-that-is-at-least-32-characters-long
+    ports:
+      - "7882:7880"   # client ws
+      - "7883:7881"   # rtc tcp
+      - "7884:7882/udp" # rtc udp
+
+  # When the browser runs on the host, the LiveKit URL the app receives must be
+  # the host-published one.
+  backend-test:
+    environment:
+      - LIVEKIT_URL=ws://localhost:7882

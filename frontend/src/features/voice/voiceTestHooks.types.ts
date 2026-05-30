@@ -11,6 +11,12 @@ export interface VoiceTestHookWindow {
   __lkCaptureDiagnostics: () => Promise<DiagnosticsSnapshot>;
   __lkGetInboundAudio: (identity: string) => Promise<InboundAudioStats | undefined>;
   __lkForceResubscribeMic: (identity: string) => void;
+  /**
+   * deviceId of the local mic's active capture track (from getSettings()).
+   * Used to prove PR #346: switching the input device updates the live track
+   * without rejoining. Returns null when no mic track is published.
+   */
+  __lkGetLocalMicDeviceId: () => string | null;
   __lkTestHooksReady: boolean;
 }
 

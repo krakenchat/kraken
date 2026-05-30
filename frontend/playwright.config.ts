@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+
+/** Absolute path to the committed fake-media WAV samples (e2e/assets). */
+export const VOICE_ASSET_DIR = path.resolve(__dirname, 'e2e/assets');
 
 /**
  * Playwright E2E Test Configuration
@@ -43,6 +47,30 @@ export default defineConfig({
       name: 'auth-tests',
       use: { ...devices['Desktop Chrome'] },
       testMatch: /auth\.spec\.ts/,
+    },
+
+    // Voice tests — real LiveKit + fake media. Each participant launches its own
+    // browser in the fixture (so distinct fake audio files can be used), but the
+    // project still sets the Chromium flags + a longer timeout for WebRTC setup.
+    // Run via scripts/run-voice-e2e.sh (real LiveKit server required).
+    {
+      name: 'voice',
+      testMatch: /voice\/.*\.spec\.ts/,
+      retries: process.env.CI ? 1 : 0,
+      timeout: 90 * 1000,
+      use: {
+        ...devices['Desktop Chrome'],
+        permissions: ['microphone', 'camera'],
+        launchOptions: {
+          args: [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            '--autoplay-policy=no-user-gesture-required',
+            // Default fake audio; per-participant browsers override with their own wav.
+            `--use-file-for-fake-audio-capture=${VOICE_ASSET_DIR}/sample-a.wav`,
+          ],
+        },
+      },
     },
   ],
 
