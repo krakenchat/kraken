@@ -1,18 +1,18 @@
 # Host-fallback overlay for voice E2E — ONLY needed when running Playwright on
-# the HOST (e.g. `--headed` debugging, or if a host's containerized UDP is flaky,
-# as on some WSL2 setups). Publishes LiveKit's ports so a host browser can reach
-# it at ws://localhost:7882, and pins node_ip so advertised ICE candidates point
-# at the host.
+# the HOST (e.g. `--headed` debugging). Publishes LiveKit's signaling + ICE
+# ports so a host browser can reach it at ws://localhost:7882, and pins
+# node_ip: 127.0.0.1 so the advertised ICE candidates point at the host's
+# published ports.
 #
 # Usage:
 #   docker compose -f docker-compose.e2e.yml \
 #     -f docker-compose.voice-e2e.yml \
 #     -f docker-compose.voice-e2e.host.yml up -d ...
-#   (then run Playwright on the host with E2E_BASE_URL=http://localhost:5174
-#    and a LiveKit URL of ws://localhost:7882)
+#   (then run Playwright on the host with E2E_BASE_URL=http://localhost:5174)
 #
-# Ports chosen to avoid the dev stack (7880-7882) and the e2e stack (5433/6380/
-# 3001/5174).
+# Signaling/TCP ports chosen to avoid the dev stack (7880-7882) and e2e stack
+# (5433/6380/3001/5174). The ICE UDP range (50000-50019) is published 1:1 so the
+# advertised candidate ports match the host-mapped ports.
 
 services:
   livekit-e2e:
@@ -21,7 +21,8 @@ services:
         port: 7880
         rtc:
           tcp_port: 7881
-          udp_port: 7882
+          port_range_start: 50000
+          port_range_end: 50019
           use_external_ip: false
           node_ip: 127.0.0.1
         redis:
@@ -29,12 +30,12 @@ services:
         keys:
           devkey: secret-that-is-at-least-32-characters-long
     ports:
-      - "7882:7880"   # client ws
-      - "7883:7881"   # rtc tcp
-      - "7884:7882/udp" # rtc udp
+      - "7882:7880"          # client ws (signaling)
+      - "7883:7881"          # rtc tcp
+      - "50000-50019:50000-50019/udp"  # rtc ICE udp range (1:1 mapping)
 
   # When the browser runs on the host, the LiveKit URL the app receives must be
-  # the host-published one.
+  # the host-published signaling port.
   backend-test:
     environment:
       - LIVEKIT_URL=ws://localhost:7882
