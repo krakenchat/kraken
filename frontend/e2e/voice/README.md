@@ -5,6 +5,31 @@ driving 2–3 real browsers from one Playwright run and asserting "can A hear B"
 via WebRTC `getStats` (inbound bytes + audio energy increasing). No human
 listener and no second machine are required.
 
+## ⚠️ Secure-context constraint — run with `--host` for real audio
+
+`navigator.mediaDevices` / `getUserMedia` are only exposed in a **secure
+context**. Chromium treats `http://localhost` as secure automatically, but
+**not** an arbitrary hostname like `http://frontend-test:5173` (the in-Docker
+origin). The `--unsafely-treat-insecure-origin-as-secure` flag does **not** take
+effect in headless containerized Chromium here (verified: `isSecureContext`
+stays `false`). Practical consequences:
+
+- **`scripts/run-voice-e2e.sh --host`** → Playwright on the host hits
+  `http://localhost:5174`, which IS secure, so the mic publishes and **audio
+  actually flows**. This is the mode that makes the audio-flow assertions pass.
+  Requires `npx playwright install chromium` once. On native Linux this is the
+  recommended path.
+- **`scripts/run-voice-e2e.sh`** (dockerized, default) → exercises join /
+  subscribe / reconnect **signalling** end-to-end (transport works — the ICE UDP
+  port-range fix means zero DTLS timeouts), but the mic can't publish, so
+  audio-flow assertions are skipped/fail. Good for signalling regressions; not
+  for "can A hear B".
+
+**TODO to make dockerized mode fully self-contained:** serve the e2e frontend
+over HTTPS (self-signed cert) and launch Playwright contexts with
+`ignoreHTTPSErrors: true`. An https origin is a secure context regardless of
+hostname, which would let the default in-network mode flow audio too.
+
 ## What's covered
 
 | Spec | PR | Validates |

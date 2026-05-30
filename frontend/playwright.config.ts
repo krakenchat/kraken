@@ -1,8 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';
 
-/** Absolute path to the committed fake-media WAV samples (e2e/assets). */
-export const VOICE_ASSET_DIR = path.resolve(__dirname, 'e2e/assets');
+/**
+ * Absolute path to the committed fake-media WAV samples (e2e/assets).
+ * Resolved from cwd (Playwright always runs from the frontend dir) so this
+ * works whether the config is loaded as ESM or CJS — `__dirname` is undefined
+ * under ESM.
+ */
+export const VOICE_ASSET_DIR = path.resolve(process.cwd(), 'e2e/assets');
 
 /**
  * Playwright E2E Test Configuration

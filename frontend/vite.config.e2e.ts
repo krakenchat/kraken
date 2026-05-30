@@ -64,6 +64,9 @@ export default defineConfig({
   base: "/",
   server: {
     host: "0.0.0.0",
+    // Allow the in-network container hostname (e.g. http://frontend-test:5173)
+    // used by the dockerized Playwright runner; Vite otherwise 403s unknown Hosts.
+    allowedHosts: ["frontend-test", "localhost"],
     proxy: {
       // Proxy to backend-test container in Docker E2E network
       "/api": {

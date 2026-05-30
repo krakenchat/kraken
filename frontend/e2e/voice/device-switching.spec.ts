@@ -57,7 +57,6 @@ test.describe('PR #351 — live device switching + sensitivity', () => {
 
     // Open Settings → Voice & Video and pick a different microphone.
     await page.goto('/settings');
-    // The AudioVideoSettingsPanel renders a "Microphone" combobox (MUI Select).
     const micSelect = page.getByRole('combobox', { name: 'Microphone' });
     await expect(micSelect).toBeVisible({ timeout: 10_000 });
     await micSelect.click();
@@ -66,9 +65,9 @@ test.describe('PR #351 — live device switching + sensitivity', () => {
     const target = audioInputs.find((d) => d.deviceId !== before && d.deviceId !== 'default');
     await page.getByRole('option', { name: target!.label }).click();
 
-    // The room must stay connected (no rejoin) ...
-    const state = await page.evaluate(() => window.__lkRoom?.state ?? 'none');
-    expect(state).toBe('connected');
+    // The room must stay connected — i.e. the device switched live, no rejoin.
+    const roomState = await page.evaluate(() => window.__lkRoom?.state ?? 'none');
+    expect(roomState).toBe('connected');
 
     // ... and the live capture track's deviceId must have changed.
     await expect
@@ -83,7 +82,6 @@ test.describe('PR #351 — live device switching + sensitivity', () => {
     const { page } = p;
     await page.goto('/settings');
 
-    // Read the persisted voice settings before.
     const readThreshold = () =>
       page.evaluate(() => {
         const raw = localStorage.getItem('semaphore_voice_settings');
@@ -95,13 +93,24 @@ test.describe('PR #351 — live device switching + sensitivity', () => {
         }
       });
 
-    // The sensitivity slider is keyboard-operable (aria-label "Input sensitivity").
-    const slider = page.getByLabel('Input sensitivity');
-    await expect(slider).toBeVisible({ timeout: 10_000 });
+    // Wait for the Voice & Video panel to finish its async device enumeration,
+    // then for the "Input Sensitivity" section (only rendered in voice-activity
+    // mode) to be visible — that's the robust "slider section ready" signal.
+    await expect(page.getByRole('combobox', { name: 'Microphone' })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText('Input Sensitivity')).toBeVisible({ timeout: 10_000 });
 
-    await slider.focus();
-    // Nudge the threshold up a few steps; persisted value should change.
+    // MUI <Slider>'s <input> is visually-hidden, so focus()/keyboard on it is
+    // flaky. Drive the visible thumb instead: clicking it focuses the slider
+    // without moving the value (only the sensitivity slider is present when not
+    // testing, so .MuiSlider-thumb is unique), then arrow keys nudge it.
+    const thumb = page.locator('.MuiSlider-thumb').first();
+    await expect(thumb).toBeVisible({ timeout: 10_000 });
+
     const before = await readThreshold();
+    await thumb.click();
+    // Nudge the threshold a few steps; the persisted value should change.
     for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
 
     await expect
