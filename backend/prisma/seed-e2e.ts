@@ -35,6 +35,25 @@ const TEST_USERS = [
     displayName: 'Admin User',
     role: InstanceRole.OWNER,
   },
+  {
+    // Non-privileged member: InstanceRole.USER does NOT bypass community RBAC
+    // (rbac.guard.ts only short-circuits for OWNER), and this user gets no
+    // community role granting MUTE_PARTICIPANT — used to assert moderator-mute
+    // is DENIED (403) for an ordinary member (REST-only, never drives the UI).
+    username: 'member',
+    email: 'member@test.local',
+    password: 'Member123!@#',
+    displayName: 'Member User',
+    role: InstanceRole.USER,
+  },
+  {
+    // 4th OWNER so the all-pairs matrix spec has four UI-capable participants.
+    username: 'testuser3',
+    email: 'testuser3@test.local',
+    password: 'Test123!@#',
+    displayName: 'Test User 3',
+    role: InstanceRole.OWNER,
+  },
 ];
 
 // Test communities
@@ -54,6 +73,7 @@ const TEST_COMMUNITIES = [
       { name: 'voice-video', type: 'VOICE' },
       { name: 'voice-edge', type: 'VOICE' },
       { name: 'voice-matrix', type: 'VOICE' },
+      { name: 'voice-perms', type: 'VOICE' },
     ],
   },
   {

@@ -12,7 +12,14 @@
  * hooks (VITE_LIVEKIT_TEST_HOOK=true).
  */
 
-import { chromium, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import {
+  chromium,
+  expect,
+  request,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 import path from 'node:path';
 import { TEST_USER, TEST_USER_2, loginViaApi, setAuthToken, API_BASE } from './auth.fixture';
 
@@ -20,6 +27,25 @@ export const ADMIN_USER = {
   username: 'admin',
   password: 'Admin123!@#',
   email: 'admin@test.local',
+};
+
+/**
+ * Non-privileged member (InstanceRole.USER, no community mute role). Used to
+ * assert moderator-mute is DENIED for an ordinary member. REST-only — a USER
+ * role can't be driven through the voice-join UI the same way, so this user is
+ * never a voice participant; it authenticates via the API for the 403 check.
+ */
+export const MEMBER_USER = {
+  username: 'member',
+  password: 'Member123!@#',
+  email: 'member@test.local',
+};
+
+/** 4th OWNER participant for the all-pairs matrix spec. */
+export const TEST_USER_3 = {
+  username: 'testuser3',
+  password: 'Test123!@#',
+  email: 'testuser3@test.local',
 };
 
 // cwd is the frontend dir when Playwright runs; avoids __dirname (undefined under ESM).
@@ -286,6 +312,34 @@ export async function moderatorMute(
     throw new Error(
       `moderatorMute(${targetIdentity}, ${mute}) failed: ${res.status()} ${await res.text()}`,
     );
+  }
+}
+
+/**
+ * Attempt a moderator-mute as an arbitrary user given only credentials, and
+ * return the raw HTTP status WITHOUT throwing — for asserting authorization
+ * outcomes (e.g. a non-privileged member should get 403). Uses a standalone API
+ * request context, so the actor never needs a browser or to join voice.
+ */
+export async function tryModeratorMuteAs(
+  creds: { username: string; password: string },
+  targetIdentity: string,
+  mute: boolean,
+  channelId: string,
+): Promise<number> {
+  const ctx = await request.newContext({ baseURL: BASE_URL });
+  try {
+    const { accessToken } = await loginViaApi(ctx, creds);
+    const res = await ctx.post(
+      `${API_BASE}/livekit/channels/${channelId}/mute-participant`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        data: { participantIdentity: targetIdentity, mute },
+      },
+    );
+    return res.status();
+  } finally {
+    await ctx.dispose();
   }
 }
 

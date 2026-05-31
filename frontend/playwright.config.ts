@@ -61,7 +61,13 @@ export default defineConfig({
     {
       name: 'voice',
       testMatch: /voice\/.*\.spec\.ts/,
-      retries: process.env.CI ? 1 : 0,
+      // Real-WebRTC E2E against a single LiveKit SFU: when all specs run serially
+      // back-to-back, accumulated room/transport load makes the last, heaviest
+      // specs (screen share, 4-party matrix) intermittently flake (~1 in 3 full
+      // runs). Retries are the standard mitigation — a test that passes on retry
+      // is reported "flaky", not "failed", so the suite stays trustworthy without
+      // masking a consistently-broken test. 2 in CI, 1 locally.
+      retries: process.env.CI ? 2 : 1,
       timeout: 90 * 1000,
       // outputDir under the OS temp dir, not ./test-results: the dockerized
       // playwright service can leave ./test-results root-owned, which then makes
