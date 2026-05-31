@@ -12,7 +12,6 @@
  * hooks (VITE_LIVEKIT_TEST_HOOK=true).
  */
 
-/* eslint-disable react-hooks/rules-of-hooks */
 import { chromium, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import path from 'node:path';
 import { TEST_USER, TEST_USER_2, loginViaApi, setAuthToken } from './auth.fixture';
@@ -30,13 +29,11 @@ const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173';
 export interface Participant {
   /** Friendly label (username) for logs. */
   name: string;
-  /** Persistent browser context (owns the browser; close it to tear down). */
+  browser: Browser;
   context: BrowserContext;
   page: Page;
   /** Real LiveKit identity (the user id), filled in by joinVoiceChannel(). */
   identity: string;
-  /** Temp profile dir backing the persistent context; removed on close. */
-  userDataDir: string;
 }
 
 export interface InboundAudioSample {
