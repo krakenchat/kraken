@@ -13,10 +13,8 @@
  */
 
 /* eslint-disable react-hooks/rules-of-hooks */
-import { chromium, expect, type BrowserContext, type Page } from '@playwright/test';
+import { chromium, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import path from 'node:path';
-import os from 'node:os';
-import fs from 'node:fs';
 import { TEST_USER, TEST_USER_2, loginViaApi, setAuthToken } from './auth.fixture';
 
 export const ADMIN_USER = {
@@ -59,13 +57,18 @@ declare global {
   interface Window {
     __lkRoom: {
       state: string;
-      localParticipant: { identity: string };
+      localParticipant: {
+        identity: string;
+        trackPublications: Map<string, unknown>;
+      };
       remoteParticipants: Map<string, unknown>;
       simulateScenario: (s: string) => Promise<void> | void;
     } | null;
     __lkGetInboundAudio: (identity: string) => Promise<InboundAudioSample | undefined>;
     __lkForceResubscribeMic: (identity: string) => void;
     __lkCaptureDiagnostics: () => Promise<unknown>;
+    __lkGetLocalMicDeviceId: () => string | null;
+    __lkEnableMic: () => Promise<string>;
   }
 }
 
@@ -77,27 +80,26 @@ export async function launchParticipant(
   creds: { username: string; password: string },
   wavFile: string,
 ): Promise<Participant> {
-  // Use launchPersistentContext (not launch+newContext) so Chromium gets a real
-  // --user-data-dir. navigator.mediaDevices (getUserMedia/enumerateDevices) is
-  // only exposed in a *secure context*; the e2e frontend is plain http
-  // (http://frontend-test:5173 in Docker, http://localhost:5174 on host), so we
-  // mark the test origin secure with --unsafely-treat-insecure-origin-as-secure.
-  // That flag is IGNORED unless a persistent profile dir is present — which is
-  // exactly why launch()+newContext() left isSecureContext=false and the mic
-  // never published. This is a test/dev-only launch flag, never in any app build.
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), `lk-${creds.username}-`));
-  const context = await chromium.launchPersistentContext(userDataDir, {
-    baseURL: BASE_URL,
-    permissions: ['microphone', 'camera'],
+  const browser = await chromium.launch({
     args: [
       '--use-fake-device-for-media-stream',
       '--use-fake-ui-for-media-stream',
       '--autoplay-policy=no-user-gesture-required',
       `--use-file-for-fake-audio-capture=${path.join(ASSET_DIR, wavFile)}`,
-      `--unsafely-treat-insecure-origin-as-secure=${BASE_URL}`,
+      // The e2e frontend is served over HTTPS (self-signed) so the origin is a
+      // secure context and navigator.mediaDevices/getUserMedia is available.
+      // LiveKit signalling is still ws:// (livekit-e2e:7880), which an https page
+      // treats as blockable mixed content — allow it for the test run.
+      '--allow-running-insecure-content',
     ],
   });
-  const page = context.pages()[0] ?? (await context.newPage());
+  // ignoreHTTPSErrors: accept the self-signed e2e cert.
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    permissions: ['microphone', 'camera'],
+    ignoreHTTPSErrors: true,
+  });
+  const page = await context.newPage();
 
   // API login → set cookie + localStorage (matches the proven auth.fixture path).
   const { accessToken } = await loginViaApi(context.request, creds);
@@ -105,7 +107,7 @@ export async function launchParticipant(
   await setAuthToken(page, accessToken);
   await page.reload();
 
-  return { name: creds.username, context, page, identity: '', userDataDir };
+  return { name: creds.username, browser, context, page, identity: '' };
 }
 
 /**
@@ -205,15 +207,10 @@ export async function captureDiagnostics(p: Participant): Promise<unknown> {
   return p.page.evaluate(() => window.__lkCaptureDiagnostics());
 }
 
-/** Tear down a participant's browser and remove its temp profile dir. */
+/** Tear down a participant's browser. */
 export async function closeParticipant(p: Participant): Promise<void> {
-  // Closing a persistent context also closes its browser.
   await p.context.close();
-  try {
-    fs.rmSync(p.userDataDir, { recursive: true, force: true });
-  } catch {
-    // best-effort cleanup
-  }
+  await p.browser.close();
 }
 
 export { TEST_USER, TEST_USER_2 };

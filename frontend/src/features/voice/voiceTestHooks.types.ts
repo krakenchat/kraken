@@ -17,6 +17,13 @@ export interface VoiceTestHookWindow {
    * without rejoining. Returns null when no mic track is published.
    */
   __lkGetLocalMicDeviceId: () => string | null;
+  /**
+   * Enable + publish the local mic (same SDK call the app makes at join).
+   * Exposed so E2E can (re)publish once the page is in a stable secure context;
+   * headless join-time can transiently lack navigator.mediaDevices. Resolves
+   * 'ok' or an error string.
+   */
+  __lkEnableMic: () => Promise<string>;
   __lkTestHooksReady: boolean;
 }
 
