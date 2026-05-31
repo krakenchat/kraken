@@ -75,6 +75,24 @@ mismatched global playwright that can't see the `voice` project) and
 | `mute.spec.ts` | `voice-mute` | **local mute** (A mutes own mic → B stops receiving A, unmute restores) and **moderator mute** (admin mutes B server-side via `POST /livekit/channels/:id/mute-participant` → A stops receiving B, lift restores) |
 | `screenshare-subscription.spec.ts` | `voice-video` | screen share publish → a **watcher** receives video → stop removes the publication. The **autoSubscribe:false "no bytes to a non-watcher"** guarantee is a `test.fixme` — not observable in this build (video reaches all participants; see the spec header) |
 | `device-switching.spec.ts` | `voice-chat` | (PR #351) switching the mic swaps the **live** capture track with no rejoin (#346), asserted via `__lkSwitchMic` → `room.switchActiveDevice` against real LiveKit. The Settings-form wiring (#346 onDeviceChange) and #347 sensitivity persistence are client-only and covered by `VoiceSettings.test.tsx` / `AudioVideoSettingsPanel.test.tsx` unit tests |
+| `midcall-edge.spec.ts` | `voice-edge` | mid-call timing: join **while a peer is muted** (late joiner hears unmuted peers only), **leave during another's reconnect** (reconnecting peer recovers a clean mesh, departed peer gone — no ghost), **audio continuity across a device switch** |
+| `mute-permissions.spec.ts` | `voice-mute` | moderator-mute **denied (403)** for a non-privileged member (with an OWNER positive-control proving the endpoint works), and **rapid mute/unmute toggles** settle to the final state |
+| `matrix-degraded.spec.ts` `@slow` | `voice-matrix` | **4-participant all-pairs matrix** (all 12 ordered pairs hear each other) and **force-tcp** degraded transport (audio survives a TCP-only reconnect). Tagged `@slow` → excluded from PR runs, runs on nightly/manual |
+
+**Verified (2026-05-31, serialized full run): 17 passed, 1 skipped (the screenshare `test.fixme`), 0 failed.**
+
+### Running in CI
+
+A dedicated `voice-e2e` job lives in `.github/workflows/e2e-tests.yml`. It mirrors
+the main e2e job (browser on the runner against `localhost:5174`) but layers the
+real-LiveKit overlays and runs `--project=voice --workers=1`. It is gated so it
+does **not** run on every PR:
+- **nightly** (cron) + **manual** (`workflow_dispatch`) + **push to main** → full
+  voice suite **including** `@slow`;
+- **PRs that touch voice paths** (detected by a `changes` paths-filter job) → voice
+  suite **excluding** `@slow`, to keep PR time bounded.
+
+A non-voice PR doesn't trigger it at all.
 
 ### Channel isolation
 

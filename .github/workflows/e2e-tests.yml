@@ -11,6 +11,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      voice: ${{ steps.filter.outputs.voice }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Filter voice-related paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            voice:
+              - 'frontend/src/features/voice/**'
+              - 'frontend/src/hooks/useTrackSubscription.ts'
+              - 'frontend/src/hooks/useVoiceEventLog*'
+              - 'frontend/src/hooks/useLocalMediaState.ts'
+              - 'frontend/src/components/Voice/**'
+              - 'frontend/src/components/Settings/AudioVideoSettingsPanel.tsx'
+              - 'frontend/src/components/Settings/VoiceSettings.tsx'
+              - 'frontend/e2e/voice/**'
+              - 'frontend/e2e/fixtures/voice.fixture.ts'
+              - 'backend/src/livekit/**'
+              - 'backend/prisma/seed-e2e.ts'
+              - 'docker-compose.voice-e2e*.yml'
+              - 'livekit-e2e.yaml'
+              - 'scripts/run-voice-e2e.sh'
+              - '.github/workflows/e2e-tests.yml'
+
   e2e:
     name: Playwright E2E Tests
     runs-on: ubuntu-latest
@@ -161,3 +191,142 @@ jobs:
       - name: Stop Docker services
         if: always()
         run: docker compose -f docker-compose.e2e.yml down -v
+
+  voice-e2e:
+    name: Voice E2E (real LiveKit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: changes
+    # Heavy: real LiveKit SFU + 2–4 real browsers per spec. Run on nightly,
+    # manual dispatch, pushes to main, or PRs that touch voice code/specs — NOT
+    # on every PR. @slow specs (4-party matrix, force-tcp) run only on
+    # nightly/manual/push; PRs run the rest to keep PR time bounded.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && needs.changes.outputs.voice == 'true')
+
+    env:
+      COMPOSE: docker compose -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml -f docker-compose.voice-e2e.host.yml
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The browser runs on the RUNNER (host) against http://localhost:5174 —
+      # localhost is a secure context, which getUserMedia/mic-publish requires.
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build E2E images with cache
+        uses: docker/bake-action@v6
+        with:
+          files: docker-compose.e2e.yml
+          load: true
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
+
+      - name: Start infra (postgres, redis, real LiveKit)
+        run: |
+          $COMPOSE up -d postgres-test redis-test livekit-e2e
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if $COMPOSE exec -T postgres-test pg_isready -U semaphore > /dev/null 2>&1; then
+              echo "PostgreSQL ready"; break; fi
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in {1..15}; do
+            if $COMPOSE exec -T redis-test redis-cli ping > /dev/null 2>&1; then
+              echo "Redis ready"; break; fi
+            sleep 1
+          done
+
+      - name: Start backend
+        run: |
+          $COMPOSE up -d backend-test
+          echo "Waiting for backend..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "Backend ready"; break; fi
+            if [ $i -eq 60 ]; then
+              echo "Backend failed to start"; $COMPOSE logs backend-test --tail=100; exit 1; fi
+            sleep 2
+          done
+
+      - name: Run migrations + seed (incl. voice channels & member user)
+        run: |
+          $COMPOSE exec -T backend-test pnpm run prisma:migrate
+          $COMPOSE exec -T backend-test pnpm exec ts-node prisma/seed-e2e.ts
+
+      - name: Start frontend
+        run: |
+          $COMPOSE up -d --no-recreate frontend-test
+          echo "Waiting for frontend..."
+          for i in {1..30}; do
+            if curl -s http://localhost:5174 > /dev/null 2>&1; then
+              echo "Frontend ready"; break; fi
+            if [ $i -eq 30 ]; then
+              echo "Frontend failed to start"; $COMPOSE logs frontend-test --tail=50; exit 1; fi
+            sleep 2
+          done
+
+      - name: Run voice Playwright specs
+        working-directory: frontend
+        run: |
+          # On PRs, skip the @slow specs (4-party matrix, force-tcp) to bound
+          # PR time; nightly/manual/push run the full voice suite.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR run: voice specs excluding @slow"
+            pnpm exec playwright test --project=voice --workers=1 --grep-invert @slow
+          else
+            echo "Full voice suite (incl. @slow)"
+            pnpm exec playwright test --project=voice --workers=1
+          fi
+        env:
+          E2E_BASE_URL: http://localhost:5174
+          PW_VOICE_OUTPUT_DIR: ${{ github.workspace }}/frontend/test-results/voice
+          CI: true
+
+      - name: Upload voice Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: voice-playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload voice test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: voice-test-results
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: Dump LiveKit logs on failure
+        if: failure()
+        run: $COMPOSE logs livekit-e2e --tail=200 || true
+
+      - name: Stop Docker services
+        if: always()
+        run: $COMPOSE down -v
