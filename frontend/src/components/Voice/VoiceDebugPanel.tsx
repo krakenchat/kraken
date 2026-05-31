@@ -19,6 +19,12 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { userControllerGetProfileOptions } from '../../api-client/@tanstack/react-query.gen';
 import { VOLUME_STORAGE_PREFIX } from '../../constants/voice';
+import {
+  parseInboundAudio,
+  captureDiagnostics,
+  type InboundAudioStats,
+} from '../../features/voice/voiceDiagnostics';
+import { logger } from '../../utils/logger';
 
 /**
  * Debug panel for diagnosing voice and remote-audio issues.
