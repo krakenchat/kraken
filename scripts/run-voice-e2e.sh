@@ -53,7 +53,8 @@ $COMPOSE up -d --build postgres-test redis-test livekit-e2e backend-test fronten
 
 echo -e "${YELLOW}Waiting for backend-test (:3001) and frontend-test (:5174)...${NC}"
 for i in $(seq 1 45); do
-  b=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3001/api/livekit/health 2>/dev/null || echo 000)
+  # /api/health is unauthenticated; /api/livekit/* requires a JWT (would 401).
+  b=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3001/api/health 2>/dev/null || echo 000)
   f=$(curl -s  -o /dev/null -w "%{http_code}" http://localhost:5174 2>/dev/null || echo 000)
   [ "$b" = "200" ] && [ "$f" = "200" ] && break
   sleep 3

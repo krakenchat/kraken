@@ -63,6 +63,10 @@ export default defineConfig({
       testMatch: /voice\/.*\.spec\.ts/,
       retries: process.env.CI ? 1 : 0,
       timeout: 90 * 1000,
+      // outputDir under the OS temp dir, not ./test-results: the dockerized
+      // playwright service can leave ./test-results root-owned, which then makes
+      // a host run crash in the reporter (EACCES writing .last-run.json).
+      outputDir: process.env.PW_VOICE_OUTPUT_DIR || '/tmp/kraken-voice-e2e-results',
       use: {
         ...devices['Desktop Chrome'],
         permissions: ['microphone', 'camera'],
@@ -79,15 +83,18 @@ export default defineConfig({
     },
   ],
 
-  // Start the dev server before running tests (local development)
-  webServer: process.env.CI
-    ? undefined
-    : {
-        command: 'npm run dev',
-        url: 'http://localhost:5173',
-        reuseExistingServer: true,
-        timeout: 120 * 1000,
-      },
+  // Start the dev server before tests ONLY for the built-in local dev server.
+  // When E2E_BASE_URL is set (e.g. the dockerized voice stack on :5174) the
+  // server is already running, so don't spawn a second host `npm run dev`.
+  webServer:
+    process.env.CI || process.env.E2E_BASE_URL
+      ? undefined
+      : {
+          command: 'npm run dev',
+          url: 'http://localhost:5173',
+          reuseExistingServer: true,
+          timeout: 120 * 1000,
+        },
 
   // Global test timeout
   timeout: 30 * 1000,
