@@ -52,6 +52,8 @@ const TEST_COMMUNITIES = [
       { name: 'voice-reconnect', type: 'VOICE' },
       { name: 'voice-mute', type: 'VOICE' },
       { name: 'voice-video', type: 'VOICE' },
+      { name: 'voice-edge', type: 'VOICE' },
+      { name: 'voice-matrix', type: 'VOICE' },
     ],
   },
   {
