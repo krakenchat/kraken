@@ -39,9 +39,10 @@ test.describe('PR #352 — voice subscription resilience', () => {
     a = await launchParticipant(TEST_USER, 'sample-a.wav');
     b = await launchParticipant(TEST_USER_2, 'sample-b.wav');
     c = await launchParticipant(ADMIN_USER, 'sample-c.wav');
-    await joinVoiceChannel(a);
-    await joinVoiceChannel(b);
-    await joinVoiceChannel(c);
+    // Dedicated room so this heavy reconnect spec can't contaminate others.
+    await joinVoiceChannel(a, 'voice-reconnect');
+    await joinVoiceChannel(b, 'voice-reconnect');
+    await joinVoiceChannel(c, 'voice-reconnect');
   });
 
   test.afterAll(async () => {

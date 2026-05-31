@@ -46,6 +46,12 @@ const TEST_COMMUNITIES = [
       { name: 'general', type: 'TEXT' },
       { name: 'random', type: 'TEXT' },
       { name: 'voice-chat', type: 'VOICE' },
+      // Dedicated VOICE channels so each voice E2E spec gets its OWN LiveKit
+      // room — heavy multi-participant specs (reconnect, mute, screenshare)
+      // would otherwise contaminate each other's server-side room state.
+      { name: 'voice-reconnect', type: 'VOICE' },
+      { name: 'voice-mute', type: 'VOICE' },
+      { name: 'voice-video', type: 'VOICE' },
     ],
   },
   {

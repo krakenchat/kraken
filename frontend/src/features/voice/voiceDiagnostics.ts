@@ -31,6 +31,27 @@ export interface InboundAudioStats {
   hasInboundAudio: boolean;
 }
 
+/** Parsed inbound-video stats for a single subscribed remote video track. */
+export interface InboundVideoStats {
+  /** True only when subscribed AND a live inbound-rtp video report exists. */
+  hasInboundVideo: boolean;
+  /** Whether the local client has subscribed to the remote video publication. */
+  subscribed: boolean;
+  bytesReceived?: number;
+  packetsReceived?: number;
+  framesDecoded?: number;
+  frameWidth?: number;
+  frameHeight?: number;
+}
+
+/** Per-source subscription snapshot for one remote participant. */
+export interface SubscriptionState {
+  identity: string;
+  mic: { published: boolean; subscribed: boolean; muted: boolean };
+  camera: { published: boolean; subscribed: boolean };
+  screenShare: { published: boolean; subscribed: boolean };
+}
+
 /**
  * Pulls the inbound audio numbers out of a raw `RTCStatsReport`. Used by both
  * the debug-panel getStats poller and the E2E audio-flow assertions.
@@ -239,4 +260,97 @@ export async function getRemoteInboundAudio(
     return getInboundStats(micPub);
   }
   return undefined;
+}
+
+function findRemote(room: Room, identity: string): RemoteParticipant | undefined {
+  for (const [, p] of room.remoteParticipants) {
+    if (p.identity === identity) return p;
+  }
+  return undefined;
+}
+
+/** Pull the first inbound-rtp video entry out of a raw RTCStatsReport. */
+export function parseInboundVideo(
+  report: RTCStatsReport | undefined,
+  subscribed: boolean,
+): InboundVideoStats {
+  const out: InboundVideoStats = { hasInboundVideo: false, subscribed };
+  if (!report) return out;
+  report.forEach((stat) => {
+    if (stat.type === 'inbound-rtp' && (stat.kind === 'video' || stat.mediaType === 'video')) {
+      out.hasInboundVideo = true;
+      out.bytesReceived = stat.bytesReceived;
+      out.packetsReceived = stat.packetsReceived;
+      out.framesDecoded = stat.framesDecoded;
+      out.frameWidth = stat.frameWidth;
+      out.frameHeight = stat.frameHeight;
+    }
+  });
+  return out;
+}
+
+function videoSourceEnum(source: 'camera' | 'screenshare'): Track.Source {
+  return source === 'screenshare' ? Track.Source.ScreenShare : Track.Source.Camera;
+}
+
+/**
+ * Inbound VIDEO stats for one remote participant's camera/screenshare — "is the
+ * local client receiving video from <identity>". Crucially, when the publication
+ * exists but is NOT subscribed (the autoSubscribe:false / opt-in case), this
+ * returns `{ hasInboundVideo:false, subscribed:false }` with no bytes — exactly
+ * the "no bytes to a non-watcher" guarantee a test asserts.
+ */
+export async function getRemoteInboundVideo(
+  room: Room | null,
+  identity: string,
+  source: 'camera' | 'screenshare' = 'screenshare',
+): Promise<InboundVideoStats | undefined> {
+  if (!room) return undefined;
+  const remote = findRemote(room, identity);
+  if (!remote) return undefined;
+  const want = videoSourceEnum(source);
+  for (const [, pub] of remote.trackPublications) {
+    if (pub.source !== want) continue;
+    if (pub.isSubscribed && pub.track) {
+      const track = pub.track as {
+        getRTCStatsReport?: () => Promise<RTCStatsReport | undefined>;
+      };
+      if (typeof track.getRTCStatsReport === 'function') {
+        try {
+          return parseInboundVideo(await track.getRTCStatsReport(), true);
+        } catch {
+          return { hasInboundVideo: false, subscribed: true };
+        }
+      }
+    }
+    return { hasInboundVideo: false, subscribed: pub.isSubscribed };
+  }
+  // No such publication at all (sharer not sharing) → nothing to receive.
+  return { hasInboundVideo: false, subscribed: false };
+}
+
+/** Per-source subscription snapshot for one remote participant. */
+export function getSubscriptionState(
+  room: Room | null,
+  identity: string,
+): SubscriptionState | undefined {
+  if (!room) return undefined;
+  const remote = findRemote(room, identity);
+  if (!remote) return undefined;
+  const state: SubscriptionState = {
+    identity,
+    mic: { published: false, subscribed: false, muted: false },
+    camera: { published: false, subscribed: false },
+    screenShare: { published: false, subscribed: false },
+  };
+  for (const [, pub] of remote.trackPublications) {
+    if (pub.source === Track.Source.Microphone) {
+      state.mic = { published: true, subscribed: pub.isSubscribed, muted: pub.isMuted };
+    } else if (pub.source === Track.Source.Camera) {
+      state.camera = { published: true, subscribed: pub.isSubscribed };
+    } else if (pub.source === Track.Source.ScreenShare) {
+      state.screenShare = { published: true, subscribed: pub.isSubscribed };
+    }
+  }
+  return state;
 }

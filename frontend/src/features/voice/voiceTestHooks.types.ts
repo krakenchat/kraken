@@ -1,5 +1,10 @@
 import type { Room } from 'livekit-client';
-import type { DiagnosticsSnapshot, InboundAudioStats } from './voiceDiagnostics';
+import type {
+  DiagnosticsSnapshot,
+  InboundAudioStats,
+  InboundVideoStats,
+  SubscriptionState,
+} from './voiceDiagnostics';
 
 /**
  * Shape of the dev/test-only window hooks exposed by `VoiceTestHooks`.
@@ -25,6 +30,26 @@ export interface VoiceTestHookWindow {
    */
   __lkEnableMic: () => Promise<string>;
   __lkTestHooksReady: boolean;
+  // --- Local media control (drive the real LocalParticipant) ---
+  /** Mute/unmute the local mic (local-mute path). */
+  __lkSetMic: (enabled: boolean) => Promise<void>;
+  /** Enable/disable the local camera (fake-video source headless). */
+  __lkSetCamera: (enabled: boolean) => Promise<void>;
+  /** Start/stop local screen share. May reject if headless capture unavailable. */
+  __lkSetScreenShare: (enabled: boolean) => Promise<void>;
+  /** Switch the active mic capture device live (PR #351 — no rejoin). */
+  __lkSwitchMic: (deviceId: string) => Promise<void>;
+  // --- On-demand subscription (autoSubscribe:false opt-in sources) ---
+  __lkWatchCamera: (identity: string) => void;
+  __lkUnwatchCamera: (identity: string) => void;
+  __lkWatchScreenShare: (identity: string) => void;
+  __lkUnwatchScreenShare: (identity: string) => void;
+  // --- Read-side helpers ---
+  __lkGetInboundVideo: (
+    identity: string,
+    source?: 'camera' | 'screenshare',
+  ) => Promise<InboundVideoStats | undefined>;
+  __lkGetSubscriptionState: (identity: string) => SubscriptionState | undefined;
 }
 
 /**

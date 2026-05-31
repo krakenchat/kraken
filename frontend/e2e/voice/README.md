@@ -2,11 +2,22 @@
 
 These specs validate actual voice behaviour against a **real LiveKit server** by
 driving 2–3 real browsers from one Playwright run and asserting "can A hear B"
-via WebRTC `getStats` (inbound bytes + audio energy increasing). No human
-listener and no second machine are required.
+(and "can A *see* B", "did A stop hearing B after a mute") via WebRTC `getStats`
+(inbound bytes + audio energy increasing/flat). No human listener and no second
+machine are required.
 
-**Status:** full `--project=voice` suite is green (6/6) — real audio flows end to
-end through real LiveKit.
+**Status (verified 2026-05-31, serialized run): 9 passed, 1 skipped, 0 failed.**
+Passing: reconnect self-heal (4), mute matrix (3), screen-share
+publish→watch→stop (1), live mic device switch (1). Skipped: a single
+`test.fixme` for the "no bytes to a non-watcher" guarantee (see that spec's
+header — in this build video reaches every participant, so the gating isn't
+observable; flagged rather than faked green).
+
+Run `scripts/run-voice-e2e.sh` and **read the real pass/fail output** — do not
+treat any spec as green without the runner reporting it. The runner uses
+`--workers=1` (each spec drives 2–3 real browsers into real LiveKit rooms;
+parallel specs overwhelm the single dev LiveKit), and each heavy spec uses its
+OWN seeded VOICE channel so they don't contaminate each other's room state.
 
 ## Run it
 
@@ -17,7 +28,11 @@ scripts/run-voice-e2e.sh reconnect-asymmetry   # filter by spec name
 scripts/run-voice-e2e.sh --clean    # tear down volumes afterward
 ```
 
-One-time host prereq: `cd frontend && npx playwright install chromium`.
+Host prereqs (the runner handles these if missing): the dev/e2e stack keeps
+`frontend/node_modules` in a Docker volume, so a host checkout is often missing
+`@playwright/test` — the runner runs `pnpm install` (NOT `npx`, which fetches a
+mismatched global playwright that can't see the `voice` project) and
+`pnpm exec playwright install chromium`.
 
 ## How it works (and the gotchas it took to get here)
 
@@ -40,16 +55,34 @@ One-time host prereq: `cd frontend && npx playwright install chromium`.
   `--use-file-for-fake-audio-capture=<wav>` (distinct tones in `assets/`), so
   each is a deterministic, recognisable audio source.
 - **Dev-only window hooks** (`src/features/voice/VoiceTestHooks.tsx`, active under
-  `VITE_LIVEKIT_TEST_HOOK`): the specs drive the real `Room` via `window.__lkRoom`
-  / `__lkCaptureDiagnostics` / `__lkGetInboundAudio` / `__lkForceResubscribeMic` /
-  `__lkGetLocalMicDeviceId` / `__lkEnableMic`.
+  `VITE_LIVEKIT_TEST_HOOK`): the specs drive the real `Room` via:
+  - audio/diagnostics: `__lkRoom`, `__lkCaptureDiagnostics`, `__lkGetInboundAudio`,
+    `__lkForceResubscribeMic`, `__lkGetLocalMicDeviceId`, `__lkEnableMic`
+  - local media: `__lkSetMic`, `__lkSetCamera`, `__lkSetScreenShare`, `__lkSwitchMic`
+  - on-demand subscription (opt-in video): `__lkWatchCamera` / `__lkUnwatchCamera`
+    / `__lkWatchScreenShare` / `__lkUnwatchScreenShare`
+  - read-side: `__lkGetInboundVideo`, `__lkGetSubscriptionState`
+
+  These go through the SAME app code paths the UI uses (e.g. `watchScreenShare`
+  is the action a video tile fires), so a passing test exercises real behaviour,
+  not a bespoke shortcut.
 
 ## What's covered
 
-| Spec | PR | Validates |
-|------|----|-----------|
-| `reconnect-asymmetry.spec.ts` | #352 | 3 participants all hear each other; audio **self-heals** after a forced `signal-reconnect` and `full-reconnect`; manual `forceResubscribeMic` recovery |
-| `device-switching.spec.ts` | #351 | mic switch updates the **live** track with no rejoin (#346); input-sensitivity threshold adjustable + persists (#347) |
+| Spec | Channel | Validates |
+|------|---------|-----------|
+| `reconnect-asymmetry.spec.ts` | `voice-reconnect` | (PR #352) 3 participants all hear each other; audio **self-heals** after a forced `signal-reconnect` and `full-reconnect`; manual `forceResubscribeMic` recovery |
+| `mute.spec.ts` | `voice-mute` | **local mute** (A mutes own mic → B stops receiving A, unmute restores) and **moderator mute** (admin mutes B server-side via `POST /livekit/channels/:id/mute-participant` → A stops receiving B, lift restores) |
+| `screenshare-subscription.spec.ts` | `voice-video` | screen share publish → a **watcher** receives video → stop removes the publication. The **autoSubscribe:false "no bytes to a non-watcher"** guarantee is a `test.fixme` — not observable in this build (video reaches all participants; see the spec header) |
+| `device-switching.spec.ts` | `voice-chat` | (PR #351) switching the mic swaps the **live** capture track with no rejoin (#346), asserted via `__lkSwitchMic` → `room.switchActiveDevice` against real LiveKit. The Settings-form wiring (#346 onDeviceChange) and #347 sensitivity persistence are client-only and covered by `VoiceSettings.test.tsx` / `AudioVideoSettingsPanel.test.tsx` unit tests |
+
+### Channel isolation
+
+The seed (`backend/prisma/seed-e2e.ts`) provisions separate VOICE channels —
+`voice-reconnect`, `voice-mute`, `voice-video` (plus the default `voice-chat`) —
+so each heavy multi-participant spec joins its own LiveKit room. `closeParticipant`
+also disconnects the room and waits for the server to drop the session before
+killing the browser, so no ghost participants linger between specs.
 
 ## Notes / gotchas
 

@@ -66,13 +66,32 @@ $COMPOSE exec -T backend-test pnpm run prisma:migrate >/dev/null 2>&1 || true
 $COMPOSE exec -T backend-test pnpm run seed:e2e >/dev/null 2>&1 || true
 
 echo -e "${YELLOW}Running voice specs on the host against http://localhost:5174 ...${NC}"
-if [ ! -d "$HOME/.cache/ms-playwright" ] && [ ! -d "frontend/node_modules/playwright-core/.local-browsers" ]; then
-  echo -e "${YELLOW}Installing Playwright chromium (one-time)...${NC}"
-  ( cd frontend && npx playwright install chromium )
+
+# The dev/e2e stacks keep frontend/node_modules in a Docker named volume, so a
+# host checkout often has an incomplete node_modules (no @playwright/test). The
+# host Playwright run needs the real package installed on the host — otherwise
+# `npx` silently fetches a mismatched global playwright that can't see this
+# repo's config (projects come back empty). Install on the host if missing.
+if [ ! -f "frontend/node_modules/@playwright/test/package.json" ]; then
+  echo -e "${YELLOW}Host frontend/node_modules is missing @playwright/test; running pnpm install...${NC}"
+  ( cd frontend && pnpm install )
 fi
 
+if [ ! -d "$HOME/.cache/ms-playwright" ] && [ ! -d "frontend/node_modules/playwright-core/.local-browsers" ]; then
+  echo -e "${YELLOW}Installing Playwright chromium (one-time)...${NC}"
+  ( cd frontend && pnpm exec playwright install chromium )
+fi
+
+# Use pnpm exec (repo-local binary), never npx — npx will fetch a mismatched
+# global playwright if the local one isn't found, which can't see this config.
+#
+# --workers=1 is REQUIRED: each voice spec launches 2–3 real browsers that all
+# join real LiveKit rooms. Running spec files in parallel (Playwright's default)
+# puts 12+ concurrent WebRTC peers on the single dev LiveKit server, which
+# overwhelms it and fails even the baselines. Serialized, each spec uses its own
+# seeded channel and the suite is reliable.
 ( cd frontend && E2E_BASE_URL=http://localhost:5174 \
-    npx playwright test --project=voice --reporter=list,json $HEADED ${SPEC:+"$SPEC"} )
+    pnpm exec playwright test --project=voice --workers=1 --reporter=list,json $HEADED ${SPEC:+"$SPEC"} )
 RUN_EXIT=$?
 
 if [ "$RUN_EXIT" = 0 ]; then

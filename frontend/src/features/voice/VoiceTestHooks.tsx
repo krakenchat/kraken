@@ -2,7 +2,12 @@ import { useContext, useEffect, type FC } from 'react';
 import { RoomContext } from '../../contexts/RoomContextDef';
 import { useVoiceEventLog } from '../../hooks/useVoiceEventLogDef';
 import { useTrackSubscriptionActions } from '../../hooks/useTrackSubscription';
-import { captureDiagnostics, getRemoteInboundAudio } from './voiceDiagnostics';
+import {
+  captureDiagnostics,
+  getRemoteInboundAudio,
+  getRemoteInboundVideo,
+  getSubscriptionState,
+} from './voiceDiagnostics';
 import { isVoiceTestHookEnabled, type VoiceTestHookWindow } from './voiceTestHooks.types';
 import type { VoiceEventEntry } from '../../hooks/useVoiceEventLogDef';
 
@@ -39,6 +44,40 @@ export const VoiceTestHooks: FC = () => {
     w.__lkGetInboundAudio = (identity: string) => getRemoteInboundAudio(room, identity);
     w.__lkForceResubscribeMic = (identity: string) =>
       trackActions?.forceResubscribeMic(identity);
+
+    // --- Local media control: drive the real LocalParticipant directly. ---
+    w.__lkSetMic = async (enabled: boolean) => {
+      await room?.localParticipant.setMicrophoneEnabled(enabled);
+    };
+    w.__lkSetCamera = async (enabled: boolean) => {
+      await room?.localParticipant.setCameraEnabled(enabled);
+    };
+    w.__lkSetScreenShare = async (enabled: boolean) => {
+      await room?.localParticipant.setScreenShareEnabled(enabled);
+    };
+    // Switch the active mic capture device LIVE (the PR #351 behaviour): same
+    // Room API the Settings panel's onDeviceChange ultimately calls
+    // (switchAudioInputDevice → room.switchActiveDevice). Lets E2E prove the
+    // live-track swap against real LiveKit without driving the lazy Settings UI
+    // (whose form wiring is covered by VoiceSettings/AudioVideoSettingsPanel unit
+    // tests).
+    w.__lkSwitchMic = async (deviceId: string) => {
+      await room?.switchActiveDevice('audioinput', deviceId);
+    };
+
+    // --- On-demand subscription via the SAME app actions a video tile uses, so
+    // the test exercises the real opt-in subscription path, not a shortcut. ---
+    w.__lkWatchCamera = (identity: string) => trackActions?.watchCamera(identity);
+    w.__lkUnwatchCamera = (identity: string) => trackActions?.stopWatchingCamera(identity);
+    w.__lkWatchScreenShare = (identity: string) => trackActions?.watchScreenShare(identity);
+    w.__lkUnwatchScreenShare = (identity: string) =>
+      trackActions?.stopWatchingScreenShare(identity);
+
+    // --- Read-side helpers. ---
+    w.__lkGetInboundVideo = (identity: string, source: 'camera' | 'screenshare' = 'screenshare') =>
+      getRemoteInboundVideo(room, identity, source);
+    w.__lkGetSubscriptionState = (identity: string) => getSubscriptionState(room, identity);
+
     w.__lkGetLocalMicDeviceId = () => {
       if (!room) return null;
       for (const [, pub] of room.localParticipant.trackPublications) {

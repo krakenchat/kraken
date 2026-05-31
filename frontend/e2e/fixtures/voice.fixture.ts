@@ -14,7 +14,7 @@
 
 import { chromium, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import path from 'node:path';
-import { TEST_USER, TEST_USER_2, loginViaApi, setAuthToken } from './auth.fixture';
+import { TEST_USER, TEST_USER_2, loginViaApi, setAuthToken, API_BASE } from './auth.fixture';
 
 export const ADMIN_USER = {
   username: 'admin',
@@ -34,6 +34,10 @@ export interface Participant {
   page: Page;
   /** Real LiveKit identity (the user id), filled in by joinVoiceChannel(). */
   identity: string;
+  /** Access token from API login — used for admin/moderator REST actions. */
+  accessToken: string;
+  /** LiveKit room id (= channel id) the participant joined; for REST actions. */
+  channelId: string;
 }
 
 export interface InboundAudioSample {
@@ -42,6 +46,21 @@ export interface InboundAudioSample {
   packetsReceived?: number;
   totalAudioEnergy?: number;
   audioLevel?: number;
+}
+
+export interface InboundVideoSample {
+  hasInboundVideo: boolean;
+  subscribed: boolean;
+  bytesReceived?: number;
+  packetsReceived?: number;
+  framesDecoded?: number;
+}
+
+export interface SubscriptionStateSample {
+  identity: string;
+  mic: { published: boolean; subscribed: boolean; muted: boolean };
+  camera: { published: boolean; subscribed: boolean };
+  screenShare: { published: boolean; subscribed: boolean };
 }
 
 /**
@@ -54,6 +73,7 @@ declare global {
   interface Window {
     __lkRoom: {
       state: string;
+      name?: string;
       localParticipant: {
         identity: string;
         trackPublications: Map<string, unknown>;
@@ -66,6 +86,19 @@ declare global {
     __lkCaptureDiagnostics: () => Promise<unknown>;
     __lkGetLocalMicDeviceId: () => string | null;
     __lkEnableMic: () => Promise<string>;
+    __lkSetMic: (enabled: boolean) => Promise<void>;
+    __lkSetCamera: (enabled: boolean) => Promise<void>;
+    __lkSetScreenShare: (enabled: boolean) => Promise<void>;
+    __lkSwitchMic: (deviceId: string) => Promise<void>;
+    __lkWatchCamera: (identity: string) => void;
+    __lkUnwatchCamera: (identity: string) => void;
+    __lkWatchScreenShare: (identity: string) => void;
+    __lkUnwatchScreenShare: (identity: string) => void;
+    __lkGetInboundVideo: (
+      identity: string,
+      source?: 'camera' | 'screenshare',
+    ) => Promise<InboundVideoSample | undefined>;
+    __lkGetSubscriptionState: (identity: string) => SubscriptionStateSample | undefined;
   }
 }
 
@@ -101,22 +134,37 @@ export async function launchParticipant(
   await setAuthToken(page, accessToken);
   await page.reload();
 
-  return { name: creds.username, browser, context, page, identity: '' };
+  return {
+    name: creds.username,
+    browser,
+    context,
+    page,
+    identity: '',
+    accessToken,
+    channelId: '',
+  };
 }
 
 /**
- * Navigate the participant into the seeded "Test Community" → "voice-chat" VOICE
- * channel and join voice. Clicking a VOICE channel auto-joins (Channel.tsx).
- * Resolves once `window.__lkRoom` reports `connected`, and records the
- * participant's real LiveKit identity.
+ * Navigate the participant into the seeded "Test Community" → a VOICE channel and
+ * join voice. Clicking a VOICE channel auto-joins (Channel.tsx). Resolves once
+ * `window.__lkRoom` reports `connected`, and records the participant's real
+ * LiveKit identity + the room/channel id.
+ *
+ * `channelName` defaults to `voice-chat`; each heavy spec passes its OWN seeded
+ * channel (voice-reconnect / voice-mute / voice-video) so server-side room state
+ * never bleeds between specs (see seed-e2e.ts).
  */
-export async function joinVoiceChannel(p: Participant): Promise<void> {
+export async function joinVoiceChannel(
+  p: Participant,
+  channelName = 'voice-chat',
+): Promise<void> {
   const { page } = p;
   await page.goto('/');
 
   // Enter the community, then the voice channel (auto-joins voice).
   await page.getByRole('button', { name: 'Test Community' }).first().click();
-  await page.getByRole('button', { name: 'voice-chat' }).first().click();
+  await page.getByRole('button', { name: channelName }).first().click();
 
   // Wait for the real Room to be connected via the dev window hook.
   await expect
@@ -126,9 +174,14 @@ export async function joinVoiceChannel(p: Participant): Promise<void> {
     )
     .toBe('connected');
 
-  p.identity = await page.evaluate(
-    () => window.__lkRoom!.localParticipant.identity,
-  );
+  p.identity = await page.evaluate(() => window.__lkRoom!.localParticipant.identity);
+
+  // The channel id (= LiveKit room name, used for moderator REST actions) is in
+  // the URL after navigation: /community/:cid/channel/:channelId. Read it from
+  // there rather than `window.__lkRoom.name`, which is populated a beat AFTER the
+  // room reaches `connected` and so can read empty right after the state poll.
+  const match = page.url().match(/\/channel\/([^/?#]+)/);
+  p.channelId = match?.[1] ?? '';
 }
 
 /**
@@ -177,6 +230,220 @@ export async function waitForAudioFlow(
     .toBe(true);
 }
 
+/**
+ * Assert audio is NOT flowing from `remote` to `from` — used after a mute. We
+ * can't assert totalAudioEnergy decreasing (it's cumulative/monotonic), so we
+ * assert inbound bytes don't meaningfully grow across a settle window. A small
+ * tolerance absorbs trailing RTCP/keepalive bytes.
+ */
+export async function expectNoAudioGrowth(
+  from: Participant,
+  remote: Participant,
+  opts: { settleMs?: number; toleranceBytes?: number } = {},
+): Promise<void> {
+  const settleMs = opts.settleMs ?? 3_000;
+  const toleranceBytes = opts.toleranceBytes ?? 2_000;
+
+  // Let the mute propagate and any in-flight packets drain before sampling.
+  await from.page.waitForTimeout(1_500);
+  const before = (await getInboundAudioStats(from, remote.identity))?.bytesReceived ?? 0;
+  await from.page.waitForTimeout(settleMs);
+  const after = (await getInboundAudioStats(from, remote.identity))?.bytesReceived ?? 0;
+
+  const grew = after - before;
+  expect(
+    grew,
+    `expected no audio from ${remote.name} → ${from.name} after mute, but ` +
+      `bytesReceived grew by ${grew} over ${settleMs}ms (tolerance ${toleranceBytes})`,
+  ).toBeLessThanOrEqual(toleranceBytes);
+}
+
+/** Mute/unmute a participant's own mic (local-mute path). */
+export async function setMicEnabled(p: Participant, enabled: boolean): Promise<void> {
+  await p.page.evaluate((e) => window.__lkSetMic(e), enabled);
+}
+
+/**
+ * Moderator-mute another participant via the backend REST endpoint
+ * (POST /api/livekit/channels/:channelId/mute-participant). The acting user must
+ * be authorized for MUTE_PARTICIPANT — InstanceRole.OWNER bypasses community RBAC
+ * (rbac.guard.ts), so the seeded `admin` user qualifies.
+ */
+export async function moderatorMute(
+  admin: Participant,
+  targetIdentity: string,
+  mute: boolean,
+  channelId: string,
+): Promise<void> {
+  const res = await admin.context.request.post(
+    `${API_BASE}/livekit/channels/${channelId}/mute-participant`,
+    {
+      headers: { Authorization: `Bearer ${admin.accessToken}` },
+      data: { participantIdentity: targetIdentity, mute },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(
+      `moderatorMute(${targetIdentity}, ${mute}) failed: ${res.status()} ${await res.text()}`,
+    );
+  }
+}
+
+/** Enable/disable the local camera (fake video source in headless Chromium). */
+export async function setCameraEnabled(p: Participant, enabled: boolean): Promise<void> {
+  await p.page.evaluate((e) => window.__lkSetCamera(e), enabled);
+}
+
+/** List this participant's audio input devices (deviceId + label). */
+export async function listAudioInputs(
+  p: Participant,
+): Promise<Array<{ deviceId: string; label: string }>> {
+  return p.page.evaluate(async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices
+      .filter((d) => d.kind === 'audioinput')
+      .map((d) => ({ deviceId: d.deviceId, label: d.label }));
+  });
+}
+
+/** The deviceId of the local mic's active capture track (null if unpublished). */
+export async function getLocalMicDeviceId(p: Participant): Promise<string | null> {
+  return p.page.evaluate(() => window.__lkGetLocalMicDeviceId());
+}
+
+/** Switch the active mic capture device live (PR #351 — no rejoin). */
+export async function switchMic(p: Participant, deviceId: string): Promise<void> {
+  await p.page.evaluate((id) => window.__lkSwitchMic(id), deviceId);
+}
+
+/**
+ * Start local screen share. Returns true if a ScreenShare publication actually
+ * appears (headless desktop capture is not always available); callers may skip
+ * with a logged reason when false rather than fail on an env limitation.
+ */
+export async function startScreenShare(p: Participant): Promise<boolean> {
+  try {
+    await p.page.evaluate(() => window.__lkSetScreenShare(true));
+  } catch {
+    return false;
+  }
+  return p.page
+    .evaluate(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const room = window.__lkRoom!;
+          const has = () => {
+            for (const [, pub] of room.localParticipant.trackPublications) {
+              if ((pub as { source?: string }).source === 'screen_share') return true;
+            }
+            return false;
+          };
+          if (has()) return resolve(true);
+          const t = setInterval(() => {
+            if (has()) {
+              clearInterval(t);
+              resolve(true);
+            }
+          }, 250);
+          setTimeout(() => {
+            clearInterval(t);
+            resolve(has());
+          }, 6_000);
+        }),
+    )
+    .catch(() => false);
+}
+
+/** Stop local screen share. */
+export async function stopScreenShare(p: Participant): Promise<void> {
+  await p.page.evaluate(() => window.__lkSetScreenShare(false));
+}
+
+/** Subscribe `viewer` to a remote's screen share (the "open the tile" path). */
+export async function watchScreenShareOf(viewer: Participant, remoteIdentity: string): Promise<void> {
+  await viewer.page.evaluate((id) => window.__lkWatchScreenShare(id), remoteIdentity);
+}
+
+/** Subscribe `viewer` to a remote's camera (the "open the tile" path). */
+export async function watchCameraOf(viewer: Participant, remoteIdentity: string): Promise<void> {
+  await viewer.page.evaluate((id) => window.__lkWatchCamera(id), remoteIdentity);
+}
+
+/** Inbound video stats for a remote's camera/screenshare on `from`'s page. */
+export async function getInboundVideoStats(
+  from: Participant,
+  remoteIdentity: string,
+  source: 'camera' | 'screenshare' = 'screenshare',
+): Promise<InboundVideoSample | undefined> {
+  return from.page.evaluate(
+    ({ id, src }) => window.__lkGetInboundVideo(id, src),
+    { id: remoteIdentity, src: source },
+  );
+}
+
+/** Per-source subscription snapshot of `remoteIdentity` on `from`'s page. */
+export async function getSubscriptionState(
+  from: Participant,
+  remoteIdentity: string,
+): Promise<SubscriptionStateSample | undefined> {
+  return from.page.evaluate((id) => window.__lkGetSubscriptionState(id), remoteIdentity);
+}
+
+/** Assert video IS flowing from `remote` to `from` (subscribed + bytes grow). */
+export async function waitForVideoFlow(
+  from: Participant,
+  remote: Participant,
+  source: 'camera' | 'screenshare' = 'screenshare',
+  opts: { timeout?: number } = {},
+): Promise<void> {
+  const timeout = opts.timeout ?? 25_000;
+  const first = await getInboundVideoStats(from, remote.identity, source);
+  const startBytes = first?.bytesReceived ?? 0;
+
+  await expect
+    .poll(
+      async () => {
+        const s = await getInboundVideoStats(from, remote.identity, source);
+        if (!s || !s.hasInboundVideo) return false;
+        return (s.bytesReceived ?? 0) > startBytes;
+      },
+      { timeout, message: `${source} video did not flow from ${remote.name} → ${from.name}` },
+    )
+    .toBe(true);
+}
+
+/**
+ * Assert `from` is NOT receiving `remote`'s video — the autoSubscribe:false
+ * "no bytes to a non-watcher" guarantee: the publication is unsubscribed AND no
+ * inbound video bytes accrue over a settle window.
+ */
+export async function expectNoVideoToNonWatcher(
+  from: Participant,
+  remote: Participant,
+  source: 'camera' | 'screenshare' = 'screenshare',
+  opts: { settleMs?: number; toleranceBytes?: number } = {},
+): Promise<void> {
+  const settleMs = opts.settleMs ?? 3_000;
+  const toleranceBytes = opts.toleranceBytes ?? 1_000;
+
+  const sub = await getSubscriptionState(from, remote.identity);
+  const subscribed = source === 'screenshare' ? sub?.screenShare.subscribed : sub?.camera.subscribed;
+  expect(
+    subscribed,
+    `${from.name} should NOT be subscribed to ${remote.name}'s ${source}, but is`,
+  ).toBeFalsy();
+
+  const before = (await getInboundVideoStats(from, remote.identity, source))?.bytesReceived ?? 0;
+  await from.page.waitForTimeout(settleMs);
+  const after = (await getInboundVideoStats(from, remote.identity, source))?.bytesReceived ?? 0;
+  const grew = after - before;
+  expect(
+    grew,
+    `${from.name} received ${grew} ${source} bytes from ${remote.name} despite not ` +
+      `watching (tolerance ${toleranceBytes}) — autoSubscribe gating leaked video`,
+  ).toBeLessThanOrEqual(toleranceBytes);
+}
+
 /** Trigger a deterministic LiveKit reconnect on a participant (PR #352 repro). */
 export async function forceReconnect(
   p: Participant,
@@ -201,8 +468,27 @@ export async function captureDiagnostics(p: Participant): Promise<unknown> {
   return p.page.evaluate(() => window.__lkCaptureDiagnostics());
 }
 
-/** Tear down a participant's browser. */
+/**
+ * Tear down a participant's browser. First disconnect the LiveKit room and wait
+ * for the server to drop the session, so the next spec's room starts clean — an
+ * abrupt browser close leaves a ghost participant server-side that can corrupt a
+ * shared room (the cross-spec contamination this harness avoids by also using a
+ * dedicated channel per heavy spec).
+ */
 export async function closeParticipant(p: Participant): Promise<void> {
+  try {
+    await p.page.evaluate(
+      () =>
+        (window.__lkRoom as unknown as { disconnect?: () => Promise<void> } | null)?.disconnect?.(),
+    );
+    await p.page
+      .waitForFunction(() => (window.__lkRoom?.state ?? 'disconnected') === 'disconnected', null, {
+        timeout: 5_000,
+      })
+      .catch(() => {});
+  } catch {
+    // Page may already be gone; fall through to hard close.
+  }
   await p.context.close();
   await p.browser.close();
 }
