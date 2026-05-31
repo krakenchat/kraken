@@ -6,12 +6,10 @@ driving 2–3 real browsers from one Playwright run and asserting "can A hear B"
 (inbound bytes + audio energy increasing/flat). No human listener and no second
 machine are required.
 
-**Status (verified 2026-05-31, serialized run): 9 passed, 1 skipped, 0 failed.**
-Passing: reconnect self-heal (4), mute matrix (3), screen-share
-publish→watch→stop (1), live mic device switch (1). Skipped: a single
-`test.fixme` for the "no bytes to a non-watcher" guarantee (see that spec's
-header — in this build video reaches every participant, so the gating isn't
-observable; flagged rather than faked green).
+**Status (verified 2026-05-31, serialized run): 16 passed, 1 skipped, 0 failed.**
+Skipped is a single `test.fixme` for the "no bytes to a non-watcher" guarantee
+(see that spec's header — in this build video reaches every participant, so the
+gating isn't observable; flagged rather than faked green).
 
 Run `scripts/run-voice-e2e.sh` and **read the real pass/fail output** — do not
 treat any spec as green without the runner reporting it. The runner uses
@@ -79,7 +77,7 @@ mismatched global playwright that can't see the `voice` project) and
 | `mute-permissions.spec.ts` | `voice-mute` | moderator-mute **denied (403)** for a non-privileged member (with an OWNER positive-control proving the endpoint works), and **rapid mute/unmute toggles** settle to the final state |
 | `matrix-degraded.spec.ts` `@slow` | `voice-matrix` | **4-participant all-pairs matrix** (all 12 ordered pairs hear each other) and **force-tcp** degraded transport (audio survives a TCP-only reconnect). Tagged `@slow` → excluded from PR runs, runs on nightly/manual |
 
-**Verified (2026-05-31, serialized full run): 17 passed, 1 skipped (the screenshare `test.fixme`), 0 failed.**
+**Verified (2026-05-31, serialized full run): 16 passed, 1 skipped (the screenshare `test.fixme`), 0 failed.**
 
 ### Running in CI
 
