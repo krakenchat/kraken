@@ -202,12 +202,22 @@ export async function joinVoiceChannel(
 
   p.identity = await page.evaluate(() => window.__lkRoom!.localParticipant.identity);
 
-  // The channel id (= LiveKit room name, used for moderator REST actions) is in
-  // the URL after navigation: /community/:cid/channel/:channelId. Read it from
-  // there rather than `window.__lkRoom.name`, which is populated a beat AFTER the
-  // room reaches `connected` and so can read empty right after the state poll.
-  const match = page.url().match(/\/channel\/([^/?#]+)/);
-  p.channelId = match?.[1] ?? '';
+  // Capture the channel id (= LiveKit room name; needed for moderator REST
+  // actions). The app uses a hash router and the route can update a beat AFTER
+  // the Room reports `connected`, so POLL until `/channel/:id` resolves rather
+  // than reading the URL once — a stale read yields an empty id, producing
+  // `POST /livekit/channels//mute-participant` → 404. Fall back to the Room name.
+  await expect
+    .poll(
+      async () =>
+        page.url().match(/\/channel\/([^/?#]+)/)?.[1] ??
+        (await page.evaluate(() => window.__lkRoom?.name ?? '')),
+      { timeout: 10_000, message: `${p.name} channelId never resolved after join` },
+    )
+    .toBeTruthy();
+  p.channelId =
+    page.url().match(/\/channel\/([^/?#]+)/)?.[1] ??
+    (await page.evaluate(() => window.__lkRoom?.name ?? ''));
 }
 
 /**
