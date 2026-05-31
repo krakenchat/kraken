@@ -2,29 +2,17 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
-import fs from "fs";
 
 /**
  * Vite configuration for E2E testing
  *
  * This config is used when running E2E tests in Docker.
  * It proxies API requests to the backend-test container.
+ *
+ * Served over plain HTTP. The voice E2E runs the browser against
+ * http://localhost:<port>, which browsers treat as a *secure context* (so
+ * getUserMedia works) without any TLS — see frontend/e2e/voice/README.md.
  */
-
-// Self-signed cert (committed, test-only) so the e2e frontend is served over
-// HTTPS. An https origin is a *secure context* regardless of hostname, which is
-// what unlocks navigator.mediaDevices/getUserMedia for the in-Docker Playwright
-// voice run (http://frontend-test:5173 is NOT secure; https is). Loaded only if
-// present so a plain `vite` invocation without certs still works over http.
-const e2eCertDir = path.resolve(__dirname, "e2e/certs");
-const e2eHttps =
-  fs.existsSync(path.join(e2eCertDir, "e2e-key.pem")) &&
-  fs.existsSync(path.join(e2eCertDir, "e2e-cert.pem"))
-    ? {
-        key: fs.readFileSync(path.join(e2eCertDir, "e2e-key.pem")),
-        cert: fs.readFileSync(path.join(e2eCertDir, "e2e-cert.pem")),
-      }
-    : undefined;
 
 export default defineConfig({
   plugins: [
@@ -65,12 +53,8 @@ export default defineConfig({
   base: "/",
   server: {
     host: "0.0.0.0",
-    // Serve over HTTPS (self-signed) so the origin is a secure context →
-    // getUserMedia works for the dockerized voice E2E. Playwright connects with
-    // ignoreHTTPSErrors. Falls back to http if the certs aren't present.
-    https: e2eHttps,
-    // Allow the in-network container hostname (e.g. https://frontend-test:5173)
-    // used by the dockerized Playwright runner; Vite otherwise 403s unknown Hosts.
+    // Allow the in-network container hostname used by a dockerized Playwright
+    // runner; Vite otherwise 403s unknown Hosts.
     allowedHosts: ["frontend-test", "localhost"],
     proxy: {
       // Proxy to backend-test container in Docker E2E network

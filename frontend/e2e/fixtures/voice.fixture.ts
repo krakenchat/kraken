@@ -77,24 +77,21 @@ export async function launchParticipant(
   creds: { username: string; password: string },
   wavFile: string,
 ): Promise<Participant> {
+  // Fake media so getUserMedia returns a deterministic audio source. getUserMedia
+  // needs a secure context — satisfied by running against http://localhost:<port>
+  // (browsers treat localhost as potentially-trustworthy without TLS). See
+  // frontend/e2e/voice/README.md.
   const browser = await chromium.launch({
     args: [
       '--use-fake-device-for-media-stream',
       '--use-fake-ui-for-media-stream',
       '--autoplay-policy=no-user-gesture-required',
       `--use-file-for-fake-audio-capture=${path.join(ASSET_DIR, wavFile)}`,
-      // The e2e frontend is served over HTTPS (self-signed) so the origin is a
-      // secure context and navigator.mediaDevices/getUserMedia is available.
-      // LiveKit signalling is still ws:// (livekit-e2e:7880), which an https page
-      // treats as blockable mixed content — allow it for the test run.
-      '--allow-running-insecure-content',
     ],
   });
-  // ignoreHTTPSErrors: accept the self-signed e2e cert.
   const context = await browser.newContext({
     baseURL: BASE_URL,
     permissions: ['microphone', 'camera'],
-    ignoreHTTPSErrors: true,
   });
   const page = await context.newPage();
 

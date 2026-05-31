@@ -93,18 +93,21 @@ test.describe('PR #351 — live device switching + sensitivity', () => {
         }
       });
 
-    // Wait for the Voice & Video panel to finish its async device enumeration,
-    // then for the "Input Sensitivity" section (only rendered in voice-activity
-    // mode) to be visible — that's the robust "slider section ready" signal.
+    // Wait for the Voice & Video panel to finish its async device enumeration.
     await expect(page.getByRole('combobox', { name: 'Microphone' })).toBeVisible({
       timeout: 15_000,
     });
+
+    // The "Input Sensitivity" slider only renders in voice-activity input mode.
+    // Select it explicitly (a real user action) — the panel can mount with
+    // neither toggle pre-selected, so don't rely on the default.
+    await page.getByRole('button', { name: 'Voice Activity' }).click();
     await expect(page.getByText('Input Sensitivity')).toBeVisible({ timeout: 10_000 });
 
     // MUI <Slider>'s <input> is visually-hidden, so focus()/keyboard on it is
     // flaky. Drive the visible thumb instead: clicking it focuses the slider
-    // without moving the value (only the sensitivity slider is present when not
-    // testing, so .MuiSlider-thumb is unique), then arrow keys nudge it.
+    // (only the sensitivity slider is present when not testing, so
+    // .MuiSlider-thumb is unique), then arrow keys nudge it.
     const thumb = page.locator('.MuiSlider-thumb').first();
     await expect(thumb).toBeVisible({ timeout: 10_000 });
 
