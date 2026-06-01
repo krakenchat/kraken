@@ -83,14 +83,21 @@ mismatched global playwright that can't see the `voice` project) and
 
 A dedicated `voice-e2e` job lives in `.github/workflows/e2e-tests.yml`. It mirrors
 the main e2e job (browser on the runner against `localhost:5174`) but layers the
-real-LiveKit overlays and runs `--project=voice --workers=1`. It is gated so it
-does **not** run on every PR:
-- **nightly** (cron) + **manual** (`workflow_dispatch`) + **push to main** → full
-  voice suite **including** `@slow`;
-- **PRs that touch voice paths** (detected by a `changes` paths-filter job) → voice
-  suite **excluding** `@slow`, to keep PR time bounded.
+real-LiveKit overlays and runs `--project=voice --workers=1`. It runs on
+**nightly cron + manual dispatch + push to main** — **not on PRs**.
 
-A non-voice PR doesn't trigger it at all.
+> ⚠️ **Runner-WebRTC caveat (unresolved).** On GitHub-hosted `ubuntu-latest`
+> runners this job has not yet completed a green run: the
+> `playwright install chromium --with-deps` step intermittently *hangs* (apt
+> resolves, then stalls), and whether the host-browser ↔ dockerized-LiveKit
+> WebRTC path (published `localhost:7882` + UDP `50000-50019`, `node_ip
+> 127.0.0.1`) works on a hosted runner is still unproven. To stop a hang from
+> burning the whole job budget, the install step has a 10-minute `timeout-minutes`
+> and the workflow has a `concurrency` group (newer runs cancel older ones). The
+> job is deliberately kept **off the PR-blocking path** until a nightly/dispatch
+> run confirms it. **The full voice suite is verified locally** via
+> `scripts/run-voice-e2e.sh` (16 passed / 1 skipped / 0 failed) — that is the
+> source of truth today; CI-on-runner is best-effort until proven.
 
 ### Channel isolation
 

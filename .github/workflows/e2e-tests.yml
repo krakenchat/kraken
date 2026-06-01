@@ -10,6 +10,12 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
+# One in-flight run per ref; a newer push/dispatch cancels the older run instead
+# of letting duplicates pile up (and avoids confusing "cancelled" noise).
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     name: Detect changed areas
@@ -197,15 +203,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: changes
-    # Heavy: real LiveKit SFU + 2–4 real browsers per spec. Run on nightly,
-    # manual dispatch, pushes to main, or PRs that touch voice code/specs — NOT
-    # on every PR. @slow specs (4-party matrix, force-tcp) run only on
-    # nightly/manual/push; PRs run the rest to keep PR time bounded.
+    # Heavy: real LiveKit SFU + 2–4 real browsers per spec. Runs on nightly cron,
+    # manual dispatch, and pushes to main — NOT on PRs. (The job's WebRTC path on
+    # GitHub-hosted runners is unproven — see frontend/e2e/voice/README.md — so it
+    # is kept off the PR-blocking path until a green run confirms it works there.
+    # The full voice suite is verified locally via scripts/run-voice-e2e.sh.)
     if: >-
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' && needs.changes.outputs.voice == 'true')
+      github.event_name == 'push'
 
     env:
       COMPOSE: docker compose -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml -f docker-compose.voice-e2e.host.yml
@@ -229,7 +235,11 @@ jobs:
 
       # The browser runs on the RUNNER (host) against http://localhost:5174 —
       # localhost is a secure context, which getUserMedia/mic-publish requires.
+      # Short per-step timeout: `--with-deps` has been observed to hang on the
+      # runner (apt resolves, then stalls). Fail fast (10 min) instead of letting
+      # the whole job burn its 45-min budget on a stuck install.
       - name: Install Playwright browsers
+        timeout-minutes: 10
         working-directory: frontend
         run: pnpm exec playwright install chromium --with-deps
 
