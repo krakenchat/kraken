@@ -107,6 +107,95 @@ so each heavy multi-participant spec joins its own LiveKit room. `closeParticipa
 also disconnects the room and waits for the server to drop the session before
 killing the browser, so no ghost participants linger between specs.
 
+## Extending the suite — adding a spec for a new voice feature
+
+The harness is built so a new feature gets a spec in a few lines. The pattern:
+
+1. **Seed an isolated channel** (only for *heavy multi-participant* specs, so they
+   don't contend on one room). Add it to `TEST_COMMUNITIES[0].channels` in
+   `backend/prisma/seed-e2e.ts`, e.g. `{ name: 'voice-myfeature', type: 'VOICE' }`,
+   then re-seed (the runner does this; manually:
+   `docker compose … exec -T backend-test pnpm run seed:e2e`). A simple 1–2
+   participant spec can reuse `voice-chat`.
+2. **Write `frontend/e2e/voice/<feature>.spec.ts`** using the fixture helpers:
+
+   ```ts
+   import { test, expect } from '@playwright/test';
+   import {
+     launchParticipant, joinVoiceChannel, closeParticipant,
+     waitForAudioFlow, expectNoAudioGrowth, setMicEnabled,
+     TEST_USER, TEST_USER_2, type Participant,
+   } from '../fixtures/voice.fixture';
+
+   test.describe.configure({ mode: 'serial' }); // multi-browser specs run serially
+   const CH = 'voice-myfeature';
+
+   test('my feature behaves', async () => {
+     const a = await launchParticipant(TEST_USER, 'sample-a.wav');
+     const b = await launchParticipant(TEST_USER_2, 'sample-b.wav');
+     try {
+       await joinVoiceChannel(a, CH);
+       await joinVoiceChannel(b, CH);
+       await waitForAudioFlow(b, a);          // assert real audio over real LiveKit
+       // …drive your feature via fixture helpers / window hooks, then assert…
+     } finally {
+       await Promise.all([a, b].map((p) => closeParticipant(p).catch(() => {})));
+     }
+   });
+   ```
+
+   The `voice` Playwright project auto-discovers any `voice/*.spec.ts`. Run just
+   yours with `scripts/run-voice-e2e.sh <feature>`.
+3. **Tag `@slow`** in the `describe`/test title for heavy specs (4+ participants,
+   long reconnect loops) so PR/normal runs can skip them
+   (`--grep-invert @slow`); they still run on nightly/manual.
+
+### Fixture helpers (`e2e/fixtures/voice.fixture.ts`)
+
+| Helper | What it does |
+|--------|--------------|
+| `launchParticipant(creds, wav)` | one browser + fake-audio source, API-logged-in |
+| `joinVoiceChannel(p, channel?)` | UI-drive into a VOICE channel; waits for `connected`; records `identity` + `channelId` |
+| `waitForAudioFlow(from, remote)` | assert audio IS flowing (inbound bytes grow + energy > 0) |
+| `expectNoAudioGrowth(from, remote)` | assert audio STOPPED (bytes don't grow) — for mutes |
+| `setMicEnabled` / `setCameraEnabled` / `startScreenShare` / `stopScreenShare` | local media control |
+| `switchMic(p, deviceId)` / `listAudioInputs` / `getLocalMicDeviceId` | live device switching (#351) |
+| `watchScreenShareOf` / `watchCameraOf` / `waitForVideoFlow` / `expectNoVideoToNonWatcher` | opt-in video subscription |
+| `moderatorMute` / `tryModeratorMuteAs(creds,…)` | server-mute REST (throwing / status-returning) |
+| `forceReconnect(p, scenario)` / `forceResubscribeMic` | `signal-reconnect` / `full-reconnect` / `force-tcp`; #352 recovery |
+| `getSubscriptionState` / `getInboundAudioStats` / `captureDiagnostics` | read-side state |
+| `closeParticipant(p)` | clean room disconnect + browser teardown (avoids ghost participants) |
+
+If a helper doesn't exist for what you need, add a thin wrapper around the
+**window hooks** below rather than reaching into the page directly — keeps specs
+declarative.
+
+### Window hooks (drive the real `Room` from `page.evaluate`)
+
+These live in `src/features/voice/VoiceTestHooks.tsx`, are **gated by
+`VITE_LIVEKIT_TEST_HOOK`** (inert/dead-code-eliminated in prod), and go through
+the *same app actions the UI fires* — so a passing test exercises real behaviour:
+`__lkRoom`, `__lkSetMic/Camera/ScreenShare`, `__lkSwitchMic`,
+`__lkWatch/Unwatch{Camera,ScreenShare}`, `__lkForceResubscribeMic`,
+`__lkGetInboundAudio/Video`, `__lkGetSubscriptionState`, `__lkCaptureDiagnostics`.
+To expose a new capability, add the hook here + its type in
+`voiceTestHooks.types.ts`, then a fixture wrapper.
+
+### Adding a participant / credentials
+
+Seed users live in `backend/prisma/seed-e2e.ts` (`TEST_USERS`) and their creds are
+re-exported from the fixture: `TEST_USER`, `TEST_USER_2`, `TEST_USER_3`,
+`ADMIN_USER`, `MEMBER_USER`. `OWNER`-role users can drive the join UI; the
+`USER`-role `member` is **REST-only** (used to assert a 403 — it isn't driven
+through the voice-join UI). Add a new user in both places if you need more.
+
+### Diagnostics module
+
+`src/features/voice/voiceDiagnostics.ts` is the single source of truth for parsing
+WebRTC stats and capturing a snapshot — the **same code path** backs the debug
+panel's *Export* button and the test assertions. Extend it (e.g. a new stat) and
+both the UI export and the tests get it.
+
 ## Notes / gotchas
 
 - Assert on `getStats` deltas (bytes + energy increasing), never on audible

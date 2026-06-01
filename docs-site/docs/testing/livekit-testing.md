@@ -1,6 +1,16 @@
 # Testing LiveKit Features Locally
 
-This guide explains how to test voice/video features using synthetic LiveKit participants — no second user or real camera required.
+This guide explains how to **manually** test voice/video features using synthetic
+LiveKit participants (the `lk` CLI) — no second user or real camera required.
+
+:::tip Automated voice E2E
+For **automated** voice testing — multi-participant Playwright specs that assert
+real audio/video flow over a real LiveKit server (reconnect self-heal, mute,
+screen-share gating, device switching, etc.) — see the harness in
+`frontend/e2e/voice/` (run with `scripts/run-voice-e2e.sh`). Its README documents
+how to run it, the fixtures/window-hooks it exposes, and how to add a spec for a
+new feature.
+:::
 
 ## Prerequisites
 
