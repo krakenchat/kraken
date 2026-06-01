@@ -13,7 +13,6 @@ import path from "path";
  * http://localhost:<port>, which browsers treat as a *secure context* (so
  * getUserMedia works) without any TLS — see frontend/e2e/voice/README.md.
  */
-
 export default defineConfig({
   plugins: [
     react(),
@@ -25,10 +24,13 @@ export default defineConfig({
       includeAssets: ["favicon.ico", "favicon-32x32.png", "favicon-16x16.png", "apple-touch-icon.png"],
       manifest: {
         name: "Semaphore Chat",
-        short_name: "Semaphore",
+        short_name: "Semaphore Chat",
         description: "Self-hosted voice and text chat",
         theme_color: "#1a1a2e",
+        background_color: "#1a1a2e",
         display: "standalone",
+        orientation: "portrait",
+        scope: "/",
         start_url: "/",
         icons: [
           {
@@ -41,7 +43,20 @@ export default defineConfig({
             sizes: "512x512",
             type: "image/png",
           },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
         ],
+      },
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
+      devOptions: {
+        enabled: false, // Disable PWA in E2E tests
+        type: "module",
       },
     }),
   ],
