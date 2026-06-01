@@ -69,16 +69,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # NOTE: no `--with-deps`. The ubuntu-latest runner image already ships the
-      # chromium system libraries (apt reported every dep "already the newest
-      # version"), and `--with-deps` shells out to apt-get, which intermittently
-      # HANGS on the runner (dpkg/apt lock) — that stall is what was timing this
-      # step out. Browser-only install just downloads the ~167 MiB binary;
-      # generous timeout because that download itself can be slow on the runner.
+      # Cache the downloaded browser so most runs skip the ~167 MiB download
+      # entirely. Keyed on the lockfile (which pins the Playwright version).
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+      # NOTE: no `--with-deps`. The ubuntu-latest image already ships chromium's
+      # system libs (apt reported every dep "already the newest version"), and
+      # `--with-deps` shells out to apt-get which intermittently HANGS on the
+      # runner. The browser-binary download from the Playwright CDN can also be
+      # slow/stall, so retry up to 3× on a cache miss. (Both the apt hang and a
+      # stalled CDN download had been timing this step out / cancelling nightlies.)
       - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         timeout-minutes: 15
         working-directory: frontend
-        run: pnpm exec playwright install chromium
+        run: |
+          for attempt in 1 2 3; do
+            echo "Playwright browser install attempt $attempt…"
+            if timeout 240 pnpm exec playwright install chromium; then
+              echo "Installed."; exit 0
+            fi
+            echo "Attempt $attempt failed/stalled; retrying…"; sleep 5
+          done
+          echo "Playwright browser install failed after 3 attempts"; exit 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -242,13 +259,27 @@ jobs:
 
       # The browser runs on the RUNNER (host) against http://localhost:5174 —
       # localhost is a secure context, which getUserMedia/mic-publish requires.
-      # No `--with-deps` (see the e2e job above): apt-get hangs on the runner and
-      # the chromium deps are already present on ubuntu-latest. Generous timeout
-      # because the browser-binary download itself can be slow on the runner.
+      # Cache + retry, same as the e2e job above (no --with-deps: apt hangs on the
+      # runner; the CDN download can stall, so retry on a cache miss).
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
       - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         timeout-minutes: 15
         working-directory: frontend
-        run: pnpm exec playwright install chromium
+        run: |
+          for attempt in 1 2 3; do
+            echo "Playwright browser install attempt $attempt…"
+            if timeout 240 pnpm exec playwright install chromium; then
+              echo "Installed."; exit 0
+            fi
+            echo "Attempt $attempt failed/stalled; retrying…"; sleep 5
+          done
+          echo "Playwright browser install failed after 3 attempts"; exit 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
