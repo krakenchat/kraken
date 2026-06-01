@@ -8,6 +8,10 @@ import path from "path";
  *
  * This config is used when running E2E tests in Docker.
  * It proxies API requests to the backend-test container.
+ *
+ * Served over plain HTTP. The voice E2E runs the browser against
+ * http://localhost:<port>, which browsers treat as a *secure context* (so
+ * getUserMedia works) without any TLS — see frontend/e2e/voice/README.md.
  */
 export default defineConfig({
   plugins: [
@@ -64,6 +68,9 @@ export default defineConfig({
   base: "/",
   server: {
     host: "0.0.0.0",
+    // Allow the in-network container hostname used by a dockerized Playwright
+    // runner; Vite otherwise 403s unknown Hosts.
+    allowedHosts: ["frontend-test", "localhost"],
     proxy: {
       // Proxy to backend-test container in Docker E2E network
       "/api": {

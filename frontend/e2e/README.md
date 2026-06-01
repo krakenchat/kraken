@@ -2,6 +2,12 @@
 
 End-to-end tests using Playwright to verify critical user flows.
 
+> **Voice / LiveKit E2E** (real audio/video over a real LiveKit server,
+> multi-participant, no second human) lives in [`voice/`](./voice/README.md) and
+> runs as a separate Playwright `voice` project via `scripts/run-voice-e2e.sh`.
+> See that README for running, the available fixtures/hooks, and **how to add a
+> spec for a new voice feature**.
+
 ## Quick Start
 
 ### Run in Docker (Recommended)
@@ -64,6 +70,7 @@ e2e/
 ├── community.spec.ts      # Community management tests
 ├── messaging.spec.ts      # Messaging and channel tests
 ├── mobile.spec.ts         # Mobile UX and PWA tests
+├── voice/                 # Real-LiveKit voice E2E (own project + README)
 └── README.md              # This file
 ```
 

@@ -23,8 +23,10 @@ export const TEST_USER_2 = {
   email: 'testuser2@test.local',
 };
 
-// API base URL (proxied through Vite in development)
-const API_BASE = '/api';
+// API base URL (proxied through Vite in development). Exported so other fixtures
+// (e.g. voice.fixture moderator-mute REST calls) reuse the same base; relative
+// paths resolve against each request context's configured baseURL.
+export const API_BASE = '/api';
 
 /**
  * Login via API and get access token
