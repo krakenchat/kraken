@@ -73,9 +73,10 @@ jobs:
       # chromium system libraries (apt reported every dep "already the newest
       # version"), and `--with-deps` shells out to apt-get, which intermittently
       # HANGS on the runner (dpkg/apt lock) — that stall is what was timing this
-      # step out. Installing just the browser binary is fast and reliable.
+      # step out. Browser-only install just downloads the ~167 MiB binary;
+      # generous timeout because that download itself can be slow on the runner.
       - name: Install Playwright browser
-        timeout-minutes: 5
+        timeout-minutes: 15
         working-directory: frontend
         run: pnpm exec playwright install chromium
 
@@ -242,10 +243,10 @@ jobs:
       # The browser runs on the RUNNER (host) against http://localhost:5174 —
       # localhost is a secure context, which getUserMedia/mic-publish requires.
       # No `--with-deps` (see the e2e job above): apt-get hangs on the runner and
-      # the chromium deps are already present on ubuntu-latest. Browser-only
-      # install is fast; keep a short timeout as a backstop.
+      # the chromium deps are already present on ubuntu-latest. Generous timeout
+      # because the browser-binary download itself can be slow on the runner.
       - name: Install Playwright browser
-        timeout-minutes: 5
+        timeout-minutes: 15
         working-directory: frontend
         run: pnpm exec playwright install chromium
 
