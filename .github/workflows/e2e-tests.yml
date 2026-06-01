@@ -69,9 +69,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
+      # NOTE: no `--with-deps`. The ubuntu-latest runner image already ships the
+      # chromium system libraries (apt reported every dep "already the newest
+      # version"), and `--with-deps` shells out to apt-get, which intermittently
+      # HANGS on the runner (dpkg/apt lock) — that stall is what was timing this
+      # step out. Installing just the browser binary is fast and reliable.
+      - name: Install Playwright browser
+        timeout-minutes: 5
         working-directory: frontend
-        run: pnpm exec playwright install chromium --with-deps
+        run: pnpm exec playwright install chromium
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -203,15 +209,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: changes
-    # Heavy: real LiveKit SFU + 2–4 real browsers per spec. Runs on nightly cron,
-    # manual dispatch, and pushes to main — NOT on PRs. (The job's WebRTC path on
-    # GitHub-hosted runners is unproven — see frontend/e2e/voice/README.md — so it
-    # is kept off the PR-blocking path until a green run confirms it works there.
-    # The full voice suite is verified locally via scripts/run-voice-e2e.sh.)
+    # Heavy: real LiveKit SFU + 2–4 real browsers per spec. Runs on nightly cron
+    # and manual dispatch only — NOT on PRs and NOT on push to main. (The job's
+    # WebRTC path on GitHub-hosted runners is still unproven — see
+    # frontend/e2e/voice/README.md — so it is kept entirely off the
+    # push/PR-blocking path until a manual/nightly run goes green there. The full
+    # voice suite is verified locally via scripts/run-voice-e2e.sh.)
     if: >-
       github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push'
+      github.event_name == 'workflow_dispatch'
 
     env:
       COMPOSE: docker compose -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml -f docker-compose.voice-e2e.host.yml
@@ -235,13 +241,13 @@ jobs:
 
       # The browser runs on the RUNNER (host) against http://localhost:5174 —
       # localhost is a secure context, which getUserMedia/mic-publish requires.
-      # Short per-step timeout: `--with-deps` has been observed to hang on the
-      # runner (apt resolves, then stalls). Fail fast (10 min) instead of letting
-      # the whole job burn its 45-min budget on a stuck install.
-      - name: Install Playwright browsers
-        timeout-minutes: 10
+      # No `--with-deps` (see the e2e job above): apt-get hangs on the runner and
+      # the chromium deps are already present on ubuntu-latest. Browser-only
+      # install is fast; keep a short timeout as a backstop.
+      - name: Install Playwright browser
+        timeout-minutes: 5
         working-directory: frontend
-        run: pnpm exec playwright install chromium --with-deps
+        run: pnpm exec playwright install chromium
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
