@@ -24,6 +24,7 @@ import { App } from 'supertest/types';
 import { Response } from 'supertest';
 import { AppModule } from '@/app.module';
 import { DatabaseService } from '@/database/database.service';
+import { RolesService } from '@/roles/roles.service';
 
 export type E2eApp = INestApplication<App>;
 
@@ -58,11 +59,28 @@ export async function createE2eApp(): Promise<E2eApp> {
 /**
  * Truncate every table in the public schema except _prisma_migrations.
  * Single TRUNCATE ... CASCADE statement — fast, and resets identity columns.
+ * Afterwards re-seeds the default instance roles that RolesService creates
+ * at boot, so the post-reset state matches a freshly-migrated instance.
  *
- * NOTE: destructive by design. The e2e suite owns whatever database
- * DATABASE_URL points at (CI provisions a dedicated `test` database).
+ * Destructive by design, so it refuses to run unless the database name in
+ * DATABASE_URL contains "test" (CI provisions a dedicated `test` database)
+ * or E2E_ALLOW_DB_RESET=1 is set explicitly. Local runs against the dev
+ * compose database therefore need:
+ *   docker compose run --rm -e E2E_ALLOW_DB_RESET=1 backend pnpm run test:e2e
  */
 export async function resetDatabase(app: E2eApp): Promise<void> {
+  const dbName = new URL(process.env.DATABASE_URL ?? '').pathname.replace(
+    /^\//,
+    '',
+  );
+  if (!/test/i.test(dbName) && process.env.E2E_ALLOW_DB_RESET !== '1') {
+    throw new Error(
+      `resetDatabase() refused: DATABASE_URL points at "${dbName}", which ` +
+        'does not look like a test database. Set E2E_ALLOW_DB_RESET=1 to ' +
+        'wipe it anyway (this destroys all data).',
+    );
+  }
+
   const db = app.get(DatabaseService);
   const tables = await db.$queryRaw<Array<{ tablename: string }>>`
     SELECT tablename
@@ -76,6 +94,10 @@ export async function resetDatabase(app: E2eApp): Promise<void> {
   await db.$executeRawUnsafe(
     `TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`,
   );
+
+  // Boot-time seeding ran before the truncate wiped it; restore the default
+  // instance roles so instance-level RBAC behaves like production.
+  await app.get(RolesService).ensureDefaultInstanceRolesExist();
 }
 
 /**
