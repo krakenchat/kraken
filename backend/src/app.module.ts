@@ -17,6 +17,8 @@ import {
   ThrottlerModule,
   ThrottlerModuleOptions,
 } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import Redis from 'ioredis';
 import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
 import { RoomsModule } from './rooms/rooms.module';
@@ -86,6 +88,24 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
               limit: 500 * multiplier,
             },
           ],
+          // Redis-backed storage so limits hold across replicas (HPA).
+          // Test mode keeps default in-memory storage (isTest branch).
+          // A dedicated ioredis connection is constructed here because
+          // RedisModule is not @Global(), so REDIS_CLIENT cannot be injected
+          // into ThrottlerModule's async factory without circular module deps.
+          ...(isTest
+            ? {}
+            : {
+                storage: new ThrottlerStorageRedisService(
+                  new Redis({
+                    host: configService.get<string>('REDIS_HOST', 'localhost'),
+                    port: configService.get<number>('REDIS_PORT', 6379),
+                    password:
+                      configService.get<string>('REDIS_PASSWORD') || undefined,
+                    db: configService.get<number>('REDIS_DB', 0),
+                  }),
+                ),
+              }),
         };
       },
     }),
