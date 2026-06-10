@@ -485,6 +485,93 @@ describe('FileUploadService', () => {
     });
   });
 
+  describe('filename sanitization', () => {
+    const createDto = {
+      resourceType: ResourceType.MESSAGE_ATTACHMENT,
+      resourceId: 'msg-123',
+    };
+
+    beforeEach(() => {
+      databaseService.file.create.mockResolvedValue({ id: 'file-123' } as any);
+
+      const {
+        ResourceTypeFileValidator,
+      } = require('./validators/resource-type-file.validator');
+      ResourceTypeFileValidator.mockImplementation(() => ({
+        isValid: jest.fn().mockResolvedValue(true),
+      }));
+    });
+
+    const getStoredData = () =>
+      databaseService.file.create.mock.calls[0][0].data as {
+        filename: string;
+        storagePath: string;
+      };
+
+    it('should strip path separators from the client-supplied filename', async () => {
+      const file = {
+        ...mockFile,
+        originalname: '../../etc/passwd',
+      };
+
+      await service.uploadFile(file, createDto, mockUser);
+
+      const data = getStoredData();
+      expect(data.filename).not.toContain('/');
+      expect(data.filename).not.toContain('\\');
+      expect(data.filename).toBe('.._.._etc_passwd');
+    });
+
+    it('should strip Windows path separators and control characters', async () => {
+      const file = {
+        ...mockFile,
+        originalname: '..\\..\\evil\tna me.png',
+      };
+
+      await service.uploadFile(file, createDto, mockUser);
+
+      const data = getStoredData();
+      expect(data.filename).toBe('.._.._evilna me.png');
+    });
+
+    it('should cap stored filename at 255 characters', async () => {
+      const file = {
+        ...mockFile,
+        originalname: 'a'.repeat(300) + '.png',
+      };
+
+      await service.uploadFile(file, createDto, mockUser);
+
+      expect(getStoredData().filename).toHaveLength(255);
+    });
+
+    it('should fall back to a placeholder when the name is empty after sanitization', async () => {
+      const file = {
+        ...mockFile,
+        originalname: ' ',
+      };
+
+      await service.uploadFile(file, createDto, mockUser);
+
+      expect(getStoredData().filename).toBe('file');
+    });
+
+    it('should never use the client-supplied name for the storage path', async () => {
+      const file = {
+        ...mockFile,
+        originalname: '../../etc/passwd',
+      };
+
+      await service.uploadFile(file, createDto, mockUser);
+
+      const data = getStoredData();
+      // storagePath comes from multer's server-generated path, untouched by
+      // the original name
+      expect(data.storagePath).toBe('/tmp/test-123.png');
+      expect(data.storagePath).not.toContain('passwd');
+    });
+  });
+
   describe('remove', () => {
     const userId = 'user-123';
 
