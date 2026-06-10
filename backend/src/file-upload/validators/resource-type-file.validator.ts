@@ -50,6 +50,10 @@ export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileVal
   }
 
   async isValid(file?: Express.Multer.File): Promise<boolean> {
+    // Reset per validation so a reused instance (e.g. a construct-once pipe)
+    // never reports a stale mismatch message for a different failure.
+    this.contentTypeMismatch = false;
+
     if (!file) {
       return false;
     }
