@@ -1,5 +1,6 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
 import { ThrottlerStorageRecord } from '@nestjs/throttler/dist/throttler-storage-record.interface';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import Redis from 'ioredis';
 import { FailOpenThrottlerStorage } from './fail-open-throttler.storage';
 
 const ARGS: [string, number, number, number, string] = [
@@ -24,25 +25,26 @@ const FAIL_OPEN_RECORD: ThrottlerStorageRecord = {
   timeToBlockExpire: 0,
 };
 
-function makeInner(
-  impl: () => Promise<ThrottlerStorageRecord>,
-): ThrottlerStorageRedisService {
-  return {
-    increment: jest.fn(impl),
-    onModuleDestroy: jest.fn(),
-  } as unknown as ThrottlerStorageRedisService;
+function makeInner(impl: () => Promise<ThrottlerStorageRecord>): {
+  inner: ThrottlerStorage;
+  increment: jest.Mock;
+} {
+  const increment = jest.fn(impl);
+  return { inner: { increment }, increment };
 }
 
-/**
- * Flush all pending microtasks so that Promise.resolve() callbacks complete
- * before we run any timer-based assertions.
- */
-async function flushMicrotasks(): Promise<void> {
-  // Yielding via await Promise.resolve() multiple times drains the microtask
-  // queue through several depths of chaining.
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+function makeRedis(status: string): Redis {
+  return { status } as unknown as Redis;
+}
+
+function spyOnWarn(storage: FailOpenThrottlerStorage): jest.SpyInstance {
+  return jest
+    .spyOn(
+      (storage as unknown as { logger: { warn: (msg: string) => void } })
+        .logger,
+      'warn',
+    )
+    .mockImplementation(() => undefined);
 }
 
 describe('FailOpenThrottlerStorage', () => {
@@ -56,61 +58,54 @@ describe('FailOpenThrottlerStorage', () => {
 
   describe('happy path', () => {
     it('delegates to inner and returns its record on success', async () => {
-      const inner = makeInner(() => Promise.resolve(SUCCESS_RECORD));
-      const storage = new FailOpenThrottlerStorage(inner, 1500);
+      const { inner, increment } = makeInner(() =>
+        Promise.resolve(SUCCESS_RECORD),
+      );
+      const storage = new FailOpenThrottlerStorage(inner);
 
-      const resultPromise = storage.increment(...ARGS);
-      // Let microtasks (Promise.resolve) settle BEFORE running timers.
-      // Running timers first would fire the timeout before the inner resolves.
-      await flushMicrotasks();
-      jest.runAllTimers();
+      const result = await storage.increment(...ARGS);
 
-      const result = await resultPromise;
       expect(result).toBe(SUCCESS_RECORD);
-      expect(inner.increment).toHaveBeenCalledWith(...ARGS);
+      expect(increment).toHaveBeenCalledWith(...ARGS);
     });
   });
 
   describe('fail-open on inner rejection', () => {
     it('returns zero-hit record when inner rejects', async () => {
-      const inner = makeInner(() => Promise.reject(new Error('ECONNREFUSED')));
-      const storage = new FailOpenThrottlerStorage(inner, 1500);
+      const { inner } = makeInner(() =>
+        Promise.reject(new Error('ECONNREFUSED')),
+      );
+      const storage = new FailOpenThrottlerStorage(inner);
+      spyOnWarn(storage);
 
-      const resultPromise = storage.increment(...ARGS);
-      await flushMicrotasks();
-      jest.runAllTimers();
+      const result = await storage.increment(...ARGS);
 
-      const result = await resultPromise;
       expect(result).toEqual(FAIL_OPEN_RECORD);
     });
 
-    it('logs a warning when inner rejects', async () => {
-      const inner = makeInner(() => Promise.reject(new Error('Redis down')));
-      const storage = new FailOpenThrottlerStorage(inner, 1500);
-      const warnSpy = jest
-        .spyOn((storage as any).logger, 'warn')
-        .mockImplementation(() => undefined);
+    it('logs a warning containing the error message when inner rejects', async () => {
+      const { inner } = makeInner(() =>
+        Promise.reject(new Error('Redis down')),
+      );
+      const storage = new FailOpenThrottlerStorage(inner);
+      const warnSpy = spyOnWarn(storage);
 
-      const resultPromise = storage.increment(...ARGS);
-      await flushMicrotasks();
-      jest.runAllTimers();
-      await resultPromise;
+      await storage.increment(...ARGS);
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy.mock.calls[0][0]).toContain('Redis down');
     });
 
     it('logs a warning with stringified non-Error rejections', async () => {
-      const inner = makeInner(() => Promise.reject('string-error'));
-      const storage = new FailOpenThrottlerStorage(inner, 1500);
-      const warnSpy = jest
-        .spyOn((storage as any).logger, 'warn')
-        .mockImplementation(() => undefined);
+      const { inner } = makeInner(() =>
+        // Intentionally reject with a non-Error to exercise String() fallback.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+        Promise.reject('string-error'),
+      );
+      const storage = new FailOpenThrottlerStorage(inner);
+      const warnSpy = spyOnWarn(storage);
 
-      const resultPromise = storage.increment(...ARGS);
-      await flushMicrotasks();
-      jest.runAllTimers();
-      await resultPromise;
+      await storage.increment(...ARGS);
 
       expect(warnSpy.mock.calls[0][0]).toContain('string-error');
     });
@@ -119,28 +114,23 @@ describe('FailOpenThrottlerStorage', () => {
   describe('fail-open on timeout', () => {
     it('returns zero-hit record when inner exceeds timeout', async () => {
       // Inner never resolves
-      const inner = makeInner(() => new Promise(() => undefined));
-      const storage = new FailOpenThrottlerStorage(inner, 200);
+      const { inner } = makeInner(() => new Promise(() => undefined));
+      const storage = new FailOpenThrottlerStorage(inner, { timeoutMs: 200 });
+      spyOnWarn(storage);
 
       const incrementPromise = storage.increment(...ARGS);
-      jest.advanceTimersByTime(201);
-      // Yield so the timeout-rejection catch handler runs
-      await flushMicrotasks();
+      await jest.advanceTimersByTimeAsync(201);
 
-      const result = await incrementPromise;
-      expect(result).toEqual(FAIL_OPEN_RECORD);
+      await expect(incrementPromise).resolves.toEqual(FAIL_OPEN_RECORD);
     });
 
     it('logs a warning on timeout', async () => {
-      const inner = makeInner(() => new Promise(() => undefined));
-      const storage = new FailOpenThrottlerStorage(inner, 200);
-      const warnSpy = jest
-        .spyOn((storage as any).logger, 'warn')
-        .mockImplementation(() => undefined);
+      const { inner } = makeInner(() => new Promise(() => undefined));
+      const storage = new FailOpenThrottlerStorage(inner, { timeoutMs: 200 });
+      const warnSpy = spyOnWarn(storage);
 
       const incrementPromise = storage.increment(...ARGS);
-      jest.advanceTimersByTime(201);
-      await flushMicrotasks();
+      await jest.advanceTimersByTimeAsync(201);
       await incrementPromise;
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
@@ -148,17 +138,75 @@ describe('FailOpenThrottlerStorage', () => {
     });
 
     it('does not fail open when inner resolves before timeout', async () => {
-      const inner = makeInner(() => Promise.resolve(SUCCESS_RECORD));
-      const storage = new FailOpenThrottlerStorage(inner, 200);
+      const { inner } = makeInner(() => Promise.resolve(SUCCESS_RECORD));
+      const storage = new FailOpenThrottlerStorage(inner, { timeoutMs: 200 });
 
-      const incrementPromise = storage.increment(...ARGS);
-      // Drain microtasks first so inner resolves and clearTimeout fires
-      await flushMicrotasks();
-      // Then run timers (already cleared — no-op) to clean up any residuals
-      jest.runAllTimers();
+      const result = await storage.increment(...ARGS);
+      // Timeout was cleared on resolution; running remaining timers is a no-op.
+      await jest.runAllTimersAsync();
 
-      const result = await incrementPromise;
       expect(result).toBe(SUCCESS_RECORD);
+    });
+  });
+
+  describe('fast fail-open when Redis is not ready', () => {
+    it('fails open immediately without calling inner', async () => {
+      const { inner, increment } = makeInner(() =>
+        Promise.resolve(SUCCESS_RECORD),
+      );
+      const storage = new FailOpenThrottlerStorage(inner, {
+        redis: makeRedis('reconnecting'),
+      });
+      const warnSpy = spyOnWarn(storage);
+
+      const result = await storage.increment(...ARGS);
+
+      expect(result).toEqual(FAIL_OPEN_RECORD);
+      expect(increment).not.toHaveBeenCalled();
+      expect(warnSpy.mock.calls[0][0]).toContain('reconnecting');
+    });
+
+    it('calls inner normally when Redis is ready', async () => {
+      const { inner, increment } = makeInner(() =>
+        Promise.resolve(SUCCESS_RECORD),
+      );
+      const storage = new FailOpenThrottlerStorage(inner, {
+        redis: makeRedis('ready'),
+      });
+
+      const result = await storage.increment(...ARGS);
+
+      expect(result).toBe(SUCCESS_RECORD);
+      expect(increment).toHaveBeenCalledWith(...ARGS);
+    });
+  });
+
+  describe('warning rate limiting', () => {
+    it('logs at most one warning per 30 seconds', async () => {
+      const { inner } = makeInner(() =>
+        Promise.reject(new Error('Redis down')),
+      );
+      const storage = new FailOpenThrottlerStorage(inner);
+      const warnSpy = spyOnWarn(storage);
+
+      await storage.increment(...ARGS);
+      await storage.increment(...ARGS);
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs again after the rate-limit window elapses', async () => {
+      const { inner } = makeInner(() =>
+        Promise.reject(new Error('Redis down')),
+      );
+      const storage = new FailOpenThrottlerStorage(inner);
+      const warnSpy = spyOnWarn(storage);
+
+      await storage.increment(...ARGS);
+      await jest.advanceTimersByTimeAsync(30_001);
+      await storage.increment(...ARGS);
+
+      expect(warnSpy).toHaveBeenCalledTimes(2);
     });
   });
 });

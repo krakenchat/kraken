@@ -17,6 +17,7 @@ import {
   ThrottlerModule,
   ThrottlerModuleOptions,
 } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import Redis from 'ioredis';
 import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
@@ -85,7 +86,14 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
           // the app's Redis client (RedisModule owns its lifecycle). Fails open
           // on Redis outage — see FailOpenThrottlerStorage. Test mode keeps
           // the default in-memory storage.
-          ...(isTest ? {} : { storage: new FailOpenThrottlerStorage(redis) }),
+          ...(isTest
+            ? {}
+            : {
+                storage: new FailOpenThrottlerStorage(
+                  new ThrottlerStorageRedisService(redis),
+                  { redis },
+                ),
+              }),
         };
       },
     }),
