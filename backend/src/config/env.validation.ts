@@ -2,11 +2,13 @@
  * Schema-based environment validation (structural presence check).
  *
  * Division of labour with main.ts validateSecrets():
- *   - THIS FILE: fail-fast at startup if required env vars are absent or
- *     a partial VAPID pair is supplied. Runs inside ConfigModule.forRoot().
- *   - main.ts validateSecrets(): detects known-weak *values* (e.g. sample JWT
- *     secrets) and warns/errors accordingly. It intentionally runs after this
- *     file so it can assume the vars are structurally present.
+ *   - main.ts validateSecrets(): runs FIRST, before NestFactory.create().
+ *     Detects known-weak *values* (e.g. sample JWT secrets) and warns/errors
+ *     accordingly. Also enforces production presence of JWT secrets directly
+ *     from process.env.
+ *   - THIS FILE: runs SECOND, during ConfigModule.forRoot() initialization
+ *     (i.e. when Nest is already being assembled). Performs structural presence
+ *     validation for the full env-var inventory and rejects partial VAPID pairs.
  */
 
 import { plainToInstance } from 'class-transformer';
@@ -95,9 +97,11 @@ export function validateEnv(
 ): EnvironmentVariables {
   const validated = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
-    // Exclude unknown properties so validateSync doesn't surface them,
-    // but we do NOT strip them — ConfigService must still be able to
-    // read arbitrary process.env keys.
+    // Must stay false (the default). Flipping to true would strip every env
+    // var not declared on EnvironmentVariables (CORS_ORIGIN, REPLAY_*, etc.)
+    // from the object NestJS hands to ConfigService, breaking all undeclared
+    // vars at runtime. validateSync ignores unknown keys on its own — no
+    // whitelist option is set — so there is no need to strip them here.
     excludeExtraneousValues: false,
   });
 

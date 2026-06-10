@@ -132,7 +132,7 @@ describe('validateEnv', () => {
   });
 
   describe('Test 7: Unknown extra env vars are ignored', () => {
-    it('does not throw when extra unknown vars are present', () => {
+    it('does not throw when extra unknown vars are present and passes them through', () => {
       const config = {
         ...BASE_CONFIG,
         SOME_UNKNOWN_VAR: 'value',
@@ -142,7 +142,10 @@ describe('validateEnv', () => {
         USER: 'app',
       };
 
-      expect(() => validateEnv(config)).not.toThrow();
+      const result = validateEnv(config);
+      expect(
+        (result as unknown as Record<string, unknown>).SOME_UNKNOWN_VAR,
+      ).toBe('value');
     });
   });
 
