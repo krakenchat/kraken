@@ -39,9 +39,15 @@ export class HttpMetricsInterceptor implements NestInterceptor {
     const start = process.hrtime.bigint();
     const request = context.switchToHttp().getRequest<Request>();
     const method = request.method;
-    // Route template, not raw URL — keeps label cardinality bounded.
+    // Route template, not raw URL — keeps label cardinality bounded. Nest
+    // registers flattened templates (req.route.path is already
+    // /api/users/:id), but prepend req.baseUrl so the label stays correct if
+    // a route is ever served from a mounted router.
+    const routePath = (request.route as { path?: string } | undefined)?.path;
     const route =
-      (request.route as { path?: string } | undefined)?.path ?? 'unmatched';
+      routePath !== undefined
+        ? `${request.baseUrl ?? ''}${routePath}`
+        : 'unmatched';
 
     const observe = (status: number): void => {
       const seconds = Number(process.hrtime.bigint() - start) / 1e9;

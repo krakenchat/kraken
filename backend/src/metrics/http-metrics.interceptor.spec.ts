@@ -16,12 +16,15 @@ describe('HttpMetricsInterceptor', () => {
     method?: string;
     // null = request matched no Express route (request.route undefined)
     route?: { path: string } | null;
+    // Express mount path; '' for Nest's flattened routes (the normal case)
+    baseUrl?: string;
     statusCode?: number;
   }
 
   const createHttpContext = ({
     method = 'GET',
     route = { path: '/api/users/:id' },
+    baseUrl = '',
     statusCode = 200,
   }: HttpContextOptions = {}): ExecutionContext =>
     ({
@@ -30,6 +33,7 @@ describe('HttpMetricsInterceptor', () => {
         getRequest: () => ({
           method,
           route: route ?? undefined,
+          baseUrl,
           url: '/api/users/123',
           originalUrl: '/api/users/123',
         }),
@@ -80,6 +84,20 @@ describe('HttpMetricsInterceptor', () => {
       ];
       expect(labels.route).toBe('/api/users/:id');
       expect(labels.route).not.toContain('123');
+    });
+
+    it('prepends req.baseUrl when the route is served from a mounted router', async () => {
+      const context = createHttpContext({
+        baseUrl: '/mounted',
+        route: { path: '/users/:id' },
+      });
+
+      await lastValueFrom(interceptor.intercept(context, createNext(of(1))));
+
+      expect(histogram.observe).toHaveBeenCalledWith(
+        expect.objectContaining({ route: '/mounted/users/:id' }),
+        expect.any(Number),
+      );
     });
 
     it('falls back to "unmatched" when no route template is present', async () => {

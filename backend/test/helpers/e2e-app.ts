@@ -69,10 +69,18 @@ export async function createE2eApp(): Promise<E2eApp> {
  *   docker compose run --rm -e E2E_ALLOW_DB_RESET=1 backend pnpm run test:e2e
  */
 export async function resetDatabase(app: E2eApp): Promise<void> {
-  const dbName = new URL(process.env.DATABASE_URL ?? '').pathname.replace(
-    /^\//,
-    '',
-  );
+  let dbName: string;
+  try {
+    dbName = new URL(process.env.DATABASE_URL ?? '').pathname.replace(
+      /^\//,
+      '',
+    );
+  } catch {
+    throw new Error(
+      'resetDatabase() refused: DATABASE_URL is unset or not a parseable ' +
+        'URL, so the target database cannot be identified.',
+    );
+  }
   if (!/test/i.test(dbName) && process.env.E2E_ALLOW_DB_RESET !== '1') {
     throw new Error(
       `resetDatabase() refused: DATABASE_URL points at "${dbName}", which ` +
