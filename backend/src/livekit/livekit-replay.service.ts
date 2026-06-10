@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import {
   EgressClient,
   RoomServiceClient,
@@ -38,13 +38,12 @@ import {
 import { getErrorMessage } from '@/common/utils/error.utils';
 import { ThumbnailService } from '@/file/thumbnail.service';
 import { FfmpegService } from './ffmpeg.service';
-import * as ffmpegModule from 'fluent-ffmpeg';
+import { ReplaySegmentsService } from './replay-segments.service';
 import {
   CaptureReplayDto,
   CaptureReplayResponseDto,
 } from './dto/capture-replay.dto';
 import { createHash } from 'crypto';
-import { promises as fs } from 'fs';
 import * as path from 'path';
 import { EGRESS_CLIENT } from './providers/egress-client.provider';
 import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
@@ -55,9 +54,6 @@ export class LivekitReplayService {
   private readonly segmentsPath: string;
   private readonly egressOutputPath: string;
   private readonly clipsPath: string;
-  private readonly cleanupAgeMinutes: number;
-  private readonly REMUX_CACHE_DIR = '/tmp/hls-remux-cache';
-  private readonly REMUX_CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
   constructor(
     @Inject(EGRESS_CLIENT)
@@ -69,6 +65,7 @@ export class LivekitReplayService {
     private readonly storageService: StorageService,
     private readonly websocketService: WebsocketService,
     private readonly ffmpegService: FfmpegService,
+    private readonly replaySegmentsService: ReplaySegmentsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly thumbnailService: ThumbnailService,
   ) {
@@ -86,12 +83,6 @@ export class LivekitReplayService {
       '/app/uploads/replays';
     this.clipsPath = path.resolve(rawClipsPath);
 
-    this.cleanupAgeMinutes = parseInt(
-      this.configService.get<string>('REPLAY_SEGMENT_CLEANUP_AGE_MINUTES') ||
-        '20',
-      10,
-    );
-
     this.logger.log('LivekitReplayService initialized');
     this.logger.log(
       `Segments path (for reading): ${this.segmentsPath} (via StorageService)`,
@@ -100,7 +91,6 @@ export class LivekitReplayService {
       `Egress output path (for LiveKit API): ${this.egressOutputPath}`,
     );
     this.logger.log(`Clips path: ${this.clipsPath}`);
-    this.logger.log(`Cleanup age: ${this.cleanupAgeMinutes} minutes`);
   }
 
   /**
@@ -512,174 +502,6 @@ export class LivekitReplayService {
   }
 
   /**
-   * Cleanup old segment files from active sessions
-   *
-   * Runs every 5 minutes, deletes segments older than REPLAY_SEGMENT_CLEANUP_AGE_MINUTES
-   * Note: Playlist files (.m3u8) are continuously updated by LiveKit and won't be deleted
-   */
-  @Cron('*/5 * * * *')
-  async cleanupOldSegments() {
-    this.logger.debug('Running cleanup of old replay buffer segments...');
-
-    try {
-      // Find all active sessions
-      const activeSessions = await this.databaseService.egressSession.findMany({
-        where: { status: 'active' },
-      });
-
-      if (activeSessions.length === 0) {
-        this.logger.debug('No active sessions to clean up');
-        return;
-      }
-
-      const cutoffDate = new Date(
-        Date.now() - this.cleanupAgeMinutes * 60 * 1000,
-      );
-      let totalDeleted = 0;
-
-      for (const session of activeSessions) {
-        try {
-          // Resolve relative segment path to full path
-          const resolvedPath = this.storageService.resolveSegmentPath(
-            session.segmentPath,
-          );
-
-          // Check if segment directory exists
-          const exists = await this.storageService.segmentDirectoryExists(
-            session.segmentPath,
-          );
-          if (!exists) {
-            this.logger.warn(`Segment path does not exist: ${resolvedPath}`);
-            continue;
-          }
-
-          // Delete old files in the segment directory
-          // This will delete old .ts segment files but preserve the .m3u8 playlist
-          // (playlist is continuously updated so its mtime will be recent)
-          const deletedCount = await this.storageService.deleteOldFiles(
-            resolvedPath,
-            cutoffDate,
-          );
-
-          totalDeleted += deletedCount;
-
-          if (deletedCount > 0) {
-            this.logger.debug(
-              `Deleted ${deletedCount} old segments from session ${session.id}`,
-            );
-          }
-        } catch (error) {
-          this.logger.warn(
-            `Failed to cleanup segments for session ${session.id}: ${getErrorMessage(error)}`,
-          );
-        }
-      }
-
-      if (totalDeleted > 0) {
-        this.logger.log(`Cleaned up ${totalDeleted} old segment files`);
-      } else {
-        this.logger.debug('No old segments to clean up');
-      }
-    } catch (error) {
-      this.logger.error(`Cleanup job failed: ${getErrorMessage(error)}`);
-    }
-  }
-
-  /**
-   * Cleanup orphaned egress sessions
-   *
-   * Runs every hour to find and cleanup sessions that have been active for >3 hours
-   * These are likely orphaned due to browser crashes, network issues, or server restarts
-   */
-  @Cron('0 * * * *') // Every hour at minute 0
-  async cleanupOrphanedSessions() {
-    this.logger.debug('Running cleanup of orphaned egress sessions...');
-
-    try {
-      // Find sessions that have been active for more than 3 hours
-      const staleThreshold = new Date(Date.now() - 3 * 60 * 60 * 1000); // 3 hours ago
-
-      const orphanedSessions =
-        await this.databaseService.egressSession.findMany({
-          where: {
-            status: 'active',
-            startedAt: { lt: staleThreshold },
-          },
-        });
-
-      if (orphanedSessions.length === 0) {
-        this.logger.debug('No orphaned sessions found');
-        return;
-      }
-
-      this.logger.warn(
-        `Found ${orphanedSessions.length} orphaned sessions, cleaning up...`,
-      );
-
-      let cleanedCount = 0;
-
-      for (const session of orphanedSessions) {
-        try {
-          // Try to stop the egress (might already be stopped by LiveKit)
-          try {
-            await this.egressClient.stopEgress(session.egressId);
-            this.logger.debug(`Stopped orphaned egress: ${session.egressId}`);
-          } catch {
-            // Egress might already be stopped - that's fine
-            this.logger.debug(
-              `Egress ${session.egressId} already stopped or not found`,
-            );
-          }
-
-          // Update session status in database
-          await this.databaseService.egressSession.update({
-            where: { id: session.id },
-            data: {
-              status: 'stopped',
-              endedAt: new Date(),
-            },
-          });
-
-          // Delete segment directory
-          // session.segmentPath is now relative, resolve it using StorageService
-          const exists = await this.storageService.segmentDirectoryExists(
-            session.segmentPath,
-          );
-
-          if (exists) {
-            await this.storageService.deleteSegmentDirectory(
-              session.segmentPath,
-              {
-                recursive: true,
-                force: true,
-              },
-            );
-            const resolvedPath = this.storageService.resolveSegmentPath(
-              session.segmentPath,
-            );
-            this.logger.debug(`Deleted orphaned segments: ${resolvedPath}`);
-          }
-
-          cleanedCount++;
-        } catch (error) {
-          this.logger.error(
-            `Failed to cleanup orphaned session ${session.id}: ${getErrorMessage(error)}`,
-          );
-          // Continue with next session
-        }
-      }
-
-      this.logger.log(
-        `Cleaned up ${cleanedCount} orphaned sessions out of ${orphanedSessions.length} found`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Orphaned session cleanup job failed: ${getErrorMessage(error)}`,
-      );
-    }
-  }
-
-  /**
    * Reconcile egress status with LiveKit
    *
    * Runs every 1 minute to verify that our database status matches LiveKit's actual egress status
@@ -808,80 +630,6 @@ export class LivekitReplayService {
   }
 
   /**
-   * Cleanup stale remux cache files
-   *
-   * Runs every 30 minutes to delete remuxed segment files older than 1 hour.
-   * These files are created by getRemuxedSegmentPath() at /tmp/hls-remux-cache/{userId}/
-   * and accumulate over time if not cleaned up.
-   */
-  @Cron(CronExpression.EVERY_30_MINUTES)
-  async cleanupRemuxCache(): Promise<void> {
-    try {
-      const exists = await fs
-        .access(this.REMUX_CACHE_DIR)
-        .then(() => true)
-        .catch(() => false);
-      if (!exists) return;
-
-      const userDirs = await fs.readdir(this.REMUX_CACHE_DIR);
-      const now = Date.now();
-      let cleaned = 0;
-
-      for (const userDir of userDirs) {
-        const userPath = path.join(this.REMUX_CACHE_DIR, userDir);
-        try {
-          const stat = await fs.stat(userPath);
-          if (!stat.isDirectory()) continue;
-        } catch (error: unknown) {
-          if (
-            error instanceof Error &&
-            'code' in error &&
-            (error as NodeJS.ErrnoException).code === 'ENOENT'
-          )
-            continue;
-          throw error;
-        }
-
-        const files = await fs.readdir(userPath).catch(() => [] as string[]);
-        for (const file of files) {
-          try {
-            const filePath = path.join(userPath, file);
-            const fileStat = await fs.stat(filePath);
-            if (now - fileStat.mtimeMs > this.REMUX_CACHE_MAX_AGE_MS) {
-              await fs.unlink(filePath);
-              cleaned++;
-            }
-          } catch (error: unknown) {
-            if (
-              error instanceof Error &&
-              'code' in error &&
-              (error as NodeJS.ErrnoException).code === 'ENOENT'
-            )
-              continue;
-            throw error;
-          }
-        }
-
-        // Remove empty user directories
-        const remaining = await fs
-          .readdir(userPath)
-          .catch(() => [] as string[]);
-        if (remaining.length === 0) {
-          await fs.rmdir(userPath).catch(() => {});
-        }
-      }
-
-      if (cleaned > 0) {
-        this.logger.log(`Cleaned up ${cleaned} stale remux cache files`);
-      }
-    } catch (error) {
-      this.logger.warn(
-        `Remux cache cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  /**
    * Stream a replay clip directly to the client (download-only, no persistence)
    * Creates a temporary file that should be deleted by the controller after streaming
    *
@@ -918,7 +666,8 @@ export class LivekitReplayService {
     );
 
     // 4. List only complete segments (>= 10KB) to avoid corrupt/partial data
-    const allSegments = await this.listCompleteSegments(segmentDir);
+    const allSegments =
+      await this.replaySegmentsService.listCompleteSegments(segmentDir);
 
     if (allSegments.length === 0) {
       throw new BadRequestException(
@@ -991,7 +740,8 @@ export class LivekitReplayService {
     );
 
     // 3. List only complete segments (>= 10KB) to avoid corrupt/partial data
-    const allSegments = await this.listCompleteSegments(segmentDir);
+    const allSegments =
+      await this.replaySegmentsService.listCompleteSegments(segmentDir);
 
     if (allSegments.length === 0) {
       throw new BadRequestException(
@@ -1245,89 +995,6 @@ export class LivekitReplayService {
   }
 
   /**
-   * List all segments in directory and sort by sequence number
-   *
-   * Filenames follow format: 2025-11-15T040603-segment_00000.ts
-   * Extracts sequence number (_00000) for proper ordering since timestamps are identical
-   *
-   * @param segmentDir - Directory containing segment files
-   * @returns Array of segment info sorted by sequence number (oldest first)
-   * @private
-   */
-  private async listAndSortSegments(
-    segmentDir: string,
-  ): Promise<Array<{ filename: string; sequence: number; path: string }>> {
-    try {
-      const files = await this.storageService.listFiles(segmentDir, {
-        filter: (filename) =>
-          filename.endsWith('.ts') && filename.includes('segment'),
-      });
-
-      const segments: Array<{
-        filename: string;
-        sequence: number;
-        path: string;
-      }> = [];
-
-      for (const filename of files) {
-        // Extract sequence number from filename
-        // Format: 2025-11-15T040603-segment_00000.ts
-        const sequenceMatch = filename.match(/_(\d+)\.ts$/);
-
-        if (sequenceMatch) {
-          const sequence = parseInt(sequenceMatch[1], 10);
-          segments.push({
-            filename,
-            sequence,
-            path: path.join(segmentDir, filename),
-          });
-        } else {
-          this.logger.warn(`Skipping file with unexpected format: ${filename}`);
-        }
-      }
-
-      // Sort by sequence number (oldest to newest)
-      return segments.sort((a, b) => a.sequence - b.sequence);
-    } catch (error) {
-      this.logger.error(
-        `Failed to list segments in ${segmentDir}: ${getErrorMessage(error)}`,
-      );
-      return [];
-    }
-  }
-
-  /**
-   * List segments that are complete (>= 10KB), filtering out segments still being written.
-   *
-   * @param segmentDir - Absolute path to segment directory
-   * @returns Sorted array of complete segments
-   * @private
-   */
-  private async listCompleteSegments(
-    segmentDir: string,
-  ): Promise<Array<{ filename: string; sequence: number; path: string }>> {
-    const allSegments = await this.listAndSortSegments(segmentDir);
-    const complete: Array<{
-      filename: string;
-      sequence: number;
-      path: string;
-    }> = [];
-    for (const segment of allSegments) {
-      try {
-        const stats = await this.storageService.getFileStats(segment.path);
-        if (stats.size >= 10000) {
-          complete.push(segment);
-        }
-      } catch (error) {
-        this.logger.warn(
-          `Skipping segment that could not be stat-ed (${segment.path}): ${getErrorMessage(error)}`,
-        );
-      }
-    }
-    return complete;
-  }
-
-  /**
    * Generate SHA-256 checksum for a file
    *
    * @param filePath - Path to the file
@@ -1436,7 +1103,8 @@ export class LivekitReplayService {
     const segmentDir = this.storageService.resolveSegmentPath(
       session.segmentPath,
     );
-    const completeSegments = await this.listCompleteSegments(segmentDir);
+    const completeSegments =
+      await this.replaySegmentsService.listCompleteSegments(segmentDir);
 
     if (completeSegments.length === 0) {
       return {
@@ -1482,7 +1150,8 @@ export class LivekitReplayService {
     const segmentDir = this.storageService.resolveSegmentPath(
       session.segmentPath,
     );
-    const completeSegments = await this.listCompleteSegments(segmentDir);
+    const completeSegments =
+      await this.replaySegmentsService.listCompleteSegments(segmentDir);
 
     if (completeSegments.length === 0) {
       throw new BadRequestException(
@@ -1513,53 +1182,8 @@ export class LivekitReplayService {
   }
 
   /**
-   * Get the full path to a specific segment file
-   * Verifies that the segment belongs to the user's active session
-   *
-   * @param userId - ID of the user
-   * @param segmentFile - Filename of the segment (e.g., "2025-11-15T040603-segment_00000.ts")
-   * @returns Full path to the segment file
-   */
-  async getSegmentPath(userId: string, segmentFile: string): Promise<string> {
-    const session = await this.databaseService.egressSession.findFirst({
-      where: {
-        userId,
-        status: 'active',
-      },
-    });
-
-    if (!session) {
-      throw new NotFoundException('No active replay buffer session found.');
-    }
-
-    // Validate segment filename format to prevent path traversal
-    if (
-      !segmentFile.match(/^[\w-]+\.ts$/) ||
-      segmentFile.includes('..') ||
-      segmentFile.includes('/')
-    ) {
-      throw new BadRequestException('Invalid segment filename.');
-    }
-
-    // Resolve relative session path to full path, then join with segment filename
-    const resolvedSessionDir = this.storageService.resolveSegmentPath(
-      session.segmentPath,
-    );
-    const segmentPath = path.join(resolvedSessionDir, segmentFile);
-
-    // Verify file exists
-    const exists = await this.storageService.fileExists(segmentPath);
-    if (!exists) {
-      throw new NotFoundException(`Segment ${segmentFile} not found.`);
-    }
-
-    return segmentPath;
-  }
-
-  /**
-   * Get a remuxed segment file path for HLS.js compatibility
-   * LiveKit egress creates HDMV-style MPEG-TS which HLS.js can't parse.
-   * This method remuxes the segment to standard MPEG-TS format.
+   * Get a remuxed segment file path for HLS.js compatibility.
+   * Delegates to ReplaySegmentsService (segment lifecycle lives there).
    *
    * @param userId - ID of the user
    * @param segmentFile - Filename of the segment
@@ -1569,80 +1193,10 @@ export class LivekitReplayService {
     userId: string,
     segmentFile: string,
   ): Promise<string> {
-    const originalPath = await this.getSegmentPath(userId, segmentFile);
-
-    // Create a cache directory for remuxed segments
-    const cacheDir = `${this.REMUX_CACHE_DIR}/${userId}`;
-    await this.storageService.ensureDirectory(cacheDir);
-
-    const remuxedPath = path.join(cacheDir, segmentFile);
-
-    // Check if already remuxed
-    const remuxedExists = await this.storageService.fileExists(remuxedPath);
-    if (remuxedExists) {
-      return remuxedPath;
-    }
-
-    // Check if the segment file is large enough to be complete
-    // A valid segment should be at least a few KB (has headers + some data)
-    const stats = await this.storageService.getFileStats(originalPath);
-    if (stats.size < 10000) {
-      // Less than 10KB, likely incomplete
-      this.logger.warn(
-        `Segment ${segmentFile} appears incomplete (${stats.size} bytes), serving original`,
-      );
-      // Return original path - HLS.js will fail but it's better than crashing
-      return originalPath;
-    }
-
-    // Remux using FFmpeg to convert HDMV-TS to standard MPEG-TS
-    // This is a fast stream copy operation, not transcoding
-    this.logger.debug(`Remuxing segment ${segmentFile} for HLS.js`);
-
-    try {
-      await this.remuxSegment(originalPath, remuxedPath);
-    } catch (error) {
-      this.logger.error(
-        `Failed to remux segment ${segmentFile}: ${getErrorMessage(error)}`,
-      );
-      // If remuxing fails, return the original path as fallback
-      // This allows the player to at least try to play it
-      return originalPath;
-    }
-
-    return remuxedPath;
-  }
-
-  /**
-   * Remux a single segment file to standard MPEG-TS format
-   * Uses stream copy for speed, no re-encoding needed
-   *
-   * @param inputPath - Path to original HDMV-style segment
-   * @param outputPath - Path for remuxed segment
-   * @private
-   */
-  private async remuxSegment(
-    inputPath: string,
-    outputPath: string,
-  ): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      ffmpegModule(inputPath)
-        .outputOptions([
-          '-c copy', // Stream copy, no transcoding
-          '-f mpegts', // Force standard MPEG-TS output (re-muxes stream IDs)
-          '-copyts', // Preserve original PTS (don't normalize to 0)
-        ])
-        .output(outputPath)
-        .on('end', () => {
-          this.logger.debug(`Successfully remuxed segment to ${outputPath}`);
-          resolve();
-        })
-        .on('error', (err: Error) => {
-          this.logger.error(`Failed to remux segment: ${err.message}`);
-          reject(err);
-        })
-        .run();
-    });
+    return this.replaySegmentsService.getRemuxedSegmentPath(
+      userId,
+      segmentFile,
+    );
   }
 }
 

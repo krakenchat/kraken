@@ -8,6 +8,7 @@ import { WebsocketModule } from '@/websocket/websocket.module';
 import { VoicePresenceModule } from '@/voice-presence/voice-presence.module';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
+import { ReplaySegmentsService } from './replay-segments.service';
 import { ClipLibraryService } from './clip-library.service';
 import { FfmpegService } from './ffmpeg.service';
 import { FfmpegProvider } from './providers/ffmpeg.provider';
@@ -39,6 +40,7 @@ import { ThumbnailService } from '@/file/thumbnail.service';
   providers: [
     LivekitService,
     LivekitReplayService,
+    ReplaySegmentsService,
     ClipLibraryService,
     FfmpegService,
     FfmpegProvider,
