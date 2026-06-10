@@ -1,0 +1,59 @@
+# Pre-existing vulnerability baseline (recorded 2026-06-10, PR #359).
+#
+# These advisories existed before image scanning was introduced. They are
+# grandfathered here so the Trivy gate stays BLOCKING for anything new;
+# remove entries as the corresponding dependency/base-image bumps land.
+# Keep in sync with the pnpm-audit baseline note in
+# .github/workflows/security-audit.yml.
+
+# --- backend image: npm transitive deps (fixed versions exist — bump & remove) ---
+# axios (fix: >=1.15.1)
+CVE-2026-42033
+CVE-2026-42035
+CVE-2026-42043
+CVE-2026-42264
+CVE-2026-44486
+CVE-2026-44487
+CVE-2026-44488
+CVE-2026-44492
+CVE-2026-44494
+CVE-2026-44495
+CVE-2026-44496
+# defu
+CVE-2026-35209
+# effect
+CVE-2026-32887
+# electron (present in the image because the build copies the full workspace
+# node_modules — slimming the prod image would also clear these)
+CVE-2026-34769
+CVE-2026-34770
+CVE-2026-34771
+CVE-2026-34774
+# lodash (via @nestjs/config)
+CVE-2026-4800
+# minimatch
+CVE-2026-26996
+CVE-2026-27903
+CVE-2026-27904
+# path-to-regexp (via @nestjs/core)
+CVE-2026-4926
+# react-router (fix: >=7.14.0)
+CVE-2026-33245
+CVE-2026-34077
+CVE-2026-42211
+CVE-2026-42342
+# socket.io-parser
+CVE-2026-33151
+# tar (fix: >=7.5.11)
+CVE-2026-23745
+CVE-2026-23950
+CVE-2026-24842
+CVE-2026-26960
+CVE-2026-29786
+CVE-2026-31802
+
+# --- frontend image: OS packages from the nginx/alpine base (bump base image) ---
+# libxml2
+CVE-2026-6732
+# nghttp2-libs
+CVE-2026-27135

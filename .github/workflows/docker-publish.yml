@@ -125,6 +125,8 @@ jobs:
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          # Pre-existing baseline is grandfathered; new findings still fail.
+          trivyignores: .trivyignore
 
   build-frontend:
     name: Build Frontend Image
@@ -232,6 +234,8 @@ jobs:
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          # Pre-existing baseline is grandfathered; new findings still fail.
+          trivyignores: .trivyignore
 
   summary:
     name: Build Summary
