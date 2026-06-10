@@ -1,10 +1,14 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import Redis from 'ioredis';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@semaphore-chat/shared';
 import { DatabaseService } from '@/database/database.service';
-import { LivekitReplayService } from '@/livekit/livekit-replay.service';
+import {
+  VOICE_USER_LEFT,
+  VoiceUserLeftEvent,
+} from '@/common/events/voice-presence.events';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import { RoomName } from '@/common/utils/room-name.util';
 
@@ -51,8 +55,7 @@ export class VoicePresenceService {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly websocketService: WebsocketService,
     private readonly databaseService: DatabaseService,
-    @Inject(forwardRef(() => LivekitReplayService))
-    private readonly livekitReplayService: LivekitReplayService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -119,23 +122,13 @@ export class VoicePresenceService {
         },
       );
 
-      // Stop any active replay buffer egress for this user
-      try {
-        await this.livekitReplayService.stopReplayBuffer(userId);
-      } catch (error: unknown) {
-        // Ignore if no session found (404), log other errors
-        const isNotFoundError =
-          error instanceof Error &&
-          'status' in error &&
-          (error as Error & { status: number }).status === 404;
-        if (!isNotFoundError) {
-          this.logger.warn(
-            `Failed to stop replay buffer on leave for user ${userId}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
-        }
-      }
+      // Fire-and-forget: notify listeners (e.g. the LiveKit module stops any
+      // active replay buffer egress for this user). Uses a domain event so
+      // this module does not depend on the LiveKit module.
+      this.eventEmitter.emit(VOICE_USER_LEFT, {
+        userId,
+        channelId,
+      } satisfies VoiceUserLeftEvent);
 
       this.logger.log(`User ${userId} left voice channel ${channelId}`);
     } catch (error) {

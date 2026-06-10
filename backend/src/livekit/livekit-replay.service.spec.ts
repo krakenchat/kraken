@@ -1,5 +1,7 @@
 import { TestBed } from '@suites/unit';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CLIP_MESSAGE_CREATE } from '@/common/events/clip-message.events';
 import {
   BadRequestException,
   ForbiddenException,
@@ -53,6 +55,8 @@ describe('LivekitReplayService', () => {
 
   let ffmpegService: any;
 
+  let eventEmitter: any;
+
   const mockEgressClient = {
     startTrackCompositeEgress: jest.fn(),
     stopEgress: jest.fn(),
@@ -95,6 +99,7 @@ describe('LivekitReplayService', () => {
 
     thumbnailService = unitRef.get(ThumbnailService);
     ffmpegService = unitRef.get(FfmpegService);
+    eventEmitter = unitRef.get(EventEmitter2);
 
     // Set up default return values for StorageService
     storageService.getSegmentsPrefix.mockReturnValue(
@@ -341,6 +346,66 @@ describe('LivekitReplayService', () => {
         'session-1',
         { recursive: true, force: true },
       );
+    });
+  });
+
+  describe('handleVoiceUserLeft', () => {
+    it('should stop the replay buffer for the user who left voice', async () => {
+      const activeSession = {
+        id: 'session-1',
+        egressId: 'egress-123',
+        userId: 'user-123',
+        status: 'active',
+        segmentPath: 'session-1',
+      };
+
+      databaseService.egressSession.findFirst.mockResolvedValue(activeSession);
+      mockEgressClient.stopEgress.mockResolvedValue(undefined);
+      databaseService.egressSession.update.mockResolvedValue({
+        ...activeSession,
+        status: 'stopped',
+      });
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+
+      await service.handleVoiceUserLeft({
+        userId: 'user-123',
+        channelId: 'channel-1',
+      });
+
+      expect(mockEgressClient.stopEgress).toHaveBeenCalledWith('egress-123');
+    });
+
+    it('should swallow NotFoundException when user has no active session', async () => {
+      databaseService.egressSession.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.handleVoiceUserLeft({
+          userId: 'user-123',
+          channelId: 'channel-1',
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('should not throw when stopping the buffer fails', async () => {
+      const activeSession = {
+        id: 'session-1',
+        egressId: 'egress-123',
+        userId: 'user-123',
+        status: 'active',
+        segmentPath: 'session-1',
+      };
+
+      databaseService.egressSession.findFirst.mockResolvedValue(activeSession);
+      mockEgressClient.stopEgress.mockRejectedValue(
+        new Error('Network timeout'),
+      );
+
+      await expect(
+        service.handleVoiceUserLeft({
+          userId: 'user-123',
+          channelId: 'channel-1',
+        }),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -1084,24 +1149,21 @@ describe('LivekitReplayService', () => {
           userId,
           communityId: 'community-1',
         });
-        // Mock messagesService for the message creation path
-        const messagesService = (service as any).messagesService;
-        const mockMessage = {
-          id: 'message-1',
-          channelId: 'target-channel-1',
-          authorId: userId,
-          attachments: [],
-        };
-        messagesService.create.mockResolvedValue(mockMessage);
-        messagesService.enrichMessageWithFileMetadata.mockReturnValue({
-          ...mockMessage,
-          attachmentMetadata: [],
-        });
+        // Mock the clip-message domain event handled by the messages module
+        eventEmitter.emitAsync.mockResolvedValue([{ messageId: 'message-1' }]);
 
         const result = await service.captureReplay(userId, channelDto);
 
         expect(result.clipId).toBe('clip-1');
         expect(result.messageId).toBe('message-1');
+        expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
+          CLIP_MESSAGE_CREATE,
+          expect.objectContaining({
+            authorId: userId,
+            destination: 'channel',
+            targetChannelId: 'target-channel-1',
+          }),
+        );
       });
 
       it('should succeed when user is a DM group member', async () => {
@@ -1117,24 +1179,21 @@ describe('LivekitReplayService', () => {
           groupId: 'dm-group-1',
           userId,
         });
-        // Mock messagesService for the message creation path
-        const messagesService = (service as any).messagesService;
-        const mockMessage = {
-          id: 'message-2',
-          directMessageGroupId: 'dm-group-1',
-          authorId: userId,
-          attachments: [],
-        };
-        messagesService.create.mockResolvedValue(mockMessage);
-        messagesService.enrichMessageWithFileMetadata.mockReturnValue({
-          ...mockMessage,
-          attachmentMetadata: [],
-        });
+        // Mock the clip-message domain event handled by the messages module
+        eventEmitter.emitAsync.mockResolvedValue([{ messageId: 'message-2' }]);
 
         const result = await service.captureReplay(userId, dmDto);
 
         expect(result.clipId).toBe('clip-1');
         expect(result.messageId).toBe('message-2');
+        expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
+          CLIP_MESSAGE_CREATE,
+          expect.objectContaining({
+            authorId: userId,
+            destination: 'dm',
+            targetDirectMessageGroupId: 'dm-group-1',
+          }),
+        );
       });
     });
   });
