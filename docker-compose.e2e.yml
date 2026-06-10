@@ -97,7 +97,7 @@ services:
 
   # Playwright test runner
   playwright:
-    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    image: mcr.microsoft.com/playwright:v1.60.0-jammy
     volumes:
       - ./frontend:/app
       - ./frontend/playwright-report:/app/playwright-report
