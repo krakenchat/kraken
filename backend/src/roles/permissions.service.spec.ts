@@ -512,6 +512,64 @@ describe('PermissionsService', () => {
       });
     });
 
+    describe('ALIAS_GROUP resource type', () => {
+      it('should resolve community from alias group and verify roles there', async () => {
+        const user = UserFactory.build();
+        const community = CommunityFactory.build();
+        const role = RoleFactory.buildAdmin();
+
+        mockDatabase.aliasGroup.findUnique.mockResolvedValue({
+          communityId: community.id,
+        });
+        mockDatabase.userRoles.findMany.mockResolvedValue([
+          {
+            userId: user.id,
+            communityId: community.id,
+            roleId: role.id,
+            isInstanceRole: false,
+            role,
+          },
+        ]);
+
+        const result = await service.verifyActionsForUserAndResource(
+          user.id,
+          'alias-group-123',
+          RbacResourceType.ALIAS_GROUP,
+          [RbacActions.UPDATE_COMMUNITY],
+        );
+
+        expect(result).toBe(true);
+        expect(mockDatabase.aliasGroup.findUnique).toHaveBeenCalledWith({
+          where: { id: 'alias-group-123' },
+          select: { communityId: true },
+        });
+        expect(mockDatabase.userRoles.findMany).toHaveBeenCalledWith({
+          where: {
+            userId: user.id,
+            communityId: community.id,
+            isInstanceRole: false,
+          },
+          include: {
+            role: true,
+          },
+        });
+      });
+
+      it('should deny access when alias group does not exist', async () => {
+        mockDatabase.aliasGroup.findUnique.mockResolvedValue(null);
+
+        const result = await service.verifyActionsForUserAndResource(
+          'user-id',
+          'missing-alias-group',
+          RbacResourceType.ALIAS_GROUP,
+          [RbacActions.UPDATE_COMMUNITY],
+        );
+
+        expect(result).toBe(false);
+        expect(mockDatabase.userRoles.findMany).not.toHaveBeenCalled();
+      });
+    });
+
     describe('Unknown resource type', () => {
       it('should deny access for unknown resource type', async () => {
         const result = await service.verifyActionsForUserAndResource(

@@ -49,10 +49,15 @@ export async function emitClipMessageCreate(
     payload,
   )) as Array<ClipMessageCreateResult | undefined>;
 
-  const result = results.length === 1 ? results[0] : undefined;
-  if (results.length !== 1 || !result?.messageId) {
+  if (results.length !== 1) {
     throw new InternalServerErrorException(
       `CLIP_MESSAGE_CREATE expected exactly one listener result, got ${results.length}`,
+    );
+  }
+  const result = results[0];
+  if (!result?.messageId) {
+    throw new InternalServerErrorException(
+      'CLIP_MESSAGE_CREATE listener returned no messageId (was the error suppressed?)',
     );
   }
   return result;

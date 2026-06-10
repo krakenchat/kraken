@@ -26,6 +26,25 @@ describe('ClipMessageListener', () => {
     expect(listener).toBeDefined();
   });
 
+  it('registers the handler with suppressErrors: false so create failures propagate to the emitter', () => {
+    // The whole error contract hinges on this option: with the default
+    // (suppressErrors: true) a listener exception is swallowed and emitAsync
+    // resolves to [undefined] instead of rejecting with the original error.
+    const metadata: Array<{
+      event: string;
+      options?: Record<string, unknown>;
+    }> = Reflect.getMetadata(
+      'EVENT_LISTENER_METADATA',
+      ClipMessageListener.prototype.handleClipMessageCreate,
+    );
+
+    expect(metadata).toEqual([
+      expect.objectContaining({
+        options: { suppressErrors: false },
+      }),
+    ]);
+  });
+
   describe('handleClipMessageCreate', () => {
     const channelEvent: ClipMessageCreateEvent = {
       authorId: 'user-123',
