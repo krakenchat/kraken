@@ -11,19 +11,20 @@
 | 1. Backend type check in CI | ✅ Done, both reviews passed | `97ba10f` |
 | 2. Position-based moderation hierarchy | ✅ Done, both reviews passed | `fb65a98` |
 | 3. Env validation | ✅ Done, reviews + fix round | `5975c46`, `5784dba` |
-| 4. Redis-backed rate limiting | ⚠️ Committed but **fix required before proceeding** (see below) | `5f58553` |
+| 4. Redis-backed rate limiting | ⚠️ Implemented + fail-open fix committed; **remaining verification below** | `5f58553`, fix commit on top |
 | 5–14 | Not started | — |
 
-## Task 4: REQUIRED FIX (do this first)
+## Task 4: Remaining verification (do this first)
 
-Commit `5f58553` works (verified: 20×200 then 10×429 hammering `/api/health`, full suite green) but code review found a **Critical**: ThrottlerGuard awaits `storage.increment()` with no catch, so with Redis down every HTTP request hangs ~8s (ioredis offline queue) then 500s — a Redis blip is now a full API outage. Reviewer empirically confirmed by stopping Redis. Two Important issues: (a) the factory builds a dedicated ioredis connection that is never closed; (b) its justifying comment ("circular module deps") is false — `ThrottlerModule.forRootAsync` accepts `imports: [RedisModule]` + `inject: [ConfigService, REDIS_CLIENT]` with zero circularity.
+Background: review of `5f58553` found a Critical — ThrottlerGuard awaits `storage.increment()` with no catch, so Redis down = every HTTP request hangs then 500s. The fix (user approved fail-open) is now committed: `backend/src/throttler/fail-open-throttler.storage.ts` wraps `ThrottlerStorageRedisService`, races increment() against a 1.5s timeout, and on error/timeout logs a warning and returns a zero-hit record (request allowed). app.module.ts now injects the shared `REDIS_CLIENT` (imports: [RedisModule]) instead of constructing its own connection.
 
-**Agreed fix (user approved fail-open):**
-1. New `backend/src/throttler/fail-open-throttler.storage.ts`: class `FailOpenThrottlerStorage implements ThrottlerStorage` wrapping `ThrottlerStorageRedisService`; `increment(...)` races the inner call against a ~1500ms timeout; on any rejection/timeout, log a warning and return `{ totalHits: 0, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }` (= request allowed). Verify the exact `ThrottlerStorage`/`ThrottlerStorageRecord` types against installed @nestjs/throttler 6.x in node_modules. Guard against unhandled rejection from the loser of the race.
-2. Spec file with: success delegation, inner-rejection fail-open + warning, timeout fail-open (small constructor-injected timeout for the test).
-3. app.module.ts: `imports: [RedisModule]`, `inject: [ConfigService, REDIS_CLIENT]` (read `backend/src/redis/redis.module.ts` for the token), `storage: new FailOpenThrottlerStorage(new ThrottlerStorageRedisService(redis))` in non-test mode only; delete the dedicated `new Redis(...)` and the false comment. Check RedisModule's client doesn't eagerly connect in ways that break tests (jest never bootstraps AppModule — verified — so this mainly affects boot/e2e).
-4. Verify: jest fail-open spec, full suite, type-check, boot + hammer (429s), **outage drill** (`docker compose stop redis` → curl `/api/health` returns 200 in ≤2.5s, no hang; `docker compose start redis` → throttling resumes).
-5. Commit: `fix(throttle): fail open on Redis outage and reuse shared Redis client`.
+Already verified: `jest fail-open-throttler` passes (exit 0), `pnpm run type-check` clean (exit 0).
+
+**Still to do before marking Task 4 complete:**
+1. Full backend suite: `docker compose run --rm backend pnpm run test`.
+2. Boot + hammer: `docker compose up -d backend`, then 30 rapid curls to `http://localhost:3000/api/health` → expect 429s after ~20.
+3. **Outage drill:** `docker compose stop redis` → curl `/api/health` returns 200 in ≤2.5s (no hang, no 500); repeat 3×; `docker compose start redis` → throttling resumes on hammer.
+4. Re-run the code-quality reviewer over the fix commit (it has not been re-reviewed).
 
 ## Follow-ups noted during reviews (do NOT do now — list in the PR description)
 
