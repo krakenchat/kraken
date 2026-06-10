@@ -370,6 +370,13 @@ networkPolicy:
 metrics:
   # Expose Prometheus metrics on the backend at /api/metrics
   # (sets METRICS_ENABLED=true in the backend container)
+  #
+  # WARNING: the endpoint is unauthenticated and /api is routed through the
+  # public ingress, so enabling this exposes process stats, the route
+  # inventory and per-route traffic patterns to anyone who can reach the
+  # ingress. In-cluster ServiceMonitor scraping does not need external
+  # exposure — if your ingress is public, restrict /api/metrics there (e.g.
+  # nginx.ingress.kubernetes.io/whitelist-source-range or a deny rule).
   enabled: false
 
   # Prometheus Operator ServiceMonitor for the backend service
