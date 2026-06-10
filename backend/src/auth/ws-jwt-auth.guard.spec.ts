@@ -66,13 +66,13 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
       expect(result).toBe(true);
       expect(jwtService.verify).toHaveBeenCalledWith('valid-token-123');
-      expect(userService.findById).toHaveBeenCalledWith(user.id);
+      expect(userService.findAuthUserById).toHaveBeenCalledWith(user.id);
 
       expect((mockClient.handshake as any).user).toBeInstanceOf(UserEntity);
       expect((mockClient.handshake as any).user.id).toBe(user.id);
@@ -92,7 +92,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
@@ -115,7 +115,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
@@ -136,7 +136,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
@@ -157,7 +157,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       await guard.canActivate(context);
 
@@ -278,7 +278,7 @@ describe('WsJwtAuthGuard', () => {
       jest
         .spyOn(jwtService, 'verify')
         .mockReturnValue({ sub: 'nonexistent-user-id' });
-      jest.spyOn(userService, 'findById').mockResolvedValue(null);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(null);
 
       const result = await guard.canActivate(context);
 
@@ -299,7 +299,7 @@ describe('WsJwtAuthGuard', () => {
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: 'user-id' });
       jest
-        .spyOn(userService, 'findById')
+        .spyOn(userService, 'findAuthUserById')
         .mockRejectedValue(new Error('Database error'));
 
       const result = await guard.canActivate(context);
@@ -323,7 +323,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       await guard.canActivate(context);
 
@@ -344,7 +344,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       await guard.canActivate(context);
 
@@ -390,7 +390,7 @@ describe('WsJwtAuthGuard', () => {
 
       expect(result).toBe(true);
       expect(jwtService.verify).not.toHaveBeenCalled();
-      expect(userService.findById).not.toHaveBeenCalled();
+      expect(userService.findAuthUserById).not.toHaveBeenCalled();
       expect(mockClient.disconnect).not.toHaveBeenCalled();
     });
   });
@@ -493,7 +493,7 @@ describe('WsJwtAuthGuard', () => {
         'revoked-jti',
       );
       // Should not attempt to look up the user
-      expect(userService.findById).not.toHaveBeenCalled();
+      expect(userService.findAuthUserById).not.toHaveBeenCalled();
     });
 
     it('should allow connection when token has jti but is not blacklisted', async () => {
@@ -514,7 +514,7 @@ describe('WsJwtAuthGuard', () => {
       jest
         .spyOn(tokenBlacklistService, 'isBlacklisted')
         .mockResolvedValue(false);
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
@@ -522,7 +522,7 @@ describe('WsJwtAuthGuard', () => {
       expect(tokenBlacklistService.isBlacklisted).toHaveBeenCalledWith(
         'valid-jti',
       );
-      expect(userService.findById).toHaveBeenCalledWith(user.id);
+      expect(userService.findAuthUserById).toHaveBeenCalledWith(user.id);
       expect(mockClient.disconnect).not.toHaveBeenCalled();
     });
 
@@ -539,7 +539,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
@@ -563,7 +563,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: bannedUser.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(bannedUser);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(bannedUser);
 
       const result = await guard.canActivate(context);
 
@@ -586,7 +586,7 @@ describe('WsJwtAuthGuard', () => {
       const context = createMockWsExecutionContext({ client: mockClient });
 
       jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: user.id });
-      jest.spyOn(userService, 'findById').mockResolvedValue(user);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
@@ -613,7 +613,7 @@ describe('WsJwtAuthGuard', () => {
       jest
         .spyOn(tokenBlacklistService, 'isBlacklisted')
         .mockResolvedValue(false);
-      jest.spyOn(userService, 'findById').mockResolvedValue(bannedUser);
+      jest.spyOn(userService, 'findAuthUserById').mockResolvedValue(bannedUser);
 
       const result = await guard.canActivate(context);
 
@@ -621,7 +621,7 @@ describe('WsJwtAuthGuard', () => {
       expect(tokenBlacklistService.isBlacklisted).toHaveBeenCalledWith(
         'valid-jti',
       );
-      expect(userService.findById).toHaveBeenCalledWith(bannedUser.id);
+      expect(userService.findAuthUserById).toHaveBeenCalledWith(bannedUser.id);
       expect(mockClient.disconnect).toHaveBeenCalledWith(true);
     });
   });
