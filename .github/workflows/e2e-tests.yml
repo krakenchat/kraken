@@ -76,13 +76,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       # NOTE: no `--with-deps`. The ubuntu-latest image already ships chromium's
       # system libs (apt reported every dep "already the newest version"), and
       # `--with-deps` shells out to apt-get which intermittently HANGS on the
-      # runner. The browser-binary download from the Playwright CDN can also be
-      # slow/stall, so retry up to 3× on a cache miss. (Both the apt hang and a
-      # stalled CDN download had been timing this step out / cancelling nightlies.)
+      # runner. The retry guards against genuine CDN stalls. (The deterministic
+      # post-download hang seen on Node 24.16+ was a yauzl extraction bug, fixed
+      # in Playwright >= 1.60.0 — keep @playwright/test at or above that.)
       - name: Install Playwright browser
         if: steps.pw-cache.outputs.cache-hit != 'true'
         timeout-minutes: 15
@@ -266,7 +266,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install Playwright browser
         if: steps.pw-cache.outputs.cache-hit != 'true'
         timeout-minutes: 15
