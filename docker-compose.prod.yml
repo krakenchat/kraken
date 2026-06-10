@@ -22,8 +22,12 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-semaphore}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/${POSTGRES_DB:-semaphore}
       - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      - FILE_UPLOAD_DEST=/app/uploads
     ports:
       - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      # Persist uploaded files and generated thumbnails across container recreates
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,3 +91,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  uploads:

@@ -885,8 +885,10 @@ export class LivekitReplayService {
 
     this.logger.log(`Created file record: ${file.id}`);
 
-    // Generate thumbnail for the video clip (fire-and-forget — failure won't block response)
-    this.generateThumbnailAsync(clipPath, file.id);
+    // Generate thumbnail for the video clip before the message is created,
+    // so the broadcast/cached message carries hasThumbnail: true.
+    // Failure is non-fatal — the clip is still posted without a thumbnail.
+    await this.generateThumbnail(clipPath, file.id);
 
     // 8. Create ReplayClip record
     const clip = await this.databaseService.replayClip.create({
@@ -1013,27 +1015,30 @@ export class LivekitReplayService {
   }
 
   /**
-   * Fire-and-forget thumbnail generation for replay clips.
+   * Generate a thumbnail for a replay clip and persist its path.
    * Errors are logged but never propagate to the capture response.
    */
-  private generateThumbnailAsync(filePath: string, fileId: string): void {
-    void (async () => {
-      try {
-        const thumbnailPath =
-          await this.thumbnailService.generateVideoThumbnail(filePath, fileId);
-        if (thumbnailPath) {
-          await this.databaseService.file.update({
-            where: { id: fileId },
-            data: { thumbnailPath },
-          });
-          this.logger.log(`Generated thumbnail for replay clip ${fileId}`);
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to generate thumbnail for replay clip ${fileId}: ${getErrorMessage(error)}`,
-        );
+  private async generateThumbnail(
+    filePath: string,
+    fileId: string,
+  ): Promise<void> {
+    try {
+      const thumbnailPath = await this.thumbnailService.generateVideoThumbnail(
+        filePath,
+        fileId,
+      );
+      if (thumbnailPath) {
+        await this.databaseService.file.update({
+          where: { id: fileId },
+          data: { thumbnailPath },
+        });
+        this.logger.log(`Generated thumbnail for replay clip ${fileId}`);
       }
-    })();
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate thumbnail for replay clip ${fileId}: ${getErrorMessage(error)}`,
+      );
+    }
   }
 
   /**
