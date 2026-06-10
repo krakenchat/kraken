@@ -7,6 +7,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { NotFoundException } from '@nestjs/common';
 import { UserEntity } from './dto/user-response.dto';
+import { AdminUserEntity } from './dto/admin-user-response.dto';
 
 describe('UserController', () => {
   let controller: UserController;
@@ -297,6 +298,24 @@ describe('UserController', () => {
       await controller.findAllUsers(limit, continuationToken);
 
       expect(service.findAll).toHaveBeenCalledWith(50, 'token-abc');
+    });
+  });
+
+  describe('setUserPassword', () => {
+    it('should delegate to the service with the acting user id', async () => {
+      const target = new AdminUserEntity(UserFactory.build());
+      service.setUserPassword.mockResolvedValue(target);
+
+      const result = await controller.setUserPassword(mockRequest, target.id, {
+        password: 'new-password-123',
+      });
+
+      expect(service.setUserPassword).toHaveBeenCalledWith(
+        target.id,
+        'new-password-123',
+        mockUser.id,
+      );
+      expect(result).toBe(target);
     });
   });
 });

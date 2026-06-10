@@ -439,6 +439,55 @@ export class UserService {
   }
 
   /**
+   * Set a new password for a user (admin override for forgetful users).
+   * Revokes all of the user's refresh tokens so sessions established with
+   * the old password stop working immediately.
+   */
+  async setUserPassword(
+    targetUserId: string,
+    newPassword: string,
+    actingUserId: string,
+  ): Promise<AdminUserEntity> {
+    const targetUser = await this.findById(targetUserId);
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Only an owner (or the owner themselves) may override an owner's
+    // password — prevents instance admins from taking over owner accounts
+    if (
+      targetUser.role === InstanceRole.OWNER &&
+      targetUserId !== actingUserId
+    ) {
+      const actingUser = await this.findById(actingUserId);
+      if (actingUser?.role !== InstanceRole.OWNER) {
+        throw new ForbiddenException(
+          "Only an instance owner can reset another owner's password",
+        );
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const updatedUser = await this.databaseService.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: targetUserId },
+        data: { hashedPassword },
+      });
+      await tx.refreshToken.deleteMany({
+        where: { userId: targetUserId },
+      });
+      return user;
+    });
+
+    this.logger.log(
+      `Password reset for user ${targetUserId} by admin ${actingUserId}; all sessions revoked`,
+    );
+
+    return new AdminUserEntity(updatedUser);
+  }
+
+  /**
    * Delete a user account (admin action)
    */
   async deleteUser(targetUserId: string, actingUserId: string): Promise<void> {
