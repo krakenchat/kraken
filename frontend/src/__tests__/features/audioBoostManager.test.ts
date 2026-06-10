@@ -171,6 +171,59 @@ describe('audioBoostManager', () => {
       expect(manager.hasBoost(key)).toBe(false);
     });
 
+    it('falls back to audible volume when source wiring throws (never silences)', () => {
+      vi.stubGlobal(
+        'AudioContext',
+        class extends MockAudioContext {
+          createMediaStreamSource = vi.fn(() => {
+            throw new DOMException('no audio tracks', 'InvalidStateError');
+          });
+        },
+      );
+      const track = createMockTrack();
+      const key = boostKey('user-2', 'microphone');
+
+      expect(() => manager.applyVolume(track, key, 150)).not.toThrow();
+
+      expect(track.setVolume).toHaveBeenLastCalledWith(1.0);
+      expect(manager.hasBoost(key)).toBe(false);
+    });
+
+    it('falls back to audible volume when AudioContext creation throws (never silences)', () => {
+      vi.stubGlobal(
+        'AudioContext',
+        class {
+          constructor() {
+            throw new DOMException('Web Audio blocked', 'NotSupportedError');
+          }
+        },
+      );
+      const track = createMockTrack();
+      const key = boostKey('user-2', 'microphone');
+
+      expect(() => manager.applyVolume(track, key, 150)).not.toThrow();
+
+      expect(track.setVolume).toHaveBeenLastCalledWith(1.0);
+      expect(manager.hasBoost(key)).toBe(false);
+    });
+
+    it('keeps the track muted when wiring throws while deafened', () => {
+      vi.stubGlobal(
+        'AudioContext',
+        class extends MockAudioContext {
+          createMediaStreamSource = vi.fn(() => {
+            throw new DOMException('no audio tracks', 'InvalidStateError');
+          });
+        },
+      );
+      manager.setDeafened(true);
+      const track = createMockTrack();
+
+      manager.applyVolume(track, boostKey('user-2', 'microphone'), 150);
+
+      expect(track.setVolume).toHaveBeenLastCalledWith(0);
+    });
+
     it('restores direct track volume when dropping back to 100% or below', () => {
       const track = createMockTrack();
       const key = boostKey('user-2', 'microphone');

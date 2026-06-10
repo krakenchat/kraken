@@ -106,27 +106,36 @@ export function createAudioBoostManager(): AudioBoostManager {
     // silent to avoid double playback.
     track.setVolume(0);
 
-    const context = getContext();
-    let entry = entries.get(key);
+    try {
+      const context = getContext();
+      let entry = entries.get(key);
 
-    if (entry && entry.mediaStream !== mediaStream) {
-      // Track was replaced (e.g. resubscribed after a mic toggle) — rewire.
-      disconnectEntry(entry);
-      entries.delete(key);
-      entry = undefined;
+      if (entry && entry.mediaStream !== mediaStream) {
+        // Track was replaced (e.g. resubscribed after a mic toggle) — rewire.
+        disconnectEntry(entry);
+        entries.delete(key);
+        entry = undefined;
+      }
+
+      if (!entry) {
+        const sourceNode = context.createMediaStreamSource(mediaStream);
+        const gainNode = context.createGain();
+        sourceNode.connect(gainNode);
+        gainNode.connect(context.destination);
+        entry = { sourceNode, gainNode, mediaStream, volumePercent };
+        entries.set(key, entry);
+      }
+
+      entry.volumePercent = volumePercent;
+      entry.gainNode.gain.value = deafened ? 0 : volumePercent / 100;
+    } catch (e) {
+      // Web Audio wiring failed (context blocked/unsupported, stream without
+      // audio tracks, ...). Never leave the track muted with no audible path —
+      // fall back to 100% through the regular element.
+      logger.warn('[AudioBoost] Boost wiring failed, falling back to 100% volume:', key, e);
+      removeEntry(key);
+      track.setVolume(deafened ? 0 : 1.0);
     }
-
-    if (!entry) {
-      const sourceNode = context.createMediaStreamSource(mediaStream);
-      const gainNode = context.createGain();
-      sourceNode.connect(gainNode);
-      gainNode.connect(context.destination);
-      entry = { sourceNode, gainNode, mediaStream, volumePercent };
-      entries.set(key, entry);
-    }
-
-    entry.volumePercent = volumePercent;
-    entry.gainNode.gain.value = deafened ? 0 : volumePercent / 100;
   }
 
   function setDeafened(value: boolean) {
