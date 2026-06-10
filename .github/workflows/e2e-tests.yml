@@ -69,9 +69,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
+      # Cache the downloaded browser so most runs skip the ~167 MiB download
+      # entirely. Keyed on the lockfile (which pins the Playwright version).
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+      # NOTE: no `--with-deps`. The ubuntu-latest image already ships chromium's
+      # system libs (apt reported every dep "already the newest version"), and
+      # `--with-deps` shells out to apt-get which intermittently HANGS on the
+      # runner. The browser-binary download from the Playwright CDN can also be
+      # slow/stall, so retry up to 3× on a cache miss. (Both the apt hang and a
+      # stalled CDN download had been timing this step out / cancelling nightlies.)
+      - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 15
         working-directory: frontend
-        run: pnpm exec playwright install chromium --with-deps
+        run: |
+          for attempt in 1 2 3; do
+            echo "Playwright browser install attempt $attempt…"
+            if timeout 240 pnpm exec playwright install chromium; then
+              echo "Installed."; exit 0
+            fi
+            echo "Attempt $attempt failed/stalled; retrying…"; sleep 5
+          done
+          echo "Playwright browser install failed after 3 attempts"; exit 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -203,15 +227,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: changes
-    # Heavy: real LiveKit SFU + 2–4 real browsers per spec. Runs on nightly cron,
-    # manual dispatch, and pushes to main — NOT on PRs. (The job's WebRTC path on
-    # GitHub-hosted runners is unproven — see frontend/e2e/voice/README.md — so it
-    # is kept off the PR-blocking path until a green run confirms it works there.
-    # The full voice suite is verified locally via scripts/run-voice-e2e.sh.)
+    # Heavy: real LiveKit SFU + 2–4 real browsers per spec. Runs on nightly cron
+    # and manual dispatch only — NOT on PRs and NOT on push to main. (The job's
+    # WebRTC path on GitHub-hosted runners is still unproven — see
+    # frontend/e2e/voice/README.md — so it is kept entirely off the
+    # push/PR-blocking path until a manual/nightly run goes green there. The full
+    # voice suite is verified locally via scripts/run-voice-e2e.sh.)
     if: >-
       github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push'
+      github.event_name == 'workflow_dispatch'
 
     env:
       COMPOSE: docker compose -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml -f docker-compose.voice-e2e.host.yml
@@ -235,13 +259,27 @@ jobs:
 
       # The browser runs on the RUNNER (host) against http://localhost:5174 —
       # localhost is a secure context, which getUserMedia/mic-publish requires.
-      # Short per-step timeout: `--with-deps` has been observed to hang on the
-      # runner (apt resolves, then stalls). Fail fast (10 min) instead of letting
-      # the whole job burn its 45-min budget on a stuck install.
-      - name: Install Playwright browsers
-        timeout-minutes: 10
+      # Cache + retry, same as the e2e job above (no --with-deps: apt hangs on the
+      # runner; the CDN download can stall, so retry on a cache miss).
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+      - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 15
         working-directory: frontend
-        run: pnpm exec playwright install chromium --with-deps
+        run: |
+          for attempt in 1 2 3; do
+            echo "Playwright browser install attempt $attempt…"
+            if timeout 240 pnpm exec playwright install chromium; then
+              echo "Installed."; exit 0
+            fi
+            echo "Attempt $attempt failed/stalled; retrying…"; sleep 5
+          done
+          echo "Playwright browser install failed after 3 attempts"; exit 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
