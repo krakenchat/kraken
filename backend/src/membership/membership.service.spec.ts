@@ -13,6 +13,7 @@ import {
   CommunityFactory,
   MembershipFactory,
   RoleFactory,
+  expectNoSensitiveUserFields,
 } from '@/test-utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import { RoomEvents } from '@/rooms/room-subscription.events';
@@ -69,6 +70,11 @@ describe('MembershipService', () => {
       const result = await service.create(createDto);
 
       expect(result).toBeDefined();
+      // Existence check must not fetch sensitive user fields at query level
+      expect(mockDatabase.user.findUniqueOrThrow).toHaveBeenCalledWith({
+        where: { id: user.id },
+        select: { id: true },
+      });
       expect(mockDatabase.membership.create).toHaveBeenCalledWith({
         data: {
           userId: user.id,
@@ -795,6 +801,27 @@ describe('MembershipService', () => {
           },
         },
       });
+    });
+
+    it('should not leak sensitive user fields even when the query returns a full user row', async () => {
+      const community = CommunityFactory.build();
+      const fullUser = UserFactory.buildComplete({ username: 'alice' });
+      const memberships = [
+        {
+          ...MembershipFactory.build({
+            communityId: community.id,
+            userId: fullUser.id,
+          }),
+          user: fullUser,
+        },
+      ];
+
+      mockDatabase.membership.findMany.mockResolvedValue(memberships);
+
+      const result = await service.searchMembers(community.id, 'al');
+
+      expect(result[0].user).toBeDefined();
+      expectNoSensitiveUserFields(result[0].user!);
     });
 
     it('should search members by displayName', async () => {

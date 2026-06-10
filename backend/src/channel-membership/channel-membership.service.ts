@@ -44,9 +44,10 @@ export class ChannelMembershipService {
       );
     }
 
-    // Check if user exists
+    // Check if user exists (existence check only — avoid fetching sensitive fields)
     const user = await this.databaseService.user.findUnique({
       where: { id: userId },
+      select: { id: true },
     });
 
     if (!user) {

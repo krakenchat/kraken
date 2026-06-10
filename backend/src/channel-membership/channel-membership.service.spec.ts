@@ -15,6 +15,7 @@ import {
   CommunityFactory,
   MembershipFactory,
   ChannelMembershipFactory,
+  expectNoSensitiveUserFields,
 } from '@/test-utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import { RoomEvents } from '@/rooms/room-subscription.events';
@@ -72,6 +73,11 @@ describe('ChannelMembershipService', () => {
       const result = await service.create(createDto);
 
       expect(result).toBeDefined();
+      // Existence check must not fetch sensitive user fields at query level
+      expect(mockDatabase.user.findUnique).toHaveBeenCalledWith({
+        where: { id: user.id },
+        select: { id: true },
+      });
       expect(mockDatabase.channelMembership.create).toHaveBeenCalledWith({
         data: {
           userId: user.id,
@@ -321,6 +327,28 @@ describe('ChannelMembershipService', () => {
           user: { select: PUBLIC_USER_SELECT },
         },
       });
+    });
+
+    it('should not leak sensitive user fields even when the query returns a full user row', async () => {
+      const channel = ChannelFactory.build({ isPrivate: true });
+      const fullUser = UserFactory.buildComplete();
+      const memberships = [
+        {
+          ...ChannelMembershipFactory.build({
+            channelId: channel.id,
+            userId: fullUser.id,
+          }),
+          user: fullUser,
+        },
+      ];
+
+      mockDatabase.channel.findUnique.mockResolvedValue(channel);
+      mockDatabase.channelMembership.findMany.mockResolvedValue(memberships);
+
+      const result = await service.findAllForChannel(channel.id);
+
+      expect(result[0].user).toBeDefined();
+      expectNoSensitiveUserFields(result[0].user!);
     });
 
     it('should throw ForbiddenException for public channel', async () => {

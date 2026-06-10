@@ -37,9 +37,10 @@ export class MembershipService {
         where: { id: communityId },
       });
 
-      // Check if user exists
+      // Check if user exists (existence check only — avoid fetching sensitive fields)
       await this.databaseService.user.findUniqueOrThrow({
         where: { id: userId },
+        select: { id: true },
       });
 
       // Check if membership already exists
