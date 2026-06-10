@@ -2,14 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ScreenShareVolumeControl from '../../components/Voice/ScreenShareVolumeControl';
+import { audioBoostManager } from '../../features/voice/audioBoostManager';
 
 let mockIsDeafened = false;
-let mockRoom: { on: ReturnType<typeof vi.fn>; off: ReturnType<typeof vi.fn> } | null = null;
 
 vi.mock('livekit-client', () => ({
-  RoomEvent: {
-    TrackSubscribed: 'trackSubscribed',
-  },
   Track: {
     Source: {
       ScreenShareAudio: 'screen_share_audio',
@@ -21,8 +18,16 @@ vi.mock('../../contexts/VoiceContext', () => ({
   useVoice: vi.fn(() => ({ isDeafened: mockIsDeafened })),
 }));
 
-vi.mock('../../hooks/useRoom', () => ({
-  useRoom: vi.fn(() => ({ room: mockRoom })),
+vi.mock('../../features/voice/audioBoostManager', () => ({
+  boostKey: (identity: string, source: string) => `${identity}:${source}`,
+  audioBoostManager: {
+    applyVolume: vi.fn(),
+    setDeafened: vi.fn(),
+    removeEntry: vi.fn(),
+    removeForParticipant: vi.fn(),
+    reset: vi.fn(),
+    hasBoost: vi.fn(() => false),
+  },
 }));
 
 function createMockParticipant(identity: string, hasScreenShareAudio = true) {
@@ -70,7 +75,6 @@ describe('ScreenShareVolumeControl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsDeafened = false;
-    mockRoom = { on: vi.fn(), off: vi.fn() };
     localStorageGetSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
     localStorageSetSpy = vi.spyOn(Storage.prototype, 'setItem');
   });
@@ -136,9 +140,9 @@ describe('ScreenShareVolumeControl', () => {
     expect(setCalls.length).toBeGreaterThan(0);
   });
 
-  it('applies volume only to ScreenShareAudio tracks', async () => {
+  it('applies volume through the boost manager with the canonical track key', async () => {
     const user = userEvent.setup();
-    const { participant, setVolume } = createMockParticipant('user-1');
+    const { participant, track } = createMockParticipant('user-1');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
@@ -150,7 +154,32 @@ describe('ScreenShareVolumeControl', () => {
 
     fireEvent.change(sliderInPopover, { target: { value: 75 } });
 
-    expect(setVolume).toHaveBeenCalled();
+    expect(audioBoostManager.applyVolume).toHaveBeenCalledWith(
+      track,
+      'user-1:screen_share_audio',
+      75,
+    );
+  });
+
+  it('does not change any volumes on unmount (boost must outlive the component)', async () => {
+    const user = userEvent.setup();
+    const { participant, setVolume } = createMockParticipant('user-1');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { unmount } = render(<ScreenShareVolumeControl participant={participant as any} />);
+
+    await user.click(screen.getByRole('button', { name: 'Screenshare volume' }));
+    fireEvent.change(screen.getByRole('slider'), { target: { value: 150 } });
+
+    vi.mocked(audioBoostManager.applyVolume).mockClear();
+    vi.mocked(audioBoostManager.removeEntry).mockClear();
+    setVolume.mockClear();
+
+    unmount();
+
+    expect(audioBoostManager.applyVolume).not.toHaveBeenCalled();
+    expect(audioBoostManager.removeEntry).not.toHaveBeenCalled();
+    expect(audioBoostManager.reset).not.toHaveBeenCalled();
+    expect(setVolume).not.toHaveBeenCalled();
   });
 
   it('disables slider when deafened', async () => {
@@ -174,13 +203,5 @@ describe('ScreenShareVolumeControl', () => {
     render(<ScreenShareVolumeControl participant={participant as any} />);
 
     expect(screen.getByTestId('VolumeUpIcon')).toBeInTheDocument();
-  });
-
-  it('listens for TrackSubscribed events on the room', () => {
-    const { participant } = createMockParticipant('user-1');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    render(<ScreenShareVolumeControl participant={participant as any} />);
-
-    expect(mockRoom!.on).toHaveBeenCalledWith('trackSubscribed', expect.any(Function));
   });
 });

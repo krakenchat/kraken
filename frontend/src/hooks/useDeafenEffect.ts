@@ -3,18 +3,25 @@ import { logger } from '../utils/logger';
 import { useVoice } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { Track } from 'livekit-client';
-import { VOLUME_STORAGE_PREFIX, SCREENSHARE_VOLUME_STORAGE_PREFIX } from '../constants/voice';
+import { audioBoostManager, boostKey } from '../features/voice/audioBoostManager';
+import { getStoredVolumePercent } from '../features/voice/volumeStorage';
+
+function isBoostableAudioSource(source: Track.Source | string): boolean {
+  return source === Track.Source.Microphone || source === Track.Source.ScreenShareAudio;
+}
 
 /**
  * Hook that implements proper deafen functionality by muting received audio tracks
  *
  * When isDeafened is true:
  * - Sets volume to 0 for all remote audio tracks
+ * - Silences all GainNode boost paths (>100% volumes) via the audioBoostManager
  * - Also mutes the user's microphone (standard deafen behavior)
  *
  * When isDeafened is false:
- * - Restores each participant's per-user stored volume (from localStorage)
- * - Falls back to 1.0 if no stored volume exists
+ * - Restores each participant's per-user stored volume (from localStorage),
+ *   including >100% boost levels, via the audioBoostManager
+ * - Falls back to 100% if no stored volume exists
  *
  * This hook should be used once at the app level or in a persistent voice component.
  *
@@ -34,47 +41,38 @@ export const useDeafenEffect = () => {
     const muteAllRemoteAudio = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
-          if (publication.track && (publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio)) {
+          if (publication.track && isBoostableAudioSource(publication.source)) {
             publication.track.setVolume(0);
           }
         });
       });
     };
 
-    // Restore per-user stored volumes for all remote audio tracks
+    // Restore per-user stored volumes (including >100% boost) for all remote audio tracks
     const restoreRemoteAudioVolumes = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
-          if (publication.track && (publication.source === Track.Source.Microphone || publication.source === Track.Source.ScreenShareAudio)) {
-            let storedVolume = 1.0;
-            try {
-              const storagePrefix =
-                publication.source === Track.Source.ScreenShareAudio
-                  ? SCREENSHARE_VOLUME_STORAGE_PREFIX
-                  : VOLUME_STORAGE_PREFIX;
-              const storedRaw = localStorage.getItem(`${storagePrefix}${participant.identity}`);
-              if (storedRaw !== null) {
-                const parsed = parseFloat(storedRaw);
-                if (Number.isFinite(parsed)) {
-                  storedVolume = parsed;
-                }
-              }
-            } catch {
-              // localStorage may throw in sandboxed/private environments
-            }
-            // Cap at 1.0 for track.setVolume; GainNode handles boost >1.0 via context menu/component
-            const trackVolume = Math.min(Math.max(storedVolume, 0), 1.0);
-            publication.track.setVolume(trackVolume);
+          if (publication.track && isBoostableAudioSource(publication.source)) {
+            const volumePercent =
+              getStoredVolumePercent(participant.identity, publication.source) ?? 100;
+            audioBoostManager.applyVolume(
+              publication.track,
+              boostKey(participant.identity, publication.source),
+              volumePercent,
+            );
           }
         });
       });
     };
 
-    // Apply current deafen state
+    // Apply current deafen state. The boost manager flag must flip first so
+    // GainNode paths are silenced/restored consistently with track volumes.
     if (isDeafened) {
+      audioBoostManager.setDeafened(true);
       muteAllRemoteAudio();
       logger.dev('[Voice] Deafened: muted all remote audio tracks');
     } else {
+      audioBoostManager.setDeafened(false);
       restoreRemoteAudioVolumes();
       logger.dev('[Voice] Undeafened: restored per-user remote audio volumes');
     }
