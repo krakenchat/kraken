@@ -100,6 +100,10 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}"
 # Force layer rebuild with current timestamp (ensures ArgoCD Image Updater sees fresh image)
 RUN echo "Build timestamp: ${BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" > /tmp/build-time.txt
 
+# Pre-create the uploads dir owned by the app user so a named volume mounted
+# there (docker-compose.prod.yml) inherits writable ownership
+RUN mkdir -p /app/uploads && chown nestjs:nodejs /app/uploads
+
 # Switch to non-root user
 USER nestjs
 

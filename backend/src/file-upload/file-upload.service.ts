@@ -92,12 +92,16 @@ export class FileUploadService {
         // Increment user's storage usage
         await this.storageQuotaService.incrementUserStorage(user.id, file.size);
 
-        // Generate thumbnail for video files (fire-and-forget — failure won't block upload)
-        if (fileType === FileType.VIDEO) {
-          this.generateThumbnailAsync(file.path, fileRecord.id);
-        }
+        // Generate thumbnail for video files before responding, so the
+        // attachment metadata clients receive carries hasThumbnail: true.
+        // Failure is non-fatal — the upload succeeds without a thumbnail.
+        const finalRecord =
+          fileType === FileType.VIDEO
+            ? ((await this.generateThumbnail(file.path, fileRecord.id)) ??
+              fileRecord)
+            : fileRecord;
 
-        return new FileUploadResponseDto(fileRecord);
+        return new FileUploadResponseDto(finalRecord);
       } catch (dbError) {
         // If DB insert fails, clean up the file
         await this.cleanupFile(file.path);
@@ -120,26 +124,30 @@ export class FileUploadService {
   }
 
   /**
-   * Fire-and-forget thumbnail generation for video uploads.
+   * Generate a thumbnail for a video upload and persist its path.
    * Errors are logged but never propagate to the upload response.
+   *
+   * @returns The updated file record, or null if generation failed
    */
-  private generateThumbnailAsync(filePath: string, fileId: string): void {
-    void (async () => {
-      try {
-        const thumbnailPath =
-          await this.thumbnailService.generateVideoThumbnail(filePath, fileId);
-        if (thumbnailPath) {
-          await this.databaseService.file.update({
-            where: { id: fileId },
-            data: { thumbnailPath },
-          });
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
+  private async generateThumbnail(filePath: string, fileId: string) {
+    try {
+      const thumbnailPath = await this.thumbnailService.generateVideoThumbnail(
+        filePath,
+        fileId,
+      );
+      if (!thumbnailPath) {
+        return null;
       }
-    })();
+      return await this.databaseService.file.update({
+        where: { id: fileId },
+        data: { thumbnailPath },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
   }
 
   /**

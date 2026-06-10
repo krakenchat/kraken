@@ -715,9 +715,6 @@ describe('LivekitReplayService', () => {
     it('should call generateVideoThumbnail after file creation', async () => {
       await service.captureReplay(userId, dto);
 
-      // Allow the fire-and-forget async to settle
-      await new Promise((r) => setImmediate(r));
-
       expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledWith(
         expect.stringContaining('replay-'),
         'file-1',
@@ -726,9 +723,6 @@ describe('LivekitReplayService', () => {
 
     it('should update file record with thumbnailPath on success', async () => {
       await service.captureReplay(userId, dto);
-
-      // Allow the fire-and-forget async to settle
-      await new Promise((r) => setImmediate(r));
 
       expect(databaseService.file.update).toHaveBeenCalledWith({
         where: { id: 'file-1' },
@@ -741,14 +735,45 @@ describe('LivekitReplayService', () => {
         new Error('FFmpeg not found'),
       );
 
-      // captureReplay should still succeed
+      // captureReplay should still succeed (error is logged, not thrown)
       const result = await service.captureReplay(userId, dto);
 
       expect(result.clipId).toBe('clip-1');
       expect(result.fileId).toBe('file-1');
+    });
 
-      // Allow the fire-and-forget async to settle (error is logged, not thrown)
-      await new Promise((r) => setImmediate(r));
+    it('should finish thumbnail generation before emitting the clip message event', async () => {
+      const channelDto = {
+        durationMinutes: 1 as const,
+        destination: 'channel' as const,
+        targetChannelId: 'target-channel-1',
+      };
+      databaseService.channel.findUnique.mockResolvedValue({
+        id: 'target-channel-1',
+        communityId: 'community-1',
+      });
+      databaseService.membership.findFirst.mockResolvedValue({
+        id: 'membership-1',
+        userId,
+        communityId: 'community-1',
+      });
+      eventEmitter.emitAsync.mockResolvedValue([{ messageId: 'message-1' }]);
+
+      const callOrder: string[] = [];
+      databaseService.file.update.mockImplementation(() => {
+        callOrder.push('thumbnail-saved');
+        return Promise.resolve({});
+      });
+      eventEmitter.emitAsync.mockImplementation(() => {
+        callOrder.push('message-emitted');
+        return Promise.resolve([{ messageId: 'message-1' }]);
+      });
+
+      await service.captureReplay(userId, channelDto);
+
+      // The broadcast message must carry hasThumbnail: true, so the
+      // thumbnail has to be persisted before the message is created
+      expect(callOrder).toEqual(['thumbnail-saved', 'message-emitted']);
     });
 
     it('should pass only complete segments (from ReplaySegmentsService) to FFmpeg', async () => {

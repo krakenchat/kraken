@@ -161,6 +161,96 @@ describe('FileUploadService', () => {
       expect(result).toBeInstanceOf(FileUploadResponseDto);
     });
 
+    describe('video thumbnail generation', () => {
+      const videoFile: Express.Multer.File = {
+        ...mockFile,
+        originalname: 'clip.mp4',
+        mimetype: 'video/mp4',
+        filename: 'clip-123.mp4',
+        path: '/tmp/clip-123.mp4',
+      };
+
+      const createDto = {
+        resourceType: ResourceType.MESSAGE_ATTACHMENT,
+        resourceId: 'msg-123',
+      };
+
+      const createdFile = {
+        id: 'file-video-1',
+        filename: 'clip.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        thumbnailPath: null,
+      };
+
+      beforeEach(() => {
+        databaseService.file.create.mockResolvedValue(createdFile as any);
+
+        const {
+          ResourceTypeFileValidator,
+        } = require('./validators/resource-type-file.validator');
+        ResourceTypeFileValidator.mockImplementation(() => ({
+          isValid: jest.fn().mockResolvedValue(true),
+        }));
+      });
+
+      it('should generate the thumbnail before responding and return the updated record', async () => {
+        thumbnailService.generateVideoThumbnail.mockResolvedValue(
+          'uploads/thumbnails/file-video-1.jpg',
+        );
+        databaseService.file.update.mockResolvedValue({
+          ...createdFile,
+          thumbnailPath: 'uploads/thumbnails/file-video-1.jpg',
+        } as any);
+
+        const result = await service.uploadFile(videoFile, createDto, mockUser);
+
+        expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledWith(
+          '/tmp/clip-123.mp4',
+          'file-video-1',
+        );
+        expect(databaseService.file.update).toHaveBeenCalledWith({
+          where: { id: 'file-video-1' },
+          data: { thumbnailPath: 'uploads/thumbnails/file-video-1.jpg' },
+        });
+        expect(result.thumbnailPath).toBe(
+          'uploads/thumbnails/file-video-1.jpg',
+        );
+      });
+
+      it('should still succeed when thumbnail generation returns null', async () => {
+        thumbnailService.generateVideoThumbnail.mockResolvedValue(null);
+
+        const result = await service.uploadFile(videoFile, createDto, mockUser);
+
+        expect(result.id).toBe('file-video-1');
+        expect(result.thumbnailPath).toBeNull();
+        expect(databaseService.file.update).not.toHaveBeenCalled();
+      });
+
+      it('should still succeed when thumbnail generation throws', async () => {
+        thumbnailService.generateVideoThumbnail.mockRejectedValue(
+          new Error('FFmpeg crashed'),
+        );
+
+        const result = await service.uploadFile(videoFile, createDto, mockUser);
+
+        expect(result.id).toBe('file-video-1');
+        expect(result.thumbnailPath).toBeNull();
+      });
+
+      it('should not generate thumbnails for non-video files', async () => {
+        databaseService.file.create.mockResolvedValue({
+          id: 'file-img-1',
+          fileType: FileType.IMAGE,
+        } as any);
+
+        await service.uploadFile(mockFile, createDto, mockUser);
+
+        expect(thumbnailService.generateVideoThumbnail).not.toHaveBeenCalled();
+      });
+    });
+
     it('should throw error and cleanup file when validation fails', async () => {
       const createDto = {
         resourceType: ResourceType.MESSAGE_ATTACHMENT,
