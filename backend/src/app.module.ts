@@ -17,7 +17,6 @@ import {
   ThrottlerModule,
   ThrottlerModuleOptions,
 } from '@nestjs/throttler';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import Redis from 'ioredis';
 import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
@@ -25,6 +24,8 @@ import { RoomsModule } from './rooms/rooms.module';
 import { WebsocketService } from './websocket/websocket.service';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
+import { REDIS_CLIENT } from './redis/redis.constants';
+import { FailOpenThrottlerStorage } from './throttler/fail-open-throttler.storage';
 import { PresenceModule } from './presence/presence.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChannelMembershipModule } from './channel-membership/channel-membership.module';
@@ -65,47 +66,26 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     NotificationsModule,
     PushNotificationsModule,
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService): ThrottlerModuleOptions => {
+      imports: [RedisModule],
+      inject: [ConfigService, REDIS_CLIENT],
+      useFactory: (
+        configService: ConfigService,
+        redis: Redis,
+      ): ThrottlerModuleOptions => {
         const isTest = configService.get<string>('NODE_ENV') === 'test';
         // Much higher limits for E2E tests to avoid rate limiting
         const multiplier = isTest ? 100 : 1;
         return {
           throttlers: [
-            {
-              name: 'short',
-              ttl: 1000,
-              limit: 20 * multiplier,
-            },
-            {
-              name: 'medium',
-              ttl: 10000,
-              limit: 100 * multiplier,
-            },
-            {
-              name: 'long',
-              ttl: 60000,
-              limit: 500 * multiplier,
-            },
+            { name: 'short', ttl: 1000, limit: 20 * multiplier },
+            { name: 'medium', ttl: 10000, limit: 100 * multiplier },
+            { name: 'long', ttl: 60000, limit: 500 * multiplier },
           ],
-          // Redis-backed storage so limits hold across replicas (HPA).
-          // Test mode keeps default in-memory storage (isTest branch).
-          // A dedicated ioredis connection is constructed here because
-          // RedisModule is not @Global(), so REDIS_CLIENT cannot be injected
-          // into ThrottlerModule's async factory without circular module deps.
-          ...(isTest
-            ? {}
-            : {
-                storage: new ThrottlerStorageRedisService(
-                  new Redis({
-                    host: configService.get<string>('REDIS_HOST', 'localhost'),
-                    port: configService.get<number>('REDIS_PORT', 6379),
-                    password:
-                      configService.get<string>('REDIS_PASSWORD') || undefined,
-                    db: configService.get<number>('REDIS_DB', 0),
-                  }),
-                ),
-              }),
+          // Redis-backed storage so limits hold across replicas (HPA). Shares
+          // the app's Redis client (RedisModule owns its lifecycle). Fails open
+          // on Redis outage — see FailOpenThrottlerStorage. Test mode keeps
+          // the default in-memory storage.
+          ...(isTest ? {} : { storage: new FailOpenThrottlerStorage(redis) }),
         };
       },
     }),
