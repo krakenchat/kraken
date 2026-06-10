@@ -22,7 +22,6 @@ import {
   CommunityTimeout,
 } from '@prisma/client';
 
-
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
