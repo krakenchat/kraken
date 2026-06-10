@@ -62,6 +62,26 @@ describe('FriendsService', () => {
       });
     });
 
+    it('should look up the receiver with an id-only select (no sensitive fields fetched)', async () => {
+      const receiver = UserFactory.build({ id: receiverId });
+      mockDatabase.user.findUnique.mockResolvedValue(receiver);
+      mockDatabase.userBlock.findFirst.mockResolvedValue(null);
+      mockDatabase.friendship.findFirst.mockResolvedValue(null);
+      mockDatabase.friendship.create.mockResolvedValue({
+        id: 'fr-1',
+        userAId: senderId,
+        userBId: receiverId,
+        status: FriendshipStatus.PENDING,
+      });
+
+      await service.sendFriendRequest(senderId, receiverId);
+
+      expect(mockDatabase.user.findUnique).toHaveBeenCalledWith({
+        where: { id: receiverId },
+        select: { id: true },
+      });
+    });
+
     it('should throw ForbiddenException for self-request', async () => {
       await expect(
         service.sendFriendRequest(senderId, senderId),

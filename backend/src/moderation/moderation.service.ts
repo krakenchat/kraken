@@ -22,15 +22,6 @@ import {
   CommunityTimeout,
 } from '@prisma/client';
 
-// Role hierarchy (name-based): Owner > Admin > Moderator > Member
-const ROLE_HIERARCHY: Record<string, number> = {
-  Owner: 100,
-  'Community Admin': 80,
-  Admin: 80,
-  Moderator: 50,
-  Member: 10,
-};
-
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
@@ -44,9 +35,11 @@ export class ModerationService {
   ) {}
 
   /**
-   * Get the highest role priority for a user in a community
+   * Get the user's best (lowest) role position in a community.
+   * Lower position = higher rank (Community Admin = 10, Member = 100).
+   * Users with no roles rank below everyone.
    */
-  private async getUserRolePriority(
+  private async getUserBestRolePosition(
     userId: string,
     communityId: string,
   ): Promise<number> {
@@ -56,35 +49,35 @@ export class ModerationService {
     );
 
     if (userRoles.roles.length === 0) {
-      return 0; // No roles = lowest priority
+      return Number.MAX_SAFE_INTEGER;
     }
 
-    return Math.max(
-      ...userRoles.roles.map(
-        (role) => ROLE_HIERARCHY[role.name] ?? ROLE_HIERARCHY.Member,
-      ),
-    );
+    return Math.min(...userRoles.roles.map((role) => role.position));
   }
 
   /**
-   * Check if moderator can moderate target user based on role hierarchy
+   * Check if moderator can moderate target user based on role position hierarchy.
+   * Lower position = higher rank; moderator must strictly outrank target.
    */
   private async canModerate(
     moderatorId: string,
     targetUserId: string,
     communityId: string,
   ): Promise<boolean> {
-    const moderatorPriority = await this.getUserRolePriority(
+    const moderatorPosition = await this.getUserBestRolePosition(
       moderatorId,
       communityId,
     );
-    const targetPriority = await this.getUserRolePriority(
+    const targetPosition = await this.getUserBestRolePosition(
       targetUserId,
       communityId,
     );
 
-    // Moderator must have strictly higher priority
-    return moderatorPriority > targetPriority;
+    // Lower position = higher rank; moderator must strictly outrank target.
+    return (
+      moderatorPosition !== Number.MAX_SAFE_INTEGER &&
+      moderatorPosition < targetPosition
+    );
   }
 
   /**

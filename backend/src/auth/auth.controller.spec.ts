@@ -301,9 +301,10 @@ describe('AuthController', () => {
       await expect(controller.refresh(req, mockRes)).rejects.toThrow(
         UnauthorizedException,
       );
+      // Must be called WITHOUT the transaction client: the rejection rolls
+      // the tx back, so an invalidation on the tx would be silently undone.
       expect(authService.invalidateTokenFamily).toHaveBeenCalledWith(
         'family-123',
-        mockDatabase,
       );
     });
   });

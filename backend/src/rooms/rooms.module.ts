@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { RoomsGateway } from './rooms.gateway';
 import { RoomSubscriptionHandler } from './room-subscription.handler';
@@ -18,9 +18,11 @@ import { LivekitModule } from '@/livekit/livekit.module';
     WebsocketModule,
     DatabaseModule,
     RolesModule,
-    // forwardRef to break MessagesModule -> RoomsModule -> VoicePresenceModule -> LivekitModule -> MessagesModule cycle
-    forwardRef(() => VoicePresenceModule),
-    forwardRef(() => LivekitModule),
+    // Plain imports: the LivekitModule -> MessagesModule and
+    // VoicePresenceModule -> LivekitModule edges were replaced with domain
+    // events, so there is no longer a cycle back to MessagesModule.
+    VoicePresenceModule,
+    LivekitModule,
   ],
 })
 export class RoomsModule {}

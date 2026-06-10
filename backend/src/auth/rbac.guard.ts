@@ -9,7 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { RBAC_ACTION_KEY } from './rbac-action.decorator';
 import { InstanceRole, RbacActions } from '@prisma/client';
-import { RolesService } from '@/roles/roles.service';
+import { PermissionsService } from '@/roles/permissions.service';
 import {
   RBAC_RESOURCE_KEY,
   RbacResourceOptions,
@@ -21,7 +21,7 @@ import {
 export class RbacGuard implements CanActivate {
   private readonly logger = new Logger(RbacGuard.name);
   constructor(
-    private readonly rolesService: RolesService,
+    private readonly permissionsService: PermissionsService,
     private reflector: Reflector,
   ) {}
 
@@ -45,7 +45,7 @@ export class RbacGuard implements CanActivate {
       return true;
     }
 
-    return this.rolesService.verifyActionsForUserAndResource(
+    return this.permissionsService.verifyActionsForUserAndResource(
       user.id,
       resourceId,
       resourceType,

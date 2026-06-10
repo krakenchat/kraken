@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { validateEnv } from './config/env.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
@@ -16,12 +17,16 @@ import {
   ThrottlerModule,
   ThrottlerModuleOptions,
 } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import Redis from 'ioredis';
 import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { WebsocketService } from './websocket/websocket.service';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
+import { REDIS_CLIENT } from './redis/redis.constants';
+import { FailOpenThrottlerStorage } from './throttler/fail-open-throttler.storage';
 import { PresenceModule } from './presence/presence.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChannelMembershipModule } from './channel-membership/channel-membership.module';
@@ -43,6 +48,7 @@ import { ThreadsModule } from './threads/threads.module';
 import { StorageQuotaModule } from './storage-quota/storage-quota.module';
 import { AliasGroupsModule } from './alias-groups/alias-groups.module';
 import { DebugModule } from './debug/debug.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 @Module({
@@ -51,7 +57,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     HealthModule,
     DatabaseModule,
     InviteModule,
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     RolesModule,
@@ -62,29 +68,33 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     NotificationsModule,
     PushNotificationsModule,
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService): ThrottlerModuleOptions => {
+      imports: [RedisModule],
+      inject: [ConfigService, REDIS_CLIENT],
+      useFactory: (
+        configService: ConfigService,
+        redis: Redis,
+      ): ThrottlerModuleOptions => {
         const isTest = configService.get<string>('NODE_ENV') === 'test';
         // Much higher limits for E2E tests to avoid rate limiting
         const multiplier = isTest ? 100 : 1;
         return {
           throttlers: [
-            {
-              name: 'short',
-              ttl: 1000,
-              limit: 20 * multiplier,
-            },
-            {
-              name: 'medium',
-              ttl: 10000,
-              limit: 100 * multiplier,
-            },
-            {
-              name: 'long',
-              ttl: 60000,
-              limit: 500 * multiplier,
-            },
+            { name: 'short', ttl: 1000, limit: 20 * multiplier },
+            { name: 'medium', ttl: 10000, limit: 100 * multiplier },
+            { name: 'long', ttl: 60000, limit: 500 * multiplier },
           ],
+          // Redis-backed storage so limits hold across replicas (HPA). Shares
+          // the app's Redis client (RedisModule owns its lifecycle). Fails open
+          // on Redis outage — see FailOpenThrottlerStorage. Test mode keeps
+          // the default in-memory storage.
+          ...(isTest
+            ? {}
+            : {
+                storage: new FailOpenThrottlerStorage(
+                  new ThrottlerStorageRedisService(redis),
+                  { redis },
+                ),
+              }),
         };
       },
     }),
@@ -109,6 +119,9 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     StorageQuotaModule,
     AliasGroupsModule,
     ...(process.env.ADMIN_DEBUG_PANEL === 'true' ? [DebugModule] : []),
+    // Prometheus metrics (/api/metrics) — opt-in only; when disabled the
+    // module isn't imported, so the endpoint does not exist.
+    ...(process.env.METRICS_ENABLED === 'true' ? [MetricsModule] : []),
   ],
   controllers: [AppController],
   providers: [

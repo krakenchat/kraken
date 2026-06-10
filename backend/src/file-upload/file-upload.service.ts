@@ -78,7 +78,7 @@ export class FileUploadService {
               dtoRest.resourceType,
               resourceId,
             ),
-            filename: file.originalname,
+            filename: this.sanitizeFilename(file.originalname),
             mimeType: file.mimetype,
             fileType,
             size: file.size,
@@ -140,6 +140,22 @@ export class FileUploadService {
         );
       }
     })();
+  }
+
+  /**
+   * Sanitize the client-supplied original filename before persisting it for
+   * display: strip path separators and control characters, and cap the
+   * length at 255 characters. The on-disk name is multer-generated and never
+   * derived from this value.
+   */
+  private sanitizeFilename(originalName: string): string {
+    const sanitized = (originalName ?? '')
+      .replace(/[/\\]/g, '_')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .trim();
+
+    return (sanitized.length > 0 ? sanitized : 'file').slice(0, 255);
   }
 
   /**

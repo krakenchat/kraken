@@ -30,6 +30,11 @@ data:
   # File upload configuration
   FILE_UPLOAD_DEST: "/app/uploads"
 
+  {{- if .Values.metrics.enabled }}
+  # Prometheus metrics endpoint (/api/metrics)
+  METRICS_ENABLED: "true"
+  {{- end }}
+
   {{- if .Values.replayStorage.enabled }}
   # Replay segments storage path
   REPLAY_SEGMENTS_PATH: {{ .Values.replayStorage.mountPath | quote }}

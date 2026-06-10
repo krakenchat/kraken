@@ -7,6 +7,7 @@ import {
   CommunityBannerValidationStrategy,
   CustomEmojiValidationStrategy,
 } from './strategies';
+import { matchesDeclaredImageType, readFileHeader } from './magic-bytes.util';
 
 interface ResourceTypeFileValidatorOptions {
   resourceType: ResourceType;
@@ -18,6 +19,13 @@ interface ResourceTypeFileValidatorOptions {
  */
 export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileValidatorOptions> {
   private readonly strategies: Map<ResourceType, IFileValidationStrategy>;
+
+  /**
+   * Set by isValid() when the file content does not match its declared image
+   * MIME type, so buildErrorMessage() can report the right reason. Safe
+   * because a validator instance is created per upload request.
+   */
+  private contentTypeMismatch = false;
 
   constructor(validationOptions: ResourceTypeFileValidatorOptions) {
     super(validationOptions);
@@ -42,6 +50,10 @@ export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileVal
   }
 
   async isValid(file?: Express.Multer.File): Promise<boolean> {
+    // Reset per validation so a reused instance (e.g. a construct-once pipe)
+    // never reports a stale mismatch message for a different failure.
+    this.contentTypeMismatch = false;
+
     if (!file) {
       return false;
     }
@@ -56,6 +68,17 @@ export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileVal
     const allowedMimeTypes = strategy.getAllowedMimeTypes();
     if (!allowedMimeTypes.includes(file.mimetype)) {
       return false;
+    }
+
+    // For image MIME claims, verify the content's magic bytes match the
+    // declared format (blocks e.g. renamed executables claiming image/png).
+    // Non-image MIME types pass through unchanged.
+    if (file.mimetype.startsWith('image/')) {
+      const header = await readFileHeader(file);
+      if (!matchesDeclaredImageType(header, file.mimetype)) {
+        this.contentTypeMismatch = true;
+        return false;
+      }
     }
 
     // Check file size
@@ -84,6 +107,10 @@ export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileVal
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
       return `Invalid file type. ${strategy.getValidationDescription()}`;
+    }
+
+    if (this.contentTypeMismatch) {
+      return `File content does not match the declared type "${file.mimetype}". The file may be corrupted or mislabeled.`;
     }
 
     if (file.size > maxSize) {

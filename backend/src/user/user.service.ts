@@ -42,6 +42,19 @@ export class UserService {
     });
   }
 
+  /**
+   * Auth-scoped lookup: public fields plus the ban flag only. Use this for
+   * authentication paths that stash the user on long-lived objects (e.g.
+   * socket handshakes) so sensitive columns like hashedPassword are never
+   * fetched. Mirrors jwt.strategy's select.
+   */
+  async findAuthUserById(id: string) {
+    return this.databaseService.user.findUnique({
+      where: { id },
+      select: { ...PUBLIC_USER_SELECT, banned: true },
+    });
+  }
+
   async createUser(
     code: string,
     username: string,

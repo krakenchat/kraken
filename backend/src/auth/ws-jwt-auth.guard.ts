@@ -56,7 +56,9 @@ export class WsJwtAuthGuard implements CanActivate {
         }
       }
 
-      const user = await this.userService.findById(payload.sub);
+      // Narrowed select: this user object lives on the socket for the whole
+      // connection — it must never hold sensitive columns.
+      const user = await this.userService.findAuthUserById(payload.sub);
       if (!user) throw new Error('User not found');
 
       if (user.banned) {

@@ -147,10 +147,10 @@ export class AuthController {
           `Refresh token reuse detected! Family: ${tokenRecord.familyId}, User: ${user.id}`,
         );
         if (tokenRecord.familyId) {
-          await this.authService.invalidateTokenFamily(
-            tokenRecord.familyId,
-            tx,
-          );
+          // Deliberately NOT on the tx: the UnauthorizedException below rolls
+          // the transaction back, which would silently undo the family
+          // invalidation (the deletes must survive the rejected request).
+          await this.authService.invalidateTokenFamily(tokenRecord.familyId);
         }
         throw new UnauthorizedException('Invalid refresh token');
       }

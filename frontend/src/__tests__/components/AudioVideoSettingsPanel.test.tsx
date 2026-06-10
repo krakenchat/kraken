@@ -363,3 +363,126 @@ describe('AudioVideoSettingsPanel — disconnected device indicator', () => {
     expect(screen.queryByText('Previously selected device (disconnected)')).not.toBeInTheDocument();
   });
 });
+
+describe('AudioVideoSettingsPanel — device lists and selection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTestingAudio = false;
+    mockAudioLevel = 0;
+    mockRawAudioLevel = 0;
+    mockInputMode = 'voice_activity';
+    mockThreshold = 25;
+    mockEchoCancellation = true;
+    mockNoiseSuppression = true;
+    mockAutoGainControl = true;
+    mockVoiceIsolation = false;
+
+    // Reset device settings to defaults (other suites mutate these)
+    mockDeviceSettings.audioInputDevices = [{ deviceId: 'mic-1', label: 'Test Mic', kind: 'audioinput' as const, groupId: '', toJSON: vi.fn() }];
+    mockDeviceSettings.audioOutputDevices = [{ deviceId: 'spk-1', label: 'Test Speaker', kind: 'audiooutput' as const, groupId: '', toJSON: vi.fn() }];
+    mockDeviceSettings.videoInputDevices = [{ deviceId: 'cam-1', label: 'Test Camera', kind: 'videoinput' as const, groupId: '', toJSON: vi.fn() }];
+    mockDeviceSettings.selectedAudioInputId = 'mic-1';
+    mockDeviceSettings.selectedAudioOutputId = 'spk-1';
+    mockDeviceSettings.selectedVideoInputId = 'cam-1';
+    mockDeviceSettings.permissions = { microphone: true, camera: true };
+  });
+
+  // The selects' InputLabels are not programmatically associated (no labelId),
+  // so the comboboxes have no accessible name. Query by DOM order instead:
+  // [0] Microphone, [1] Speakers, [2] Camera.
+  const getSelects = () => {
+    const selects = screen.getAllByRole('combobox');
+    return { micSelect: selects[0], speakerSelect: selects[1], cameraSelect: selects[2] };
+  };
+
+  it('renders selected device labels from useDeviceSettings', () => {
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    const { micSelect, speakerSelect, cameraSelect } = getSelects();
+    expect(micSelect).toHaveTextContent('Test Mic');
+    expect(speakerSelect).toHaveTextContent('Test Speaker');
+    expect(cameraSelect).toHaveTextContent('Test Camera');
+  });
+
+  it('lists all available devices when the microphone select is opened', async () => {
+    mockDeviceSettings.audioInputDevices = [
+      { deviceId: 'mic-1', label: 'Test Mic', kind: 'audioinput' as const, groupId: '', toJSON: vi.fn() },
+      { deviceId: 'mic-2', label: 'Second Mic', kind: 'audioinput' as const, groupId: '', toJSON: vi.fn() },
+    ];
+
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel />);
+
+    await user.click(getSelects().micSelect);
+
+    expect(await screen.findByRole('option', { name: 'Test Mic' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Second Mic' })).toBeInTheDocument();
+  });
+
+  it('selecting a microphone persists the selection and notifies onDeviceChange', async () => {
+    mockDeviceSettings.audioInputDevices = [
+      { deviceId: 'mic-1', label: 'Test Mic', kind: 'audioinput' as const, groupId: '', toJSON: vi.fn() },
+      { deviceId: 'mic-2', label: 'Second Mic', kind: 'audioinput' as const, groupId: '', toJSON: vi.fn() },
+    ];
+    const onDeviceChange = vi.fn();
+
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel onDeviceChange={onDeviceChange} />);
+
+    await user.click(getSelects().micSelect);
+    await user.click(await screen.findByRole('option', { name: 'Second Mic' }));
+
+    expect(mockDeviceSettings.setSelectedAudioInput).toHaveBeenCalledWith('mic-2');
+    expect(onDeviceChange).toHaveBeenCalledWith('audio', 'mic-2');
+  });
+
+  it('selecting a speaker persists the selection and notifies onDeviceChange', async () => {
+    mockDeviceSettings.audioOutputDevices = [
+      { deviceId: 'spk-1', label: 'Test Speaker', kind: 'audiooutput' as const, groupId: '', toJSON: vi.fn() },
+      { deviceId: 'spk-2', label: 'Second Speaker', kind: 'audiooutput' as const, groupId: '', toJSON: vi.fn() },
+    ];
+    const onDeviceChange = vi.fn();
+
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel onDeviceChange={onDeviceChange} />);
+
+    await user.click(getSelects().speakerSelect);
+    await user.click(await screen.findByRole('option', { name: 'Second Speaker' }));
+
+    expect(mockDeviceSettings.setSelectedAudioOutput).toHaveBeenCalledWith('spk-2');
+    expect(onDeviceChange).toHaveBeenCalledWith('audioOutput', 'spk-2');
+  });
+
+  it('selecting a camera persists the selection and notifies onDeviceChange', async () => {
+    mockDeviceSettings.videoInputDevices = [
+      { deviceId: 'cam-1', label: 'Test Camera', kind: 'videoinput' as const, groupId: '', toJSON: vi.fn() },
+      { deviceId: 'cam-2', label: 'Second Camera', kind: 'videoinput' as const, groupId: '', toJSON: vi.fn() },
+    ];
+    const onDeviceChange = vi.fn();
+
+    const { user } = renderWithProviders(<AudioVideoSettingsPanel onDeviceChange={onDeviceChange} />);
+
+    await user.click(getSelects().cameraSelect);
+    await user.click(await screen.findByRole('option', { name: 'Second Camera' }));
+
+    expect(mockDeviceSettings.setSelectedVideoInput).toHaveBeenCalledWith('cam-2');
+    expect(onDeviceChange).toHaveBeenCalledWith('video', 'cam-2');
+  });
+
+  // Actual empty-list behavior: the select disables itself, so the
+  // "No devices found" MenuItem fallback is unreachable in the closed UI.
+  it('disables the microphone select when the device list is empty', () => {
+    mockDeviceSettings.audioInputDevices = [];
+    mockDeviceSettings.selectedAudioInputId = '';
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(getSelects().micSelect).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('disables the speaker select when the device list is empty', () => {
+    mockDeviceSettings.audioOutputDevices = [];
+    mockDeviceSettings.selectedAudioOutputId = '';
+
+    renderWithProviders(<AudioVideoSettingsPanel />);
+
+    expect(getSelects().speakerSelect).toHaveAttribute('aria-disabled', 'true');
+  });
+});

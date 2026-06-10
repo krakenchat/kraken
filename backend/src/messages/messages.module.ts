@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
+import { ClipMessageListener } from './clip-message.listener';
 import { MessagesController } from './messages.controller';
 import { MessagesGateway } from './messages.gateway';
 import { DatabaseModule } from '@/database/database.module';
@@ -23,6 +24,7 @@ import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
     ReactionsService,
     MessagesGateway,
     MessageOwnershipGuard,
+    ClipMessageListener,
   ],
   imports: [
     DatabaseModule,

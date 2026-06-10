@@ -1,7 +1,7 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { RbacGuard } from './rbac.guard';
-import { RolesService } from '@/roles/roles.service';
+import { PermissionsService } from '@/roles/permissions.service';
 import { Reflector } from '@nestjs/core';
 import { RbacActions, InstanceRole } from '@prisma/client';
 import {
@@ -13,14 +13,14 @@ import { ResourceIdSource, RbacResourceType } from './rbac-resource.decorator';
 
 describe('RbacGuard', () => {
   let guard: RbacGuard;
-  let rolesService: Mocked<RolesService>;
+  let permissionsService: Mocked<PermissionsService>;
   let reflector: Mocked<Reflector>;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(RbacGuard).compile();
 
     guard = unit;
-    rolesService = unitRef.get(RolesService);
+    permissionsService = unitRef.get(PermissionsService);
     reflector = unitRef.get(Reflector);
   });
 
@@ -39,7 +39,7 @@ describe('RbacGuard', () => {
 
       expect(result).toBe(true);
       expect(
-        rolesService.verifyActionsForUserAndResource,
+        permissionsService.verifyActionsForUserAndResource,
       ).not.toHaveBeenCalled();
     });
   });
@@ -58,7 +58,7 @@ describe('RbacGuard', () => {
 
       expect(result).toBe(true);
       expect(
-        rolesService.verifyActionsForUserAndResource,
+        permissionsService.verifyActionsForUserAndResource,
       ).not.toHaveBeenCalled();
     });
 
@@ -72,12 +72,14 @@ describe('RbacGuard', () => {
         .mockReturnValueOnce(undefined);
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalled();
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalled();
     });
   });
 
@@ -103,7 +105,7 @@ describe('RbacGuard', () => {
 
       expect(result).toBe(false);
       expect(
-        rolesService.verifyActionsForUserAndResource,
+        permissionsService.verifyActionsForUserAndResource,
       ).not.toHaveBeenCalled();
     });
   });
@@ -127,17 +129,16 @@ describe('RbacGuard', () => {
         });
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        channelId,
-        RbacResourceType.CHANNEL,
-        [RbacActions.CREATE_MESSAGE],
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, channelId, RbacResourceType.CHANNEL, [
+        RbacActions.CREATE_MESSAGE,
+      ]);
     });
 
     it('should extract resource ID from request params', async () => {
@@ -158,17 +159,16 @@ describe('RbacGuard', () => {
         });
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        messageId,
-        RbacResourceType.MESSAGE,
-        [RbacActions.DELETE_MESSAGE],
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, messageId, RbacResourceType.MESSAGE, [
+        RbacActions.DELETE_MESSAGE,
+      ]);
     });
 
     it('should extract resource ID from query parameters', async () => {
@@ -189,17 +189,16 @@ describe('RbacGuard', () => {
         });
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        communityId,
-        RbacResourceType.COMMUNITY,
-        [RbacActions.READ_COMMUNITY],
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, communityId, RbacResourceType.COMMUNITY, [
+        RbacActions.READ_COMMUNITY,
+      ]);
     });
   });
 
@@ -218,7 +217,7 @@ describe('RbacGuard', () => {
         .mockReturnValueOnce(undefined);
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       const result = await guard.canActivate(context);
@@ -251,17 +250,16 @@ describe('RbacGuard', () => {
         });
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        channelId,
-        RbacResourceType.CHANNEL,
-        [RbacActions.CREATE_MESSAGE],
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, channelId, RbacResourceType.CHANNEL, [
+        RbacActions.CREATE_MESSAGE,
+      ]);
     });
 
     it('should handle TEXT_PAYLOAD source for WebSocket', async () => {
@@ -288,17 +286,16 @@ describe('RbacGuard', () => {
         });
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        textPayload,
-        RbacResourceType.MESSAGE,
-        [RbacActions.READ_MESSAGE],
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, textPayload, RbacResourceType.MESSAGE, [
+        RbacActions.READ_MESSAGE,
+      ]);
     });
 
     it('should deny access when WebSocket client has no user in handshake', async () => {
@@ -335,17 +332,14 @@ describe('RbacGuard', () => {
         .mockReturnValueOnce(undefined);
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        undefined,
-        undefined,
-        multipleActions,
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, undefined, undefined, multipleActions);
     });
   });
 
@@ -360,7 +354,7 @@ describe('RbacGuard', () => {
         .mockReturnValueOnce(undefined);
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(false);
 
       const result = await guard.canActivate(context);
@@ -380,17 +374,16 @@ describe('RbacGuard', () => {
         .mockReturnValueOnce(undefined); // No resource options
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        undefined,
-        undefined,
-        [RbacActions.CREATE_COMMUNITY],
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, undefined, undefined, [
+        RbacActions.CREATE_COMMUNITY,
+      ]);
     });
   });
 
@@ -412,17 +405,16 @@ describe('RbacGuard', () => {
         });
 
       jest
-        .spyOn(rolesService, 'verifyActionsForUserAndResource')
+        .spyOn(permissionsService, 'verifyActionsForUserAndResource')
         .mockResolvedValue(true);
 
       await guard.canActivate(context);
 
-      expect(rolesService.verifyActionsForUserAndResource).toHaveBeenCalledWith(
-        user.id,
-        undefined,
-        RbacResourceType.CHANNEL,
-        [RbacActions.CREATE_MESSAGE],
-      );
+      expect(
+        permissionsService.verifyActionsForUserAndResource,
+      ).toHaveBeenCalledWith(user.id, undefined, RbacResourceType.CHANNEL, [
+        RbacActions.CREATE_MESSAGE,
+      ]);
     });
 
     it('should handle null user gracefully', async () => {

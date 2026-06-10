@@ -1,12 +1,11 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ClipLibraryService } from './clip-library.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
-import { WebsocketService } from '@/websocket/websocket.service';
-import { MessagesService } from '@/messages/messages.service';
 import { NotFoundException } from '@nestjs/common';
-import { ServerEvents } from '@semaphore-chat/shared';
+import { CLIP_MESSAGE_CREATE } from '@/common/events/clip-message.events';
 
 describe('ClipLibraryService', () => {
   let service: ClipLibraryService;
@@ -36,8 +35,7 @@ describe('ClipLibraryService', () => {
   };
 
   let storageService: Mocked<StorageService>;
-  let websocketService: Mocked<WebsocketService>;
-  let messagesService: Mocked<MessagesService>;
+  let eventEmitter: Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(ClipLibraryService)
@@ -47,8 +45,7 @@ describe('ClipLibraryService', () => {
 
     service = unit;
     storageService = unitRef.get(StorageService);
-    websocketService = unitRef.get(WebsocketService);
-    messagesService = unitRef.get(MessagesService);
+    eventEmitter = unitRef.get(EventEmitter2);
 
     // Reset all mocks before each test
     jest.clearAllMocks();
@@ -245,18 +242,13 @@ describe('ClipLibraryService', () => {
     it('should share clip to channel', async () => {
       const clip = {
         id: 'clip-1',
+        fileId: 'file-1',
         userId: 'user-123',
         durationSeconds: 60,
         file: {
           id: 'file-1',
           size: 10485760, // 10MB
         },
-      };
-
-      const message = {
-        id: 'message-1',
-        channelId: 'channel-1',
-        authorId: 'user-123',
       };
 
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
@@ -269,11 +261,7 @@ describe('ClipLibraryService', () => {
         userId: 'user-123',
         communityId: 'community-1',
       });
-      messagesService.create.mockResolvedValue(message as any);
-      messagesService.enrichMessageWithFileMetadata.mockReturnValue({
-        ...message,
-        attachmentMetadata: [{ id: 'file-1', filename: 'clip.mp4' }],
-      } as any);
+      eventEmitter.emitAsync.mockResolvedValue([{ messageId: 'message-1' }]);
 
       const result = await service.shareClip('user-123', 'clip-1', {
         destination: 'channel',
@@ -283,16 +271,21 @@ describe('ClipLibraryService', () => {
       expect(result.messageId).toBe('message-1');
       expect(result.clipId).toBe('clip-1');
       expect(result.destination).toBe('channel');
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'channel-1',
-        ServerEvents.NEW_MESSAGE,
-        expect.any(Object),
-      );
+      expect(eventEmitter.emitAsync).toHaveBeenCalledWith(CLIP_MESSAGE_CREATE, {
+        authorId: 'user-123',
+        fileId: 'file-1',
+        durationSeconds: 60,
+        sizeMB: 10,
+        destination: 'channel',
+        targetChannelId: 'channel-1',
+        targetDirectMessageGroupId: undefined,
+      });
     });
 
     it('should share clip to DM', async () => {
       const clip = {
         id: 'clip-1',
+        fileId: 'file-1',
         userId: 'user-123',
         durationSeconds: 30,
         file: {
@@ -301,23 +294,13 @@ describe('ClipLibraryService', () => {
         },
       };
 
-      const message = {
-        id: 'message-1',
-        directMessageGroupId: 'dm-group-1',
-        authorId: 'user-123',
-      };
-
       mockDatabaseService.replayClip.findFirst.mockResolvedValue(clip);
       mockDatabaseService.directMessageGroupMember.findFirst.mockResolvedValue({
         id: 'dm-member-1',
         groupId: 'dm-group-1',
         userId: 'user-123',
       });
-      messagesService.create.mockResolvedValue(message as any);
-      messagesService.enrichMessageWithFileMetadata.mockReturnValue({
-        ...message,
-        attachmentMetadata: [{ id: 'file-1', filename: 'clip.mp4' }],
-      } as any);
+      eventEmitter.emitAsync.mockResolvedValue([{ messageId: 'message-1' }]);
 
       const result = await service.shareClip('user-123', 'clip-1', {
         destination: 'dm',
@@ -326,11 +309,15 @@ describe('ClipLibraryService', () => {
 
       expect(result.messageId).toBe('message-1');
       expect(result.destination).toBe('dm');
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm:dm-group-1',
-        ServerEvents.NEW_DM,
-        expect.any(Object),
-      );
+      expect(eventEmitter.emitAsync).toHaveBeenCalledWith(CLIP_MESSAGE_CREATE, {
+        authorId: 'user-123',
+        fileId: 'file-1',
+        durationSeconds: 30,
+        sizeMB: 5,
+        destination: 'dm',
+        targetChannelId: undefined,
+        targetDirectMessageGroupId: 'dm-group-1',
+      });
     });
 
     it('should throw NotFoundException when clip not found', async () => {

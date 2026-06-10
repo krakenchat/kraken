@@ -40,9 +40,10 @@ export class FriendsService {
       throw new ForbiddenException('Cannot send friend request to yourself');
     }
 
-    // Check if receiver exists
+    // Check if receiver exists (existence check only — avoid fetching sensitive fields)
     const receiver = await this.databaseService.user.findUnique({
       where: { id: receiverId },
+      select: { id: true },
     });
     if (!receiver) {
       throw new NotFoundException('User not found');

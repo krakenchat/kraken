@@ -8,8 +8,6 @@ import {
   ForbiddenException,
   RawBodyRequest,
   Req,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { ApiCreatedResponse } from '@nestjs/swagger';
 import { Public } from '@/auth/public.decorator';
@@ -44,7 +42,6 @@ export class LivekitWebhookController {
   constructor(
     private readonly configService: ConfigService,
     private readonly livekitReplayService: LivekitReplayService,
-    @Inject(forwardRef(() => VoicePresenceService))
     private readonly voicePresenceService: VoicePresenceService,
   ) {
     const apiKey = this.configService.get<string>('LIVEKIT_API_KEY');

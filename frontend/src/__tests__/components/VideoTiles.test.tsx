@@ -393,6 +393,129 @@ describe('VideoTiles', () => {
     });
   });
 
+  it('renders one tile per remote participant with video', () => {
+    mockWatchingCameras = new Set(['UserA', 'UserB']);
+    remoteParticipants.set(
+      'remote-1',
+      createMockParticipant('UserA', [createMockTrackPublication('camera')]),
+    );
+    remoteParticipants.set(
+      'remote-2',
+      createMockParticipant('UserB', [createMockTrackPublication('camera')]),
+    );
+
+    renderWithProviders(<VideoTiles />);
+
+    expect(screen.getByText('UserA')).toBeInTheDocument();
+    expect(screen.getByText('UserB')).toBeInTheDocument();
+  });
+
+  describe('layout modes and pinning', () => {
+    beforeEach(() => {
+      mockWatchingCameras = new Set(['UserA', 'UserB']);
+      remoteParticipants.set(
+        'remote-1',
+        createMockParticipant('UserA', [createMockTrackPublication('camera')], [createMockTrackPublication('microphone')]),
+      );
+      remoteParticipants.set(
+        'remote-2',
+        createMockParticipant('UserB', [createMockTrackPublication('camera')], [createMockTrackPublication('microphone')]),
+      );
+    });
+
+    it('renders grid/sidebar/spotlight layout buttons on desktop', () => {
+      renderWithProviders(<VideoTiles />);
+
+      expect(screen.getByRole('button', { name: 'Grid Layout' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Sidebar Layout' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Spotlight Layout' })).toBeInTheDocument();
+    });
+
+    it('clicking a tile in grid mode spotlights it — only the spotlit participant renders large', async () => {
+      const { user } = renderWithProviders(<VideoTiles />);
+
+      // Both tiles visible in grid mode
+      expect(screen.getByText('UserA')).toBeInTheDocument();
+      expect(screen.getByText('UserB')).toBeInTheDocument();
+
+      // Click UserA's tile to enter spotlight mode
+      const cardA = screen.getByText('UserA').closest('[class*="MuiCard"]')!;
+      await user.click(cardA);
+
+      // Spotlight layout renders only the spotlit tile
+      expect(screen.getByText('UserA')).toBeInTheDocument();
+      expect(screen.queryByText('UserB')).not.toBeInTheDocument();
+    });
+
+    it('spotlight layout button spotlights the first watched tile', async () => {
+      const { user } = renderWithProviders(<VideoTiles />);
+
+      const spotlightButton = screen.getByRole('button', { name: 'Spotlight Layout' });
+      await user.click(spotlightButton);
+
+      // No spotlightTileId selected — falls back to first watched tile
+      expect(screen.getByText('UserA')).toBeInTheDocument();
+      expect(screen.queryByText('UserB')).not.toBeInTheDocument();
+    });
+
+    it('pinning the spotlit tile switches layout to sidebar (all tiles visible again)', async () => {
+      const { user } = renderWithProviders(<VideoTiles />);
+
+      // Spotlight UserB
+      const cardB = screen.getByText('UserB').closest('[class*="MuiCard"]')!;
+      await user.click(cardB);
+      expect(screen.queryByText('UserA')).not.toBeInTheDocument();
+
+      // Pin button is available in spotlight layout — clicking it pins the tile
+      // and switches layout mode to sidebar
+      const pinButton = screen.getByTestId('PushPinOutlinedIcon').closest('button')!;
+      await user.click(pinButton);
+
+      // Sidebar layout: pinned UserB renders as the main tile (first in DOM),
+      // UserA renders in the sidebar
+      const userB = screen.getByText('UserB');
+      const userA = screen.getByText('UserA');
+      expect(
+        userB.compareDocumentPosition(userA) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('sidebar layout pins the first watched tile by default and clicking a sidebar tile re-pins it', async () => {
+      const { user } = renderWithProviders(<VideoTiles />);
+
+      const sidebarButton = screen.getByRole('button', { name: 'Sidebar Layout' });
+      await user.click(sidebarButton);
+
+      // Default main tile is the first watched tile (UserA before UserB in DOM)
+      expect(
+        screen.getByText('UserA').compareDocumentPosition(screen.getByText('UserB')) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      // Clicking UserB's sidebar tile pins it as the main view
+      const cardB = screen.getByText('UserB').closest('[class*="MuiCard"]')!;
+      await user.click(cardB);
+
+      expect(
+        screen.getByText('UserB').compareDocumentPosition(screen.getByText('UserA')) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('grid layout button returns from spotlight to grid', async () => {
+      const { user } = renderWithProviders(<VideoTiles />);
+
+      // Enter spotlight
+      await user.click(screen.getByRole('button', { name: 'Spotlight Layout' }));
+      expect(screen.queryByText('UserB')).not.toBeInTheDocument();
+
+      // Back to grid
+      await user.click(screen.getByRole('button', { name: 'Grid Layout' }));
+      expect(screen.getByText('UserA')).toBeInTheDocument();
+      expect(screen.getByText('UserB')).toBeInTheDocument();
+    });
+  });
+
   // Auto-show behavior was removed in #336 — screen share opt-in is now per-participant
 
   describe('spotlight objectFit (#106)', () => {

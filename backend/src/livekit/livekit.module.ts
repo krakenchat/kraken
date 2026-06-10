@@ -1,14 +1,14 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '@/database/database.module';
 import { StorageModule } from '@/storage/storage.module';
 import { WebsocketModule } from '@/websocket/websocket.module';
-import { MessagesModule } from '@/messages/messages.module';
 import { VoicePresenceModule } from '@/voice-presence/voice-presence.module';
 import { LivekitService } from './livekit.service';
 import { LivekitReplayService } from './livekit-replay.service';
+import { ReplaySegmentsService } from './replay-segments.service';
 import { ClipLibraryService } from './clip-library.service';
 import { FfmpegService } from './ffmpeg.service';
 import { FfmpegProvider } from './providers/ffmpeg.provider';
@@ -28,17 +28,19 @@ import { ThumbnailService } from '@/file/thumbnail.service';
     DatabaseModule,
     StorageModule,
     WebsocketModule,
-    // forwardRef to break MessagesModule -> RoomsModule -> VoicePresenceModule -> LivekitModule -> MessagesModule cycle
-    forwardRef(() => MessagesModule),
     UserModule,
     RolesModule,
-    // Use forwardRef to handle circular dependency (VoicePresenceModule imports LivekitModule)
-    forwardRef(() => VoicePresenceModule),
+    // Clip messages are created via CLIP_MESSAGE_CREATE domain events handled
+    // by the messages module, so no MessagesModule import is needed here.
+    // VoicePresence no longer imports this module (it emits VOICE_USER_LEFT
+    // events instead), so this is a plain downward dependency.
+    VoicePresenceModule,
   ],
   controllers: [LivekitController, LivekitWebhookController],
   providers: [
     LivekitService,
     LivekitReplayService,
+    ReplaySegmentsService,
     ClipLibraryService,
     FfmpegService,
     FfmpegProvider,

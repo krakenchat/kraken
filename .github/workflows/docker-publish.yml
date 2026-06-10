@@ -101,6 +101,33 @@ jobs:
             GITHUB_REPOSITORY=${{ github.repository }}
             BUILD_DATE=${{ steps.meta.outputs.created }}
 
+      # On PRs the image isn't pushed, so rebuild a local-loadable single-platform
+      # image (cheap: fully cached from the step above) for vulnerability scanning.
+      - name: Build Backend image for scan
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./backend/Dockerfile.prod
+          load: true
+          push: false
+          tags: scan-target-backend:latest
+          platforms: linux/amd64
+          cache-from: type=gha
+          build-args: |
+            GITHUB_REPOSITORY=${{ github.repository }}
+            BUILD_DATE=${{ steps.meta.outputs.created }}
+
+      - name: Scan Backend image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: scan-target-backend:latest
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          # Pre-existing baseline is grandfathered; new findings still fail.
+          trivyignores: .trivyignore
+
   build-frontend:
     name: Build Frontend Image
     runs-on: ubuntu-latest
@@ -180,6 +207,35 @@ jobs:
             BUILD_DATE=${{ steps.meta.outputs.created }}
             VITE_API_URL=/api
             VITE_WS_URL=
+
+      # On PRs the image isn't pushed, so rebuild a local-loadable single-platform
+      # image (cheap: fully cached from the step above) for vulnerability scanning.
+      - name: Build Frontend image for scan
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./frontend/Dockerfile.prod
+          load: true
+          push: false
+          tags: scan-target-frontend:latest
+          platforms: linux/amd64
+          cache-from: type=gha
+          build-args: |
+            GITHUB_REPOSITORY=${{ github.repository }}
+            BUILD_DATE=${{ steps.meta.outputs.created }}
+            VITE_API_URL=/api
+            VITE_WS_URL=
+
+      - name: Scan Frontend image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: scan-target-frontend:latest
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          # Pre-existing baseline is grandfathered; new findings still fail.
+          trivyignores: .trivyignore
 
   summary:
     name: Build Summary

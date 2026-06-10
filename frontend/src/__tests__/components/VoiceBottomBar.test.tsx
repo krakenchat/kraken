@@ -42,6 +42,7 @@ const defaultVoiceState = {
   currentDmGroupId: null,
   dmGroupName: null,
   isDeafened: false,
+  isServerMuted: false,
   showVideoTiles: false,
   screenShareAudioFailed: false,
   requestMaximize: false,
@@ -169,11 +170,37 @@ describe('VoiceBottomBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     voiceState = { ...defaultVoiceState };
-    // Reset to defaults
+    // Reset to defaults — vi.clearAllMocks() does NOT reset mockReturnValue,
+    // so every hook a test overrides must be reset here explicitly.
     vi.mocked(useVoiceConnection).mockReturnValue({
       state: voiceState,
       actions: mockActions,
     } as never);
+    vi.mocked(useScreenShare).mockReturnValue({
+      isScreenSharing: false,
+      showSourcePicker: false,
+      toggleScreenShare: vi.fn(),
+      handleSourcePickerClose: vi.fn(),
+      handleSourceSelect: vi.fn(),
+      startScreenShare: vi.fn(),
+      stopScreenShare: vi.fn(),
+    });
+    vi.mocked(useLocalMediaState).mockReturnValue({
+      isCameraEnabled: false,
+      isMicrophoneEnabled: true,
+      isScreenShareEnabled: false,
+      audioTrack: undefined,
+      videoTrack: undefined,
+    });
+    vi.mocked(useResponsive).mockReturnValue({
+      isMobile: false,
+      isTablet: false,
+      isDesktop: true,
+      deviceType: 'desktop',
+    } as never);
+    vi.mocked(useReplayBufferState).mockReturnValue({
+      isReplayBufferActive: false,
+    });
   });
 
   it('returns null when not connected', () => {
@@ -349,6 +376,45 @@ describe('VoiceBottomBar', () => {
     await user.click(shareButton);
 
     expect(mockToggleScreenShare).toHaveBeenCalled();
+  });
+
+  it('screen share button reflects active sharing with StopScreenShare icon', () => {
+    vi.mocked(useScreenShare).mockReturnValue({
+      isScreenSharing: true,
+      showSourcePicker: false,
+      toggleScreenShare: vi.fn(),
+      handleSourcePickerClose: vi.fn(),
+      handleSourceSelect: vi.fn(),
+      startScreenShare: vi.fn(),
+      stopScreenShare: vi.fn(),
+    });
+
+    renderWithProviders(<VoiceBottomBar />);
+
+    expect(screen.getByTestId('StopScreenShareIcon')).toBeInTheDocument();
+    expect(screen.queryByTestId('ScreenShareIcon')).not.toBeInTheDocument();
+  });
+
+  it('screen share button shows ScreenShare icon when not sharing', () => {
+    renderWithProviders(<VoiceBottomBar />);
+
+    expect(screen.getByTestId('ScreenShareIcon')).toBeInTheDocument();
+    expect(screen.queryByTestId('StopScreenShareIcon')).not.toBeInTheDocument();
+  });
+
+  it('mic button is a no-op when server muted', async () => {
+    voiceState = { ...defaultVoiceState, isServerMuted: true };
+    vi.mocked(useVoiceConnection).mockReturnValue({
+      state: voiceState,
+      actions: mockActions,
+    } as never);
+
+    const { user } = renderWithProviders(<VoiceBottomBar />);
+
+    const micButton = screen.getByTestId('MicIcon').closest('button')!;
+    await user.click(micButton);
+
+    expect(mockActions.toggleMute).not.toHaveBeenCalled();
   });
 
   it('shows "Show Video Tiles" button when connected and tiles are hidden, even without local camera', () => {

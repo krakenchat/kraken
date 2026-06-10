@@ -44,6 +44,35 @@ jobs:
         working-directory: ./backend
         run: pnpm run lint
 
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: pnpm run prisma:generate
+
+      - name: Type check
+        working-directory: ./backend
+        run: pnpm run type-check
+
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -147,3 +176,70 @@ jobs:
           git add frontend-coverage.svg 2>/dev/null || true
           git commit -m "Update backend coverage badge" --allow-empty || true
           git push origin badges
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: semaphore
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd "pg_isready -U semaphore"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: pnpm run prisma:generate
+
+      - name: Run migrations
+        working-directory: ./backend
+        run: pnpm run prisma:migrate
+        env:
+          DATABASE_URL: postgresql://semaphore:semaphore@localhost:5432/test
+
+      - name: Run E2E tests
+        working-directory: ./backend
+        run: pnpm run test:e2e
+        env:
+          DATABASE_URL: postgresql://semaphore:semaphore@localhost:5432/test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret-key
+          JWT_REFRESH_SECRET: test-refresh-secret-key
+          NODE_ENV: test

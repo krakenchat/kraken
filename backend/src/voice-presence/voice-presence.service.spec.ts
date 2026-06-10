@@ -1,5 +1,6 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { VoicePresenceService } from './voice-presence.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -7,10 +8,12 @@ import { DatabaseService } from '@/database/database.service';
 
 import { ServerEvents } from '@semaphore-chat/shared';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
+import { VOICE_USER_LEFT } from '@/common/events/voice-presence.events';
 
 describe('VoicePresenceService', () => {
   let service: VoicePresenceService;
   let websocketService: Mocked<WebsocketService>;
+  let eventEmitter: Mocked<EventEmitter2>;
   let mockDatabaseService: any;
 
   const mockPipeline = {
@@ -53,6 +56,7 @@ describe('VoicePresenceService', () => {
 
     service = unit;
     websocketService = unitRef.get(WebsocketService);
+    eventEmitter = unitRef.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -186,6 +190,26 @@ describe('VoicePresenceService', () => {
       );
     });
 
+    it('should emit VOICE_USER_LEFT so listeners can clean up (e.g. replay buffer)', async () => {
+      const channelId = 'channel-123';
+      const userId = 'user-123';
+      const userData = {
+        id: userId,
+        username: 'testuser',
+        joinedAt: new Date().toISOString(),
+        isDeafened: false,
+      };
+
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
+
+      await service.leaveVoiceChannel(channelId, userId);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(VOICE_USER_LEFT, {
+        userId,
+        channelId,
+      });
+    });
+
     it('should handle user not found gracefully', async () => {
       const channelId = 'channel-123';
       const userId = 'nonexistent-user';
@@ -196,6 +220,7 @@ describe('VoicePresenceService', () => {
 
       expect(mockRedis.pipeline).not.toHaveBeenCalled();
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
 
     it('should clean up Redis data correctly', async () => {
