@@ -1,14 +1,29 @@
 import { useEffect, useRef } from 'react';
-import { RoomEvent, Track, type RemoteTrackPublication, type RemoteParticipant } from 'livekit-client';
+import {
+  RoomEvent,
+  Track,
+  type RemoteTrackPublication,
+  type RemoteParticipant,
+} from 'livekit-client';
 import { useRoom } from './useRoom';
 import { useVoice } from '../contexts/VoiceContext';
-import { VOLUME_STORAGE_PREFIX, SCREENSHARE_VOLUME_STORAGE_PREFIX } from '../constants/voice';
+import { audioBoostManager, boostKey } from '../features/voice/audioBoostManager';
+import { getStoredVolumePercent } from '../features/voice/volumeStorage';
 import { logger } from '../utils/logger';
 
+function isBoostableAudioSource(source: Track.Source | string): boolean {
+  return source === Track.Source.Microphone || source === Track.Source.ScreenShareAudio;
+}
+
 /**
- * Hook that reapplies per-user volume from localStorage when remote tracks
- * are subscribed. This fixes the issue where "mute for me" gets overridden
- * when a remote user toggles their mic (track re-subscribes at default volume).
+ * Hook that applies per-user volume (including >100% GainNode boost) whenever
+ * remote audio tracks are subscribed, and tears boost wiring down when tracks
+ * or participants go away.
+ *
+ * This is the single persistent owner of remote volume application. UI surfaces
+ * (context menu, screenshare popover) only write localStorage and forward live
+ * slider changes to the audioBoostManager — the audible path must never depend
+ * on an ephemeral component staying mounted.
  *
  * Skips volume application when deafened (useDeafenEffect handles that case).
  */
@@ -30,51 +45,55 @@ export const useRemoteVolumeEffect = () => {
       publication: RemoteTrackPublication,
       participant: RemoteParticipant,
     ) => {
-      // Only handle audio tracks
-      if (
-        publication.source !== Track.Source.Microphone &&
-        publication.source !== Track.Source.ScreenShareAudio
-      ) {
-        return;
-      }
+      if (!isBoostableAudioSource(publication.source)) return;
 
       // Skip when deafened — useDeafenEffect manages volume in that case
       if (isDeafenedRef.current) return;
 
-      const storagePrefix =
-        publication.source === Track.Source.ScreenShareAudio
-          ? SCREENSHARE_VOLUME_STORAGE_PREFIX
-          : VOLUME_STORAGE_PREFIX;
+      if (!publication.track) return;
 
-      let storedRaw: string | null = null;
-      try {
-        storedRaw = localStorage.getItem(
-          `${storagePrefix}${participant.identity}`,
-        );
-      } catch {
-        // localStorage may throw in sandboxed/private environments
-        return;
-      }
-      if (storedRaw === null) return; // No stored volume, use default
+      // Default to 100% so a resubscribed track also clears any stale boost
+      // wiring left from its previous incarnation.
+      const volumePercent =
+        getStoredVolumePercent(participant.identity, publication.source) ?? 100;
 
-      const storedVolume = parseFloat(storedRaw);
-      if (isNaN(storedVolume)) return;
+      audioBoostManager.applyVolume(
+        publication.track,
+        boostKey(participant.identity, publication.source),
+        volumePercent,
+      );
+      logger.dev(
+        `[Voice] Applied stored volume ${volumePercent}% for ${participant.identity}`,
+      );
+    };
 
-      // Clamp to [0, 1] for track.setVolume; GainNode for >100% is managed by VoiceUserContextMenu
-      const trackVolume = Math.max(0, Math.min(storedVolume, 1.0));
+    const handleTrackUnsubscribed = (
+      _track: unknown,
+      publication: RemoteTrackPublication,
+      participant: RemoteParticipant,
+    ) => {
+      if (!isBoostableAudioSource(publication.source)) return;
+      audioBoostManager.removeEntry(boostKey(participant.identity, publication.source));
+    };
 
-      if (publication.track) {
-        publication.track.setVolume(trackVolume);
-        logger.dev(
-          `[Voice] Applied stored volume ${trackVolume} for ${participant.identity}`,
-        );
-      }
+    const handleParticipantDisconnected = (participant: RemoteParticipant) => {
+      audioBoostManager.removeForParticipant(participant.identity);
+    };
+
+    const handleDisconnected = () => {
+      audioBoostManager.reset();
     };
 
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+    room.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+    room.on(RoomEvent.Disconnected, handleDisconnected);
 
     return () => {
       room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+      room.off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+      room.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+      room.off(RoomEvent.Disconnected, handleDisconnected);
     };
   }, [room]);
 };

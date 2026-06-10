@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Menu,
   MenuItem,
@@ -28,7 +28,7 @@ import { livekitControllerMuteParticipant } from "../../api-client/sdk.gen";
 import { useNotification } from "../../contexts/NotificationContext";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
-import { useAudioBoost } from "../../hooks/useAudioBoost";
+import { audioBoostManager, boostKey } from "../../features/voice/audioBoostManager";
 import { logger } from "../../utils/logger";
 
 function getStoredVolume(userId: string): number | null {
@@ -82,8 +82,6 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
 
   const isLocallyMuted = volume === 0;
 
-  const { applyVolume: applyBoost } = useAudioBoost();
-
   const canMuteParticipant = useCanPerformAction(
     "COMMUNITY",
     communityId,
@@ -105,30 +103,22 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
     RBAC_ACTIONS.BAN_USER,
   );
 
-  // Apply volume to LiveKit participant mic tracks (with GainNode for >100%)
+  // Forward live slider changes to the app-wide boost manager. The manager
+  // owns the GainNode wiring for >100% volumes, so the audible path survives
+  // this menu unmounting; useRemoteVolumeEffect re-applies stored volumes on
+  // (re)subscribe.
   const applyVolume = useCallback(
     (vol: number) => {
       if (!participant || isLocalUser) return;
 
       participant.audioTrackPublications.forEach((pub) => {
         if (pub.track && pub.source === Track.Source.Microphone) {
-          const key = `${user.id}:${pub.source}`;
-          applyBoost(pub.track, key, vol);
+          audioBoostManager.applyVolume(pub.track, boostKey(user.id, pub.source), vol);
         }
       });
     },
-    [participant, isLocalUser, user.id, applyBoost],
+    [participant, isLocalUser, user.id],
   );
-
-  // Apply stored volume when participant joins/changes
-  useEffect(() => {
-    if (participant && !isLocalUser) {
-      const stored = getStoredVolume(user.id);
-      if (stored !== null) {
-        applyVolume(Math.round(stored * 100));
-      }
-    }
-  }, [participant, isLocalUser, user.id, applyVolume]);
 
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const val = newValue as number;
