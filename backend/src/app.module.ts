@@ -48,6 +48,7 @@ import { ThreadsModule } from './threads/threads.module';
 import { StorageQuotaModule } from './storage-quota/storage-quota.module';
 import { AliasGroupsModule } from './alias-groups/alias-groups.module';
 import { DebugModule } from './debug/debug.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 @Module({
@@ -118,6 +119,9 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     StorageQuotaModule,
     AliasGroupsModule,
     ...(process.env.ADMIN_DEBUG_PANEL === 'true' ? [DebugModule] : []),
+    // Prometheus metrics (/api/metrics) — opt-in only; when disabled the
+    // module isn't imported, so the endpoint does not exist.
+    ...(process.env.METRICS_ENABLED === 'true' ? [MetricsModule] : []),
   ],
   controllers: [AppController],
   providers: [

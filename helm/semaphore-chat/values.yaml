@@ -365,6 +365,21 @@ networkPolicy:
     - Egress
 
 # ============================================
+# Metrics (Prometheus)
+# ============================================
+metrics:
+  # Expose Prometheus metrics on the backend at /api/metrics
+  # (sets METRICS_ENABLED=true in the backend container)
+  enabled: false
+
+  # Prometheus Operator ServiceMonitor for the backend service
+  # Requires the ServiceMonitor CRD (kube-prometheus-stack) to be installed
+  serviceMonitor:
+    enabled: false
+    # Scrape interval
+    interval: 30s
+
+# ============================================
 # File Storage Configuration
 # ============================================
 fileStorage:
