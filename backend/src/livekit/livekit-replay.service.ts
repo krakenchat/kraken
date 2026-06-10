@@ -28,9 +28,8 @@ import { ServerEvents } from '@semaphore-chat/shared';
 import { RoomName } from '@/common/utils/room-name.util';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
-  CLIP_MESSAGE_CREATE,
   ClipMessageCreateEvent,
-  ClipMessageCreateResult,
+  emitClipMessageCreate,
 } from '@/common/events/clip-message.events';
 import {
   VOICE_USER_LEFT,
@@ -1215,11 +1214,10 @@ export class LivekitReplayService {
       };
 
       this.logger.log(`Requesting clip message for file: ${file.id}`);
-      const [result] = (await this.eventEmitter.emitAsync(
-        CLIP_MESSAGE_CREATE,
+      ({ messageId } = await emitClipMessageCreate(
+        this.eventEmitter,
         eventPayload,
-      )) as ClipMessageCreateResult[];
-      messageId = result.messageId;
+      ));
 
       this.logger.log(
         `Posted replay clip message ${messageId} to ${dto.destination}`,

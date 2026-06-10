@@ -8,9 +8,8 @@ import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
-  CLIP_MESSAGE_CREATE,
   ClipMessageCreateEvent,
-  ClipMessageCreateResult,
+  emitClipMessageCreate,
 } from '@/common/events/clip-message.events';
 import { getErrorMessage } from '@/common/utils/error.utils';
 import {
@@ -318,11 +317,10 @@ export class ClipLibraryService {
       targetDirectMessageGroupId: dto.targetDirectMessageGroupId,
     };
 
-    const [result] = (await this.eventEmitter.emitAsync(
-      CLIP_MESSAGE_CREATE,
+    const { messageId } = await emitClipMessageCreate(
+      this.eventEmitter,
       eventPayload,
-    )) as ClipMessageCreateResult[];
-    const messageId = result.messageId;
+    );
 
     this.logger.log(
       `Shared clip ${clipId} to ${dto.destination} via message ${messageId}`,

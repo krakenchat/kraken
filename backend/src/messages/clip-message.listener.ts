@@ -28,7 +28,11 @@ export class ClipMessageListener {
     private readonly websocketService: WebsocketService,
   ) {}
 
-  @OnEvent(CLIP_MESSAGE_CREATE, { promisify: true })
+  // suppressErrors: false — @OnEvent swallows handler exceptions by default,
+  // which would resolve the emitter's emitAsync to [undefined] and turn a
+  // create failure into an opaque TypeError. With this, the original
+  // exception propagates to the emitting HTTP handler.
+  @OnEvent(CLIP_MESSAGE_CREATE, { suppressErrors: false })
   async handleClipMessageCreate(
     event: ClipMessageCreateEvent,
   ): Promise<ClipMessageCreateResult> {

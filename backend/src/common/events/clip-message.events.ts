@@ -1,3 +1,5 @@
+import { InternalServerErrorException } from '@nestjs/common';
+
 /**
  * Domain event contract for replay-clip message creation.
  *
@@ -24,4 +26,34 @@ export interface ClipMessageCreateEvent {
 
 export interface ClipMessageCreateResult {
   messageId: string;
+}
+
+/**
+ * Emit CLIP_MESSAGE_CREATE and return the single listener's result.
+ *
+ * Guards the request/response contract: exactly one listener
+ * (ClipMessageListener in the messages module) must handle the event. If the
+ * listener is missing from the module graph, emitAsync resolves to [] and the
+ * caller would otherwise crash on `undefined.messageId` — throw a clear error
+ * instead. Listener exceptions propagate unchanged (the handler is registered
+ * with suppressErrors: false), preserving HTTP error semantics.
+ */
+export async function emitClipMessageCreate(
+  eventEmitter: {
+    emitAsync(event: string, payload: ClipMessageCreateEvent): Promise<any[]>;
+  },
+  payload: ClipMessageCreateEvent,
+): Promise<ClipMessageCreateResult> {
+  const results = (await eventEmitter.emitAsync(
+    CLIP_MESSAGE_CREATE,
+    payload,
+  )) as Array<ClipMessageCreateResult | undefined>;
+
+  const result = results.length === 1 ? results[0] : undefined;
+  if (results.length !== 1 || !result?.messageId) {
+    throw new InternalServerErrorException(
+      `CLIP_MESSAGE_CREATE expected exactly one listener result, got ${results.length}`,
+    );
+  }
+  return result;
 }
