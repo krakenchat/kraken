@@ -122,10 +122,20 @@ describe('Auth flow (e2e)', () => {
         .expect(200);
     });
 
-    it('rejects reuse of the consumed (pre-rotation) refresh token', async () => {
+    it('rejects reuse of the consumed (pre-rotation) refresh token and invalidates the family', async () => {
+      // Reusing the consumed token is rejected...
       await request(app.getHttpServer())
         .post('/api/auth/refresh')
         .set('Cookie', refreshCookie)
+        .expect(401);
+
+      // ...and reuse detection revokes the whole token family: the rotated
+      // token (valid until this point) must now be rejected too. This is the
+      // assertion that distinguishes family invalidation from a naive
+      // "token not found" rejection.
+      await request(app.getHttpServer())
+        .post('/api/auth/refresh')
+        .set('Cookie', rotatedRefreshCookie)
         .expect(401);
     });
 
