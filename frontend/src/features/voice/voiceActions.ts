@@ -97,13 +97,82 @@ interface VoiceActionDeps {
   setRoom: (room: Room | null) => void;
 }
 
+function dispatchSelectedDevice(
+  dispatch: React.Dispatch<VoiceAction>,
+  kind: MediaDeviceKind,
+  deviceId: string
+) {
+  if (kind === 'audioinput') {
+    dispatch({ type: VoiceActionType.SetSelectedAudioInputId, payload: deviceId });
+  } else if (kind === 'audiooutput') {
+    dispatch({ type: VoiceActionType.SetSelectedAudioOutputId, payload: deviceId });
+  } else if (kind === 'videoinput') {
+    dispatch({ type: VoiceActionType.SetSelectedVideoInputId, payload: deviceId });
+  }
+}
+
+/**
+ * Handle OS-level device changes (plug/unplug) during an active call.
+ *
+ * livekit-client's built-in devicechange handling follows OS-default changes,
+ * but on Chromium it never moves audio input off a device that was unplugged,
+ * and it never returns to a preferred device that was plugged back in (#346).
+ * This runs after LiveKit's own handler (it fires on RoomEvent.MediaDevicesChanged,
+ * which LiveKit emits once its handling is done).
+ */
+async function handleMediaDevicesChanged(
+  room: Room,
+  dispatch: React.Dispatch<VoiceAction>
+) {
+  if (room.state !== 'connected') return;
+
+  try {
+    const prefs = getCachedItem<DevicePreferences>(DEVICE_PREFERENCES_KEY);
+    const devices = await navigator.mediaDevices.enumerateDevices();
+
+    const kinds: { kind: MediaDeviceKind; preferred: string | undefined }[] = [
+      { kind: 'audioinput', preferred: prefs?.audioInputDeviceId },
+      { kind: 'audiooutput', preferred: prefs?.audioOutputDeviceId },
+    ];
+
+    for (const { kind, preferred } of kinds) {
+      const available = devices.filter(d => d.kind === kind);
+      if (available.length === 0) continue;
+
+      const active = room.getActiveDevice(kind);
+
+      // The user's preferred device was plugged back in — return to it
+      if (preferred && preferred !== 'default' && preferred !== active &&
+          available.some(d => d.deviceId === preferred)) {
+        await room.switchActiveDevice(kind, preferred);
+        dispatchSelectedDevice(dispatch, kind, preferred);
+        logger.info('[Voice] Preferred', kind, 'device reconnected, switched back to:', preferred);
+        continue;
+      }
+
+      // The active device was unplugged — fall back to the default device
+      if (active && active !== 'default' && !available.some(d => d.deviceId === active)) {
+        const fallback = available.some(d => d.deviceId === 'default')
+          ? 'default'
+          : available[0].deviceId;
+        await room.switchActiveDevice(kind, fallback);
+        dispatchSelectedDevice(dispatch, kind, fallback);
+        logger.info('[Voice] Active', kind, 'device disconnected, fell back to:', fallback);
+      }
+    }
+  } catch (error) {
+    logger.warn('[Voice] Failed to handle media device change:', error);
+  }
+}
+
 /**
  * Shared helper to connect to LiveKit room and enable microphone
  */
 async function connectToLiveKitRoom(
   url: string,
   token: string,
-  setRoom: (room: Room | null) => void
+  setRoom: (room: Room | null) => void,
+  dispatch: React.Dispatch<VoiceAction>
 ): Promise<Room> {
   logger.info('[Voice] Creating new LiveKit room instance');
   const room = new Room({
@@ -128,6 +197,13 @@ async function connectToLiveKitRoom(
     }
     logger.error('[Voice] LiveKit disconnected unexpectedly, reason:', reason);
   });
+  // Keep voice state in sync when LiveKit switches devices on its own
+  // (OS default change, device plugged/unplugged mid-call).
+  room.on(RoomEvent.ActiveDeviceChanged, (kind: MediaDeviceKind, deviceId: string) => {
+    logger.info('[Voice] Active device changed:', kind, deviceId);
+    dispatchSelectedDevice(dispatch, kind, deviceId);
+  });
+  room.on(RoomEvent.MediaDevicesChanged, () => handleMediaDevicesChanged(room, dispatch));
 
   try {
     logger.info('[Voice] Connecting to LiveKit server:', url);
@@ -168,37 +244,36 @@ async function connectToLiveKitRoom(
   }
 
   const savedPreferences = getCachedItem<DevicePreferences>(DEVICE_PREFERENCES_KEY);
-  if (savedPreferences) {
-    logger.info('[Voice] Applying saved device preferences:', savedPreferences);
+  // Without a saved preference, bind to the browser's 'default' pseudo-device:
+  // Chromium reroutes 'default'-bound tracks when the OS default changes, which
+  // is what makes plugging in a headset mid-call switch audio over (#346).
+  // Browsers without a 'default' device (Firefox/Safari) skip this via the
+  // existence check below — LiveKit's own devicechange handling covers them.
+  const preferredAudioInput = savedPreferences?.audioInputDeviceId || 'default';
+  const preferredAudioOutput = savedPreferences?.audioOutputDeviceId || 'default';
+  logger.info('[Voice] Applying device preferences:', { preferredAudioInput, preferredAudioOutput });
 
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputDevices = devices.filter(d => d.kind === 'audioinput');
-      const audioOutputDevices = devices.filter(d => d.kind === 'audiooutput');
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioInputDevices = devices.filter(d => d.kind === 'audioinput');
+    const audioOutputDevices = devices.filter(d => d.kind === 'audiooutput');
 
-      if (savedPreferences.audioInputDeviceId) {
-        if (savedPreferences.audioInputDeviceId === 'default' ||
-            audioInputDevices.some(d => d.deviceId === savedPreferences.audioInputDeviceId)) {
-          await room.switchActiveDevice('audioinput', savedPreferences.audioInputDeviceId);
-          logger.info('[Voice] Applied saved audio input device:', savedPreferences.audioInputDeviceId);
-        } else {
-          logger.warn('[Voice] Saved audio input device not found, using default. Saved ID:', savedPreferences.audioInputDeviceId);
-          logger.info('[Voice] Available audio input devices:', audioInputDevices.map(d => ({ id: d.deviceId, label: d.label })));
-        }
-      }
-
-      if (savedPreferences.audioOutputDeviceId) {
-        if (savedPreferences.audioOutputDeviceId === 'default' ||
-            audioOutputDevices.some(d => d.deviceId === savedPreferences.audioOutputDeviceId)) {
-          await room.switchActiveDevice('audiooutput', savedPreferences.audioOutputDeviceId);
-          logger.info('[Voice] Applied saved audio output device:', savedPreferences.audioOutputDeviceId);
-        } else {
-          logger.warn('[Voice] Saved audio output device not found, using default. Saved ID:', savedPreferences.audioOutputDeviceId);
-        }
-      }
-    } catch (error) {
-      logger.warn('[Voice] Failed to apply saved device preferences:', error);
+    if (audioInputDevices.some(d => d.deviceId === preferredAudioInput)) {
+      await room.switchActiveDevice('audioinput', preferredAudioInput);
+      logger.info('[Voice] Applied audio input device:', preferredAudioInput);
+    } else {
+      logger.warn('[Voice] Audio input device not available, leaving browser default. Wanted:', preferredAudioInput);
+      logger.info('[Voice] Available audio input devices:', audioInputDevices.map(d => ({ id: d.deviceId, label: d.label })));
     }
+
+    if (audioOutputDevices.some(d => d.deviceId === preferredAudioOutput)) {
+      await room.switchActiveDevice('audiooutput', preferredAudioOutput);
+      logger.info('[Voice] Applied audio output device:', preferredAudioOutput);
+    } else {
+      logger.warn('[Voice] Audio output device not available, leaving browser default. Wanted:', preferredAudioOutput);
+    }
+  } catch (error) {
+    logger.warn('[Voice] Failed to apply device preferences:', error);
   }
 
   logger.info('[Voice] Room connection complete');
@@ -258,7 +333,7 @@ export async function joinVoiceChannel(
     logger.info('[Voice] Got LiveKit token');
 
     logger.info('[Voice] Connecting to LiveKit room...');
-    await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
+    await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom, dispatch);
 
     dispatch({
       type: VoiceActionType.SetConnected,
@@ -379,7 +454,7 @@ export async function joinDmVoice(
       }
     }
 
-    await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom);
+    await connectToLiveKitRoom(connectionInfo.url, tokenResponse.token, setRoom, dispatch);
 
     dispatch({
       type: VoiceActionType.SetDmConnected,

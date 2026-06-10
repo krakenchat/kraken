@@ -20,7 +20,11 @@ const mockRoomInstance = {
   state: 'connected',
   localParticipant: mockLocalParticipant,
   switchActiveDevice: vi.fn().mockResolvedValue(undefined),
+  getActiveDevice: vi.fn().mockReturnValue(undefined),
 };
+
+// Captures handlers registered via room.on() so tests can fire room events
+const roomEventHandlers: Record<string, (...args: unknown[]) => unknown> = {};
 
 vi.mock('livekit-client', () => {
   class MockRoom {
@@ -29,7 +33,11 @@ vi.mock('livekit-client', () => {
     state = mockRoomInstance.state;
     localParticipant = mockRoomInstance.localParticipant;
     switchActiveDevice = mockRoomInstance.switchActiveDevice;
-    on = vi.fn().mockReturnThis();
+    getActiveDevice = mockRoomInstance.getActiveDevice;
+    on = vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
+      roomEventHandlers[event] = handler;
+      return this;
+    });
   }
   return {
     Room: MockRoom,
@@ -38,6 +46,8 @@ vi.mock('livekit-client', () => {
       Reconnected: 'reconnected',
       SignalConnected: 'signalConnected',
       Disconnected: 'disconnected',
+      MediaDevicesChanged: 'mediaDevicesChanged',
+      ActiveDeviceChanged: 'activeDeviceChanged',
     },
     DisconnectReason: {},
     VideoCaptureOptions: {},
@@ -151,6 +161,8 @@ describe('voiceActions', () => {
     vi.clearAllMocks();
     mockRoomInstance.localParticipant.isMicrophoneEnabled = true;
     mockRoomInstance.localParticipant.metadata = JSON.stringify({ isDeafened: false });
+    mockRoomInstance.getActiveDevice.mockReturnValue(undefined);
+    Object.keys(roomEventHandlers).forEach((key) => delete roomEventHandlers[key]);
   });
 
   describe('joinVoiceChannel', () => {
@@ -413,6 +425,120 @@ describe('voiceActions', () => {
     it('returns early when no room or channel', async () => {
       const deps = createMockDeps({ channelId: null, dmGroupId: null });
       await switchAudioOutputDevice('device-456', deps);
+
+      expect(mockRoomInstance.switchActiveDevice).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('device change handling (#346)', () => {
+    const params = {
+      channelId: 'ch-1',
+      channelName: 'General',
+      communityId: 'c1',
+      isPrivate: false,
+      createdAt: '2025-01-01',
+      user: { id: 'user-1', username: 'testuser', displayName: 'Test User' },
+      connectionInfo: { url: 'ws://localhost:7880' },
+    };
+
+    const setDeviceList = (devices: { deviceId: string; kind: string; label: string; groupId: string }[]) => {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: { enumerateDevices: vi.fn().mockResolvedValue(devices) },
+        configurable: true,
+      });
+    };
+
+    const mockDevicePrefs = (prefs: { audioInputDeviceId: string; audioOutputDeviceId: string; videoInputDeviceId: string } | null) => {
+      vi.mocked(getCachedItem).mockImplementation((key: string) =>
+        key === 'semaphore_device_preferences' ? prefs : null
+      );
+    };
+
+    const defaultMic = { deviceId: 'default', kind: 'audioinput', label: 'Default Mic', groupId: 'g1' };
+    const usbMic = { deviceId: 'mic-123', kind: 'audioinput', label: 'USB Mic', groupId: 'g2' };
+    const defaultSpeaker = { deviceId: 'default', kind: 'audiooutput', label: 'Default Speaker', groupId: 'g1' };
+
+    it('binds audio to the default pseudo-device on join when no preferences saved', async () => {
+      mockDevicePrefs(null);
+      setDeviceList([defaultMic, usbMic, defaultSpeaker]);
+
+      await joinVoiceChannel(params, createMockDeps());
+
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default');
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audiooutput', 'default');
+    });
+
+    it('skips default binding when the browser has no default pseudo-device', async () => {
+      mockDevicePrefs(null);
+      setDeviceList([
+        { deviceId: 'mic-ff', kind: 'audioinput', label: 'Mic', groupId: 'g1' },
+        { deviceId: 'spk-ff', kind: 'audiooutput', label: 'Speaker', groupId: 'g1' },
+      ]);
+
+      await joinVoiceChannel(params, createMockDeps());
+
+      expect(mockRoomInstance.switchActiveDevice).not.toHaveBeenCalled();
+    });
+
+    it('dispatches selected-device updates when LiveKit reports an active device change', async () => {
+      mockDevicePrefs(null);
+      setDeviceList([]);
+      const deps = createMockDeps();
+      await joinVoiceChannel(params, deps);
+
+      roomEventHandlers['activeDeviceChanged']('audioinput', 'mic-new');
+      roomEventHandlers['activeDeviceChanged']('audiooutput', 'spk-new');
+
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetSelectedAudioInputId, payload: 'mic-new' });
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetSelectedAudioOutputId, payload: 'spk-new' });
+    });
+
+    it('falls back to the default device when the active mic is unplugged', async () => {
+      mockDevicePrefs({ audioInputDeviceId: 'mic-123', audioOutputDeviceId: 'default', videoInputDeviceId: 'default' });
+      setDeviceList([defaultMic, usbMic, defaultSpeaker]);
+      const deps = createMockDeps();
+      await joinVoiceChannel(params, deps);
+      mockRoomInstance.switchActiveDevice.mockClear();
+
+      mockRoomInstance.getActiveDevice.mockImplementation((kind: string) =>
+        kind === 'audioinput' ? 'mic-123' : 'default'
+      );
+      setDeviceList([defaultMic, defaultSpeaker]); // USB mic unplugged
+      await roomEventHandlers['mediaDevicesChanged']();
+
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledTimes(1);
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default');
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetSelectedAudioInputId, payload: 'default' });
+    });
+
+    it('switches back to the preferred mic when it is reconnected', async () => {
+      mockDevicePrefs({ audioInputDeviceId: 'mic-123', audioOutputDeviceId: 'default', videoInputDeviceId: 'default' });
+      setDeviceList([defaultMic, defaultSpeaker]); // preferred mic missing at join
+      const deps = createMockDeps();
+      await joinVoiceChannel(params, deps);
+      mockRoomInstance.switchActiveDevice.mockClear();
+
+      mockRoomInstance.getActiveDevice.mockReturnValue('default');
+      setDeviceList([defaultMic, usbMic, defaultSpeaker]); // USB mic plugged back in
+      await roomEventHandlers['mediaDevicesChanged']();
+
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledTimes(1);
+      expect(mockRoomInstance.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'mic-123');
+      expect(deps.dispatch).toHaveBeenCalledWith({ type: VoiceActionType.SetSelectedAudioInputId, payload: 'mic-123' });
+    });
+
+    it('does nothing on device change when the room is disconnected', async () => {
+      mockDevicePrefs(null);
+      setDeviceList([]);
+      const deps = createMockDeps();
+      await joinVoiceChannel(params, deps);
+      const room = deps.setRoom.mock.calls[0][0] as { state: string };
+      room.state = 'disconnected';
+      mockRoomInstance.switchActiveDevice.mockClear();
+
+      mockRoomInstance.getActiveDevice.mockReturnValue('mic-123');
+      setDeviceList([defaultMic, defaultSpeaker]);
+      await roomEventHandlers['mediaDevicesChanged']();
 
       expect(mockRoomInstance.switchActiveDevice).not.toHaveBeenCalled();
     });
