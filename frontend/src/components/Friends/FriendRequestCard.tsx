@@ -13,7 +13,6 @@ import {
   Cancel as CancelIcon,
 } from "@mui/icons-material";
 import { Friendship } from "../../types/friend.type";
-import { User } from "../../types/auth.type";
 import UserAvatar from "../Common/UserAvatar";
 
 interface FriendRequestCardProps {
@@ -32,7 +31,7 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
   onCancel,
 }) => {
   // Get the other user (sender for received, receiver for sent)
-  const otherUser: User | undefined =
+  const otherUser =
     type === "received"
       ? request.userA // Sender
       : request.userB; // Receiver

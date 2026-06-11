@@ -47,7 +47,7 @@ interface MobileAppBarProps {
   onMembersClick?: () => void;
   // Show more options button
   showMore?: boolean;
-  onMoreClick?: () => void;
+  onMoreClick?: (event: React.MouseEvent<HTMLElement>) => void;
 }
 
 const MobileAppBar: React.FC<MobileAppBarProps> = ({

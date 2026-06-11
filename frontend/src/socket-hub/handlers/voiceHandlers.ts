@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ServerEvents } from '@semaphore-chat/shared';
+import type { ServerEvents, VoicePresenceUser } from '@semaphore-chat/shared';
 import {
   voicePresenceControllerGetChannelPresenceQueryKey,
   dmVoicePresenceControllerGetDmPresenceQueryKey,
@@ -13,19 +13,35 @@ function invalidateVoiceQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
 }
 
+/**
+ * Normalizes the WebSocket presence-user payload into the REST DTO shape used
+ * in the presence query caches. Over the wire joinedAt is always a serialized
+ * ISO string and the flags are always present, so this is a type-level
+ * normalization with no observable runtime change.
+ */
+function toPresenceUserDto(user: VoicePresenceUser): VoicePresenceUserDto {
+  return {
+    ...user,
+    joinedAt: user.joinedAt instanceof Date ? user.joinedAt.toISOString() : user.joinedAt,
+    isDeafened: user.isDeafened ?? false,
+    isServerMuted: user.isServerMuted ?? false,
+  };
+}
+
 export const handleVoiceUserJoined: SocketEventHandler<typeof ServerEvents.VOICE_CHANNEL_USER_JOINED> = (
-  data: { channelId: string; user: VoicePresenceUserDto },
+  data,
   queryClient: QueryClient,
 ) => {
   const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
   const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
 
   if (existing) {
+    const user = toPresenceUserDto(data.user);
     queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
       if (!draft) return draft;
-      const existingIndex = draft.users.findIndex((u) => u.id === data.user.id);
+      const existingIndex = draft.users.findIndex((u) => u.id === user.id);
       if (existingIndex === -1) {
-        const newUsers = [...draft.users, data.user];
+        const newUsers = [...draft.users, user];
         return { ...draft, users: newUsers, count: newUsers.length };
       }
       return draft;
@@ -54,19 +70,20 @@ export const handleVoiceUserLeft: SocketEventHandler<typeof ServerEvents.VOICE_C
 };
 
 export const handleVoiceUserUpdated: SocketEventHandler<typeof ServerEvents.VOICE_CHANNEL_USER_UPDATED> = (
-  data: { channelId: string; user: VoicePresenceUserDto },
+  data,
   queryClient: QueryClient,
 ) => {
   const queryKey = voicePresenceControllerGetChannelPresenceQueryKey({ path: { channelId: data.channelId } });
   const existing = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
 
   if (existing) {
+    const user = toPresenceUserDto(data.user);
     queryClient.setQueryData<ChannelVoicePresenceResponseDto>(queryKey, (draft) => {
       if (!draft) return draft;
-      const index = draft.users.findIndex((u) => u.id === data.user.id);
+      const index = draft.users.findIndex((u) => u.id === user.id);
       if (index !== -1) {
         const newUsers = [...draft.users];
-        newUsers[index] = data.user;
+        newUsers[index] = user;
         return { ...draft, users: newUsers };
       }
       return draft;
@@ -88,18 +105,19 @@ export const handleDmVoiceCallStarted: SocketEventHandler<typeof ServerEvents.DM
 };
 
 export const handleDmVoiceUserJoined: SocketEventHandler<typeof ServerEvents.DM_VOICE_USER_JOINED> = (
-  data: { dmGroupId: string; user: VoicePresenceUserDto },
+  data,
   queryClient: QueryClient,
 ) => {
   const queryKey = dmVoicePresenceControllerGetDmPresenceQueryKey({ path: { dmGroupId: data.dmGroupId } });
   const existing = queryClient.getQueryData<DmVoicePresenceResponseDto>(queryKey);
 
   if (existing) {
+    const user = toPresenceUserDto(data.user);
     queryClient.setQueryData<DmVoicePresenceResponseDto>(queryKey, (draft) => {
       if (!draft) return draft;
-      const existingIndex = draft.users.findIndex((u) => u.id === data.user.id);
+      const existingIndex = draft.users.findIndex((u) => u.id === user.id);
       if (existingIndex === -1) {
-        const newUsers = [...draft.users, data.user];
+        const newUsers = [...draft.users, user];
         return { ...draft, users: newUsers, count: newUsers.length };
       }
       return draft;
@@ -128,19 +146,20 @@ export const handleDmVoiceUserLeft: SocketEventHandler<typeof ServerEvents.DM_VO
 };
 
 export const handleDmVoiceUserUpdated: SocketEventHandler<typeof ServerEvents.DM_VOICE_USER_UPDATED> = (
-  data: { dmGroupId: string; user: VoicePresenceUserDto },
+  data,
   queryClient: QueryClient,
 ) => {
   const queryKey = dmVoicePresenceControllerGetDmPresenceQueryKey({ path: { dmGroupId: data.dmGroupId } });
   const existing = queryClient.getQueryData<DmVoicePresenceResponseDto>(queryKey);
 
   if (existing) {
+    const user = toPresenceUserDto(data.user);
     queryClient.setQueryData<DmVoicePresenceResponseDto>(queryKey, (draft) => {
       if (!draft) return draft;
-      const index = draft.users.findIndex((u) => u.id === data.user.id);
+      const index = draft.users.findIndex((u) => u.id === user.id);
       if (index !== -1) {
         const newUsers = [...draft.users];
-        newUsers[index] = data.user;
+        newUsers[index] = user;
         return { ...draft, users: newUsers };
       }
       return draft;

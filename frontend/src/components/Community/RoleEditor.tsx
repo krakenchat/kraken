@@ -126,7 +126,7 @@ const RoleEditor: React.FC<RoleEditorProps> = ({
       <CardContent>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Typography variant="h6">
-            {isEditing ? `Edit Role: ${role.name}` : "Create New Role"}
+            {isEditing ? `Edit Role: ${role?.name}` : "Create New Role"}
           </Typography>
           <Box display="flex" gap={1}>
             <Button

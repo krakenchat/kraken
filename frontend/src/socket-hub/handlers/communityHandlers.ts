@@ -16,7 +16,7 @@ export const handleMemberAddedToCommunity: SocketEventHandler<typeof ServerEvent
 // =============================================================================
 
 export const handleChannelsReordered: SocketEventHandler<typeof ServerEvents.CHANNELS_REORDERED> = (
-  payload,
+  _payload,
   queryClient: QueryClient,
 ) => {
   queryClient.invalidateQueries({

@@ -111,7 +111,7 @@ export const useBidirectionalScroll = ({
   // Without adjustment, the viewport jumps. Shifting scrollTop by the height
   // delta keeps the user's current view stable.
   const prevScrollHeightRef = useRef(0);
-  const prevFirstMsgIdRef = useRef<string | undefined>();
+  const prevFirstMsgIdRef = useRef<string | undefined>(undefined);
   useLayoutEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || messages.length === 0) return;

@@ -37,7 +37,7 @@ describe('useBackgroundVoiceKeepAlive', () => {
     });
 
     // Clean window.electronAPI
-    (window as Record<string, unknown>).electronAPI = undefined;
+    (window as unknown as Record<string, unknown>).electronAPI = undefined;
   });
 
   afterEach(() => {
@@ -96,7 +96,7 @@ describe('useBackgroundVoiceKeepAlive', () => {
 
   it('should request power save block in Electron when connected', async () => {
     mockIsElectron = true;
-    (window as Record<string, unknown>).electronAPI = {
+    (window as unknown as Record<string, unknown>).electronAPI = {
       isElectron: true,
       requestPowerSaveBlock: mockRequestPowerSaveBlock,
       releasePowerSaveBlock: mockReleasePowerSaveBlock,
@@ -112,7 +112,7 @@ describe('useBackgroundVoiceKeepAlive', () => {
 
   it('should release power save block in Electron on unmount', async () => {
     mockIsElectron = true;
-    (window as Record<string, unknown>).electronAPI = {
+    (window as unknown as Record<string, unknown>).electronAPI = {
       isElectron: true,
       requestPowerSaveBlock: mockRequestPowerSaveBlock,
       releasePowerSaveBlock: mockReleasePowerSaveBlock,

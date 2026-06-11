@@ -31,7 +31,7 @@ import {
   VolumeUp,
   InfoOutlined,
 } from '@mui/icons-material';
-import { useDeviceSettings } from '../../hooks/useDeviceSettings';
+import { useDeviceSettings, type MediaDeviceInfo as DeviceInfo } from '../../hooks/useDeviceSettings';
 import { useDeviceTest, getDeviceLabel } from '../../hooks/useDeviceTest';
 import { useVoiceSettings, VoiceInputMode } from '../../hooks/useVoiceSettings';
 
@@ -160,7 +160,7 @@ const AudioVideoSettingsPanel: React.FC<AudioVideoSettingsPanelProps> = ({
     onDeviceChange?.('video', deviceId);
   };
 
-  const renderDeviceMenuItems = (devices: MediaDeviceInfo[], selectedId: string) => {
+  const renderDeviceMenuItems = (devices: DeviceInfo[], selectedId: string) => {
     if (devices.length === 0) {
       return <MenuItem value="">No devices found</MenuItem>;
     }

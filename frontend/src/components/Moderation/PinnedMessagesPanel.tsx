@@ -61,7 +61,7 @@ const PinnedMessagesPanel: React.FC<PinnedMessagesPanelProps> = ({
 
   const handleUnpin = async (messageId: string) => {
     try {
-      await unpinMessage({ path: { messageId } });
+      await unpinMessage({ path: { messageId }, body: {} });
     } catch (err) {
       logger.error("Failed to unpin message:", err);
     }

@@ -49,7 +49,9 @@ import ConfirmDialog from "../../components/Common/ConfirmDialog";
 import type { RoleDto as InstanceRole } from "../../api-client/types.gen";
 
 // All valid instance-level actions (must match backend)
-const INSTANCE_ACTIONS = [
+type InstanceAction = InstanceRole["actions"][number];
+
+const INSTANCE_ACTIONS: { key: InstanceAction; label: string; category: string }[] = [
   { key: "READ_INSTANCE_SETTINGS", label: "View Instance Settings", category: "Settings" },
   { key: "UPDATE_INSTANCE_SETTINGS", label: "Update Instance Settings", category: "Settings" },
   { key: "READ_INSTANCE_STATS", label: "View Instance Statistics", category: "Settings" },
@@ -68,7 +70,7 @@ const ACTION_CATEGORIES = ["Settings", "Storage", "Users", "Invites"];
 
 interface RoleFormData {
   name: string;
-  actions: string[];
+  actions: InstanceAction[];
 }
 
 const AdminRolesPage: React.FC = () => {
@@ -120,7 +122,7 @@ const AdminRolesPage: React.FC = () => {
     setFormData({ name: "", actions: [] });
   };
 
-  const handleActionToggle = (action: string) => {
+  const handleActionToggle = (action: InstanceAction) => {
     setFormData((prev) => ({
       ...prev,
       actions: prev.actions.includes(action)
@@ -296,7 +298,7 @@ const AdminRolesPage: React.FC = () => {
             fullWidth
             value={formData.name}
             onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-            disabled={editingRole && isDefaultRole(editingRole)}
+            disabled={!!editingRole && isDefaultRole(editingRole)}
             sx={{ mb: 3 }}
           />
           <Typography variant="subtitle2" gutterBottom>

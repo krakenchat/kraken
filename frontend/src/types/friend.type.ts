@@ -1,21 +1,12 @@
-import { User } from './auth.type';
+// The API client's generated friendship DTOs are the source of truth.
+export type {
+  FriendshipWithUsersDto as Friendship,
+  PendingRequestsDto as PendingRequests,
+} from '../api-client/types.gen';
 
-export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'BLOCKED';
+import type { FriendshipWithUsersDto } from '../api-client/types.gen';
 
-export interface Friendship {
-  id: string;
-  userAId: string;
-  userBId: string;
-  status: FriendshipStatus;
-  createdAt: string;
-  userA?: User;
-  userB?: User;
-}
-
-export interface PendingRequests {
-  sent: Friendship[];
-  received: Friendship[];
-}
+export type FriendshipStatus = FriendshipWithUsersDto['status'];
 
 export interface FriendshipStatusResponse {
   status: FriendshipStatus | null;

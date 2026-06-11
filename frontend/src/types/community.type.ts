@@ -1,8 +1,3 @@
-export interface Community {
-  id: string;
-  name: string;
-  avatar?: string | null;
-  banner?: string | null;
-  description?: string | null;
-  createdAt: Date;
-}
+// The API client's generated CommunityResponseDto is the source of truth for
+// community objects returned by the backend.
+export type { CommunityResponseDto as Community } from '../api-client/types.gen';

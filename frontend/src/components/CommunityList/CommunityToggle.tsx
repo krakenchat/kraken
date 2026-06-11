@@ -14,15 +14,6 @@ import { useCanPerformAction } from "../../features/roles/useUserPermissions";
 import { RBAC_ACTIONS } from "../../constants/rbacActions";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
 
-export interface Community {
-  id: string;
-  name: string;
-  avatar?: string | null;
-  banner?: string | null;
-  description?: string | null;
-  createdAt: Date;
-}
-
 interface CommunityToggleProps {
   isExpanded: boolean;
   appBarHeight: number;
@@ -195,7 +186,7 @@ const CommunityToggle: React.FC<CommunityToggleProps> = ({
         {isLoading && <Box color="grey.500">Loading...</Box>}
         {error && <Box color="error.main">Error loading</Box>}
         {communities && communities.length > 0
-          ? communities.map((community: Community) => (
+          ? communities.map((community) => (
               <CommunityListItem
                 key={community.id}
                 community={community}

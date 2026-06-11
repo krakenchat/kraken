@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type MockInstance } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import {
   handleRoleCreated,
@@ -10,7 +10,7 @@ import {
 
 describe('roleHandlers', () => {
   let queryClient: QueryClient;
-  let invalidateSpy: ReturnType<typeof vi.spyOn>;
+  let invalidateSpy: MockInstance<QueryClient['invalidateQueries']>;
 
   beforeEach(() => {
     queryClient = new QueryClient();

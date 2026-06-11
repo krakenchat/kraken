@@ -169,6 +169,9 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
         avatarUrl: userInfos[i]?.avatarUrl ?? undefined,
         joinedAt: joinedAtCacheRef.current.get(p.identity) || new Date().toISOString(),
         isDeafened: p.isDeafened,
+        // LiveKit participant metadata doesn't carry server-mute state; the
+        // REST presence path is the source of truth for it
+        isServerMuted: false,
       }));
 
       setLivekitParticipants(participants);

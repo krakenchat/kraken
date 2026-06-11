@@ -24,7 +24,7 @@ const Container = styled(Paper)(({ theme }) => ({
   height: "calc(100% - 64px)",
   display: "flex",
   flexDirection: "column",
-  borderRadius: theme.shape.borderRadius * 2,
+  borderRadius: Number(theme.shape.borderRadius) * 2,
   overflow: "hidden",
 }));
 

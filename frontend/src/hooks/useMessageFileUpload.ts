@@ -8,7 +8,7 @@ import { useNotification } from "../contexts/NotificationContext";
 import { channelMessagesQueryKey, dmMessagesQueryKey } from "../utils/messageQueryKeys";
 import { updateMessageInInfinite } from "../utils/messageCacheUpdaters";
 import { logger } from "../utils/logger";
-import type { Message } from "../types/message.type";
+import type { Message, Span } from "../types/message.type";
 
 interface UseMessageFileUploadOptions {
   contextType: VoiceSessionType;
@@ -78,7 +78,7 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
     }
   });
 
-  const handleSendMessage = async (messageContent: string, spans: unknown[], files?: File[], replyToId?: string) => {
+  const handleSendMessage = async (_messageContent: string, spans: Span[], files?: File[], replyToId?: string) => {
     const msg = {
       ...(contextType === VoiceSessionType.Channel
         ? { channelId: contextId }

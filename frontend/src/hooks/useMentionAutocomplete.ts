@@ -20,7 +20,7 @@ export interface MentionAutocompleteState {
   suggestions: MentionSuggestion[];
   selectedIndex: number;
   query: string;
-  type: 'user' | 'special' | 'alias' | null;
+  type: 'user' | 'special' | 'channel' | 'alias' | null;
   isLoading: boolean;
 }
 

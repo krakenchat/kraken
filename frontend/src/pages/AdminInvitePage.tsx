@@ -145,7 +145,7 @@ const AdminInvitePage: React.FC = () => {
       const createInviteDto: CreateInviteDto = {
         communityIds: selectedCommunities.length > 0 ? selectedCommunities : [],
         maxUses: maxUses || undefined,
-        validUntil: validUntil ? new Date(validUntil) : undefined,
+        validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
       };
       
       const newInvite = await createInvite({ body: createInviteDto });
@@ -295,25 +295,25 @@ const AdminInvitePage: React.FC = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h4" color="primary">{stats.total}</Typography>
             <Typography variant="body2" color="text.secondary">Total Invites</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h4" color="success.main">{stats.active}</Typography>
             <Typography variant="body2" color="text.secondary">Active Invites</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h4" color="error.main">{stats.expired}</Typography>
             <Typography variant="body2" color="text.secondary">Expired</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h4" color="info.main">{stats.totalUses}</Typography>
             <Typography variant="body2" color="text.secondary">Total Uses</Typography>

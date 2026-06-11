@@ -21,9 +21,9 @@ const mockCreateObjectURL = vi.fn();
 const mockRevokeObjectURL = vi.fn();
 
 beforeEach(() => {
-  global.fetch = mockFetch;
-  global.URL.createObjectURL = mockCreateObjectURL;
-  global.URL.revokeObjectURL = mockRevokeObjectURL;
+  globalThis.fetch = mockFetch as unknown as typeof fetch;
+  globalThis.URL.createObjectURL = mockCreateObjectURL as unknown as typeof URL.createObjectURL;
+  globalThis.URL.revokeObjectURL = mockRevokeObjectURL as unknown as typeof URL.revokeObjectURL;
 
   // Reset mock return value (vi.clearAllMocks does NOT reset mockReturnValue)
   vi.mocked(getAccessToken).mockReturnValue('mock-jwt-token');

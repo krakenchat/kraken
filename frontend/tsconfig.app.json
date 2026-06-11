@@ -22,6 +22,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
+    /* Vitest runs with globals: true (vitest.config.ts) */
+    "types": ["vitest/globals"],
+
     "paths": {
       "@semaphore-chat/shared": ["../shared/src"],
       "@semaphore-chat/shared/*": ["../shared/src/*"]

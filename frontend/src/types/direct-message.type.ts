@@ -1,35 +1,3 @@
-export interface DirectMessageGroup {
-  id: string;
-  name?: string | null;
-  isGroup: boolean;
-  createdAt: Date;
-  members: DirectMessageGroupMember[];
-  lastMessage?: {
-    id: string;
-    authorId: string;
-    spans: Array<{ type: string; text?: string; [key: string]: unknown }>;
-    sentAt: Date;
-  } | null;
-}
-
-export interface DirectMessageGroupMember {
-  id: string;
-  userId: string;
-  joinedAt: Date;
-  user: {
-    id: string;
-    username: string;
-    displayName?: string | null;
-    avatarUrl?: string | null;
-  };
-}
-
-export interface CreateDmGroupDto {
-  userIds: string[];
-  name?: string;
-  isGroup?: boolean;
-}
-
-export interface AddMembersDto {
-  userIds: string[];
-}
+// The API client's generated DmGroupResponseDto is the source of truth for DM
+// group objects returned by the backend (string dates, generated member DTOs).
+export type { DmGroupResponseDto as DirectMessageGroup } from '../api-client/types.gen';

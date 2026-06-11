@@ -116,7 +116,8 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
           username: member.user.username,
           displayName: member.user.displayName,
           avatarUrl: member.user.avatarUrl,
-          status: member.user.status,
+          // The DM members endpoint does not return a status field
+          status: undefined,
         }));
     }
   }, [contextType, isPrivate, channelMembers, communityMembers, dmGroup]);

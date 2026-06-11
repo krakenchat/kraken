@@ -18,7 +18,7 @@ export const useJumpToMessage = (
   // Uses a seq counter so re-clicking the same message always triggers a new scroll.
   const [activeHighlight, setActiveHighlight] = useState<string | undefined>();
   const [highlightSeq, setHighlightSeq] = useState(0);
-  const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const mode = anchorMessageId ? "anchored" : "normal";

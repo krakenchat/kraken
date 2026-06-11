@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders, createTestQueryClient } from '../test-utils';
 import { NotificationBadge } from '../../components/Notifications/NotificationBadge';
@@ -11,11 +11,11 @@ vi.mock('../../api-client/client.gen', () => ({
 }));
 
 describe('NotificationBadge', () => {
-  let onClick: ReturnType<typeof vi.fn>;
+  let onClick: Mock<() => void>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    onClick = vi.fn();
+    onClick = vi.fn<() => void>();
   });
 
   it('renders with unread count from query cache', () => {
@@ -63,6 +63,6 @@ describe('NotificationBadge', () => {
     );
     // The query should exist but should not have a refetch interval set
     expect(unreadQuery).toBeDefined();
-    expect(unreadQuery?.options.refetchInterval).toBeUndefined();
+    expect((unreadQuery?.options as { refetchInterval?: unknown } | undefined)?.refetchInterval).toBeUndefined();
   });
 });

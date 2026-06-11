@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Avatar, Typography, Chip, styled } from "@mui/material";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
-import type { User } from "../../types/auth.type";
+import type { UserEntity } from "../../api-client/types.gen";
 
 const BannerContainer = styled(Box)(({ theme }) => ({
   position: "relative",
@@ -31,7 +31,7 @@ const AvatarContainer = styled(Box)(() => ({
 }));
 
 interface ProfileHeaderProps {
-  user: User;
+  user: UserEntity;
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user }) => {

@@ -33,7 +33,7 @@ function makeMessage(overrides: Record<string, unknown> = {}) {
 
 function makeInfiniteData(messages: ReturnType<typeof makeMessage>[]): InfiniteData<PaginatedMessagesResponseDto> {
   return {
-    pages: [{ messages: messages as never[], continuationToken: null }],
+    pages: [{ messages: messages as never[], continuationToken: undefined }],
     pageParams: [undefined],
   };
 }

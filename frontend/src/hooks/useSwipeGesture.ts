@@ -218,7 +218,7 @@ export const useLongPress = (
     onPressEnd,
   } = options;
 
-  const timeout = useRef<NodeJS.Timeout>();
+  const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isLongPressTriggered = useRef(false);
 
   const start = useCallback((_e: TouchEvent | React.MouseEvent) => {

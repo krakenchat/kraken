@@ -77,7 +77,9 @@ export class DebugNotificationResponseDto {
 }
 
 export class DebugPushSubscriptionDto {
+  id: string;
   endpoint: string;
+  userAgent?: string | null;
   createdAt: Date;
 }
 

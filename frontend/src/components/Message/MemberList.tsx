@@ -219,7 +219,7 @@ const MemberList: React.FC<MemberListProps> = ({
   if (error) {
     return (
       <Box sx={{ width: 240, p: 2 }}>
-        <Alert severity="error" size="small">
+        <Alert severity="error">
           Failed to load members
         </Alert>
       </Box>

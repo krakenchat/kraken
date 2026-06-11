@@ -76,7 +76,9 @@ self.addEventListener('push', (event: PushEvent) => {
     return;
   }
 
-  const options: NotificationOptions = {
+  // `vibrate` is a non-standard (but widely supported) notification option
+  // missing from the TS lib's NotificationOptions.
+  const options: NotificationOptions & { vibrate: number[] } = {
     body: data.body,
     icon: data.icon || '/pwa-192x192.png',
     badge: data.badge || '/pwa-192x192.png',

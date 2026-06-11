@@ -5,7 +5,7 @@
  * Types and constants are in ../theme/constants.ts to comply with React Fast Refresh.
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { logger } from '../utils/logger';
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { generateTheme } from '../theme/themeConfig';

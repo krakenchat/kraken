@@ -36,7 +36,10 @@ import type { ServerEvents } from '@semaphore-chat/shared';
 // deletes, or new messages. This is acceptable since anchored mode is transient
 // (seconds), and the user gets fresh data on return to normal mode.
 
-export const handleNewMessage: SocketEventHandler<typeof ServerEvents.NEW_MESSAGE> = async (
+// Registered for both NEW_MESSAGE and NEW_DM (they share the same payload shape).
+export const handleNewMessage: SocketEventHandler<
+  typeof ServerEvents.NEW_MESSAGE | typeof ServerEvents.NEW_DM
+> = async (
   { message }: NewMessagePayload,
   queryClient: QueryClient,
 ) => {
@@ -109,11 +112,11 @@ export const handleDeleteMessage: SocketEventHandler<typeof ServerEvents.DELETE_
     deleteMessageFromInfinite(old as never, messageId),
   );
 
-  // Remove thread replies cache if this was a thread parent
-  const threadQueryKey = threadsControllerGetRepliesQueryKey({
-    path: { parentMessageId: messageId },
+  // Remove thread replies cache if this was a thread parent.
+  // Partial key (no query params) so all paginated variants are removed.
+  queryClient.removeQueries({
+    queryKey: [{ _id: 'threadsControllerGetReplies', path: { parentMessageId: messageId } }],
   });
-  queryClient.removeQueries({ queryKey: threadQueryKey });
 };
 
 export const handleReactionAdded: SocketEventHandler<typeof ServerEvents.REACTION_ADDED> = async (
@@ -241,8 +244,8 @@ export const handleMessageUnpinned: SocketEventHandler<typeof ServerEvents.MESSA
     return updateMessageInInfinite(old as never, {
       ...msg,
       pinned: false,
-      pinnedBy: null,
-      pinnedAt: null,
+      pinnedBy: undefined,
+      pinnedAt: undefined,
     });
   });
   queryClient.invalidateQueries({
@@ -264,7 +267,7 @@ export const handleThreadReplyCountUpdated: SocketEventHandler<typeof ServerEven
     return updateMessageInInfinite(old as never, {
       ...msg,
       replyCount,
-      lastReplyAt,
+      lastReplyAt: lastReplyAt ?? undefined,
     });
   });
 };

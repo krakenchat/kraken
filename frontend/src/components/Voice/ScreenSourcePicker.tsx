@@ -239,7 +239,7 @@ export const ScreenSourcePicker: React.FC<ScreenSourcePickerProps> = ({
                 </Box>
                 <Grid container spacing={2}>
                   {screens.map((source) => (
-                    <Grid item xs={12} sm={6} md={4} key={source.id}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={source.id}>
                       <Paper
                         elevation={selectedSourceId === source.id ? 8 : 1}
                         sx={{
@@ -296,7 +296,7 @@ export const ScreenSourcePicker: React.FC<ScreenSourcePickerProps> = ({
                 </Box>
                 <Grid container spacing={2}>
                   {windows.map((source) => (
-                    <Grid item xs={12} sm={6} md={4} key={source.id}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={source.id}>
                       <Paper
                         elevation={selectedSourceId === source.id ? 8 : 1}
                         sx={{

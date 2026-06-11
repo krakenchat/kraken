@@ -128,7 +128,7 @@ export const TabletSidebar: React.FC<TabletSidebarProps> = ({ communityId }) => 
         <ChannelCategoryList
           channels={channels}
           onChannelSelect={handleChannelClick}
-          selectedChannelId={state.channelId}
+          selectedChannelId={state.channelId ?? undefined}
           compact
           touchTargetHeight={TOUCH_TARGETS.MINIMUM}
         />

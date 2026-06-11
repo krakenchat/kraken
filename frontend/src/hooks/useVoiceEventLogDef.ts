@@ -40,7 +40,7 @@ export interface VoiceEventLogStore {
 export const VoiceEventLogContext = createContext<VoiceEventLogStore | null>(null);
 
 const NOOP_SUBSCRIBE = () => () => {};
-const EMPTY_EVENTS: VoiceEventEntry[] = Object.freeze([]) as VoiceEventEntry[];
+const EMPTY_EVENTS: VoiceEventEntry[] = Object.freeze([] as VoiceEventEntry[]) as VoiceEventEntry[];
 const emptySnapshot = () => EMPTY_EVENTS;
 
 /**

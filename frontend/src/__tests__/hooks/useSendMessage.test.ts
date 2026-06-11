@@ -88,8 +88,8 @@ describe('useSendMessage', () => {
     });
 
     it('returns success with messageId on acknowledgment', async () => {
-      mockSocket.emit.mockImplementation((_event: string, _payload: unknown, ack: (id: string) => void) => {
-        ack('msg-123');
+      mockSocket.emit.mockImplementation((_event, _payload, ack) => {
+        (ack as (id: string) => void)('msg-123');
       });
 
       const { result } = renderSendMessage(VoiceSessionType.Channel);
@@ -105,8 +105,8 @@ describe('useSendMessage', () => {
 
     it('calls callback with messageId on success', async () => {
       const callback = vi.fn();
-      mockSocket.emit.mockImplementation((_event: string, _payload: unknown, ack: (id: string) => void) => {
-        ack('msg-456');
+      mockSocket.emit.mockImplementation((_event, _payload, ack) => {
+        (ack as (id: string) => void)('msg-456');
       });
 
       const { result } = renderSendMessage(VoiceSessionType.Channel, { callback });
@@ -132,8 +132,8 @@ describe('useSendMessage', () => {
 
     it('waits for reconnection when socket is disconnected', async () => {
       mockSocket.connected = false;
-      mockSocket.emit.mockImplementation((_event: string, _payload: unknown, ack: (id: string) => void) => {
-        ack('msg-reconnected');
+      mockSocket.emit.mockImplementation((_event, _payload, ack) => {
+        (ack as (id: string) => void)('msg-reconnected');
       });
 
       const { result } = renderSendMessage(VoiceSessionType.Channel, { isConnected: false });

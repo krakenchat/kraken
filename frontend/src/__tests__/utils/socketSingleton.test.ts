@@ -16,7 +16,7 @@ const mockSocket = {
   connect: vi.fn(),
 };
 
-const mockIo = vi.fn(() => mockSocket);
+const mockIo = vi.fn((..._args: unknown[]) => mockSocket);
 
 vi.mock('socket.io-client', () => ({
   io: (...args: unknown[]) => mockIo(...args),

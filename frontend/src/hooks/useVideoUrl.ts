@@ -27,7 +27,7 @@ export function useVideoUrl(fileId: string | null): VideoUrlResult {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const expiresAtRef = useRef<number>(0);
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const fetchSignedUrl = useCallback(async () => {
     if (!fileId) return;

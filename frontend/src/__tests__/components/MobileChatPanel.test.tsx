@@ -30,8 +30,8 @@ vi.mock('../../api-client/@tanstack/react-query.gen', () => ({
 }));
 
 // Track which container gets rendered
-const mockChannelMessageContainer = vi.fn(() => <div data-testid="channel-message-container" />);
-const mockDirectMessageContainer = vi.fn(() => <div data-testid="direct-message-container" />);
+const mockChannelMessageContainer = vi.fn((_props: Record<string, unknown>) => <div data-testid="channel-message-container" />);
+const mockDirectMessageContainer = vi.fn((_props: Record<string, unknown>) => <div data-testid="direct-message-container" />);
 
 vi.mock('../../components/Channel/ChannelMessageContainer', () => ({
   default: (props: Record<string, unknown>) => {

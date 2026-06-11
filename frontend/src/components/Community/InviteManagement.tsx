@@ -102,7 +102,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
       const createInviteDto: CreateInviteDto = {
         communityIds: [communityId],
         maxUses: maxUses || undefined,
-        validUntil: validUntil ? new Date(validUntil) : undefined,
+        validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
       };
       
       await createInvite({ body: createInviteDto });

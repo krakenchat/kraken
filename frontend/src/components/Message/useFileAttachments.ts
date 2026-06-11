@@ -14,7 +14,7 @@ import { formatFileSize } from "../../utils/format";
 export interface UseFileAttachmentsReturn {
   selectedFiles: File[];
   filePreviews: Map<number, string>;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   handleFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleFileDrop: (files: File[]) => void;
   handleRemoveFile: (index: number) => void;

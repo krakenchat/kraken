@@ -35,6 +35,7 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SendIcon from '@mui/icons-material/Send';
 import { useQuery } from '@tanstack/react-query';
+import type { DebugSubscriptionsResponseDto } from '../../api-client/types.gen';
 import { userControllerGetProfileOptions } from '../../api-client/@tanstack/react-query.gen';
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
@@ -104,11 +105,8 @@ const NotificationDebugPage: React.FC = () => {
     },
   });
 
-  const [subscriptionsData, setSubscriptionsData] = React.useState<{
-    subscriptions: Array<{ id: string; endpoint: string; userAgent?: string; createdAt: string }>;
-    count: number;
-    pushEnabled: boolean;
-  } | null>(null);
+  const [subscriptionsData, setSubscriptionsData] =
+    React.useState<DebugSubscriptionsResponseDto | null>(null);
   const [isLoadingSubscriptions, setIsLoadingSubscriptions] = React.useState(false);
 
   // Add a result to the log

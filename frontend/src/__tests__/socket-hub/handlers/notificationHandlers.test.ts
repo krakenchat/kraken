@@ -363,12 +363,19 @@ describe('notificationHandlers', () => {
 
       const data = queryClient.getQueryData<NotificationListResponseDto>(notificationsKey);
       const notif = data!.notifications[0];
-      expect(notif.author).toEqual({ id: 'u-5', username: 'bob', avatarUrl: 'https://img.test/avatar.png' });
+      expect(notif.author).toEqual({
+        id: 'u-5',
+        username: 'bob',
+        displayName: null,
+        avatarUrl: 'https://img.test/avatar.png',
+      });
       expect(notif.message).toEqual({
         id: 'msg-10',
+        channelId: 'ch-1',
+        directMessageGroupId: null,
         spans: [
-          { type: 'MENTION', text: '@alice', userId: 'u-1' },
-          { type: 'PLAINTEXT', text: ' hey', userId: undefined },
+          { type: 'MENTION', text: '@alice', userId: 'u-1', specialKind: null, communityId: null, aliasId: null },
+          { type: 'PLAINTEXT', text: ' hey', userId: null, specialKind: null, communityId: null, aliasId: null },
         ],
       });
     });

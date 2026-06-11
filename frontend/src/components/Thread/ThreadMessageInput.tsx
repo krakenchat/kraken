@@ -49,11 +49,6 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
         {
           type: SpanType.PLAINTEXT,
           text: trimmedContent,
-          userId: null,
-          specialKind: null,
-          channelId: null,
-          communityId: null,
-          aliasId: null,
         },
       ],
       attachments: [],

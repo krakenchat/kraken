@@ -5,7 +5,8 @@ import { useParticipantTracks } from "../../../hooks/useParticipantTracks";
 import UserAvatar from "../../Common/UserAvatar";
 
 interface InlineUserAvatarProps {
-  user: VoicePresenceUserDto;
+  /** WS presence payloads layer isVideoEnabled on top of the REST DTO */
+  user: VoicePresenceUserDto & { isVideoEnabled?: boolean };
   onContextMenu: (event: React.MouseEvent<HTMLElement>, user: VoicePresenceUserDto) => void;
   onClickUser: (userId: string) => void;
 }

@@ -60,7 +60,9 @@ jobs:
 
       - name: Type check with TypeScript
         working-directory: frontend
-        run: pnpm exec tsc --noEmit
+        # Bare `tsc --noEmit` against the solution-style root tsconfig checks
+        # nothing (#356) — `type-check` runs reference-aware `tsc -b`
+        run: pnpm run type-check
 
   build-windows:
     name: Build Windows Installer

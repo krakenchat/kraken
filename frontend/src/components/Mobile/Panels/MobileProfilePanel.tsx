@@ -71,7 +71,7 @@ export const MobileProfilePanel: React.FC = () => {
     }
   };
 
-  const isAdmin = userData?.instanceRole === 'ADMIN';
+  const isAdmin = userData?.role === 'OWNER';
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -134,7 +134,7 @@ export const MobileProfilePanel: React.FC = () => {
                   <Typography variant="body2" color="text.secondary">
                     @{userData.username}
                   </Typography>
-                  {userData.instanceRole && (
+                  {userData.role === 'OWNER' && (
                     <Typography
                       variant="caption"
                       sx={{
@@ -147,7 +147,7 @@ export const MobileProfilePanel: React.FC = () => {
                         display: 'inline-block',
                       }}
                     >
-                      {userData.instanceRole}
+                      {userData.role}
                     </Typography>
                   )}
                 </Box>

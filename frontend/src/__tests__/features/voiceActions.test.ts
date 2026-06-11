@@ -102,7 +102,8 @@ import {
   switchAudioInputDevice,
   switchAudioOutputDevice,
 } from '../../features/voice/voiceActions';
-import { VoiceActionType, VoiceSessionType } from '../../contexts/VoiceContext';
+import { VoiceActionType, VoiceSessionType, type VoiceState } from '../../contexts/VoiceContext';
+import type { Room } from 'livekit-client';
 import { livekitControllerGenerateToken, voicePresenceControllerJoinPresence, voicePresenceControllerLeavePresence, voicePresenceControllerUpdateDeafenState } from '../../api-client/sdk.gen';
 import { getCachedItem } from '../../utils/storage';
 
@@ -119,17 +120,17 @@ function createMockDeps(overrides: Partial<{
   const room = hasRoomOverride ? overrides.room : mockRoomInstance;
   return {
     dispatch,
-    getVoiceState: () => ({
+    getVoiceState: (): VoiceState => ({
       isConnected: true,
       isConnecting: false,
       connectionError: null,
       contextType: VoiceSessionType.Channel,
-      currentChannelId: 'channelId' in overrides ? overrides.channelId : 'ch-1',
+      currentChannelId: 'channelId' in overrides ? (overrides.channelId ?? null) : 'ch-1',
       channelName: 'General',
       communityId: 'c1',
       isPrivate: false,
       createdAt: '2025-01-01',
-      currentDmGroupId: 'dmGroupId' in overrides ? overrides.dmGroupId : null,
+      currentDmGroupId: 'dmGroupId' in overrides ? (overrides.dmGroupId ?? null) : null,
       dmGroupName: null,
       isDeafened: overrides.isDeafened ?? false,
       isServerMuted: overrides.isServerMuted ?? false,
@@ -140,8 +141,11 @@ function createMockDeps(overrides: Partial<{
       selectedAudioOutputId: null,
       selectedVideoInputId: null,
       wasMutedBeforeDeafen: overrides.wasMutedBeforeDeafen ?? false,
+      watchingCameras: new Set<string>(),
+      watchingScreenShares: new Set<string>(),
+      hiddenLocalTiles: new Set<string>(),
     }),
-    getRoom: () => room as never,
+    getRoom: () => room as Room | null,
     setRoom: vi.fn(),
   };
 }

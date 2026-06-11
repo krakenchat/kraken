@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { logger } from '../utils/logger';
 import { computeVoiceLevel } from '../utils/audioLevel';
+import type { MediaDeviceInfo as DeviceInfo } from './useDeviceSettings';
 
 interface UseDeviceTestOptions {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -24,7 +25,7 @@ interface UseDeviceTestReturn {
  * Formats a device label for display. Falls back to a truncated device ID
  * when the browser has not yet been granted permission to read labels.
  */
-export function getDeviceLabel(device: MediaDeviceInfo): string {
+export function getDeviceLabel(device: DeviceInfo): string {
   if (!device.label || device.label === '') {
     return `${device.kind} (${device.deviceId.slice(0, 8)}...)`;
   }

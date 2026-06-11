@@ -5,111 +5,17 @@
  */
 
 import { ClientEvents } from '../events/client-events.enum';
-import { ServerEvents } from '../events/server-events.enum';
 import { Span, FileMetadata } from '../types/message.types';
-import {
-  AckPayload,
-  ErrorPayload,
-  NewMessagePayload,
-  UpdateMessagePayload,
-  DeleteMessagePayload,
-  ReactionAddedPayload,
-  ReactionRemovedPayload,
-  ReadReceiptUpdatedPayload,
-  NewNotificationPayload,
-  NotificationReadPayload,
-  UserOnlinePayload,
-  UserOfflinePayload,
-  UserTypingPayload,
-  VoiceChannelUserJoinedPayload,
-  VoiceChannelUserLeftPayload,
-  VoiceChannelUserUpdatedPayload,
-  DmVoiceCallStartedPayload,
-  DmVoiceUserJoinedPayload,
-  DmVoiceUserLeftPayload,
-  DmVoiceUserUpdatedPayload,
-  ReplayBufferStoppedPayload,
-  ReplayBufferFailedPayload,
-  ChannelsReorderedPayload,
-  UserBannedPayload,
-  UserKickedPayload,
-  UserTimedOutPayload,
-  TimeoutRemovedPayload,
-  MessagePinnedPayload,
-  MessageUnpinnedPayload,
-  NewThreadReplyPayload,
-  UpdateThreadReplyPayload,
-  DeleteThreadReplyPayload,
-  ThreadReplyCountUpdatedPayload,
-  MemberAddedToCommunityPayload,
-} from '../payloads/websocket-payloads';
+import { ServerEventPayloads } from '../payloads/websocket-payloads';
 
 /**
  * Server-to-Client WebSocket event types.
+ *
+ * Derived from {@link ServerEventPayloads} so the socket typing always covers
+ * every server event (the previous hand-maintained map drifted out of sync).
  */
 export type ServerToClientEvents = {
-  // Messaging: Channels
-  [ServerEvents.NEW_MESSAGE]: (data: NewMessagePayload) => void;
-  [ServerEvents.UPDATE_MESSAGE]: (data: UpdateMessagePayload) => void;
-  [ServerEvents.DELETE_MESSAGE]: (data: DeleteMessagePayload) => void;
-
-  // Message Reactions
-  [ServerEvents.REACTION_ADDED]: (data: ReactionAddedPayload) => void;
-  [ServerEvents.REACTION_REMOVED]: (data: ReactionRemovedPayload) => void;
-
-  // Read Receipts
-  [ServerEvents.READ_RECEIPT_UPDATED]: (data: ReadReceiptUpdatedPayload) => void;
-
-  // Messaging: Direct Messages
-  [ServerEvents.NEW_DM]: (data: NewMessagePayload) => void;
-
-  // Mentions & Notifications
-  [ServerEvents.NEW_NOTIFICATION]: (data: NewNotificationPayload) => void;
-  [ServerEvents.NOTIFICATION_READ]: (data: NotificationReadPayload) => void;
-
-  // Presence & Typing
-  [ServerEvents.USER_ONLINE]: (data: UserOnlinePayload) => void;
-  [ServerEvents.USER_OFFLINE]: (data: UserOfflinePayload) => void;
-  [ServerEvents.USER_TYPING]: (data: UserTypingPayload) => void;
-
-  // Voice Channels
-  [ServerEvents.VOICE_CHANNEL_USER_JOINED]: (data: VoiceChannelUserJoinedPayload) => void;
-  [ServerEvents.VOICE_CHANNEL_USER_LEFT]: (data: VoiceChannelUserLeftPayload) => void;
-  [ServerEvents.VOICE_CHANNEL_USER_UPDATED]: (data: VoiceChannelUserUpdatedPayload) => void;
-
-  // DM Voice Calls
-  [ServerEvents.DM_VOICE_CALL_STARTED]: (data: DmVoiceCallStartedPayload) => void;
-  [ServerEvents.DM_VOICE_USER_JOINED]: (data: DmVoiceUserJoinedPayload) => void;
-  [ServerEvents.DM_VOICE_USER_LEFT]: (data: DmVoiceUserLeftPayload) => void;
-  [ServerEvents.DM_VOICE_USER_UPDATED]: (data: DmVoiceUserUpdatedPayload) => void;
-
-  // Replay Buffer (Screen Recording)
-  [ServerEvents.REPLAY_BUFFER_STOPPED]: (data: ReplayBufferStoppedPayload) => void;
-  [ServerEvents.REPLAY_BUFFER_FAILED]: (data: ReplayBufferFailedPayload) => void;
-
-  // Threads
-  [ServerEvents.NEW_THREAD_REPLY]: (data: NewThreadReplyPayload) => void;
-  [ServerEvents.UPDATE_THREAD_REPLY]: (data: UpdateThreadReplyPayload) => void;
-  [ServerEvents.DELETE_THREAD_REPLY]: (data: DeleteThreadReplyPayload) => void;
-  [ServerEvents.THREAD_REPLY_COUNT_UPDATED]: (data: ThreadReplyCountUpdatedPayload) => void;
-
-  // Channel Management
-  [ServerEvents.CHANNELS_REORDERED]: (data: ChannelsReorderedPayload) => void;
-
-  // Moderation Events
-  [ServerEvents.USER_BANNED]: (data: UserBannedPayload) => void;
-  [ServerEvents.USER_KICKED]: (data: UserKickedPayload) => void;
-  [ServerEvents.USER_TIMED_OUT]: (data: UserTimedOutPayload) => void;
-  [ServerEvents.TIMEOUT_REMOVED]: (data: TimeoutRemovedPayload) => void;
-  [ServerEvents.MESSAGE_PINNED]: (data: MessagePinnedPayload) => void;
-  [ServerEvents.MESSAGE_UNPINNED]: (data: MessageUnpinnedPayload) => void;
-
-  // Community Membership
-  [ServerEvents.MEMBER_ADDED_TO_COMMUNITY]: (data: MemberAddedToCommunityPayload) => void;
-
-  // Acknowledgments & Errors
-  [ServerEvents.ACK]: (data: AckPayload) => void;
-  [ServerEvents.ERROR]: (data: ErrorPayload) => void;
+  [E in keyof ServerEventPayloads]: (data: ServerEventPayloads[E]) => void;
 };
 
 /**
