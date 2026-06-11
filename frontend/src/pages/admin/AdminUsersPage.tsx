@@ -41,6 +41,7 @@ import {
   Star as OwnerIcon,
   Person as UserIcon,
   Security as RolesIcon,
+  LockReset as ResetPasswordIcon,
 } from "@mui/icons-material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -58,6 +59,7 @@ import type { AdminUserEntity as AdminUser, RoleDto as InstanceRole } from "../.
 import { invalidateInstanceRoleQueries } from "../../utils/queryInvalidation";
 import UserAvatar from "../../components/Common/UserAvatar";
 import ConfirmDialog from "../../components/Common/ConfirmDialog";
+import ResetPasswordDialog from "../../components/admin/ResetPasswordDialog";
 
 const AdminUsersPage: React.FC = () => {
   const [search, setSearch] = useState("");
@@ -71,6 +73,7 @@ const AdminUsersPage: React.FC = () => {
     user: AdminUser | null;
   }>({ open: false, action: "ban", user: null });
   const [roleDialogUser, setRoleDialogUser] = useState<AdminUser | null>(null);
+  const [passwordDialogUser, setPasswordDialogUser] = useState<AdminUser | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -377,6 +380,19 @@ const AdminUsersPage: React.FC = () => {
             <ListItemText>Manage Instance Roles</ListItemText>
           </MenuItem>
         )}
+        {selectedUser && (
+          <MenuItem
+            onClick={() => {
+              setPasswordDialogUser(selectedUser);
+              handleMenuClose();
+            }}
+          >
+            <ListItemIcon>
+              <ResetPasswordIcon fontSize="small" color="warning" />
+            </ListItemIcon>
+            <ListItemText>Reset Password</ListItemText>
+          </MenuItem>
+        )}
         {selectedUser?.role !== "OWNER" && (
           <MenuItem onClick={() => handleAction("delete")}>
             <ListItemIcon>
@@ -409,6 +425,12 @@ const AdminUsersPage: React.FC = () => {
         confirmColor={confirmDialog.action === "delete" || confirmDialog.action === "ban" ? "error" : "primary"}
         onConfirm={handleConfirmAction}
         onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+      />
+
+      {/* Admin Password Override Dialog */}
+      <ResetPasswordDialog
+        user={passwordDialogUser}
+        onClose={() => setPasswordDialogUser(null)}
       />
 
       {/* Instance Role Management Dialog */}

@@ -28,6 +28,7 @@ import { AdminUserEntity } from './dto/admin-user-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { SetUserBanStatusDto } from './dto/ban-user.dto';
+import { SetUserPasswordDto } from './dto/set-user-password.dto';
 import { AdminUserListQueryDto } from './dto/admin-user-list-query.dto';
 import { Public } from '@/auth/public.decorator';
 import { Throttle } from '@nestjs/throttler';
@@ -205,6 +206,23 @@ export class UserController {
     @Body() dto: SetUserBanStatusDto,
   ): Promise<AdminUserEntity> {
     return this.userService.setBanStatus(id, dto.banned, req.user.id);
+  }
+
+  /**
+   * Set a new password for a user (admin password override).
+   * Revokes the user's refresh tokens; access tokens stay valid until expiry.
+   */
+  @Patch('admin/:id/password')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequiredActions(RbacActions.UPDATE_USER)
+  @RbacResource({ type: RbacResourceType.INSTANCE })
+  @ApiOkResponse({ type: AdminUserEntity })
+  async setUserPassword(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetUserPasswordDto,
+  ): Promise<AdminUserEntity> {
+    return this.userService.setUserPassword(id, dto.password, req.user.id);
   }
 
   /**

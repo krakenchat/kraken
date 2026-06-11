@@ -5,9 +5,14 @@ import { DatabaseService } from '@/database/database.service';
 import { InviteService } from '@/invite/invite.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { RolesService } from '@/roles/roles.service';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InstanceRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { instanceToPlain } from 'class-transformer';
 import {
   createMockDatabase,
   UserFactory,
@@ -688,6 +693,123 @@ describe('UserService', () => {
         where: { id: user.id },
         data: { displayName: 'Trimmed' },
       });
+    });
+  });
+
+  describe('setUserPassword', () => {
+    it('should hash the new password and update the user', async () => {
+      const target = UserFactory.build({ role: InstanceRole.USER });
+      mockDatabase.user.findUnique.mockResolvedValue(target);
+      mockDatabase.user.update.mockResolvedValue({
+        ...target,
+        hashedPassword: 'hashed-password',
+      });
+      mockDatabase.refreshToken.deleteMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.setUserPassword(
+        target.id,
+        'new-password-123',
+        'acting-admin-id',
+      );
+
+      expect(bcrypt.hash).toHaveBeenCalledWith('new-password-123', 10);
+      expect(mockDatabase.user.update).toHaveBeenCalledWith({
+        where: { id: target.id },
+        data: { hashedPassword: 'hashed-password' },
+      });
+      expect(result.id).toBe(target.id);
+    });
+
+    it('should revoke all refresh tokens for the user', async () => {
+      const target = UserFactory.build({ role: InstanceRole.USER });
+      mockDatabase.user.findUnique.mockResolvedValue(target);
+      mockDatabase.user.update.mockResolvedValue(target);
+      mockDatabase.refreshToken.deleteMany.mockResolvedValue({ count: 3 });
+
+      await service.setUserPassword(target.id, 'new-password-123', 'admin-id');
+
+      expect(mockDatabase.refreshToken.deleteMany).toHaveBeenCalledWith({
+        where: { userId: target.id },
+      });
+    });
+
+    it('should throw NotFoundException when the user does not exist', async () => {
+      mockDatabase.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.setUserPassword('missing-id', 'new-password-123', 'admin-id'),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockDatabase.user.update).not.toHaveBeenCalled();
+    });
+
+    it('should forbid a non-owner from resetting an owner password', async () => {
+      const ownerTarget = UserFactory.buildOwner();
+      const actingAdmin = UserFactory.build({ role: InstanceRole.USER });
+      mockDatabase.user.findUnique
+        .mockResolvedValueOnce(ownerTarget)
+        .mockResolvedValueOnce(actingAdmin);
+
+      await expect(
+        service.setUserPassword(
+          ownerTarget.id,
+          'new-password-123',
+          actingAdmin.id,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockDatabase.user.update).not.toHaveBeenCalled();
+      expect(mockDatabase.refreshToken.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('should allow an owner to reset another owner password', async () => {
+      const ownerTarget = UserFactory.buildOwner({ id: 'owner-target' });
+      const actingOwner = UserFactory.buildOwner({ id: 'owner-acting' });
+      mockDatabase.user.findUnique
+        .mockResolvedValueOnce(ownerTarget)
+        .mockResolvedValueOnce(actingOwner);
+      mockDatabase.user.update.mockResolvedValue(ownerTarget);
+      mockDatabase.refreshToken.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.setUserPassword(
+        ownerTarget.id,
+        'new-password-123',
+        actingOwner.id,
+      );
+
+      expect(mockDatabase.user.update).toHaveBeenCalled();
+    });
+
+    it('should allow an owner to reset their own password', async () => {
+      const owner = UserFactory.buildOwner();
+      mockDatabase.user.findUnique.mockResolvedValue(owner);
+      mockDatabase.user.update.mockResolvedValue(owner);
+      mockDatabase.refreshToken.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.setUserPassword(owner.id, 'new-password-123', owner.id);
+
+      // Self-reset skips the acting-user role lookup
+      expect(mockDatabase.user.findUnique).toHaveBeenCalledTimes(1);
+      expect(mockDatabase.user.update).toHaveBeenCalled();
+    });
+
+    it('should not leak the password hash in the response', async () => {
+      const target = UserFactory.build({ role: InstanceRole.USER });
+      mockDatabase.user.findUnique.mockResolvedValue(target);
+      mockDatabase.user.update.mockResolvedValue({
+        ...target,
+        hashedPassword: 'hashed-password',
+      });
+      mockDatabase.refreshToken.deleteMany.mockResolvedValue({ count: 0 });
+
+      const result = await service.setUserPassword(
+        target.id,
+        'new-password-123',
+        'admin-id',
+      );
+
+      // hashedPassword is @Exclude()d by AdminUserEntity on serialization
+      // (AdminUserEntity intentionally exposes email to admins, so the
+      // stricter expectNoSensitiveUserFields helper doesn't apply here)
+      expect(instanceToPlain(result)).not.toHaveProperty('hashedPassword');
     });
   });
 });
