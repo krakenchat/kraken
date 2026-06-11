@@ -191,12 +191,15 @@ jobs:
         run: |
           # Full suite: push to main, schedule, manual dispatch, or PR with "e2e-full" label
           # Smoke only: PR without the label
+          # Voice specs are excluded: they need the real-LiveKit harness and run
+          # in the separate voice-e2e job (nightly/dispatch). Project selection
+          # keeps the `voice` project out; `setup` runs as a chromium dependency.
           if [ "${{ github.event_name }}" = "pull_request" ] && ! echo "${{ join(github.event.pull_request.labels.*.name, ',') }}" | grep -q "e2e-full"; then
             echo "Running smoke tests only (PR without e2e-full label)"
-            pnpm exec playwright test --grep @smoke
+            pnpm exec playwright test --project=chromium --project=auth-tests --grep @smoke
           else
             echo "Running full E2E suite (${{ github.event_name }} trigger)"
-            pnpm exec playwright test
+            pnpm exec playwright test --project=chromium --project=auth-tests
           fi
         env:
           E2E_BASE_URL: http://localhost:5174

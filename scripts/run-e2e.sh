@@ -139,7 +139,11 @@ for i in {1..60}; do
   fi
 done
 
-# Step 2: Seed the database
+# Step 2: Migrate + seed the database (volumes are fresh after `down -v`,
+# so the schema must be applied before seeding — same order as CI)
+echo -e "${BLUE}🗄️  Running database migrations...${NC}"
+docker-compose -f docker-compose.e2e.yml exec -T backend-test pnpm run prisma:migrate
+
 echo -e "${BLUE}🌱 Seeding test database...${NC}"
 docker-compose -f docker-compose.e2e.yml exec -T backend-test npx ts-node prisma/seed-e2e.ts || {
   echo -e "${YELLOW}⚠️  Seed script not found, creating test user via API...${NC}"

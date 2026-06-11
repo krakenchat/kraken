@@ -36,7 +36,10 @@ export default defineConfig({
     // Auth setup — runs once, saves storageState for reuse
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
 
-    // Main tests — use saved auth state (skip auth.spec.ts which tests auth itself)
+    // Main tests — use saved auth state (skip auth.spec.ts which tests auth
+    // itself, and voice/ which needs the real-LiveKit harness in the `voice`
+    // project — without this ignore, voice specs run here too and fail on
+    // every push because the standard e2e stack has no LiveKit server)
     {
       name: 'chromium',
       use: {
@@ -44,7 +47,7 @@ export default defineConfig({
         storageState: 'e2e/.auth/user.json',
       },
       dependencies: ['setup'],
-      testIgnore: /auth\.spec\.ts/,
+      testIgnore: [/auth\.spec\.ts/, /voice\//],
     },
 
     // Auth tests — run without saved state so they can test login/register flows
