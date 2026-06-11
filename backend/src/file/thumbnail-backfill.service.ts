@@ -55,32 +55,41 @@ export class ThumbnailBackfillService implements OnApplicationBootstrap {
     let generated = 0;
     let skipped = 0;
 
-    // Sequential on purpose: avoids spawning concurrent ffmpeg processes
+    // Sequential on purpose: avoids spawning concurrent ffmpeg processes.
+    // Best-effort per file: one failure must not abort the remaining candidates.
     for (const file of candidates) {
-      if (!(await this.storageService.fileExists(file.storagePath))) {
+      try {
+        if (!(await this.storageService.fileExists(file.storagePath))) {
+          this.logger.warn(
+            `Skipping thumbnail backfill for file ${file.id}: source ${file.storagePath} not found`,
+          );
+          skipped++;
+          continue;
+        }
+
+        // generateVideoThumbnail logs and returns null on failure
+        const thumbnailPath =
+          await this.thumbnailService.generateVideoThumbnail(
+            file.storagePath,
+            file.id,
+          );
+
+        if (!thumbnailPath) {
+          skipped++;
+          continue;
+        }
+
+        await this.databaseService.file.update({
+          where: { id: file.id },
+          data: { thumbnailPath },
+        });
+        generated++;
+      } catch (error) {
         this.logger.warn(
-          `Skipping thumbnail backfill for file ${file.id}: source ${file.storagePath} not found`,
+          `Skipping thumbnail backfill for file ${file.id}: ${error instanceof Error ? error.message : String(error)}`,
         );
         skipped++;
-        continue;
       }
-
-      // generateVideoThumbnail logs and returns null on failure
-      const thumbnailPath = await this.thumbnailService.generateVideoThumbnail(
-        file.storagePath,
-        file.id,
-      );
-
-      if (!thumbnailPath) {
-        skipped++;
-        continue;
-      }
-
-      await this.databaseService.file.update({
-        where: { id: file.id },
-        data: { thumbnailPath },
-      });
-      generated++;
     }
 
     this.logger.log(

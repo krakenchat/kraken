@@ -107,6 +107,28 @@ describe('ThumbnailBackfillService', () => {
     });
   });
 
+  it('should continue with remaining files when one file errors mid-processing', async () => {
+    databaseService.file.findMany.mockResolvedValue([
+      { id: 'file-db-err', storagePath: '/clips/a.mp4' },
+      { id: 'file-ok', storagePath: '/clips/b.mp4' },
+    ] as any);
+    storageService.fileExists.mockResolvedValue(true);
+    thumbnailService.generateVideoThumbnail
+      .mockResolvedValueOnce('uploads/thumbnails/file-db-err.jpg')
+      .mockResolvedValueOnce('uploads/thumbnails/file-ok.jpg');
+    databaseService.file.update
+      .mockRejectedValueOnce(new Error('transient db error'))
+      .mockResolvedValueOnce({} as any);
+
+    const result = await service.backfill();
+
+    expect(result).toEqual({ generated: 1, skipped: 1 });
+    expect(databaseService.file.update).toHaveBeenCalledWith({
+      where: { id: 'file-ok' },
+      data: { thumbnailPath: 'uploads/thumbnails/file-ok.jpg' },
+    });
+  });
+
   it('should not reject from onApplicationBootstrap when backfill fails', async () => {
     databaseService.file.findMany.mockRejectedValue(new Error('db down'));
 
