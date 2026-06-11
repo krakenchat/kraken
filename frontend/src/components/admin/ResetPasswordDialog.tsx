@@ -74,10 +74,17 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
     setShowPassword(true);
   };
 
+  // Mirror the backend DTO rule (8-128 chars) so the submit button state
+  // matches what the API will accept
   const tooShort = password.length > 0 && password.length < 8;
+  const tooLong = password.length > 128;
   const mismatch = confirm.length > 0 && password !== confirm;
   const canSubmit =
-    password.length >= 8 && password === confirm && !isPending && !success;
+    password.length >= 8 &&
+    !tooLong &&
+    password === confirm &&
+    !isPending &&
+    !success;
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -100,14 +107,16 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
       <DialogContent>
         {success ? (
           <Alert severity="success" sx={{ mt: 1 }}>
-            Password updated. The user has been signed out of all sessions
-            and can log in with the new password.
+            Password updated. The user can log in with the new password now;
+            existing devices are signed out as their access tokens expire
+            (up to 1 hour).
           </Alert>
         ) : (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Set a new password for this user. They will be signed out of
-              all sessions and must log in with the new password.
+              Set a new password for this user. Their sessions are revoked;
+              signed-in devices stay active for up to an hour, until their
+              current access token expires.
             </Typography>
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
@@ -122,8 +131,16 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
               fullWidth
               size="small"
               margin="dense"
-              error={tooShort}
-              helperText={tooShort ? 'Must be at least 8 characters' : ' '}
+              autoComplete="new-password"
+              error={tooShort || tooLong}
+              helperText={
+                tooShort
+                  ? 'Must be at least 8 characters'
+                  : tooLong
+                    ? 'Must be at most 128 characters'
+                    : ' '
+              }
+              inputProps={{ maxLength: 128 }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -149,8 +166,10 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
               fullWidth
               size="small"
               margin="dense"
+              autoComplete="new-password"
               error={mismatch}
               helperText={mismatch ? 'Passwords do not match' : ' '}
+              inputProps={{ maxLength: 128 }}
             />
             <Button
               startIcon={<GenerateIcon />}

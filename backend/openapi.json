@@ -637,7 +637,7 @@
             }
           }
         },
-        "summary": "Set a new password for a user (admin password override).\nRevokes all of the user's sessions.",
+        "summary": "Set a new password for a user (admin password override).\nRevokes the user's refresh tokens; access tokens stay valid until expiry.",
         "tags": [
           "User"
         ]

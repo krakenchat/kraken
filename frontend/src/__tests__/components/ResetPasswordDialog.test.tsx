@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../msw/server';
 import { renderWithProviders } from '../test-utils';
@@ -74,6 +74,23 @@ describe('ResetPasswordDialog', () => {
     await user.clear(screen.getByLabelText('Confirm password'));
     await user.type(screen.getByLabelText('Confirm password'), 'long-enough-password');
     expect(submit).toBeEnabled();
+  });
+
+  it('rejects passwords longer than the backend limit of 128 chars', () => {
+    renderWithProviders(<ResetPasswordDialog {...defaultProps} />);
+    const tooLong = 'a'.repeat(129);
+
+    // maxLength blocks typing past 128, so set the value programmatically to
+    // exercise the validation fallback
+    fireEvent.change(screen.getByLabelText('New password'), {
+      target: { value: tooLong },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm password'), {
+      target: { value: tooLong },
+    });
+
+    expect(screen.getByText('Must be at most 128 characters')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reset password/i })).toBeDisabled();
   });
 
   it('fills both fields with a generated password and reveals it', async () => {

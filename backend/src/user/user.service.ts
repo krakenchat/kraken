@@ -440,8 +440,8 @@ export class UserService {
 
   /**
    * Set a new password for a user (admin override for forgetful users).
-   * Revokes all of the user's refresh tokens so sessions established with
-   * the old password stop working immediately.
+   * Revokes all of the user's refresh tokens so sessions can no longer be
+   * renewed; outstanding access tokens stay valid until they expire (1h).
    */
   async setUserPassword(
     targetUserId: string,
@@ -481,7 +481,7 @@ export class UserService {
     });
 
     this.logger.log(
-      `Password reset for user ${targetUserId} by admin ${actingUserId}; all sessions revoked`,
+      `Password reset for user ${targetUserId} by admin ${actingUserId}; all refresh tokens revoked`,
     );
 
     return new AdminUserEntity(updatedUser);
