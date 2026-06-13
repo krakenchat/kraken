@@ -29,6 +29,7 @@ import { useNotification } from "../../contexts/NotificationContext";
 import type { VoicePresenceUserDto } from "../../api-client/types.gen";
 import { VOLUME_STORAGE_PREFIX } from "../../constants/voice";
 import { audioBoostManager, boostKey } from "../../features/voice/audioBoostManager";
+import { isBoostableAudioTrack } from "../../features/voice/isBoostableAudioTrack";
 import { logger } from "../../utils/logger";
 
 function getStoredVolume(userId: string): number | null {
@@ -112,7 +113,11 @@ const VoiceUserContextMenu: React.FC<VoiceUserContextMenuProps> = ({
       if (!participant || isLocalUser) return;
 
       participant.audioTrackPublications.forEach((pub) => {
-        if (pub.track && pub.source === Track.Source.Microphone) {
+        if (
+          pub.track &&
+          pub.source === Track.Source.Microphone &&
+          isBoostableAudioTrack(pub.track)
+        ) {
           audioBoostManager.applyVolume(pub.track, boostKey(user.id, pub.source), vol);
         }
       });

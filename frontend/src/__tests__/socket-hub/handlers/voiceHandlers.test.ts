@@ -23,7 +23,21 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeVoiceUser(overrides: Partial<VoicePresenceUserDto> = {}): VoicePresenceUserDto {
+/**
+ * The websocket presence payloads carry live media state (mute/camera/screen)
+ * on top of the REST VoicePresenceUserDto, and the handlers store them in the
+ * cache as-is — model that with an extended test type.
+ */
+type TestVoiceUser = VoicePresenceUserDto & {
+  isMuted: boolean;
+  isCameraOn: boolean;
+  isScreenSharing: boolean;
+};
+
+type TestChannelPresence = Omit<ChannelVoicePresenceResponseDto, 'users'> & { users: TestVoiceUser[] };
+type TestDmPresence = Omit<DmVoicePresenceResponseDto, 'users'> & { users: TestVoiceUser[] };
+
+function makeVoiceUser(overrides: Partial<TestVoiceUser> = {}): TestVoiceUser {
   return {
     id: 'user-1',
     username: 'alice',
@@ -33,19 +47,19 @@ function makeVoiceUser(overrides: Partial<VoicePresenceUserDto> = {}): VoicePres
     isCameraOn: false,
     isScreenSharing: false,
     ...overrides,
-  } as VoicePresenceUserDto;
+  } as TestVoiceUser;
 }
 
 function makeChannelPresence(
-  users: VoicePresenceUserDto[],
-): ChannelVoicePresenceResponseDto {
-  return { users, count: users.length } as ChannelVoicePresenceResponseDto;
+  users: TestVoiceUser[],
+): TestChannelPresence {
+  return { users, count: users.length } as TestChannelPresence;
 }
 
 function makeDmPresence(
-  users: VoicePresenceUserDto[],
-): DmVoicePresenceResponseDto {
-  return { users, count: users.length } as DmVoicePresenceResponseDto;
+  users: TestVoiceUser[],
+): TestDmPresence {
+  return { users, count: users.length } as TestDmPresence;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +82,7 @@ describe('voiceHandlers — channel', () => {
       const user = makeVoiceUser({ id: 'user-1' });
       handleVoiceUserJoined({ channelId, user } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users).toHaveLength(1);
       expect(data!.users[0].id).toBe('user-1');
       expect(data!.count).toBe(1);
@@ -81,7 +95,7 @@ describe('voiceHandlers — channel', () => {
 
       handleVoiceUserJoined({ channelId, user: existing } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users).toHaveLength(1);
       expect(data!.count).toBe(1);
     });
@@ -101,7 +115,7 @@ describe('voiceHandlers — channel', () => {
 
       handleVoiceUserJoined({ channelId, user: makeVoiceUser({ id: 'user-2', username: 'bob' }) } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users).toHaveLength(2);
       expect(data!.count).toBe(2);
     });
@@ -115,7 +129,7 @@ describe('voiceHandlers — channel', () => {
 
       handleVoiceUserLeft({ channelId, userId: 'user-1' } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users).toHaveLength(0);
       expect(data!.count).toBe(0);
     });
@@ -127,7 +141,7 @@ describe('voiceHandlers — channel', () => {
 
       handleVoiceUserLeft({ channelId, userId: 'user-999' } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users).toHaveLength(1);
       expect(data!.count).toBe(1);
     });
@@ -150,7 +164,7 @@ describe('voiceHandlers — channel', () => {
       const updatedUser = makeVoiceUser({ id: 'user-1', isMuted: true });
       handleVoiceUserUpdated({ channelId, user: updatedUser } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users[0].isMuted).toBe(true);
     });
 
@@ -162,7 +176,7 @@ describe('voiceHandlers — channel', () => {
       const unknownUser = makeVoiceUser({ id: 'user-999', isMuted: true });
       handleVoiceUserUpdated({ channelId, user: unknownUser } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users).toHaveLength(1);
       expect(data!.users[0].id).toBe('user-1');
     });
@@ -183,7 +197,7 @@ describe('voiceHandlers — channel', () => {
 
       handleVoiceUserUpdated({ channelId, user: makeVoiceUser({ id: 'user-1', isMuted: true }) } as never, queryClient);
 
-      const data = queryClient.getQueryData<ChannelVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestChannelPresence>(queryKey);
       expect(data!.users).toHaveLength(2);
       expect(data!.users[0].isMuted).toBe(true);
       expect(data!.users[1].id).toBe('user-2');
@@ -222,7 +236,7 @@ describe('voiceHandlers — DM', () => {
       const user = makeVoiceUser({ id: 'user-1' });
       handleDmVoiceUserJoined({ dmGroupId, user } as never, queryClient);
 
-      const data = queryClient.getQueryData<DmVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestDmPresence>(queryKey);
       expect(data!.users).toHaveLength(1);
       expect(data!.count).toBe(1);
     });
@@ -234,7 +248,7 @@ describe('voiceHandlers — DM', () => {
 
       handleDmVoiceUserJoined({ dmGroupId, user } as never, queryClient);
 
-      const data = queryClient.getQueryData<DmVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestDmPresence>(queryKey);
       expect(data!.users).toHaveLength(1);
     });
 
@@ -255,7 +269,7 @@ describe('voiceHandlers — DM', () => {
 
       handleDmVoiceUserLeft({ dmGroupId, userId: 'user-1' } as never, queryClient);
 
-      const data = queryClient.getQueryData<DmVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestDmPresence>(queryKey);
       expect(data!.users).toHaveLength(0);
       expect(data!.count).toBe(0);
     });
@@ -278,7 +292,7 @@ describe('voiceHandlers — DM', () => {
       const updated = makeVoiceUser({ id: 'user-1', isCameraOn: true });
       handleDmVoiceUserUpdated({ dmGroupId, user: updated } as never, queryClient);
 
-      const data = queryClient.getQueryData<DmVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestDmPresence>(queryKey);
       expect(data!.users[0].isCameraOn).toBe(true);
     });
 
@@ -288,7 +302,7 @@ describe('voiceHandlers — DM', () => {
 
       handleDmVoiceUserUpdated({ dmGroupId, user: makeVoiceUser({ id: 'ghost' }) } as never, queryClient);
 
-      const data = queryClient.getQueryData<DmVoicePresenceResponseDto>(queryKey);
+      const data = queryClient.getQueryData<TestDmPresence>(queryKey);
       expect(data!.users).toHaveLength(0);
     });
 

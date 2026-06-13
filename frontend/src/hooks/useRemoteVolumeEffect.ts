@@ -8,6 +8,7 @@ import {
 import { useRoom } from './useRoom';
 import { useVoice } from '../contexts/VoiceContext';
 import { audioBoostManager, boostKey } from '../features/voice/audioBoostManager';
+import { isBoostableAudioTrack } from '../features/voice/isBoostableAudioTrack';
 import { getStoredVolumePercent } from '../features/voice/volumeStorage';
 import { logger } from '../utils/logger';
 
@@ -50,7 +51,8 @@ export const useRemoteVolumeEffect = () => {
       // Skip when deafened — useDeafenEffect manages volume in that case
       if (isDeafenedRef.current) return;
 
-      if (!publication.track) return;
+      const { track } = publication;
+      if (!track || !isBoostableAudioTrack(track)) return;
 
       // Default to 100% so a resubscribed track also clears any stale boost
       // wiring left from its previous incarnation.
@@ -58,7 +60,7 @@ export const useRemoteVolumeEffect = () => {
         getStoredVolumePercent(participant.identity, publication.source) ?? 100;
 
       audioBoostManager.applyVolume(
-        publication.track,
+        track,
         boostKey(participant.identity, publication.source),
         volumePercent,
       );

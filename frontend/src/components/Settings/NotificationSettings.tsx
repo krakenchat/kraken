@@ -102,11 +102,13 @@ export const NotificationSettings: React.FC = () => {
       setFormValues({
         desktopEnabled: settings.desktopEnabled,
         playSound: settings.playSound,
-        soundType: settings.soundType,
+        // GET response DTO types these as plain string; the update DTO narrows
+        // to the literal unions the backend actually stores
+        soundType: settings.soundType as UpdateNotificationSettingsDto['soundType'],
         doNotDisturb: settings.doNotDisturb,
         dndStartTime: settings.dndStartTime || '22:00',
         dndEndTime: settings.dndEndTime || '08:00',
-        defaultChannelLevel: settings.defaultChannelLevel,
+        defaultChannelLevel: settings.defaultChannelLevel as UpdateNotificationSettingsDto['defaultChannelLevel'],
         dmNotifications: settings.dmNotifications,
       });
     }
@@ -285,7 +287,7 @@ export const NotificationSettings: React.FC = () => {
                     mention: Sounds.mention,
                     dm: Sounds.directMessage,
                   };
-                  playSound(soundTypeMap[formValues.soundType] || Sounds.channelMessage);
+                  playSound(soundTypeMap[formValues.soundType ?? 'default'] || Sounds.channelMessage);
                 }}
               >
                 <PlayArrowIcon />

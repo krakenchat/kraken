@@ -6,6 +6,8 @@ import {
   handleNewMessage,
   handleUpdateMessage,
   handleDeleteMessage,
+  handleMessageUnpinned,
+  handleThreadReplyCountUpdated,
   handleReadReceiptUpdated,
 } from '../../../socket-hub/handlers/messageHandlers';
 import { channelMessagesQueryKey } from '../../../utils/messageQueryKeys';
@@ -33,7 +35,7 @@ function makeMessage(overrides: Record<string, unknown> = {}) {
 
 function makeInfiniteData(messages: ReturnType<typeof makeMessage>[]): InfiniteData<PaginatedMessagesResponseDto> {
   return {
-    pages: [{ messages: messages as never[], continuationToken: null }],
+    pages: [{ messages: messages as never[], continuationToken: undefined }],
     pageParams: [undefined],
   };
 }
@@ -99,6 +101,55 @@ describe('messageHandlers', () => {
 
       const data = queryClient.getQueryData<InfiniteData<PaginatedMessagesResponseDto>>(queryKey);
       expect(data!.pages[0].messages).toHaveLength(0);
+    });
+  });
+
+  describe('handleMessageUnpinned', () => {
+    it('clears pin fields with explicit nulls (matching server DTO shape)', async () => {
+      const queryClient = new QueryClient();
+      const msg = makeMessage({
+        id: 'msg-1',
+        pinned: true,
+        pinnedBy: 'user-2',
+        pinnedAt: '2024-01-02T00:00:00Z',
+      });
+      const queryKey = channelMessagesQueryKey('ch-1');
+
+      queryClient.setQueryData(queryKey, makeInfiniteData([msg]));
+
+      await handleMessageUnpinned({ messageId: 'msg-1', channelId: 'ch-1', unpinnedBy: 'user-2' }, queryClient);
+
+      const data = queryClient.getQueryData<InfiniteData<PaginatedMessagesResponseDto>>(queryKey);
+      const updated = data!.pages[0].messages[0];
+      expect(updated.pinned).toBe(false);
+      expect(updated.pinnedBy).toBeNull();
+      expect(updated.pinnedAt).toBeNull();
+    });
+  });
+
+  describe('handleThreadReplyCountUpdated', () => {
+    it('preserves a null lastReplyAt instead of converting it to undefined', async () => {
+      const queryClient = new QueryClient();
+      const msg = makeMessage({ id: 'msg-1', replyCount: 1, lastReplyAt: '2024-01-02T00:00:00Z' });
+      const queryKey = channelMessagesQueryKey('ch-1');
+
+      queryClient.setQueryData(queryKey, makeInfiniteData([msg]));
+
+      await handleThreadReplyCountUpdated(
+        {
+          parentMessageId: 'msg-1',
+          replyCount: 0,
+          lastReplyAt: null,
+          channelId: 'ch-1',
+          directMessageGroupId: null,
+        },
+        queryClient,
+      );
+
+      const data = queryClient.getQueryData<InfiniteData<PaginatedMessagesResponseDto>>(queryKey);
+      const updated = data!.pages[0].messages[0];
+      expect(updated.replyCount).toBe(0);
+      expect(updated.lastReplyAt).toBeNull();
     });
   });
 

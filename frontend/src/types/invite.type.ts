@@ -1,21 +1,7 @@
-import { User } from './auth.type';
-
-export interface InstanceInvite {
-  id: string;
-  code: string;
-  createdById?: string;
-  createdBy?: User;
-  defaultCommunities: Array<{ id: string; inviteId: string; communityId: string }>;
-  maxUses?: number;
-  uses: number;
-  validUntil?: Date;
-  createdAt: Date;
-  usages: Array<{ id: string; inviteId: string; userId: string; usedAt: Date }>;
-  disabled: boolean;
-}
-
-export interface CreateInviteDto {
-  maxUses?: number;
-  validUntil?: Date;
-  communityIds: string[];
-}
+// The API client's generated invite DTOs are the source of truth.
+// `InstanceInvite` is kept as a legacy alias for `InviteResponseDto`.
+export type {
+  CreateInviteDto,
+  InviteResponseDto,
+  InviteResponseDto as InstanceInvite,
+} from '../api-client/types.gen';

@@ -10183,8 +10183,15 @@
       "DebugPushSubscriptionDto": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string"
+          },
           "endpoint": {
             "type": "string"
+          },
+          "userAgent": {
+            "type": "string",
+            "nullable": true
           },
           "createdAt": {
             "format": "date-time",
@@ -10192,6 +10199,7 @@
           }
         },
         "required": [
+          "id",
           "endpoint",
           "createdAt"
         ]

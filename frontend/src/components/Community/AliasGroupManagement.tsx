@@ -93,14 +93,14 @@ const AliasGroupManagement: React.FC<AliasGroupManagementProps> = ({ communityId
 
     try {
       await deleteGroup({
-        path: { communityId, groupId: groupToDelete.id },
+        path: { groupId: groupToDelete.id },
       });
       setDeleteConfirmOpen(false);
       setGroupToDelete(null);
     } catch {
       // Error handled by RTK Query
     }
-  }, [groupToDelete, deleteGroup, communityId]);
+  }, [groupToDelete, deleteGroup]);
 
   const handleCancelEdit = useCallback(() => {
     setCreatingGroup(false);

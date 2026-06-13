@@ -12,6 +12,7 @@ import {
   Typography,
   IconButton,
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   ListItemAvatar,
@@ -159,18 +160,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             <List sx={{ p: 0 }}>
               {notifications.map((notification) => (
                 <React.Fragment key={notification.id}>
-                  <ListItemButton
-                    sx={{
-                      backgroundColor: notification.read
-                        ? 'transparent'
-                        : 'action.hover',
-                      '&:hover': {
-                        backgroundColor: notification.read
-                          ? 'action.hover'
-                          : 'action.selected',
-                      },
-                    }}
-                    onClick={() => handleNotificationClick(notification)}
+                  {/* secondaryAction is a ListItem prop (not ListItemButton),
+                      so the action buttons must live on a wrapping ListItem */}
+                  <ListItem
+                    disablePadding
                     secondaryAction={
                       <Box>
                         {!notification.read && (
@@ -194,9 +187,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                       </Box>
                     }
                   >
+                  <ListItemButton
+                    sx={{
+                      backgroundColor: notification.read
+                        ? 'transparent'
+                        : 'action.hover',
+                      '&:hover': {
+                        backgroundColor: notification.read
+                          ? 'action.hover'
+                          : 'action.selected',
+                      },
+                    }}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
                     <ListItemAvatar>
                       <Avatar
-                        src={notification.author?.avatarUrl}
+                        src={notification.author?.avatarUrl ?? undefined}
                         alt={notification.author?.username}
                       />
                     </ListItemAvatar>
@@ -215,6 +221,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                       }}
                     />
                   </ListItemButton>
+                  </ListItem>
                   <Divider component="li" />
                 </React.Fragment>
               ))}

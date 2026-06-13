@@ -49,6 +49,7 @@ describe('getInstanceUrl', () => {
       id: 'server-1',
       name: 'My Server',
       url: 'https://my-semaphore-instance.com',
+      isActive: true,
     });
 
     expect(getInstanceUrl()).toBe('https://my-semaphore-instance.com');
@@ -67,6 +68,7 @@ describe('getInstanceUrl', () => {
       id: 'server-1',
       name: 'My Server',
       url: 'https://my-server.com',
+      isActive: true,
     });
 
     // Even if window.location.origin is file://, we should get the server URL

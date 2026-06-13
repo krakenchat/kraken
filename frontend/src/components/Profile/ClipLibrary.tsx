@@ -317,7 +317,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
         <Skeleton variant="text" width={200} sx={{ mb: 3 }} />
         <Grid container spacing={2}>
           {[1, 2, 3].map((i) => (
-            <Grid item xs={12} sm={6} md={4} key={i}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
               <ClipCardSkeleton />
             </Grid>
           ))}
@@ -360,7 +360,7 @@ export const ClipLibrary: React.FC<ClipLibraryProps> = ({ userId, isOwnProfile }
 
       <Grid container spacing={2}>
         {clips.map((clip) => (
-          <Grid item xs={12} sm={6} md={4} key={clip.id}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={clip.id}>
             <ClipCard
               clip={clip}
               isOwnProfile={isOwnProfile}

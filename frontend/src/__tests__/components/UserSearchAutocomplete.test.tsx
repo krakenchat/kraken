@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
 import { screen, within, waitFor } from '@testing-library/react';
 import { Chip } from '@mui/material';

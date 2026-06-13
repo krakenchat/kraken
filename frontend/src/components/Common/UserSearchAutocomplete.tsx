@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { userControllerSearchUsersOptions, userControllerGetProfileOptions } from "../../api-client/@tanstack/react-query.gen";
+import type { UserControllerSearchUsersData } from "../../api-client/types.gen";
 import { useDebounce } from "../../hooks/useDebounce";
 import UserAvatar from "./UserAvatar";
 
@@ -68,7 +69,11 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
   const debouncedQuery = useDebounce(inputValue.trim(), 300);
 
   const { data: usersData, isLoading } = useQuery({
-    ...userControllerSearchUsersOptions({ query: { q: debouncedQuery, limit: 25 } }),
+    // The generated spec marks `communityId` as required, but the backend
+    // controller treats it as an optional query param (instance-wide search).
+    ...userControllerSearchUsersOptions({
+      query: { q: debouncedQuery, limit: 25 } as UserControllerSearchUsersData['query'],
+    }),
     enabled: debouncedQuery.length >= 1,
   });
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
@@ -118,7 +123,7 @@ const UserSearchAutocomplete: React.FC<UserSearchAutocompleteProps> = ({
         }}
       />
     ),
-    renderOption: (props: React.HTMLAttributes<HTMLLIElement> & { key?: string }, user: UserOption) => {
+    renderOption: (props: React.HTMLAttributes<HTMLLIElement> & { key: React.Key }, user: UserOption) => {
       const { key: _key, ...restProps } = props;
       return (
         <Box component="li" key={user.id} {...restProps} sx={{ display: 'flex', alignItems: 'center' }}>

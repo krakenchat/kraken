@@ -44,7 +44,7 @@ import { getMessagePreview, getNotificationTypeLabel, getTimeAgo } from '../../.
 /**
  * Get icon for notification type
  */
-const getNotificationIcon = (type: NotificationType) => {
+const getNotificationIcon = (type: Notification['type']) => {
   switch (type) {
     case NotificationType.USER_MENTION:
     case NotificationType.SPECIAL_MENTION:
@@ -141,7 +141,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                 variant="body2"
                 color="text.secondary"
               >
-                {getNotificationTypeLabel(notification.type)}
+                {getNotificationTypeLabel(notification.type as NotificationType)}
               </Typography>
             </Box>
           }

@@ -4,7 +4,20 @@ import { renderWithProviders } from '../test-utils';
 import { VoiceChannelUserList } from '../../components/Voice/VoiceChannelUserList';
 import { ChannelType } from '../../types/channel.type';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
-import { EventEmitter } from 'events';
+
+/** Minimal EventEmitter — only on/off are used by the mock room */
+class EventEmitter {
+  private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  on(event: string, listener: (...args: unknown[]) => void) {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
+    this.listeners.get(event)!.add(listener);
+    return this;
+  }
+  off(event: string, listener: (...args: unknown[]) => void) {
+    this.listeners.get(event)?.delete(listener);
+    return this;
+  }
+}
 
 // Mock API client
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
@@ -188,6 +201,8 @@ const voiceChannel = {
   communityId: 'c1',
   isPrivate: false,
   createdAt: '2025-01-01T00:00:00Z',
+  position: 0,
+  slowmodeSeconds: 0,
 };
 
 describe('VoiceChannelUserList - Clickable Icons', () => {

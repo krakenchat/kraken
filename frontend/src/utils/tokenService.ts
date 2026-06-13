@@ -174,6 +174,12 @@ export async function storeElectronRefreshToken(token: string): Promise<void> {
   localStorage.setItem("refreshToken", token);
 }
 
+/** Shape of the /auth/refresh response. Web responses omit refreshToken (cookie-based). */
+interface RefreshResponseBody {
+  accessToken: string;
+  refreshToken?: string;
+}
+
 async function performRefresh(): Promise<string | null> {
   const isElectronApp = isElectron();
 
@@ -187,13 +193,13 @@ async function performRefresh(): Promise<string | null> {
       }
 
       // For Electron, send refresh token in body
-      refreshResponse = await axios.post<{
-        accessToken: string;
-        refreshToken?: string;
-      }>(getApiUrl("/auth/refresh"), { refreshToken });
+      refreshResponse = await axios.post<RefreshResponseBody>(
+        getApiUrl("/auth/refresh"),
+        { refreshToken }
+      );
     } else {
       // For web clients, use cookie-based refresh
-      refreshResponse = await axios.post<{ accessToken: string }>(
+      refreshResponse = await axios.post<RefreshResponseBody>(
         getApiUrl("/auth/refresh"),
         {},
         { withCredentials: true }

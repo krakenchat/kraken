@@ -125,11 +125,11 @@ export function useMessageActions(
     ...messagesControllerUpdateMutation(),
     onSuccess: (updatedMessage) => {
       // If we have original attachments metadata, enrich the response
-      let enrichedMessage = updatedMessage;
+      let enrichedMessage = updatedMessage as MessageType;
       if (message.attachments && Array.isArray(updatedMessage.attachments)) {
         const attachmentMap = new Map(message.attachments.map((att: FileMetadata) => [att.id, att]));
         enrichedMessage = {
-          ...updatedMessage,
+          ...(updatedMessage as MessageType),
           attachments: updatedMessage.attachments
             .map((idOrObj: string | FileMetadata) => {
               if (typeof idOrObj === 'object' && idOrObj.id) return idOrObj;
@@ -139,7 +139,7 @@ export function useMessageActions(
             .filter(Boolean) as MessageType['attachments'],
         };
       }
-      updateCache(queryClient, enrichedMessage as MessageType);
+      updateCache(queryClient, enrichedMessage);
     },
   });
 
@@ -153,14 +153,14 @@ export function useMessageActions(
   const { mutateAsync: addReactionApi } = useMutation({
     ...messagesControllerAddReactionMutation(),
     onSuccess: (updatedMessage) => {
-      updateReactionsInCache(queryClient, updatedMessage as MessageType);
+      updateReactionsInCache(queryClient, updatedMessage);
     },
   });
 
   const { mutateAsync: removeReactionApi } = useMutation({
     ...messagesControllerRemoveReactionMutation(),
     onSuccess: (updatedMessage) => {
-      updateReactionsInCache(queryClient, updatedMessage as MessageType);
+      updateReactionsInCache(queryClient, updatedMessage);
     },
   });
 
@@ -226,7 +226,16 @@ export function useMessageActions(
       await updateMessageApi({
         path: { id: message.id },
         body: {
-          spans: parsedSpans,
+          // The API DTO requires every span field to be present (null when
+          // unused); local Span uses optional fields instead.
+          spans: parsedSpans.map((span) => ({
+            type: span.type,
+            text: span.text ?? null,
+            userId: span.userId ?? null,
+            specialKind: span.specialKind ?? null,
+            communityId: span.communityId ?? null,
+            aliasId: span.aliasId ?? null,
+          })),
           attachments: editAttachments.map(att => att.id),
         },
       });
@@ -316,7 +325,7 @@ export function useMessageActions(
 
   const handlePin = useCallback(async () => {
     try {
-      await pinMessage({ path: { messageId: message.id } });
+      await pinMessage({ path: { messageId: message.id }, body: {} });
     } catch (error) {
       logger.error("Failed to pin message:", error);
     }
@@ -324,7 +333,7 @@ export function useMessageActions(
 
   const handleUnpin = useCallback(async () => {
     try {
-      await unpinMessage({ path: { messageId: message.id } });
+      await unpinMessage({ path: { messageId: message.id }, body: {} });
     } catch (error) {
       logger.error("Failed to unpin message:", error);
     }

@@ -58,7 +58,7 @@ export const MobileListItem: React.FC<MobileListItemProps> = ({
   dense = false,
 }) => {
   // Long press handling
-  const longPressTimer = React.useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLongPressing, setIsLongPressing] = React.useState(false);
 
   const handleTouchStart = () => {

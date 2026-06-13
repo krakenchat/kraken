@@ -21,6 +21,7 @@ import {
 } from "../../api-client/@tanstack/react-query.gen";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { userControllerFindAllUsersOptions } from "../../api-client/@tanstack/react-query.gen";
+import type { UserControllerFindAllUsersData } from "../../api-client/types.gen";
 import UserAvatar from "../Common/UserAvatar";
 import RoleAssignmentDialog from "./RoleAssignmentDialog";
 import ConfirmDialog from "../Common/ConfirmDialog";
@@ -51,7 +52,13 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
     data: usersData,
     isLoading: loadingUsers,
     error: usersError,
-  } = useQuery(userControllerFindAllUsersOptions({ query: { limit: usersPerPage } }));
+  } = useQuery(
+    userControllerFindAllUsersOptions({
+      // The generated spec marks `continuationToken` as required, but the backend
+      // controller treats it as an optional query param (first page when omitted).
+      query: { limit: usersPerPage } as UserControllerFindAllUsersData['query'],
+    }),
+  );
 
   const { mutateAsync: createMembership, isPending: addingMember } = useMutation({
     ...membershipControllerCreateMutation(),

@@ -89,7 +89,7 @@ const DesktopHomePage: React.FC = () => {
       const createInviteDto: CreateInviteDto = {
         communityIds: selectedCommunities,
         maxUses: 10,
-        validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
       };
 
       const newInvite = await createInvite({ body: createInviteDto });
@@ -243,7 +243,7 @@ const DesktopHomePage: React.FC = () => {
             }}
           >
             <Avatar
-              src={avatarUrl}
+              src={avatarUrl ?? undefined}
               alt={`${data.displayName}'s avatar`}
               sx={{
                 width: 80,

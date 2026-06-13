@@ -33,7 +33,7 @@ import {
 } from "../../api-client/@tanstack/react-query.gen";
 import { invalidateCommunityQueries } from "../../utils/queryInvalidation";
 
-import type { CommunityStatsDetailDto as AdminCommunity } from "../../api-client/types.gen";
+import type { CommunityStatsDto as AdminCommunity } from "../../api-client/types.gen";
 
 const AdminCommunitiesPage: React.FC = () => {
   const navigate = useNavigate();

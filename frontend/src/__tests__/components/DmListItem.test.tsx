@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders, createDmGroup, createDmGroupMember } from '../test-utils';
 import DmListItem from '../../components/DirectMessages/DmListItem';
@@ -47,10 +47,10 @@ const thirdMember = createDmGroupMember({
 });
 
 describe('DmListItem', () => {
-  let onClick: ReturnType<typeof vi.fn>;
+  let onClick: Mock<() => void>;
 
   beforeEach(() => {
-    onClick = vi.fn();
+    onClick = vi.fn<() => void>();
   });
 
   it('renders display name for 1:1 DM (other user displayName)', () => {
@@ -113,8 +113,8 @@ describe('DmListItem', () => {
       lastMessage: {
         id: 'msg-1',
         authorId: 'other-user',
-        spans: [{ type: 'PLAINTEXT', text: 'Hey there!' }],
-        sentAt: new Date(Date.now() - 5 * 60 * 1000),
+        spans: [{ type: 'PLAINTEXT', text: 'Hey there!', userId: null, specialKind: null, communityId: null, aliasId: null }],
+        sentAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
       },
     });
 

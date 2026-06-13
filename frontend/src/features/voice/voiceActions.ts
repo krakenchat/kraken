@@ -175,9 +175,7 @@ async function connectToLiveKitRoom(
   dispatch: React.Dispatch<VoiceAction>
 ): Promise<Room> {
   logger.info('[Voice] Creating new LiveKit room instance');
-  const room = new Room({
-    autoSubscribe: false,
-  });
+  const room = new Room();
 
   // Register connection state monitoring before connecting so we catch
   // any events that fire during the connection handshake.
@@ -207,6 +205,13 @@ async function connectToLiveKitRoom(
 
   try {
     logger.info('[Voice] Connecting to LiveKit server:', url);
+    // NOTE: `autoSubscribe: false` used to be passed to the Room constructor,
+    // where livekit-client silently ignores it (it's a RoomConnectOptions
+    // field, i.e. connect()'s third argument). Every session has therefore
+    // always run with auto-subscribe ON and the manual subscription layer
+    // (useTrackSubscription) never active on the wire. Deliberately keeping
+    // that behavior here — actually disabling auto-subscribe is a wire-level
+    // change that needs its own E2E-validated PR.
     await room.connect(url, token);
     logger.info('[Voice] Connected to LiveKit room, state:', room.state);
     setRoom(room);
@@ -560,9 +565,11 @@ export async function toggleCameraUnified(deps: VoiceActionDeps) {
     const videoCaptureOptions: VideoCaptureOptions | undefined = newState
       ? {
           deviceId: selectedVideoInputId ? { ideal: selectedVideoInputId } : undefined,
+          // VideoResolution takes plain numbers; livekit-client converts them
+          // to ideal constraints when building getUserMedia constraints.
           resolution: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: 1280,
+            height: 720,
           },
         }
       : undefined;

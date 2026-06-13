@@ -27,7 +27,7 @@ const DropdownPaper = styled(Paper)(({ theme }) => ({
   zIndex: 2000,
   backgroundImage: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.85)})`,
   backdropFilter: 'blur(20px)',
-  borderRadius: theme.shape.borderRadius * 3,
+  borderRadius: Number(theme.shape.borderRadius) * 3,
   border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
   boxShadow: `
     0 8px 32px ${alpha(theme.palette.common.black, 0.12)},

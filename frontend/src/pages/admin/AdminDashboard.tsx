@@ -82,7 +82,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
             justifyContent: "center",
           }}
         >
-          {React.cloneElement(icon as React.ReactElement, {
+          {React.cloneElement(icon as React.ReactElement<{ sx?: object }>, {
             sx: { fontSize: 28, color },
           })}
         </Box>

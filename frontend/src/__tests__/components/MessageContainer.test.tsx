@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { screen, waitFor, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import MessageContainer from '../../components/Message/MessageContainer';
@@ -9,9 +9,9 @@ type MockObserverInstance = {
   callback: IntersectionObserverCallback;
   options: IntersectionObserverInit | undefined;
   elements: Set<Element>;
-  observe: ReturnType<typeof vi.fn>;
-  unobserve: ReturnType<typeof vi.fn>;
-  disconnect: ReturnType<typeof vi.fn>;
+  observe: Mock<(el: Element) => void>;
+  unobserve: Mock<(el: Element) => void>;
+  disconnect: Mock<() => void>;
   trigger: (entries: Partial<IntersectionObserverEntry>[]) => void;
 };
 
@@ -24,9 +24,9 @@ class MockIntersectionObserver {
       callback,
       options,
       elements: new Set(),
-      observe: vi.fn((el: Element) => instance.elements.add(el)),
-      unobserve: vi.fn((el: Element) => instance.elements.delete(el)),
-      disconnect: vi.fn(() => instance.elements.clear()),
+      observe: vi.fn((el: Element) => { instance.elements.add(el); }),
+      unobserve: vi.fn((el: Element) => { instance.elements.delete(el); }),
+      disconnect: vi.fn(() => { instance.elements.clear(); }),
       trigger: (entries: Partial<IntersectionObserverEntry>[]) => {
         callback(
           entries as IntersectionObserverEntry[],

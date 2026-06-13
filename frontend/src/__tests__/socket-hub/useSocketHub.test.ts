@@ -74,14 +74,14 @@ describe('useSocketHub', () => {
     // Verify every single ServerEvent has exactly one socket.on registration
     for (const event of allEvents) {
       const registrations = mockSocket.on.mock.calls.filter(
-        ([e]: [string]) => e === event,
+        ([e]) => e === event,
       );
       expect(registrations).toHaveLength(1);
     }
 
     // Verify we didn't register any extra events beyond ServerEvents + 'connect'
     const registeredEvents = new Set(
-      mockSocket.on.mock.calls.map(([e]: [string]) => e),
+      mockSocket.on.mock.calls.map(([e]) => e),
     );
     const expectedEvents = new Set([...allEvents, 'connect']);
     expect(registeredEvents).toEqual(expectedEvents);

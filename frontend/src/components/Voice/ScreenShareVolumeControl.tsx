@@ -8,6 +8,7 @@ import { Track, type RemoteParticipant } from 'livekit-client';
 import { SCREENSHARE_VOLUME_STORAGE_PREFIX } from '../../constants/voice';
 import { useVoice } from '../../contexts/VoiceContext';
 import { audioBoostManager, boostKey } from '../../features/voice/audioBoostManager';
+import { isBoostableAudioTrack } from '../../features/voice/isBoostableAudioTrack';
 
 function getStoredScreenShareVolume(userId: string): number | null {
   try {
@@ -55,7 +56,11 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
   const applyVolumeToTracks = useCallback(
     (vol: number) => {
       participant.audioTrackPublications.forEach((pub) => {
-        if (pub.track && pub.source === Track.Source.ScreenShareAudio) {
+        if (
+          pub.track &&
+          pub.source === Track.Source.ScreenShareAudio &&
+          isBoostableAudioTrack(pub.track)
+        ) {
           audioBoostManager.applyVolume(
             pub.track,
             boostKey(participant.identity, pub.source),
@@ -111,7 +116,7 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
       <Popover
         open={open}
         anchorEl={anchorEl}
-        onClose={handleClose}
+        onClose={(e) => handleClose(e as React.SyntheticEvent)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         transformOrigin={{ vertical: 'top', horizontal: 'center' }}
         onClick={(e) => e.stopPropagation()}

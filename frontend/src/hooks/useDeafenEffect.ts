@@ -4,6 +4,7 @@ import { useVoice } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { Track } from 'livekit-client';
 import { audioBoostManager, boostKey } from '../features/voice/audioBoostManager';
+import { isBoostableAudioTrack } from '../features/voice/isBoostableAudioTrack';
 import { getStoredVolumePercent } from '../features/voice/volumeStorage';
 
 function isBoostableAudioSource(source: Track.Source | string): boolean {
@@ -41,8 +42,9 @@ export const useDeafenEffect = () => {
     const muteAllRemoteAudio = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
-          if (publication.track && isBoostableAudioSource(publication.source)) {
-            publication.track.setVolume(0);
+          const { track } = publication;
+          if (track && isBoostableAudioTrack(track) && isBoostableAudioSource(publication.source)) {
+            track.setVolume(0);
           }
         });
       });
@@ -52,11 +54,12 @@ export const useDeafenEffect = () => {
     const restoreRemoteAudioVolumes = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
-          if (publication.track && isBoostableAudioSource(publication.source)) {
+          const { track } = publication;
+          if (track && isBoostableAudioTrack(track) && isBoostableAudioSource(publication.source)) {
             const volumePercent =
               getStoredVolumePercent(participant.identity, publication.source) ?? 100;
             audioBoostManager.applyVolume(
-              publication.track,
+              track,
               boostKey(participant.identity, publication.source),
               volumePercent,
             );

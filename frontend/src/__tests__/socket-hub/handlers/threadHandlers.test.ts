@@ -26,7 +26,7 @@ describe('threadHandlers', () => {
       const key = getRepliesKey('parent-1');
       const existing: ThreadRepliesResponseDto = {
         replies: [makeReply('r1') as never],
-        continuationToken: null,
+        continuationToken: undefined,
       };
       queryClient.setQueryData(key, existing);
 

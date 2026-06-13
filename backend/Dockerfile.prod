@@ -57,8 +57,10 @@ FROM node:24-alpine AS production
 ARG GITHUB_REPOSITORY=user/semaphore-chat
 ARG BUILD_DATE
 
-# Install OpenSSL for Prisma and FFmpeg for video processing (replay clips)
-RUN apk add --no-cache openssl ffmpeg
+# Pull in Alpine security patches (base image can lag fixed packages, which
+# fails the Trivy gate in CI), then install OpenSSL for Prisma and FFmpeg for
+# video processing (replay clips)
+RUN apk upgrade --no-cache && apk add --no-cache openssl ffmpeg
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

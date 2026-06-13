@@ -5,13 +5,16 @@
  */
 
 import { NotificationType } from '@semaphore-chat/shared';
+import type { NotificationDto } from '../api-client/types.gen';
 
 export { NotificationType, type NewNotificationPayload, type NotificationReadPayload } from '@semaphore-chat/shared';
 
 export interface Notification {
   id: string;
   userId: string;
-  type: NotificationType;
+  // Accepts both the shared enum and the generated API client's literal union
+  // so NotificationDto values are assignable to Notification.
+  type: NotificationType | NotificationDto['type'];
   messageId: string | null;
   channelId: string | null;
   directMessageGroupId: string | null;
@@ -25,17 +28,18 @@ export interface Notification {
   author?: {
     id: string;
     username: string;
-    avatarUrl?: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
   };
   message?: {
     id: string;
     spans: Array<{
       type: string;
-      text?: string;
-      userId?: string;
-      specialKind?: string;
+      text?: string | null;
+      userId?: string | null;
+      specialKind?: string | null;
     }>;
-  };
+  } | null;
 }
 
 export interface UserNotificationSettings {

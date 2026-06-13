@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ScreenShareVolumeControl from '../../components/Voice/ScreenShareVolumeControl';
@@ -69,8 +69,8 @@ vi.mock('@mui/material/styles', async (importOriginal) => {
 });
 
 describe('ScreenShareVolumeControl', () => {
-  let localStorageGetSpy: ReturnType<typeof vi.spyOn>;
-  let localStorageSetSpy: ReturnType<typeof vi.spyOn>;
+  let localStorageGetSpy: MockInstance<Storage['getItem']>;
+  let localStorageSetSpy: MockInstance<Storage['setItem']>;
 
   beforeEach(() => {
     vi.clearAllMocks();

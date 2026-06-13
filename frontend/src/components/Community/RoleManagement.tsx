@@ -43,7 +43,7 @@ import {
   rolesControllerResetDefaultCommunityRolesMutation,
   rolesControllerReorderRolesMutation,
 } from "../../api-client/@tanstack/react-query.gen";
-import type { RoleDto } from "../../api-client/types.gen";
+import type { CreateRoleDto, RoleDto, UpdateRoleDto } from "../../api-client/types.gen";
 import { invalidateRoleQueries, invalidateAllRoleQueries } from "../../utils/queryInvalidation";
 import ConfirmDialog from "../Common/ConfirmDialog";
 import RoleEditor from "./RoleEditor";
@@ -135,7 +135,9 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
         path: { communityId },
         body: {
           name: data.name!, // name is required for creating new roles
-          actions: data.actions,
+          // RoleEditor tracks actions as plain strings; the backend validates
+          // them against its RbacActions enum.
+          actions: data.actions as CreateRoleDto["actions"],
         },
       });
       setCreatingRole(false);
@@ -150,7 +152,12 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
     try {
       await updateRole({
         path: { communityId, roleId: editingRole.id },
-        body: data,
+        body: {
+          name: data.name,
+          // RoleEditor tracks actions as plain strings; the backend validates
+          // them against its RbacActions enum.
+          actions: data.actions as UpdateRoleDto["actions"],
+        },
       });
       setEditingRole(null);
     } catch {

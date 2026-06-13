@@ -10,6 +10,7 @@ import type {
   UnreadCountResponseDto,
   UnreadCountDto,
   NotificationDto,
+  SpanDto,
 } from '../../api-client';
 import { NotificationType } from '../../types/notification.type';
 import type { SocketEventHandler } from './types';
@@ -36,16 +37,24 @@ export const handleNewNotification: SocketEventHandler<typeof ServerEvents.NEW_N
       ? {
           id: payload.author.id || '',
           username: payload.author.username,
+          displayName: null,
           avatarUrl: payload.author.avatarUrl ?? null,
         }
       : undefined,
     message: payload.message
       ? {
           id: payload.message.id || '',
+          channelId: payload.channelId ?? null,
+          directMessageGroupId: payload.directMessageGroupId ?? null,
           spans: payload.message.spans.map((s) => ({
-            type: s.type,
-            text: s.text,
-            userId: s.userId,
+            // The WS payload types span.type as a plain string; the values come
+            // from the same backend enum the SpanDto union is generated from.
+            type: s.type as SpanDto['type'],
+            text: s.text ?? null,
+            userId: s.userId ?? null,
+            specialKind: s.specialKind ?? null,
+            communityId: null,
+            aliasId: null,
           })),
         }
       : undefined,

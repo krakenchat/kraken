@@ -20,7 +20,7 @@ export interface UseMentionHandlingReturn {
   cursorPosition: number;
   updateCursorPosition: () => void;
   handleInsertMention: (mention: MentionSuggestion, text: string, setText: (text: string) => void, closeMentions: () => void) => void;
-  setupCursorTracking: (inputRef: React.RefObject<HTMLInputElement>) => void;
+  setupCursorTracking: (inputRef: React.RefObject<HTMLInputElement | null>) => void;
 }
 
 /**
@@ -36,7 +36,7 @@ export function useMentionHandling(): UseMentionHandlingReturn {
     }
   }, []);
 
-  const setupCursorTracking = useCallback((inputRef: React.RefObject<HTMLInputElement>) => {
+  const setupCursorTracking = useCallback((inputRef: React.RefObject<HTMLInputElement | null>) => {
     inputRefForTracking.current = inputRef.current;
   }, []);
 

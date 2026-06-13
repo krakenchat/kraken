@@ -1,12 +1,12 @@
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 type Handler = (...args: unknown[]) => void;
 
 export interface MockSocket {
-  on: ReturnType<typeof vi.fn>;
-  off: ReturnType<typeof vi.fn>;
-  once: ReturnType<typeof vi.fn>;
-  emit: ReturnType<typeof vi.fn>;
+  on: Mock<(event: string, handler: Handler) => void>;
+  off: Mock<(event: string, handler: Handler) => void>;
+  once: Mock<(event: string, handler: Handler) => void>;
+  emit: Mock<(event: string, ...args: unknown[]) => void>;
   connected: boolean;
   /** Invoke all registered handlers for a given event name */
   simulateEvent: (event: string, ...args: unknown[]) => Promise<void>;
@@ -45,7 +45,7 @@ export function createMockSocket(): MockSocket {
     handlers.get(event)!.add(wrappedHandler);
   });
 
-  const emit = vi.fn();
+  const emit = vi.fn<(event: string, ...args: unknown[]) => void>();
 
   const simulateEvent = async (event: string, ...args: unknown[]) => {
     const eventHandlers = handlers.get(event);

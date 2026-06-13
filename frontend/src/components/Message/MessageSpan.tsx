@@ -49,7 +49,7 @@ export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index }) => {
     default: {
       // Split text into segments: plain text and URLs
       const urlPattern = /(https?:\/\/[^\s<>)"']*[^\s<>)"'.,!?;:])/g;
-      const parts = span.text.split(urlPattern);
+      const parts = (span.text ?? "").split(urlPattern);
 
       return (
         <span key={index}>

@@ -16,7 +16,7 @@
  * downstream WebRTC behaviour depends on.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, act } from '@testing-library/react';
 import React, { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -130,7 +130,12 @@ function createFakeAudioTrack(): FakeAudioTrack {
 
 // Use a class so `instanceof RemoteTrackPublication` from the mock passes for
 // objects created via Object.create(prototype) when we extend it.
-import { RemoteTrackPublication as MockRTP } from 'livekit-client';
+import { RemoteTrackPublication } from 'livekit-client';
+
+// At runtime this is the bare mock class above (no ctor args, no accessors),
+// but TS sees the real livekit-client type — cast to a loose base so our fake
+// fields don't clash with the real class's accessors and constructor.
+const MockRTP = RemoteTrackPublication as unknown as new () => object;
 
 class FakeRemoteTrackPublication extends MockRTP {
   source: string;
@@ -140,7 +145,7 @@ class FakeRemoteTrackPublication extends MockRTP {
   subscriptionStatus: string;
   isMuted: boolean;
   track?: FakeAudioTrack;
-  setSubscribedSpy: ReturnType<typeof vi.fn>;
+  setSubscribedSpy: Mock<(subscribed: boolean) => void>;
 
   constructor(source: string, opts: { withTrack?: boolean; isMuted?: boolean } = {}) {
     super();

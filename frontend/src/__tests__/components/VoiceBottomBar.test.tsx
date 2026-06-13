@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { VoiceBottomBar } from '../../components/Voice/VoiceBottomBar';
-import { VoiceSessionType } from '../../contexts/VoiceContext';
+import { VoiceSessionType, type VoiceState } from '../../contexts/VoiceContext';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
   const { createClient, createConfig } = await import('../../api-client/client');
@@ -29,7 +29,7 @@ const mockActions = {
   switchAudioOutputDevice: vi.fn(),
 };
 
-const defaultVoiceState = {
+const defaultVoiceState: VoiceState & { room: null } = {
   isConnected: true,
   isConnecting: false,
   connectionError: null,
@@ -49,6 +49,10 @@ const defaultVoiceState = {
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
   selectedVideoInputId: null,
+  wasMutedBeforeDeafen: false,
+  watchingCameras: new Set<string>(),
+  watchingScreenShares: new Set<string>(),
+  hiddenLocalTiles: new Set<string>(),
   room: null,
 };
 
@@ -485,7 +489,7 @@ describe('VoiceBottomBar', () => {
       if (savedSetSinkId) {
         Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', savedSetSinkId);
       } else {
-        delete (HTMLMediaElement.prototype as Record<string, unknown>).setSinkId;
+        delete (HTMLMediaElement.prototype as unknown as Record<string, unknown>).setSinkId;
       }
     });
 
@@ -499,7 +503,7 @@ describe('VoiceBottomBar', () => {
 
     function disableSetSinkId() {
       if ('setSinkId' in HTMLMediaElement.prototype) {
-        delete (HTMLMediaElement.prototype as Record<string, unknown>).setSinkId;
+        delete (HTMLMediaElement.prototype as unknown as Record<string, unknown>).setSinkId;
       }
     }
 

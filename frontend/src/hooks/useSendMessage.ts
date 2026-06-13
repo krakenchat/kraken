@@ -72,12 +72,6 @@ export function useSendMessage(
         }
 
         const doSend = () => {
-          // Determine which event to emit based on context
-          const event =
-            contextType === VoiceSessionType.Channel
-              ? ClientEvents.SEND_MESSAGE
-              : ClientEvents.SEND_DM;
-
           let settled = false;
 
           // Add a timeout in case server doesn't respond
@@ -90,8 +84,7 @@ export function useSendMessage(
             });
           }, 10000); // 10 second timeout
 
-          // Emit with acknowledgment callback
-          socket.emit(event, payload, (messageId: string) => {
+          const ack = (messageId: string) => {
             if (settled) return;
             settled = true;
             clearTimeout(timeoutId);
@@ -99,7 +92,25 @@ export function useSendMessage(
               callback(messageId);
             }
             resolve({ success: true, messageId });
-          });
+          };
+
+          // Emit with acknowledgment callback. The context type determines the
+          // event and implies which context id the payload carries (callers
+          // build the payload for the same context they pass as contextType),
+          // hence the narrowing assertions.
+          if (contextType === VoiceSessionType.Channel) {
+            socket.emit(
+              ClientEvents.SEND_MESSAGE,
+              payload as NewMessagePayload & { channelId: string },
+              ack,
+            );
+          } else {
+            socket.emit(
+              ClientEvents.SEND_DM,
+              payload as NewMessagePayload & { directMessageGroupId: string },
+              ack,
+            );
+          }
         };
 
         if (!socket.connected) {

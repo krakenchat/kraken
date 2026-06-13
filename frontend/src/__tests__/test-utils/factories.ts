@@ -1,7 +1,9 @@
 import type { InfiniteData } from '@tanstack/react-query';
 import type { PaginatedMessagesResponseDto, ThreadRepliesResponseDto, EnrichedThreadReplyDto, FriendshipWithUsersDto, UserEntity } from '../../api-client/types.gen';
 import type { Message, Reaction } from '../../types/message.type';
-import type { DirectMessageGroup, DirectMessageGroupMember } from '../../types/direct-message.type';
+import type { DirectMessageGroup } from '../../types/direct-message.type';
+import type { DmGroupMemberDto } from '../../api-client/types.gen';
+import { ChannelType, type Channel } from '../../types/channel.type';
 
 let counter = 0;
 
@@ -125,46 +127,47 @@ export function createChannel(overrides: Partial<{
   id: string;
   name: string;
   communityId: string;
-  type: 'TEXT' | 'VOICE';
+  type: ChannelType | 'TEXT' | 'VOICE';
   isPrivate: boolean;
   createdAt: string;
   position: number;
-}> = {}) {
+  slowmodeSeconds: number;
+}> = {}): Channel {
   return {
     id: overrides.id ?? `channel-${++counter}`,
     name: overrides.name ?? 'general',
     communityId: overrides.communityId ?? 'community-1',
-    type: overrides.type ?? 'TEXT',
+    type: overrides.type === 'VOICE' ? 'VOICE' : 'TEXT',
     isPrivate: overrides.isPrivate ?? false,
     createdAt: overrides.createdAt ?? new Date().toISOString(),
     position: overrides.position ?? 0,
+    slowmodeSeconds: overrides.slowmodeSeconds ?? 0,
   };
 }
 
-export function createUser(overrides: Partial<{
-  id: string;
-  username: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-  email: string;
-}> = {}) {
+export function createUser(overrides: Partial<UserEntity & { email: string }> = {}): UserEntity & { email: string } {
   const id = overrides.id ?? `user-${++counter}`;
   return {
     id,
     username: overrides.username ?? `user_${id}`,
     displayName: overrides.displayName ?? null,
     avatarUrl: overrides.avatarUrl ?? null,
+    bannerUrl: overrides.bannerUrl ?? null,
+    lastSeen: overrides.lastSeen ?? null,
+    bio: overrides.bio ?? null,
+    status: overrides.status ?? null,
+    role: overrides.role ?? 'USER',
     email: overrides.email ?? `${id}@test.com`,
   };
 }
 
-export function createDmGroupMember(overrides: Partial<DirectMessageGroupMember> = {}): DirectMessageGroupMember {
+export function createDmGroupMember(overrides: Partial<DmGroupMemberDto> = {}): DmGroupMemberDto {
   const memberId = overrides.id ?? `member-${++counter}`;
   const userId = overrides.userId ?? `user-${++counter}`;
   return {
     id: memberId,
     userId,
-    joinedAt: overrides.joinedAt ?? new Date(),
+    joinedAt: overrides.joinedAt ?? new Date().toISOString(),
     user: overrides.user ?? {
       id: userId,
       username: `user_${userId}`,
@@ -179,7 +182,7 @@ export function createDmGroup(overrides: Partial<DirectMessageGroup> = {}): Dire
     id: overrides.id ?? `dm-${++counter}`,
     name: overrides.name ?? null,
     isGroup: overrides.isGroup ?? false,
-    createdAt: overrides.createdAt ?? new Date(),
+    createdAt: overrides.createdAt ?? new Date().toISOString(),
     members: overrides.members ?? [],
     lastMessage: overrides.lastMessage ?? null,
   };

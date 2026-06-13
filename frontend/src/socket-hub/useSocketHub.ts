@@ -72,7 +72,7 @@ export function useSocketHub(eventBus: EventBus) {
   useEffect(() => {
     if (!socket) return;
 
-    const listeners: Array<[string, (...args: unknown[]) => void]> = [];
+    const unsubscribers: Array<() => void> = [];
 
     for (const event of ALL_SERVER_EVENTS) {
       const listener = async (payload: ServerEventPayloads[typeof event]) => {
@@ -95,13 +95,13 @@ export function useSocketHub(eventBus: EventBus) {
         eventBus.emit(event, payload);
       };
 
-      socket.on(event as string, listener as never);
-      listeners.push([event as string, listener as never]);
+      socket.on(event, listener);
+      unsubscribers.push(() => socket.off(event, listener));
     }
 
     return () => {
-      for (const [event, listener] of listeners) {
-        socket.off(event as string, listener as never);
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe();
       }
     };
   }, [socket, queryClient, eventBus]);

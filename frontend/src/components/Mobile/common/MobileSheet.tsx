@@ -26,8 +26,6 @@ interface MobileSheetProps {
   maxHeight?: string | number;
   // Show close button in header
   showCloseButton?: boolean;
-  // Disable backdrop click to close
-  disableBackdropClick?: boolean;
 }
 
 /**
@@ -41,16 +39,9 @@ export const MobileSheet: React.FC<MobileSheetProps> = ({
   children,
   maxHeight = '85vh',
   showCloseButton = true,
-  disableBackdropClick = false,
 }) => {
   // iOS detection for swipe hints
   const iOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-  const handleBackdropClick = () => {
-    if (!disableBackdropClick) {
-      onClose();
-    }
-  };
 
   return (
     <SwipeableDrawer
@@ -63,7 +54,6 @@ export const MobileSheet: React.FC<MobileSheetProps> = ({
       swipeAreaWidth={0} // Disable edge swipe to open (we control opening)
       ModalProps={{
         keepMounted: false,
-        onBackdropClick: handleBackdropClick,
       }}
       PaperProps={{
         sx: {

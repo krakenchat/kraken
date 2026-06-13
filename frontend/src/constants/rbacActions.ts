@@ -81,6 +81,15 @@ export const RBAC_ACTIONS = {
   VIEW_BAN_LIST: 'VIEW_BAN_LIST',
   VIEW_MODERATION_LOGS: 'VIEW_MODERATION_LOGS',
   MUTE_PARTICIPANT: 'MUTE_PARTICIPANT',
+
+  // Voice / Replay
+  CAPTURE_REPLAY: 'CAPTURE_REPLAY',
+
+  // Instance Administration
+  READ_INSTANCE_SETTINGS: 'READ_INSTANCE_SETTINGS',
+  UPDATE_INSTANCE_SETTINGS: 'UPDATE_INSTANCE_SETTINGS',
+  READ_INSTANCE_STATS: 'READ_INSTANCE_STATS',
+  MANAGE_USER_STORAGE: 'MANAGE_USER_STORAGE',
 } as const;
 
 export type RbacAction = typeof RBAC_ACTIONS[keyof typeof RBAC_ACTIONS];
@@ -175,6 +184,7 @@ export const ACTION_LABELS: Record<RbacAction, string> = {
   [RBAC_ACTIONS.JOIN_CHANNEL]: 'Join channels',
 
   // Community
+  [RBAC_ACTIONS.CREATE_COMMUNITY]: 'Create communities',
   [RBAC_ACTIONS.UPDATE_COMMUNITY]: 'Edit community',
   [RBAC_ACTIONS.DELETE_COMMUNITY]: 'Delete community',
   [RBAC_ACTIONS.READ_COMMUNITY]: 'View community',
@@ -232,4 +242,13 @@ export const ACTION_LABELS: Record<RbacAction, string> = {
   [RBAC_ACTIONS.VIEW_BAN_LIST]: 'View ban list',
   [RBAC_ACTIONS.VIEW_MODERATION_LOGS]: 'View moderation logs',
   [RBAC_ACTIONS.MUTE_PARTICIPANT]: 'Mute voice participants',
+
+  // Voice / Replay
+  [RBAC_ACTIONS.CAPTURE_REPLAY]: 'Capture voice replays',
+
+  // Instance Administration
+  [RBAC_ACTIONS.READ_INSTANCE_SETTINGS]: 'View instance settings',
+  [RBAC_ACTIONS.UPDATE_INSTANCE_SETTINGS]: 'Edit instance settings',
+  [RBAC_ACTIONS.READ_INSTANCE_STATS]: 'View instance stats',
+  [RBAC_ACTIONS.MANAGE_USER_STORAGE]: 'Manage user storage',
 };

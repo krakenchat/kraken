@@ -256,7 +256,7 @@ export const VoiceBottomBar: React.FC = () => {
                       ? "warning.main"
                       : (!isMicrophoneEnabled ? "error.main" : "transparent"),
                   color: isPTTKeyHeld
-                    ? theme.palette.semantic.status.positiveText
+                    ? theme.palette.getContrastText(theme.palette.semantic.status.positive)
                     : state.isServerMuted
                       ? "warning.contrastText"
                       : (!isMicrophoneEnabled ? "error.contrastText" : "text.primary"),
