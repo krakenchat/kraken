@@ -52,8 +52,10 @@ FROM nginx:1.29-alpine AS production
 ARG GITHUB_REPOSITORY=user/semaphore-chat
 ARG BUILD_DATE
 
-# Install gettext for envsubst (environment variable substitution)
-RUN apk add --no-cache gettext
+# Pull in Alpine security patches first — the nginx base image can lag fixed
+# packages (e.g. openssl CVEs in libcrypto3/libssl3), which fails the Trivy
+# gate in CI. Then install gettext for envsubst (env variable substitution).
+RUN apk upgrade --no-cache && apk add --no-cache gettext
 
 # Remove default nginx config
 RUN rm /etc/nginx/nginx.conf
