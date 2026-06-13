@@ -244,8 +244,8 @@ export const handleMessageUnpinned: SocketEventHandler<typeof ServerEvents.MESSA
     return updateMessageInInfinite(old as never, {
       ...msg,
       pinned: false,
-      pinnedBy: undefined,
-      pinnedAt: undefined,
+      pinnedBy: null,
+      pinnedAt: null,
     });
   });
   queryClient.invalidateQueries({
@@ -267,7 +267,7 @@ export const handleThreadReplyCountUpdated: SocketEventHandler<typeof ServerEven
     return updateMessageInInfinite(old as never, {
       ...msg,
       replyCount,
-      lastReplyAt: lastReplyAt ?? undefined,
+      lastReplyAt,
     });
   });
 };

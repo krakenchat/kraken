@@ -13,7 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 
 interface ThreadReplyBadgeProps {
   replyCount: number;
-  lastReplyAt?: string;
+  lastReplyAt?: string | null;
   onClick: () => void;
 }
 

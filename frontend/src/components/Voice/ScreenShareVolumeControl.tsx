@@ -116,7 +116,7 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
       <Popover
         open={open}
         anchorEl={anchorEl}
-        onClose={() => handleClose()}
+        onClose={(e) => handleClose(e as React.SyntheticEvent)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         transformOrigin={{ vertical: 'top', horizontal: 'center' }}
         onClick={(e) => e.stopPropagation()}

@@ -52,14 +52,14 @@ export interface Message {
   sentAt: string;
   editedAt?: string;
   deletedAt?: string;
-  // Pinning fields
+  // Pinning fields (server DTOs send explicit null when unset)
   pinned?: boolean;
-  pinnedAt?: string;
-  pinnedBy?: string;
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
   // Threading fields
   parentMessageId?: string;
   replyCount?: number;
-  lastReplyAt?: string;
+  lastReplyAt?: string | null;
   // Inline reply (quote) fields
   replyToId?: string | null;
   replyTo?: {
