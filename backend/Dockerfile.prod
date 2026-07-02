@@ -93,6 +93,13 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
     npx @mapbox/node-pre-gyp install --build-from-source && \
     apk del .build-deps
 
+# Remove the base image's bundled npm CLI. The runtime uses `node` directly
+# (see CMD) and pnpm/corepack for tooling — npm is never invoked at runtime, but
+# its bundled deps (e.g. undici) drag HIGH CVEs into the Trivy gate. Dropping it
+# clears those and shrinks the runtime attack surface. Done after the bcrypt
+# rebuild above, which is the only step in this stage that needs npx.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 # Add OCI labels for GHCR integration (including creation timestamp)
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
 LABEL org.opencontainers.image.description="Semaphore Chat Backend - Self-hosted voice and text chat"
