@@ -199,7 +199,12 @@ describe('voiceActions', () => {
         body: { roomId: 'ch-1', identity: 'user-1', name: 'Test User' },
         throwOnError: true,
       });
-      expect(mockRoomInstance.connect).toHaveBeenCalledWith('ws://localhost:7880', 'mock-token');
+      // autoSubscribe: false must be passed to connect() (RoomConnectOptions),
+      // NOT the Room constructor — passing it to the constructor was a silent
+      // no-op for the product's entire life (#365).
+      expect(mockRoomInstance.connect).toHaveBeenCalledWith('ws://localhost:7880', 'mock-token', {
+        autoSubscribe: false,
+      });
     });
 
     it('calls voicePresenceControllerJoinPresence', async () => {
