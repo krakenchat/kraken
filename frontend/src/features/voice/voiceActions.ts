@@ -205,14 +205,14 @@ async function connectToLiveKitRoom(
 
   try {
     logger.info('[Voice] Connecting to LiveKit server:', url);
-    // NOTE: `autoSubscribe: false` used to be passed to the Room constructor,
-    // where livekit-client silently ignores it (it's a RoomConnectOptions
-    // field, i.e. connect()'s third argument). Every session has therefore
-    // always run with auto-subscribe ON and the manual subscription layer
-    // (useTrackSubscription) never active on the wire. Deliberately keeping
-    // that behavior here — actually disabling auto-subscribe is a wire-level
-    // change that needs its own E2E-validated PR.
-    await room.connect(url, token);
+    // autoSubscribe belongs in RoomConnectOptions (connect()'s third arg), NOT
+    // the Room constructor — livekit-client silently ignores unknown constructor
+    // options, which is why this was a no-op for the product's entire life until
+    // #365. With auto-subscribe OFF, the SFU sends nothing until we ask: the
+    // manual subscription layer (useTrackSubscription) owns every subscription
+    // decision — mic subscribed immediately, camera/screen-share opt-in per the
+    // watch/placeholder UX.
+    await room.connect(url, token, { autoSubscribe: false });
     logger.info('[Voice] Connected to LiveKit room, state:', room.state);
     setRoom(room);
 
