@@ -5,7 +5,9 @@ import VideoTile from '../../components/Voice/VideoTile';
 import type { VideoTileProps } from '../../components/Voice/VideoTile';
 
 vi.mock('../../components/Common/UserAvatar', () => ({
-  default: () => <div data-testid="avatar" />,
+  default: ({ size }: { size?: string }) => (
+    <div data-testid="avatar" data-size={size} />
+  ),
 }));
 
 vi.mock('../../components/Voice/ScreenShareVolumeControl', () => ({
@@ -131,5 +133,24 @@ describe('VideoTile', () => {
     await user.click(screen.getByText('Click to watch'));
 
     expect(onWatch).toHaveBeenCalledOnce();
+  });
+
+  it('placeholder tile renders name, caption, and a fluid avatar (not fixed xlarge)', () => {
+    renderTile({
+      isPlaceholder: true,
+      placeholderType: 'camera',
+      isLocal: true,
+      onWatch: vi.fn(),
+    });
+
+    expect(screen.getByText('RemoteUser')).toBeInTheDocument();
+    expect(screen.getByText('Click to show')).toBeInTheDocument();
+    expect(screen.getByTestId('avatar')).toHaveAttribute('data-size', 'fluid');
+  });
+
+  it('no-video tile renders a fluid avatar', () => {
+    renderTile({});
+
+    expect(screen.getByTestId('avatar')).toHaveAttribute('data-size', 'fluid');
   });
 });

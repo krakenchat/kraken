@@ -140,9 +140,11 @@ const VideoTile: React.FC<VideoTileProps> = ({
             gap: 1,
           }}
         >
-          <UserAvatar userId={participant.identity} displayName={participant.name} size="xlarge" />
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="caption" sx={{ color: 'grey.300', fontWeight: 'bold' }}>
+          <Box sx={{ height: 'min(120px, 45%)', aspectRatio: '1 / 1', flexShrink: 1, minHeight: 32 }}>
+            <UserAvatar userId={participant.identity} displayName={participant.name} size="fluid" />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, maxWidth: '100%' }}>
+            <Typography variant="caption" noWrap sx={{ color: 'grey.300', fontWeight: 'bold', maxWidth: '90%' }}>
               {displayName}
             </Typography>
             {placeholderType === 'screen' ? (
@@ -210,7 +212,9 @@ const VideoTile: React.FC<VideoTileProps> = ({
             backgroundColor: 'grey.800',
           }}
         >
-          <UserAvatar userId={participant.identity} displayName={participant.name} size="xlarge" />
+          <Box sx={{ height: 'min(120px, 60%)', aspectRatio: '1 / 1', flexShrink: 1, minHeight: 32 }}>
+            <UserAvatar userId={participant.identity} displayName={participant.name} size="fluid" />
+          </Box>
         </Box>
       )}
 
