@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
-import { screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import MessageContainer from '../../components/Message/MessageContainer';
 import { createMessage, resetFactoryCounter } from '../test-utils/factories';
@@ -40,6 +40,36 @@ class MockIntersectionObserver {
   observe(el: Element) { this._instance.observe(el); }
   unobserve(el: Element) { this._instance.unobserve(el); }
   disconnect() { this._instance.disconnect(); }
+}
+
+// ── Mock ResizeObserver ────────────────────────────────────────────────
+type MockResizeInstance = {
+  callback: ResizeObserverCallback;
+  elements: Set<Element>;
+  trigger: (targets: Element[]) => void;
+};
+
+let mockResizeInstances: MockResizeInstance[] = [];
+
+class MockResizeObserver {
+  _instance: MockResizeInstance;
+  constructor(callback: ResizeObserverCallback) {
+    const instance: MockResizeInstance = {
+      callback,
+      elements: new Set(),
+      trigger: (targets: Element[]) => {
+        callback(
+          targets.map((target) => ({ target }) as ResizeObserverEntry),
+          this as unknown as ResizeObserver,
+        );
+      },
+    };
+    this._instance = instance;
+    mockResizeInstances.push(instance);
+  }
+  observe(el: Element) { this._instance.elements.add(el); }
+  unobserve(el: Element) { this._instance.elements.delete(el); }
+  disconnect() { this._instance.elements.clear(); }
 }
 
 // ── Mock child components ──────────────────────────────────────────────
@@ -86,9 +116,30 @@ const defaultProps = {
   messageInput: <div data-testid="message-input">input</div>,
 };
 
-/** Find the column-reverse scroll container */
+/** Find the message scroll container */
 function getScrollContainer() {
   return screen.getByTestId('scroll-container');
+}
+
+/**
+ * Make scroll geometry mockable on a jsdom element: writable scrollTop plus
+ * configurable scrollHeight/clientHeight.
+ */
+function mockScrollGeometry(
+  el: HTMLElement,
+  { scrollTop = 0, scrollHeight = 0, clientHeight = 0 } = {},
+) {
+  let top = scrollTop;
+  Object.defineProperty(el, 'scrollTop', {
+    configurable: true,
+    get: () => top,
+    set: (v: number) => { top = v; },
+  });
+  const setScrollHeight = (v: number) =>
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => v });
+  setScrollHeight(scrollHeight);
+  Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight });
+  return { setScrollHeight };
 }
 
 /** Get the IntersectionObserver instance that observes a given element */
@@ -96,11 +147,33 @@ function findObserverFor(testFn: (instance: MockObserverInstance) => boolean) {
   return mockObserverInstances.find(testFn);
 }
 
+/** Get the most recent ResizeObserver instance that observes a given element */
+function findResizeObserverFor(el: Element) {
+  return [...mockResizeInstances].reverse().find((inst) => inst.elements.has(el));
+}
+
+/** Build a partial DOMRect for getBoundingClientRect mocks */
+function makeRect({ top = 0, height = 0 }: { top?: number; height?: number }) {
+  return {
+    top,
+    height,
+    bottom: top + height,
+    left: 0,
+    right: 0,
+    width: 0,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
 // ── Setup / Teardown ───────────────────────────────────────────────────
 beforeEach(() => {
   resetFactoryCounter();
   mockObserverInstances = [];
+  mockResizeInstances = [];
   vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+  vi.stubGlobal('ResizeObserver', MockResizeObserver);
   mockGetLastReadMessageId.mockReturnValue(undefined);
   mockGetUnreadCount.mockReturnValue(0);
 });
@@ -170,7 +243,7 @@ describe('MessageContainer', () => {
       expect(screen.getByTestId('message-msg-c')).toBeInTheDocument();
     });
 
-    it('renders scroll container with column-reverse layout', () => {
+    it('renders scroll container as a normal column', () => {
       const messages = [createMessage({ id: 'msg-1' })];
 
       renderWithProviders(
@@ -179,6 +252,48 @@ describe('MessageContainer', () => {
 
       const container = getScrollContainer();
       expect(container).toBeInTheDocument();
+      expect(container).toHaveStyle({ flexDirection: 'column' });
+    });
+
+    it('renders messages in chronological DOM order (oldest first) given newest-first input', () => {
+      // Regression test for the cross-message text selection bug: native
+      // selection follows DOM order, so the DOM must be chronological even
+      // though the messages prop arrives newest-first.
+      const messages = [
+        createMessage({ id: 'msg-newest' }),
+        createMessage({ id: 'msg-middle' }),
+        createMessage({ id: 'msg-oldest' }),
+      ];
+
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={messages} />,
+      );
+
+      const container = getScrollContainer();
+      const rendered = Array.from(
+        container.querySelectorAll('[data-testid^="message-msg-"]'),
+      ).map((el) => el.getAttribute('data-testid'));
+
+      expect(rendered).toEqual([
+        'message-msg-oldest',
+        'message-msg-middle',
+        'message-msg-newest',
+      ]);
+    });
+
+    it('bottom-packs sparse content: first child of the scroll container has marginTop auto', () => {
+      // Replaces column-reverse's bottom packing: when messages don't fill
+      // the viewport, the auto top margin on the first child absorbs the free
+      // space so content sits at the visual bottom. (justifyContent: flex-end
+      // is NOT an acceptable substitute — it breaks scrolling in some engines.)
+      const messages = [createMessage({ id: 'msg-1' })];
+
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={messages} />,
+      );
+
+      const container = getScrollContainer();
+      expect(container.firstElementChild).toHaveStyle({ marginTop: 'auto' });
     });
 
     it('always renders message input outside the scroll container', () => {
@@ -220,7 +335,7 @@ describe('MessageContainer', () => {
       expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
-    it('calls scrollTo({ top: 0 }) when FAB is clicked', async () => {
+    it('scrolls to the container scrollHeight when FAB is clicked', async () => {
       const messages = [createMessage({ id: 'msg-1' })];
       const { user } = renderWithProviders(
         <MessageContainer {...defaultProps} messages={messages} />,
@@ -238,8 +353,10 @@ describe('MessageContainer', () => {
       });
 
       await user.click(screen.getByRole('button'));
+      // Visual bottom in a normal column is scrollTop = scrollHeight
+      // (0 in jsdom, but asserted against the element's own value).
       expect(container.scrollTo).toHaveBeenCalledWith({
-        top: 0,
+        top: container.scrollHeight,
         behavior: 'smooth',
       });
     });
@@ -359,6 +476,211 @@ describe('MessageContainer', () => {
     });
   });
 
+  // ── Scroll anchoring ───────────────────────────────────────────────
+  describe('scroll anchoring', () => {
+    it('sticks to bottom when a new message arrives while pinned', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 600,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 1000 - 600 - 400 = 0 → pinned
+      fireEvent.scroll(container);
+
+      // A new newest message arrives (prop is newest-first)
+      const m3 = createMessage({ id: 'msg-3' });
+      rerender(<MessageContainer {...defaultProps} messages={[m3, m2, m1]} />);
+
+      expect(container.scrollTop).toBe(1000);
+    });
+
+    it('does not move the viewport for a new message while reading history', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 100,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 500 → not pinned
+      fireEvent.scroll(container);
+
+      const m3 = createMessage({ id: 'msg-3' });
+      rerender(<MessageContainer {...defaultProps} messages={[m3, m2, m1]} />);
+
+      expect(container.scrollTop).toBe(100);
+    });
+
+    it('adjusts scrollTop when an older page is prepended', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
+      );
+
+      const container = getScrollContainer();
+      const { setScrollHeight } = mockScrollGeometry(container, {
+        scrollTop: 500,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 100 → not pinned (reading history)
+      fireEvent.scroll(container);
+
+      // Re-render with a fresh array identity (same content) so the
+      // stabilization effect records the 1000px baseline scrollHeight.
+      rerender(<MessageContainer {...defaultProps} messages={[m2, m1]} />);
+
+      // Older page arrives: appended to the newest-first prop, which renders
+      // as a prepend at the top of the chronological DOM.
+      setScrollHeight(1300);
+      const m0 = createMessage({ id: 'msg-0' });
+      rerender(
+        <MessageContainer {...defaultProps} messages={[m2, m1, m0]} />,
+      );
+
+      // scrollTop shifted by the 300px height delta → viewport stays put
+      expect(container.scrollTop).toBe(800);
+    });
+
+    it('does not yank to bottom when a newer page arrives while pinned in anchored mode', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      const { rerender } = renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={[m2, m1]}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 600,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 0 → pinnedToBottomRef becomes true
+      fireEvent.scroll(container);
+
+      // The bottom-pin ResizeObserver must not observe the container in
+      // anchored mode: it is recreated on message changes and its initial
+      // callbacks fire with stale pinned=true, which would teleport the user.
+      expect(
+        mockResizeInstances.some((inst) => inst.elements.has(container)),
+      ).toBe(false);
+
+      // A newer page lands: a newer newest message appends below the viewport
+      const m3 = createMessage({ id: 'msg-3' });
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={[m3, m2, m1]}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      // Viewport must stay put — NOT be forced to scrollHeight
+      expect(container.scrollTop).toBe(600);
+    });
+
+    it('compensates scrollTop when content above the viewport grows while unpinned', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 100,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 500 → not pinned (reading history)
+      fireEvent.scroll(container);
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 0, height: 400 }),
+      );
+
+      // msg-1 sits above the viewport (top edge above the container's top)
+      const el = document.querySelector('[data-message-id="msg-1"]') as HTMLElement;
+      const rectSpy = vi
+        .spyOn(el, 'getBoundingClientRect')
+        .mockReturnValue(makeRect({ top: -250, height: 200 }));
+
+      const growthObserver = findResizeObserverFor(el);
+      expect(growthObserver).toBeDefined();
+
+      // First callback only records the baseline height — no compensation
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+      expect(container.scrollTop).toBe(100);
+
+      // Media finishes loading: the element grows by 300px above the viewport
+      rectSpy.mockReturnValue(makeRect({ top: -250, height: 500 }));
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+      expect(container.scrollTop).toBe(400);
+    });
+
+    it('skips above-viewport growth compensation while pinned to the bottom', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 600,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 0 → pinned
+      fireEvent.scroll(container);
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 0, height: 400 }),
+      );
+
+      const el = document.querySelector('[data-message-id="msg-1"]') as HTMLElement;
+      const rectSpy = vi
+        .spyOn(el, 'getBoundingClientRect')
+        .mockReturnValue(makeRect({ top: -250, height: 200 }));
+
+      const growthObserver = findResizeObserverFor(el);
+      expect(growthObserver).toBeDefined();
+
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+      rectSpy.mockReturnValue(makeRect({ top: -250, height: 500 }));
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+
+      // No compensation increment — while pinned, the bottom-pin observer
+      // (a separate mechanism) owns keeping the view glued to the bottom.
+      expect(container.scrollTop).toBe(600);
+    });
+  });
+
   // ── Unread message divider ─────────────────────────────────────────
   describe('unread message divider', () => {
     it('shows divider at the correct position', () => {
@@ -384,17 +706,17 @@ describe('MessageContainer', () => {
       const divider = screen.getByTestId('unread-divider');
       expect(divider).toHaveTextContent('2 new messages');
 
-      // Verify DOM order: in column-reverse, DOM order is newest-first.
-      // The divider should appear between msg-b (unread) and msg-c (last read) in DOM,
-      // which visually places it between msg-c (above) and msg-b (below).
+      // Verify DOM order: rendering is chronological (oldest first), so the
+      // DOM is msg-c (last read), divider, msg-b, msg-a — placing the divider
+      // between the last-read message and the first unread one.
       const container = getScrollContainer();
       const children = Array.from(container.querySelectorAll('[data-testid]'));
       const testIds = children.map((el) => el.getAttribute('data-testid'));
       const dividerIdx = testIds.indexOf('unread-divider');
       const msgBIdx = testIds.indexOf('message-msg-b');
       const msgCIdx = testIds.indexOf('message-msg-c');
-      expect(dividerIdx).toBeGreaterThan(msgBIdx);
-      expect(dividerIdx).toBeLessThan(msgCIdx);
+      expect(dividerIdx).toBeGreaterThan(msgCIdx);
+      expect(dividerIdx).toBeLessThan(msgBIdx);
     });
 
     it('does not show divider when unreadCount is 0', () => {
@@ -417,7 +739,7 @@ describe('MessageContainer', () => {
       expect(screen.queryByTestId('unread-divider')).not.toBeInTheDocument();
     });
 
-    it('does not show divider when last read message is the newest (index 0)', () => {
+    it('does not show divider when last read message is the newest', () => {
       const messages = [
         createMessage({ id: 'msg-a' }),
         createMessage({ id: 'msg-b' }),
@@ -624,6 +946,38 @@ describe('MessageContainer', () => {
         bottomObserver!.trigger([{ isIntersecting: true }]);
       });
       expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('releases older pagination when anchored with no pending highlight', () => {
+      // Regression: if the around-fetch outlives the 3s highlight flash,
+      // highlightMessageId is already cleared when messages arrive. Initial
+      // positioning must still complete and release the pagination
+      // suppression — otherwise the anchored view strands with older
+      // pagination permanently dead.
+      const onLoadMore = vi.fn().mockResolvedValue(undefined);
+      const messages = [createMessage({ id: 'msg-1' })];
+
+      renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={messages}
+          mode="anchored"
+          jumpToPresent={vi.fn()}
+          continuationToken="older-token"
+          onLoadMore={onLoadMore}
+        />,
+      );
+
+      // threshold=0 observers: bottom sentinel (1st) and top sentinel (2nd)
+      const thresholdZeroObservers = mockObserverInstances.filter(
+        (inst) => inst.options?.threshold === 0,
+      );
+      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
+
+      act(() => {
+        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
+      });
+      expect(onLoadMore).toHaveBeenCalledTimes(1);
     });
 
     it('shows loading skeletons when isLoadingNewer is true', () => {

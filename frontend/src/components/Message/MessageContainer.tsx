@@ -85,6 +85,16 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 }) => {
   const { isMobile } = useResponsive();
 
+  // Context identity (channel or DM group) — used for read receipts and to
+  // reset scroll positioning when switching contexts.
+  const contextKey = channelId || directMessageGroupId;
+
+  // The messages prop arrives newest-first (useMessages contract). Render
+  // oldest-first so DOM order matches chronological order — native text
+  // selection follows DOM order, so this is what makes cross-message
+  // selection highlight correctly.
+  const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
   const {
     scrollContainerRef,
     bottomSentinelRef,
@@ -97,6 +107,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     mode,
     highlightMessageId,
     highlightSeq,
+    resetKey: contextKey,
     onLoadMore,
     isLoadingMore,
     continuationToken,
@@ -124,16 +135,16 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   });
 
   // Read receipts - determine where to show unread divider
-  const contextKey = channelId || directMessageGroupId;
   const { lastReadMessageId: getLastReadMessageId, unreadCount: getUnreadCount } = useReadReceipts();
   const lastReadMessageId = getLastReadMessageId(contextKey);
   const unreadCount = getUnreadCount(contextKey);
 
-  // Find the index of the last read message in the newest-first array
+  // Find the index of the last read message in the chronological (oldest-first)
+  // render order; the divider goes right after it, before the first unread.
   const lastReadIndex = useMemo(() => {
     if (!lastReadMessageId) return -1;
-    return messages.findIndex((msg) => msg.id === lastReadMessageId);
-  }, [messages, lastReadMessageId]);
+    return orderedMessages.findIndex((msg) => msg.id === lastReadMessageId);
+  }, [orderedMessages, lastReadMessageId]);
 
   const skeletonCount = 10;
 
@@ -222,14 +233,24 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               minHeight: 0,
               overflowY: "auto",
               display: "flex",
-              flexDirection: "column-reverse",
+              flexDirection: "column",
+              // useBidirectionalScroll is the single owner of scroll
+              // stabilization. Chrome suppresses native anchoring at
+              // scrollTop===0 — exactly when older pages load — so it can't be
+              // relied on and must not double-compensate with our manual logic.
+              overflowAnchor: "none",
             }}
           >
-            {/* Bottom sentinel: first in DOM = visual bottom in column-reverse */}
-            <Box ref={bottomSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
+            {/* Top sentinel: first in DOM = visual top. marginTop: 'auto'
+                bottom-packs sparse channels (content shorter than the
+                viewport sits at the visual bottom, like column-reverse did);
+                once content overflows, the auto margin resolves to 0.
+                Do NOT swap this for justifyContent: flex-end — that breaks
+                scrolling in some engines. */}
+            <Box ref={topSentinelRef} sx={{ height: '1px', flexShrink: 0, marginTop: 'auto' }} />
 
-            {/* Loading skeleton at visual bottom for newer messages (anchored mode) */}
-            {isLoadingNewer && (
+            {/* Loading skeleton at visual top for older messages */}
+            {isLoadingMore && (
               <Box sx={{ p: 2, textAlign: "center" }}>
                 <MessageSkeleton />
                 <MessageSkeleton />
@@ -237,16 +258,14 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               </Box>
             )}
 
-            <Box sx={{ px: 2, minHeight: 20 }} />
-
-            {/* Messages newest-first; column-reverse shows oldest at top */}
-            {messages.map((message, index) => {
+            {/* Messages oldest-first: DOM order = chronological order, so
+                native text selection across messages highlights correctly */}
+            {orderedMessages.map((message, index) => {
               const isHighlighted = highlightMessageId === message.id;
-              // Show divider before the last-read message in DOM.
-              // In column-reverse, "before in DOM" = "below visually",
-              // placing the divider between last-read (above) and first-unread (below).
+              // Show divider right after the last-read message, i.e. before
+              // the first unread message.
               const showDividerBefore =
-                unreadCount > 0 && lastReadIndex > 0 && index === lastReadIndex;
+                unreadCount > 0 && lastReadIndex !== -1 && index === lastReadIndex + 1;
 
               // Composite key: when highlighted, include highlightSeq so React remounts
               // the element and restarts the CSS flash animation on re-clicks.
@@ -281,8 +300,10 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               );
             })}
 
-            {/* Loading skeleton at DOM end = visual top */}
-            {isLoadingMore && (
+            <Box sx={{ px: 2, minHeight: 20 }} />
+
+            {/* Loading skeleton at visual bottom for newer messages (anchored mode) */}
+            {isLoadingNewer && (
               <Box sx={{ p: 2, textAlign: "center" }}>
                 <MessageSkeleton />
                 <MessageSkeleton />
@@ -290,8 +311,8 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               </Box>
             )}
 
-            {/* Top sentinel: last in DOM = visual top */}
-            <Box ref={topSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
+            {/* Bottom sentinel: last in DOM = visual bottom */}
+            <Box ref={bottomSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
           </Box>
         ) : (
           <Box

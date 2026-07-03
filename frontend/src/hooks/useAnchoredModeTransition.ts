@@ -51,11 +51,13 @@ export const useAnchoredModeTransition = ({
   }, [mode, atBottom, hasNewer, isLoadingNewer, jumpToPresent]);
 
   // Scroll to bottom when transitioning anchored → normal.
-  // Column-reverse preserves scrollTop from anchored mode; reset to 0 (visual bottom).
+  // The list renders oldest-first in a normal column, so the visual bottom is
+  // scrollTop = scrollHeight (the anchored-mode scrollTop is otherwise kept).
   const prevModeRef = useRef(mode);
   useEffect(() => {
     if (prevModeRef.current === 'anchored' && mode === 'normal') {
-      scrollContainerRef.current?.scrollTo({ top: 0 });
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight });
     }
     prevModeRef.current = mode;
   }, [mode, scrollContainerRef]);
