@@ -120,6 +120,43 @@ export function usePushToTalk() {
     };
   }, [isActive, pushToTalkKey, handleKeyDown, handleKeyUp, handleBlur, getRoom]);
 
+  // Apply the correct mic state when the input mode changes mid-call (#381).
+  //
+  // PTT -> voice activity: in PTT mode the resting state of the mic
+  // publication is always muted (keyup/blur mute it), and the mute state is
+  // one-dimensional — there is no separate "user clicked mute" flag, so a
+  // manual mute while in PTT mode is indistinguishable from the PTT-idle
+  // mute. The pragmatic rule: unmute so voice activity transmits immediately
+  // (that is what choosing VA means), unless the user is server-muted or
+  // deafened — those states must never be overridden from here.
+  //
+  // Voice activity -> PTT: the resting state must be muted until the PTT key
+  // is held. The activation effect above only attaches listeners and never
+  // mutes, so handle it on the transition.
+  const prevIsPushToTalkRef = useRef(isPushToTalk);
+  useEffect(() => {
+    const wasPushToTalk = prevIsPushToTalkRef.current;
+    prevIsPushToTalkRef.current = isPushToTalk;
+
+    if (wasPushToTalk === isPushToTalk) return;
+    if (!voiceState.isConnected) return;
+
+    const room = getRoom();
+    if (!room) return;
+
+    if (isPushToTalk) {
+      // VA -> PTT: rest muted until the key is held
+      room.localParticipant.setMicrophoneEnabled(false)
+        .then(() => logger.dev('[PTT] Switched to push to talk, microphone muted until key held'))
+        .catch((error) => logger.error('[PTT] Failed to mute microphone on mode switch:', error));
+    } else if (!voiceState.isServerMuted && !voiceState.isDeafened) {
+      // PTT -> VA: unmute so voice activity works (see comment above)
+      room.localParticipant.setMicrophoneEnabled(true)
+        .then(() => logger.dev('[PTT] Switched to voice activity, microphone enabled'))
+        .catch((error) => logger.error('[PTT] Failed to enable microphone on mode switch:', error));
+    }
+  }, [isPushToTalk, voiceState.isConnected, voiceState.isServerMuted, voiceState.isDeafened, getRoom]);
+
   return {
     // Whether PTT mode is currently active (connected + PTT mode enabled)
     isActive,
