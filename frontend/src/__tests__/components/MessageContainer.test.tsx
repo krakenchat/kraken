@@ -42,6 +42,36 @@ class MockIntersectionObserver {
   disconnect() { this._instance.disconnect(); }
 }
 
+// ── Mock ResizeObserver ────────────────────────────────────────────────
+type MockResizeInstance = {
+  callback: ResizeObserverCallback;
+  elements: Set<Element>;
+  trigger: (targets: Element[]) => void;
+};
+
+let mockResizeInstances: MockResizeInstance[] = [];
+
+class MockResizeObserver {
+  _instance: MockResizeInstance;
+  constructor(callback: ResizeObserverCallback) {
+    const instance: MockResizeInstance = {
+      callback,
+      elements: new Set(),
+      trigger: (targets: Element[]) => {
+        callback(
+          targets.map((target) => ({ target }) as ResizeObserverEntry),
+          this as unknown as ResizeObserver,
+        );
+      },
+    };
+    this._instance = instance;
+    mockResizeInstances.push(instance);
+  }
+  observe(el: Element) { this._instance.elements.add(el); }
+  unobserve(el: Element) { this._instance.elements.delete(el); }
+  disconnect() { this._instance.elements.clear(); }
+}
+
 // ── Mock child components ──────────────────────────────────────────────
 vi.mock('../../components/Message/MessageComponent', () => ({
   default: ({ message, isSearchHighlight, contextType }: { message: { id: string; spans: unknown[] }; isSearchHighlight?: boolean; contextType?: string }) => (
@@ -117,11 +147,33 @@ function findObserverFor(testFn: (instance: MockObserverInstance) => boolean) {
   return mockObserverInstances.find(testFn);
 }
 
+/** Get the most recent ResizeObserver instance that observes a given element */
+function findResizeObserverFor(el: Element) {
+  return [...mockResizeInstances].reverse().find((inst) => inst.elements.has(el));
+}
+
+/** Build a partial DOMRect for getBoundingClientRect mocks */
+function makeRect({ top = 0, height = 0 }: { top?: number; height?: number }) {
+  return {
+    top,
+    height,
+    bottom: top + height,
+    left: 0,
+    right: 0,
+    width: 0,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
 // ── Setup / Teardown ───────────────────────────────────────────────────
 beforeEach(() => {
   resetFactoryCounter();
   mockObserverInstances = [];
+  mockResizeInstances = [];
   vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+  vi.stubGlobal('ResizeObserver', MockResizeObserver);
   mockGetLastReadMessageId.mockReturnValue(undefined);
   mockGetUnreadCount.mockReturnValue(0);
 });
@@ -227,6 +279,21 @@ describe('MessageContainer', () => {
         'message-msg-middle',
         'message-msg-newest',
       ]);
+    });
+
+    it('bottom-packs sparse content: first child of the scroll container has marginTop auto', () => {
+      // Replaces column-reverse's bottom packing: when messages don't fill
+      // the viewport, the auto top margin on the first child absorbs the free
+      // space so content sits at the visual bottom. (justifyContent: flex-end
+      // is NOT an acceptable substitute — it breaks scrolling in some engines.)
+      const messages = [createMessage({ id: 'msg-1' })];
+
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={messages} />,
+      );
+
+      const container = getScrollContainer();
+      expect(container.firstElementChild).toHaveStyle({ marginTop: 'auto' });
     });
 
     it('always renders message input outside the scroll container', () => {
@@ -486,6 +553,131 @@ describe('MessageContainer', () => {
 
       // scrollTop shifted by the 300px height delta → viewport stays put
       expect(container.scrollTop).toBe(800);
+    });
+
+    it('does not yank to bottom when a newer page arrives while pinned in anchored mode', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      const { rerender } = renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={[m2, m1]}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 600,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 0 → pinnedToBottomRef becomes true
+      fireEvent.scroll(container);
+
+      // The bottom-pin ResizeObserver must not observe the container in
+      // anchored mode: it is recreated on message changes and its initial
+      // callbacks fire with stale pinned=true, which would teleport the user.
+      expect(
+        mockResizeInstances.some((inst) => inst.elements.has(container)),
+      ).toBe(false);
+
+      // A newer page lands: a newer newest message appends below the viewport
+      const m3 = createMessage({ id: 'msg-3' });
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={[m3, m2, m1]}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      // Viewport must stay put — NOT be forced to scrollHeight
+      expect(container.scrollTop).toBe(600);
+    });
+
+    it('compensates scrollTop when content above the viewport grows while unpinned', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 100,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 500 → not pinned (reading history)
+      fireEvent.scroll(container);
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 0, height: 400 }),
+      );
+
+      // msg-1 sits above the viewport (top edge above the container's top)
+      const el = document.querySelector('[data-message-id="msg-1"]') as HTMLElement;
+      const rectSpy = vi
+        .spyOn(el, 'getBoundingClientRect')
+        .mockReturnValue(makeRect({ top: -250, height: 200 }));
+
+      const growthObserver = findResizeObserverFor(el);
+      expect(growthObserver).toBeDefined();
+
+      // First callback only records the baseline height — no compensation
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+      expect(container.scrollTop).toBe(100);
+
+      // Media finishes loading: the element grows by 300px above the viewport
+      rectSpy.mockReturnValue(makeRect({ top: -250, height: 500 }));
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+      expect(container.scrollTop).toBe(400);
+    });
+
+    it('skips above-viewport growth compensation while pinned to the bottom', () => {
+      const m1 = createMessage({ id: 'msg-1' });
+      const m2 = createMessage({ id: 'msg-2' });
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
+      );
+
+      const container = getScrollContainer();
+      mockScrollGeometry(container, {
+        scrollTop: 600,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      });
+      // distance from bottom = 0 → pinned
+      fireEvent.scroll(container);
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 0, height: 400 }),
+      );
+
+      const el = document.querySelector('[data-message-id="msg-1"]') as HTMLElement;
+      const rectSpy = vi
+        .spyOn(el, 'getBoundingClientRect')
+        .mockReturnValue(makeRect({ top: -250, height: 200 }));
+
+      const growthObserver = findResizeObserverFor(el);
+      expect(growthObserver).toBeDefined();
+
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+      rectSpy.mockReturnValue(makeRect({ top: -250, height: 500 }));
+      act(() => {
+        growthObserver!.trigger([el]);
+      });
+
+      // No compensation increment — while pinned, the bottom-pin observer
+      // (a separate mechanism) owns keeping the view glued to the bottom.
+      expect(container.scrollTop).toBe(600);
     });
   });
 
@@ -754,6 +946,38 @@ describe('MessageContainer', () => {
         bottomObserver!.trigger([{ isIntersecting: true }]);
       });
       expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('releases older pagination when anchored with no pending highlight', () => {
+      // Regression: if the around-fetch outlives the 3s highlight flash,
+      // highlightMessageId is already cleared when messages arrive. Initial
+      // positioning must still complete and release the pagination
+      // suppression — otherwise the anchored view strands with older
+      // pagination permanently dead.
+      const onLoadMore = vi.fn().mockResolvedValue(undefined);
+      const messages = [createMessage({ id: 'msg-1' })];
+
+      renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={messages}
+          mode="anchored"
+          jumpToPresent={vi.fn()}
+          continuationToken="older-token"
+          onLoadMore={onLoadMore}
+        />,
+      );
+
+      // threshold=0 observers: bottom sentinel (1st) and top sentinel (2nd)
+      const thresholdZeroObservers = mockObserverInstances.filter(
+        (inst) => inst.options?.threshold === 0,
+      );
+      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
+
+      act(() => {
+        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
+      });
+      expect(onLoadMore).toHaveBeenCalledTimes(1);
     });
 
     it('shows loading skeletons when isLoadingNewer is true', () => {

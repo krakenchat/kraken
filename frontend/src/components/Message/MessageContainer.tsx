@@ -241,8 +241,13 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               overflowAnchor: "none",
             }}
           >
-            {/* Top sentinel: first in DOM = visual top */}
-            <Box ref={topSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
+            {/* Top sentinel: first in DOM = visual top. marginTop: 'auto'
+                bottom-packs sparse channels (content shorter than the
+                viewport sits at the visual bottom, like column-reverse did);
+                once content overflows, the auto margin resolves to 0.
+                Do NOT swap this for justifyContent: flex-end — that breaks
+                scrolling in some engines. */}
+            <Box ref={topSentinelRef} sx={{ height: '1px', flexShrink: 0, marginTop: 'auto' }} />
 
             {/* Loading skeleton at visual top for older messages */}
             {isLoadingMore && (
