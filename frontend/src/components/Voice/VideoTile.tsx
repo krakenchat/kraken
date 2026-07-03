@@ -14,9 +14,6 @@ import {
   Videocam,
   VideocamOff,
   ScreenShare,
-  CropFree,
-  PushPin,
-  PushPinOutlined,
   FiberManualRecord,
   VisibilityOff,
 } from '@mui/icons-material';
@@ -37,8 +34,6 @@ export interface VideoTileProps {
   isLocal?: boolean;
   isReplayBufferActive?: boolean;
   onToggleFullscreen?: () => void;
-  onPin?: () => void;
-  isPinned?: boolean;
   isSpotlighted?: boolean;
   isPlaceholder?: boolean;
   placeholderType?: 'camera' | 'screen';
@@ -54,8 +49,6 @@ const VideoTile: React.FC<VideoTileProps> = ({
   isLocal = false,
   isReplayBufferActive = false,
   onToggleFullscreen,
-  onPin,
-  isPinned = false,
   isSpotlighted = false,
   isPlaceholder = false,
   placeholderType,
@@ -294,7 +287,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
       </Fade>
 
       {/* Action buttons - top right */}
-      <Fade in={isHovered || isPinned || isSpotlighted}>
+      <Fade in={isHovered || isSpotlighted}>
         <Box
           sx={{
             position: 'absolute',
@@ -332,50 +325,6 @@ const VideoTile: React.FC<VideoTileProps> = ({
           {/* Screenshare volume control */}
           {hasScreen && !isLocal && (
             <ScreenShareVolumeControl participant={participant as RemoteParticipant} />
-          )}
-
-          {/* Pin button */}
-          {onPin && (
-            <IconButton
-              sx={{
-                backgroundColor: isPinned ? alpha(theme.palette.semantic.status.positive, 0.8) : alpha(theme.palette.background.paper, 0.5),
-                color: theme.palette.common.white,
-                width: 32,
-                height: 32,
-                '&:hover': {
-                  backgroundColor: isPinned ? theme.palette.semantic.status.positive : alpha(theme.palette.background.paper, 0.7),
-                },
-              }}
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPin();
-              }}
-            >
-              {isPinned ? <PushPin fontSize="small" /> : <PushPinOutlined fontSize="small" />}
-            </IconButton>
-          )}
-
-          {/* Spotlight/Fullscreen button */}
-          {onToggleFullscreen && (
-            <IconButton
-              sx={{
-                backgroundColor: isSpotlighted ? alpha(theme.palette.semantic.status.positive, 0.8) : alpha(theme.palette.background.paper, 0.5),
-                color: theme.palette.common.white,
-                width: 32,
-                height: 32,
-                '&:hover': {
-                  backgroundColor: isSpotlighted ? theme.palette.semantic.status.positive : alpha(theme.palette.background.paper, 0.7),
-                },
-              }}
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFullscreen();
-              }}
-            >
-              <CropFree fontSize="small" />
-            </IconButton>
           )}
         </Box>
       </Fade>

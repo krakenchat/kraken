@@ -458,26 +458,25 @@ describe('VideoTiles', () => {
       expect(screen.queryByText('UserB')).not.toBeInTheDocument();
     });
 
-    it('pinning the spotlit tile switches layout to sidebar (all tiles visible again)', async () => {
+    it('tiles render no pin or fullscreen buttons (#320 — tile click handles both)', async () => {
       const { user } = renderWithProviders(<VideoTiles />);
 
-      // Spotlight UserB
+      // CropFree only appears as the Spotlight Layout header button, never inside tiles
+      const assertNoTileButtons = () => {
+        expect(screen.queryByTestId('PushPinOutlinedIcon')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('PushPinIcon')).not.toBeInTheDocument();
+        for (const icon of screen.queryAllByTestId('CropFreeIcon')) {
+          expect(icon.closest('button')).toHaveAccessibleName('Spotlight Layout');
+        }
+      };
+
+      // Grid layout
+      assertNoTileButtons();
+
+      // Spotlight a tile — still no per-tile pin/fullscreen buttons
       const cardB = screen.getByText('UserB').closest('[class*="MuiCard"]')!;
       await user.click(cardB);
-      expect(screen.queryByText('UserA')).not.toBeInTheDocument();
-
-      // Pin button is available in spotlight layout — clicking it pins the tile
-      // and switches layout mode to sidebar
-      const pinButton = screen.getByTestId('PushPinOutlinedIcon').closest('button')!;
-      await user.click(pinButton);
-
-      // Sidebar layout: pinned UserB renders as the main tile (first in DOM),
-      // UserA renders in the sidebar
-      const userB = screen.getByText('UserB');
-      const userA = screen.getByText('UserA');
-      expect(
-        userB.compareDocumentPosition(userA) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+      assertNoTileButtons();
     });
 
     it('sidebar layout pins the first watched tile by default and clicking a sidebar tile re-pins it', async () => {
