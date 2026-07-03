@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   NotFoundException,
   OnApplicationBootstrap,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
@@ -16,6 +17,7 @@ import {
   SegmentedFileProtocol,
   EncodingOptions,
   EncodingOptionsPreset,
+  EgressInfo,
   EgressStatus,
   VideoCodec,
   AudioCodec,
@@ -72,6 +74,15 @@ export class LivekitReplayService implements OnApplicationBootstrap {
 
   /** Skip the heal's dead-path stop event for sessions older than this. */
   private static readonly STALE_NOTIFY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+  /**
+   * Non-reentrancy guard for reconcileEgressStatus. The bootstrap kick-off
+   * is fire-and-forget and listEgress has no timeout, so a hung LiveKit
+   * call could still be in flight when the cron fires — overlapping passes
+   * would double-count strikes in egressMissedOnce and race their DB
+   * updates. Per-instance state is fine: the cron is per-pod anyway.
+   */
+  private reconcileInProgress = false;
 
   constructor(
     @Inject(EGRESS_CLIENT)
@@ -571,6 +582,14 @@ export class LivekitReplayService implements OnApplicationBootstrap {
    */
   @Cron('*/1 * * * *') // Every 1 minute
   async reconcileEgressStatus() {
+    if (this.reconcileInProgress) {
+      this.logger.warn(
+        'Skipping egress status reconciliation: previous pass still in progress',
+      );
+      return;
+    }
+    this.reconcileInProgress = true;
+
     this.logger.debug('Running egress status reconciliation...');
 
     try {
@@ -726,6 +745,8 @@ export class LivekitReplayService implements OnApplicationBootstrap {
       this.logger.error(
         `Egress status reconciliation job failed: ${getErrorMessage(error)}`,
       );
+    } finally {
+      this.reconcileInProgress = false;
     }
   }
 
@@ -742,13 +763,17 @@ export class LivekitReplayService implements OnApplicationBootstrap {
    * - Egress still running → the DB was wrongly marked stopped (e.g. a
    *   transient empty listEgress response); heal the row back to 'active'
    *   and let the capture/stream proceed.
-   * - Egress genuinely gone (or LiveKit unreachable) → emit the missing
-   *   REPLAY_BUFFER_STOPPED/FAILED event so the client clears its UI, then
-   *   throw an accurate NotFoundException.
+   * - Egress genuinely gone → emit the missing REPLAY_BUFFER_STOPPED/FAILED
+   *   event so the client clears its UI, then throw an accurate
+   *   NotFoundException.
+   * - LiveKit unreachable (listEgress throws) → we cannot tell whether the
+   *   recording is alive, so throw a retryable ServiceUnavailableException
+   *   without emitting any event or touching the DB row.
    *
    * @param userId - ID of the user requesting capture/stream
    * @returns The healed, active session
    * @throws NotFoundException when no session exists or the egress has ended
+   * @throws ServiceUnavailableException when LiveKit cannot be queried
    */
   private async recoverStaleSession(userId: string): Promise<EgressSession> {
     // Most recent session regardless of status — the row the stranded
@@ -764,22 +789,32 @@ export class LivekitReplayService implements OnApplicationBootstrap {
       );
     }
 
-    // Ask LiveKit whether the egress is actually still running. Tolerate a
-    // missing client (LiveKit not configured) and listEgress failures — both
-    // fall through to the "recording ended" path below.
+    // Ask LiveKit whether the egress is actually still running.
+    //
+    // - Missing client → LiveKit is not configured on this instance at all
+    //   (no URL/key/secret), so no egress can possibly be running; falling
+    //   through to the "recording ended" path below is accurate.
+    // - listEgress throws → LiveKit is configured but unreachable. The
+    //   recording may well still be alive, so telling the client it ended
+    //   (and emitting REPLAY_BUFFER_STOPPED) would wrongly kill a live
+    //   capture UI. Surface a retryable 503 instead — no event, no DB write.
     let egressStatus: EgressStatus | null = null;
     if (this.egressClient) {
+      let egressInfoList: EgressInfo[];
       try {
-        const egressInfoList = await this.egressClient.listEgress({
+        egressInfoList = await this.egressClient.listEgress({
           egressId: recentSession.egressId,
         });
-        egressStatus =
-          egressInfoList.length > 0 ? egressInfoList[0].status : null;
       } catch (error) {
         this.logger.warn(
           `Could not verify egress ${recentSession.egressId} during heal: ${getErrorMessage(error)}`,
         );
+        throw new ServiceUnavailableException(
+          'Could not check your replay status — please try again.',
+        );
       }
+      egressStatus =
+        egressInfoList.length > 0 ? egressInfoList[0].status : null;
     }
 
     if (
@@ -1335,6 +1370,12 @@ export class LivekitReplayService implements OnApplicationBootstrap {
       // capture modal's Custom Trim dead (hasActiveSession: false) even
       // though plain Capture heals. If the session is genuinely dead,
       // recoverStaleSession has already emitted the missed stop/fail event.
+      //
+      // A ServiceUnavailableException (LiveKit unreachable during the heal)
+      // deliberately propagates as a 503 rather than being mapped to
+      // hasActiveSession: false — the frontend gates Custom Trim on that
+      // flag, and a transient LiveKit blip must not report a live buffer as
+      // gone. A 503 lets the client keep its current state and retry.
       try {
         session = await this.recoverStaleSession(userId);
       } catch (error) {

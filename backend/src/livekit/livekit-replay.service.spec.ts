@@ -6,6 +6,7 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { LivekitReplayService } from './livekit-replay.service';
 import { DatabaseService } from '@/database/database.service';
@@ -733,6 +734,35 @@ describe('LivekitReplayService', () => {
         }),
       );
     });
+
+    it('should propagate a 503 instead of reporting inactive when LiveKit cannot be checked during the heal', async () => {
+      const staleSession = {
+        id: 'session-1',
+        userId: 'user-123',
+        channelId: 'channel-1',
+        egressId: 'egress-123',
+        status: 'stopped',
+        error: null,
+        segmentPath: 'session-1',
+        startedAt: new Date(Date.now() - 10 * 60 * 1000),
+        endedAt: new Date(Date.now() - 60 * 1000),
+      };
+
+      databaseService.egressSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(staleSession);
+      mockEgressClient.listEgress.mockRejectedValue(
+        new Error('LiveKit unreachable'),
+      );
+
+      // hasActiveSession: false would wrongly kill the Custom Trim UI for a
+      // possibly-live buffer — a retryable 503 must surface instead
+      await expect(service.getSessionInfo('user-123')).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+      expect(databaseService.egressSession.updateMany).not.toHaveBeenCalled();
+    });
   });
 
   // Clip library tests (getUserClips, getPublicClips, updateClip, deleteClip, shareClip)
@@ -1144,7 +1174,7 @@ describe('LivekitReplayService', () => {
         );
       });
 
-      it('should throw the accurate 404 when listEgress itself fails', async () => {
+      it('should throw a retryable 503 when listEgress itself fails, without emitting or touching the row', async () => {
         databaseService.egressSession.findFirst
           .mockResolvedValueOnce(null)
           .mockResolvedValueOnce(staleSession);
@@ -1152,15 +1182,19 @@ describe('LivekitReplayService', () => {
           new Error('LiveKit unreachable'),
         );
 
-        await expect(service.captureReplay(userId, dto)).rejects.toThrow(
-          'Your replay recording has ended — start screen sharing again to capture.',
+        const promise = service.captureReplay(userId, dto);
+        await expect(promise).rejects.toBeInstanceOf(
+          ServiceUnavailableException,
+        );
+        await expect(promise).rejects.toThrow(
+          'Could not check your replay status — please try again.',
         );
 
-        expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-          'user:user-123',
-          ServerEvents.REPLAY_BUFFER_STOPPED,
-          expect.any(Object),
-        );
+        // LiveKit unreachable means the recording may still be alive —
+        // no "ended" event, no DB state change
+        expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+        expect(databaseService.egressSession.update).not.toHaveBeenCalled();
+        expect(databaseService.egressSession.updateMany).not.toHaveBeenCalled();
       });
 
       it('should throw the generic 404 when the user has no sessions at all', async () => {
@@ -1412,6 +1446,47 @@ describe('LivekitReplayService', () => {
       await service.reconcileEgressStatus();
 
       expect(databaseService.egressSession.update).not.toHaveBeenCalled();
+    });
+
+    it('should skip a pass while a previous one is still in flight, then run again after it settles', async () => {
+      databaseService.egressSession.findMany.mockResolvedValue([
+        {
+          id: 'session-1',
+          egressId: 'active-egress',
+          userId: 'user-123',
+          channelId: 'channel-1',
+          status: 'active',
+        },
+      ]);
+
+      // Deferred listEgress keeps the first pass hanging mid-reconcile
+      // (the bootstrap fire-and-forget vs cron overlap scenario)
+      let resolveListEgress!: (value: unknown[]) => void;
+      mockEgressClient.listEgress.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveListEgress = resolve;
+        }),
+      );
+
+      const firstPass = service.reconcileEgressStatus();
+      // Let the first pass advance to the in-flight listEgress await
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(mockEgressClient.listEgress).toHaveBeenCalledTimes(1);
+
+      // Second concurrent invocation must bail out immediately
+      await service.reconcileEgressStatus();
+      expect(databaseService.egressSession.findMany).toHaveBeenCalledTimes(1);
+      expect(mockEgressClient.listEgress).toHaveBeenCalledTimes(1);
+
+      resolveListEgress([{ status: EgressStatus.EGRESS_ACTIVE }]);
+      await firstPass;
+
+      // Guard released — a later pass reconciles again
+      mockEgressClient.listEgress.mockResolvedValue([
+        { status: EgressStatus.EGRESS_ACTIVE },
+      ]);
+      await service.reconcileEgressStatus();
+      expect(databaseService.egressSession.findMany).toHaveBeenCalledTimes(2);
     });
   });
 
