@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoom } from "./useRoom";
 import { Participant, Track } from "livekit-client";
+import type { TrackPublication } from "livekit-client";
 import { getCachedItem } from "../utils/storage";
 import { computeVoiceLevel } from "../utils/audioLevel";
 
@@ -37,6 +38,8 @@ interface ParsedSettings {
  * - **Hysteresis**: close threshold is 5 points below open threshold
  * - **Min close time**: 100ms minimum before re-opening
  * - **Cleanup**: re-enables `mediaStreamTrack.enabled` only if gate disabled it
+ * - **Mute wins**: while the mic publication is muted the gate never touches
+ *   `track.enabled` and the local indicator is forced off
  *
  * @example
  * const { speakingMap, isSpeaking } = useSpeakingDetection();
@@ -54,6 +57,7 @@ export const useSpeakingDetection = () => {
   const localTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analysisTrackRef = useRef<MediaStreamTrack | null>(null);
   const analysisTrackIsCloneRef = useRef(false);
+  const analysisSessionRef = useRef(0); // invalidates stale rAF loops across restarts
 
   // Gate state refs (used for both indicator and audio gating)
   const gateOpenRef = useRef(true);
@@ -139,6 +143,11 @@ export const useSpeakingDetection = () => {
       const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
       if (!mediaStreamTrack) return;
 
+      // Session token: a restart can be synchronous (stop + start in the same
+      // task), so a previous session's pending rAF callback would otherwise
+      // see localAnalysisActiveRef=true again and keep a stale loop running.
+      const session = ++analysisSessionRef.current;
+
       // Build an AnalyserNode from the mic track
       try {
         const ctx = new AudioContext();
@@ -152,6 +161,11 @@ export const useSpeakingDetection = () => {
         let analysisTrack: MediaStreamTrack;
         try {
           analysisTrack = mediaStreamTrack.clone();
+          // clone() inherits `enabled` from the source, so a clone taken from
+          // a muted (enabled=false) mic would read as silence forever. Force
+          // it on — the clone only feeds the local AnalyserNode; its audio
+          // goes nowhere.
+          analysisTrack.enabled = true;
           analysisTrackIsCloneRef.current = true;
         } catch {
           // Fallback: use the original (pre-fix behavior)
@@ -189,6 +203,22 @@ export const useSpeakingDetection = () => {
             return; // skip this tick, resume is async
           }
 
+          // Mute wins: while the mic publication is muted, never touch
+          // track.enabled (LiveKit's mute owns enabled=false) and force the
+          // local speaking indicator off. Skips both VA-gate and PTT branches.
+          const currentMicPub = local.getTrackPublication(Track.Source.Microphone);
+          if (currentMicPub?.isMuted) {
+            gateOpenRef.current = false;
+            gateDisabledTrackRef.current = false;
+            setSpeakingMap((prev) => {
+              if (prev.get(local.identity) === false) return prev;
+              const newMap = new Map(prev);
+              newMap.set(local.identity, false);
+              return newMap;
+            });
+            return;
+          }
+
           // Periodically re-read settings from localStorage (not every tick)
           frameCountRef.current++;
           if (frameCountRef.current >= SETTINGS_READ_INTERVAL) {
@@ -222,7 +252,7 @@ export const useSpeakingDetection = () => {
                   gateDisabledTrackRef.current = true;
                   lastGateCloseRef.current = now;
                   // Re-acquire track ref to avoid stale closure after LiveKit track replacement
-                  const currentTrackOff = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+                  const currentTrackOff = currentMicPub?.track?.mediaStreamTrack;
                   if (currentTrackOff) currentTrackOff.enabled = false;
                   setSpeakingMap((prev) => {
                     if (prev.get(local.identity) === false) return prev;
@@ -241,7 +271,7 @@ export const useSpeakingDetection = () => {
                   gateDisabledTrackRef.current = false;
                   lastAboveThresholdRef.current = now;
                   // Re-acquire track ref to avoid stale closure after LiveKit track replacement
-                  const currentTrackOn = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+                  const currentTrackOn = currentMicPub?.track?.mediaStreamTrack;
                   if (currentTrackOn) currentTrackOn.enabled = true;
                   setSpeakingMap((prev) => {
                     if (prev.get(local.identity) === true) return prev;
@@ -257,7 +287,7 @@ export const useSpeakingDetection = () => {
             // Only undo gate-caused disables; never touch track.enabled otherwise
             // (PTT/manual mute control it via LiveKit's publish/unpublish)
             if (gateDisabledTrackRef.current) {
-              const currentTrackRestore = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+              const currentTrackRestore = currentMicPub?.track?.mediaStreamTrack;
               if (currentTrackRestore) currentTrackRestore.enabled = true;
               gateDisabledTrackRef.current = false;
               gateOpenRef.current = true;
@@ -276,6 +306,7 @@ export const useSpeakingDetection = () => {
         // analysis loop keeps running when the tab/window is backgrounded.
         const fallbackToRaf = () => {
           const rafTick = () => {
+            if (analysisSessionRef.current !== session) return; // stale session
             tick();
             if (localAnalysisActiveRef.current) {
               requestAnimationFrame(rafTick);
@@ -343,12 +374,14 @@ export const useSpeakingDetection = () => {
       analysisTrackIsCloneRef.current = false;
 
       // Only re-enable track if OUR gate disabled it — don't override
-      // explicit user mute/deafen/PTT state
+      // explicit user mute/deafen/PTT state (mute wins over the gate)
       if (gateDisabledTrackRef.current) {
         const micPub = local.getTrackPublication(Track.Source.Microphone);
-        const track = micPub?.track?.mediaStreamTrack;
-        if (track) {
-          track.enabled = true;
+        if (!micPub?.isMuted) {
+          const track = micPub?.track?.mediaStreamTrack;
+          if (track) {
+            track.enabled = true;
+          }
         }
         gateDisabledTrackRef.current = false;
       }
@@ -375,6 +408,37 @@ export const useSpeakingDetection = () => {
 
     local.on("localTrackPublished", handleLocalTrackPublished);
     local.on("localTrackUnpublished", handleLocalTrackUnpublished);
+
+    // Mute/unmute: LiveKit implements mute as mediaStreamTrack.enabled=false
+    // with the publication still live. The gate must never fight that —
+    // never write track.enabled from these handlers.
+    const handleTrackMuted = (pub: TrackPublication) => {
+      if (pub.source !== Track.Source.Microphone) return;
+      gateDisabledTrackRef.current = false; // LiveKit's mute owns enabled=false now
+      gateOpenRef.current = false;
+      setSpeakingMap((prev) => {
+        if (prev.get(local.identity) === false) return prev;
+        const newMap = new Map(prev);
+        newMap.set(local.identity, false);
+        return newMap;
+      });
+    };
+    const handleTrackUnmuted = (pub: TrackPublication) => {
+      if (pub.source !== Track.Source.Microphone) return;
+      // Restart analysis so it picks up the fresh MediaStreamTrack that
+      // LiveKit may swap in on unmute (e.g. a device switch performed while
+      // muted defers the real track restart to unmute, and no further track
+      // event fires after that restartTrack). stop/start reuse the existing
+      // cleanup discipline, so this is idempotent and leak-free.
+      stopLocalAnalysis();
+      startLocalAnalysis();
+      // Re-arm the gate: open now, but the next tick closes it again unless
+      // the user is actually speaking (lastAboveThreshold=0 expires hold-open).
+      gateOpenRef.current = true;
+      lastAboveThresholdRef.current = 0;
+    };
+    local.on("trackMuted", handleTrackMuted);
+    local.on("trackUnmuted", handleTrackUnmuted);
 
     const handleActiveDeviceChanged = (kind: MediaDeviceKind) => {
       if (kind === 'audioinput') {
@@ -405,6 +469,8 @@ export const useSpeakingDetection = () => {
       stopLocalAnalysis();
       local.off("localTrackPublished", handleLocalTrackPublished);
       local.off("localTrackUnpublished", handleLocalTrackUnpublished);
+      local.off("trackMuted", handleTrackMuted);
+      local.off("trackUnmuted", handleTrackUnmuted);
     };
   }, [room, readSettings]);
 
