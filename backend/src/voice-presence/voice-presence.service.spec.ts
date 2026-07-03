@@ -38,6 +38,7 @@ describe('VoicePresenceService', () => {
     mockDatabaseService = {
       directMessageGroup: {
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
       },
       directMessageGroupMember: {
         findFirst: jest.fn(),
@@ -755,6 +756,184 @@ describe('VoicePresenceService', () => {
 
       expect(mockRedis.pipeline).not.toHaveBeenCalled();
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Ghost-listener guarantee: the LiveKit webhook path is the authoritative
+   * source of presence. A participant_joined for a user who NEVER called the
+   * app's join/refresh endpoints must still create a presence entry in the
+   * exact store the REST read path (getChannelPresence/getDmPresence)
+   * returns — so nobody can lurk in a room invisibly. participant_left must
+   * remove that entry again.
+   */
+  describe('webhook presence (ghost-listener guarantee)', () => {
+    const mockUser = {
+      id: 'ghost-user',
+      username: 'ghostuser',
+      displayName: 'Ghost User',
+      avatarUrl: null,
+    };
+
+    it('participant_joined for a channel room creates a presence entry visible via getChannelPresence', async () => {
+      const channelId = 'channel-ghost';
+
+      // Room is not a DM group -> treated as a channel
+      mockDatabaseService.directMessageGroup.findUnique.mockResolvedValue(null);
+      // User has no existing presence entry (never called join/refresh)
+      mockRedis.get.mockResolvedValue(null);
+      mockDatabaseService.user.findUnique.mockResolvedValue(mockUser);
+
+      await service.handleWebhookParticipantJoined(channelId, mockUser.id);
+
+      // Entry written under the exact keys the REST read path consumes
+      expect(mockPipeline.set).toHaveBeenCalledWith(
+        `voice_presence:user:${channelId}:${mockUser.id}`,
+        expect.any(String),
+        'EX',
+        90,
+      );
+      expect(mockPipeline.sadd).toHaveBeenCalledWith(
+        `voice_presence:channel:${channelId}:members`,
+        mockUser.id,
+      );
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        channelId,
+        ServerEvents.VOICE_CHANNEL_USER_JOINED,
+        expect.objectContaining({
+          channelId,
+          user: expect.objectContaining({ id: mockUser.id }),
+        }),
+      );
+
+      // Round-trip: feed the written payload back through the read path
+      const writtenJson = mockPipeline.set.mock.calls[0][1] as string;
+      mockRedis.smembers.mockResolvedValue([mockUser.id]);
+      mockRedis.mget.mockResolvedValue([writtenJson]);
+
+      const presence = await service.getChannelPresence(channelId);
+
+      expect(presence).toHaveLength(1);
+      expect(presence[0]).toMatchObject({
+        id: mockUser.id,
+        username: mockUser.username,
+      });
+    });
+
+    it('participant_left for a channel room removes the presence entry', async () => {
+      const channelId = 'channel-ghost';
+      const userData = {
+        id: mockUser.id,
+        username: mockUser.username,
+        joinedAt: new Date().toISOString(),
+        isDeafened: false,
+        isServerMuted: false,
+      };
+
+      mockDatabaseService.directMessageGroup.findUnique.mockResolvedValue(null);
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
+
+      await service.handleWebhookParticipantLeft(channelId, mockUser.id);
+
+      expect(mockPipeline.del).toHaveBeenCalledWith(
+        `voice_presence:user:${channelId}:${mockUser.id}`,
+      );
+      expect(mockPipeline.srem).toHaveBeenCalledWith(
+        `voice_presence:channel:${channelId}:members`,
+        mockUser.id,
+      );
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        channelId,
+        ServerEvents.VOICE_CHANNEL_USER_LEFT,
+        expect.objectContaining({ channelId, userId: mockUser.id }),
+      );
+
+      // Read path now sees an empty channel
+      mockRedis.smembers.mockResolvedValue([]);
+      const presence = await service.getChannelPresence(channelId);
+      expect(presence).toEqual([]);
+    });
+
+    it('participant_joined for a DM room creates a presence entry visible via getDmPresence', async () => {
+      const dmGroupId = 'dm-ghost';
+
+      // Room IS a DM group
+      mockDatabaseService.directMessageGroup.findUnique.mockResolvedValue({
+        id: dmGroupId,
+      });
+      // User has no existing presence entry
+      mockRedis.get.mockResolvedValue(null);
+      mockDatabaseService.user.findUnique.mockResolvedValue(mockUser);
+      // No one else in the call yet (isFirstUser check)
+      mockRedis.smembers.mockResolvedValue([]);
+
+      await service.handleWebhookParticipantJoined(dmGroupId, mockUser.id);
+
+      expect(mockPipeline.set).toHaveBeenCalledWith(
+        `dm_voice_presence:user:${dmGroupId}:${mockUser.id}`,
+        expect.any(String),
+        'EX',
+        90,
+      );
+      expect(mockPipeline.sadd).toHaveBeenCalledWith(
+        `dm_voice_presence:dm:${dmGroupId}:members`,
+        mockUser.id,
+      );
+      // First user joining announces the call start
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        `dm:${dmGroupId}`,
+        ServerEvents.DM_VOICE_CALL_STARTED,
+        expect.objectContaining({ dmGroupId, startedBy: mockUser.id }),
+      );
+
+      // Round-trip: feed the written payload back through the read path
+      const writtenJson = mockPipeline.set.mock.calls[0][1] as string;
+      mockRedis.smembers.mockResolvedValue([mockUser.id]);
+      mockRedis.mget.mockResolvedValue([writtenJson]);
+
+      const presence = await service.getDmPresence(dmGroupId);
+
+      expect(presence).toHaveLength(1);
+      expect(presence[0]).toMatchObject({
+        id: mockUser.id,
+        username: mockUser.username,
+      });
+    });
+
+    it('participant_left for a DM room removes the presence entry', async () => {
+      const dmGroupId = 'dm-ghost';
+      const userData = {
+        id: mockUser.id,
+        username: mockUser.username,
+        joinedAt: new Date().toISOString(),
+        isDeafened: false,
+        isServerMuted: false,
+      };
+
+      mockDatabaseService.directMessageGroup.findUnique.mockResolvedValue({
+        id: dmGroupId,
+      });
+      mockRedis.get.mockResolvedValue(JSON.stringify(userData));
+
+      await service.handleWebhookParticipantLeft(dmGroupId, mockUser.id);
+
+      expect(mockPipeline.del).toHaveBeenCalledWith(
+        `dm_voice_presence:user:${dmGroupId}:${mockUser.id}`,
+      );
+      expect(mockPipeline.srem).toHaveBeenCalledWith(
+        `dm_voice_presence:dm:${dmGroupId}:members`,
+        mockUser.id,
+      );
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        `dm:${dmGroupId}`,
+        ServerEvents.DM_VOICE_USER_LEFT,
+        expect.objectContaining({ dmGroupId, userId: mockUser.id }),
+      );
+
+      // Read path now sees an empty call
+      mockRedis.smembers.mockResolvedValue([]);
+      const presence = await service.getDmPresence(dmGroupId);
+      expect(presence).toEqual([]);
     });
   });
 

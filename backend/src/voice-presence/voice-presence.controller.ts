@@ -142,11 +142,17 @@ export class VoicePresenceController {
 }
 
 @Controller('dm-groups/:dmGroupId/voice-presence')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RbacGuard)
 export class DmVoicePresenceController {
   constructor(private readonly voicePresenceService: VoicePresenceService) {}
 
   @Get()
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.DM_GROUP,
+    idKey: 'dmGroupId',
+    source: ResourceIdSource.PARAM,
+  })
   @ApiOkResponse({ type: DmVoicePresenceResponseDto })
   async getDmPresence(
     @Param('dmGroupId') dmGroupId: string,
@@ -160,6 +166,12 @@ export class DmVoicePresenceController {
   }
 
   @Post('refresh')
+  @RequiredActions(RbacActions.READ_MESSAGE)
+  @RbacResource({
+    type: RbacResourceType.DM_GROUP,
+    idKey: 'dmGroupId',
+    source: ResourceIdSource.PARAM,
+  })
   @ApiCreatedResponse({ type: RefreshDmPresenceResponseDto })
   async refreshDmPresence(
     @Param('dmGroupId') dmGroupId: string,
