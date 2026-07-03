@@ -77,7 +77,22 @@ dmg:
       path: /Applications
 
 # Linux configuration
+#
+# NOTE (#349): electron-builder derives the Linux install directory from
+# productName, and "/opt/Semaphore Chat/" (with a space) breaks Electron's
+# zygote re-exec ("LaunchProcess: failed to execvp: /opt/Semaphore").
+# electron-builder 24.x has no per-platform productName, so EVERY Linux build
+# must pass -c.productName=semaphore-chat — see the "electron-builder:linux"
+# script in package.json and .github/workflows/electron-build.yml. The
+# user-visible name on Linux is unaffected: the launcher entry comes from
+# desktop.Name below, and the window title / userData path
+# (~/.config/Semaphore Chat) come from the app's own package.json productName.
+#
+# If you change the install path or executable name, also update
+# build/linux/semaphore-chat.apparmor (it hardcodes
+# /opt/semaphore-chat/semaphore-chat).
 linux:
+  executableName: semaphore-chat
   target:
     - target: AppImage
       arch:
@@ -102,14 +117,34 @@ appImage:
   category: Network
 
 # Debian package configuration
+#
+# depends mirrors the current electron-builder (>= 25) defaults. The previous
+# list included gconf2, gconf-service and libappindicator1, which were removed
+# from Debian/Ubuntu in Ubuntu 23.04 and made the .deb uninstallable (#349).
+# recommends uses libayatana-appindicator3-1 (tray support) instead of the
+# equally-removed libappindicator3-1 default.
 deb:
   depends:
-    - gconf2
-    - gconf-service
+    - libgtk-3-0
     - libnotify4
-    - libappindicator1
-    - libxtst6
     - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+  recommends:
+    - libayatana-appindicator3-1
+  # Custom postinst/postrm: load/unload the AppArmor userns profile required
+  # for the Electron sandbox on Ubuntu 23.10+ (#349). These scripts REPLACE
+  # electron-builder's default templates, so they also re-implement the default
+  # behavior (symlink, SUID chrome-sandbox, desktop/mime db refresh).
+  afterInstall: build/linux/deb-after-install.sh
+  afterRemove: build/linux/deb-after-remove.sh
+  # Ship the AppArmor profile itself (extra fpm mapping: source=dest).
+  fpm:
+    - build/linux/semaphore-chat.apparmor=/etc/apparmor.d/semaphore-chat
 
 # RPM package configuration
 rpm:

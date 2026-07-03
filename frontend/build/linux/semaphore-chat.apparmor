@@ -1,0 +1,34 @@
+# AppArmor profile for Semaphore Chat (.deb install) — issue #349.
+#
+# Ubuntu 23.10+ ships kernel.apparmor_restrict_unprivileged_userns=1, which
+# makes Electron's user-namespace sandbox abort with
+# "FATAL:setuid_sandbox_host.cc The SUID sandbox helper binary was found, but
+# is not configured correctly" unless an AppArmor profile explicitly grants
+# the binary user-namespace creation. This is the same pattern Ubuntu and
+# other Electron apps (Slack, Signal, Element, 1Password) use: the profile is
+# attached to the binary path, grants only `userns`, and leaves the app
+# otherwise unconfined.
+#
+# Installed to /etc/apparmor.d/semaphore-chat via the deb.fpm mapping in
+# electron-builder.yml and loaded/unloaded by build/linux/deb-after-install.sh
+# and deb-after-remove.sh.
+#
+# The attachment path below MUST match the Linux install location:
+# /opt/<productName>/<linux.executableName>. Linux builds override
+# productName to the space-free "semaphore-chat" (see electron-builder.yml
+# and the "electron-builder:linux" script in package.json).
+#
+# `abi <abi/4.0>` requires AppArmor 4 (Ubuntu 24.04+). On older AppArmor the
+# profile fails to parse — that is fine, because those systems do not
+# restrict unprivileged user namespaces, and the maintainer scripts ignore
+# parser failures.
+
+abi <abi/4.0>,
+include <tunables/global>
+
+profile semaphore-chat /opt/semaphore-chat/semaphore-chat flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/semaphore-chat>
+}
