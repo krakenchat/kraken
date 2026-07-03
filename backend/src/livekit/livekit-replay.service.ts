@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
@@ -21,6 +22,7 @@ import {
   TrackType,
 } from 'livekit-server-sdk';
 import { randomUUID } from 'crypto';
+import { EgressSession } from '@prisma/client';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -49,7 +51,7 @@ import { EGRESS_CLIENT } from './providers/egress-client.provider';
 import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
 @Injectable()
-export class LivekitReplayService {
+export class LivekitReplayService implements OnApplicationBootstrap {
   private readonly logger = new Logger(LivekitReplayService.name);
   private readonly segmentsPath: string;
   private readonly egressOutputPath: string;
@@ -91,6 +93,23 @@ export class LivekitReplayService {
       `Egress output path (for LiveKit API): ${this.egressOutputPath}`,
     );
     this.logger.log(`Clips path: ${this.clipsPath}`);
+  }
+
+  /**
+   * Reconcile egress state once at startup.
+   *
+   * Sessions left 'active' in the database across a backend restart (missed
+   * webhooks, crash mid-egress) would otherwise linger until the first cron
+   * tick. Failures are swallowed so a LiveKit outage can never block boot.
+   */
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      await this.reconcileEgressStatus();
+    } catch (error) {
+      this.logger.error(
+        `Startup egress reconciliation failed: ${getErrorMessage(error)}`,
+      );
+    }
   }
 
   /**
@@ -559,6 +578,18 @@ export class LivekitReplayService {
               },
             });
 
+            // Notify the client so the capture button clears — without this
+            // the frontend keeps offering capture and gets 404s (issue #302).
+            this.websocketService.sendToRoom(
+              RoomName.user(session.userId),
+              ServerEvents.REPLAY_BUFFER_STOPPED,
+              {
+                sessionId: session.id,
+                egressId: session.egressId,
+                channelId: session.channelId,
+              },
+            );
+
             reconciledCount++;
             continue;
           }
@@ -636,6 +667,108 @@ export class LivekitReplayService {
   }
 
   /**
+   * On-demand heal for capture/stream requests that find no active session.
+   *
+   * The frontend only clears its capture UI on REPLAY_BUFFER_STOPPED/FAILED
+   * events, so a session row that was flipped without an event (missed
+   * webhook, silent reconcile, orphan cleanup) strands the button and every
+   * capture 404s (issues #302/#188). When the active-session lookup misses,
+   * this checks the user's most recent session against LiveKit:
+   *
+   * - Egress still running → the DB was wrongly marked stopped (e.g. a
+   *   transient empty listEgress response); heal the row back to 'active'
+   *   and let the capture/stream proceed.
+   * - Egress genuinely gone (or LiveKit unreachable) → emit the missing
+   *   REPLAY_BUFFER_STOPPED/FAILED event so the client clears its UI, then
+   *   throw an accurate NotFoundException.
+   *
+   * @param userId - ID of the user requesting capture/stream
+   * @returns The healed, active session
+   * @throws NotFoundException when no session exists or the egress has ended
+   */
+  private async recoverStaleSession(userId: string): Promise<EgressSession> {
+    // Most recent session regardless of status — the row the stranded
+    // capture button is really pointing at.
+    const recentSession = await this.databaseService.egressSession.findFirst({
+      where: { userId },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!recentSession) {
+      throw new NotFoundException(
+        'No active replay found. Start screen sharing first.',
+      );
+    }
+
+    // Ask LiveKit whether the egress is actually still running. Tolerate a
+    // missing client (LiveKit not configured) and listEgress failures — both
+    // fall through to the "recording ended" path below.
+    let egressStatus: EgressStatus | null = null;
+    if (this.egressClient) {
+      try {
+        const egressInfoList = await this.egressClient.listEgress({
+          egressId: recentSession.egressId,
+        });
+        egressStatus =
+          egressInfoList.length > 0 ? egressInfoList[0].status : null;
+      } catch (error) {
+        this.logger.warn(
+          `Could not verify egress ${recentSession.egressId} during heal: ${getErrorMessage(error)}`,
+        );
+      }
+    }
+
+    if (
+      egressStatus === EgressStatus.EGRESS_ACTIVE ||
+      egressStatus === EgressStatus.EGRESS_STARTING
+    ) {
+      // The egress is alive but our row says otherwise (e.g. a transient
+      // empty listEgress marked it stopped). Heal it and continue.
+      this.logger.warn(
+        `Healing session ${recentSession.id} for user ${userId}: DB status '${recentSession.status}' but LiveKit egress ${recentSession.egressId} is still running`,
+      );
+      return this.databaseService.egressSession.update({
+        where: { id: recentSession.id },
+        data: {
+          status: 'active',
+          endedAt: null,
+          error: null,
+        },
+      });
+    }
+
+    // Egress is genuinely gone. The client is still showing the capture
+    // button (or it wouldn't have hit this endpoint) — emit the event it
+    // missed so the UI clears, then fail with an accurate message.
+    if (recentSession.status === 'failed') {
+      this.websocketService.sendToRoom(
+        RoomName.user(recentSession.userId),
+        ServerEvents.REPLAY_BUFFER_FAILED,
+        {
+          sessionId: recentSession.id,
+          egressId: recentSession.egressId,
+          channelId: recentSession.channelId,
+          error: recentSession.error || 'Unknown error',
+        },
+      );
+    } else {
+      this.websocketService.sendToRoom(
+        RoomName.user(recentSession.userId),
+        ServerEvents.REPLAY_BUFFER_STOPPED,
+        {
+          sessionId: recentSession.id,
+          egressId: recentSession.egressId,
+          channelId: recentSession.channelId,
+        },
+      );
+    }
+
+    throw new NotFoundException(
+      'Your replay recording has ended — start screen sharing again to capture.',
+    );
+  }
+
+  /**
    * Stream a replay clip directly to the client (download-only, no persistence)
    * Creates a temporary file that should be deleted by the controller after streaming
    *
@@ -649,18 +782,15 @@ export class LivekitReplayService {
     );
 
     // 1. Find active egress session for this user
-    const session = await this.databaseService.egressSession.findFirst({
-      where: {
-        userId,
-        status: 'active',
-      },
-    });
-
-    if (!session) {
-      throw new NotFoundException(
-        'No active replay found. Start screen sharing first.',
-      );
-    }
+    // If the row was flipped without notifying the client, try to heal it
+    // (or emit the missed stop event and fail accurately).
+    const session =
+      (await this.databaseService.egressSession.findFirst({
+        where: {
+          userId,
+          status: 'active',
+        },
+      })) ?? (await this.recoverStaleSession(userId));
 
     // 2. Calculate how many segments we need
     // Each segment is ~10 seconds, so 6 segments per minute
@@ -727,18 +857,15 @@ export class LivekitReplayService {
     );
 
     // 1. Find active egress session for this user
-    const session = await this.databaseService.egressSession.findFirst({
-      where: {
-        userId,
-        status: 'active',
-      },
-    });
-
-    if (!session) {
-      throw new NotFoundException(
-        'No active replay found. Start screen sharing first.',
-      );
-    }
+    // If the row was flipped without notifying the client, try to heal it
+    // (or emit the missed stop event and fail accurately).
+    const session =
+      (await this.databaseService.egressSession.findFirst({
+        where: {
+          userId,
+          status: 'active',
+        },
+      })) ?? (await this.recoverStaleSession(userId));
 
     // 2. Resolve relative segment path to full path
     const segmentDir = this.storageService.resolveSegmentPath(

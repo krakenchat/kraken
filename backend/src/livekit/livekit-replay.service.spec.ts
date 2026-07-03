@@ -858,6 +858,142 @@ describe('LivekitReplayService', () => {
       );
     });
 
+    describe('stale session recovery', () => {
+      const staleSession = {
+        id: 'session-1',
+        userId,
+        channelId: 'channel-1',
+        egressId: 'egress-123',
+        status: 'stopped',
+        error: null,
+        segmentPath: 'session-1',
+        startedAt: new Date('2025-01-01'),
+      };
+
+      it('should heal the session and proceed when LiveKit says the egress is still running', async () => {
+        databaseService.egressSession.findFirst
+          .mockResolvedValueOnce(null) // active-session lookup misses
+          .mockResolvedValueOnce(staleSession); // most-recent session lookup
+        mockEgressClient.listEgress.mockResolvedValue([
+          { status: EgressStatus.EGRESS_ACTIVE },
+        ]);
+        databaseService.egressSession.update.mockResolvedValue({
+          ...staleSession,
+          status: 'active',
+          endedAt: null,
+        });
+
+        const result = await service.captureReplay(userId, dto);
+
+        expect(result.clipId).toBe('clip-1');
+        expect(databaseService.egressSession.update).toHaveBeenCalledWith({
+          where: { id: 'session-1' },
+          data: { status: 'active', endedAt: null, error: null },
+        });
+        expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+      });
+
+      it('should heal the session when LiveKit says the egress is starting', async () => {
+        databaseService.egressSession.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(staleSession);
+        mockEgressClient.listEgress.mockResolvedValue([
+          { status: EgressStatus.EGRESS_STARTING },
+        ]);
+        databaseService.egressSession.update.mockResolvedValue({
+          ...staleSession,
+          status: 'active',
+          endedAt: null,
+        });
+
+        const result = await service.captureReplay(userId, dto);
+
+        expect(result.clipId).toBe('clip-1');
+        expect(databaseService.egressSession.update).toHaveBeenCalledWith({
+          where: { id: 'session-1' },
+          data: { status: 'active', endedAt: null, error: null },
+        });
+      });
+
+      it('should emit REPLAY_BUFFER_STOPPED and throw an accurate 404 when the egress is gone', async () => {
+        databaseService.egressSession.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(staleSession);
+        mockEgressClient.listEgress.mockResolvedValue([]); // Egress gone
+
+        await expect(service.captureReplay(userId, dto)).rejects.toThrow(
+          'Your replay recording has ended — start screen sharing again to capture.',
+        );
+
+        expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+          'user:user-123',
+          ServerEvents.REPLAY_BUFFER_STOPPED,
+          expect.objectContaining({
+            sessionId: 'session-1',
+            egressId: 'egress-123',
+            channelId: 'channel-1',
+          }),
+        );
+        expect(databaseService.egressSession.update).not.toHaveBeenCalled();
+      });
+
+      it('should emit REPLAY_BUFFER_FAILED when the stale session had failed', async () => {
+        databaseService.egressSession.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            ...staleSession,
+            status: 'failed',
+            error: 'Codec error',
+          });
+        mockEgressClient.listEgress.mockResolvedValue([]);
+
+        await expect(service.captureReplay(userId, dto)).rejects.toThrow(
+          NotFoundException,
+        );
+
+        expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+          'user:user-123',
+          ServerEvents.REPLAY_BUFFER_FAILED,
+          expect.objectContaining({
+            sessionId: 'session-1',
+            error: 'Codec error',
+          }),
+        );
+      });
+
+      it('should throw the accurate 404 when listEgress itself fails', async () => {
+        databaseService.egressSession.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(staleSession);
+        mockEgressClient.listEgress.mockRejectedValue(
+          new Error('LiveKit unreachable'),
+        );
+
+        await expect(service.captureReplay(userId, dto)).rejects.toThrow(
+          'Your replay recording has ended — start screen sharing again to capture.',
+        );
+
+        expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+          'user:user-123',
+          ServerEvents.REPLAY_BUFFER_STOPPED,
+          expect.any(Object),
+        );
+      });
+
+      it('should throw the generic 404 when the user has no sessions at all', async () => {
+        databaseService.egressSession.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null);
+
+        await expect(service.captureReplay(userId, dto)).rejects.toThrow(
+          'No active replay found. Start screen sharing first.',
+        );
+
+        expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+        expect(mockEgressClient.listEgress).not.toHaveBeenCalled();
+      });
+    });
+
     describe('destination authorization', () => {
       it('should throw ForbiddenException when posting to channel without community membership', async () => {
         const channelDto = {
@@ -982,6 +1118,8 @@ describe('LivekitReplayService', () => {
       const activeSession = {
         id: 'session-1',
         egressId: 'missing-egress',
+        userId: 'user-123',
+        channelId: 'channel-1',
         status: 'active',
       };
 
@@ -996,6 +1134,33 @@ describe('LivekitReplayService', () => {
           data: expect.objectContaining({
             status: 'stopped',
           }),
+        }),
+      );
+    });
+
+    it('should emit REPLAY_BUFFER_STOPPED when egress not found in LiveKit', async () => {
+      const activeSession = {
+        id: 'session-1',
+        egressId: 'missing-egress',
+        userId: 'user-123',
+        channelId: 'channel-1',
+        status: 'active',
+      };
+
+      databaseService.egressSession.findMany.mockResolvedValue([activeSession]);
+      mockEgressClient.listEgress.mockResolvedValue([]); // Egress not found
+
+      await service.reconcileEgressStatus();
+
+      // Without this event the frontend keeps showing the capture button
+      // and every capture attempt 404s (issue #302)
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-123',
+        ServerEvents.REPLAY_BUFFER_STOPPED,
+        expect.objectContaining({
+          sessionId: 'session-1',
+          egressId: 'missing-egress',
+          channelId: 'channel-1',
         }),
       );
     });
@@ -1039,6 +1204,99 @@ describe('LivekitReplayService', () => {
       await service.reconcileEgressStatus();
 
       expect(databaseService.egressSession.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('streamReplay', () => {
+    const userId = 'user-123';
+    const activeSession = {
+      id: 'session-1',
+      userId,
+      channelId: 'channel-1',
+      egressId: 'egress-123',
+      status: 'active',
+      error: null,
+      segmentPath: 'session-1',
+      startedAt: new Date('2025-01-01'),
+    };
+
+    beforeEach(() => {
+      replaySegmentsService.listCompleteSegments.mockResolvedValue([
+        {
+          filename: '2025-01-01T000000-segment_00000.ts',
+          sequence: 0,
+          path: '/app/storage/replay-segments/session-1/2025-01-01T000000-segment_00000.ts',
+        },
+      ]);
+      ffmpegService.concatenateSegments.mockResolvedValue(undefined);
+    });
+
+    it('should stream from an active session', async () => {
+      databaseService.egressSession.findFirst.mockResolvedValue(activeSession);
+
+      const result = await service.streamReplay(userId, 1);
+
+      expect(result).toContain('replay-stream-user-123');
+      expect(ffmpegService.concatenateSegments).toHaveBeenCalled();
+    });
+
+    it('should heal the session and stream when LiveKit says the egress is still running', async () => {
+      databaseService.egressSession.findFirst
+        .mockResolvedValueOnce(null) // active-session lookup misses
+        .mockResolvedValueOnce({ ...activeSession, status: 'stopped' });
+      mockEgressClient.listEgress.mockResolvedValue([
+        { status: EgressStatus.EGRESS_ACTIVE },
+      ]);
+      databaseService.egressSession.update.mockResolvedValue(activeSession);
+
+      const result = await service.streamReplay(userId, 1);
+
+      expect(result).toContain('replay-stream-user-123');
+      expect(databaseService.egressSession.update).toHaveBeenCalledWith({
+        where: { id: 'session-1' },
+        data: { status: 'active', endedAt: null, error: null },
+      });
+    });
+
+    it('should emit REPLAY_BUFFER_STOPPED and throw an accurate 404 when the egress is gone', async () => {
+      databaseService.egressSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...activeSession, status: 'stopped' });
+      mockEgressClient.listEgress.mockResolvedValue([]);
+
+      await expect(service.streamReplay(userId, 1)).rejects.toThrow(
+        'Your replay recording has ended — start screen sharing again to capture.',
+      );
+
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-123',
+        ServerEvents.REPLAY_BUFFER_STOPPED,
+        expect.objectContaining({
+          sessionId: 'session-1',
+          egressId: 'egress-123',
+          channelId: 'channel-1',
+        }),
+      );
+    });
+  });
+
+  describe('onApplicationBootstrap', () => {
+    it('should run egress reconciliation once at startup', async () => {
+      const reconcileSpy = jest
+        .spyOn(service, 'reconcileEgressStatus')
+        .mockResolvedValue(undefined);
+
+      await service.onApplicationBootstrap();
+
+      expect(reconcileSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not throw when startup reconciliation fails', async () => {
+      jest
+        .spyOn(service, 'reconcileEgressStatus')
+        .mockRejectedValue(new Error('LiveKit down'));
+
+      await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
     });
   });
 });
