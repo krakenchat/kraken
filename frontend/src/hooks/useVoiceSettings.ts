@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getCachedItem, setCachedItem } from '../utils/storage';
 
 export type VoiceInputMode = 'voice_activity' | 'push_to_talk';
@@ -15,6 +15,12 @@ export interface VoiceSettings {
 }
 
 const VOICE_SETTINGS_KEY = 'semaphore_voice_settings';
+
+// Same-tab sync event: each useVoiceSettings() call holds its own useState,
+// and localStorage 'storage' events only fire in OTHER tabs. Without this
+// event, a mode change made in the settings dialog would never reach other
+// mounted instances (e.g. usePushToTalk inside VoiceBottomBar) until remount.
+const VOICE_SETTINGS_EVENT = 'semaphore:voice-settings-changed';
 
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   inputMode: 'voice_activity',
@@ -88,11 +94,28 @@ export const useVoiceSettings = () => {
     return saved ? { ...DEFAULT_VOICE_SETTINGS, ...saved } : DEFAULT_VOICE_SETTINGS;
   });
 
+  // Keep all hook instances in sync when any of them saves settings
+  useEffect(() => {
+    const handleSettingsChanged = (event: Event) => {
+      const detail = (event as CustomEvent<VoiceSettings>).detail;
+      if (detail) {
+        // Identity guard so the dispatching instance's own event (delivered
+        // synchronously, possibly before its setState commits) is a no-op.
+        setVoiceSettings((prev) => (Object.is(prev, detail) ? prev : detail));
+      }
+    };
+    window.addEventListener(VOICE_SETTINGS_EVENT, handleSettingsChanged);
+    return () => window.removeEventListener(VOICE_SETTINGS_EVENT, handleSettingsChanged);
+  }, []);
+
   // Save voice settings
   const saveVoiceSettings = useCallback((settings: Partial<VoiceSettings>) => {
     const newSettings = { ...voiceSettings, ...settings };
     setVoiceSettings(newSettings);
     setCachedItem(VOICE_SETTINGS_KEY, newSettings);
+    // Notify other useVoiceSettings instances in this tab (self-dispatch is a
+    // no-op via the listener's Object.is guard on the same object reference)
+    window.dispatchEvent(new CustomEvent(VOICE_SETTINGS_EVENT, { detail: newSettings }));
   }, [voiceSettings]);
 
   // Set input mode

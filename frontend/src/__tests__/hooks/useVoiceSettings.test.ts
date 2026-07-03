@@ -139,6 +139,46 @@ describe('useVoiceSettings', () => {
     });
   });
 
+  describe('cross-instance sync (same tab)', () => {
+    it('propagates setInputMode to other mounted instances', () => {
+      // e.g. settings dialog instance vs. usePushToTalk's instance in VoiceBottomBar
+      const panel = renderHook(() => useVoiceSettings());
+      const bottomBar = renderHook(() => useVoiceSettings());
+
+      expect(bottomBar.result.current.inputMode).toBe('voice_activity');
+
+      act(() => {
+        panel.result.current.setInputMode('push_to_talk');
+      });
+
+      expect(bottomBar.result.current.inputMode).toBe('push_to_talk');
+      expect(bottomBar.result.current.isPushToTalk).toBe(true);
+    });
+
+    it('propagates saveVoiceSettings changes to other instances', () => {
+      const a = renderHook(() => useVoiceSettings());
+      const b = renderHook(() => useVoiceSettings());
+
+      act(() => {
+        a.result.current.setVoiceActivityThreshold(42);
+      });
+
+      expect(b.result.current.voiceActivityThreshold).toBe(42);
+    });
+
+    it('stops syncing after unmount', () => {
+      const a = renderHook(() => useVoiceSettings());
+      const b = renderHook(() => useVoiceSettings());
+      b.unmount();
+
+      expect(() => {
+        act(() => {
+          a.result.current.setInputMode('push_to_talk');
+        });
+      }).not.toThrow();
+    });
+  });
+
   describe('loads persisted audio processing settings', () => {
     it('restores saved audio processing values', () => {
       mockStorage['semaphore_voice_settings'] = {
