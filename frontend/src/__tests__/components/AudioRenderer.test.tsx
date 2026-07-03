@@ -6,12 +6,21 @@ import { AudioRenderer } from '../../components/Voice/AudioRenderer';
 type Handler = (...args: unknown[]) => void;
 let roomEventHandlers: Map<string, Set<Handler>>;
 
+// --- Mock audioBoostManager (real boostKey shape, spied applyVolume) ---
+const { applyVolumeMock } = vi.hoisted(() => ({ applyVolumeMock: vi.fn() }));
+
+vi.mock('../../features/voice/audioBoostManager', () => ({
+  audioBoostManager: { applyVolume: applyVolumeMock },
+  boostKey: (identity: string, source: string) => `${identity}:${source}`,
+}));
+
 // --- Mock track / participant factories ---
+// Tracks include setVolume so isBoostableAudioTrack treats them as RemoteAudioTracks.
 function createMockPublication(source: string, hasTrack = true) {
   return {
     source,
     trackSid: `sid-${source}-${Math.random()}`,
-    track: hasTrack ? { attach: vi.fn(), detach: vi.fn() } : undefined,
+    track: hasTrack ? { attach: vi.fn(), detach: vi.fn(), setVolume: vi.fn() } : undefined,
   };
 }
 
@@ -86,6 +95,7 @@ vi.mock('../../contexts/VoiceContext', () => ({
 describe('AudioRenderer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     buildMockRoom();
     mockWatchingScreenShares = new Set<string>();
   });
@@ -184,5 +194,61 @@ describe('AudioRenderer', () => {
     const { container } = render(<AudioRenderer />);
     const audioElements = container.querySelectorAll('audio');
     expect(audioElements.length).toBe(0);
+  });
+
+  describe('stored volume application after attach', () => {
+    it('applies a stored volume of 0 (muted mic) after the track is attached', () => {
+      // Stored as 0-2.0 float in localStorage; 0 means the user muted this stream
+      localStorage.setItem('voiceUserVolume:user-1', '0');
+      const micPub = createMockPublication('microphone');
+      const participant = createMockRemoteParticipant('user-1', [micPub]);
+      mockRoom!.remoteParticipants.set('user-1', participant);
+
+      render(<AudioRenderer />);
+
+      expect(applyVolumeMock).toHaveBeenCalledWith(micPub.track, 'user-1:microphone', 0);
+      // Must run AFTER attach: RemoteAudioTrack.attach only re-applies truthy
+      // volumes, so a pre-attach setVolume(0) never reaches the element.
+      const attachOrder = micPub.track!.attach.mock.invocationCallOrder[0];
+      const applyOrder = applyVolumeMock.mock.invocationCallOrder[0];
+      expect(applyOrder).toBeGreaterThan(attachOrder);
+    });
+
+    it('applies a stored volume of 0 for screen share audio when watching', () => {
+      mockWatchingScreenShares = new Set(['user-1']);
+      localStorage.setItem('voiceScreenShareVolume:user-1', '0');
+      const screenAudioPub = createMockPublication('screen_share_audio');
+      const participant = createMockRemoteParticipant('user-1', [screenAudioPub]);
+      mockRoom!.remoteParticipants.set('user-1', participant);
+
+      render(<AudioRenderer />);
+
+      expect(applyVolumeMock).toHaveBeenCalledWith(
+        screenAudioPub.track,
+        'user-1:screen_share_audio',
+        0,
+      );
+    });
+
+    it('defaults to 100% when no volume is stored', () => {
+      const micPub = createMockPublication('microphone');
+      const participant = createMockRemoteParticipant('user-1', [micPub]);
+      mockRoom!.remoteParticipants.set('user-1', participant);
+
+      render(<AudioRenderer />);
+
+      expect(applyVolumeMock).toHaveBeenCalledWith(micPub.track, 'user-1:microphone', 100);
+    });
+
+    it('applies a stored boosted volume (150%)', () => {
+      localStorage.setItem('voiceUserVolume:user-1', '1.5');
+      const micPub = createMockPublication('microphone');
+      const participant = createMockRemoteParticipant('user-1', [micPub]);
+      mockRoom!.remoteParticipants.set('user-1', participant);
+
+      render(<AudioRenderer />);
+
+      expect(applyVolumeMock).toHaveBeenCalledWith(micPub.track, 'user-1:microphone', 150);
+    });
   });
 });
