@@ -99,7 +99,9 @@ export const useVoiceSettings = () => {
     const handleSettingsChanged = (event: Event) => {
       const detail = (event as CustomEvent<VoiceSettings>).detail;
       if (detail) {
-        setVoiceSettings(detail);
+        // Identity guard so the dispatching instance's own event (delivered
+        // synchronously, possibly before its setState commits) is a no-op.
+        setVoiceSettings((prev) => (Object.is(prev, detail) ? prev : detail));
       }
     };
     window.addEventListener(VOICE_SETTINGS_EVENT, handleSettingsChanged);
@@ -112,7 +114,7 @@ export const useVoiceSettings = () => {
     setVoiceSettings(newSettings);
     setCachedItem(VOICE_SETTINGS_KEY, newSettings);
     // Notify other useVoiceSettings instances in this tab (self-dispatch is a
-    // no-op: setVoiceSettings receives the same object reference and bails out)
+    // no-op via the listener's Object.is guard on the same object reference)
     window.dispatchEvent(new CustomEvent(VOICE_SETTINGS_EVENT, { detail: newSettings }));
   }, [voiceSettings]);
 
