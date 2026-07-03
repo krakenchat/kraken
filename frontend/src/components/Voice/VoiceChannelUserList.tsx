@@ -19,7 +19,7 @@ import { RoomEvent } from "livekit-client";
 import { getUserInfo } from "../../features/users/userApiHelpers";
 import { useServerEvent } from "../../socket-hub/useServerEvent";
 import { ServerEvents } from "@semaphore-chat/shared";
-import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import { useSpeaking } from "../../hooks/useSpeaking";
 import { useVoice } from "../../contexts/VoiceContext";
 import { useTrackSubscriptionActions } from "../../hooks/useTrackSubscription";
 import CompactUserItem from "./components/CompactUserItem";
@@ -39,7 +39,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
 }) => {
   const theme = useTheme();
   const { state: voiceState, actions: voiceActions } = useVoiceConnection();
-  const { isSpeaking } = useSpeakingDetection();
+  const { isSpeaking } = useSpeaking();
   const { watchingCameras, watchingScreenShares } = useVoice();
   const trackActions = useTrackSubscriptionActions();
   const [livekitParticipants, setLivekitParticipants] = useState<VoicePresenceUserDto[]>([]);

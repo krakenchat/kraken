@@ -25,6 +25,7 @@ import type {
 } from 'livekit-client';
 import UserAvatar from '../Common/UserAvatar';
 import ScreenShareVolumeControl from './ScreenShareVolumeControl';
+import { useSpeaking } from '../../hooks/useSpeaking';
 
 export interface VideoTileProps {
   participant: RemoteParticipant | LocalParticipant;
@@ -59,6 +60,17 @@ const VideoTile: React.FC<VideoTileProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const screenRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const { isSpeaking } = useSpeaking();
+
+  // Discord-style speaking ring: constant transparent border swapped to the
+  // positive status color while speaking, so the ring never shifts layout.
+  // Applied to camera and avatar/placeholder tiles only — never screen shares.
+  const speakingRingSx = (active: boolean) => ({
+    border: active
+      ? `2px solid ${theme.palette.semantic.status.positive}`
+      : '2px solid transparent',
+    transition: 'border-color 0.2s ease',
+  });
   // Handle video track
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -110,7 +122,8 @@ const VideoTile: React.FC<VideoTileProps> = ({
           backgroundColor: 'grey.900',
           overflow: 'hidden',
           cursor: 'pointer',
-          transition: 'background-color 0.15s',
+          ...speakingRingSx(placeholderType !== 'screen' && isSpeaking(participant.identity)),
+          transition: 'background-color 0.15s, border-color 0.2s ease',
           '&:hover': {
             backgroundColor: alpha(theme.palette.primary.main, 0.08),
           },
@@ -170,6 +183,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
         backgroundColor: 'grey.900',
         overflow: 'hidden',
         cursor: onToggleFullscreen ? 'pointer' : 'default',
+        ...speakingRingSx(!hasScreen && isSpeaking(participant.identity)),
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

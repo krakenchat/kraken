@@ -17,6 +17,7 @@ import { NotificationProvider } from "../contexts/NotificationContext";
 import { VoiceProvider } from "../contexts/VoiceContext";
 import { ConnectionStatusBanner } from "./ConnectionStatusBanner";
 import { RoomProvider } from "../contexts/RoomContext";
+import { SpeakingProvider } from "../contexts/SpeakingContext";
 import { ThreadPanelProvider } from "../contexts/ThreadPanelContext";
 import { UserProfileProvider } from "../contexts/UserProfileContext";
 import { logger } from "../utils/logger";
@@ -157,11 +158,13 @@ export function AuthGate() {
           <VoiceProvider>
             <ConnectionStatusBanner />
             <RoomProvider>
-              <ThreadPanelProvider>
-                <UserProfileProvider>
-                  <Outlet />
-                </UserProfileProvider>
-              </ThreadPanelProvider>
+              <SpeakingProvider>
+                <ThreadPanelProvider>
+                  <UserProfileProvider>
+                    <Outlet />
+                  </UserProfileProvider>
+                </ThreadPanelProvider>
+              </SpeakingProvider>
             </RoomProvider>
           </VoiceProvider>
         </NotificationProvider>

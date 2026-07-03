@@ -42,6 +42,9 @@ vi.mock('../../contexts/VoiceContext', () => ({
 vi.mock('../../contexts/RoomContext', () => ({
   RoomProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+vi.mock('../../contexts/SpeakingContext', () => ({
+  SpeakingProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock('../../contexts/ThreadPanelContext', () => ({
   ThreadPanelProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
