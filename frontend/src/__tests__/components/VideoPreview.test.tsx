@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  afterAll,
+} from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 import { generateTheme } from '../../theme/themeConfig';
@@ -33,7 +41,12 @@ vi.mock('../../hooks/useVideoUrl', () => ({
 
 // jsdom does not implement HTMLMediaElement.play — stub it as a resolved promise
 const playMock = vi.fn(() => Promise.resolve());
+const originalPlay = window.HTMLMediaElement.prototype.play;
 window.HTMLMediaElement.prototype.play = playMock;
+
+afterAll(() => {
+  window.HTMLMediaElement.prototype.play = originalPlay;
+});
 
 const theme = generateTheme('dark', 'blue', 'balanced');
 
@@ -59,6 +72,11 @@ describe('VideoPreview', () => {
       value: 'visible',
       configurable: true,
     });
+  });
+
+  afterEach(() => {
+    // Remove the own property so jsdom's prototype getter takes over again
+    Reflect.deleteProperty(document, 'visibilityState');
   });
 
   it('should render play button overlay', () => {
