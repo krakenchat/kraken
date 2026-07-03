@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Card,
@@ -93,6 +93,36 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({ metadata }) => {
   const [thumbnailLoading, setThumbnailLoading] = useState(false);
   const fileCache = useFileCache();
   const { url: videoUrl } = useVideoUrl(state === "playing" ? metadata.id : null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hasLoadedRef = useRef(false);
+
+  // Manage the video src imperatively so that signed-URL refreshes (Electron)
+  // don't trigger a React-driven src swap + autoPlay, which would audibly
+  // replay the clip while the app is backgrounded.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoUrl) return;
+
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      video.src = videoUrl;
+      video.play().catch(() => {}); // user just clicked Play — gesture-backed
+      return;
+    }
+
+    // Signed-URL refresh: swap src without audible restarts
+    const wasPlaying = !video.paused && !video.ended;
+    const resumeTime = video.currentTime;
+    video.src = videoUrl;
+    const onLoaded = () => {
+      if (resumeTime > 0) video.currentTime = resumeTime;
+      if (wasPlaying && document.visibilityState === "visible") {
+        video.play().catch(() => {});
+      }
+    };
+    video.addEventListener("loadedmetadata", onLoaded, { once: true });
+    return () => video.removeEventListener("loadedmetadata", onLoaded);
+  }, [videoUrl]);
 
   // Fetch thumbnail on mount if available
   useEffect(() => {
@@ -128,7 +158,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({ metadata }) => {
     return (
       <VideoCard>
         {videoUrl ? (
-          <StyledVideo src={videoUrl} controls autoPlay crossOrigin="use-credentials" />
+          <StyledVideo ref={videoRef} controls crossOrigin="use-credentials" />
         ) : (
           <GenericPlaceholder>
             <CircularProgress size={32} />
