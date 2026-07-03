@@ -5,9 +5,9 @@ import UserStatusIndicator from "../Message/UserStatusIndicator";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { useUser } from "../../hooks/useUser";
 
-type AvatarSize = "small" | "medium" | "large" | "xlarge";
+type AvatarSize = "small" | "medium" | "large" | "xlarge" | "fluid";
 
-const sizeMap: Record<AvatarSize, number> = {
+const sizeMap: Record<Exclude<AvatarSize, "fluid">, number> = {
   small: 32,
   medium: 40,
   large: 48,
@@ -32,7 +32,8 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   isOnline = false,
   clickable = false,
 }) => {
-  const avatarSize = sizeMap[size];
+  // "fluid" fills the parent container instead of using a fixed pixel size
+  const avatarSize = size === "fluid" ? "100%" : sizeMap[size];
   const { data: user } = useUser(userId);
   const { blobUrl, isLoading } = useAuthenticatedImage(user?.avatarUrl);
   const { openProfile } = useUserProfile();
