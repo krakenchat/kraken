@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  afterAll,
+} from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 import { generateTheme } from '../../theme/themeConfig';
@@ -14,14 +22,31 @@ vi.mock('../../contexts/AvatarCacheContext', () => ({
   })),
 }));
 
-// Mock the useVideoUrl hook
+// Mock the useVideoUrl hook (urlOverride lets tests simulate a signed-URL refresh)
+const videoUrlMock = vi.hoisted(() => ({ urlOverride: null as string | null }));
+
 vi.mock('../../hooks/useVideoUrl', () => ({
   useVideoUrl: vi.fn((fileId: string | null) =>
     fileId
-      ? { url: `http://localhost:3000/api/file/${fileId}`, isLoading: false, refresh: vi.fn() }
+      ? {
+          url:
+            videoUrlMock.urlOverride ??
+            `http://localhost:3000/api/file/${fileId}`,
+          isLoading: false,
+          refresh: vi.fn(),
+        }
       : { url: null, isLoading: false, refresh: vi.fn() },
   ),
 }));
+
+// jsdom does not implement HTMLMediaElement.play — stub it as a resolved promise
+const playMock = vi.fn(() => Promise.resolve());
+const originalPlay = window.HTMLMediaElement.prototype.play;
+window.HTMLMediaElement.prototype.play = playMock;
+
+afterAll(() => {
+  window.HTMLMediaElement.prototype.play = originalPlay;
+});
 
 const theme = generateTheme('dark', 'blue', 'balanced');
 
@@ -42,6 +67,16 @@ describe('VideoPreview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetchThumbnail.mockResolvedValue('blob:thumbnail-url');
+    videoUrlMock.urlOverride = null;
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    // Remove the own property so jsdom's prototype getter takes over again
+    Reflect.deleteProperty(document, 'visibilityState');
   });
 
   it('should render play button overlay', () => {
@@ -93,7 +128,25 @@ describe('VideoPreview', () => {
     const video = document.querySelector('video');
     expect(video).not.toBeNull();
     expect(video?.src).toContain('/api/file/video-123');
-    expect(video?.autoplay).toBe(true);
+  });
+
+  it('should not have the autoplay attribute on the video element', () => {
+    renderWithTheme(<VideoPreview metadata={baseMetadata} />);
+
+    fireEvent.click(screen.getByTestId('PlayArrowIcon'));
+
+    const video = document.querySelector('video');
+    expect(video).not.toBeNull();
+    expect(video?.hasAttribute('autoplay')).toBe(false);
+    expect(video?.autoplay).toBe(false);
+  });
+
+  it('should call play() exactly once when the user clicks play', () => {
+    renderWithTheme(<VideoPreview metadata={baseMetadata} />);
+
+    fireEvent.click(screen.getByTestId('PlayArrowIcon'));
+
+    expect(playMock).toHaveBeenCalledTimes(1);
   });
 
   it('should format small file sizes correctly', () => {
@@ -182,10 +235,82 @@ describe('VideoPreview', () => {
 
       fireEvent.click(screen.getByTestId('PlayArrowIcon'));
 
+      // src is set imperatively (no src prop), so assert the DOM property
       const video = document.querySelector('video');
       expect(video?.src).toBe(
         'http://localhost:3000/api/file/video-123',
       );
+    });
+  });
+
+  describe('signed URL refresh', () => {
+    function renderPlaying() {
+      const result = renderWithTheme(<VideoPreview metadata={baseMetadata} />);
+      fireEvent.click(screen.getByTestId('PlayArrowIcon'));
+      const video = document.querySelector('video') as HTMLVideoElement;
+      expect(video).not.toBeNull();
+      expect(playMock).toHaveBeenCalledTimes(1);
+      return { ...result, video };
+    }
+
+    function refreshUrl(
+      rerender: (ui: React.ReactElement) => void,
+      url = 'http://localhost:3000/api/file/video-123?sig=refreshed',
+    ) {
+      videoUrlMock.urlOverride = url;
+      rerender(
+        <ThemeProvider theme={theme}>
+          <VideoPreview metadata={baseMetadata} />
+        </ThemeProvider>,
+      );
+    }
+
+    it('should not replay when the URL refreshes while paused, and restores currentTime', () => {
+      const { rerender, video } = renderPlaying();
+
+      // jsdom default: video.paused === true
+      video.currentTime = 42;
+
+      refreshUrl(rerender);
+      expect(video.src).toContain('sig=refreshed');
+
+      fireEvent(video, new Event('loadedmetadata'));
+
+      expect(playMock).toHaveBeenCalledTimes(1); // no additional play()
+      expect(video.currentTime).toBe(42);
+    });
+
+    it('should not resume playback after a URL refresh when the document is hidden', () => {
+      const { rerender, video } = renderPlaying();
+
+      Object.defineProperty(video, 'paused', {
+        value: false,
+        configurable: true,
+      });
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true,
+      });
+
+      refreshUrl(rerender);
+      fireEvent(video, new Event('loadedmetadata'));
+
+      expect(playMock).toHaveBeenCalledTimes(1); // only the initial user-gesture play
+    });
+
+    it('should resume playback after a URL refresh when the document is visible', () => {
+      const { rerender, video } = renderPlaying();
+
+      Object.defineProperty(video, 'paused', {
+        value: false,
+        configurable: true,
+      });
+      // visibilityState is 'visible' (set in beforeEach)
+
+      refreshUrl(rerender);
+      fireEvent(video, new Event('loadedmetadata'));
+
+      expect(playMock).toHaveBeenCalledTimes(2);
     });
   });
 });
