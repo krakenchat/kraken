@@ -57,7 +57,7 @@ export const VoiceTestHooks: FC = () => {
       // When asked, request tab/system audio with the SAME constraints the app's
       // toggleScreenShare path uses (getScreenShareAudioConfig), so E2E exercises
       // the real ScreenShareAudio publication shape. Default (no opts) matches
-      // the historical behaviour: video-only capture.
+      // the historical behavior: video-only capture.
       await room?.localParticipant.setScreenShareEnabled(
         enabled,
         opts?.audio ? { audio: getScreenShareAudioConfig(true) } : undefined,

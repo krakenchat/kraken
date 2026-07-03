@@ -1,5 +1,5 @@
 /**
- * Screen-share / video subscription behaviour, end to end against real LiveKit.
+ * Screen-share / video subscription behavior, end to end against real LiveKit.
  *
  * What this proves (all green):
  *   - a participant can publish screen share and a peer RECEIVES the video
@@ -7,7 +7,7 @@
  *   - stopping the share removes the publication for peers;
  *   - the "no bytes to a NON-watcher" guarantee — a bystander who never opens
  *     the tile receives zero video bytes (the autoSubscribe:false bandwidth
- *     optimisation behind [[project_voice_stability_investigation]]);
+ *     optimization);
  *   - the "non-watcher silence" guarantee — ScreenShareAudio obeys the same
  *     opt-in gating: a bystander has ZERO subscribed ScreenShareAudio tracks
  *     until they click watch.
@@ -151,29 +151,38 @@ test.describe('Screen share over real LiveKit', () => {
           'track(s) despite never watching — opt-in audio gating leaked',
       ).toBe(0);
 
-      // The watcher clicks watch → the video subscription appears...
-      await watchScreenShareOf(watcher, sharer.identity);
+      // The BYSTANDER performs the watch transition — not the shared `watcher`,
+      // whose watchingScreenShares entry from earlier serial tests persists and
+      // would auto-resubscribe the moment the share republishes, making
+      // "subscribe only after watch" a false positive. The bystander was just
+      // proven unsubscribed, so this asserts a genuine zero → subscribed
+      // transition. (Last test in the serial suite, so polluting the
+      // bystander's watch state afterwards is harmless.)
+      await watchScreenShareOf(bystander, sharer.identity);
       await expect
         .poll(
           async () =>
-            (await getSubscriptionState(watcher, sharer.identity))?.screenShare.subscribed ?? false,
-          { timeout: 15_000, message: 'watcher never subscribed to the screenshare video' },
+            (await getSubscriptionState(bystander, sharer.identity))?.screenShare.subscribed ??
+            false,
+          { timeout: 15_000, message: 'bystander never subscribed after clicking watch' },
         )
         .toBe(true);
 
       // ...and — when the environment could actually publish share audio — the
       // ScreenShareAudio subscription appears with it (watchScreenShare targets
-      // ScreenShare + ScreenShareAudio), while the bystander stays at zero.
+      // ScreenShare + ScreenShareAudio).
       if (audioCounts.published > 0) {
         await expect
           .poll(
             async () =>
-              (await getSubscriptionState(watcher, sharer.identity))?.screenShareAudio
+              (await getSubscriptionState(bystander, sharer.identity))?.screenShareAudio
                 .subscribed ?? false,
-            { timeout: 15_000, message: 'watcher never subscribed to the ScreenShareAudio track' },
+            {
+              timeout: 15_000,
+              message: 'bystander never subscribed to the ScreenShareAudio track after watching',
+            },
           )
           .toBe(true);
-        expect((await countScreenShareAudio(bystander)).subscribed).toBe(0);
       }
 
       await stopScreenShare(sharer);

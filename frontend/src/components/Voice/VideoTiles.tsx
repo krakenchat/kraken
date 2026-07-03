@@ -26,12 +26,11 @@ const GRID_CONSTANTS = {
   HEADER_HEIGHT: 48,
   MAX_SIDEBAR_TILES: 6,
 } as const;
-import {
-  Track,
+import { Track, RoomEvent } from 'livekit-client';
+import type {
   TrackPublication,
   RemoteParticipant,
   LocalParticipant,
-  RoomEvent
 } from 'livekit-client';
 
 enum VideoLayoutMode {
