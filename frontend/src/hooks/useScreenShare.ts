@@ -122,6 +122,20 @@ export const useScreenShare = (): UseScreenShareReturn => {
     }
   }, [isScreenShareEnabled]);
 
+  /**
+   * Open the video panel when our own screen share starts, so the sharer
+   * sees what they are broadcasting (remote viewers get the same via
+   * useTrackSubscription's TrackPublished handler)
+   */
+  const { setShowVideoTiles } = actions;
+  const prevScreenShareEnabledRef = useRef(isScreenShareEnabled);
+  useEffect(() => {
+    if (isScreenShareEnabled && !prevScreenShareEnabledRef.current) {
+      setShowVideoTiles(true);
+    }
+    prevScreenShareEnabledRef.current = isScreenShareEnabled;
+  }, [isScreenShareEnabled, setShowVideoTiles]);
+
   return {
     isScreenSharing: isScreenShareEnabled,
     showSourcePicker,

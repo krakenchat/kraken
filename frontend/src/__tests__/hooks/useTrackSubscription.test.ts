@@ -97,6 +97,7 @@ vi.mock('../../contexts/VoiceContext', () => ({
     StopWatchingCamera2: 'STOP_WATCHING_CAMERA',
     WatchScreenShare: 'WATCH_SCREEN_SHARE',
     StopWatchingScreenShare2: 'STOP_WATCHING_SCREEN_SHARE',
+    SetShowVideoTiles: 'SET_SHOW_VIDEO_TILES',
   },
 }));
 
@@ -191,6 +192,41 @@ describe('useTrackSubscription', () => {
       });
 
       expect(screenPub.setSubscribed).not.toHaveBeenCalled();
+    });
+
+    it('opens the video panel when a screen share is published', () => {
+      renderHook(() => useTrackSubscription());
+
+      const screenPub = createMockPublication('screen_share');
+      const participant = createMockParticipant('user-1', [screenPub]);
+
+      act(() => {
+        emitRoomEvent('trackPublished', screenPub, participant);
+      });
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_SHOW_VIDEO_TILES',
+        payload: true,
+      });
+    });
+
+    it('does not open the video panel for mic, camera, or screen share audio publishes', () => {
+      renderHook(() => useTrackSubscription());
+
+      const micPub = createMockPublication('microphone');
+      const camPub = createMockPublication('camera');
+      const screenAudioPub = createMockPublication('screen_share_audio');
+      const participant = createMockParticipant('user-1', [micPub, camPub, screenAudioPub]);
+
+      act(() => {
+        emitRoomEvent('trackPublished', micPub, participant);
+        emitRoomEvent('trackPublished', camPub, participant);
+        emitRoomEvent('trackPublished', screenAudioPub, participant);
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'SET_SHOW_VIDEO_TILES' }),
+      );
     });
 
     it('unsubscribes previously-subscribed opt-in tracks on re-publish', () => {

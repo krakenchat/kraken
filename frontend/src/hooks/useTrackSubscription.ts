@@ -158,6 +158,12 @@ export function useTrackSubscription(): TrackSubscriptionActions {
         subscribePublication(publication, `published-mic:${participant.identity}`);
       } else if (isOptInSource(publication.source)) {
         unsubscribePublication(publication, `published:${participant.identity}`);
+        // Surface new screen shares: open the video panel so the viewer sees
+        // the "Click to watch" tile (watching remains opt-in per subscription policy)
+        if (publication.source === Track.Source.ScreenShare) {
+          logger.info('[TrackSubscription] Screen share published, opening video panel', participant.identity);
+          dispatch({ type: VoiceActionType.SetShowVideoTiles, payload: true });
+        }
       }
     };
 
