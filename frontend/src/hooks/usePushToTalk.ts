@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useVoice } from '../contexts/VoiceContext';
+import { useVoice, useVoiceDispatch } from '../contexts/VoiceContext';
 import { useRoom } from './useRoom';
 import { useVoiceSettings } from './useVoiceSettings';
 import { logger } from '../utils/logger';
@@ -16,6 +16,7 @@ import { logger } from '../utils/logger';
 export function usePushToTalk() {
   const { getRoom } = useRoom();
   const voiceState = useVoice();
+  const { stateRef } = useVoiceDispatch();
   const { inputMode, pushToTalkKey, pushToTalkKeyDisplay, isPushToTalk } = useVoiceSettings();
 
   const [isKeyHeld, setIsKeyHeld] = useState(false);
@@ -43,6 +44,13 @@ export function usePushToTalk() {
     const room = getRoom();
     if (!room) return;
 
+    // Block transmit when server-muted — mirrors the guard in toggleMicrophone.
+    // Read via stateRef so we see the CURRENT value, not a stale closure.
+    if (stateRef.current.isServerMuted) {
+      logger.dev('[PTT] Key pressed while server muted, ignoring');
+      return;
+    }
+
     try {
       isKeyHeldRef.current = true;
       setIsKeyHeld(true);
@@ -51,7 +59,7 @@ export function usePushToTalk() {
     } catch (error) {
       logger.error('[PTT] Failed to enable microphone:', error);
     }
-  }, [pushToTalkKey, getRoom]);
+  }, [pushToTalkKey, getRoom, stateRef]);
 
   // Handle keyup - disable microphone
   const handleKeyUp = useCallback(async (event: KeyboardEvent) => {
