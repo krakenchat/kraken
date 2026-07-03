@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { ReplaySegmentsService } from './replay-segments.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@semaphore-chat/shared';
 import { EGRESS_CLIENT } from './providers/egress-client.provider';
 
 // Mock fluent-ffmpeg
@@ -36,6 +38,8 @@ describe('ReplaySegmentsService', () => {
 
   let storageService: any;
 
+  let websocketService: any;
+
   const mockEgressClient = {
     startTrackCompositeEgress: jest.fn(),
     stopEgress: jest.fn(),
@@ -62,6 +66,7 @@ describe('ReplaySegmentsService', () => {
     service = unit;
     databaseService = unitRef.get(DatabaseService);
     storageService = unitRef.get(StorageService);
+    websocketService = unitRef.get(WebsocketService);
 
     // Set up default return values for StorageService
     storageService.resolveSegmentPath.mockImplementation(
@@ -370,6 +375,8 @@ describe('ReplaySegmentsService', () => {
       const oldSession = {
         id: 'old-session',
         egressId: 'old-egress',
+        userId: 'user-123',
+        channelId: 'channel-1',
         segmentPath: 'old-session', // Relative path
         status: 'active',
         startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
@@ -402,10 +409,46 @@ describe('ReplaySegmentsService', () => {
       );
     });
 
+    it('should notify the user when force-stopping an orphaned session', async () => {
+      const oldSession = {
+        id: 'old-session',
+        egressId: 'old-egress',
+        userId: 'user-123',
+        channelId: 'channel-1',
+        segmentPath: 'old-session',
+        status: 'active',
+        startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      };
+
+      databaseService.egressSession.findMany.mockResolvedValue([oldSession]);
+      mockEgressClient.stopEgress.mockResolvedValue(undefined);
+      databaseService.egressSession.update.mockResolvedValue({
+        ...oldSession,
+        status: 'stopped',
+      });
+      storageService.segmentDirectoryExists.mockResolvedValue(false);
+
+      await service.cleanupOrphanedSessions();
+
+      // Without this event the frontend keeps showing the capture button
+      // and every capture attempt 404s (issue #302)
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-123',
+        ServerEvents.REPLAY_BUFFER_STOPPED,
+        expect.objectContaining({
+          sessionId: 'old-session',
+          egressId: 'old-egress',
+          channelId: 'channel-1',
+        }),
+      );
+    });
+
     it('should handle egress already stopped', async () => {
       const oldSession = {
         id: 'old-session',
         egressId: 'old-egress',
+        userId: 'user-123',
+        channelId: 'channel-1',
         segmentPath: 'old-session', // Relative path
         status: 'active',
         startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),

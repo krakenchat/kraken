@@ -5,6 +5,8 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  OnApplicationBootstrap,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
@@ -15,12 +17,14 @@ import {
   SegmentedFileProtocol,
   EncodingOptions,
   EncodingOptionsPreset,
+  EgressInfo,
   EgressStatus,
   VideoCodec,
   AudioCodec,
   TrackType,
 } from 'livekit-server-sdk';
 import { randomUUID } from 'crypto';
+import { EgressSession } from '@prisma/client';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
 import { WebsocketService } from '@/websocket/websocket.service';
@@ -49,11 +53,36 @@ import { EGRESS_CLIENT } from './providers/egress-client.provider';
 import { ROOM_SERVICE_CLIENT } from './providers/room-service.provider';
 
 @Injectable()
-export class LivekitReplayService {
+export class LivekitReplayService implements OnApplicationBootstrap {
   private readonly logger = new Logger(LivekitReplayService.name);
   private readonly segmentsPath: string;
   private readonly egressOutputPath: string;
   private readonly clipsPath: string;
+
+  /**
+   * Egress IDs the reconcile cron failed to find in LiveKit exactly once.
+   *
+   * A single empty listEgress response can be a transient LiveKit blip; if
+   * we flipped the session to 'stopped' (and emitted REPLAY_BUFFER_STOPPED)
+   * on the first miss we would kill the client's capture button for a
+   * perfectly live screen share. We only act on the second consecutive
+   * miss. Per-pod memory is fine here: a duplicate stop event from another
+   * replica is harmless, entries are removed when the egress reappears or
+   * once we act, and the set is pruned to currently-active sessions.
+   */
+  private readonly egressMissedOnce = new Set<string>();
+
+  /** Skip the heal's dead-path stop event for sessions older than this. */
+  private static readonly STALE_NOTIFY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+  /**
+   * Non-reentrancy guard for reconcileEgressStatus. The bootstrap kick-off
+   * is fire-and-forget and listEgress has no timeout, so a hung LiveKit
+   * call could still be in flight when the cron fires — overlapping passes
+   * would double-count strikes in egressMissedOnce and race their DB
+   * updates. Per-instance state is fine: the cron is per-pod anyway.
+   */
+  private reconcileInProgress = false;
 
   constructor(
     @Inject(EGRESS_CLIENT)
@@ -91,6 +120,24 @@ export class LivekitReplayService {
       `Egress output path (for LiveKit API): ${this.egressOutputPath}`,
     );
     this.logger.log(`Clips path: ${this.clipsPath}`);
+  }
+
+  /**
+   * Reconcile egress state once at startup.
+   *
+   * Sessions left 'active' in the database across a backend restart (missed
+   * webhooks, crash mid-egress) would otherwise linger until the first cron
+   * tick. Deliberately fire-and-forget: listEgress has no timeout, so
+   * awaiting it here would let an unreachable LiveKit stall app.listen()
+   * and fail k8s startup/readiness probes. Failures are logged, never
+   * propagated.
+   */
+  onApplicationBootstrap(): void {
+    void this.reconcileEgressStatus().catch((error) => {
+      this.logger.warn(
+        `Startup egress reconciliation failed: ${getErrorMessage(error)}`,
+      );
+    });
   }
 
   /**
@@ -319,8 +366,11 @@ export class LivekitReplayService {
       this.logger.log(`Egress stopped: ${session.egressId}`);
     } catch (error) {
       const errorMsg = getErrorMessage(error);
-      // If egress doesn't exist on LiveKit side, that's fine - just update DB
-      if (errorMsg.includes('egress does not exist')) {
+      // If the egress is already gone/ended on the LiveKit side, that's
+      // fine - just update the DB. Anything else (network timeout, auth)
+      // is a real failure. Without this tolerance a zombie 'active' row
+      // whose egress already ended would block the next screen-share start.
+      if (this.isEgressAlreadyEndedError(errorMsg)) {
         this.logger.warn(
           `Egress ${session.egressId} already stopped on LiveKit side, cleaning up database`,
         );
@@ -373,6 +423,23 @@ export class LivekitReplayService {
       egressId: session.egressId,
       status: 'stopped',
     };
+  }
+
+  /**
+   * True when a stopEgress failure means the egress is already gone or
+   * ended on the LiveKit side (so stopping is a no-op, not an error).
+   *
+   * LiveKit server (twirp) error strings, matched case-insensitively and
+   * conservatively:
+   * - 'egress does not exist'  — unknown/expired egress ID
+   * - 'egress is not active'   — egress already completed/aborted
+   */
+  private isEgressAlreadyEndedError(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('egress does not exist') ||
+      normalized.includes('egress is not active')
+    );
   }
 
   /**
@@ -515,6 +582,14 @@ export class LivekitReplayService {
    */
   @Cron('*/1 * * * *') // Every 1 minute
   async reconcileEgressStatus() {
+    if (this.reconcileInProgress) {
+      this.logger.warn(
+        'Skipping egress status reconciliation: previous pass still in progress',
+      );
+      return;
+    }
+    this.reconcileInProgress = true;
+
     this.logger.debug('Running egress status reconciliation...');
 
     try {
@@ -524,8 +599,18 @@ export class LivekitReplayService {
       });
 
       if (activeSessions.length === 0) {
+        this.egressMissedOnce.clear();
         this.logger.debug('No active sessions to reconcile');
         return;
+      }
+
+      // Prune strikes for sessions that are no longer active in the DB
+      // (e.g. resolved by a webhook between passes) so the set can't grow.
+      const activeEgressIds = new Set(activeSessions.map((s) => s.egressId));
+      for (const egressId of this.egressMissedOnce) {
+        if (!activeEgressIds.has(egressId)) {
+          this.egressMissedOnce.delete(egressId);
+        }
       }
 
       this.logger.debug(
@@ -546,9 +631,21 @@ export class LivekitReplayService {
             egressInfoList.length > 0 ? egressInfoList[0] : null;
 
           if (!egressInfo) {
-            // Egress doesn't exist in LiveKit - mark as stopped
+            // Two-strikes rule: a single empty listEgress response can be a
+            // transient blip. Only mark the session stopped (and notify the
+            // client) on the second consecutive miss.
+            if (!this.egressMissedOnce.has(session.egressId)) {
+              this.egressMissedOnce.add(session.egressId);
+              this.logger.warn(
+                `Egress ${session.egressId} not found in LiveKit (first miss) — will mark stopped if still missing on the next reconcile pass`,
+              );
+              continue;
+            }
+
+            // Second consecutive miss — the egress is genuinely gone.
+            this.egressMissedOnce.delete(session.egressId);
             this.logger.warn(
-              `Egress ${session.egressId} not found in LiveKit, marking as stopped`,
+              `Egress ${session.egressId} not found in LiveKit (second consecutive miss), marking as stopped`,
             );
 
             await this.databaseService.egressSession.update({
@@ -559,9 +656,25 @@ export class LivekitReplayService {
               },
             });
 
+            // Notify the client so the capture button clears — without this
+            // the frontend keeps offering capture and gets 404s (issue #302).
+            this.websocketService.sendToRoom(
+              RoomName.user(session.userId),
+              ServerEvents.REPLAY_BUFFER_STOPPED,
+              {
+                sessionId: session.id,
+                egressId: session.egressId,
+                channelId: session.channelId,
+              },
+            );
+
             reconciledCount++;
             continue;
           }
+
+          // Egress reappeared (or was never missing) — clear any pending
+          // first-miss strike so a later isolated blip starts from zero.
+          this.egressMissedOnce.delete(session.egressId);
 
           // Check LiveKit status
           const livekitStatus = egressInfo.status;
@@ -632,7 +745,158 @@ export class LivekitReplayService {
       this.logger.error(
         `Egress status reconciliation job failed: ${getErrorMessage(error)}`,
       );
+    } finally {
+      this.reconcileInProgress = false;
     }
+  }
+
+  /**
+   * On-demand heal for capture/stream/session-info requests that find no
+   * active session.
+   *
+   * The frontend only clears its capture UI on REPLAY_BUFFER_STOPPED/FAILED
+   * events, so a session row that was flipped without an event (missed
+   * webhook, silent reconcile, orphan cleanup) strands the button and every
+   * capture 404s (issues #302/#188). When the active-session lookup misses,
+   * this checks the user's most recent session against LiveKit:
+   *
+   * - Egress still running → the DB was wrongly marked stopped (e.g. a
+   *   transient empty listEgress response); heal the row back to 'active'
+   *   and let the capture/stream proceed.
+   * - Egress genuinely gone → emit the missing REPLAY_BUFFER_STOPPED/FAILED
+   *   event so the client clears its UI, then throw an accurate
+   *   NotFoundException.
+   * - LiveKit unreachable (listEgress throws) → we cannot tell whether the
+   *   recording is alive, so throw a retryable ServiceUnavailableException
+   *   without emitting any event or touching the DB row.
+   *
+   * @param userId - ID of the user requesting capture/stream
+   * @returns The healed, active session
+   * @throws NotFoundException when no session exists or the egress has ended
+   * @throws ServiceUnavailableException when LiveKit cannot be queried
+   */
+  private async recoverStaleSession(userId: string): Promise<EgressSession> {
+    // Most recent session regardless of status — the row the stranded
+    // capture button is really pointing at.
+    const recentSession = await this.databaseService.egressSession.findFirst({
+      where: { userId },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!recentSession) {
+      throw new NotFoundException(
+        'No active replay found. Start screen sharing first.',
+      );
+    }
+
+    // Ask LiveKit whether the egress is actually still running.
+    //
+    // - Missing client → LiveKit is not configured on this instance at all
+    //   (no URL/key/secret), so no egress can possibly be running; falling
+    //   through to the "recording ended" path below is accurate.
+    // - listEgress throws → LiveKit is configured but unreachable. The
+    //   recording may well still be alive, so telling the client it ended
+    //   (and emitting REPLAY_BUFFER_STOPPED) would wrongly kill a live
+    //   capture UI. Surface a retryable 503 instead — no event, no DB write.
+    let egressStatus: EgressStatus | null = null;
+    if (this.egressClient) {
+      let egressInfoList: EgressInfo[];
+      try {
+        egressInfoList = await this.egressClient.listEgress({
+          egressId: recentSession.egressId,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Could not verify egress ${recentSession.egressId} during heal: ${getErrorMessage(error)}`,
+        );
+        throw new ServiceUnavailableException(
+          'Could not check your replay status — please try again.',
+        );
+      }
+      egressStatus =
+        egressInfoList.length > 0 ? egressInfoList[0].status : null;
+    }
+
+    if (
+      egressStatus === EgressStatus.EGRESS_ACTIVE ||
+      egressStatus === EgressStatus.EGRESS_STARTING
+    ) {
+      // The egress is alive but our row says otherwise (e.g. a transient
+      // empty listEgress marked it stopped). Resurrect it with a
+      // compare-and-swap on the status we read: if a webhook or another
+      // replica changed the row in the meantime, we must not blindly stomp
+      // it back to 'active' (heal-vs-webhook zombie-row race).
+      const resurrected = await this.databaseService.egressSession.updateMany({
+        where: { id: recentSession.id, status: recentSession.status },
+        data: {
+          status: 'active',
+          endedAt: null,
+          error: null,
+        },
+      });
+
+      if (resurrected.count === 1) {
+        this.logger.warn(
+          `Healed session ${recentSession.id} for user ${userId}: DB status '${recentSession.status}' but LiveKit egress ${recentSession.egressId} is still running`,
+        );
+        return {
+          ...recentSession,
+          status: 'active',
+          endedAt: null,
+          error: null,
+        };
+      }
+
+      // Lost the CAS — someone else transitioned the row while we were
+      // checking LiveKit. Treat this attempt as not-healed and fall through
+      // to the accurate-ended handling below.
+      this.logger.warn(
+        `Skipped healing session ${recentSession.id} for user ${userId}: row status changed from '${recentSession.status}' during heal`,
+      );
+    }
+
+    // Egress is genuinely gone. If the session ended long ago the client's
+    // state is ancient (e.g. a stale tab) — skip the phantom "ended" toast
+    // and fail with the plain not-found message instead.
+    const endedAtMs = (
+      recentSession.endedAt ?? recentSession.startedAt
+    ).getTime();
+    const notifyMaxAgeMs = LivekitReplayService.STALE_NOTIFY_MAX_AGE_MS;
+    if (Date.now() - endedAtMs > notifyMaxAgeMs) {
+      throw new NotFoundException(
+        'No active replay found. Start screen sharing first.',
+      );
+    }
+
+    // The client is still showing the capture button (or it wouldn't have
+    // hit this endpoint) — emit the event it missed so the UI clears, then
+    // fail with an accurate message.
+    if (recentSession.status === 'failed') {
+      this.websocketService.sendToRoom(
+        RoomName.user(recentSession.userId),
+        ServerEvents.REPLAY_BUFFER_FAILED,
+        {
+          sessionId: recentSession.id,
+          egressId: recentSession.egressId,
+          channelId: recentSession.channelId,
+          error: recentSession.error || 'Unknown error',
+        },
+      );
+    } else {
+      this.websocketService.sendToRoom(
+        RoomName.user(recentSession.userId),
+        ServerEvents.REPLAY_BUFFER_STOPPED,
+        {
+          sessionId: recentSession.id,
+          egressId: recentSession.egressId,
+          channelId: recentSession.channelId,
+        },
+      );
+    }
+
+    throw new NotFoundException(
+      'Your replay recording has ended — start screen sharing again to capture.',
+    );
   }
 
   /**
@@ -649,18 +913,15 @@ export class LivekitReplayService {
     );
 
     // 1. Find active egress session for this user
-    const session = await this.databaseService.egressSession.findFirst({
-      where: {
-        userId,
-        status: 'active',
-      },
-    });
-
-    if (!session) {
-      throw new NotFoundException(
-        'No active replay found. Start screen sharing first.',
-      );
-    }
+    // If the row was flipped without notifying the client, try to heal it
+    // (or emit the missed stop event and fail accurately).
+    const session =
+      (await this.databaseService.egressSession.findFirst({
+        where: {
+          userId,
+          status: 'active',
+        },
+      })) ?? (await this.recoverStaleSession(userId));
 
     // 2. Calculate how many segments we need
     // Each segment is ~10 seconds, so 6 segments per minute
@@ -727,18 +988,15 @@ export class LivekitReplayService {
     );
 
     // 1. Find active egress session for this user
-    const session = await this.databaseService.egressSession.findFirst({
-      where: {
-        userId,
-        status: 'active',
-      },
-    });
-
-    if (!session) {
-      throw new NotFoundException(
-        'No active replay found. Start screen sharing first.',
-      );
-    }
+    // If the row was flipped without notifying the client, try to heal it
+    // (or emit the missed stop event and fail accurately).
+    const session =
+      (await this.databaseService.egressSession.findFirst({
+        where: {
+          userId,
+          status: 'active',
+        },
+      })) ?? (await this.recoverStaleSession(userId));
 
     // 2. Resolve relative segment path to full path
     const segmentDir = this.storageService.resolveSegmentPath(
@@ -1099,7 +1357,7 @@ export class LivekitReplayService {
     bufferStartTime?: Date;
     bufferEndTime?: Date;
   }> {
-    const session = await this.databaseService.egressSession.findFirst({
+    let session = await this.databaseService.egressSession.findFirst({
       where: {
         userId,
         status: 'active',
@@ -1107,7 +1365,25 @@ export class LivekitReplayService {
     });
 
     if (!session) {
-      return { hasActiveSession: false };
+      // Same heal as captureReplay/streamReplay: a row silently flipped to
+      // stopped while the egress is still running would otherwise leave the
+      // capture modal's Custom Trim dead (hasActiveSession: false) even
+      // though plain Capture heals. If the session is genuinely dead,
+      // recoverStaleSession has already emitted the missed stop/fail event.
+      //
+      // A ServiceUnavailableException (LiveKit unreachable during the heal)
+      // deliberately propagates as a 503 rather than being mapped to
+      // hasActiveSession: false — the frontend gates Custom Trim on that
+      // flag, and a transient LiveKit blip must not report a live buffer as
+      // gone. A 503 lets the client keep its current state and retry.
+      try {
+        session = await this.recoverStaleSession(userId);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          return { hasActiveSession: false };
+        }
+        throw error;
+      }
     }
 
     // Resolve relative segment path to full path

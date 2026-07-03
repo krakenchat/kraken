@@ -10,6 +10,9 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { EgressClient } from 'livekit-server-sdk';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
+import { WebsocketService } from '@/websocket/websocket.service';
+import { ServerEvents } from '@semaphore-chat/shared';
+import { RoomName } from '@/common/utils/room-name.util';
 import { getErrorMessage } from '@/common/utils/error.utils';
 import * as ffmpegModule from 'fluent-ffmpeg';
 import { promises as fs } from 'fs';
@@ -37,6 +40,7 @@ export class ReplaySegmentsService {
     private readonly configService: ConfigService,
     private readonly databaseService: DatabaseService,
     private readonly storageService: StorageService,
+    private readonly websocketService: WebsocketService,
   ) {
     this.cleanupAgeMinutes = parseInt(
       this.configService.get<string>('REPLAY_SEGMENT_CLEANUP_AGE_MINUTES') ||
@@ -176,6 +180,18 @@ export class ReplaySegmentsService {
               endedAt: new Date(),
             },
           });
+
+          // Notify the client so the capture button clears — force-stopping
+          // without an event strands the UI and every capture 404s (#302).
+          this.websocketService.sendToRoom(
+            RoomName.user(session.userId),
+            ServerEvents.REPLAY_BUFFER_STOPPED,
+            {
+              sessionId: session.id,
+              egressId: session.egressId,
+              channelId: session.channelId,
+            },
+          );
 
           // Delete segment directory
           // session.segmentPath is now relative, resolve it using StorageService
