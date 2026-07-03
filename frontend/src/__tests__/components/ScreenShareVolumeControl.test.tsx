@@ -220,6 +220,38 @@ describe('ScreenShareVolumeControl', () => {
     expect(screen.getByTestId('VolumeOffIcon')).toBeInTheDocument();
   });
 
+  it('unmuting after sliding to 0 restores the volume from before the slide', async () => {
+    localStorageGetSpy.mockReturnValue('0.75');
+    const user = userEvent.setup();
+    const { track } = renderControl();
+
+    await hoverControl(user);
+    fireEvent.change(screen.getByRole('slider'), { target: { value: 0 } });
+    expect(screen.getByTestId('VolumeOffIcon')).toBeInTheDocument();
+
+    await user.click(getMuteButton());
+
+    expect(audioBoostManager.applyVolume).toHaveBeenLastCalledWith(
+      track,
+      'user-1:screen_share_audio',
+      75,
+    );
+  });
+
+  it('expands the slider on keyboard focus', async () => {
+    const user = userEvent.setup();
+    renderControl();
+
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+
+    await user.tab(); // focus lands on the mute button
+    expect(getMuteButton()).toHaveFocus();
+    expect(screen.getByRole('slider')).toBeInTheDocument();
+
+    await user.tab(); // focus leaves the control
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
   it('does not change any volumes on unmount (boost must outlive the component)', async () => {
     const user = userEvent.setup();
     const { participant, setVolume } = createMockParticipant('user-1');

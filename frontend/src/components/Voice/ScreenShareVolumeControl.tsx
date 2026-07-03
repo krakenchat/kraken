@@ -50,6 +50,9 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
   const theme = useTheme();
   const { isDeafened } = useVoice();
   const [isHovered, setIsHovered] = useState(false);
+  // Keep the slider reachable for keyboard users: expand on focus too
+  const [isFocused, setIsFocused] = useState(false);
+  const isExpanded = isHovered || isFocused;
 
   const [volume, setVolume] = useState<number>(() => {
     const stored = getStoredScreenShareVolume(participant.identity);
@@ -58,6 +61,9 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
 
   // Volume to restore when unmuting via the icon
   const prevVolumeRef = useRef<number | null>(null);
+  // Volume at the start of the current slider gesture, so dragging down to 0
+  // remembers where the drag began rather than the last value passed through
+  const gestureStartVolumeRef = useRef<number | null>(null);
 
   const applyVolumeToTracks = useCallback(
     (vol: number) => {
@@ -89,8 +95,25 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
 
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const val = newValue as number;
+    if (gestureStartVolumeRef.current === null) {
+      gestureStartVolumeRef.current = volume;
+    }
     if (val > 0) prevVolumeRef.current = null;
     setAndPersistVolume(val);
+  };
+
+  const handleVolumeChangeCommitted = (
+    _event: Event | React.SyntheticEvent,
+    newValue: number | number[],
+  ) => {
+    const val = newValue as number;
+    const gestureStart = gestureStartVolumeRef.current;
+    gestureStartVolumeRef.current = null;
+    // Sliding down to 0 counts as muting: remember where the gesture began
+    // so the unmute click restores that volume instead of the 100% fallback
+    if (val === 0 && gestureStart !== null && gestureStart > 0) {
+      prevVolumeRef.current = gestureStart;
+    }
   };
 
   const isMuted = volume === 0;
@@ -112,6 +135,12 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
     <Box
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setIsFocused(false);
+        }
+      }}
       onClick={(e) => e.stopPropagation()}
       sx={{
         display: 'flex',
@@ -125,22 +154,23 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
         },
       }}
     >
-      {/* Slider expands leftward into the tile on hover */}
+      {/* Slider expands leftward into the tile on hover or keyboard focus */}
       <Box
         sx={{
-          width: isHovered ? 90 : 0,
-          opacity: isHovered ? 1 : 0,
+          width: isExpanded ? 90 : 0,
+          opacity: isExpanded ? 1 : 0,
           overflow: 'hidden',
           transition: 'width 0.2s, opacity 0.2s',
           display: 'flex',
           alignItems: 'center',
-          pl: isHovered ? 1.5 : 0,
+          pl: isExpanded ? 1.5 : 0,
         }}
       >
-        {isHovered && (
+        {isExpanded && (
           <Slider
             value={volume}
             onChange={handleVolumeChange}
+            onChangeCommitted={handleVolumeChangeCommitted}
             min={0}
             max={200}
             step={1}
