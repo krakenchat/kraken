@@ -143,8 +143,8 @@ const VideoTile: React.FC<VideoTileProps> = ({
           <Box sx={{ height: 'min(120px, 45%)', aspectRatio: '1 / 1', flexShrink: 1, minHeight: 32 }}>
             <UserAvatar userId={participant.identity} displayName={participant.name} size="fluid" />
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, maxWidth: '100%' }}>
-            <Typography variant="caption" noWrap sx={{ color: 'grey.300', fontWeight: 'bold', maxWidth: '90%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, maxWidth: '100%', minWidth: 0 }}>
+            <Typography variant="caption" noWrap sx={{ color: 'grey.300', fontWeight: 'bold', minWidth: 0 }}>
               {displayName}
             </Typography>
             {placeholderType === 'screen' ? (
