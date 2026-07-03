@@ -7,12 +7,6 @@ import MessageContextMenu, {
 import { createMessage } from '../test-utils/factories';
 import { SpanType } from '../../types/message.type';
 
-// Mock platform detection — web by default (the menu is platform-agnostic)
-vi.mock('../../utils/platform', () => ({
-  isElectron: vi.fn(() => false),
-  isWeb: vi.fn(() => true),
-}));
-
 // Mock clipboard utility
 vi.mock('../../utils/clipboard', () => ({
   copyToClipboard: vi.fn().mockResolvedValue(undefined),
