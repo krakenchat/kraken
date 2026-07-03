@@ -56,11 +56,15 @@ const mockMediaStreamTrack = {
   clone: vi.fn(() => mockAnalysisTrack),
 };
 
+const mockMicPublication = {
+  source: 'microphone',
+  isMuted: false,
+  track: { mediaStreamTrack: mockMediaStreamTrack },
+};
+
 const mockLocalParticipant = {
   identity: 'user-1',
-  getTrackPublication: vi.fn().mockReturnValue({
-    track: { mediaStreamTrack: mockMediaStreamTrack },
-  }),
+  getTrackPublication: vi.fn().mockReturnValue(mockMicPublication),
   on: vi.fn((event: string, handler: Handler) => {
     if (!participantHandlers.has(event)) participantHandlers.set(event, new Set());
     participantHandlers.get(event)!.add(handler);
@@ -136,9 +140,8 @@ describe('useSpeakingDetection', () => {
         voiceActivityThreshold: 25,
       },
     };
-    mockLocalParticipant.getTrackPublication.mockReturnValue({
-      track: { mediaStreamTrack: mockMediaStreamTrack },
-    });
+    mockMicPublication.isMuted = false;
+    mockLocalParticipant.getTrackPublication.mockReturnValue(mockMicPublication);
   });
 
   afterEach(() => {
@@ -359,6 +362,157 @@ describe('useSpeakingDetection', () => {
 
     // Should NOT re-enable — we didn't disable it, so we shouldn't touch it
     expect(mockMediaStreamTrack.enabled).toBe(false);
+  });
+
+  // ------------------------------------------------------------------
+  // Mute wins over the VA gate
+  // ------------------------------------------------------------------
+
+  it('never re-enables the track while the mic publication is muted, even with loud audio', () => {
+    const { result } = renderSpeaking();
+
+    // Simulate LiveKit mute: publication muted, track disabled
+    mockMicPublication.isMuted = true;
+    mockMediaStreamTrack.enabled = false;
+
+    // Loud audio on the analysis clone — gate must NOT open
+    audioLevel = 50;
+    act(() => {
+      vi.advanceTimersByTime(200);
+      tickRAF(5);
+    });
+
+    expect(mockMediaStreamTrack.enabled).toBe(false);
+    expect(result.current.isSpeaking('user-1')).toBe(false);
+  });
+
+  it('flips speaking false immediately on trackMuted and recovers on trackUnmuted', () => {
+    const { result } = renderSpeaking();
+
+    // Start speaking
+    audioLevel = 50;
+    act(() => tickRAF(1));
+    expect(result.current.isSpeaking('user-1')).toBe(true);
+
+    // Mute: LiveKit disables the track and fires trackMuted
+    mockMicPublication.isMuted = true;
+    mockMediaStreamTrack.enabled = false;
+    act(() => {
+      participantHandlers.get('trackMuted')?.forEach(h => h(mockMicPublication));
+    });
+
+    // Indicator drops immediately, no tick needed
+    expect(result.current.isSpeaking('user-1')).toBe(false);
+
+    // Ticks while muted must not re-enable the track or the indicator
+    act(() => {
+      vi.advanceTimersByTime(200);
+      tickRAF(5);
+    });
+    expect(mockMediaStreamTrack.enabled).toBe(false);
+    expect(result.current.isSpeaking('user-1')).toBe(false);
+
+    // Unmute: LiveKit re-enables the track and fires trackUnmuted
+    mockMicPublication.isMuted = false;
+    mockMediaStreamTrack.enabled = true;
+    act(() => {
+      participantHandlers.get('trackUnmuted')?.forEach(h => h(mockMicPublication));
+    });
+
+    // Still loud — speaking and transmitting again
+    act(() => tickRAF(1));
+    expect(result.current.isSpeaking('user-1')).toBe(true);
+    expect(mockMediaStreamTrack.enabled).toBe(true);
+  });
+
+  it('closes the gate quickly after unmute when the user is silent', () => {
+    const { result } = renderSpeaking();
+
+    // Mute then unmute while silent
+    mockMicPublication.isMuted = true;
+    mockMediaStreamTrack.enabled = false;
+    act(() => {
+      participantHandlers.get('trackMuted')?.forEach(h => h(mockMicPublication));
+    });
+
+    mockMicPublication.isMuted = false;
+    mockMediaStreamTrack.enabled = true;
+    act(() => {
+      participantHandlers.get('trackUnmuted')?.forEach(h => h(mockMicPublication));
+    });
+
+    // Silent: next tick should close the gate (hold-open expired via reset)
+    audioLevel = 0;
+    act(() => tickRAF(1));
+    expect(mockMediaStreamTrack.enabled).toBe(false);
+    expect(result.current.isSpeaking('user-1')).toBe(false);
+  });
+
+  it('does NOT re-enable the track on unmount when gate closed it and user then muted', () => {
+    const { unmount } = renderSpeaking();
+
+    // Gate closes the track (silence past hold-open)
+    audioLevel = 0;
+    act(() => tickRAF(1));
+    act(() => {
+      vi.advanceTimersByTime(350);
+      tickRAF(1);
+    });
+    expect(mockMediaStreamTrack.enabled).toBe(false);
+
+    // User mutes before any further tick runs
+    mockMicPublication.isMuted = true;
+
+    unmount();
+
+    // Cleanup must not "restore" enabled=true over an active mute
+    expect(mockMediaStreamTrack.enabled).toBe(false);
+  });
+
+  it('keeps speaking false in push_to_talk mode while muted, even with loud audio', () => {
+    storedSettings = {
+      semaphore_voice_settings: {
+        inputMode: 'push_to_talk',
+        voiceActivityThreshold: 25,
+      },
+    };
+
+    const { result } = renderSpeaking();
+
+    mockMicPublication.isMuted = true;
+    mockMediaStreamTrack.enabled = false;
+
+    audioLevel = 50;
+    act(() => tickRAF(5));
+
+    expect(result.current.isSpeaking('user-1')).toBe(false);
+    expect(mockMediaStreamTrack.enabled).toBe(false);
+  });
+
+  it('ignores trackMuted/trackUnmuted for non-microphone publications', () => {
+    const { result } = renderSpeaking();
+
+    audioLevel = 50;
+    act(() => tickRAF(1));
+    expect(result.current.isSpeaking('user-1')).toBe(true);
+
+    const cameraPub = { source: 'camera', isMuted: true };
+    act(() => {
+      participantHandlers.get('trackMuted')?.forEach(h => h(cameraPub));
+    });
+
+    // Mic gate state untouched — still speaking
+    expect(result.current.isSpeaking('user-1')).toBe(true);
+    act(() => tickRAF(1));
+    expect(mockMediaStreamTrack.enabled).toBe(true);
+  });
+
+  it('deregisters trackMuted/trackUnmuted listeners on unmount', () => {
+    const { unmount } = renderSpeaking();
+    unmount();
+
+    expect(mockLocalParticipant.off).toHaveBeenCalledWith('trackMuted', expect.any(Function));
+    expect(mockLocalParticipant.off).toHaveBeenCalledWith('trackUnmuted', expect.any(Function));
   });
 
   // ------------------------------------------------------------------
