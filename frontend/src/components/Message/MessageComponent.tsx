@@ -29,7 +29,6 @@ import QuotePreview from "./QuotePreview";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { SeenByTooltip } from "./SeenByTooltip";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
-import { isElectron } from "../../utils/platform";
 import MessageContextMenu from "./MessageContextMenu";
 import { EmojiPickerPopover } from "./EmojiPicker";
 
@@ -109,12 +108,11 @@ function MessageComponentInner({
     handleUnpin,
   } = useMessageActions(message, currentUser?.id);
 
-  // Context menu state (Electron only)
+  // Context menu state
   const [contextMenuPosition, setContextMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [emojiPickerPosition, setEmojiPickerPosition] = useState<{ top: number; left: number } | null>(null);
 
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
-    if (!isElectron()) return; // Allow native browser context menu on web
     event.preventDefault();
     setContextMenuPosition({ top: event.clientY, left: event.clientX });
   }, []);
@@ -271,38 +269,34 @@ function MessageComponentInner({
         onConfirm={handleConfirmThreadDelete}
         onCancel={handleCancelThreadDelete}
       />
-      {isElectron() && (
-        <>
-          <MessageContextMenu
-            anchorPosition={contextMenuPosition}
-            open={Boolean(contextMenuPosition)}
-            onClose={handleCloseContextMenu}
-            message={message}
-            canEdit={canEdit}
-            canDelete={canDelete}
-            canPin={canPin}
-            canReact={canReact}
-            canThread={canThread}
-            isPinned={isPinned}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
-            onPin={handlePin}
-            onUnpin={handleUnpin}
-            onReplyInThread={handleOpenThread}
-            onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
-            onAddReaction={handleAddReaction}
-          />
-          <EmojiPickerPopover
-            open={Boolean(emojiPickerPosition)}
-            anchorPosition={emojiPickerPosition}
-            onClose={() => setEmojiPickerPosition(null)}
-            onEmojiSelect={(emoji) => {
-              handleEmojiSelect(emoji);
-              setEmojiPickerPosition(null);
-            }}
-          />
-        </>
-      )}
+      <MessageContextMenu
+        anchorPosition={contextMenuPosition}
+        open={Boolean(contextMenuPosition)}
+        onClose={handleCloseContextMenu}
+        message={message}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        canPin={canPin}
+        canReact={canReact}
+        canThread={canThread}
+        isPinned={isPinned}
+        onEdit={handleEditClick}
+        onDelete={handleDeleteClick}
+        onPin={handlePin}
+        onUnpin={handleUnpin}
+        onReplyInThread={handleOpenThread}
+        onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
+        onAddReaction={handleAddReaction}
+      />
+      <EmojiPickerPopover
+        open={Boolean(emojiPickerPosition)}
+        anchorPosition={emojiPickerPosition}
+        onClose={() => setEmojiPickerPosition(null)}
+        onEmojiSelect={(emoji) => {
+          handleEmojiSelect(emoji);
+          setEmojiPickerPosition(null);
+        }}
+      />
     </Container>
   );
 }

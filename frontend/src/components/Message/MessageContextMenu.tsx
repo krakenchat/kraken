@@ -1,9 +1,8 @@
 /**
  * MessageContextMenu
  *
- * Right-click context menu for messages in the Electron app.
+ * Right-click context menu for messages (web and Electron).
  * Provides quick access to message actions: reply, react, pin, edit, delete, copy.
- * On web, the native browser context menu is preserved (this component is not rendered).
  */
 
 import React, { useCallback } from 'react';
