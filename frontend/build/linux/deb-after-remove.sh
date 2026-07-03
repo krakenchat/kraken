@@ -13,10 +13,17 @@
 
 # --- Default electron-builder behavior ---------------------------------------
 # Keep in sync with app-builder-lib/templates/linux/after-remove.tpl.
+#
+# DELIBERATE DEVIATION from upstream: update-alternatives --remove takes
+# <name> <path> where <path> is the alternative registered by --install in
+# deb-after-install.sh (/opt/${sanitizedProductName}/${executable}), NOT the
+# /usr/bin link. Upstream's template passes the /usr/bin path, which
+# update-alternatives rejects ("alternative not registered"), leaving the
+# group and a dangling /usr/bin symlink behind.
 
 # Delete the link to the binary
 if type update-alternatives >/dev/null 2>&1; then
-    update-alternatives --remove '${executable}' '/usr/bin/${executable}'
+    update-alternatives --remove '${executable}' '/opt/${sanitizedProductName}/${executable}'
 else
     rm -f '/usr/bin/${executable}'
 fi

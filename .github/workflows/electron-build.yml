@@ -202,7 +202,7 @@ jobs:
         # install path is /opt/semaphore-chat (no space — spaces break
         # Electron's zygote re-exec, #349). Keep using this script for every
         # Linux electron-builder invocation.
-        run: pnpm run build:all && pnpm run electron-builder:linux AppImage deb rpm --publish never
+        run: pnpm run build:all && pnpm run electron-builder:linux -- AppImage deb rpm --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
