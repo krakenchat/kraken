@@ -35,8 +35,13 @@ export interface VoiceTestHookWindow {
   __lkSetMic: (enabled: boolean) => Promise<void>;
   /** Enable/disable the local camera (fake-video source headless). */
   __lkSetCamera: (enabled: boolean) => Promise<void>;
-  /** Start/stop local screen share. May reject if headless capture unavailable. */
-  __lkSetScreenShare: (enabled: boolean) => Promise<void>;
+  /**
+   * Start/stop local screen share. May reject if headless capture unavailable.
+   * `opts.audio` requests tab/system audio with the app's real constraints
+   * (a ScreenShareAudio publication) — best-effort: fake-media environments
+   * often provide no capturable audio, in which case only video is published.
+   */
+  __lkSetScreenShare: (enabled: boolean, opts?: { audio?: boolean }) => Promise<void>;
   /** Switch the active mic capture device live (PR #351 — no rejoin). */
   __lkSwitchMic: (deviceId: string) => Promise<void>;
   // --- On-demand subscription (autoSubscribe:false opt-in sources) ---

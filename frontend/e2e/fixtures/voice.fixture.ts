@@ -87,6 +87,7 @@ export interface SubscriptionStateSample {
   mic: { published: boolean; subscribed: boolean; muted: boolean };
   camera: { published: boolean; subscribed: boolean };
   screenShare: { published: boolean; subscribed: boolean };
+  screenShareAudio: { published: boolean; subscribed: boolean };
 }
 
 /**
@@ -114,7 +115,7 @@ declare global {
     __lkEnableMic: () => Promise<string>;
     __lkSetMic: (enabled: boolean) => Promise<void>;
     __lkSetCamera: (enabled: boolean) => Promise<void>;
-    __lkSetScreenShare: (enabled: boolean) => Promise<void>;
+    __lkSetScreenShare: (enabled: boolean, opts?: { audio?: boolean }) => Promise<void>;
     __lkSwitchMic: (deviceId: string) => Promise<void>;
     __lkWatchCamera: (identity: string) => void;
     __lkUnwatchCamera: (identity: string) => void;
@@ -384,10 +385,21 @@ export async function switchMic(p: Participant, deviceId: string): Promise<void>
  * Start local screen share. Returns true if a ScreenShare publication actually
  * appears (headless desktop capture is not always available); callers may skip
  * with a logged reason when false rather than fail on an env limitation.
+ *
+ * `opts.audio` additionally requests tab/system audio (a ScreenShareAudio
+ * publication) via the app's real capture constraints. Best-effort: headless
+ * Chromium's fake display capture usually has no capturable audio, so callers
+ * must treat the audio publication as optional (check getSubscriptionState).
  */
-export async function startScreenShare(p: Participant): Promise<boolean> {
+export async function startScreenShare(
+  p: Participant,
+  opts: { audio?: boolean } = {},
+): Promise<boolean> {
   try {
-    await p.page.evaluate(() => window.__lkSetScreenShare(true));
+    await p.page.evaluate(
+      (o) => window.__lkSetScreenShare(true, o),
+      { audio: opts.audio ?? false },
+    );
   } catch {
     return false;
   }
@@ -451,6 +463,34 @@ export async function getSubscriptionState(
   remoteIdentity: string,
 ): Promise<SubscriptionStateSample | undefined> {
   return from.page.evaluate((id) => window.__lkGetSubscriptionState(id), remoteIdentity);
+}
+
+/**
+ * Count ScreenShareAudio publications across ALL remote participants in `p`'s
+ * room, split into published vs subscribed. The "non-watcher silence" invariant
+ * is `subscribed === 0` for a participant who never opened any share — it must
+ * hold room-wide, not just against one sharer, so this inspects the raw
+ * `window.__lkRoom` state rather than a single getSubscriptionState() snapshot.
+ */
+export async function countScreenShareAudio(
+  p: Participant,
+): Promise<{ published: number; subscribed: number }> {
+  return p.page.evaluate(() => {
+    const counts = { published: 0, subscribed: 0 };
+    const room = window.__lkRoom;
+    if (!room) return counts;
+    for (const [, participant] of room.remoteParticipants) {
+      const pubs = (participant as {
+        audioTrackPublications: Map<string, { source?: string; isSubscribed?: boolean }>;
+      }).audioTrackPublications;
+      for (const [, pub] of pubs) {
+        if (pub.source !== 'screen_share_audio') continue;
+        counts.published += 1;
+        if (pub.isSubscribed) counts.subscribed += 1;
+      }
+    }
+    return counts;
+  });
 }
 
 /** Assert video IS flowing from `remote` to `from` (subscribed + bytes grow). */
