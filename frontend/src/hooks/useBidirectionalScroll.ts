@@ -363,7 +363,8 @@ export const useBidirectionalScroll = ({
   // Visual bottom is scrollTop = scrollHeight in a normal column.
   const scrollToBottom = useCallback(() => {
     const el = scrollContainerRef.current;
-    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
   return {

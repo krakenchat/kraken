@@ -57,7 +57,7 @@ export const useAnchoredModeTransition = ({
   useEffect(() => {
     if (prevModeRef.current === 'anchored' && mode === 'normal') {
       const el = scrollContainerRef.current;
-      el?.scrollTo({ top: el.scrollHeight });
+      if (el) el.scrollTo({ top: el.scrollHeight });
     }
     prevModeRef.current = mode;
   }, [mode, scrollContainerRef]);
