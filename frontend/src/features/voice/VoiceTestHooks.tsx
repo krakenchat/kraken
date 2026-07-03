@@ -9,6 +9,7 @@ import {
   getSubscriptionState,
 } from './voiceDiagnostics';
 import { isVoiceTestHookEnabled, type VoiceTestHookWindow } from './voiceTestHooks.types';
+import { getScreenShareAudioConfig } from '../../utils/screenShareResolution';
 import type { VoiceEventEntry } from '../../hooks/useVoiceEventLogDef';
 
 /**
@@ -52,8 +53,15 @@ export const VoiceTestHooks: FC = () => {
     w.__lkSetCamera = async (enabled: boolean) => {
       await room?.localParticipant.setCameraEnabled(enabled);
     };
-    w.__lkSetScreenShare = async (enabled: boolean) => {
-      await room?.localParticipant.setScreenShareEnabled(enabled);
+    w.__lkSetScreenShare = async (enabled: boolean, opts?: { audio?: boolean }) => {
+      // When asked, request tab/system audio with the SAME constraints the app's
+      // toggleScreenShare path uses (getScreenShareAudioConfig), so E2E exercises
+      // the real ScreenShareAudio publication shape. Default (no opts) matches
+      // the historical behaviour: video-only capture.
+      await room?.localParticipant.setScreenShareEnabled(
+        enabled,
+        opts?.audio ? { audio: getScreenShareAudioConfig(true) } : undefined,
+      );
     };
     // Switch the active mic capture device LIVE (the PR #351 behaviour): same
     // Room API the Settings panel's onDeviceChange ultimately calls

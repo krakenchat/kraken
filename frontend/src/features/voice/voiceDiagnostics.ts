@@ -50,6 +50,7 @@ export interface SubscriptionState {
   mic: { published: boolean; subscribed: boolean; muted: boolean };
   camera: { published: boolean; subscribed: boolean };
   screenShare: { published: boolean; subscribed: boolean };
+  screenShareAudio: { published: boolean; subscribed: boolean };
 }
 
 /**
@@ -342,6 +343,7 @@ export function getSubscriptionState(
     mic: { published: false, subscribed: false, muted: false },
     camera: { published: false, subscribed: false },
     screenShare: { published: false, subscribed: false },
+    screenShareAudio: { published: false, subscribed: false },
   };
   for (const [, pub] of remote.trackPublications) {
     if (pub.source === Track.Source.Microphone) {
@@ -350,6 +352,8 @@ export function getSubscriptionState(
       state.camera = { published: true, subscribed: pub.isSubscribed };
     } else if (pub.source === Track.Source.ScreenShare) {
       state.screenShare = { published: true, subscribed: pub.isSubscribed };
+    } else if (pub.source === Track.Source.ScreenShareAudio) {
+      state.screenShareAudio = { published: true, subscribed: pub.isSubscribed };
     }
   }
   return state;

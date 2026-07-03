@@ -27,6 +27,7 @@ const GRID_CONSTANTS = {
   MAX_SIDEBAR_TILES: 6,
 } as const;
 import {
+  Track,
   TrackPublication,
   RemoteParticipant,
   LocalParticipant,
@@ -120,7 +121,11 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     // Add local participant tiles (hidden ones become placeholders)
     if (isCameraEnabled || isScreenShareEnabled) {
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
-      const audioTrack = Array.from(localParticipant.audioTrackPublications.values())[0];
+      // Pick the microphone publication explicitly — a screen share with audio also
+      // publishes a ScreenShareAudio track, which must not drive the mic indicator.
+      const audioTrack = Array.from(localParticipant.audioTrackPublications.values()).find(
+        (track: TrackPublication) => track.source === Track.Source.Microphone
+      );
 
       const videoTrack = videoTracks.find((track: TrackPublication) =>
         track.source !== 'screen_share' && track.source !== 'screen_share_audio'
@@ -176,7 +181,11 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     // unwatched tracks get placeholder tiles so users can opt in from the grid.
     participants.forEach(participant => {
       const videoTracks = Array.from(participant.videoTrackPublications.values());
-      const audioTrack = Array.from(participant.audioTrackPublications.values())[0];
+      // Pick the microphone publication explicitly — a screen share with audio also
+      // publishes a ScreenShareAudio track, which must not drive the mic indicator.
+      const audioTrack = Array.from(participant.audioTrackPublications.values()).find(
+        (track: TrackPublication) => track.source === Track.Source.Microphone
+      );
 
       const videoTrack = videoTracks.find((track: TrackPublication) =>
         track.source !== 'screen_share' && track.source !== 'screen_share_audio'

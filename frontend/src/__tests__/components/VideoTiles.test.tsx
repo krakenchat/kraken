@@ -410,6 +410,65 @@ describe('VideoTiles', () => {
     expect(screen.getByText('UserB')).toBeInTheDocument();
   });
 
+  describe('tile audio indicator picks the microphone publication', () => {
+    it('uses the mic track even when a screen-share-audio publication comes first', () => {
+      mockWatchingCameras = new Set(['SharerWithAudio']);
+      // Screen-share audio publication listed BEFORE the mic: the old
+      // `audioTrackPublications[0]` selection would pick it and show a live
+      // mic indicator, even though the actual microphone is muted.
+      const screenAudio = createMockTrackPublication('screen_share_audio', false);
+      const mutedMic = createMockTrackPublication('microphone', true);
+      remoteParticipants.set(
+        'remote-1',
+        createMockParticipant(
+          'SharerWithAudio',
+          [createMockTrackPublication('camera')],
+          [screenAudio, mutedMic],
+        ),
+      );
+
+      renderWithProviders(<VideoTiles />);
+
+      // The muted mic must drive the indicator — not the unmuted share audio.
+      expect(screen.getByTestId('MicOffIcon')).toBeInTheDocument();
+      expect(screen.queryByTestId('MicIcon')).not.toBeInTheDocument();
+    });
+
+    it('shows mic-off for a participant publishing only screen-share audio (no mic)', () => {
+      mockWatchingCameras = new Set(['MiclessSharer']);
+      remoteParticipants.set(
+        'remote-1',
+        createMockParticipant(
+          'MiclessSharer',
+          [createMockTrackPublication('camera')],
+          [createMockTrackPublication('screen_share_audio', false)],
+        ),
+      );
+
+      renderWithProviders(<VideoTiles />);
+
+      expect(screen.getByTestId('MicOffIcon')).toBeInTheDocument();
+      expect(screen.queryByTestId('MicIcon')).not.toBeInTheDocument();
+    });
+
+    it('shows a live mic indicator when the mic publication is unmuted', () => {
+      mockWatchingCameras = new Set(['TalkingSharer']);
+      remoteParticipants.set(
+        'remote-1',
+        createMockParticipant(
+          'TalkingSharer',
+          [createMockTrackPublication('camera')],
+          [createMockTrackPublication('screen_share_audio', true), createMockTrackPublication('microphone', false)],
+        ),
+      );
+
+      renderWithProviders(<VideoTiles />);
+
+      expect(screen.getByTestId('MicIcon')).toBeInTheDocument();
+      expect(screen.queryByTestId('MicOffIcon')).not.toBeInTheDocument();
+    });
+  });
+
   describe('layout modes and pinning', () => {
     beforeEach(() => {
       mockWatchingCameras = new Set(['UserA', 'UserB']);
