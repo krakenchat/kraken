@@ -9,7 +9,7 @@ import {
   RoomEvent,
 } from 'livekit-client';
 import { useRoom } from '../../hooks/useRoom';
-import { useSpeakingDetection } from '../../hooks/useSpeakingDetection';
+import { useSpeaking } from '../../hooks/useSpeaking';
 import { useTrackSubscriptionActions } from '../../hooks/useTrackSubscription';
 import {
   useVoiceEventLog,
@@ -42,7 +42,7 @@ import { logger } from '../../utils/logger';
 export const VoiceDebugPanel: React.FC = () => {
   const theme = useTheme();
   const { room } = useRoom();
-  const { speakingMap, isSpeaking } = useSpeakingDetection();
+  const { speakingMap, isSpeaking } = useSpeaking();
   const trackActions = useTrackSubscriptionActions();
   const log = useVoiceEventLog();
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());

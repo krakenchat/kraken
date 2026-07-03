@@ -45,7 +45,7 @@ import { CaptureReplayModal } from "./CaptureReplayModal";
 import { useResponsive } from "../../hooks/useResponsive";
 import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
-import { useSpeakingDetection } from "../../hooks/useSpeakingDetection";
+import { useSpeaking } from "../../hooks/useSpeaking";
 import { useVoicePresenceHeartbeat } from "../../hooks/useVoicePresenceHeartbeat";
 import { useBackgroundVoiceKeepAlive } from "../../hooks/useBackgroundVoiceKeepAlive";
 import { useServerMuteEffect } from "../../hooks/useServerMuteEffect";
@@ -61,7 +61,7 @@ export const VoiceBottomBar: React.FC = () => {
   const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
   const { isMobile } = useResponsive();
   const { user: currentUser } = useCurrentUser();
-  const { isSpeaking } = useSpeakingDetection();
+  const { isSpeaking } = useSpeaking();
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(
     null
   );

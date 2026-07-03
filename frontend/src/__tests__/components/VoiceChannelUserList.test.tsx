@@ -120,8 +120,8 @@ vi.mock('../../hooks/useVoiceConnection', () => ({
   })),
 }));
 
-vi.mock('../../hooks/useSpeakingDetection', () => ({
-  useSpeakingDetection: vi.fn(() => ({
+vi.mock('../../hooks/useSpeaking', () => ({
+  useSpeaking: vi.fn(() => ({
     speakingMap: new Map(),
     isSpeaking: () => false,
   })),

@@ -3,6 +3,7 @@ import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import VideoTile from '../../components/Voice/VideoTile';
 import type { VideoTileProps } from '../../components/Voice/VideoTile';
+import { generateTheme } from '../../theme/themeConfig';
 
 vi.mock('../../components/Common/UserAvatar', () => ({
   default: ({ size }: { size?: string }) => (
@@ -12,6 +13,12 @@ vi.mock('../../components/Common/UserAvatar', () => ({
 
 vi.mock('../../components/Voice/ScreenShareVolumeControl', () => ({
   default: () => <div data-testid="volume-control" />,
+}));
+
+// Controllable speaking state from the shared SpeakingContext
+const mockIsSpeaking = vi.fn(() => false);
+vi.mock('../../hooks/useSpeaking', () => ({
+  useSpeaking: () => ({ speakingMap: new Map(), isSpeaking: mockIsSpeaking }),
 }));
 
 // jsdom doesn't implement HTMLMediaElement.play() — stub it to return a resolved promise
@@ -49,6 +56,9 @@ function renderTile(overrides: Partial<VideoTileProps> = {}) {
 describe('VideoTile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks does not undo mockReturnValue — reset explicitly
+    mockIsSpeaking.mockReset();
+    mockIsSpeaking.mockReturnValue(false);
   });
 
   it('renders no pin or fullscreen buttons (#320)', () => {
@@ -152,5 +162,64 @@ describe('VideoTile', () => {
     renderTile({});
 
     expect(screen.getByTestId('avatar')).toHaveAttribute('data-size', 'fluid');
+  });
+
+  describe('speaking ring (Discord-style)', () => {
+    const positive = generateTheme('dark', 'blue', 'balanced').palette.semantic.status.positive;
+
+    function getCard(text: string | RegExp) {
+      return screen.getByText(text).closest('[class*="MuiCard"]')!;
+    }
+
+    it('shows a green ring on a camera tile when the participant is speaking', () => {
+      mockIsSpeaking.mockReturnValue(true);
+      renderTile({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        videoTrack: createMockTrackPublication('camera') as any,
+      });
+
+      expect(mockIsSpeaking).toHaveBeenCalledWith('RemoteUser');
+      expect(getCard(/RemoteUser/)).toHaveStyle({ borderColor: positive });
+    });
+
+    it('shows a green ring on an avatar-only tile when speaking', () => {
+      mockIsSpeaking.mockReturnValue(true);
+      renderTile({});
+
+      expect(getCard(/RemoteUser/)).toHaveStyle({ borderColor: positive });
+    });
+
+    it('shows a green ring on a camera placeholder tile when speaking', () => {
+      mockIsSpeaking.mockReturnValue(true);
+      renderTile({ isPlaceholder: true, placeholderType: 'camera', onWatch: vi.fn() });
+
+      expect(getCard('Click to watch')).toHaveStyle({ borderColor: positive });
+    });
+
+    it('never shows a ring on a screen-share tile, even when speaking', () => {
+      mockIsSpeaking.mockReturnValue(true);
+      renderTile({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        screenTrack: createMockTrackPublication('screen_share') as any,
+      });
+
+      expect(getCard(/RemoteUser/)).not.toHaveStyle({ borderColor: positive });
+    });
+
+    it('never shows a ring on a screen placeholder tile, even when speaking', () => {
+      mockIsSpeaking.mockReturnValue(true);
+      renderTile({ isPlaceholder: true, placeholderType: 'screen', onWatch: vi.fn() });
+
+      expect(getCard('Click to watch')).not.toHaveStyle({ borderColor: positive });
+    });
+
+    it('shows no ring on a camera tile when not speaking', () => {
+      renderTile({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        videoTrack: createMockTrackPublication('camera') as any,
+      });
+
+      expect(getCard(/RemoteUser/)).not.toHaveStyle({ borderColor: positive });
+    });
   });
 });
