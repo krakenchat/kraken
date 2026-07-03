@@ -372,8 +372,6 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
               isLocal={tile.isLocal}
               isReplayBufferActive={isReplayBufferActive}
               onToggleFullscreen={tile.tileType.startsWith('placeholder') ? undefined : () => handleTileSpotlight(tile.tileId)}
-              onPin={undefined}
-              isPinned={pinnedTileId === tile.tileId}
               isSpotlighted={spotlightTileId === tile.tileId}
               isPlaceholder={tile.tileType.startsWith('placeholder')}
               placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
@@ -411,8 +409,6 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             isLocal={pinnedTile.isLocal}
             isReplayBufferActive={isReplayBufferActive}
             onToggleFullscreen={() => handleTileSpotlight(pinnedTile.tileId)}
-            onPin={undefined}
-            isPinned={true}
             isSpotlighted={spotlightTileId === pinnedTile.tileId}
             onStopWatching={pinnedTile.isLocal ? () => handleHideLocalTile(pinnedTile) : () => handleStopWatchingTile(pinnedTile)}
           />
@@ -442,8 +438,6 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   isLocal={tile.isLocal}
                   isReplayBufferActive={isReplayBufferActive}
                   onToggleFullscreen={tile.tileType.startsWith('placeholder') ? undefined : () => handleTilePin(tile.tileId)}
-                  onPin={undefined}
-                  isPinned={pinnedTileId === tile.tileId}
                   isSpotlighted={spotlightTileId === tile.tileId}
                   isPlaceholder={tile.tileType.startsWith('placeholder')}
                   placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
@@ -476,8 +470,6 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           isLocal={spotlightedTile.isLocal}
           isReplayBufferActive={isReplayBufferActive}
           onToggleFullscreen={() => handleTileSpotlight(spotlightedTile.tileId)}
-          onPin={() => handleTilePin(spotlightedTile.tileId)}
-          isPinned={pinnedTileId === spotlightedTile.tileId}
           isSpotlighted={true}
           onStopWatching={spotlightedTile.isLocal ? () => handleHideLocalTile(spotlightedTile) : () => handleStopWatchingTile(spotlightedTile)}
         />

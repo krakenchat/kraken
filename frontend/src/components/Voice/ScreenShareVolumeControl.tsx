@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { IconButton, Popover, Slider, Box } from '@mui/material';
+import React, { useState, useCallback, useRef } from 'react';
+import { IconButton, Slider, Box, Tooltip } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
@@ -35,10 +35,13 @@ interface ScreenShareVolumeControlProps {
 }
 
 /**
- * Volume slider for a participant's screen share audio.
+ * Volume control for a participant's screen share audio.
  *
- * This component only persists the chosen volume and forwards live slider
- * changes to the app-wide audioBoostManager. Applying stored volumes on
+ * Hovering the control expands a slider next to the icon (YouTube-style);
+ * clicking the icon toggles mute, restoring the previous volume on unmute.
+ *
+ * This component only persists the chosen volume and forwards live changes
+ * to the app-wide audioBoostManager. Applying stored volumes on
  * (re)subscribe and deafen handling are owned by the persistent
  * useRemoteVolumeEffect / useDeafenEffect hooks, so audio never depends on
  * this component staying mounted.
@@ -46,12 +49,15 @@ interface ScreenShareVolumeControlProps {
 const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ participant }) => {
   const theme = useTheme();
   const { isDeafened } = useVoice();
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   const [volume, setVolume] = useState<number>(() => {
     const stored = getStoredScreenShareVolume(participant.identity);
     return stored !== null ? Math.round(stored * 100) : 100;
   });
+
+  // Volume to restore when unmuting via the icon
+  const prevVolumeRef = useRef<number | null>(null);
 
   const applyVolumeToTracks = useCallback(
     (vol: number) => {
@@ -72,70 +78,98 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
     [participant],
   );
 
+  const setAndPersistVolume = useCallback(
+    (val: number) => {
+      setVolume(val);
+      applyVolumeToTracks(val);
+      setStoredScreenShareVolume(participant.identity, val / 100);
+    },
+    [applyVolumeToTracks, participant.identity],
+  );
+
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const val = newValue as number;
-    setVolume(val);
-    applyVolumeToTracks(val);
-    setStoredScreenShareVolume(participant.identity, val / 100);
+    if (val > 0) prevVolumeRef.current = null;
+    setAndPersistVolume(val);
   };
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const isMuted = volume === 0;
+
+  const handleMuteToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    setAnchorEl(e.currentTarget);
-  };
-
-  const handleClose = (e?: React.SyntheticEvent | Event) => {
-    if (e) {
-      (e as React.SyntheticEvent).stopPropagation?.();
+    if (isMuted) {
+      setAndPersistVolume(prevVolumeRef.current ?? 100);
+      prevVolumeRef.current = null;
+    } else {
+      prevVolumeRef.current = volume;
+      setAndPersistVolume(0);
     }
-    setAnchorEl(null);
   };
-
-  const open = Boolean(anchorEl);
 
   const VolumeIcon = volume === 0 ? VolumeOffIcon : volume <= 50 ? VolumeDownIcon : VolumeUpIcon;
 
   return (
-    <>
-      <IconButton
-        aria-label="Screenshare volume"
+    <Box
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={(e) => e.stopPropagation()}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: alpha(theme.palette.background.paper, 0.5),
+        transition: 'background-color 0.2s',
+        '&:hover': {
+          backgroundColor: alpha(theme.palette.background.paper, 0.7),
+        },
+      }}
+    >
+      {/* Slider expands leftward into the tile on hover */}
+      <Box
         sx={{
-          backgroundColor: alpha(theme.palette.background.paper, 0.5),
-          color: theme.palette.common.white,
-          width: 32,
-          height: 32,
-          '&:hover': {
-            backgroundColor: alpha(theme.palette.background.paper, 0.7),
-          },
+          width: isHovered ? 90 : 0,
+          opacity: isHovered ? 1 : 0,
+          overflow: 'hidden',
+          transition: 'width 0.2s, opacity 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          pl: isHovered ? 1.5 : 0,
         }}
-        size="small"
-        onClick={handleClick}
       >
-        <VolumeIcon fontSize="small" />
-      </IconButton>
-      <Popover
-        open={open}
-        anchorEl={anchorEl}
-        onClose={(e) => handleClose(e as React.SyntheticEvent)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Box sx={{ px: 2, py: 1.5, width: 180 }}>
+        {isHovered && (
           <Slider
             value={volume}
             onChange={handleVolumeChange}
             min={0}
             max={200}
             step={1}
-            valueLabelDisplay="auto"
-            valueLabelFormat={(v) => `${v}%`}
+            valueLabelDisplay="off"
             size="small"
             disabled={isDeafened}
+            aria-label="Screenshare volume"
+            sx={{ color: theme.palette.common.white, width: 74 }}
           />
-        </Box>
-      </Popover>
-    </>
+        )}
+      </Box>
+      <Tooltip title={isDeafened ? 'Deafened' : isMuted ? 'Unmute' : `Mute · ${volume}%`}>
+        <span>
+          <IconButton
+            aria-label={isMuted ? 'Unmute screenshare' : 'Mute screenshare'}
+            sx={{
+              color: theme.palette.common.white,
+              width: 32,
+              height: 32,
+            }}
+            size="small"
+            disabled={isDeafened}
+            onClick={handleMuteToggle}
+          >
+            <VolumeIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Box>
   );
 };
 
