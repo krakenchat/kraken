@@ -57,6 +57,7 @@ export const useSpeakingDetection = () => {
   const localTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analysisTrackRef = useRef<MediaStreamTrack | null>(null);
   const analysisTrackIsCloneRef = useRef(false);
+  const analysisSessionRef = useRef(0); // invalidates stale rAF loops across restarts
 
   // Gate state refs (used for both indicator and audio gating)
   const gateOpenRef = useRef(true);
@@ -142,6 +143,11 @@ export const useSpeakingDetection = () => {
       const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
       if (!mediaStreamTrack) return;
 
+      // Session token: a restart can be synchronous (stop + start in the same
+      // task), so a previous session's pending rAF callback would otherwise
+      // see localAnalysisActiveRef=true again and keep a stale loop running.
+      const session = ++analysisSessionRef.current;
+
       // Build an AnalyserNode from the mic track
       try {
         const ctx = new AudioContext();
@@ -155,6 +161,11 @@ export const useSpeakingDetection = () => {
         let analysisTrack: MediaStreamTrack;
         try {
           analysisTrack = mediaStreamTrack.clone();
+          // clone() inherits `enabled` from the source, so a clone taken from
+          // a muted (enabled=false) mic would read as silence forever. Force
+          // it on — the clone only feeds the local AnalyserNode; its audio
+          // goes nowhere.
+          analysisTrack.enabled = true;
           analysisTrackIsCloneRef.current = true;
         } catch {
           // Fallback: use the original (pre-fix behavior)
@@ -295,6 +306,7 @@ export const useSpeakingDetection = () => {
         // analysis loop keeps running when the tab/window is backgrounded.
         const fallbackToRaf = () => {
           const rafTick = () => {
+            if (analysisSessionRef.current !== session) return; // stale session
             tick();
             if (localAnalysisActiveRef.current) {
               requestAnimationFrame(rafTick);
@@ -413,8 +425,15 @@ export const useSpeakingDetection = () => {
     };
     const handleTrackUnmuted = (pub: TrackPublication) => {
       if (pub.source !== Track.Source.Microphone) return;
-      // Reopen the gate; next tick closes it again unless the user is
-      // actually speaking (lastAboveThreshold=0 makes hold-open expire).
+      // Restart analysis so it picks up the fresh MediaStreamTrack that
+      // LiveKit may swap in on unmute (e.g. a device switch performed while
+      // muted defers the real track restart to unmute, and no further track
+      // event fires after that restartTrack). stop/start reuse the existing
+      // cleanup discipline, so this is idempotent and leak-free.
+      stopLocalAnalysis();
+      startLocalAnalysis();
+      // Re-arm the gate: open now, but the next tick closes it again unless
+      // the user is actually speaking (lastAboveThreshold=0 expires hold-open).
       gateOpenRef.current = true;
       lastAboveThresholdRef.current = 0;
     };
