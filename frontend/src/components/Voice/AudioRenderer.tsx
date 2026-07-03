@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { RemoteParticipant, RemoteTrackPublication, Track, AudioTrack, RoomEvent } from 'livekit-client';
 import { useRoom } from '../../hooks/useRoom';
 import { useVoice } from '../../contexts/VoiceContext';
+import { audioBoostManager, boostKey } from '../../features/voice/audioBoostManager';
+import { isBoostableAudioTrack } from '../../features/voice/isBoostableAudioTrack';
+import { getStoredVolumePercent } from '../../features/voice/volumeStorage';
 import { logger } from '../../utils/logger';
 
 /**
@@ -33,12 +36,28 @@ const ParticipantAudio: React.FC<ParticipantAudioProps> = ({ participant, audioP
     logger.info('[AudioRenderer] Attaching audio track for:', participant.identity, 'trackSid:', audioPublication.trackSid);
     track.attach(audioElement);
 
+    // Re-apply the stored per-user volume AFTER attach. useRemoteVolumeEffect
+    // applies it on TrackSubscribed, which fires before this element exists —
+    // and RemoteAudioTrack.attach() only re-applies a previously set volume
+    // when it is truthy ("if (this.elementVolume)"), so a stored volume of 0
+    // (muted stream) never reaches the element and it plays at full volume.
+    // applyVolume is idempotent and internally respects the deafened state.
+    if (isBoostableAudioTrack(track)) {
+      const volumePercent =
+        getStoredVolumePercent(participant.identity, audioPublication.source) ?? 100;
+      audioBoostManager.applyVolume(
+        track,
+        boostKey(participant.identity, audioPublication.source),
+        volumePercent,
+      );
+    }
+
     return () => {
       // Detach the audio track when unmounting or track changes
       logger.info('[AudioRenderer] Detaching audio track for:', participant.identity);
       track.detach(audioElement);
     };
-  }, [audioPublication, audioPublication.track, participant.identity]);
+  }, [audioPublication, audioPublication.track, audioPublication.source, participant.identity]);
 
   return (
     <audio
@@ -46,7 +65,9 @@ const ParticipantAudio: React.FC<ParticipantAudioProps> = ({ participant, audioP
       autoPlay
       playsInline
       // Not muted - we want to hear remote audio
-      // Volume control is handled by useDeafenEffect hook via track.setVolume()
+      // Volume control: the stored per-user volume is applied right after
+      // track.attach() above (so falsy 0 survives attach), and live changes
+      // are owned by useRemoteVolumeEffect/useDeafenEffect via applyVolume.
     />
   );
 };
