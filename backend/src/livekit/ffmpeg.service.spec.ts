@@ -92,7 +92,7 @@ describe('FfmpegService', () => {
 
     it('should throw error when no segments provided', async () => {
       await expect(service.concatenateSegments([], outputPath)).rejects.toThrow(
-        'No segments provided for concatenation',
+        'No replay video is available to process.',
       );
     });
 
@@ -346,7 +346,9 @@ describe('FfmpegService', () => {
 
       await expect(
         service.getVideoDuration('/path/to/missing.mp4'),
-      ).rejects.toThrow('FFprobe failed: File not found');
+      ).rejects.toThrow(
+        'Could not process the replay video. Please try again.',
+      );
     });
   });
 

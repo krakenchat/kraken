@@ -58,7 +58,7 @@ export class FfmpegService {
     },
   ): Promise<void> {
     if (segmentPaths.length === 0) {
-      throw new BadRequestException('No segments provided for concatenation');
+      throw new BadRequestException('No replay video is available to process.');
     }
 
     const tempDir = `/tmp/replay-concat-${uuidv4()}`;
@@ -304,7 +304,7 @@ export class FfmpegService {
         `Failed to probe video duration: ${getErrorMessage(err)}`,
       );
       throw new InternalServerErrorException(
-        `FFprobe failed: ${getErrorMessage(err)}`,
+        'Could not process the replay video. Please try again.',
       );
     }
   }

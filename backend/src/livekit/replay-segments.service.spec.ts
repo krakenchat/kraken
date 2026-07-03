@@ -268,13 +268,13 @@ describe('ReplaySegmentsService', () => {
     it('should reject filenames with path traversal attempts', async () => {
       await expect(
         service.getSegmentPath(userId, '../../../etc/passwd'),
-      ).rejects.toThrow('Invalid segment filename.');
+      ).rejects.toThrow('That replay segment is not valid.');
     });
 
     it('should reject filenames with invalid format', async () => {
       await expect(
         service.getSegmentPath(userId, 'segment.mp4'),
-      ).rejects.toThrow('Invalid segment filename.');
+      ).rejects.toThrow('That replay segment is not valid.');
     });
 
     it('should throw NotFoundException when no active session', async () => {
@@ -282,7 +282,7 @@ describe('ReplaySegmentsService', () => {
 
       await expect(
         service.getSegmentPath(userId, 'segment_00001.ts'),
-      ).rejects.toThrow('No active replay buffer session found.');
+      ).rejects.toThrow('No active replay found. Start screen sharing first.');
     });
 
     it('should throw NotFoundException when segment file does not exist', async () => {
@@ -290,7 +290,7 @@ describe('ReplaySegmentsService', () => {
 
       await expect(
         service.getSegmentPath(userId, 'segment_00001.ts'),
-      ).rejects.toThrow('Segment segment_00001.ts not found.');
+      ).rejects.toThrow('That part of the replay is no longer available.');
     });
 
     it('should return resolved segment path', async () => {

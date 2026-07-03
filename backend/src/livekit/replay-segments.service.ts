@@ -389,7 +389,9 @@ export class ReplaySegmentsService {
     });
 
     if (!session) {
-      throw new NotFoundException('No active replay buffer session found.');
+      throw new NotFoundException(
+        'No active replay found. Start screen sharing first.',
+      );
     }
 
     // Validate segment filename format to prevent path traversal
@@ -398,7 +400,8 @@ export class ReplaySegmentsService {
       segmentFile.includes('..') ||
       segmentFile.includes('/')
     ) {
-      throw new BadRequestException('Invalid segment filename.');
+      this.logger.warn(`Rejected invalid segment filename: ${segmentFile}`);
+      throw new BadRequestException('That replay segment is not valid.');
     }
 
     // Resolve relative session path to full path, then join with segment filename
@@ -410,7 +413,10 @@ export class ReplaySegmentsService {
     // Verify file exists
     const exists = await this.storageService.fileExists(segmentPath);
     if (!exists) {
-      throw new NotFoundException(`Segment ${segmentFile} not found.`);
+      this.logger.warn(`Segment file not found on disk: ${segmentFile}`);
+      throw new NotFoundException(
+        'That part of the replay is no longer available.',
+      );
     }
 
     return segmentPath;

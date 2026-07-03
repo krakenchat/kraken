@@ -259,7 +259,9 @@ export class LivekitReplayService {
       this.logger.error(
         `Failed to start egress for user ${userId}: ${getErrorMessage(error)}`,
       );
-      throw new BadRequestException('Failed to start replay buffer egress');
+      throw new BadRequestException(
+        'Could not start the replay recorder. Please try screen sharing again.',
+      );
     }
   }
 
@@ -306,7 +308,9 @@ export class LivekitReplayService {
 
     if (!session) {
       this.logger.warn(`No active session found for user ${userId}`);
-      throw new NotFoundException('No active replay buffer session found');
+      throw new NotFoundException(
+        'No active replay found. Start screen sharing to record a replay.',
+      );
     }
 
     try {
@@ -324,7 +328,9 @@ export class LivekitReplayService {
         this.logger.error(
           `Failed to stop egress ${session.egressId}: ${errorMsg}`,
         );
-        throw new BadRequestException('Failed to stop replay buffer egress');
+        throw new BadRequestException(
+          'Could not stop the replay recorder. Please try again.',
+        );
       }
     }
 
@@ -652,7 +658,7 @@ export class LivekitReplayService {
 
     if (!session) {
       throw new NotFoundException(
-        'No active replay buffer session found. Start screen sharing first.',
+        'No active replay found. Start screen sharing first.',
       );
     }
 
@@ -671,7 +677,7 @@ export class LivekitReplayService {
 
     if (allSegments.length === 0) {
       throw new BadRequestException(
-        'No segments available in replay buffer. Start screen sharing and wait for the buffer to accumulate.',
+        'Your replay is still warming up. Keep sharing your screen for a few seconds, then try again.',
       );
     }
 
@@ -730,7 +736,7 @@ export class LivekitReplayService {
 
     if (!session) {
       throw new NotFoundException(
-        'No active replay buffer session found. Start screen sharing first.',
+        'No active replay found. Start screen sharing first.',
       );
     }
 
@@ -745,7 +751,7 @@ export class LivekitReplayService {
 
     if (allSegments.length === 0) {
       throw new BadRequestException(
-        'No segments available in replay buffer. Start screen sharing and wait for the buffer to accumulate.',
+        'Your replay is still warming up. Keep sharing your screen for a few seconds, then try again.',
       );
     }
 
@@ -772,7 +778,7 @@ export class LivekitReplayService {
 
       if (clampedStart >= clampedEnd) {
         throw new BadRequestException(
-          'Requested range has no available segments. The buffer may have been cleaned up.',
+          'That part of the replay is no longer available. Try a more recent time range.',
         );
       }
 
@@ -913,14 +919,14 @@ export class LivekitReplayService {
         where: { id: dto.targetChannelId },
       });
       if (!channel) {
-        throw new NotFoundException('Target channel not found');
+        throw new NotFoundException('That channel could not be found.');
       }
       const membership = await this.databaseService.membership.findFirst({
         where: { userId, communityId: channel.communityId },
       });
       if (!membership) {
         throw new ForbiddenException(
-          "You are not a member of the target channel's community",
+          "You don't have permission to post in that channel.",
         );
       }
       // Private channels require explicit channel membership
@@ -931,7 +937,7 @@ export class LivekitReplayService {
           });
         if (!channelMembership) {
           throw new ForbiddenException(
-            'You do not have access to this private channel',
+            "You don't have permission to post in that channel.",
           );
         }
       }
@@ -944,7 +950,7 @@ export class LivekitReplayService {
         });
       if (!dmMember) {
         throw new ForbiddenException(
-          'You are not a member of the target DM group',
+          "You don't have permission to post in that conversation.",
         );
       }
     }
@@ -1148,7 +1154,9 @@ export class LivekitReplayService {
     });
 
     if (!session) {
-      throw new NotFoundException('No active replay buffer session found.');
+      throw new NotFoundException(
+        'No active replay found. Start screen sharing first.',
+      );
     }
 
     // Resolve relative segment path to full path
@@ -1160,7 +1168,7 @@ export class LivekitReplayService {
 
     if (completeSegments.length === 0) {
       throw new BadRequestException(
-        'No complete segments available in buffer yet. Please wait a moment.',
+        'Your replay is still warming up. Please wait a few seconds and try again.',
       );
     }
 

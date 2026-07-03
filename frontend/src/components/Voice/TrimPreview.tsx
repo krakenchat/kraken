@@ -173,14 +173,9 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
           });
         }
         if (data.fatal) {
-          let errorMessage = `Failed to load video preview: ${data.type}`;
-          if (data.details) {
-            errorMessage += ` (${data.details})`;
-          }
-          if (data.response?.code) {
-            errorMessage += ` - HTTP ${data.response.code}`;
-          }
-          setError(errorMessage);
+          // Full technical detail (type/details/HTTP code) is in the
+          // logger.error calls above; show the user a plain message
+          setError('Could not load the video preview. Please try again.');
           setIsLoading(false);
         }
       });
@@ -223,11 +218,11 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
       };
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('error', () => {
-        setError('Failed to load video preview');
+        setError('Could not load the video preview. Please try again.');
         setIsLoading(false);
       });
     } else {
-      setError('HLS playback is not supported in this browser');
+      setError('Video preview is not supported in this browser.');
       setIsLoading(false);
     }
   }, [sessionInfo?.hasActiveSession, isInitialized, retryKey]);
@@ -408,7 +403,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   if (!sessionInfo?.hasActiveSession) {
     return (
       <Alert severity="warning" sx={{ mt: 2 }}>
-        No active replay buffer. Start screen sharing to enable custom trimming.
+        No replay yet. Start screen sharing to record a replay.
       </Alert>
     );
   }
@@ -416,7 +411,7 @@ export const TrimPreview: React.FC<TrimPreviewProps> = ({ onRangeChange }) => {
   if (maxDuration === 0) {
     return (
       <Alert severity="info" sx={{ mt: 2 }}>
-        Waiting for buffer to accumulate segments...
+        Getting your replay ready — keep sharing your screen for a few seconds.
       </Alert>
     );
   }
