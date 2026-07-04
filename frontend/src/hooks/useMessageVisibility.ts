@@ -12,6 +12,13 @@ interface UseMessageVisibilityProps {
   messages: Array<{ id: string }>;
   containerRef?: React.RefObject<HTMLElement | null>;
   enabled?: boolean;
+  /**
+   * Skip the IntersectionObserver entirely; the caller feeds visibility via
+   * `markAsRead`. Used by the virtualized message list, where off-screen rows
+   * are unmounted (the observer would never see them) and visibility is
+   * derived from the virtualizer's visible index range instead.
+   */
+  disableObserver?: boolean;
 }
 
 /**
@@ -24,6 +31,7 @@ export const useMessageVisibility = ({
   messages,
   containerRef,
   enabled = true,
+  disableObserver = false,
 }: UseMessageVisibilityProps) => {
   const { socket } = useContext(SocketContext);
   const queryClient = useQueryClient();
@@ -125,7 +133,7 @@ export const useMessageVisibility = ({
   // Set up IntersectionObserver to track which messages are visible.
   // Re-runs when messages change so newly added DOM elements get observed.
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || disableObserver) return;
 
     // Handle intersection changes
     const handleIntersection = (entries: IntersectionObserverEntry[]) => {
@@ -182,7 +190,7 @@ export const useMessageVisibility = ({
       }
       visibleMessages.clear();
     };
-  }, [enabled, containerRef, findLatestVisibleMessage, markAsRead, messages]);
+  }, [enabled, disableObserver, containerRef, findLatestVisibleMessage, markAsRead, messages]);
 
   return {
     markAsRead,

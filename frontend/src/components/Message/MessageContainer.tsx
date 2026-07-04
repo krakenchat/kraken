@@ -183,14 +183,37 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     scrollContainerRef,
   });
 
-  // Auto-mark messages as read when they scroll into view
-  useMessageVisibility({
+  // Auto-mark messages as read when they scroll into view. In the virtualized
+  // path the IntersectionObserver is disabled (off-screen rows are unmounted
+  // and would never be observed); visibility is fed from virtua's visible
+  // index range below instead. markAsRead keeps the same optimistic-update +
+  // 1s-debounced-emit path in both modes.
+  const { markAsRead } = useMessageVisibility({
     channelId,
     directMessageGroupId,
     messages,
     containerRef: scrollContainerRef,
     enabled: !isLoading && messages.length > 0,
+    disableObserver: isVirtualized,
   });
+
+  // Virtualized read tracking: the latest (newest) visible message is the end
+  // of virtua's visible index range in the chronological render order. Each
+  // range change updates the pending mark; the debounce inside markAsRead means
+  // the range at debounce time wins, so fast scroll-throughs don't emit
+  // per-message. Out-of-range indices (estimate overshoot at the list edge)
+  // are clamped; empty/invalid ranges are ignored.
+  const orderedMessagesRef = useRef(orderedMessages);
+  orderedMessagesRef.current = orderedMessages;
+  const handleVisibleRangeChange = useCallback(
+    (startIndex: number, endIndex: number) => {
+      const ordered = orderedMessagesRef.current;
+      if (ordered.length === 0 || endIndex < 0 || endIndex < startIndex) return;
+      const latestVisible = ordered[Math.min(endIndex, ordered.length - 1)];
+      if (latestVisible) markAsRead(latestVisible.id);
+    },
+    [markAsRead],
+  );
 
   // Read receipts - determine where to show unread divider
   const { lastReadMessageId: getLastReadMessageId, unreadCount: getUnreadCount } = useReadReceipts();
@@ -303,6 +326,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               resetKey={contextKey}
               initialAnchor={transitionAnchorRef.current}
               onAtBottomChange={setVirtualAtBottom}
+              onVisibleRangeChange={handleVisibleRangeChange}
             />
           ) : (
             <MessageList
