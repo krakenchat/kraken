@@ -19,6 +19,8 @@ import { useParticipantTracks } from "../../../hooks/useParticipantTracks";
 import UserAvatar from "../../Common/UserAvatar";
 import { formatDistanceToNow } from "date-fns";
 import { deriveUserState } from "./voiceUserState";
+import { useResponsive } from "../../../hooks/useResponsive";
+import { useLongPress } from "../../../hooks/useSwipeGesture";
 
 interface UserItemProps {
   user: VoicePresenceUserDto;
@@ -39,6 +41,29 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
 }) => {
   const livekitState = useParticipantTracks(user.id);
   const userState = deriveUserState(livekitState, user);
+  const { shouldUseTouchUI } = useResponsive();
+
+  const longPress = useLongPress(
+    (point) => {
+      if (point) {
+        onContextMenu(
+          { preventDefault: () => {}, clientX: point.x, clientY: point.y } as React.MouseEvent<HTMLElement>,
+          user,
+        );
+      }
+    },
+    { enabled: shouldUseTouchUI },
+  );
+
+  const interactionProps = shouldUseTouchUI
+    ? {
+        onTouchStart: longPress.onTouchStart,
+        onTouchMove: longPress.onTouchMove,
+        onTouchEnd: longPress.onTouchEnd,
+        onTouchCancel: longPress.onTouchCancel,
+        onContextMenu: longPress.onContextMenu,
+      }
+    : { onContextMenu: (e: React.MouseEvent<HTMLElement>) => onContextMenu(e, user) };
 
   const statusIcons = [];
 
@@ -67,8 +92,13 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
             backgroundColor: "action.hover",
           },
         }}
-        onClick={() => onClickUser(user.id)}
-        onContextMenu={(e) => onContextMenu(e, user)}
+        onClick={() => {
+          // Ignore the post-long-press ghost click (iOS) so the profile
+          // doesn't open on top of the moderation menu.
+          if (longPress.isLongPressTriggered()) return;
+          onClickUser(user.id);
+        }}
+        {...interactionProps}
       >
         <ListItemAvatar>
           <UserAvatar userId={user.id} size="small" />

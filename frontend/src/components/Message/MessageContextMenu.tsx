@@ -13,16 +13,8 @@ import {
   ListItemText,
   Divider,
 } from '@mui/material';
-import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import AddReactionIcon from '@mui/icons-material/AddReaction';
-import PushPinIcon from '@mui/icons-material/PushPin';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import type { Message } from '../../types/message.type';
-import { spansToText } from '../../utils/mentionParser';
-import { copyToClipboard } from '../../utils/clipboard';
+import { getMessageActions, type MessageAction } from './messageActions';
 
 export interface MessageContextMenuProps {
   anchorPosition: { top: number; left: number } | null;
@@ -65,52 +57,53 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   onQuoteReply,
   onAddReaction,
 }) => {
-  const handleCopyContent = useCallback(async () => {
-    const text = spansToText(message.spans);
-    try {
-      await copyToClipboard(text);
-    } catch {
-      // Clipboard write can fail in non-secure contexts; fail silently
-    }
-    onClose();
-  }, [message.spans, onClose]);
+  const actions = getMessageActions({
+    message,
+    canEdit,
+    canDelete,
+    canPin,
+    canReact,
+    canThread,
+    isPinned,
+    handlers: {
+      onEdit,
+      onDelete,
+      onPin,
+      onUnpin,
+      onReplyInThread,
+      onQuoteReply,
+      onAddReaction,
+    },
+  });
 
-  const handleQuoteReply = useCallback(() => {
-    onQuoteReply?.();
-    onClose();
-  }, [onQuoteReply, onClose]);
+  const handleSelect = useCallback(
+    (action: MessageAction) => {
+      void action.run();
+      onClose();
+    },
+    [onClose],
+  );
 
-  const handleReplyInThread = useCallback(() => {
-    onReplyInThread();
-    onClose();
-  }, [onReplyInThread, onClose]);
+  const renderItem = (action: MessageAction) => (
+    <MenuItem
+      key={action.key}
+      onClick={() => handleSelect(action)}
+      sx={action.destructive ? { color: 'error.main' } : undefined}
+    >
+      <ListItemIcon sx={action.destructive ? { color: 'error.main' } : undefined}>
+        {action.icon}
+      </ListItemIcon>
+      <ListItemText>{action.label}</ListItemText>
+    </MenuItem>
+  );
 
-  const handleAddReaction = useCallback(() => {
-    onAddReaction();
-    onClose();
-  }, [onAddReaction, onClose]);
+  const replyActions = actions.filter((a) => a.group === 'reply');
+  const reactionActions = actions.filter((a) => a.group === 'reaction');
+  const moderationActions = actions.filter((a) => a.group === 'moderation');
+  const copyActions = actions.filter((a) => a.group === 'copy');
 
-  const handlePin = useCallback(() => {
-    if (isPinned) {
-      onUnpin();
-    } else {
-      onPin();
-    }
-    onClose();
-  }, [isPinned, onPin, onUnpin, onClose]);
-
-  const handleEdit = useCallback(() => {
-    onEdit();
-    onClose();
-  }, [onEdit, onClose]);
-
-  const handleDelete = useCallback(() => {
-    onDelete();
-    onClose();
-  }, [onDelete, onClose]);
-
-  const hasReplyItems = !!onQuoteReply || canThread;
-  const hasMiddleItems = canPin || canEdit || canDelete;
+  const hasReplyItems = replyActions.length > 0;
+  const hasMiddleItems = moderationActions.length > 0;
 
   return (
     <Menu
@@ -119,80 +112,22 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
       open={open}
       onClose={onClose}
     >
-      {/* Reply actions */}
-      {onQuoteReply && (
-        <MenuItem onClick={handleQuoteReply}>
-          <ListItemIcon>
-            <FormatQuoteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Reply</ListItemText>
-        </MenuItem>
-      )}
-      {canThread && (
-        <MenuItem onClick={handleReplyInThread}>
-          <ListItemIcon>
-            <ChatBubbleOutlineIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Reply in Thread</ListItemText>
-        </MenuItem>
-      )}
+      {replyActions.map(renderItem)}
 
       {/* Divider between reply actions and reaction */}
       {hasReplyItems && <Divider />}
 
-      {/* Add Reaction */}
-      {canReact && (
-        <MenuItem onClick={handleAddReaction}>
-          <ListItemIcon>
-            <AddReactionIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Add Reaction</ListItemText>
-        </MenuItem>
-      )}
+      {reactionActions.map(renderItem)}
 
       {/* Divider between reaction and moderation/edit actions */}
-      {canReact && hasMiddleItems && <Divider />}
+      {reactionActions.length > 0 && hasMiddleItems && <Divider />}
 
-      {/* Pin/Unpin */}
-      {canPin && (
-        <MenuItem onClick={handlePin}>
-          <ListItemIcon>
-            <PushPinIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{isPinned ? 'Unpin Message' : 'Pin Message'}</ListItemText>
-        </MenuItem>
-      )}
-
-      {/* Edit */}
-      {canEdit && (
-        <MenuItem onClick={handleEdit}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit Message</ListItemText>
-        </MenuItem>
-      )}
-
-      {/* Delete */}
-      {canDelete && (
-        <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-          <ListItemIcon sx={{ color: 'error.main' }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Delete Message</ListItemText>
-        </MenuItem>
-      )}
+      {moderationActions.map(renderItem)}
 
       {/* Divider before copy */}
       <Divider />
 
-      {/* Copy Message Content — always shown */}
-      <MenuItem onClick={handleCopyContent}>
-        <ListItemIcon>
-          <ContentCopyIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>Copy Message Content</ListItemText>
-      </MenuItem>
+      {copyActions.map(renderItem)}
     </Menu>
   );
 };

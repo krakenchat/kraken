@@ -20,6 +20,8 @@ import { useParticipantTracks } from "../../../hooks/useParticipantTracks";
 import UserAvatar from "../../Common/UserAvatar";
 import { VOLUME_STORAGE_PREFIX } from "../../../constants/voice";
 import { deriveUserState } from "./voiceUserState";
+import { useResponsive } from "../../../hooks/useResponsive";
+import { useLongPress } from "../../../hooks/useSwipeGesture";
 
 interface CompactUserItemProps {
   user: VoicePresenceUserDto;
@@ -56,6 +58,29 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
   const livekitState = useParticipantTracks(user.id);
   const userState = deriveUserState(livekitState, user);
   const speaking = isSpeaking(user.id) && !userState.isMuted && !userState.isServerMuted && !userState.isDeafened;
+  const { shouldUseTouchUI } = useResponsive();
+
+  const longPress = useLongPress(
+    (point) => {
+      if (point) {
+        onContextMenu(
+          { preventDefault: () => {}, clientX: point.x, clientY: point.y } as React.MouseEvent<HTMLElement>,
+          user,
+        );
+      }
+    },
+    { enabled: shouldUseTouchUI },
+  );
+
+  const interactionProps = shouldUseTouchUI
+    ? {
+        onTouchStart: longPress.onTouchStart,
+        onTouchMove: longPress.onTouchMove,
+        onTouchEnd: longPress.onTouchEnd,
+        onTouchCancel: longPress.onTouchCancel,
+        onContextMenu: longPress.onContextMenu,
+      }
+    : { onContextMenu: (e: React.MouseEvent<HTMLElement>) => onContextMenu(e, user) };
 
   // Check if locally muted (volume = 0 in localStorage)
   const isLocalUser = localParticipantIdentity === user.id;
@@ -78,8 +103,13 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
           backgroundColor: theme.palette.semantic.overlay.light,
         },
       }}
-      onClick={() => onClickUser(user.id)}
-      onContextMenu={(e) => onContextMenu(e, user)}
+      onClick={() => {
+        // Ignore the post-long-press ghost click (iOS) so the profile
+        // doesn't open on top of the moderation menu.
+        if (longPress.isLongPressTriggered()) return;
+        onClickUser(user.id);
+      }}
+      {...interactionProps}
     >
       <ListItemAvatar sx={{ minWidth: 40 }}>
         <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>

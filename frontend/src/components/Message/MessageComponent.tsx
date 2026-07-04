@@ -30,7 +30,10 @@ import { useUserProfile } from "../../contexts/UserProfileContext";
 import { SeenByTooltip } from "./SeenByTooltip";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
 import MessageContextMenu from "./MessageContextMenu";
+import MessageActionsSheet from "./MessageActionsSheet";
 import { EmojiPickerPopover } from "./EmojiPicker";
+import { useResponsive } from "../../hooks/useResponsive";
+import { useLongPress } from "../../hooks/useSwipeGesture";
 
 interface MessageProps {
   message: MessageType;
@@ -108,9 +111,13 @@ function MessageComponentInner({
     handleUnpin,
   } = useMessageActions(message, currentUser?.id);
 
+  const { shouldUseTouchUI } = useResponsive();
+
   // Context menu state
   const [contextMenuPosition, setContextMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [emojiPickerPosition, setEmojiPickerPosition] = useState<{ top: number; left: number } | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [actionsSheetOpen, setActionsSheetOpen] = useState(false);
 
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
@@ -127,13 +134,49 @@ function MessageComponentInner({
     setContextMenuPosition(null);
   }, [contextMenuPosition]);
 
+  // Touch: long-press opens the mobile actions sheet
+  const handleOpenActionsSheet = useCallback(() => {
+    setActionsSheetOpen(true);
+  }, []);
+
+  const longPress = useLongPress(handleOpenActionsSheet, {
+    enabled: shouldUseTouchUI && !isEditing,
+  });
+
+  // Touch: "Add Reaction" / "+" opens the emoji picker (as a bottom sheet)
+  const handleSheetAddReaction = useCallback(() => {
+    setEmojiPickerOpen(true);
+  }, []);
+
+  const handleCloseEmojiPicker = useCallback(() => {
+    setEmojiPickerPosition(null);
+    setEmojiPickerOpen(false);
+  }, []);
+
+  // Under touch UI, wire long-press handlers and suppress native selection /
+  // context menu; otherwise keep desktop right-click behavior untouched.
+  // While editing on touch, attach nothing so native text selection and the
+  // clipboard callout work inside the edit form.
+  const containerInteractionProps = shouldUseTouchUI
+    ? isEditing
+      ? {}
+      : {
+          onTouchStart: longPress.onTouchStart,
+          onTouchMove: longPress.onTouchMove,
+          onTouchEnd: longPress.onTouchEnd,
+          onTouchCancel: longPress.onTouchCancel,
+          onContextMenu: longPress.onContextMenu,
+          style: { WebkitTouchCallout: "none", userSelect: "none" } as React.CSSProperties,
+        }
+    : { onContextMenu: handleContextMenu };
+
   return (
     <Container
       stagedForDelete={stagedForDelete}
       isDeleting={isDeleting}
       isHighlighted={isMentioned}
       isSearchHighlight={isSearchHighlight}
-      onContextMenu={handleContextMenu}
+      {...containerInteractionProps}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
         <UserAvatar
@@ -288,13 +331,35 @@ function MessageComponentInner({
         onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
         onAddReaction={handleAddReaction}
       />
+      {shouldUseTouchUI && (
+        <MessageActionsSheet
+          open={actionsSheetOpen}
+          onClose={() => setActionsSheetOpen(false)}
+          anchorPosition={null}
+          message={message}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          canPin={canPin}
+          canReact={canReact}
+          canThread={canThread}
+          isPinned={isPinned}
+          onEdit={handleEditClick}
+          onDelete={handleDeleteClick}
+          onPin={handlePin}
+          onUnpin={handleUnpin}
+          onReplyInThread={handleOpenThread}
+          onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
+          onAddReaction={handleSheetAddReaction}
+          onEmojiSelect={handleEmojiSelect}
+        />
+      )}
       <EmojiPickerPopover
-        open={Boolean(emojiPickerPosition)}
+        open={Boolean(emojiPickerPosition) || emojiPickerOpen}
         anchorPosition={emojiPickerPosition}
-        onClose={() => setEmojiPickerPosition(null)}
+        onClose={handleCloseEmojiPicker}
         onEmojiSelect={(emoji) => {
           handleEmojiSelect(emoji);
-          setEmojiPickerPosition(null);
+          handleCloseEmojiPicker();
         }}
       />
     </Container>

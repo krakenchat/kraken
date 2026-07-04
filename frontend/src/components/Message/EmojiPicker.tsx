@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { IconButton, Popover, Box, Typography, TextField, InputAdornment } from '@mui/material';
 import { AddReaction as AddReactionIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
+import { useResponsive } from '../../hooks/useResponsive';
+import { MobileSheet } from '../Mobile/common/MobileSheet';
 
 // Emoji names for search functionality
 export const EMOJI_NAMES: Record<string, string[]> = {
@@ -145,7 +147,9 @@ export const EMOJI_CATEGORIES: Record<string, string[]> = {
  */
 const EmojiPickerContent: React.FC<{
   onEmojiClick: (emoji: string) => void;
-}> = ({ onEmojiClick }) => {
+  /** Touch variant: full-width, taller, larger tap targets (for MobileSheet). */
+  touch?: boolean;
+}> = ({ onEmojiClick, touch = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter emojis based on search query
@@ -183,8 +187,8 @@ const EmojiPickerContent: React.FC<{
 
   return (
     <Box sx={{
-      width: '300px',
-      height: '400px',
+      width: touch ? '100%' : '300px',
+      height: touch ? '60vh' : '400px',
       display: 'flex',
       flexDirection: 'column',
     }}>
@@ -305,8 +309,8 @@ const EmojiPickerContent: React.FC<{
                     size="small"
                     onClick={() => onEmojiClick(emoji)}
                     sx={{
-                      fontSize: '16px',
-                      padding: '4px',
+                      fontSize: touch ? '24px' : '16px',
+                      padding: touch ? '8px' : '4px',
                       borderRadius: '4px',
                       aspectRatio: '1',
                       minWidth: 'unset',
@@ -368,10 +372,22 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
   onClose,
   onEmojiSelect,
 }) => {
+  const { shouldUseTouchUI } = useResponsive();
+
   const handleEmojiClick = (emoji: string) => {
     onEmojiSelect(emoji);
     onClose();
   };
+
+  // On touch devices, present the picker as a full-width bottom sheet instead
+  // of a small anchored popover.
+  if (shouldUseTouchUI) {
+    return (
+      <MobileSheet open={open} onClose={onClose} title="Add Reaction" maxHeight="70vh">
+        <EmojiPickerContent onEmojiClick={handleEmojiClick} touch />
+      </MobileSheet>
+    );
+  }
 
   return (
     <Popover

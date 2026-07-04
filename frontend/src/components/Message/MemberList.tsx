@@ -15,6 +15,8 @@ import { alpha, useTheme } from "@mui/material/styles";
 import UserAvatar from "../Common/UserAvatar";
 import { UserModerationMenu } from "../Moderation";
 import { useUserProfile } from "../../contexts/UserProfileContext";
+import { useResponsive } from "../../hooks/useResponsive";
+import { useLongPress } from "../../hooks/useSwipeGesture";
 
 export interface MemberData {
   id: string;
@@ -79,6 +81,102 @@ const SectionHeader: React.FC<{ label: string; count: number }> = ({ label, coun
   </ListItem>
 );
 
+/**
+ * A single member row. Left-click / tap opens the profile; right-click (desktop)
+ * or long-press (touch) opens the moderation menu anchored at the pointer.
+ */
+const MemberRow: React.FC<{
+  member: MemberData;
+  onOpenProfile: (userId: string) => void;
+  onOpenMenu: (position: { top: number; left: number }, member: MemberData) => void;
+}> = ({ member, onOpenProfile, onOpenMenu }) => {
+  const theme = useTheme();
+  const { shouldUseTouchUI } = useResponsive();
+
+  const longPress = useLongPress(
+    (point) => {
+      if (point) onOpenMenu({ top: point.y, left: point.x }, member);
+    },
+    { enabled: shouldUseTouchUI },
+  );
+
+  const interactionProps = shouldUseTouchUI
+    ? {
+        onTouchStart: longPress.onTouchStart,
+        onTouchMove: longPress.onTouchMove,
+        onTouchEnd: longPress.onTouchEnd,
+        onTouchCancel: longPress.onTouchCancel,
+        onContextMenu: longPress.onContextMenu,
+      }
+    : {
+        onContextMenu: (e: React.MouseEvent<HTMLElement>) => {
+          e.preventDefault();
+          onOpenMenu({ top: e.clientY, left: e.clientX }, member);
+        },
+      };
+
+  return (
+    <ListItemButton
+      onClick={() => {
+        // Ignore the ghost click some browsers (iOS) fire after a long-press —
+        // otherwise the profile opens on top of the moderation menu.
+        if (longPress.isLongPressTriggered()) return;
+        onOpenProfile(member.id);
+      }}
+      {...interactionProps}
+      sx={{
+        px: 2,
+        py: 0.5,
+        "&:hover": {
+          backgroundColor: theme.palette.semantic.overlay.light,
+        },
+      }}
+    >
+      <ListItemAvatar sx={{ minWidth: 40 }}>
+        <UserAvatar
+          userId={member.id}
+          size="small"
+          showStatus={true}
+          isOnline={member.isOnline}
+        />
+      </ListItemAvatar>
+      <ListItemText
+        primary={
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 500,
+              fontSize: "14px",
+              lineHeight: 1.2,
+            }}
+          >
+            {member.displayName || member.username}
+          </Typography>
+        }
+        secondary={
+          member.status ? (
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                fontSize: "11px",
+                lineHeight: 1.2,
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 150,
+              }}
+            >
+              {member.status}
+            </Typography>
+          ) : null
+        }
+      />
+    </ListItemButton>
+  );
+};
+
 const MemberList: React.FC<MemberListProps> = ({
   members,
   isLoading = false,
@@ -86,20 +184,18 @@ const MemberList: React.FC<MemberListProps> = ({
   title = "Members",
   communityId,
 }) => {
-  const theme = useTheme();
   const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     position: null,
     member: null,
   });
 
-  const handleContextMenu = (event: React.MouseEvent<HTMLElement>, member: MemberData) => {
-    event.preventDefault();
-    setContextMenu({
-      position: { top: event.clientY, left: event.clientX },
-      member,
-    });
-  };
+  const openMenu = React.useCallback(
+    (position: { top: number; left: number }, member: MemberData) => {
+      setContextMenu({ position, member });
+    },
+    [],
+  );
 
   const handleCloseContextMenu = () => {
     setContextMenu({ position: null, member: null });
@@ -160,60 +256,12 @@ const MemberList: React.FC<MemberListProps> = ({
   }, [members]);
 
   const renderMember = (member: MemberData) => (
-    <ListItemButton
+    <MemberRow
       key={member.id}
-      onClick={() => openProfile(member.id)}
-      onContextMenu={(e) => handleContextMenu(e, member)}
-      sx={{
-        px: 2,
-        py: 0.5,
-        "&:hover": {
-          backgroundColor: theme.palette.semantic.overlay.light,
-        },
-      }}
-    >
-      <ListItemAvatar sx={{ minWidth: 40 }}>
-        <UserAvatar
-          userId={member.id}
-          size="small"
-          showStatus={true}
-          isOnline={member.isOnline}
-        />
-      </ListItemAvatar>
-      <ListItemText
-        primary={
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: 1.2,
-            }}
-          >
-            {member.displayName || member.username}
-          </Typography>
-        }
-        secondary={
-          member.status ? (
-            <Typography
-              variant="caption"
-              sx={{
-                color: "text.secondary",
-                fontSize: "11px",
-                lineHeight: 1.2,
-                display: "block",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 150,
-              }}
-            >
-              {member.status}
-            </Typography>
-          ) : null
-        }
-      />
-    </ListItemButton>
+      member={member}
+      onOpenProfile={openProfile}
+      onOpenMenu={openMenu}
+    />
   );
 
   if (error) {

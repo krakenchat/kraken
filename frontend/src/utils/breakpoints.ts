@@ -54,6 +54,7 @@ export const MOBILE_CONSTANTS = {
   SWIPE_THRESHOLD: 50, // pixels
   EDGE_SWIPE_ZONE: 20, // pixels from edge to trigger drawer
   LONG_PRESS_DURATION: 500, // milliseconds
+  LONG_PRESS_SLOP: 10, // pixels of movement that cancels a pending long-press
 } as const;
 
 /**
