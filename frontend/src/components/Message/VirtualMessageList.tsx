@@ -134,14 +134,35 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
 
     useImperativeHandle(ref, () => ({ scrollToBottom }), [scrollToBottom]);
 
+    // Pending initial-positioning frames. Kept in a ref and cancelled only on
+    // unmount or context switch — NOT when `len` changes: a prepend can land
+    // between scheduling and the frame firing (the anchor-restore case is
+    // exactly when the user is near the top), and cancelling then would drop
+    // the positioning entirely.
+    const positioningRafsRef = useRef<[number, number]>([0, 0]);
+    const cancelPositioningRafs = () => {
+      cancelAnimationFrame(positioningRafsRef.current[0]);
+      cancelAnimationFrame(positioningRafsRef.current[1]);
+      positioningRafsRef.current = [0, 0];
+    };
+
+    // Guards older-page loads between the call and the next render with
+    // isLoadingMore=true (scroll events can arrive faster than React commits).
+    const loadOlderInFlightRef = useRef(false);
+
     // Re-home at the bottom when switching contexts (channel/DM).
     useEffect(() => {
+      cancelPositioningRafs();
       initialPositionedRef.current = false;
       pinnedRef.current = true;
+      loadOlderInFlightRef.current = false;
       prevOldestIdRef.current = undefined;
       prevLenRef.current = 0;
       prevNewestIdRef.current = undefined;
     }, [resetKey]);
+
+    // Cancel any pending positioning frames on unmount.
+    useEffect(() => cancelPositioningRafs, []);
 
     // Initial positioning once data is present. If a transition anchor was
     // captured (legacy → virtual flip while reading history), restore that
@@ -164,30 +185,26 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       // estimated offsets. Positions are estimate-based, so anchor restoration
       // is approximate — the goal is keeping the reader in the neighborhood
       // instead of teleporting them.
-      let raf2 = 0;
       const raf1 = requestAnimationFrame(() => {
         if (anchor && anchorIndex >= 0) {
           handle.scrollToIndex(anchorIndex, { align: "start" });
-          raf2 = requestAnimationFrame(() => {
+          positioningRafsRef.current[1] = requestAnimationFrame(() => {
             handle.scrollToIndex(anchorIndex, { align: "start" });
             if (anchor.offsetTop !== 0) handle.scrollBy(-anchor.offsetTop);
           });
         } else {
           handle.scrollToIndex(len - 1, { align: "end" });
-          raf2 = requestAnimationFrame(() => {
+          positioningRafsRef.current[1] = requestAnimationFrame(() => {
             handle.scrollToIndex(len - 1, { align: "end" });
           });
         }
       });
+      positioningRafsRef.current = [raf1, 0];
 
       const anchored = !!(anchor && anchorIndex >= 0);
       pinnedRef.current = !anchored;
       initialPositionedRef.current = true;
       onAtBottomChange?.(!anchored);
-      return () => {
-        cancelAnimationFrame(raf1);
-        cancelAnimationFrame(raf2);
-      };
       // orderedMessages identity changes with len; anchor lookup uses the ref.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [len, onAtBottomChange]);
@@ -252,14 +269,20 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
         onVisibleRangeChange?.(startIndex, endIndex);
 
         // Older-page load: near the top, not already loading, more to fetch.
+        // The in-flight ref covers the window between this call and the next
+        // render with isLoadingMore=true.
         if (
           initialPositionedRef.current &&
           startIndex <= LOAD_MORE_INDEX_PROXIMITY &&
           !isLoadingMore &&
+          !loadOlderInFlightRef.current &&
           continuationToken &&
           onLoadMore
         ) {
-          onLoadMore();
+          loadOlderInFlightRef.current = true;
+          void onLoadMore().finally(() => {
+            loadOlderInFlightRef.current = false;
+          });
         }
       },
       [isLoadingMore, continuationToken, onLoadMore, onAtBottomChange, onVisibleRangeChange],
