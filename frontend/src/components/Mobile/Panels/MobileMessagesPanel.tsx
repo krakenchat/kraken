@@ -5,7 +5,7 @@
  * Uses the new screen-based navigation with MobileAppBar.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -16,7 +16,7 @@ import {
 import {
   Add as AddIcon,
 } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   directMessagesControllerFindUserDmGroupsOptions,
   userControllerGetProfileOptions,
@@ -27,6 +27,8 @@ import CreateDmDialog from '../../DirectMessages/CreateDmDialog';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { useVoiceConnection } from '../../../hooks/useVoiceConnection';
 import { useReadReceipts } from '../../../hooks/useReadReceipts';
+import { useResponsive } from '../../../hooks/useResponsive';
+import { usePullToRefresh } from '../../../hooks/useSwipeGesture';
 import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
 import MobileAppBar from '../MobileAppBar';
 import { VoiceSessionType } from '../../../contexts/VoiceContext';
@@ -37,12 +39,28 @@ import { VoiceSessionType } from '../../../contexts/VoiceContext';
  */
 export const MobileMessagesPanel: React.FC = () => {
   const { navigateToDmChat } = useMobileNavigation();
+  const { shouldUseTouchUI } = useResponsive();
+  const queryClient = useQueryClient();
   const { data: dmGroups = [], isLoading } = useQuery(directMessagesControllerFindUserDmGroupsOptions());
   const { data: currentUser } = useQuery(userControllerGetProfileOptions());
   const { state: voiceState } = useVoiceConnection();
   const { unreadCount, mentionCount } = useReadReceipts();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  // Pull-to-refresh: drag down from the top of the DM list to refetch it.
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const { onTouchStart, onTouchMove, onTouchEnd, isRefreshing } = usePullToRefresh(
+    async () => {
+      await queryClient.invalidateQueries({
+        queryKey: directMessagesControllerFindUserDmGroupsOptions().queryKey,
+      });
+    },
+    { enabled: shouldUseTouchUI, scrollElementRef: listScrollRef },
+  );
+  const pullHandlers = shouldUseTouchUI
+    ? { onTouchStart, onTouchMove, onTouchEnd }
+    : {};
 
   const handleDmClick = (dmGroupId: string) => {
     navigateToDmChat(dmGroupId);
@@ -67,12 +85,27 @@ export const MobileMessagesPanel: React.FC = () => {
         </Box>
       ) : (
         <Box
+          ref={listScrollRef}
           sx={{
             flex: 1,
             overflowY: 'auto',
             px: 1,
+            position: 'relative',
           }}
+          {...pullHandlers}
         >
+          {/* Pull-to-refresh indicator */}
+          {isRefreshing && (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                py: 1.5,
+              }}
+            >
+              <CircularProgress size={24} />
+            </Box>
+          )}
           <List>
             {dmGroups.map((dmGroup) => (
               <DmListItem

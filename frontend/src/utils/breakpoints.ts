@@ -53,6 +53,9 @@ export const MOBILE_CONSTANTS = {
   MESSAGE_AVATAR_SIZE: 32,
   SWIPE_THRESHOLD: 50, // pixels
   EDGE_SWIPE_ZONE: 20, // pixels from edge to trigger drawer
+  // Gestures that START within this many pixels of the left/right screen edge
+  // are ignored, so they don't fight the browser's native edge back-gesture.
+  EDGE_BACK_GESTURE_ZONE: 24, // pixels from edge to ignore navigation swipes
   LONG_PRESS_DURATION: 500, // milliseconds
   LONG_PRESS_SLOP: 10, // pixels of movement that cancels a pending long-press
 } as const;

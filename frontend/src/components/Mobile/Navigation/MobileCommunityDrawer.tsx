@@ -111,7 +111,13 @@ const CommunityListSkeleton: React.FC = () => (
 
 const MobileCommunityDrawer: React.FC = () => {
   const navigate = useNavigate();
-  const { state, closeDrawer, navigateToChannels, navigateToDmList } = useMobileNavigation();
+  const { state, openDrawer, closeDrawer, navigateToChannels, navigateToDmList } = useMobileNavigation();
+
+  // Swipe-to-open (left edge) is normally disabled because it collides with
+  // Chrome's back-gesture. It's only safe on the channel list ('channels'
+  // screen), where there is no in-app back destination for the edge swipe to
+  // fight over. Enabled there, disabled everywhere else.
+  const allowSwipeToOpen = state.currentScreen === 'channels';
   const { data: communities, isLoading } = useQuery(communityControllerFindAllMineOptions());
   const { totalDmUnreadCount: totalDmUnread } = useReadReceipts();
 
@@ -140,8 +146,8 @@ const MobileCommunityDrawer: React.FC = () => {
       anchor="left"
       open={state.isDrawerOpen}
       onClose={closeDrawer}
-      onOpen={() => {}} // No-op since we use button to open
-      disableSwipeToOpen // Disable edge swipe to avoid Chrome back gesture conflict
+      onOpen={openDrawer}
+      disableSwipeToOpen={!allowSwipeToOpen} // Only allow edge swipe on the channel list (no back-gesture conflict there)
       sx={{
         '& .MuiDrawer-paper': {
           width: MOBILE_CONSTANTS.DRAWER_WIDTH,
