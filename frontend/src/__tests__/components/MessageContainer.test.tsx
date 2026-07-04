@@ -91,6 +91,26 @@ vi.mock('../../components/Message/UnreadMessageDivider', () => ({
   ),
 }));
 
+// Stub the virtualized renderer so gate tests assert routing, not virtua
+// internals (VirtualMessageList has its own test with a mocked VList).
+vi.mock('../../components/Message/VirtualMessageList', async () => {
+  const React = await import('react');
+  return {
+    default: React.forwardRef(
+      (
+        { orderedMessages }: { orderedMessages: Array<{ id: string }> },
+        _ref: React.Ref<unknown>,
+      ) => (
+        <div data-testid="virtual-message-list">
+          {orderedMessages.map((m) => (
+            <div key={m.id} data-testid={`vmsg-${m.id}`} />
+          ))}
+        </div>
+      ),
+    ),
+  };
+});
+
 // ── Mock hooks ─────────────────────────────────────────────────────────
 const mockMarkAsRead = vi.fn();
 vi.mock('../../hooks/useMessageVisibility', () => ({
@@ -1009,13 +1029,16 @@ describe('MessageContainer', () => {
         <MessageContainer {...defaultProps} messages={manyMessages(10)} />,
       );
       expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
+      expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
     });
 
     it('virtualizes at or above the threshold in normal mode', () => {
       renderWithProviders(
         <MessageContainer {...defaultProps} messages={manyMessages(200)} />,
       );
-      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'true');
+      // Legacy scroll container is replaced by the virtualized renderer.
+      expect(screen.queryByTestId('scroll-container')).not.toBeInTheDocument();
+      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
     });
 
     it('never virtualizes in anchored mode, even above the threshold', () => {
@@ -1028,6 +1051,7 @@ describe('MessageContainer', () => {
         />,
       );
       expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
+      expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
     });
   });
 

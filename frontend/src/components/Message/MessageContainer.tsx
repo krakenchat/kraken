@@ -1,8 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
 import MessageList from "./MessageList";
+import VirtualMessageList, { type VirtualMessageListHandle } from "./VirtualMessageList";
 import type { Message } from "../../types/message.type";
 import { useMessageVisibility } from "../../hooks/useMessageVisibility";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
@@ -105,8 +106,8 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     bottomSentinelRef,
     topSentinelRef,
     messageRefs,
-    atBottom,
-    scrollToBottom,
+    atBottom: legacyAtBottom,
+    scrollToBottom: legacyScrollToBottom,
   } = useBidirectionalScroll({
     messages,
     mode,
@@ -119,7 +120,22 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     onLoadNewer,
     isLoadingNewer,
     hasNewer,
+    // Disable the manual scroll math entirely in the virtualized path —
+    // virtua owns scrollTop there (prepend/stick-to-bottom/growth compensation).
+    disabled: isVirtualized,
   });
+
+  // Virtualized-path scroll state. virtua reports atBottom via a callback and
+  // exposes scrollToBottom through an imperative handle; both are lifted here so
+  // the FABs work identically regardless of which renderer is active.
+  const virtualListRef = useRef<VirtualMessageListHandle>(null);
+  const [virtualAtBottom, setVirtualAtBottom] = useState(true);
+  const scrollToVirtualBottom = useCallback(() => {
+    virtualListRef.current?.scrollToBottom();
+  }, []);
+
+  const atBottom = isVirtualized ? virtualAtBottom : legacyAtBottom;
+  const scrollToBottom = isVirtualized ? scrollToVirtualBottom : legacyScrollToBottom;
 
   useAnchoredModeTransition({
     mode,
@@ -230,26 +246,48 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         }}
       >
         {messages.length > 0 ? (
-          <MessageList
-            orderedMessages={orderedMessages}
-            authorId={authorId}
-            scrollContainerRef={scrollContainerRef}
-            topSentinelRef={topSentinelRef}
-            bottomSentinelRef={bottomSentinelRef}
-            messageRefs={messageRefs}
-            isLoadingMore={isLoadingMore}
-            isLoadingNewer={isLoadingNewer}
-            unreadCount={unreadCount}
-            lastReadIndex={lastReadIndex}
-            highlightMessageId={highlightMessageId}
-            highlightSeq={highlightSeq}
-            contextId={contextId}
-            communityId={communityId}
-            directMessageGroupId={directMessageGroupId}
-            onOpenThread={onOpenThread}
-            onQuoteReply={onQuoteReply}
-            isVirtualized={isVirtualized}
-          />
+          isVirtualized ? (
+            <VirtualMessageList
+              ref={virtualListRef}
+              orderedMessages={orderedMessages}
+              authorId={authorId}
+              isLoadingMore={isLoadingMore}
+              continuationToken={continuationToken}
+              onLoadMore={onLoadMore}
+              unreadCount={unreadCount}
+              lastReadIndex={lastReadIndex}
+              highlightMessageId={highlightMessageId}
+              highlightSeq={highlightSeq}
+              contextId={contextId}
+              communityId={communityId}
+              directMessageGroupId={directMessageGroupId}
+              onOpenThread={onOpenThread}
+              onQuoteReply={onQuoteReply}
+              resetKey={contextKey}
+              onAtBottomChange={setVirtualAtBottom}
+            />
+          ) : (
+            <MessageList
+              orderedMessages={orderedMessages}
+              authorId={authorId}
+              scrollContainerRef={scrollContainerRef}
+              topSentinelRef={topSentinelRef}
+              bottomSentinelRef={bottomSentinelRef}
+              messageRefs={messageRefs}
+              isLoadingMore={isLoadingMore}
+              isLoadingNewer={isLoadingNewer}
+              unreadCount={unreadCount}
+              lastReadIndex={lastReadIndex}
+              highlightMessageId={highlightMessageId}
+              highlightSeq={highlightSeq}
+              contextId={contextId}
+              communityId={communityId}
+              directMessageGroupId={directMessageGroupId}
+              onOpenThread={onOpenThread}
+              onQuoteReply={onQuoteReply}
+              isVirtualized={isVirtualized}
+            />
+          )
         ) : (
           <Box
             sx={{

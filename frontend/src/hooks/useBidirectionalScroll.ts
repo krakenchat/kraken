@@ -19,6 +19,13 @@ interface UseBidirectionalScrollOptions {
   onLoadNewer?: () => Promise<void>;
   isLoadingNewer?: boolean;
   hasNewer?: boolean;
+
+  /**
+   * When true, this hook becomes inert — no observers, no scroll math. Used by
+   * the virtualized path, where virtua is the single owner of scrollTop and the
+   * legacy sentinels/refs are not attached to the DOM.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -51,6 +58,7 @@ export const useBidirectionalScroll = ({
   onLoadNewer,
   isLoadingNewer,
   hasNewer,
+  disabled = false,
 }: UseBidirectionalScrollOptions) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
@@ -96,6 +104,7 @@ export const useBidirectionalScroll = ({
   // NOTE: must stay the FIRST observer-creating effect — tests index observers
   // by creation order (bottom first, top second).
   useEffect(() => {
+    if (disabled) return;
     const sentinel = bottomSentinelRef.current;
     const container = scrollContainerRef.current;
     if (!sentinel || !container) return;
@@ -119,11 +128,12 @@ export const useBidirectionalScroll = ({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMessages, mode]);
+  }, [hasMessages, mode, disabled]);
 
   // Top sentinel: first in DOM = visual top in a normal column.
   // Triggers older message loading once initial positioning has completed.
   useEffect(() => {
+    if (disabled) return;
     const sentinel = topSentinelRef.current;
     const container = scrollContainerRef.current;
     if (!sentinel || !container) return;
@@ -145,7 +155,7 @@ export const useBidirectionalScroll = ({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMessages]);
+  }, [hasMessages, disabled]);
 
   // Reset positioning/stabilization state when switching contexts (channel/DM).
   // Declared before the positioning and stabilization effects so it runs first
@@ -167,6 +177,7 @@ export const useBidirectionalScroll = ({
   // older-load suppression. Anchored mode: positioning belongs to the
   // scroll-to-highlight effect below; suppression stays on until it fires.
   useLayoutEffect(() => {
+    if (disabled) return;
     if (initialPositionedRef.current) return;
     const container = scrollContainerRef.current;
     if (!container || messages.length === 0) return;
@@ -192,7 +203,7 @@ export const useBidirectionalScroll = ({
     container.scrollTop = container.scrollHeight;
     initialPositionedRef.current = true;
     olderLoadSuppressedRef.current = false;
-  }, [messages, mode, highlightMessageId]);
+  }, [messages, mode, highlightMessageId, disabled]);
 
   // Older-prepend stabilization (both modes). Older pages are inserted at the
   // DOM start, which grows scrollHeight above the viewport and would yank the
@@ -200,6 +211,7 @@ export const useBidirectionalScroll = ({
   // stable. (Newer pages in anchored mode append at the DOM end and need no
   // compensation.)
   useLayoutEffect(() => {
+    if (disabled) return;
     const container = scrollContainerRef.current;
     if (!container || messages.length === 0) return;
 
@@ -219,7 +231,7 @@ export const useBidirectionalScroll = ({
 
     prevScrollHeightRef.current = currentScrollHeight;
     prevOldestIdRef.current = oldestId;
-  }, [messages]);
+  }, [messages, disabled]);
 
   // Stick-to-bottom on new messages: when the newest message changes while the
   // user is pinned to the bottom, keep the view glued to the bottom.
@@ -230,6 +242,7 @@ export const useBidirectionalScroll = ({
   // bottom would teleport the user past the loaded page, re-trigger the bottom
   // sentinel, and cascade newer loads all the way to the present.
   useLayoutEffect(() => {
+    if (disabled) return;
     const container = scrollContainerRef.current;
     if (!container || messages.length === 0) return;
 
@@ -243,10 +256,11 @@ export const useBidirectionalScroll = ({
       container.scrollTop = container.scrollHeight;
     }
     prevNewestIdRef.current = newestId;
-  }, [messages, mode]);
+  }, [messages, mode, disabled]);
 
   // Track whether the user is pinned to the visual bottom.
   useEffect(() => {
+    if (disabled) return;
     const container = scrollContainerRef.current;
     if (!container) return;
 
@@ -256,7 +270,7 @@ export const useBidirectionalScroll = ({
     };
     container.addEventListener('scroll', onScroll, { passive: true });
     return () => container.removeEventListener('scroll', onScroll);
-  }, [hasMessages]);
+  }, [hasMessages, disabled]);
 
   // Bottom-pin on content growth (late-loading images/embeds). With native
   // overflow anchoring disabled (overflowAnchor: "none"), content that grows
@@ -266,6 +280,7 @@ export const useBidirectionalScroll = ({
   // mode that would teleport the user to the bottom after a newer page load
   // (see the stick-to-bottom gate above; both mechanisms must be gated).
   useEffect(() => {
+    if (disabled) return;
     const container = scrollContainerRef.current;
     if (!container || typeof ResizeObserver === 'undefined') return;
     if (mode !== 'normal') return;
@@ -280,7 +295,7 @@ export const useBidirectionalScroll = ({
       ro.observe(child);
     }
     return () => ro.disconnect();
-  }, [hasMessages, messages, mode]);
+  }, [hasMessages, messages, mode, disabled]);
 
   // Above-viewport growth compensation while reading history. When media above
   // the viewport finishes loading (image placeholder swap, late link embed),
@@ -294,6 +309,7 @@ export const useBidirectionalScroll = ({
   // stabilization above already handles those).
   const knownHeightsRef = useRef(new WeakMap<Element, number>());
   useEffect(() => {
+    if (disabled) return;
     const container = scrollContainerRef.current;
     if (!container || typeof ResizeObserver === 'undefined') return;
 
@@ -321,7 +337,7 @@ export const useBidirectionalScroll = ({
       ro.observe(el);
     }
     return () => ro.disconnect();
-  }, [messages]);
+  }, [messages, disabled]);
 
   // Suppress pagination when entering anchored mode, until scroll-to-highlight
   // completes. When the highlight clears (flash timeout or mode change), lift
@@ -342,6 +358,7 @@ export const useBidirectionalScroll = ({
   // always trigger a new scroll. Avoids re-scrolling on pagination re-renders.
   const lastScrolledSeqRef = useRef(0);
   useEffect(() => {
+    if (disabled) return;
     if (!highlightMessageId || highlightSeq <= lastScrolledSeqRef.current) {
       return;
     }
@@ -358,7 +375,7 @@ export const useBidirectionalScroll = ({
         });
       }
     }
-  }, [highlightMessageId, highlightSeq, messages]);
+  }, [highlightMessageId, highlightSeq, messages, disabled]);
 
   // Visual bottom is scrollTop = scrollHeight in a normal column.
   const scrollToBottom = useCallback(() => {
