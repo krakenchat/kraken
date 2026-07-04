@@ -31,6 +31,12 @@ export function usePushToTalk() {
   // read via stateRef (#380) so we always see the CURRENT value, never a
   // stale closure.
   const pttPress = useCallback(async () => {
+    // Only meaningful while connected and in PTT mode, and ignore re-entrant
+    // presses while already held (the keyboard path filters these via
+    // event.repeat; programmatic callers get the same protection here).
+    if (!isActive) return;
+    if (isKeyHeldRef.current) return;
+
     const room = getRoom();
     if (!room) return;
 
@@ -48,7 +54,7 @@ export function usePushToTalk() {
     } catch (error) {
       logger.error('[PTT] Failed to enable microphone:', error);
     }
-  }, [getRoom, stateRef]);
+  }, [isActive, getRoom, stateRef]);
 
   // Core "stop transmitting" logic, shared by keyboard keyup, window blur, and
   // the programmatic (touch) release path.

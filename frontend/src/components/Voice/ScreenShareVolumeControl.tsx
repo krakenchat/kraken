@@ -54,7 +54,9 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
   const [isHovered, setIsHovered] = useState(false);
   // Keep the slider reachable for keyboard users: expand on focus too
   const [isFocused, setIsFocused] = useState(false);
-  const isExpanded = isHovered || isFocused;
+  // Never expand inline on touch — the tap-focus would render the inline
+  // slider alongside the popover slider (duplicate controls, layout jitter).
+  const isExpanded = !shouldUseTouchUI && (isHovered || isFocused);
   // Touch devices can't hover: tapping the icon opens a Popover slider instead.
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
 

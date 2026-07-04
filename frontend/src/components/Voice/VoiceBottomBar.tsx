@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Box,
   Paper,
@@ -180,15 +180,22 @@ export const VoiceBottomBar: React.FC = () => {
 
   // Hold-to-talk (touch): press engages the mic through the shared PTT logic
   // (which enforces the server-mute guard), release re-mutes. Pointer capture
-  // keeps transmit tied to this button even if the finger slides off it.
+  // keeps transmit tied to this button even if the finger slides off it, so
+  // release is driven by pointerup / pointercancel / lostpointercapture — not
+  // pointerleave, which would end the hold mid-slide. holdEngagedRef makes the
+  // release path idempotent across those overlapping events.
+  const holdEngagedRef = useRef(false);
   const handlePttPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (state.isServerMuted) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    holdEngagedRef.current = true;
     haptic.medium();
     void pttPress?.();
   }, [state.isServerMuted, haptic, pttPress]);
 
   const handlePttPointerUp = useCallback(() => {
+    if (!holdEngagedRef.current) return;
+    holdEngagedRef.current = false;
     haptic.light();
     void pttRelease?.();
   }, [haptic, pttRelease]);
@@ -308,7 +315,7 @@ export const VoiceBottomBar: React.FC = () => {
                 onPointerDown={isHoldToTalk ? handlePttPointerDown : undefined}
                 onPointerUp={isHoldToTalk ? handlePttPointerUp : undefined}
                 onPointerCancel={isHoldToTalk ? handlePttPointerUp : undefined}
-                onPointerLeave={isHoldToTalk ? handlePttPointerUp : undefined}
+                onLostPointerCapture={isHoldToTalk ? handlePttPointerUp : undefined}
                 onContextMenu={isHoldToTalk ? (e) => e.preventDefault() : undefined}
                 color={!isMicrophoneEnabled && !isPTTKeyHeld ? "error" : "default"}
                 size={isMobile ? "medium" : "medium"}

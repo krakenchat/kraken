@@ -265,9 +265,13 @@ export const PersistentVideoOverlay: React.FC = () => {
     if (isDragging) {
       window.addEventListener('pointermove', handleDragMove);
       window.addEventListener('pointerup', handleDragEnd);
+      // Touch can end with pointercancel (OS gesture / scroll takeover);
+      // without this the drag state would stick.
+      window.addEventListener('pointercancel', handleDragEnd);
       return () => {
         window.removeEventListener('pointermove', handleDragMove);
         window.removeEventListener('pointerup', handleDragEnd);
+        window.removeEventListener('pointercancel', handleDragEnd);
       };
     }
   }, [isDragging, handleDragMove, handleDragEnd]);
@@ -276,9 +280,11 @@ export const PersistentVideoOverlay: React.FC = () => {
     if (isResizing) {
       window.addEventListener('pointermove', handleResizeMove);
       window.addEventListener('pointerup', handleResizeEnd);
+      window.addEventListener('pointercancel', handleResizeEnd);
       return () => {
         window.removeEventListener('pointermove', handleResizeMove);
         window.removeEventListener('pointerup', handleResizeEnd);
+        window.removeEventListener('pointercancel', handleResizeEnd);
       };
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
