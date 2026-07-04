@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { Box, Typography } from '@mui/material';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
 import { MobileChatPanel } from '../Panels/MobileChatPanel';
@@ -112,6 +113,17 @@ export const TabletContentArea: React.FC<TabletContentAreaProps> = ({
 
       case 'profile':
         return <MobileProfilePanel />;
+
+      case 'route':
+        // Non-screen routes render the matched router element via <Outlet/>.
+        return (
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <MobileAppBar title="Back" showBack />
+            <Box sx={{ flex: 1, overflowY: 'auto' }}>
+              <Outlet />
+            </Box>
+          </Box>
+        );
 
       default:
         return null;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Box, Typography, IconButton, Tabs, Tab, Badge } from "@mui/material";
 import { Add as AddIcon, People as PeopleIcon, Chat as ChatIcon } from "@mui/icons-material";
 import DirectMessageList from "../components/DirectMessages/DirectMessageList";
@@ -41,7 +41,8 @@ type SidebarTab = "messages" | "friends";
 
 const DirectMessagesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedDmGroupId, setSelectedDmGroupId] = useState<string | undefined>();
+  const { dmGroupId: dmGroupIdParam } = useParams();
+  const [selectedDmGroupId, setSelectedDmGroupId] = useState<string | undefined>(dmGroupIdParam);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("messages");
   const { isMobile } = useResponsive();
@@ -57,6 +58,13 @@ const DirectMessagesPage: React.FC = () => {
     setSidebarTab("messages");
     setSelectedDmGroupId(dmGroupId);
   };
+
+  // Path param (/direct-messages/:dmGroupId) wins over ?group= handling.
+  useEffect(() => {
+    if (dmGroupIdParam && dmGroupIdParam !== selectedDmGroupId) {
+      setSelectedDmGroupId(dmGroupIdParam);
+    }
+  }, [dmGroupIdParam, selectedDmGroupId]);
 
   // Handle ?group=<id> query param for deep linking (e.g., from notifications)
   useEffect(() => {
