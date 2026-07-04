@@ -121,7 +121,11 @@ export const ResponsiveDialog: React.FC<ResponsiveDialogProps> = ({
       ) : (
         (title != null || titleActions != null) && (
           <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>{title}</Box>
+            {/* span, not div: DialogTitle renders as an h2 and only allows
+                phrasing content. */}
+            <Box component="span" sx={{ flex: 1, minWidth: 0 }}>
+              {title}
+            </Box>
             {titleActions}
           </DialogTitle>
         )
