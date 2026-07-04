@@ -92,7 +92,12 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
             backgroundColor: "action.hover",
           },
         }}
-        onClick={() => onClickUser(user.id)}
+        onClick={() => {
+          // Ignore the post-long-press ghost click (iOS) so the profile
+          // doesn't open on top of the moderation menu.
+          if (longPress.isLongPressTriggered()) return;
+          onClickUser(user.id);
+        }}
         {...interactionProps}
       >
         <ListItemAvatar>

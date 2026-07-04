@@ -160,9 +160,17 @@ describe('useLongPress', () => {
     act(() => result.current.onContextMenu(suppressed));
     expect(suppressed.preventDefault).toHaveBeenCalledTimes(1);
 
-    // Only suppressed once (flag resets)
+    // The triggered flag persists until the next press starts (consumers read
+    // isLongPressTriggered() in onClick to swallow post-long-press ghost
+    // clicks on browsers that never fire the synthetic contextmenu)
+    expect(result.current.isLongPressTriggered()).toBe(true);
+
+    // A new press resets the flag, so its context menu passes through again
+    act(() => result.current.onTouchStart(touchEvent(el, el)));
+    act(() => result.current.onTouchEnd());
     const next = { preventDefault: vi.fn() } as unknown as React.MouseEvent;
     act(() => result.current.onContextMenu(next));
     expect(next.preventDefault).not.toHaveBeenCalled();
+    expect(result.current.isLongPressTriggered()).toBe(false);
   });
 });

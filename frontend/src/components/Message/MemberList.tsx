@@ -117,7 +117,12 @@ const MemberRow: React.FC<{
 
   return (
     <ListItemButton
-      onClick={() => onOpenProfile(member.id)}
+      onClick={() => {
+        // Ignore the ghost click some browsers (iOS) fire after a long-press —
+        // otherwise the profile opens on top of the moderation menu.
+        if (longPress.isLongPressTriggered()) return;
+        onOpenProfile(member.id);
+      }}
       {...interactionProps}
       sx={{
         px: 2,

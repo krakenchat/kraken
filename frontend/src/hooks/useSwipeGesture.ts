@@ -314,11 +314,14 @@ export const useLongPress = (
 
   // Suppress the native context menu / iOS callout that fires immediately after
   // a long-press. Only preventDefault when our long-press just fired so a real
-  // desktop right-click still passes through.
+  // desktop right-click still passes through (right-click's mousedown runs
+  // start(), which clears the flag before contextmenu fires). The flag is NOT
+  // reset here: browsers that skip the synthetic contextmenu (iOS) still fire
+  // a ghost click afterwards, and consumers guard their onClick by reading
+  // isLongPressTriggered(). It resets at the start of the next press.
   const onContextMenu = useCallback((e: React.MouseEvent) => {
     if (isLongPressTriggered.current) {
       e.preventDefault();
-      isLongPressTriggered.current = false;
     }
   }, []);
 

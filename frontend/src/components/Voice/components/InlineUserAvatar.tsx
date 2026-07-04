@@ -61,7 +61,12 @@ const InlineUserAvatar: React.FC<InlineUserAvatarProps> = ({
           justifyContent: "center",
           cursor: "pointer",
         }}
-        onClick={() => onClickUser(user.id)}
+        onClick={() => {
+          // Ignore the post-long-press ghost click (iOS) so the profile
+          // doesn't open on top of the moderation menu.
+          if (longPress.isLongPressTriggered()) return;
+          onClickUser(user.id);
+        }}
         {...interactionProps}
       >
         <UserAvatar userId={user.id} size="small" />
