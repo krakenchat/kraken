@@ -1,6 +1,7 @@
 import React, { Suspense, useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./Layout";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import CssBaseline from "@mui/material/CssBaseline";
 import { CircularProgress, Box } from "@mui/material";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -39,7 +40,24 @@ const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
 const ProfileEditPage = React.lazy(() => import("./pages/ProfileEditPage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
+const NotificationsPage = React.lazy(() => import("./pages/NotificationsPage"));
 const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
+
+/** Redirects bare `/profile` to the current user's profile. */
+const ProfileRedirect: React.FC = () => {
+  const { user, isLoading } = useCurrentUser();
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  if (user?.id) {
+    return <Navigate to={`/profile/${user.id}`} replace />;
+  }
+  return <Navigate to="/" replace />;
+};
 
 function App() {
   // Check if running in Electron and needs server configuration
@@ -89,6 +107,8 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="direct-messages" element={<DirectMessagesPage />} />
+              <Route path="direct-messages/:dmGroupId" element={<DirectMessagesPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="friends" element={<FriendsPage />} />
               <Route path="settings" element={<SettingsPage />} />
 
@@ -106,6 +126,7 @@ function App() {
 
               {/* Debug routes (admin only - access check in component) */}
               <Route path="debug/notifications" element={<NotificationDebugPage />} />
+              <Route path="profile" element={<ProfileRedirect />} />
               <Route path="profile/edit" element={<ProfileEditPage />} />
               <Route path="profile/:userId" element={<ProfilePage />} />
               <Route path="community/create" element={<CreateCommunityPage />} />

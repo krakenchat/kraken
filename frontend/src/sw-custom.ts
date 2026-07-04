@@ -127,7 +127,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   if (data?.communityId && data?.channelId) {
     hash = `#/community/${data.communityId}/channel/${data.channelId}`;
   } else if (data?.directMessageGroupId) {
-    hash = `#/direct-messages?group=${data.directMessageGroupId}`;
+    hash = `#/direct-messages/${data.directMessageGroupId}`;
   }
 
   const targetUrl = new URL(`/${hash}`, self.location.origin).href;

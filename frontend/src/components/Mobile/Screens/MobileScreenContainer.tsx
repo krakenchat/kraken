@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Box, Slide, Typography } from '@mui/material';
 import { useMobileNavigation, type ScreenType } from '../Navigation/MobileNavigationContext';
 import { LAYOUT_CONSTANTS, MOBILE_ANIMATIONS } from '../../../utils/breakpoints';
@@ -33,7 +34,17 @@ interface MobileScreenContainerProps {
 
 // Helper to determine if a screen is a "detail" view (slides in from right)
 const isDetailScreen = (screen: ScreenType): boolean => {
-  return screen === 'chat' || screen === 'dm-chat' || screen === 'settings';
+  return screen === 'chat' || screen === 'dm-chat' || screen === 'settings' || screen === 'route';
+};
+
+// Generic title for routed ('route' screen) pages, derived from the path.
+const getRouteTitle = (pathname: string): string => {
+  if (pathname === '/community/create') return 'Create Community';
+  if (/^\/community\/[^/]+\/edit$/.test(pathname)) return 'Edit Community';
+  if (pathname === '/profile/edit') return 'Edit Profile';
+  if (pathname.startsWith('/admin')) return 'Admin';
+  if (pathname.startsWith('/friends')) return 'Friends';
+  return 'Back';
 };
 
 
@@ -44,6 +55,7 @@ export const MobileScreenContainer: React.FC<MobileScreenContainerProps> = ({
   bottomOffset = 0,
 }) => {
   const { state } = useMobileNavigation();
+  const location = useLocation();
   const { currentScreen, communityId, channelId, dmGroupId } = state;
 
   // Track previous screen for transition direction
@@ -135,6 +147,18 @@ export const MobileScreenContainer: React.FC<MobileScreenContainerProps> = ({
           </Box>
         );
 
+      case 'route':
+        // Any non-screen route (edit forms, create pages, admin, friends, etc.)
+        // renders the matched React Router element via <Outlet/>.
+        return (
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <MobileAppBar title={getRouteTitle(location.pathname)} showBack />
+            <Box sx={{ flex: 1, overflowY: 'auto' }}>
+              <Outlet />
+            </Box>
+          </Box>
+        );
+
       default:
         return null;
     }
@@ -150,7 +174,7 @@ export const MobileScreenContainer: React.FC<MobileScreenContainerProps> = ({
       }}
     >
       <Slide
-        key={currentScreen}
+        key={currentScreen === 'route' ? location.pathname : currentScreen}
         direction={slideIn ? 'left' : 'right'}
         in={true}
         timeout={MOBILE_ANIMATIONS.NORMAL}

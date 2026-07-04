@@ -16,6 +16,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { notificationsControllerGetUnreadCountOptions } from '../../../api-client/@tanstack/react-query.gen';
 import { useMobileNavigation, type MobileTab } from './MobileNavigationContext';
+import { useReadReceipts } from '../../../hooks/useReadReceipts';
 import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
 
 /**
@@ -29,6 +30,7 @@ export const MobileBottomNavigation: React.FC = () => {
   const { activeTab, setActiveTab } = useMobileNavigation();
   const { data: unreadData } = useQuery(notificationsControllerGetUnreadCountOptions());
   const notificationCount = unreadData?.count ?? 0;
+  const { totalDmUnreadCount } = useReadReceipts();
 
   const handleChange = (_event: React.SyntheticEvent, newValue: MobileTab) => {
     setActiveTab(newValue);
@@ -82,7 +84,7 @@ export const MobileBottomNavigation: React.FC = () => {
           label="Messages"
           value="messages"
           icon={
-            <Badge badgeContent={0} color="error">
+            <Badge badgeContent={totalDmUnreadCount} color="error" max={99}>
               <ChatIcon />
             </Badge>
           }

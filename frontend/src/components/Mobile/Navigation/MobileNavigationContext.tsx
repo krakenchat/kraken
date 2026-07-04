@@ -2,12 +2,24 @@
 /**
  * Mobile Navigation Context
  *
- * Screen-based navigation model (replaces panel stack).
- * Integrates with React Router for proper PWA back button support.
+ * Screen-based navigation model derived from the URL. The current screen is a
+ * pure function of `location.pathname` (see `parseScreenFromPath`), so browser
+ * back/forward and deep links stay in sync automatically. Any path that isn't a
+ * known "screen" resolves to the `'route'` screen, which renders the matched
+ * React Router `<Outlet/>` (edit forms, create pages, admin, etc.).
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react';
+import { useNavigate, useLocation, matchPath } from 'react-router-dom';
+
+const LAST_COMMUNITY_KEY = 'semaphore:lastCommunityId';
 
 // Bottom tab options
 export type MobileTab = 'home' | 'messages' | 'notifications' | 'profile';
@@ -20,27 +32,99 @@ export type ScreenType =
   | 'dm-chat'       // DM chat view
   | 'notifications' // Notifications list (notifications tab default)
   | 'profile'       // Profile (profile tab default)
-  | 'settings';     // Settings detail view (from profile tab)
+  | 'settings'      // Settings detail view (from profile tab)
+  | 'route';        // Fallthrough: render matched router Outlet (edit/create/admin/etc.)
+
+export interface ParsedScreen {
+  screen: ScreenType;
+  communityId: string | null;
+  channelId: string | null;
+  dmGroupId: string | null;
+}
+
+/**
+ * Pure mapping from a pathname to a screen + its route params.
+ * Anything not explicitly recognized resolves to the `'route'` screen so the
+ * matched React Router element renders via `<Outlet/>`.
+ */
+export function parseScreenFromPath(pathname: string): ParsedScreen {
+  const empty = { communityId: null, channelId: null, dmGroupId: null };
+
+  // /community/:communityId/channel/:channelId -> chat
+  const chat = matchPath('/community/:communityId/channel/:channelId', pathname);
+  if (chat) {
+    return {
+      screen: 'chat',
+      communityId: chat.params.communityId ?? null,
+      channelId: chat.params.channelId ?? null,
+      dmGroupId: null,
+    };
+  }
+
+  // /community/create and /community/:communityId/edit are dedicated pages -> route
+  // (checked before the bare community match so "create" isn't treated as an id)
+  if (matchPath('/community/create', pathname) || matchPath('/community/:communityId/edit', pathname)) {
+    return { screen: 'route', ...empty };
+  }
+
+  // /community/:communityId (exactly) -> channels
+  const channels = matchPath('/community/:communityId', pathname);
+  if (channels) {
+    return { screen: 'channels', communityId: channels.params.communityId ?? null, channelId: null, dmGroupId: null };
+  }
+
+  // /direct-messages/:dmGroupId -> dm-chat
+  const dmChat = matchPath('/direct-messages/:dmGroupId', pathname);
+  if (dmChat) {
+    return { screen: 'dm-chat', communityId: null, channelId: null, dmGroupId: dmChat.params.dmGroupId ?? null };
+  }
+
+  // /direct-messages -> dm-list
+  if (matchPath('/direct-messages', pathname)) {
+    return { screen: 'dm-list', ...empty };
+  }
+
+  // /notifications -> notifications
+  if (matchPath('/notifications', pathname)) {
+    return { screen: 'notifications', ...empty };
+  }
+
+  // /settings and /settings/* -> settings
+  if (matchPath('/settings', pathname) || matchPath('/settings/*', pathname)) {
+    return { screen: 'settings', ...empty };
+  }
+
+  // /profile/edit is the edit form page -> route (checked before /profile/:userId)
+  if (matchPath('/profile/edit', pathname)) {
+    return { screen: 'route', ...empty };
+  }
+
+  // /profile and /profile/:userId -> profile
+  if (matchPath('/profile', pathname) || matchPath('/profile/:userId', pathname)) {
+    return { screen: 'profile', ...empty };
+  }
+
+  // / (home) -> channels with no community selected; the Home tab handler
+  // (setActiveTab) is what navigates to lastCommunityId, not this parser
+  if (matchPath('/', pathname)) {
+    return { screen: 'channels', ...empty };
+  }
+
+  // Everything else (admin, friends, debug, unknown) -> render router Outlet
+  return { screen: 'route', ...empty };
+}
 
 // Navigation state
 export interface MobileNavigationState {
-  // Current screen
   currentScreen: ScreenType;
-
-  // Community context (for channels/chat screens)
   communityId: string | null;
   channelId: string | null;
-
-  // DM context (for dm-chat screen)
   dmGroupId: string | null;
-
-  // UI state
   isDrawerOpen: boolean;
 }
 
 // Context type with actions
 interface MobileNavigationContextType {
-  // Current state
   state: MobileNavigationState;
   activeTab: MobileTab;
 
@@ -73,8 +157,8 @@ const MobileNavigationContext = createContext<MobileNavigationContextType | unde
   undefined
 );
 
-// Helper to determine active tab from screen
-const getTabFromScreen = (screen: ScreenType): MobileTab => {
+// Helper to determine active tab from screen (+ pathname for 'route' screens)
+const getTabFromScreen = (screen: ScreenType, pathname: string): MobileTab => {
   switch (screen) {
     case 'channels':
     case 'chat':
@@ -87,8 +171,16 @@ const getTabFromScreen = (screen: ScreenType): MobileTab => {
     case 'profile':
     case 'settings':
       return 'profile';
+    case 'route':
+      if (pathname.startsWith('/community')) return 'home';
+      if (pathname.startsWith('/profile') || pathname.startsWith('/settings')) return 'profile';
+      if (pathname.startsWith('/direct-messages')) return 'messages';
+      return 'home';
   }
 };
+
+const isDetailScreen = (screen: ScreenType): boolean =>
+  screen === 'chat' || screen === 'dm-chat' || screen === 'settings';
 
 export const MobileNavigationProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -96,115 +188,60 @@ export const MobileNavigationProvider: React.FC<{ children: React.ReactNode }> =
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Navigation state
-  const [state, setState] = useState<MobileNavigationState>({
-    currentScreen: 'channels',
-    communityId: null,
-    channelId: null,
-    dmGroupId: null,
-    isDrawerOpen: false,
+  // Drawer is the only genuinely local UI state; screen is derived from the URL.
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Last community selected — persisted so the Home tab restores after reload.
+  const [lastCommunityId, setLastCommunityId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(LAST_COMMUNITY_KEY);
+    } catch {
+      return null;
+    }
   });
 
-  // Track last community for returning from other tabs
-  const [lastCommunityId, setLastCommunityId] = useState<string | null>(null);
-
-  // Sync state from URL on location change
-  useEffect(() => {
-    const path = location.pathname;
-
-    // Parse URL to determine current screen
-    if (path.startsWith('/community/')) {
-      const segments = path.split('/');
-      const communityId = segments[2];
-      const channelId = segments[4]; // /community/:id/channel/:channelId
-
-      if (channelId) {
-        setState(prev => ({
-          ...prev,
-          currentScreen: 'chat',
-          communityId,
-          channelId,
-          dmGroupId: null,
-        }));
-      } else if (communityId) {
-        setState(prev => ({
-          ...prev,
-          currentScreen: 'channels',
-          communityId,
-          channelId: null,
-          dmGroupId: null,
-        }));
-        setLastCommunityId(communityId);
-      }
-    } else if (path.startsWith('/direct-messages')) {
-      const segments = path.split('/');
-      const dmGroupId = segments[2]; // /direct-messages/:dmGroupId
-
-      if (dmGroupId) {
-        setState(prev => ({
-          ...prev,
-          currentScreen: 'dm-chat',
-          dmGroupId,
-          communityId: null,
-          channelId: null,
-        }));
-      } else {
-        setState(prev => ({
-          ...prev,
-          currentScreen: 'dm-list',
-          dmGroupId: null,
-          communityId: null,
-          channelId: null,
-        }));
-      }
-    } else if (path === '/notifications') {
-      setState(prev => ({
-        ...prev,
-        currentScreen: 'notifications',
-        communityId: null,
-        channelId: null,
-        dmGroupId: null,
-      }));
-    } else if (path === '/settings' || path.startsWith('/settings/')) {
-      setState(prev => ({
-        ...prev,
-        currentScreen: 'settings',
-        communityId: null,
-        channelId: null,
-        dmGroupId: null,
-      }));
-    } else if (path === '/profile' || path.startsWith('/profile/')) {
-      setState(prev => ({
-        ...prev,
-        currentScreen: 'profile',
-        communityId: null,
-        channelId: null,
-        dmGroupId: null,
-      }));
-    } else if (path === '/' || path === '') {
-      // Home - show channels for last community or first community
-      setState(prev => ({
-        ...prev,
-        currentScreen: 'channels',
-        channelId: null,
-        dmGroupId: null,
-      }));
+  const persistLastCommunity = useCallback((id: string) => {
+    setLastCommunityId(id);
+    try {
+      localStorage.setItem(LAST_COMMUNITY_KEY, id);
+    } catch {
+      // ignore storage failures (private mode, etc.)
     }
-  }, [location.pathname]);
+  }, []);
 
-  // Derived active tab
-  const activeTab = getTabFromScreen(state.currentScreen);
+  // Derived screen state
+  const parsed = useMemo(() => parseScreenFromPath(location.pathname), [location.pathname]);
+
+  // Keep lastCommunityId in sync when we land on a community screen
+  useEffect(() => {
+    if (parsed.communityId && parsed.communityId !== lastCommunityId) {
+      persistLastCommunity(parsed.communityId);
+    }
+  }, [parsed.communityId, lastCommunityId, persistLastCommunity]);
+
+  const state: MobileNavigationState = useMemo(
+    () => ({
+      currentScreen: parsed.screen,
+      communityId: parsed.communityId,
+      channelId: parsed.channelId,
+      dmGroupId: parsed.dmGroupId,
+      isDrawerOpen,
+    }),
+    [parsed, isDrawerOpen]
+  );
+
+  const activeTab = getTabFromScreen(parsed.screen, location.pathname);
 
   // Navigation actions
   const navigateToChannels = useCallback((communityId: string) => {
-    setLastCommunityId(communityId);
+    persistLastCommunity(communityId);
     navigate(`/community/${communityId}`);
-  }, [navigate]);
+  }, [navigate, persistLastCommunity]);
 
   const navigateToChat = useCallback((communityId: string, channelId: string) => {
-    setLastCommunityId(communityId);
+    persistLastCommunity(communityId);
     navigate(`/community/${communityId}/channel/${channelId}`);
-  }, [navigate]);
+  }, [navigate, persistLastCommunity]);
 
   const navigateToDmList = useCallback(() => {
     navigate('/direct-messages');
@@ -228,30 +265,31 @@ export const MobileNavigationProvider: React.FC<{ children: React.ReactNode }> =
 
   // Back navigation
   const canGoBack = useCallback((): boolean => {
-    // Can go back if we're in a detail view
-    return state.currentScreen === 'chat' || state.currentScreen === 'dm-chat' || state.currentScreen === 'settings';
-  }, [state.currentScreen]);
+    if (isDetailScreen(parsed.screen) || parsed.screen === 'route') return true;
+    return (window.history.state?.idx ?? 0) > 0;
+  }, [parsed.screen]);
 
   const goBack = useCallback(() => {
-    if (state.currentScreen === 'chat' && state.communityId) {
-      // Go back from chat to channels
-      navigate(`/community/${state.communityId}`);
-    } else if (state.currentScreen === 'dm-chat') {
-      // Go back from DM chat to DM list
+    // Prefer real browser history when there's somewhere to go back to.
+    if ((window.history.state?.idx ?? 0) > 0) {
+      navigate(-1);
+      return;
+    }
+    // Fallback hierarchical targets for hard entry points (deep links, PWA launch).
+    if (parsed.screen === 'chat' && parsed.communityId) {
+      navigate(`/community/${parsed.communityId}`);
+    } else if (parsed.screen === 'dm-chat') {
       navigate('/direct-messages');
-    } else if (state.currentScreen === 'settings') {
-      // Go back from settings to profile
+    } else if (parsed.screen === 'settings') {
       navigate('/profile');
     } else {
-      // Use browser history for other cases
-      navigate(-1);
+      navigate('/');
     }
-  }, [state.currentScreen, state.communityId, navigate]);
+  }, [parsed.screen, parsed.communityId, navigate]);
 
   // Tab switching
   const setActiveTab = useCallback((tab: MobileTab) => {
-    // Close drawer when switching tabs
-    setState(prev => ({ ...prev, isDrawerOpen: false }));
+    setIsDrawerOpen(false);
 
     switch (tab) {
       case 'home':
@@ -274,25 +312,17 @@ export const MobileNavigationProvider: React.FC<{ children: React.ReactNode }> =
   }, [navigate, lastCommunityId]);
 
   // Drawer control
-  const openDrawer = useCallback(() => {
-    setState(prev => ({ ...prev, isDrawerOpen: true }));
-  }, []);
-
-  const closeDrawer = useCallback(() => {
-    setState(prev => ({ ...prev, isDrawerOpen: false }));
-  }, []);
-
-  const toggleDrawer = useCallback(() => {
-    setState(prev => ({ ...prev, isDrawerOpen: !prev.isDrawerOpen }));
-  }, []);
+  const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
+  const toggleDrawer = useCallback(() => setIsDrawerOpen((prev) => !prev), []);
 
   // Legacy compatibility
   const getCurrentScreen = useCallback(() => ({
-    type: state.currentScreen,
-    communityId: state.communityId || undefined,
-    channelId: state.channelId || undefined,
-    dmGroupId: state.dmGroupId || undefined,
-  }), [state]);
+    type: parsed.screen,
+    communityId: parsed.communityId || undefined,
+    channelId: parsed.channelId || undefined,
+    dmGroupId: parsed.dmGroupId || undefined,
+  }), [parsed]);
 
   const value: MobileNavigationContextType = {
     state,
