@@ -323,4 +323,81 @@ describe('VirtualMessageList', () => {
     expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(9, { align: 'end' });
     expect(fakeHandle.scrollBy).not.toHaveBeenCalled();
   });
+
+  describe('jump-to-message', () => {
+    it('scrolls to the highlighted message centered', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(10)}
+          highlightMessageId="msg-3"
+          highlightSeq={1}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(3, { align: 'center' });
+    });
+
+    it('re-scrolls and remounts the row (flash re-fires) when highlightSeq bumps', () => {
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(10)}
+          highlightMessageId="msg-3"
+          highlightSeq={1}
+        />,
+      );
+      const firstNode = document.querySelector('[data-message-id="msg-3"]');
+      fakeHandle.scrollToIndex.mockClear();
+
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(10)}
+          highlightMessageId="msg-3"
+          highlightSeq={2}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(3, { align: 'center' });
+      // The `${id}-hl-${seq}` key change remounts the row, restarting the flash.
+      const secondNode = document.querySelector('[data-message-id="msg-3"]');
+      expect(secondNode).toBeTruthy();
+      expect(firstNode!.isSameNode(secondNode)).toBe(false);
+    });
+
+    it('does not re-scroll on rerenders with the same highlightSeq', () => {
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(10)}
+          highlightMessageId="msg-3"
+          highlightSeq={1}
+        />,
+      );
+      fakeHandle.scrollToIndex.mockClear();
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(10)}
+          highlightMessageId="msg-3"
+          highlightSeq={1}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).not.toHaveBeenCalledWith(3, { align: 'center' });
+    });
+
+    it('ignores highlight targets that are not in the loaded window', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(10)}
+          highlightMessageId="not-loaded"
+          highlightSeq={1}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).not.toHaveBeenCalledWith(
+        expect.anything(),
+        { align: 'center' },
+      );
+    });
+  });
 });

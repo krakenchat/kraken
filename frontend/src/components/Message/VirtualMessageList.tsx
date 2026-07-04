@@ -214,6 +214,28 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       prevLenRef.current = len;
     });
 
+    // Jump-to-message (once per highlightSeq, mirroring the legacy hook's
+    // seq-gating so re-clicks re-scroll but pagination re-renders don't).
+    // Centers the target; the row mounts as it enters virtua's window and its
+    // `${id}-hl-${seq}` key remounts it, (re)starting the CSS flash. Targets
+    // not in the loaded window belong to anchored mode, which stays legacy.
+    const lastScrolledSeqRef = useRef(0);
+    useEffect(() => {
+      if (
+        !highlightMessageId ||
+        highlightSeq === undefined ||
+        highlightSeq <= lastScrolledSeqRef.current
+      ) {
+        return;
+      }
+      const handle = vlistRef.current;
+      if (!handle) return;
+      const idx = orderedMessages.findIndex((m) => m.id === highlightMessageId);
+      if (idx < 0) return;
+      handle.scrollToIndex(idx, { align: "center" });
+      lastScrolledSeqRef.current = highlightSeq;
+    }, [highlightMessageId, highlightSeq, orderedMessages]);
+
     const handleScroll = useCallback(
       (offset: number) => {
         const handle = vlistRef.current;

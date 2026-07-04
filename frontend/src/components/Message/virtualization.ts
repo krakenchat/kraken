@@ -10,7 +10,14 @@ export const VIRTUALIZATION_THRESHOLD = 200;
 
 /**
  * Decide whether the virtualized renderer should be used for the current list.
- * Anchored (jump-to-context) mode always stays on the legacy path for now.
+ *
+ * Anchored (jump-to-context) mode always stays on the legacy path — a
+ * deliberate decision, not a TODO. Anchored sessions start from a small
+ * around-fetch and are transient (they exit back to normal mode at the live
+ * bottom), so they rarely grow large; porting the bidirectional
+ * newer-load/anchored-transition machinery onto the virtualizer carries real
+ * regression risk for negligible benefit. Jumps to messages already in the
+ * loaded normal window are handled by the virtualized renderer directly.
  */
 export const shouldVirtualizeMessages = (
   messageCount: number,

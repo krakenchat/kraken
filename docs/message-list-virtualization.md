@@ -1,8 +1,36 @@
 # Message list virtualization — investigation
 
-Status: **investigation only, no code changes.** This documents the current
-message-list architecture and what a virtualization effort would have to
-preserve. File references are to `frontend/src`.
+Status: **implemented (virtua prototype, behind a threshold gate).** The
+investigation below drove the implementation; this header records the outcome.
+
+- **Gate**: `components/Message/virtualization.ts` — normal mode with ≥200
+  loaded messages renders `VirtualMessageList` (virtua `VList`); everything
+  else stays on the legacy `MessageList` + `useBidirectionalScroll` path
+  (which now takes a `disabled` flag so exactly one scroll owner exists).
+- **Prepend**: virtua's `shift` prop, set on the render where an older page
+  prepends. Browser-validated: a 1400px prepend moved a visible reference
+  message ≤1px; `scrollTop` compensates the `scrollHeight` delta exactly.
+- **Late growth** (image/embed load): virtua re-measures via its own
+  ResizeObserver and compensates above-viewport growth natively —
+  browser-validated (200px growth above the viewport, 0px visual shift). The
+  legacy WeakMap compensation is disabled in this path (no double-compensation).
+- **Gate transition**: crossing the threshold mid-read uses a two-phase flip —
+  the reading position (topmost visible message + offset) is captured from the
+  legacy DOM and restored via `scrollToIndex` (rAF-deferred, re-asserted after
+  the first measurement pass). Validated to ~1 row of drift.
+- **Read tracking**: the virtualized path derives the latest visible message
+  from virtua's visible index range (`useMessageVisibility` gains
+  `disableObserver`); same optimistic-update + 1s-debounce path.
+- **Jump-to-message**: `scrollToIndex(indexOf(id), { align: 'center' })`; the
+  flash restarts via the existing `${id}-hl-${seq}` remount key.
+- **Anchored mode stays legacy** (deliberate): anchored sessions are small and
+  transient; the gate forces the legacy path in anchored mode.
+- **Known regression (accepted)**: text selection across the virtua window
+  boundary — selections spanning beyond mounted rows are lost on scroll, in the
+  virtualized path only (≥200 messages).
+
+The investigation notes below predate the implementation. File references are
+to `frontend/src`.
 
 ## Current architecture
 
