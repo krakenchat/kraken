@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -15,6 +13,7 @@ import {
   Chip,
   Divider,
 } from "@mui/material";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   rolesControllerGetCommunityRolesOptions,
@@ -135,16 +134,13 @@ const RoleAssignmentDialog: React.FC<RoleAssignmentDialogProps> = ({
   const error = rolesError || userRolesError;
 
   return (
-    <Dialog
+    <ResponsiveDialog
       open={open}
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      title={`Manage Roles for ${userName}`}
     >
-      <DialogTitle>
-        Manage Roles for {userName}
-      </DialogTitle>
-      
       <DialogContent>
         {isLoading ? (
           <Box display="flex" justifyContent="center" py={4}>
@@ -244,7 +240,7 @@ const RoleAssignmentDialog: React.FC<RoleAssignmentDialogProps> = ({
           )}
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 

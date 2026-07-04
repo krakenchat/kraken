@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ResponsiveDialog from '../Common/ResponsiveDialog';
 import {
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -94,8 +93,7 @@ const ShareClipDialog: React.FC<ShareClipDialogProps> = ({ open, onClose, clipId
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Share Clip</DialogTitle>
+    <ResponsiveDialog open={open} onClose={onClose} maxWidth="sm" fullWidth title="Share Clip">
       <DialogContent>
         <RadioGroup
           value={shareDestination}
@@ -164,7 +162,7 @@ const ShareClipDialog: React.FC<ShareClipDialogProps> = ({ open, onClose, clipId
           Share
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 

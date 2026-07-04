@@ -15,7 +15,7 @@ const Root = styled(Box)(({ theme }) => ({
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  minHeight: "100vh",
+  minHeight: "100dvh",
   padding: theme.spacing(2),
   background: theme.palette.background.default,
 }));

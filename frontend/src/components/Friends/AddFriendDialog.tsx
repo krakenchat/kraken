@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import {
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -111,8 +110,7 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add Friend</DialogTitle>
+    <ResponsiveDialog open={open} onClose={handleClose} maxWidth="sm" fullWidth title="Add Friend">
       <DialogContent>
         {success && (
           <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(false)}>
@@ -152,7 +150,7 @@ const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onClose }) => {
           {isSending ? <CircularProgress size={20} /> : "Send Friend Request"}
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 

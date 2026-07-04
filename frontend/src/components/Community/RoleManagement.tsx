@@ -16,12 +16,11 @@ import {
   Paper,
   IconButton,
   Chip,
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Tooltip,
 } from "@mui/material";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -500,15 +499,13 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
       />
 
       {/* Role Users Dialog */}
-      <Dialog
+      <ResponsiveDialog
         open={Boolean(viewingRoleUsers)}
         onClose={handleCloseUsersDialog}
         maxWidth="md"
         fullWidth
+        title={`Role Members: ${communityRoles?.roles.find(r => r.id === viewingRoleUsers)?.name ?? ""}`}
       >
-        <DialogTitle>
-          Role Members: {communityRoles?.roles.find(r => r.id === viewingRoleUsers)?.name}
-        </DialogTitle>
         <DialogContent>
           {loadingRoleUsers ? (
             <Box display="flex" justifyContent="center" p={2}>
@@ -550,7 +547,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ communityId }) => {
             Close
           </Button>
         </DialogActions>
-      </Dialog>
+      </ResponsiveDialog>
     </>
   );
 };

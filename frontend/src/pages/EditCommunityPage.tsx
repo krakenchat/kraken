@@ -250,7 +250,14 @@ const EditCommunityPage: React.FC = () => {
       {/* Tabs */}
       <Paper>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={handleTabChange} aria-label="community management tabs">
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="community management tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
             <Tab label="Settings" {...a11yProps(0)} disabled={!canUpdateCommunity} />
             <Tab label="Members" {...a11yProps(1)} disabled={!canManageMembers} />
             <Tab label="Channels" {...a11yProps(2)} disabled={!canManageChannels} />
@@ -345,10 +352,10 @@ const EditCommunityPage: React.FC = () => {
           {canViewModeration ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                <Box sx={{ flex: "1 1 300px", minWidth: 300 }}>
+                <Box sx={{ flex: "1 1 300px", minWidth: { xs: "100%", sm: 300 } }}>
                   <BanListPanel communityId={communityId!} />
                 </Box>
-                <Box sx={{ flex: "1 1 300px", minWidth: 300 }}>
+                <Box sx={{ flex: "1 1 300px", minWidth: { xs: "100%", sm: 300 } }}>
                   <TimeoutListPanel communityId={communityId!} />
                 </Box>
               </Box>

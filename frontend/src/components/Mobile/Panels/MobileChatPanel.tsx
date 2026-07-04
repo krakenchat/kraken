@@ -23,6 +23,7 @@ import {
   Close as CloseIcon,
   PushPin as PushPinIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   channelsControllerFindOneOptions,
@@ -58,6 +59,7 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
   dmGroupId,
 }) => {
   const { goBack } = useMobileNavigation();
+  const navigate = useNavigate();
   const { state: voiceState } = useVoiceConnection();
 
   // Fetch channel or DM data
@@ -97,9 +99,15 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
     handleMenuClose();
   };
 
+  // Community that owns this channel (prop takes precedence, fall back to the
+  // channel's own communityId). Undefined for DMs.
+  const effectiveCommunityId = communityId || channel?.communityId;
+
   const handleChannelSettings = () => {
-    // TODO: Navigate to channel settings
     handleMenuClose();
+    if (effectiveCommunityId) {
+      navigate(`/community/${effectiveCommunityId}/edit`);
+    }
   };
 
   // Determine title
@@ -196,12 +204,14 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
                 <ListItemText>Pinned Messages</ListItemText>
               </MenuItem>
             )}
-            <MenuItem onClick={handleChannelSettings}>
-              <ListItemIcon>
-                <SettingsIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Channel Settings</ListItemText>
-            </MenuItem>
+            {effectiveCommunityId && (
+              <MenuItem onClick={handleChannelSettings}>
+                <ListItemIcon>
+                  <SettingsIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Community Settings</ListItemText>
+              </MenuItem>
+            )}
           </Menu>
         }
       />

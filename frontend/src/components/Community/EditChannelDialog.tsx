@@ -4,12 +4,11 @@ import {
   TextField,
   FormControlLabel,
   Switch,
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   CircularProgress,
 } from "@mui/material";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelsControllerUpdateMutation } from "../../api-client/@tanstack/react-query.gen";
 import type { Channel } from "../../types/channel.type";
@@ -80,8 +79,7 @@ const EditChannelDialog: React.FC<EditChannelDialogProps> = ({
   }, [channel, formData, updateChannel, handleClose]);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Edit Channel</DialogTitle>
+    <ResponsiveDialog open={open} onClose={handleClose} maxWidth="sm" fullWidth title="Edit Channel">
       <DialogContent>
         <TextField
           autoFocus
@@ -111,7 +109,7 @@ const EditChannelDialog: React.FC<EditChannelDialogProps> = ({
           {updatingChannel ? <CircularProgress size={20} /> : "Update Channel"}
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 

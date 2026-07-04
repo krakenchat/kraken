@@ -1,11 +1,10 @@
 import React from 'react';
 import {
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
 } from '@mui/material';
+import ResponsiveDialog from '../Common/ResponsiveDialog';
 import AudioVideoSettingsPanel from '../Settings/AudioVideoSettingsPanel';
 
 interface DeviceSettingsDialogProps {
@@ -19,14 +18,14 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
   onClose,
   onDeviceChange,
 }) => (
-  <Dialog
+  <ResponsiveDialog
     open={open}
     onClose={onClose}
     maxWidth="md"
     fullWidth
+    title="Voice & Video Settings"
     PaperProps={{ sx: { minHeight: '500px' } }}
   >
-    <DialogTitle>Voice & Video Settings</DialogTitle>
     <DialogContent dividers>
       <AudioVideoSettingsPanel
         onDeviceChange={onDeviceChange}
@@ -37,5 +36,5 @@ export const DeviceSettingsDialog: React.FC<DeviceSettingsDialogProps> = ({
     <DialogActions>
       <Button onClick={onClose}>Done</Button>
     </DialogActions>
-  </Dialog>
+  </ResponsiveDialog>
 );

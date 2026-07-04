@@ -10,10 +10,13 @@ import {
   ListItemText,
   Typography,
   Divider,
+  IconButton,
   useTheme,
 } from "@mui/material";
 import { APPBAR_HEIGHT } from "../../constants/layout";
+import { useMobileBreakpoint } from "../../hooks/useResponsive";
 import {
+  Menu as MenuIcon,
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   Groups as CommunitiesIcon,
@@ -47,6 +50,8 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const isMobile = useMobileBreakpoint();
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const isActive = (path: string) => {
     if (path === "/admin") {
@@ -55,71 +60,115 @@ const AdminLayout: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  return (
-    <Box sx={{ display: "flex", minHeight: `calc(100vh - ${APPBAR_HEIGHT}px)` }}>
-      {/* Sidebar */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: DRAWER_WIDTH,
-            boxSizing: "border-box",
-            position: "relative",
-            minHeight: `calc(100vh - ${APPBAR_HEIGHT}px)`,
-            backgroundColor: theme.palette.background.paper,
-          },
-        }}
-      >
-        {/* Header */}
-        <Box sx={{ p: 2 }}>
-          <Typography variant="h6" fontWeight="bold">
-            Instance Admin
-          </Typography>
-        </Box>
-        <Divider />
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    setMobileOpen(false);
+  };
 
-        {/* Navigation */}
-        <List sx={{ flex: 1 }}>
-          {navItems.map((item) => (
-            <ListItem key={item.path} disablePadding>
-              <ListItemButton
-                selected={isActive(item.path)}
-                onClick={() => navigate(item.path)}
+  const drawerContent = (
+    <>
+      {/* Header */}
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" fontWeight="bold">
+          Instance Admin
+        </Typography>
+      </Box>
+      <Divider />
+
+      {/* Navigation */}
+      <List sx={{ flex: 1 }}>
+        {navItems.map((item) => (
+          <ListItem key={item.path} disablePadding>
+            <ListItemButton
+              selected={isActive(item.path)}
+              onClick={() => handleNavigate(item.path)}
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: theme.palette.action.selected,
+                  borderRight: `3px solid ${theme.palette.primary.main}`,
+                },
+              }}
+            >
+              <ListItemIcon
                 sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: theme.palette.action.selected,
-                    borderRight: `3px solid ${theme.palette.primary.main}`,
-                  },
+                  color: isActive(item.path)
+                    ? theme.palette.primary.main
+                    : "inherit",
                 }}
               >
-                <ListItemIcon
-                  sx={{
-                    color: isActive(item.path)
-                      ? theme.palette.primary.main
-                      : "inherit",
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </>
+  );
+
+  return (
+    <Box sx={{ display: "flex", minHeight: `calc(100dvh - ${APPBAR_HEIGHT}px)` }}>
+      {/* Sidebar */}
+      {isMobile ? (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            "& .MuiDrawer-paper": {
+              width: DRAWER_WIDTH,
+              boxSizing: "border-box",
+              backgroundColor: theme.palette.background.paper,
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      ) : (
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: DRAWER_WIDTH,
+            flexShrink: 0,
+            "& .MuiDrawer-paper": {
+              width: DRAWER_WIDTH,
+              boxSizing: "border-box",
+              position: "relative",
+              minHeight: `calc(100dvh - ${APPBAR_HEIGHT}px)`,
+              backgroundColor: theme.palette.background.paper,
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      )}
 
       {/* Main content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
           p: 3,
           overflow: "auto",
           backgroundColor: theme.palette.background.default,
         }}
       >
+        {isMobile && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <IconButton
+              edge="start"
+              onClick={() => setMobileOpen(true)}
+              aria-label="open admin navigation"
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" fontWeight="bold">
+              Instance Admin
+            </Typography>
+          </Box>
+        )}
         <Outlet />
       </Box>
     </Box>

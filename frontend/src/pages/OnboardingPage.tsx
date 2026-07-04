@@ -21,7 +21,7 @@ const OnboardingPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh',
+          minHeight: '100dvh',
         }}
       >
         <CircularProgress size={40} />
@@ -36,7 +36,7 @@ const OnboardingPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh',
+          minHeight: '100dvh',
           p: 2,
         }}
       >
@@ -60,7 +60,7 @@ const OnboardingPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh',
+          minHeight: '100dvh',
           p: 2,
         }}
       >
@@ -72,7 +72,7 @@ const OnboardingPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default' }}>
       <OnboardingWizard
         setupToken={status.setupToken}
         onComplete={handleComplete}

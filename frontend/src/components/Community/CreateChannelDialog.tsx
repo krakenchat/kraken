@@ -8,13 +8,12 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Typography,
   CircularProgress,
 } from "@mui/material";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelsControllerCreateMutation } from "../../api-client/@tanstack/react-query.gen";
 import { logger } from "../../utils/logger";
@@ -76,8 +75,7 @@ const CreateChannelDialog: React.FC<CreateChannelDialogProps> = ({
   }, [formData, communityId, createChannel, handleClose]);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Create New Channel</DialogTitle>
+    <ResponsiveDialog open={open} onClose={handleClose} maxWidth="sm" fullWidth title="Create New Channel">
       <DialogContent>
         <TextField
           autoFocus
@@ -124,7 +122,7 @@ const CreateChannelDialog: React.FC<CreateChannelDialogProps> = ({
           {creatingChannel ? <CircularProgress size={20} /> : "Create Channel"}
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 
