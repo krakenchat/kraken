@@ -11,9 +11,12 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ServerEvents, NotificationType } from '@semaphore-chat/shared';
 import type { NewNotificationPayload } from '@semaphore-chat/shared';
+import { notificationsControllerGetSettingsOptions } from '../api-client/@tanstack/react-query.gen';
 import { useServerEvent } from '../socket-hub/useServerEvent';
+import { isDndActive } from '../utils/dnd';
 import {
   showNotification,
   formatNotificationContent,
@@ -55,11 +58,17 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
   const isFocused = useWindowFocus();
   const notificationsRef = useRef<Map<string, NewNotificationPayload>>(new Map());
 
+  // Notification settings for Do-Not-Disturb evaluation (cache is updated
+  // when the user saves settings, so this rarely refetches)
+  const { data: notificationSettings } = useQuery(notificationsControllerGetSettingsOptions());
+
   // Use refs to avoid stale closures in the useServerEvent callback
   const isFocusedRef = useRef(isFocused);
   isFocusedRef.current = isFocused;
   const locationRef = useRef(location);
   locationRef.current = location;
+  const settingsRef = useRef(notificationSettings);
+  settingsRef.current = notificationSettings;
 
   const navigateToNotification = useCallback(
     (notification: { communityId?: string | null; channelId?: string | null; directMessageGroupId?: string | null }) => {
@@ -107,6 +116,14 @@ export function useNotificationSideEffects(options: UseNotificationSideEffectsOp
     })();
 
     if (isViewingContext) return;
+
+    // Do-Not-Disturb suppresses sounds + desktop notifications (cache/unread
+    // updates in notificationHandlers.ts are unaffected)
+    const settings = settingsRef.current;
+    if (settings && isDndActive(settings)) {
+      logger.dev('[Notifications] DND active — suppressing side effects');
+      return;
+    }
 
     // Sound — pick the right sound based on notification type
     if (playSound) {

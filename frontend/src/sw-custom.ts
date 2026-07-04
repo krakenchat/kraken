@@ -88,12 +88,25 @@ self.addEventListener('push', (event: PushEvent) => {
     requireInteraction: false,
   };
 
+  // Flag the app icon (Badging API, Chromium-only). Count-less form: the SW
+  // doesn't know the total unread count; the app sets the exact count via
+  // useAppBadge whenever it's running.
+  (self.navigator as Navigator & { setAppBadge?: () => Promise<void> })
+    .setAppBadge?.()
+    .catch(() => {});
+
   event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
 // Handle notification click
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
+
+  // Clear the SW-set badge flag; once the app opens, useAppBadge takes over
+  // with the exact unread count.
+  (self.navigator as Navigator & { clearAppBadge?: () => Promise<void> })
+    .clearAppBadge?.()
+    .catch(() => {});
 
   const data = event.notification.data as PushNotificationData['data'];
 

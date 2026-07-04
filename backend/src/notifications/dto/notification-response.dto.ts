@@ -12,6 +12,7 @@ export class UserNotificationSettingsDto {
   doNotDisturb: boolean;
   dndStartTime: string | null;
   dndEndTime: string | null;
+  dndTimezone: string | null;
   defaultChannelLevel: string;
   dmNotifications: boolean;
   createdAt: Date;

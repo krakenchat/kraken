@@ -12,6 +12,10 @@ import { queryClient } from "./queryClient";
 // Configure the generated API client (auth interceptors, base URL)
 configureApiClient();
 
+// Capture the PWA install prompt as early as possible — the browser can
+// fire beforeinstallprompt before React mounts (side-effect import)
+import "./utils/installPrompt";
+
 // Register service worker only in web browser (not Electron file:// context)
 if (!isElectron()) {
   import("virtual:pwa-register")

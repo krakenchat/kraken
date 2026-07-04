@@ -1173,6 +1173,42 @@ describe('NotificationsService', () => {
       // Push should be suppressed
       expect(pushNotificationsService.sendToUser).not.toHaveBeenCalled();
     });
+
+    it('should suppress push when DND is active (manual toggle)', async () => {
+      presenceService.isActive.mockResolvedValue(false);
+      const message = setupForPushTest();
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
+        UserNotificationSettingsFactory.build({ doNotDisturb: true }),
+      );
+
+      await service.processMessageForNotifications(message as any);
+
+      // Record + WS emission still happen; only push is suppressed
+      expect(mockDatabase.notification.create).toHaveBeenCalled();
+      expect(pushNotificationsService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('should send push when DND is enabled but outside the scheduled window', async () => {
+      presenceService.isActive.mockResolvedValue(false);
+      const message = setupForPushTest();
+      // Window that can never contain "now": start === end is all-day,
+      // so instead compute a 1-minute window guaranteed not to include now (UTC)
+      const now = new Date();
+      const farHour = (now.getUTCHours() + 12) % 24;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(
+        UserNotificationSettingsFactory.build({
+          doNotDisturb: true,
+          dndStartTime: `${pad(farHour)}:00`,
+          dndEndTime: `${pad(farHour)}:59`,
+          dndTimezone: 'UTC',
+        }),
+      );
+
+      await service.processMessageForNotifications(message as any);
+
+      expect(pushNotificationsService.sendToUser).toHaveBeenCalled();
+    });
   });
 
   // ============================================================================

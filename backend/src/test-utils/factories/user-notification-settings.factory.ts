@@ -15,6 +15,7 @@ export class UserNotificationSettingsFactory {
       doNotDisturb: overrides.doNotDisturb ?? false,
       dndStartTime: overrides.dndStartTime ?? null,
       dndEndTime: overrides.dndEndTime ?? null,
+      dndTimezone: overrides.dndTimezone ?? null,
       defaultChannelLevel: overrides.defaultChannelLevel || 'mentions',
       dmNotifications: overrides.dmNotifications ?? true,
       createdAt: overrides.createdAt || new Date(),

@@ -124,7 +124,10 @@ export const NotificationSettings: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      await updateSettings({ body: formValues });
+      // Stamp the device timezone so the backend can evaluate the DND
+      // window in the user's local time when sending push notifications
+      const dndTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      await updateSettings({ body: { ...formValues, dndTimezone } });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {

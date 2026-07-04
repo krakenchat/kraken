@@ -194,6 +194,7 @@ model UserNotificationSettings {
   doNotDisturb        Boolean  @default(false)
   dndStartTime        String? // "22:00" - 24-hour format
   dndEndTime          String? // "08:00" - 24-hour format
+  dndTimezone         String? // IANA timezone (e.g. "Europe/Berlin"); set from the client on save
   defaultChannelLevel String   @default("mentions") // 'all' | 'mentions' | 'none'
   dmNotifications     Boolean  @default(true)
   createdAt           DateTime @default(now())
