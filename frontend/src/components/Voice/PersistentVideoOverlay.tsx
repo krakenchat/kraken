@@ -89,6 +89,10 @@ export const PersistentVideoOverlay: React.FC = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  // The pointer that started the active drag/resize. On touch, a second
+  // finger produces its own pointer events on the window listeners — without
+  // this filter it would teleport the overlay or end the gesture.
+  const activePointerIdRef = useRef<number | null>(null);
   // Track window size for maximized mode re-renders
   const [, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
@@ -191,7 +195,9 @@ export const PersistentVideoOverlay: React.FC = () => {
   const handleDragStart = useCallback((e: React.PointerEvent) => {
     if (settings.isMaximized) return;
     if ((e.target as HTMLElement).closest('.pip-controls')) return;
+    if (activePointerIdRef.current !== null) return;
     e.preventDefault();
+    activePointerIdRef.current = e.pointerId;
     setIsDragging(true);
     setDragOffset({
       x: e.clientX - settings.position.x,
@@ -201,13 +207,16 @@ export const PersistentVideoOverlay: React.FC = () => {
 
   const handleDragMove = useCallback((e: PointerEvent) => {
     if (!isDragging) return;
+    if (e.pointerId !== activePointerIdRef.current) return;
     const newX = e.clientX - dragOffset.x;
     const newY = e.clientY - dragOffset.y;
     const constrained = constrainPosition(newX, newY, settings.size.width, settings.size.height);
     setSettings(prev => ({ ...prev, position: constrained }));
   }, [isDragging, dragOffset, settings.size, constrainPosition]);
 
-  const handleDragEnd = useCallback(() => {
+  const handleDragEnd = useCallback((e: PointerEvent) => {
+    if (e.pointerId !== activePointerIdRef.current) return;
+    activePointerIdRef.current = null;
     if (isDragging) {
       setIsDragging(false);
       saveSettings(settings);
@@ -217,8 +226,10 @@ export const PersistentVideoOverlay: React.FC = () => {
   // Resize handlers
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
     if (settings.isMaximized) return;
+    if (activePointerIdRef.current !== null) return;
     e.preventDefault();
     e.stopPropagation();
+    activePointerIdRef.current = e.pointerId;
     setIsResizing(true);
     setResizeStart({
       x: e.clientX,
@@ -230,6 +241,7 @@ export const PersistentVideoOverlay: React.FC = () => {
 
   const handleResizeMove = useCallback((e: PointerEvent) => {
     if (!isResizing) return;
+    if (e.pointerId !== activePointerIdRef.current) return;
     const deltaX = e.clientX - resizeStart.x;
     const deltaY = e.clientY - resizeStart.y;
     setSettings(prev => {
@@ -244,7 +256,9 @@ export const PersistentVideoOverlay: React.FC = () => {
     });
   }, [isResizing, resizeStart]);
 
-  const handleResizeEnd = useCallback(() => {
+  const handleResizeEnd = useCallback((e: PointerEvent) => {
+    if (e.pointerId !== activePointerIdRef.current) return;
+    activePointerIdRef.current = null;
     if (isResizing) {
       setIsResizing(false);
       // Constrain position after resize
