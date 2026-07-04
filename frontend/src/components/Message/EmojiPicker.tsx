@@ -357,20 +357,29 @@ const EmojiPickerContent: React.FC<{
 
 export interface EmojiPickerPopoverProps {
   open: boolean;
-  anchorPosition: { top: number; left: number } | null;
+  /** Screen-coordinate anchor (used by MessageContextMenu). */
+  anchorPosition?: { top: number; left: number } | null;
+  /** Element anchor (used by the composer emoji button); opens above the anchor. */
+  anchorEl?: HTMLElement | null;
   onClose: () => void;
   onEmojiSelect: (emoji: string) => void;
+  /** Sheet title on touch devices. */
+  title?: string;
 }
 
 /**
- * Controlled emoji picker popover positioned at anchorPosition.
- * Used by MessageContextMenu to show emoji picker at arbitrary screen positions.
+ * Controlled emoji picker popover.
+ * - `anchorEl` anchors to an element and opens above it (composer emoji button).
+ * - `anchorPosition` positions at arbitrary screen coordinates (MessageContextMenu).
+ * On touch devices it renders as a full-width bottom sheet regardless.
  */
 export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
   open,
   anchorPosition,
+  anchorEl,
   onClose,
   onEmojiSelect,
+  title = 'Add Reaction',
 }) => {
   const { shouldUseTouchUI } = useResponsive();
 
@@ -383,9 +392,34 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
   // of a small anchored popover.
   if (shouldUseTouchUI) {
     return (
-      <MobileSheet open={open} onClose={onClose} title="Add Reaction" maxHeight="70vh">
+      <MobileSheet open={open} onClose={onClose} title={title} maxHeight="70vh">
         <EmojiPickerContent onEmojiClick={handleEmojiClick} touch />
       </MobileSheet>
+    );
+  }
+
+  // Element-anchored popover that opens upward (e.g. above a composer button).
+  if (anchorEl) {
+    return (
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={onClose}
+        // Without this, the Modal's focus trap re-focuses the emoji BUTTON
+        // when the exit transition finishes — clobbering the composer's
+        // caret/focus restore after inserting an emoji.
+        disableRestoreFocus
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+      >
+        <EmojiPickerContent onEmojiClick={handleEmojiClick} />
+      </Popover>
     );
   }
 
