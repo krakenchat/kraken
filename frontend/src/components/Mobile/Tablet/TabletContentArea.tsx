@@ -13,6 +13,7 @@ import { MobileChatPanel } from '../Panels/MobileChatPanel';
 import { MobileMessagesPanel } from '../Panels/MobileMessagesPanel';
 import { MobileProfilePanel } from '../Panels/MobileProfilePanel';
 import { NotificationsScreen } from '../Screens/NotificationsScreen';
+import SettingsPage from '../../../pages/SettingsPage';
 import { LAYOUT_CONSTANTS } from '../../../utils/breakpoints';
 import MobileAppBar from '../MobileAppBar';
 
@@ -113,6 +114,17 @@ export const TabletContentArea: React.FC<TabletContentAreaProps> = ({
 
       case 'profile':
         return <MobileProfilePanel />;
+
+      case 'settings':
+        // Previously fell through to null, leaving a blank pane on tablets.
+        return (
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <MobileAppBar title="Settings" showBack />
+            <Box sx={{ flex: 1, overflowY: 'auto' }}>
+              <SettingsPage />
+            </Box>
+          </Box>
+        );
 
       case 'route':
         // Non-screen routes render the matched router element via <Outlet/>.

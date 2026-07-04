@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Box, Typography, IconButton, Tabs, Tab, Badge } from "@mui/material";
 import { Add as AddIcon, People as PeopleIcon, Chat as ChatIcon } from "@mui/icons-material";
@@ -59,12 +59,19 @@ const DirectMessagesPage: React.FC = () => {
     setSelectedDmGroupId(dmGroupId);
   };
 
-  // Path param (/direct-messages/:dmGroupId) wins over ?group= handling.
+  // Path param (/direct-messages/:dmGroupId) wins over ?group= handling —
+  // but only when the param itself changes. Re-asserting on every divergence
+  // would lock the selection to the deep-linked conversation (sidebar clicks
+  // set state without navigating).
+  const prevDmGroupIdParamRef = useRef(dmGroupIdParam);
   useEffect(() => {
-    if (dmGroupIdParam && dmGroupIdParam !== selectedDmGroupId) {
-      setSelectedDmGroupId(dmGroupIdParam);
+    if (dmGroupIdParam !== prevDmGroupIdParamRef.current) {
+      prevDmGroupIdParamRef.current = dmGroupIdParam;
+      if (dmGroupIdParam) {
+        setSelectedDmGroupId(dmGroupIdParam);
+      }
     }
-  }, [dmGroupIdParam, selectedDmGroupId]);
+  }, [dmGroupIdParam]);
 
   // Handle ?group=<id> query param for deep linking (e.g., from notifications)
   useEffect(() => {
