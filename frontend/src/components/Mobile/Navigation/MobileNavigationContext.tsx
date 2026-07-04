@@ -104,7 +104,8 @@ export function parseScreenFromPath(pathname: string): ParsedScreen {
     return { screen: 'profile', ...empty };
   }
 
-  // / (home) -> channels (community restored via lastCommunityId in the provider)
+  // / (home) -> channels with no community selected; the Home tab handler
+  // (setActiveTab) is what navigates to lastCommunityId, not this parser
   if (matchPath('/', pathname)) {
     return { screen: 'channels', ...empty };
   }
