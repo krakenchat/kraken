@@ -8,6 +8,8 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import AutoUpdater from "./components/Electron/AutoUpdater";
 import { ConnectionWizard } from "./components/Electron/ConnectionWizard";
 import { PWAInstallPrompt } from "./components/PWA/PWAInstallPrompt";
+import { UpdateToast } from "./components/PWA/UpdateToast";
+import { OfflineBanner } from "./components/PWA/OfflineBanner";
 import { hasServers } from "./utils/serverStorage";
 import { isElectron } from "./utils/platform";
 import { AuthGate } from "./components/AuthGate";
@@ -87,6 +89,8 @@ function App() {
       <CssBaseline />
       <AutoUpdater />
       <PWAInstallPrompt />
+      <UpdateToast />
+      <OfflineBanner />
       <Suspense fallback={
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
           <CircularProgress />

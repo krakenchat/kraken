@@ -16,11 +16,22 @@ configureApiClient();
 // fire beforeinstallprompt before React mounts (side-effect import)
 import "./utils/installPrompt";
 
-// Register service worker only in web browser (not Electron file:// context)
+// Register service worker only in web browser (not Electron file:// context).
+// registerType is "prompt": instead of silently reloading, we surface an
+// "Update available" toast (UpdateToast) and apply the update on user consent.
 if (!isElectron()) {
-  import("virtual:pwa-register")
-    .then(({ registerSW }) => {
-      registerSW({ immediate: true });
+  Promise.all([
+    import("virtual:pwa-register"),
+    import("./utils/swUpdate"),
+  ])
+    .then(([{ registerSW }, { setUpdateSW, setUpdateAvailable }]) => {
+      const updateSW = registerSW({
+        immediate: true,
+        onNeedRefresh() {
+          setUpdateAvailable(true);
+        },
+      });
+      setUpdateSW(updateSW);
     })
     .catch((error) => {
       console.error("Failed to register service worker:", error);

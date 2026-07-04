@@ -8,7 +8,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt": a waiting SW is surfaced via UpdateToast and applied on user
+      // consent (SKIP_WAITING message) instead of silently reloading mid-session.
+      registerType: "prompt",
       injectRegister: false,
       // Use injectManifest for custom service worker with push notification handling
       strategies: "injectManifest",
@@ -16,25 +18,44 @@ export default defineConfig({
       filename: "sw-custom.ts",
       includeAssets: ["favicon.ico", "favicon-32x32.png", "favicon-16x16.png", "apple-touch-icon.png"],
       manifest: {
+        id: "/",
         name: "Semaphore Chat",
         short_name: "Semaphore Chat",
         description: "Self-hosted voice and text chat",
         theme_color: "#1a1a2e",
         background_color: "#1a1a2e",
         display: "standalone",
+        display_override: ["standalone"],
         orientation: "portrait",
         scope: "/",
         start_url: "/",
+        categories: ["social"],
+        shortcuts: [
+          {
+            name: "Messages",
+            short_name: "Messages",
+            description: "Open direct messages",
+            url: "/#/direct-messages",
+          },
+          {
+            name: "Notifications",
+            short_name: "Notifications",
+            description: "Open notifications",
+            url: "/#/notifications",
+          },
+        ],
         icons: [
           {
             src: "pwa-192x192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any",
           },
           {
             src: "pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any",
           },
           {
             src: "pwa-512x512.png",

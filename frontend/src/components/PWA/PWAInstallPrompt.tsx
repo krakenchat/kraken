@@ -12,7 +12,7 @@ import {
   GetApp as InstallIcon,
   PhoneIphone as IPhoneIcon,
 } from '@mui/icons-material';
-import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 
 /**
  * PWA Install Prompt Component
@@ -24,7 +24,7 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
  * - Hidden if app is already installed
  */
 export const PWAInstallPrompt: React.FC = () => {
-  const { isInstallable, isIOS, install, dismiss } = usePWAInstall();
+  const { isInstallable, isIOS, install, dismiss } = useInstallPrompt();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
 
