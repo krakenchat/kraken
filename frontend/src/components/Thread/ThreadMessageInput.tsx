@@ -5,7 +5,7 @@
  * Uses WebSocket to send messages in real-time.
  */
 
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useRef, useCallback } from "react";
 import {
   Box,
   TextField,
@@ -13,11 +13,14 @@ import {
   CircularProgress,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import EmojiEmotionsOutlinedIcon from "@mui/icons-material/EmojiEmotionsOutlined";
 import { useTheme } from "@mui/material/styles";
 import { SocketContext } from "../../utils/SocketContext";
 import { ClientEvents } from '@semaphore-chat/shared';
 import { SpanType } from "../../types/message.type";
 import { logger } from "../../utils/logger";
+import { EmojiPickerPopover } from "../Message/EmojiPicker";
+import { useResponsive } from "../../hooks/useResponsive";
 
 interface ThreadMessageInputProps {
   parentMessageId: string;
@@ -28,8 +31,63 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
 }) => {
   const theme = useTheme();
   const { socket } = useContext(SocketContext);
+  const { isTouchDevice } = useResponsive();
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLElement | null>(null);
+  const emojiPickerOpen = Boolean(emojiAnchorEl);
+  const lastSelectionRef = useRef<{ start: number; end: number }>({
+    start: 0,
+    end: 0,
+  });
+
+  const captureSelection = useCallback(() => {
+    const el = inputRef.current;
+    if (el) {
+      const len = el.value.length;
+      lastSelectionRef.current = {
+        start: el.selectionStart ?? len,
+        end: el.selectionEnd ?? len,
+      };
+    }
+  }, []);
+
+  const handleEmojiButtonClick = (event: React.MouseEvent<HTMLElement>) => {
+    captureSelection();
+    setEmojiAnchorEl(event.currentTarget);
+  };
+
+  const handleEmojiPickerClose = () => {
+    setEmojiAnchorEl(null);
+  };
+
+  const handleEmojiSelect = useCallback(
+    (emoji: string) => {
+      // Read the live controlled value instead of using a functional update:
+      // StrictMode double-invokes updaters, so side effects inside one
+      // (the ref mutation below) would misplace the caret in dev.
+      const el = inputRef.current;
+      const value = el?.value ?? "";
+      const start = Math.min(lastSelectionRef.current.start, value.length);
+      const end = Math.min(lastSelectionRef.current.end, value.length);
+      const newPos = start + emoji.length;
+      lastSelectionRef.current = { start: newPos, end: newPos };
+      setContent(value.slice(0, start) + emoji + value.slice(end));
+
+      if (!isTouchDevice) {
+        requestAnimationFrame(() => {
+          const input = inputRef.current;
+          if (input) {
+            input.focus();
+            input.setSelectionRange(newPos, newPos);
+          }
+        });
+      }
+    },
+    [isTouchDevice]
+  );
 
   const handleSend = async () => {
     const trimmedContent = content.trim();
@@ -67,7 +125,8 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Touch: Enter inserts a newline (send via button only). Desktop: Enter sends.
+    if (e.key === "Enter" && !e.shiftKey && !isTouchDevice) {
       e.preventDefault();
       handleSend();
     }
@@ -90,10 +149,17 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
           maxRows={4}
           placeholder="Reply..."
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            captureSelection();
+          }}
           onKeyDown={handleKeyDown}
+          onKeyUp={captureSelection}
+          onClick={captureSelection}
+          onSelect={captureSelection}
           disabled={isSending}
           size="small"
+          inputRef={inputRef}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 2,
@@ -101,9 +167,21 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
           }}
         />
         <IconButton
+          onClick={handleEmojiButtonClick}
+          disabled={isSending}
+          aria-label="add emoji"
+          sx={{
+            width: 40,
+            height: 40,
+          }}
+        >
+          <EmojiEmotionsOutlinedIcon />
+        </IconButton>
+        <IconButton
           color="primary"
           onClick={handleSend}
           disabled={!content.trim() || isSending}
+          aria-label="send"
           sx={{
             width: 40,
             height: 40,
@@ -116,6 +194,14 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
           )}
         </IconButton>
       </Box>
+
+      <EmojiPickerPopover
+        open={emojiPickerOpen}
+        anchorEl={emojiAnchorEl}
+        onClose={handleEmojiPickerClose}
+        onEmojiSelect={handleEmojiSelect}
+        title="Add Emoji"
+      />
     </Box>
   );
 };

@@ -94,7 +94,10 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
       elevation={8}
       sx={{
         ...position,
-        maxHeight: 320,
+        // Cap height so the dropdown can never overflow the top of small screens.
+        maxHeight: 'min(320px, 40vh)',
+        display: 'flex',
+        flexDirection: 'column',
         overflow: 'hidden',
       }}
     >
@@ -103,6 +106,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
         sx={{
           px: 2,
           py: 1.5,
+          flexShrink: 0,
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
           background: alpha(theme.palette.primary.main, 0.02),
         }}
@@ -132,6 +136,8 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
       <List
         sx={{
           p: 0.5,
+          flex: 1,
+          minHeight: 0,
           maxHeight: 260,
           overflow: 'auto',
           '&::-webkit-scrollbar': {
@@ -153,6 +159,9 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
             sx={{
               borderRadius: 2,
               mb: 0.25,
+              // Comfortable touch target (desktop rows already sit ~48px, so no
+              // visible density change there).
+              minHeight: 44,
               cursor: 'pointer',
               transition: 'all 0.15s ease-in-out',
               backgroundImage: index === selectedIndex
@@ -271,6 +280,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
         sx={{
           px: 2,
           py: 1,
+          flexShrink: 0,
           borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
           background: alpha(theme.palette.background.paper, 0.3),
         }}

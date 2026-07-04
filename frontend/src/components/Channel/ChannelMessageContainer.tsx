@@ -229,7 +229,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         open={pinnedPanelOpen}
         onClose={() => setPinnedPanelOpen(false)}
         PaperProps={{
-          sx: { width: 360 },
+          sx: { width: 'min(360px, 100vw)' },
         }}
       >
         <PinnedMessagesPanel
@@ -257,7 +257,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         onClose={handleCloseThread}
         PaperProps={{
           sx: {
-            width: 400,
+            width: 'min(400px, 100vw)',
             height: '100dvh',
             overflow: 'hidden',
             paddingBottom: voiceConnected ? `${VOICE_BAR_HEIGHT}px` : 0,

@@ -10,7 +10,10 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Box, IconButton, CircularProgress } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
+import EmojiEmotionsOutlinedIcon from "@mui/icons-material/EmojiEmotionsOutlined";
 import { StyledPaper, StyledTextField } from "./MessageInputStyles";
+import { EmojiPickerPopover } from "./EmojiPicker";
+import { useResponsive } from "../../hooks/useResponsive";
 import { FilePreview } from "./FilePreview";
 import { MentionDropdown } from "./MentionDropdown";
 import { useFileAttachments } from "./useFileAttachments";
@@ -73,6 +76,26 @@ export default function MessageInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { showNotification } = useNotification();
+  const { isTouchDevice } = useResponsive();
+
+  // Emoji picker state + last-known selection (captured before the picker steals focus)
+  const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLElement | null>(null);
+  const emojiPickerOpen = Boolean(emojiAnchorEl);
+  const lastSelectionRef = useRef<{ start: number; end: number }>({
+    start: 0,
+    end: 0,
+  });
+
+  const captureSelection = useCallback(() => {
+    const el = inputRef.current;
+    if (el) {
+      const len = el.value.length;
+      lastSelectionRef.current = {
+        start: el.selectionStart ?? len,
+        end: el.selectionEnd ?? len,
+      };
+    }
+  }, []);
 
   // Typing indicator emitter
   const { handleKeyPress: emitTypingKeyPress, sendTypingStop } = useTypingEmitter(
@@ -343,6 +366,47 @@ export default function MessageInput({
     }
   };
 
+  // --- Emoji picker handlers ---
+  const handleEmojiButtonClick = (event: React.MouseEvent<HTMLElement>) => {
+    // Capture the caret position before the picker takes focus so we can
+    // insert the emoji where the user left off.
+    captureSelection();
+    setEmojiAnchorEl(event.currentTarget);
+  };
+
+  const handleEmojiPickerClose = () => {
+    setEmojiAnchorEl(null);
+  };
+
+  const handleEmojiSelect = useCallback(
+    (emoji: string) => {
+      // Read the live controlled value instead of using a functional update:
+      // StrictMode double-invokes updaters, so side effects inside one
+      // (the ref mutation below) would misplace the caret in dev.
+      const el = inputRef.current;
+      const value = el?.value ?? "";
+      const start = Math.min(lastSelectionRef.current.start, value.length);
+      const end = Math.min(lastSelectionRef.current.end, value.length);
+      const newPos = start + emoji.length;
+      lastSelectionRef.current = { start: newPos, end: newPos };
+      setText(value.slice(0, start) + emoji + value.slice(end));
+
+      // On desktop, restore focus + caret to the input after inserting.
+      // On touch, don't force focus — it would pop the keyboard over the sheet.
+      if (!isTouchDevice) {
+        requestAnimationFrame(() => {
+          const input = inputRef.current;
+          if (input) {
+            input.focus();
+            input.setSelectionRange(newPos, newPos);
+          }
+        });
+      }
+      emitTypingKeyPress();
+    },
+    [isTouchDevice, emitTypingKeyPress]
+  );
+
   // --- Keyboard handler ---
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (isChannel) {
@@ -367,7 +431,9 @@ export default function MessageInput({
       }
     }
 
-    if (event.key === "Enter" && !event.shiftKey) {
+    // On touch devices, Enter inserts a newline (send is via the button only).
+    // On desktop, Enter sends and Shift+Enter inserts a newline.
+    if (event.key === "Enter" && !event.shiftKey && !isTouchDevice) {
       event.preventDefault();
       handleSend();
     }
@@ -418,17 +484,32 @@ export default function MessageInput({
             onChange={(e) => {
               setText(e.target.value);
               emitTypingKeyPress();
+              captureSelection();
             }}
             onKeyDown={handleKeyPress}
+            onKeyUp={captureSelection}
             onPaste={handlePaste}
-            onClick={updateCursorPosition}
-            onSelect={updateCursorPosition}
+            onClick={() => {
+              updateCursorPosition();
+              captureSelection();
+            }}
+            onSelect={() => {
+              updateCursorPosition();
+              captureSelection();
+            }}
             sx={{ flex: 1 }}
             inputRef={inputRef}
             autoComplete="off"
             multiline
             maxRows={4}
           />
+          <IconButton
+            onClick={handleEmojiButtonClick}
+            disabled={sending}
+            aria-label="add emoji"
+          >
+            <EmojiEmotionsOutlinedIcon />
+          </IconButton>
           <IconButton
             onClick={handleFileButtonClick}
             disabled={sending}
@@ -446,6 +527,14 @@ export default function MessageInput({
           </IconButton>
         </StyledPaper>
       </form>
+
+      <EmojiPickerPopover
+        open={emojiPickerOpen}
+        anchorEl={emojiAnchorEl}
+        onClose={handleEmojiPickerClose}
+        onEmojiSelect={handleEmojiSelect}
+        title="Add Emoji"
+      />
     </Box>
   );
 }
