@@ -9,9 +9,9 @@
  * as from ordinary app code.
  *
  * It stores small PWA/push bookkeeping values (the VAPID application server
- * key, the API base URL, and push-subscription endpoint markers) so the
- * `pushsubscriptionchange` SW handler can re-subscribe, and so the app can
- * detect a rotated subscription on startup and re-sync it to the backend.
+ * key and push-subscription endpoint markers) so the `pushsubscriptionchange`
+ * SW handler can re-subscribe, and so the app can detect a rotated
+ * subscription on startup and re-sync it to the backend.
  */
 
 const DB_NAME = 'semaphore-pwa';

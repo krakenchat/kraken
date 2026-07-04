@@ -72,6 +72,10 @@ export default defineConfig({
       devOptions: {
         enabled: true, // Enable PWA in dev mode for testing
         type: "module",
+        // Required with injectManifest in dev: without it the dev SW gets an
+        // empty __WB_MANIFEST and createHandlerBoundToURL('index.html')
+        // throws non-precached-url, so the SW never installs in dev.
+        navigateFallback: "index.html",
       },
     }),
   ],

@@ -424,6 +424,10 @@ export async function leaveVoiceChannel(deps: VoiceActionDeps) {
     const message = error instanceof Error ? error.message : "Failed to leave voice channel";
     dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     throw error;
+  } finally {
+    // Never leave a pending SW update suppressed after the call is over,
+    // even when disconnect throws.
+    setUpdateDeferred(false);
   }
 }
 
@@ -517,6 +521,10 @@ export async function leaveDmVoice(deps: VoiceActionDeps) {
     const message = error instanceof Error ? error.message : "Failed to leave DM voice call";
     dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     throw error;
+  } finally {
+    // Never leave a pending SW update suppressed after the call is over,
+    // even when disconnect throws.
+    setUpdateDeferred(false);
   }
 }
 
