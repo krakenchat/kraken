@@ -92,10 +92,13 @@ export const useResponsive = () => {
 
 /**
  * Simple hook for just mobile detection
- * Returns true for phone and phone landscape (< 768px)
+ * Returns true for phone and phone landscape (< 768px).
+ * Always false in Electron — a narrow desktop window is not a phone
+ * (mirrors the Electron gate in useResponsive).
  */
 export const useMobileBreakpoint = (): boolean => {
-  return useMediaQuery(`(max-width: ${DEVICE_BREAKPOINTS.PHONE_LANDSCAPE - 1}px)`);
+  const matches = useMediaQuery(`(max-width: ${DEVICE_BREAKPOINTS.PHONE_LANDSCAPE - 1}px)`);
+  return matches && !isElectron();
 };
 
 /**
