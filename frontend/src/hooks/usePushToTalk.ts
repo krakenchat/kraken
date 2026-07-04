@@ -25,8 +25,49 @@ export function usePushToTalk() {
   // Track if PTT is active (connected to voice AND in PTT mode)
   const isActive = voiceState.isConnected && isPushToTalk;
 
+  // Core "start transmitting" logic, shared by the keyboard handler and the
+  // programmatic (touch hold-to-talk) path. Keeping a single implementation
+  // means both routes honor the same guards — notably the server-mute check
+  // read via stateRef (#380) so we always see the CURRENT value, never a
+  // stale closure.
+  const pttPress = useCallback(async () => {
+    const room = getRoom();
+    if (!room) return;
+
+    // Block transmit when server-muted — mirrors the guard in toggleMicrophone.
+    if (stateRef.current.isServerMuted) {
+      logger.dev('[PTT] Press while server muted, ignoring');
+      return;
+    }
+
+    try {
+      isKeyHeldRef.current = true;
+      setIsKeyHeld(true);
+      await room.localParticipant.setMicrophoneEnabled(true);
+      logger.dev('[PTT] Pressed, microphone enabled');
+    } catch (error) {
+      logger.error('[PTT] Failed to enable microphone:', error);
+    }
+  }, [getRoom, stateRef]);
+
+  // Core "stop transmitting" logic, shared by keyboard keyup, window blur, and
+  // the programmatic (touch) release path.
+  const pttRelease = useCallback(async () => {
+    const room = getRoom();
+    if (!room) return;
+
+    try {
+      isKeyHeldRef.current = false;
+      setIsKeyHeld(false);
+      await room.localParticipant.setMicrophoneEnabled(false);
+      logger.dev('[PTT] Released, microphone disabled');
+    } catch (error) {
+      logger.error('[PTT] Failed to disable microphone:', error);
+    }
+  }, [getRoom]);
+
   // Handle keydown - enable microphone
-  const handleKeyDown = useCallback(async (event: KeyboardEvent) => {
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Check if this is our PTT key
     if (event.code !== pushToTalkKey) return;
 
@@ -40,61 +81,21 @@ export function usePushToTalk() {
     }
 
     event.preventDefault();
-
-    const room = getRoom();
-    if (!room) return;
-
-    // Block transmit when server-muted — mirrors the guard in toggleMicrophone.
-    // Read via stateRef so we see the CURRENT value, not a stale closure.
-    if (stateRef.current.isServerMuted) {
-      logger.dev('[PTT] Key pressed while server muted, ignoring');
-      return;
-    }
-
-    try {
-      isKeyHeldRef.current = true;
-      setIsKeyHeld(true);
-      await room.localParticipant.setMicrophoneEnabled(true);
-      logger.dev('[PTT] Key pressed, microphone enabled');
-    } catch (error) {
-      logger.error('[PTT] Failed to enable microphone:', error);
-    }
-  }, [pushToTalkKey, getRoom, stateRef]);
+    void pttPress();
+  }, [pushToTalkKey, pttPress]);
 
   // Handle keyup - disable microphone
-  const handleKeyUp = useCallback(async (event: KeyboardEvent) => {
+  const handleKeyUp = useCallback((event: KeyboardEvent) => {
     // Check if this is our PTT key
     if (event.code !== pushToTalkKey) return;
-
-    const room = getRoom();
-    if (!room) return;
-
-    try {
-      isKeyHeldRef.current = false;
-      setIsKeyHeld(false);
-      await room.localParticipant.setMicrophoneEnabled(false);
-      logger.dev('[PTT] Key released, microphone disabled');
-    } catch (error) {
-      logger.error('[PTT] Failed to disable microphone:', error);
-    }
-  }, [pushToTalkKey, getRoom]);
+    void pttRelease();
+  }, [pushToTalkKey, pttRelease]);
 
   // Handle window blur - release mic if user switches tabs while holding key
-  const handleBlur = useCallback(async () => {
+  const handleBlur = useCallback(() => {
     if (!isKeyHeldRef.current) return;
-
-    const room = getRoom();
-    if (!room) return;
-
-    try {
-      isKeyHeldRef.current = false;
-      setIsKeyHeld(false);
-      await room.localParticipant.setMicrophoneEnabled(false);
-      logger.dev('[PTT] Window blur, microphone disabled');
-    } catch (error) {
-      logger.error('[PTT] Failed to disable microphone on blur:', error);
-    }
-  }, [getRoom]);
+    void pttRelease();
+  }, [pttRelease]);
 
   // Set up event listeners when PTT is active
   useEffect(() => {
@@ -177,5 +178,10 @@ export function usePushToTalk() {
 
     // Current input mode
     inputMode,
+
+    // Programmatic transmit controls, sharing the exact guards/state the
+    // keyboard path uses. Used by touch "hold-to-talk" UI.
+    pttPress,
+    pttRelease,
   };
 }

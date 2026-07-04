@@ -188,7 +188,7 @@ export const PersistentVideoOverlay: React.FC = () => {
   }, [constrainPosition]);
 
   // Drag handlers
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
+  const handleDragStart = useCallback((e: React.PointerEvent) => {
     if (settings.isMaximized) return;
     if ((e.target as HTMLElement).closest('.pip-controls')) return;
     e.preventDefault();
@@ -199,7 +199,7 @@ export const PersistentVideoOverlay: React.FC = () => {
     });
   }, [settings.position, settings.isMaximized]);
 
-  const handleDragMove = useCallback((e: MouseEvent) => {
+  const handleDragMove = useCallback((e: PointerEvent) => {
     if (!isDragging) return;
     const newX = e.clientX - dragOffset.x;
     const newY = e.clientY - dragOffset.y;
@@ -215,7 +215,7 @@ export const PersistentVideoOverlay: React.FC = () => {
   }, [isDragging, settings, saveSettings]);
 
   // Resize handlers
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+  const handleResizeStart = useCallback((e: React.PointerEvent) => {
     if (settings.isMaximized) return;
     e.preventDefault();
     e.stopPropagation();
@@ -228,7 +228,7 @@ export const PersistentVideoOverlay: React.FC = () => {
     });
   }, [settings.size, settings.isMaximized]);
 
-  const handleResizeMove = useCallback((e: MouseEvent) => {
+  const handleResizeMove = useCallback((e: PointerEvent) => {
     if (!isResizing) return;
     const deltaX = e.clientX - resizeStart.x;
     const deltaY = e.clientY - resizeStart.y;
@@ -259,25 +259,26 @@ export const PersistentVideoOverlay: React.FC = () => {
     }
   }, [isResizing, settings, constrainPosition, saveSettings]);
 
-  // Global mouse event listeners for drag/resize
+  // Global pointer event listeners for drag/resize (pointer events unify mouse
+  // and touch, so this works for touch tablets as well as mouse users)
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener('mousemove', handleDragMove);
-      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('pointermove', handleDragMove);
+      window.addEventListener('pointerup', handleDragEnd);
       return () => {
-        window.removeEventListener('mousemove', handleDragMove);
-        window.removeEventListener('mouseup', handleDragEnd);
+        window.removeEventListener('pointermove', handleDragMove);
+        window.removeEventListener('pointerup', handleDragEnd);
       };
     }
   }, [isDragging, handleDragMove, handleDragEnd]);
 
   useEffect(() => {
     if (isResizing) {
-      window.addEventListener('mousemove', handleResizeMove);
-      window.addEventListener('mouseup', handleResizeEnd);
+      window.addEventListener('pointermove', handleResizeMove);
+      window.addEventListener('pointerup', handleResizeEnd);
       return () => {
-        window.removeEventListener('mousemove', handleResizeMove);
-        window.removeEventListener('mouseup', handleResizeEnd);
+        window.removeEventListener('pointermove', handleResizeMove);
+        window.removeEventListener('pointerup', handleResizeEnd);
       };
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
@@ -450,8 +451,10 @@ export const PersistentVideoOverlay: React.FC = () => {
           px: 1,
           cursor: settings.isMaximized ? 'default' : (isDragging ? 'grabbing' : 'grab'),
           flexShrink: 0,
+          // Prevent the browser treating a touch-drag on the header as a scroll
+          touchAction: settings.isMaximized ? 'auto' : 'none',
         }}
-        onMouseDown={handleDragStart}
+        onPointerDown={handleDragStart}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {!settings.isMaximized && (
@@ -498,6 +501,7 @@ export const PersistentVideoOverlay: React.FC = () => {
             width: 20,
             height: 20,
             cursor: 'se-resize',
+            touchAction: 'none',
             '&::after': {
               content: '""',
               position: 'absolute',
@@ -509,7 +513,7 @@ export const PersistentVideoOverlay: React.FC = () => {
               borderBottom: `2px solid ${theme.palette.text.secondary}`,
             },
           }}
-          onMouseDown={handleResizeStart}
+          onPointerDown={handleResizeStart}
         />
       )}
     </Paper>

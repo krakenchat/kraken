@@ -5,6 +5,11 @@ import ScreenShareVolumeControl from '../../components/Voice/ScreenShareVolumeCo
 import { audioBoostManager } from '../../features/voice/audioBoostManager';
 
 let mockIsDeafened = false;
+let mockShouldUseTouchUI = false;
+
+vi.mock('../../hooks/useResponsive', () => ({
+  useResponsive: vi.fn(() => ({ shouldUseTouchUI: mockShouldUseTouchUI })),
+}));
 
 vi.mock('livekit-client', () => ({
   Track: {
@@ -91,6 +96,7 @@ describe('ScreenShareVolumeControl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsDeafened = false;
+    mockShouldUseTouchUI = false;
     localStorageGetSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
     localStorageSetSpy = vi.spyOn(Storage.prototype, 'setItem');
   });
@@ -315,5 +321,59 @@ describe('ScreenShareVolumeControl', () => {
     renderControl();
 
     expect(screen.getByTestId('VolumeUpIcon')).toBeInTheDocument();
+  });
+
+  describe('touch UI', () => {
+    beforeEach(() => {
+      mockShouldUseTouchUI = true;
+    });
+
+    // On touch, the collapsed icon is relabelled "Screenshare volume" because
+    // its tap opens the slider popover rather than toggling mute directly.
+    function getVolumeButton() {
+      return screen.getByRole('button', { name: /screenshare volume/i });
+    }
+
+    it('tapping the icon opens a popover with an always-visible slider', async () => {
+      const user = userEvent.setup();
+      renderControl();
+
+      // No hover on touch → slider not rendered until the popover opens.
+      expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+
+      await user.click(getVolumeButton());
+
+      expect(screen.getByRole('slider')).toBeInTheDocument();
+    });
+
+    it('keeps the mute toggle reachable inside the popover', async () => {
+      const user = userEvent.setup();
+      renderControl();
+
+      // Open the popover, then use its mute button.
+      await user.click(getVolumeButton());
+      await user.click(screen.getByRole('button', { name: /mute screenshare/i }));
+
+      // Muting applies a volume of 0.
+      expect(audioBoostManager.applyVolume).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        0,
+      );
+    });
+
+    it('does not toggle mute on the initial icon tap (opens popover instead)', async () => {
+      const user = userEvent.setup();
+      renderControl();
+
+      await user.click(getVolumeButton());
+
+      // Opening the popover must not mute the track.
+      expect(audioBoostManager.applyVolume).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        0,
+      );
+    });
   });
 });

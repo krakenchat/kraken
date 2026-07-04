@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { VoiceBottomBar } from '../../components/Voice/VoiceBottomBar';
 import { VoiceSessionType, type VoiceState } from '../../contexts/VoiceContext';
@@ -112,7 +112,13 @@ vi.mock('../../hooks/usePushToTalk', () => ({
     isKeyHeld: false,
     currentKeyDisplay: 'Space',
     inputMode: 'voice_activity',
+    pttPress: vi.fn(),
+    pttRelease: vi.fn(),
   })),
+}));
+
+vi.mock('../../hooks/useWakeLock', () => ({
+  useWakeLock: vi.fn(),
 }));
 
 vi.mock('../../hooks/useSpeaking', () => ({
@@ -177,6 +183,7 @@ const { useLocalMediaState } = await import('../../hooks/useLocalMediaState');
 const { useResponsive } = await import('../../hooks/useResponsive');
 const { useReplayBufferState } = await import('../../contexts/ReplayBufferContext');
 const { useScreenShare } = await import('../../hooks/useScreenShare');
+const { usePushToTalk } = await import('../../hooks/usePushToTalk');
 
 describe('VoiceBottomBar', () => {
   beforeEach(() => {
@@ -209,6 +216,15 @@ describe('VoiceBottomBar', () => {
       isTablet: false,
       isDesktop: true,
       deviceType: 'desktop',
+      shouldUseTouchUI: false,
+    } as never);
+    vi.mocked(usePushToTalk).mockReturnValue({
+      isActive: false,
+      isKeyHeld: false,
+      currentKeyDisplay: 'Space',
+      inputMode: 'voice_activity',
+      pttPress: vi.fn(),
+      pttRelease: vi.fn(),
     } as never);
     vi.mocked(useReplayBufferState).mockReturnValue({
       isReplayBufferActive: false,
@@ -574,6 +590,94 @@ describe('VoiceBottomBar', () => {
 
       expect(screen.queryByTestId('SpeakerPhoneIcon')).not.toBeInTheDocument();
       expect(screen.queryByTestId('PhoneInTalkIcon')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('hold-to-talk (touch PTT)', () => {
+    const mockPttPress = vi.fn();
+    const mockPttRelease = vi.fn();
+
+    function enableHoldToTalk() {
+      vi.mocked(usePushToTalk).mockReturnValue({
+        isActive: true,
+        isKeyHeld: false,
+        currentKeyDisplay: 'Space',
+        inputMode: 'push_to_talk',
+        pttPress: mockPttPress,
+        pttRelease: mockPttRelease,
+      } as never);
+      vi.mocked(useResponsive).mockReturnValue({
+        isMobile: true,
+        isTablet: false,
+        isDesktop: false,
+        deviceType: 'phone',
+        shouldUseTouchUI: true,
+      } as never);
+    }
+
+    it('pointerdown engages transmit and pointerup releases it', () => {
+      enableHoldToTalk();
+      renderWithProviders(<VoiceBottomBar />);
+
+      const micButton = screen.getByTestId('MicIcon').closest('button')!;
+
+      fireEvent.pointerDown(micButton, { pointerId: 1 });
+      expect(mockPttPress).toHaveBeenCalledTimes(1);
+
+      fireEvent.pointerUp(micButton, { pointerId: 1 });
+      expect(mockPttRelease).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposes an accessible "Hold to talk" label', () => {
+      enableHoldToTalk();
+      renderWithProviders(<VoiceBottomBar />);
+
+      expect(screen.getByRole('button', { name: /hold to talk/i })).toBeInTheDocument();
+    });
+
+    it('does not engage transmit while server-muted', () => {
+      enableHoldToTalk();
+      voiceState = { ...defaultVoiceState, isServerMuted: true };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: voiceState,
+        actions: mockActions,
+      } as never);
+
+      renderWithProviders(<VoiceBottomBar />);
+
+      const micButton = screen.getByTestId('MicIcon').closest('button')!;
+      fireEvent.pointerDown(micButton, { pointerId: 1 });
+
+      expect(mockPttPress).not.toHaveBeenCalled();
+    });
+
+    it('does NOT attach hold-to-talk for desktop PTT (no touch UI regression)', () => {
+      // PTT active but desktop (keyboard) — mic button stays a keyboard-only
+      // control with no onClick and no pointer transmit.
+      vi.mocked(usePushToTalk).mockReturnValue({
+        isActive: true,
+        isKeyHeld: false,
+        currentKeyDisplay: 'Space',
+        inputMode: 'push_to_talk',
+        pttPress: mockPttPress,
+        pttRelease: mockPttRelease,
+      } as never);
+      vi.mocked(useResponsive).mockReturnValue({
+        isMobile: false,
+        isTablet: false,
+        isDesktop: true,
+        deviceType: 'desktop',
+        shouldUseTouchUI: false,
+      } as never);
+
+      renderWithProviders(<VoiceBottomBar />);
+
+      const micButton = screen.getByTestId('MicIcon').closest('button')!;
+      fireEvent.pointerDown(micButton, { pointerId: 1 });
+      fireEvent.click(micButton);
+
+      expect(mockPttPress).not.toHaveBeenCalled();
+      expect(mockActions.toggleMute).not.toHaveBeenCalled();
     });
   });
 

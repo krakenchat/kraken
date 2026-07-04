@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { IconButton, Slider, Box, Tooltip } from '@mui/material';
+import { IconButton, Slider, Box, Tooltip, Popover } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
@@ -7,6 +7,7 @@ import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import { Track, type RemoteParticipant } from 'livekit-client';
 import { SCREENSHARE_VOLUME_STORAGE_PREFIX } from '../../constants/voice';
 import { useVoice } from '../../contexts/VoiceContext';
+import { useResponsive } from '../../hooks/useResponsive';
 import { audioBoostManager, boostKey } from '../../features/voice/audioBoostManager';
 import { isBoostableAudioTrack } from '../../features/voice/isBoostableAudioTrack';
 
@@ -49,10 +50,13 @@ interface ScreenShareVolumeControlProps {
 const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ participant }) => {
   const theme = useTheme();
   const { isDeafened } = useVoice();
+  const { shouldUseTouchUI } = useResponsive();
   const [isHovered, setIsHovered] = useState(false);
   // Keep the slider reachable for keyboard users: expand on focus too
   const [isFocused, setIsFocused] = useState(false);
   const isExpanded = isHovered || isFocused;
+  // Touch devices can't hover: tapping the icon opens a Popover slider instead.
+  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
 
   const [volume, setVolume] = useState<number>(() => {
     const stored = getStoredScreenShareVolume(participant.identity);
@@ -129,6 +133,19 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
     }
   };
 
+  // On touch, the collapsed icon opens the slider popover (there is no hover to
+  // reveal it). On pointer-fine devices it keeps the original mute-toggle tap.
+  const handleIconClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (shouldUseTouchUI) {
+      e.stopPropagation();
+      setPopoverAnchor(e.currentTarget);
+      return;
+    }
+    handleMuteToggle(e);
+  };
+
+  const handlePopoverClose = () => setPopoverAnchor(null);
+
   const VolumeIcon = volume === 0 ? VolumeOffIcon : volume <= 50 ? VolumeDownIcon : VolumeUpIcon;
 
   return (
@@ -182,10 +199,19 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
           />
         )}
       </Box>
-      <Tooltip title={isDeafened ? 'Deafened' : isMuted ? 'Unmute' : `Mute · ${volume}%`}>
+      <Tooltip
+        title={isDeafened ? 'Deafened' : isMuted ? 'Unmute' : `Mute · ${volume}%`}
+        disableTouchListener={shouldUseTouchUI}
+      >
         <span>
           <IconButton
-            aria-label={isMuted ? 'Unmute screenshare' : 'Mute screenshare'}
+            aria-label={
+              shouldUseTouchUI
+                ? 'Screenshare volume'
+                : isMuted
+                  ? 'Unmute screenshare'
+                  : 'Mute screenshare'
+            }
             sx={{
               color: theme.palette.common.white,
               width: 32,
@@ -193,12 +219,57 @@ const ScreenShareVolumeControl: React.FC<ScreenShareVolumeControlProps> = ({ par
             }}
             size="small"
             disabled={isDeafened}
-            onClick={handleMuteToggle}
+            onClick={handleIconClick}
           >
             <VolumeIcon fontSize="small" />
           </IconButton>
         </span>
       </Tooltip>
+
+      {/* Touch: tap-to-open volume popover with an always-visible, comfortably
+          sized slider plus a mute toggle. */}
+      {shouldUseTouchUI && (
+        <Popover
+          open={Boolean(popoverAnchor)}
+          anchorEl={popoverAnchor}
+          onClose={handlePopoverClose}
+          onClick={(e) => e.stopPropagation()}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              px: 2,
+              py: 1.5,
+              minWidth: 220,
+            }}
+          >
+            <IconButton
+              aria-label={isMuted ? 'Unmute screenshare' : 'Mute screenshare'}
+              size="medium"
+              disabled={isDeafened}
+              onClick={handleMuteToggle}
+            >
+              <VolumeIcon />
+            </IconButton>
+            <Slider
+              value={volume}
+              onChange={handleVolumeChange}
+              onChangeCommitted={handleVolumeChangeCommitted}
+              min={0}
+              max={200}
+              step={1}
+              valueLabelDisplay="auto"
+              disabled={isDeafened}
+              aria-label="Screenshare volume"
+              sx={{ flex: 1 }}
+            />
+          </Box>
+        </Popover>
+      )}
     </Box>
   );
 };
