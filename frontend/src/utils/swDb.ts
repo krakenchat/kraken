@@ -75,7 +75,6 @@ export async function swDbDelete(key: string): Promise<void> {
 // Well-known keys used across the window/SW boundary.
 export const SW_DB_KEYS = {
   applicationServerKey: 'push:applicationServerKey',
-  apiBaseUrl: 'push:apiBaseUrl',
   lastSyncedEndpoint: 'push:lastSyncedEndpoint',
   pendingEndpoint: 'push:pendingEndpoint',
 } as const;

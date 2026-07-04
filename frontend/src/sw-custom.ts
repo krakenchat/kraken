@@ -25,7 +25,7 @@ cleanupOutdatedCaches();
 const navigationHandler = createHandlerBoundToURL('index.html');
 registerRoute(
   new NavigationRoute(navigationHandler, {
-    denylist: [/^\/api\//, /^\/socket\.io\//],
+    denylist: [/^\/api(\/|$)/, /^\/socket\.io(\/|$)/],
   }),
 );
 
@@ -38,7 +38,7 @@ clientsClaim();
 // Apply a pending update only when the app asks (UpdateToast → updateSW(true)).
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') {
-    void self.skipWaiting();
+    event.waitUntil(self.skipWaiting());
   }
 });
 

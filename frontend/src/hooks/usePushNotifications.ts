@@ -26,7 +26,6 @@ import {
   extractSubscriptionData,
 } from '../utils/pushSubscription';
 import { swDbSet, swDbDelete, SW_DB_KEYS } from '../utils/swDb';
-import { getApiBaseUrl } from '../config/env';
 
 export interface UsePushNotificationsResult {
   /** Whether push notifications are supported in this environment */
@@ -115,10 +114,8 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
       // Persist bookkeeping the SW / startup re-sync need:
       //  - the VAPID key so the SW can re-subscribe on pushsubscriptionchange
-      //  - the API base URL for the SW's best-effort POST
       //  - the synced endpoint so usePushResync can detect a later rotation
       await swDbSet(SW_DB_KEYS.applicationServerKey, vapidData.publicKey);
-      await swDbSet(SW_DB_KEYS.apiBaseUrl, getApiBaseUrl());
       await swDbSet(SW_DB_KEYS.lastSyncedEndpoint, subscription.endpoint);
 
       setIsSubscribed(true);

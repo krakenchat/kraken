@@ -62,13 +62,15 @@ export function shouldShowUpdate(): boolean {
 }
 
 /**
- * Apply the waiting update: triggers skipWaiting + reload. No-op if registerSW
- * hasn't wired a callback yet (e.g. Electron, or before registration).
+ * Apply the waiting update: triggers skipWaiting + reload. Rejects if
+ * registerSW hasn't wired a callback yet (e.g. Electron, or before
+ * registration) so callers can reset their pending UI state.
  */
 export async function applyUpdate(): Promise<void> {
-  if (updateSW) {
-    await updateSW(true);
+  if (!updateSW) {
+    throw new Error('Service worker update callback not registered');
   }
+  await updateSW(true);
 }
 
 /** Subscribe to store changes. Returns an unsubscribe fn. */
