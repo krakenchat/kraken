@@ -31,6 +31,10 @@ import {
   moderationControllerGetPinnedMessagesOptions,
 } from '../../../api-client/@tanstack/react-query.gen';
 import { useMobileNavigation } from '../Navigation/MobileNavigationContext';
+import { useResponsive } from '../../../hooks/useResponsive';
+import { useSwipeGesture } from '../../../hooks/useSwipeGesture';
+import { isSwipeExemptTarget } from '../../../utils/swipeExempt';
+import { MOBILE_CONSTANTS } from '../../../utils/breakpoints';
 import { ChannelType } from '../../../types/channel.type';
 import ChannelMessageContainer from '../../Channel/ChannelMessageContainer';
 import DirectMessageContainer from '../../DirectMessages/DirectMessageContainer';
@@ -60,6 +64,7 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
 }) => {
   const { goBack } = useMobileNavigation();
   const navigate = useNavigate();
+  const { shouldUseTouchUI } = useResponsive();
   const { state: voiceState } = useVoiceConnection();
 
   // Fetch channel or DM data
@@ -109,6 +114,29 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
       navigate(`/community/${effectiveCommunityId}/edit`);
     }
   };
+
+  // Swipe navigation on the chat surface (touch UI only):
+  //  - Swipe RIGHT anywhere → go back (channel chat → channel list,
+  //    dm-chat → dm list; both handled by the nav context's goBack()).
+  //  - Swipe LEFT → open the members drawer (channel chat only).
+  // Gestures starting within the edge back-gesture zone, on exempt content
+  // (inputs, code blocks, horizontally scrollable widgets), or that are mostly
+  // vertical (scrolling) are ignored. The SwipeableDrawers render in portals, so
+  // touches on them never reach this surface.
+  const { onTouchStart, onTouchMove, onTouchEnd } = useSwipeGesture({
+    enabled: shouldUseTouchUI,
+    onSwipeRight: () => goBack(),
+    onSwipeLeft: () => {
+      if (channelId) setShowMemberDrawer(true);
+    },
+    isExempt: isSwipeExemptTarget,
+    ignoreEdgeSwipes: true,
+    edgeZone: MOBILE_CONSTANTS.EDGE_BACK_GESTURE_ZONE,
+    // Require horizontal displacement to clearly dominate vertical so ordinary
+    // vertical scrolling never navigates.
+    directionRatio: 1.5,
+  });
+  const swipeHandlers = { onTouchStart, onTouchMove, onTouchEnd };
 
   // Determine title
   let title = '';
@@ -217,7 +245,10 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
       />
 
       {/* Content */}
-      <Box sx={{ flex: 1, overflow: 'hidden' }}>
+      <Box
+        sx={{ flex: 1, overflow: 'hidden' }}
+        {...(shouldUseTouchUI ? swipeHandlers : {})}
+      >
         {renderContent()}
       </Box>
 

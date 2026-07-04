@@ -5,7 +5,7 @@
  * progress callbacks, and velocity tracking.
  */
 
-import { useRef, useEffect, TouchEvent, useCallback } from 'react';
+import { useRef, useEffect, useState, TouchEvent, useCallback } from 'react';
 import { MOBILE_CONSTANTS } from '../utils/breakpoints';
 import { useHapticFeedback } from './useHapticFeedback';
 
@@ -31,16 +31,31 @@ interface SwipeGestureOptions {
   // Edge swipe detection
   onEdgeSwipeStart?: (edge: 'left' | 'right') => void;
   edgeZone?: number; // Pixels from edge to detect edge swipe
+  // When true, a swipe that STARTS within `edgeZone` of the left/right edge is
+  // ignored entirely (no directional callbacks fire). Used to avoid fighting the
+  // browser's native edge back-gesture.
+  ignoreEdgeSwipes?: boolean;
+
+  // Return true to skip a gesture entirely based on where it started (e.g. it
+  // began inside horizontally scrollable content or a text input). Evaluated
+  // once on touch start against the event target.
+  isExempt?: (target: EventTarget | null) => boolean;
 
   // Configuration
   threshold?: number; // Minimum distance for swipe
   velocityThreshold?: number; // Minimum velocity (px/ms)
+  // How strongly one axis must dominate the other for the gesture to count as
+  // that axis. e.g. 1.5 means horizontal displacement must exceed 1.5x the
+  // vertical displacement before a left/right swipe registers — this keeps
+  // ordinary vertical scrolling from triggering navigation.
+  directionRatio?: number;
   enabled?: boolean;
 }
 
 interface SwipeState {
   startedFromEdge: 'left' | 'right' | null;
   isSwiping: boolean;
+  isExempt: boolean;
 }
 
 /**
@@ -56,8 +71,11 @@ export const useSwipeGesture = (options: SwipeGestureOptions = {}) => {
     onProgress,
     onEdgeSwipeStart,
     edgeZone = MOBILE_CONSTANTS.EDGE_SWIPE_ZONE,
+    ignoreEdgeSwipes = false,
+    isExempt,
     threshold = MOBILE_CONSTANTS.SWIPE_THRESHOLD,
     velocityThreshold = 0.3, // px/ms
+    directionRatio = 1,
     enabled = true,
   } = options;
 
@@ -66,6 +84,7 @@ export const useSwipeGesture = (options: SwipeGestureOptions = {}) => {
   const swipeState = useRef<SwipeState>({
     startedFromEdge: null,
     isSwiping: false,
+    isExempt: false,
   });
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
@@ -92,12 +111,14 @@ export const useSwipeGesture = (options: SwipeGestureOptions = {}) => {
     swipeState.current = {
       startedFromEdge: edge,
       isSwiping: false,
+      // Evaluate exemption once, against the element the gesture started on.
+      isExempt: isExempt ? isExempt(e.target) : false,
     };
 
     if (edge && onEdgeSwipeStart) {
       onEdgeSwipeStart(edge);
     }
-  }, [enabled, edgeZone, onEdgeSwipeStart]);
+  }, [enabled, edgeZone, isExempt, onEdgeSwipeStart]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!enabled || !touchStart.current) return;
@@ -128,10 +149,21 @@ export const useSwipeGesture = (options: SwipeGestureOptions = {}) => {
   }, [enabled, threshold, onProgress]);
 
   const handleTouchEnd = useCallback(() => {
+    const { startedFromEdge, isExempt: gestureExempt } = swipeState.current;
+
     if (!enabled || !touchStart.current || !touchEnd.current) {
       touchStart.current = null;
       touchEnd.current = null;
-      swipeState.current = { startedFromEdge: null, isSwiping: false };
+      swipeState.current = { startedFromEdge: null, isSwiping: false, isExempt: false };
+      return;
+    }
+
+    // Bail if the gesture started on exempt content, or (when configured) within
+    // the edge back-gesture zone — no directional callbacks fire.
+    if (gestureExempt || (ignoreEdgeSwipes && startedFromEdge)) {
+      touchStart.current = null;
+      touchEnd.current = null;
+      swipeState.current = { startedFromEdge: null, isSwiping: false, isExempt: false };
       return;
     }
 
@@ -142,28 +174,28 @@ export const useSwipeGesture = (options: SwipeGestureOptions = {}) => {
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
 
-    // Calculate velocity (px/ms)
-    const velocity = absX / (deltaTime || 1);
-
-    // Determine swipe direction
+    // Determine swipe direction. One axis must clearly dominate the other
+    // (`directionRatio`) so vertical scrolling never registers as horizontal.
     let direction: SwipeDirection | null = null;
 
-    // Only register swipe if:
-    // 1. Distance exceeds threshold, OR
-    // 2. Velocity exceeds threshold (fast swipe even if short)
-    const meetsDistanceThreshold = (absX > absY && absX > threshold) ||
-                                   (absY > absX && absY > threshold);
-    const meetsVelocityThreshold = velocity > velocityThreshold;
+    const isHorizontalIntent = absX > absY * directionRatio;
+    const isVerticalIntent = absY > absX * directionRatio;
 
-    if (meetsDistanceThreshold || meetsVelocityThreshold) {
-      if (absX > absY) {
-        // Horizontal swipe
+    // Register a swipe when the dominant-axis distance exceeds the threshold, OR
+    // the dominant-axis velocity exceeds its threshold (fast flick, even if short).
+    if (isHorizontalIntent) {
+      const axisVelocity = absX / (deltaTime || 1);
+      if (absX > threshold || axisVelocity > velocityThreshold) {
         direction = deltaX > 0 ? 'right' : 'left';
-      } else {
-        // Vertical swipe
+      }
+    } else if (isVerticalIntent) {
+      const axisVelocity = absY / (deltaTime || 1);
+      if (absY > threshold || axisVelocity > velocityThreshold) {
         direction = deltaY > 0 ? 'down' : 'up';
       }
     }
+
+    const velocity = (absX > absY ? absX : absY) / (deltaTime || 1);
 
     if (direction) {
       onSwipe?.(direction, velocity);
@@ -187,8 +219,8 @@ export const useSwipeGesture = (options: SwipeGestureOptions = {}) => {
     // Reset state
     touchStart.current = null;
     touchEnd.current = null;
-    swipeState.current = { startedFromEdge: null, isSwiping: false };
-  }, [enabled, threshold, velocityThreshold, onSwipe, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown]);
+    swipeState.current = { startedFromEdge: null, isSwiping: false, isExempt: false };
+  }, [enabled, threshold, velocityThreshold, directionRatio, ignoreEdgeSwipes, onSwipe, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown]);
 
   // Getter for current swipe state
   const getSwipeState = useCallback(() => ({
@@ -348,56 +380,110 @@ export const useLongPress = (
 };
 
 /**
- * Hook for pull-to-refresh gesture
+ * Hook for pull-to-refresh gesture.
+ *
+ * Triggers `onRefresh` when the user drags down past `threshold` while scrolled
+ * to the top. Exposes reactive `isRefreshing` / `pullDistance` state so a small
+ * indicator can be rendered. Pass `scrollElementRef` when the scrollable region
+ * is an inner element rather than the document (the common case for app panels)
+ * — otherwise the top check reads the document scroll position.
  */
 export const usePullToRefresh = (
   onRefresh: () => Promise<void>,
-  options: { threshold?: number; enabled?: boolean } = {}
+  options: {
+    threshold?: number;
+    enabled?: boolean;
+    scrollElementRef?: React.RefObject<HTMLElement | null>;
+    /**
+     * Whether to publish `pullDistance`/`pullProgress` as React state.
+     * Defaults to true; pass false when the consumer only reads
+     * `isRefreshing` — otherwise every touchmove re-renders it.
+     */
+    trackPullDistance?: boolean;
+  } = {}
 ) => {
-  const { threshold = 80, enabled = true } = options;
+  const {
+    threshold = 80,
+    enabled = true,
+    scrollElementRef,
+    trackPullDistance = true,
+  } = options;
 
-  const touchStart = useRef<number>(0);
-  const pullDistance = useRef<number>(0);
-  const isRefreshing = useRef<boolean>(false);
+  // null = no active pull. (Storing 0 would be ambiguous with a pull that
+  // starts at clientY === 0.)
+  const touchStart = useRef<number | null>(null);
+  const pullDistanceRef = useRef<number>(0);
+  const isRefreshingRef = useRef<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+
+  const getScrollTop = useCallback((): number => {
+    if (scrollElementRef?.current) return scrollElementRef.current.scrollTop;
+    return document.documentElement.scrollTop || document.body.scrollTop;
+  }, [scrollElementRef]);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (!enabled || isRefreshing.current) return;
+    // Always start clean — a previous gesture may have left pull distance
+    // behind (e.g. it ended outside the element and touchend never fired).
+    pullDistanceRef.current = 0;
+    if (trackPullDistance) setPullDistance(0);
 
-    // Only enable pull-to-refresh when scrolled to top
-    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
-    if (scrollTop > 0) return;
+    if (!enabled || isRefreshingRef.current) {
+      touchStart.current = null;
+      return;
+    }
+
+    // Only begin a pull when scrolled to the very top of the scroll region.
+    if (getScrollTop() > 0) {
+      touchStart.current = null;
+      return;
+    }
 
     touchStart.current = e.touches[0].clientY;
-  }, [enabled]);
+  }, [enabled, getScrollTop, trackPullDistance]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!enabled || isRefreshing.current || touchStart.current === 0) return;
+    if (!enabled || isRefreshingRef.current || touchStart.current === null) return;
 
     const touchY = e.touches[0].clientY;
-    pullDistance.current = Math.max(0, touchY - touchStart.current);
-  }, [enabled]);
+    const distance = Math.max(0, touchY - touchStart.current);
+    pullDistanceRef.current = distance;
+    if (trackPullDistance) setPullDistance(distance);
+  }, [enabled, trackPullDistance]);
 
   const handleTouchEnd = useCallback(async () => {
-    if (!enabled || isRefreshing.current) return;
+    // No active pull (rejected at touchstart or already consumed) — nothing
+    // to evaluate, but make sure no stale distance lingers.
+    const hadActivePull = touchStart.current !== null;
+    touchStart.current = null;
 
-    if (pullDistance.current >= threshold) {
-      isRefreshing.current = true;
+    const shouldRefresh =
+      hadActivePull &&
+      enabled &&
+      !isRefreshingRef.current &&
+      pullDistanceRef.current >= threshold;
+
+    pullDistanceRef.current = 0;
+    if (trackPullDistance) setPullDistance(0);
+
+    if (shouldRefresh) {
+      isRefreshingRef.current = true;
+      setIsRefreshing(true);
       try {
         await onRefresh();
       } finally {
-        isRefreshing.current = false;
+        isRefreshingRef.current = false;
+        setIsRefreshing(false);
       }
     }
-
-    touchStart.current = 0;
-    pullDistance.current = 0;
-  }, [enabled, threshold, onRefresh]);
+  }, [enabled, threshold, onRefresh, trackPullDistance]);
 
   return {
     onTouchStart: handleTouchStart,
     onTouchMove: handleTouchMove,
     onTouchEnd: handleTouchEnd,
-    getPullDistance: () => pullDistance.current,
-    isRefreshing: () => isRefreshing.current,
+    isRefreshing,
+    pullDistance,
+    pullProgress: Math.min(pullDistance / threshold, 1),
   };
 };
