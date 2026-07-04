@@ -23,6 +23,7 @@ import { NotificationsGateway } from './notifications.gateway';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 import { PresenceService } from '@/presence/presence.service';
 import { flattenSpansToDisplayText } from '@/common/utils/text.utils';
+import { isDndActive } from './dnd.util';
 
 @Injectable()
 export class NotificationsService {
@@ -339,9 +340,9 @@ export class NotificationsService {
     // Get user notification settings (creates default if missing)
     const settings = await this.getUserSettings(userId);
 
-    // TODO: DND should suppress push notifications and desktop side effects,
-    // not notification record creation. Move DND check to sendPushNotification()
-    // and implement client-side DND in useNotificationSideEffects.
+    // DND deliberately does NOT gate notification creation — it suppresses
+    // delivery side effects only: push in sendPushNotification() (server)
+    // and sounds/desktop notifications in useNotificationSideEffects (client).
 
     // Check DM notifications — applies to both DIRECT_MESSAGE and THREAD_REPLY in DM context
     if (directMessageGroupId && !settings.dmNotifications) {
@@ -451,6 +452,15 @@ export class NotificationsService {
       if (isActive) {
         this.logger.debug(
           `Suppressing push notification for active user ${userId}`,
+        );
+        return;
+      }
+
+      // Respect Do-Not-Disturb (manual toggle or scheduled window)
+      const settings = await this.getUserSettings(userId);
+      if (isDndActive(settings)) {
+        this.logger.debug(
+          `Suppressing push notification for user ${userId} (DND active)`,
         );
         return;
       }

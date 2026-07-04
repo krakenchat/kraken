@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import * as webpush from 'web-push';
 import { DatabaseService } from '@/database/database.service';
 import { SubscribePushDto } from './dto/subscribe.dto';
@@ -285,8 +286,10 @@ export class PushNotificationsService implements OnModuleInit {
   }
 
   /**
-   * Clean up expired subscriptions (can be called by a cron job)
+   * Clean up expired subscriptions. Runs daily; duplicate runs across
+   * replicas are harmless (idempotent deleteMany).
    */
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async cleanupExpiredSubscriptions(): Promise<number> {
     // Remove subscriptions older than 30 days that haven't been updated
     const thirtyDaysAgo = new Date();

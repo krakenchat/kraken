@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Outlet, useNavigate } from "react-router-dom";
@@ -32,6 +32,7 @@ import { IncomingCallProvider } from "./contexts/IncomingCallContext";
 import { IncomingCallListener } from "./components/DirectMessage/IncomingCallListener";
 import { IncomingCallBanner } from "./components/DirectMessage/IncomingCallBanner";
 import { useThemeSync } from "./hooks/useThemeSync";
+import { useAppBadge } from "./hooks/useAppBadge";
 import { disconnectSocket } from "./utils/socketSingleton";
 import { clearSavedConnection } from "./features/voice/voiceActions";
 import { clearTokens, getElectronRefreshToken } from "./utils/tokenService";
@@ -97,10 +98,8 @@ const Layout: React.FC = () => {
   // Attempt to recover voice connection after page refresh
   useVoiceRecovery();
 
-  // Update document title with instance name
-  useEffect(() => {
-    document.title = instanceName;
-  }, [instanceName]);
+  // Document title (with "(N)" unread prefix) + PWA icon badge
+  useAppBadge(instanceName);
 
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(

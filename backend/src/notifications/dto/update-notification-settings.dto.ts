@@ -40,6 +40,13 @@ export class UpdateNotificationSettingsDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)*$/, {
+    message: 'dndTimezone must be an IANA timezone name (e.g. Europe/Berlin)',
+  })
+  dndTimezone?: string;
+
+  @IsOptional()
+  @IsString()
   @IsIn(['all', 'mentions', 'none'])
   defaultChannelLevel?: string;
 

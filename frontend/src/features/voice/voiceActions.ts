@@ -9,6 +9,7 @@ import { logger } from "../../utils/logger";
 import { isElectron } from "../../utils/platform";
 import { getCachedItem, setCachedItem, removeCachedItem } from "../../utils/storage";
 import { refreshToken as refreshAuthToken } from "../../utils/tokenService";
+import { installLivekitWorkerTimers } from "../../utils/livekitWorkerTimers";
 import { playSound, Sounds } from "../../hooks/useSound";
 
 // Storage key must match useDeviceSettings.ts
@@ -175,6 +176,9 @@ async function connectToLiveKitRoom(
   dispatch: React.Dispatch<VoiceAction>
 ): Promise<Room> {
   logger.info('[Voice] Creating new LiveKit room instance');
+  // Route livekit's connection-critical timers through a Web Worker so
+  // background-tab timer throttling can't starve ping/pong on mobile (#350).
+  installLivekitWorkerTimers();
   const room = new Room();
 
   // Register connection state monitoring before connecting so we catch

@@ -48,6 +48,8 @@ import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeaking } from "../../hooks/useSpeaking";
 import { useVoicePresenceHeartbeat } from "../../hooks/useVoicePresenceHeartbeat";
 import { useBackgroundVoiceKeepAlive } from "../../hooks/useBackgroundVoiceKeepAlive";
+import { useVoiceMediaSession } from "../../hooks/useVoiceMediaSession";
+import { useVoiceForegroundResync } from "../../hooks/useVoiceForegroundResync";
 import { useServerMuteEffect } from "../../hooks/useServerMuteEffect";
 import { useRemoteVolumeEffect } from "../../hooks/useRemoteVolumeEffect";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
@@ -75,6 +77,26 @@ export const VoiceBottomBar: React.FC = () => {
 
   // Prevent tab freeze / OS suspension while in voice
   useBackgroundVoiceKeepAlive({ isConnected: state.isConnected });
+
+  // Surface the call via the Media Session API (Android ongoing-call
+  // notification + higher background process priority, see #350)
+  useVoiceMediaSession({
+    isConnected: state.isConnected,
+    contextName: state.channelName ?? state.dmGroupName,
+    isMicrophoneEnabled,
+    onHangup: actions.leaveVoiceChannel,
+    onToggleMic: actions.toggleMute,
+  });
+
+  // Recover calls that silently died while backgrounded/locked (#350)
+  useVoiceForegroundResync({
+    room: state.room,
+    state,
+    actions: {
+      joinVoiceChannel: actions.joinVoiceChannel,
+      joinDmVoice: actions.joinDmVoice,
+    },
+  });
 
   // Keep voice presence TTL alive in Redis while connected
   useVoicePresenceHeartbeat({

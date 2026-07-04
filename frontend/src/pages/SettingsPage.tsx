@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import NotificationSettings from '../components/Settings/NotificationSettings';
+import InstallAppSettings from '../components/Settings/InstallAppSettings';
 import VoiceSettings from '../components/Settings/VoiceSettings';
 import SessionsSettings from '../components/Settings/SessionsSettings';
 import {
@@ -303,6 +304,9 @@ const SettingsPage: React.FC = () => {
       <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Settings /> Settings
       </Typography>
+
+      {/* Install App Section (web, only when installable) */}
+      <InstallAppSettings />
 
       {/* Notification Settings Section */}
       <Box sx={{ mb: 3 }}>
