@@ -6,9 +6,8 @@
  */
 
 import React, { useState } from "react";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import {
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -90,8 +89,7 @@ const TimeoutDialog: React.FC<TimeoutDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Timeout {userName}</DialogTitle>
+    <ResponsiveDialog open={open} onClose={handleClose} maxWidth="sm" fullWidth title={`Timeout ${userName}`}>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
           {error && (
@@ -149,7 +147,7 @@ const TimeoutDialog: React.FC<TimeoutDialogProps> = ({
           {isLoading ? "Timing out..." : "Timeout User"}
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 

@@ -8,14 +8,13 @@
 import React, { useState } from "react";
 import {
   Box,
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   TextField,
   CircularProgress,
 } from "@mui/material";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { directMessagesControllerCreateDmGroupMutation } from "../../api-client/@tanstack/react-query.gen";
 import { invalidateDmGroupQueries } from "../../utils/queryInvalidation";
@@ -70,8 +69,7 @@ const CreateDmDialog: React.FC<CreateDmDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Start a Direct Message</DialogTitle>
+    <ResponsiveDialog open={open} onClose={handleClose} maxWidth="sm" fullWidth title="Start a Direct Message">
       <DialogContent>
         <Box sx={{ mb: 2 }}>
           <UserSearchAutocomplete
@@ -103,7 +101,7 @@ const CreateDmDialog: React.FC<CreateDmDialogProps> = ({
           {isCreating ? <CircularProgress size={20} /> : "Create"}
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 

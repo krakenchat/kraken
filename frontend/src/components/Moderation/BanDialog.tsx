@@ -6,9 +6,8 @@
  */
 
 import React, { useState } from "react";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import {
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -96,8 +95,7 @@ const BanDialog: React.FC<BanDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Ban {userName}</DialogTitle>
+    <ResponsiveDialog open={open} onClose={handleClose} maxWidth="sm" fullWidth title={`Ban ${userName}`}>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
           {error && (
@@ -178,7 +176,7 @@ const BanDialog: React.FC<BanDialogProps> = ({
           {isLoading ? "Banning..." : "Ban User"}
         </Button>
       </DialogActions>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 

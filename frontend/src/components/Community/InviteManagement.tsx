@@ -11,14 +11,13 @@ import {
   Divider,
   IconButton,
   alpha,
-  Dialog,
-  DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
   TextField,
   Tooltip,
 } from "@mui/material";
+import ResponsiveDialog from "../Common/ResponsiveDialog";
 import { useTheme } from "@mui/material/styles";
 import { 
   Delete as DeleteIcon, 
@@ -308,13 +307,13 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
       </Card>
 
       {/* Create Invite Dialog */}
-      <Dialog
+      <ResponsiveDialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
         maxWidth="sm"
         fullWidth
+        title="Create Community Invite"
       >
-        <DialogTitle>Create Community Invite</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 3 }}>
             Create a new invite link for users to join this community.
@@ -354,7 +353,7 @@ const InviteManagement: React.FC<InviteManagementProps> = ({ communityId }) => {
             {creatingInvite ? <CircularProgress size={20} /> : "Create Invite"}
           </Button>
         </DialogActions>
-      </Dialog>
+      </ResponsiveDialog>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

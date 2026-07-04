@@ -88,7 +88,7 @@ function App() {
       <AutoUpdater />
       <PWAInstallPrompt />
       <Suspense fallback={
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100dvh' }}>
           <CircularProgress />
         </Box>
       }>
