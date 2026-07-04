@@ -34,7 +34,13 @@ const EXEMPT_SELECTOR = [
 const MAX_ANCESTOR_DEPTH = 8;
 
 const hasHorizontalOverflowStyle = (el: Element): boolean => {
-  // Cheap inline-style check first (works in jsdom and avoids layout).
+  // Only exempt when the element can actually scroll horizontally — an
+  // overflow-x style on a container that fits its content shouldn't block
+  // navigation swipes.
+  const htmlEl = el as HTMLElement;
+  if (htmlEl.scrollWidth <= htmlEl.clientWidth) return false;
+
+  // Cheap inline-style check first (avoids computed-style layout work).
   const inline = el.getAttribute('style');
   if (inline && /overflow-x\s*:\s*(auto|scroll)/i.test(inline)) {
     return true;
@@ -42,17 +48,12 @@ const hasHorizontalOverflowStyle = (el: Element): boolean => {
 
   // Computed-style check, guarded for environments without getComputedStyle.
   if (typeof window === 'undefined' || !window.getComputedStyle) return false;
-  let overflowX = '';
   try {
-    overflowX = window.getComputedStyle(el).overflowX;
+    const overflowX = window.getComputedStyle(el).overflowX;
+    return overflowX === 'auto' || overflowX === 'scroll';
   } catch {
     return false;
   }
-  if (overflowX !== 'auto' && overflowX !== 'scroll') return false;
-
-  // Only exempt when the element can actually scroll horizontally.
-  const htmlEl = el as HTMLElement;
-  return htmlEl.scrollWidth > htmlEl.clientWidth;
 };
 
 /**

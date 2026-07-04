@@ -412,7 +412,15 @@ export const usePullToRefresh = (
   }, [scrollElementRef]);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (!enabled || isRefreshingRef.current) return;
+    // Always start clean — a previous gesture may have left pull distance
+    // behind (e.g. it ended outside the element and touchend never fired).
+    pullDistanceRef.current = 0;
+    setPullDistance(0);
+
+    if (!enabled || isRefreshingRef.current) {
+      touchStart.current = null;
+      return;
+    }
 
     // Only begin a pull when scrolled to the very top of the scroll region.
     if (getScrollTop() > 0) {
@@ -433,14 +441,17 @@ export const usePullToRefresh = (
   }, [enabled]);
 
   const handleTouchEnd = useCallback(async () => {
-    if (!enabled || isRefreshingRef.current) {
-      touchStart.current = null;
-      return;
-    }
-
-    const shouldRefresh = pullDistanceRef.current >= threshold;
-
+    // No active pull (rejected at touchstart or already consumed) — nothing
+    // to evaluate, but make sure no stale distance lingers.
+    const hadActivePull = touchStart.current !== null;
     touchStart.current = null;
+
+    const shouldRefresh =
+      hadActivePull &&
+      enabled &&
+      !isRefreshingRef.current &&
+      pullDistanceRef.current >= threshold;
+
     pullDistanceRef.current = 0;
     setPullDistance(0);
 
