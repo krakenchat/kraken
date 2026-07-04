@@ -52,6 +52,13 @@ vi.mock('livekit-client', () => {
     DisconnectReason: {},
     VideoCaptureOptions: {},
     AudioCaptureOptions: {},
+    // Referenced by utils/livekitWorkerTimers.ts (imported via voiceActions)
+    CriticalTimers: {
+      setTimeout: vi.fn(),
+      setInterval: vi.fn(),
+      clearTimeout: vi.fn(),
+      clearInterval: vi.fn(),
+    },
   };
 });
 
