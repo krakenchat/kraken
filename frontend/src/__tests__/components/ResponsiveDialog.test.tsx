@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { DialogContent, DialogActions, Button } from '@mui/material';
@@ -13,9 +14,16 @@ vi.mock('../../hooks/useResponsive', () => ({
   useMobileBreakpoint: mockUseMobileBreakpoint,
 }));
 
-const renderDialog = (onClose = vi.fn()) =>
+const renderDialog = (onClose = vi.fn(), titleActions?: ReactNode) =>
   renderWithProviders(
-    <ResponsiveDialog open onClose={onClose} title="My Dialog Title" maxWidth="md" fullWidth>
+    <ResponsiveDialog
+      open
+      onClose={onClose}
+      title="My Dialog Title"
+      titleActions={titleActions}
+      maxWidth="md"
+      fullWidth
+    >
       <DialogContent>
         <div>Dialog body content</div>
       </DialogContent>
@@ -54,6 +62,14 @@ describe('ResponsiveDialog', () => {
     // MUI applies the fullScreen paper class to the dialog paper when active
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveClass('MuiDialog-paperFullScreen');
+  });
+
+  it('renders titleActions content in the DialogTitle on desktop', () => {
+    mockUseMobileBreakpoint.mockReturnValue(false);
+    renderDialog(vi.fn(), <button aria-label="pin">Pin</button>);
+
+    expect(screen.getByText('My Dialog Title')).toBeInTheDocument();
+    expect(screen.getByLabelText('pin')).toBeInTheDocument();
   });
 
   it('fires onClose when the mobile close button is clicked', async () => {

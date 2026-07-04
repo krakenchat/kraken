@@ -28,7 +28,7 @@ const FormContainer = styled(Box)({
   alignItems: "center",
   justifyContent: "center",
   padding: "16px",
-  minHeight: "100dvh",
+  minHeight: "var(--full-dvh)",
 });
 
 const FormBox = styled(Box)({

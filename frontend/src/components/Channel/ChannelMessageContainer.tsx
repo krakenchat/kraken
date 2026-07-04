@@ -258,7 +258,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
         PaperProps={{
           sx: {
             width: 'min(400px, 100vw)',
-            height: '100dvh',
+            height: 'var(--full-dvh)',
             overflow: 'hidden',
             paddingBottom: voiceConnected ? `${VOICE_BAR_HEIGHT}px` : 0,
           },

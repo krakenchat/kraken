@@ -43,7 +43,7 @@ const TabletLayoutInner: React.FC = () => {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100dvh',
+        height: 'var(--full-dvh)',
         width: '100vw',
         overflow: 'hidden',
         position: 'fixed',

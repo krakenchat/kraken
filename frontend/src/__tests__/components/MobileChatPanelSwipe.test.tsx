@@ -12,9 +12,16 @@ vi.mock('../../components/Mobile/Navigation/MobileNavigationContext', () => ({
   useMobileNavigation: () => ({ goBack }),
 }));
 
-// Force touch UI on so the swipe handlers are wired.
+// Force touch UI on so the swipe handlers are wired. Mocked as a vi.fn so
+// individual tests can override the returned device type (phone vs tablet).
+// Note: vi.clearAllMocks() does NOT reset a mockReturnValue, so the phone
+// default is re-asserted explicitly in beforeEach.
+const { mockUseResponsive } = vi.hoisted(() => ({
+  mockUseResponsive: vi.fn(() => ({ shouldUseTouchUI: true, isMobile: true })),
+}));
+
 vi.mock('../../hooks/useResponsive', () => ({
-  useResponsive: () => ({ shouldUseTouchUI: true, isMobile: true }),
+  useResponsive: mockUseResponsive,
 }));
 
 // Capture the options passed to useSwipeGesture so we can drive the callbacks
@@ -84,6 +91,7 @@ describe('MobileChatPanel swipe navigation wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     captured.opts = null;
+    mockUseResponsive.mockReturnValue({ shouldUseTouchUI: true, isMobile: true });
   });
 
   it('configures the swipe hook with edge/exempt/direction guards', () => {
@@ -97,12 +105,22 @@ describe('MobileChatPanel swipe navigation wiring', () => {
     expect(captured.opts?.isExempt).toBe(isSwipeExemptTarget);
   });
 
-  it('swipe right invokes goBack', () => {
+  it('swipe right invokes goBack on phone', () => {
+    mockUseResponsive.mockReturnValue({ shouldUseTouchUI: true, isMobile: true });
     renderWithProviders(<MobileChatPanel communityId="c1" channelId="ch1" />);
 
     act(() => captured.opts?.onSwipeRight?.(1));
 
     expect(goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('swipe right does not invoke goBack on tablet (split-view already shows the list)', () => {
+    mockUseResponsive.mockReturnValue({ shouldUseTouchUI: true, isMobile: false });
+    renderWithProviders(<MobileChatPanel communityId="c1" channelId="ch1" />);
+
+    act(() => captured.opts?.onSwipeRight?.(1));
+
+    expect(goBack).not.toHaveBeenCalled();
   });
 
   it('swipe left opens the members drawer for a channel', () => {
@@ -118,6 +136,20 @@ describe('MobileChatPanel swipe navigation wiring', () => {
 
     expect(membersDrawerOpen()).toBe(true);
     expect(goBack).not.toHaveBeenCalled();
+  });
+
+  it('swipe left still opens the members drawer on tablet', () => {
+    mockUseResponsive.mockReturnValue({ shouldUseTouchUI: true, isMobile: false });
+    const { rerender } = renderWithProviders(
+      <MobileChatPanel communityId="c1" channelId="ch1" />,
+    );
+
+    expect(membersDrawerOpen()).toBe(false);
+
+    act(() => captured.opts?.onSwipeLeft?.(1));
+    rerender(<MobileChatPanel communityId="c1" channelId="ch1" />);
+
+    expect(membersDrawerOpen()).toBe(true);
   });
 
   it('swipe left does not open a members drawer in a DM (no channel)', () => {

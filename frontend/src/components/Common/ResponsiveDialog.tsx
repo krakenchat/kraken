@@ -7,6 +7,7 @@ import {
   Typography,
   IconButton,
   Slide,
+  Box,
 } from '@mui/material';
 import type { DialogProps } from '@mui/material';
 import type { TransitionProps } from '@mui/material/transitions';
@@ -27,8 +28,9 @@ export interface ResponsiveDialogProps extends Omit<DialogProps, 'title'> {
   /** Dialog heading. Rendered in a DialogTitle on desktop and in an app-bar on mobile. */
   title?: React.ReactNode;
   /**
-   * Optional element rendered on the right side of the mobile title bar,
-   * before the close button (e.g. an extra action icon).
+   * Optional element rendered alongside the title (e.g. an extra action
+   * icon): on the right side of the `DialogTitle` on desktop, and before the
+   * close button in the mobile app-bar title bar.
    */
   titleActions?: React.ReactNode;
   /**
@@ -117,7 +119,12 @@ export const ResponsiveDialog: React.FC<ResponsiveDialogProps> = ({
           </Toolbar>
         </AppBar>
       ) : (
-        title != null && <DialogTitle>{title}</DialogTitle>
+        (title != null || titleActions != null) && (
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>{title}</Box>
+            {titleActions}
+          </DialogTitle>
+        )
       )}
       {children}
     </Dialog>

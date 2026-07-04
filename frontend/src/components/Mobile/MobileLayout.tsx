@@ -46,7 +46,7 @@ export const MobileLayout: React.FC = () => {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          height: '100dvh', // Use dynamic viewport height for mobile
+          height: 'var(--full-dvh)', // Use dynamic viewport height for mobile
           width: '100vw',
           overflow: 'hidden',
           position: 'fixed',

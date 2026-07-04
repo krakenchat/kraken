@@ -99,6 +99,8 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
         pl: 4,
         minHeight: 40,
         cursor: "pointer",
+        WebkitTouchCallout: "none",
+        userSelect: "none",
         "&:hover": {
           backgroundColor: theme.palette.semantic.overlay.light,
         },

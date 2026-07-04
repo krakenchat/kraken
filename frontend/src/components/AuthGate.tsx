@@ -130,7 +130,7 @@ export function AuthGate() {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          minHeight: "100dvh",
+          minHeight: "var(--full-dvh)",
           gap: 2,
         }}
       >
