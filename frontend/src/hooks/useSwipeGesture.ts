@@ -394,9 +394,20 @@ export const usePullToRefresh = (
     threshold?: number;
     enabled?: boolean;
     scrollElementRef?: React.RefObject<HTMLElement | null>;
+    /**
+     * Whether to publish `pullDistance`/`pullProgress` as React state.
+     * Defaults to true; pass false when the consumer only reads
+     * `isRefreshing` — otherwise every touchmove re-renders it.
+     */
+    trackPullDistance?: boolean;
   } = {}
 ) => {
-  const { threshold = 80, enabled = true, scrollElementRef } = options;
+  const {
+    threshold = 80,
+    enabled = true,
+    scrollElementRef,
+    trackPullDistance = true,
+  } = options;
 
   // null = no active pull. (Storing 0 would be ambiguous with a pull that
   // starts at clientY === 0.)
@@ -415,7 +426,7 @@ export const usePullToRefresh = (
     // Always start clean — a previous gesture may have left pull distance
     // behind (e.g. it ended outside the element and touchend never fired).
     pullDistanceRef.current = 0;
-    setPullDistance(0);
+    if (trackPullDistance) setPullDistance(0);
 
     if (!enabled || isRefreshingRef.current) {
       touchStart.current = null;
@@ -429,7 +440,7 @@ export const usePullToRefresh = (
     }
 
     touchStart.current = e.touches[0].clientY;
-  }, [enabled, getScrollTop]);
+  }, [enabled, getScrollTop, trackPullDistance]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!enabled || isRefreshingRef.current || touchStart.current === null) return;
@@ -437,8 +448,8 @@ export const usePullToRefresh = (
     const touchY = e.touches[0].clientY;
     const distance = Math.max(0, touchY - touchStart.current);
     pullDistanceRef.current = distance;
-    setPullDistance(distance);
-  }, [enabled]);
+    if (trackPullDistance) setPullDistance(distance);
+  }, [enabled, trackPullDistance]);
 
   const handleTouchEnd = useCallback(async () => {
     // No active pull (rejected at touchstart or already consumed) — nothing
@@ -453,7 +464,7 @@ export const usePullToRefresh = (
       pullDistanceRef.current >= threshold;
 
     pullDistanceRef.current = 0;
-    setPullDistance(0);
+    if (trackPullDistance) setPullDistance(0);
 
     if (shouldRefresh) {
       isRefreshingRef.current = true;
@@ -465,7 +476,7 @@ export const usePullToRefresh = (
         setIsRefreshing(false);
       }
     }
-  }, [enabled, threshold, onRefresh]);
+  }, [enabled, threshold, onRefresh, trackPullDistance]);
 
   return {
     onTouchStart: handleTouchStart,

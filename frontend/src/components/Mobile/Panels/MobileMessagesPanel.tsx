@@ -56,7 +56,9 @@ export const MobileMessagesPanel: React.FC = () => {
         queryKey: directMessagesControllerFindUserDmGroupsOptions().queryKey,
       });
     },
-    { enabled: shouldUseTouchUI, scrollElementRef: listScrollRef },
+    // trackPullDistance off: only isRefreshing is consumed here, and distance
+    // updates would re-render the whole DM list on every touchmove.
+    { enabled: shouldUseTouchUI, scrollElementRef: listScrollRef, trackPullDistance: false },
   );
   const pullHandlers = shouldUseTouchUI
     ? { onTouchStart, onTouchMove, onTouchEnd }
