@@ -1,16 +1,14 @@
 import React, { useMemo } from "react";
-import MessageComponent from "./MessageComponent";
 import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
-import { UnreadMessageDivider } from "./UnreadMessageDivider";
+import MessageList from "./MessageList";
 import type { Message } from "../../types/message.type";
 import { useMessageVisibility } from "../../hooks/useMessageVisibility";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useBidirectionalScroll } from "../../hooks/useBidirectionalScroll";
 import { useAnchoredModeTransition } from "../../hooks/useAnchoredModeTransition";
-import { VoiceSessionType } from "../../contexts/VoiceContext";
 import TypingIndicator from "./TypingIndicator";
 import { shouldVirtualizeMessages } from "./virtualization";
 
@@ -232,96 +230,26 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         }}
       >
         {messages.length > 0 ? (
-          <Box
-            ref={scrollContainerRef}
-            data-testid="scroll-container"
-            data-virtualized={isVirtualized}
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              display: "flex",
-              flexDirection: "column",
-              // useBidirectionalScroll is the single owner of scroll
-              // stabilization. Chrome suppresses native anchoring at
-              // scrollTop===0 — exactly when older pages load — so it can't be
-              // relied on and must not double-compensate with our manual logic.
-              overflowAnchor: "none",
-            }}
-          >
-            {/* Top sentinel: first in DOM = visual top. marginTop: 'auto'
-                bottom-packs sparse channels (content shorter than the
-                viewport sits at the visual bottom, like column-reverse did);
-                once content overflows, the auto margin resolves to 0.
-                Do NOT swap this for justifyContent: flex-end — that breaks
-                scrolling in some engines. */}
-            <Box ref={topSentinelRef} sx={{ height: '1px', flexShrink: 0, marginTop: 'auto' }} />
-
-            {/* Loading skeleton at visual top for older messages */}
-            {isLoadingMore && (
-              <Box sx={{ p: 2, textAlign: "center" }}>
-                <MessageSkeleton />
-                <MessageSkeleton />
-                <MessageSkeleton />
-              </Box>
-            )}
-
-            {/* Messages oldest-first: DOM order = chronological order, so
-                native text selection across messages highlights correctly */}
-            {orderedMessages.map((message, index) => {
-              const isHighlighted = highlightMessageId === message.id;
-              // Show divider right after the last-read message, i.e. before
-              // the first unread message.
-              const showDividerBefore =
-                unreadCount > 0 && lastReadIndex !== -1 && index === lastReadIndex + 1;
-
-              // Composite key: when highlighted, include highlightSeq so React remounts
-              // the element and restarts the CSS flash animation on re-clicks.
-              const key = isHighlighted ? `${message.id}-hl-${highlightSeq}` : message.id;
-
-              return (
-                <React.Fragment key={key}>
-                  {showDividerBefore && (
-                    <UnreadMessageDivider unreadCount={unreadCount} />
-                  )}
-                  <div>
-                    <div
-                      data-message-id={message.id}
-                      ref={(el) => {
-                        if (el) messageRefs.current.set(message.id, el);
-                        else messageRefs.current.delete(message.id);
-                      }}
-                    >
-                      <MessageComponent
-                        message={message}
-                        isAuthor={message.authorId === authorId}
-                        isSearchHighlight={isHighlighted}
-                        contextId={contextId}
-                        communityId={communityId}
-                        onOpenThread={onOpenThread}
-                        onQuoteReply={onQuoteReply}
-                        contextType={directMessageGroupId ? VoiceSessionType.Dm : VoiceSessionType.Channel}
-                      />
-                    </div>
-                  </div>
-                </React.Fragment>
-              );
-            })}
-
-            <Box sx={{ px: 2, minHeight: 20 }} />
-
-            {/* Loading skeleton at visual bottom for newer messages (anchored mode) */}
-            {isLoadingNewer && (
-              <Box sx={{ p: 2, textAlign: "center" }}>
-                <MessageSkeleton />
-                <MessageSkeleton />
-                <MessageSkeleton />
-              </Box>
-            )}
-
-            {/* Bottom sentinel: last in DOM = visual bottom */}
-            <Box ref={bottomSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
-          </Box>
+          <MessageList
+            orderedMessages={orderedMessages}
+            authorId={authorId}
+            scrollContainerRef={scrollContainerRef}
+            topSentinelRef={topSentinelRef}
+            bottomSentinelRef={bottomSentinelRef}
+            messageRefs={messageRefs}
+            isLoadingMore={isLoadingMore}
+            isLoadingNewer={isLoadingNewer}
+            unreadCount={unreadCount}
+            lastReadIndex={lastReadIndex}
+            highlightMessageId={highlightMessageId}
+            highlightSeq={highlightSeq}
+            contextId={contextId}
+            communityId={communityId}
+            directMessageGroupId={directMessageGroupId}
+            onOpenThread={onOpenThread}
+            onQuoteReply={onQuoteReply}
+            isVirtualized={isVirtualized}
+          />
         ) : (
           <Box
             sx={{
