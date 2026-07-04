@@ -7,6 +7,7 @@
 
 import { useRef, useEffect, TouchEvent, useCallback } from 'react';
 import { MOBILE_CONSTANTS } from '../utils/breakpoints';
+import { useHapticFeedback } from './useHapticFeedback';
 
 export type SwipeDirection = 'left' | 'right' | 'up' | 'down';
 
@@ -204,45 +205,122 @@ export const useSwipeGesture = (options: SwipeGestureOptions = {}) => {
   };
 };
 
+export interface LongPressPoint {
+  x: number;
+  y: number;
+}
+
+const INTERACTIVE_TARGET_SELECTOR = 'a, button, input, textarea, select, [role="button"]';
+
 /**
- * Hook for handling long press gestures
+ * Extract the pointer coordinates from a touch or mouse event.
+ */
+const getEventPoint = (e: TouchEvent | React.MouseEvent): LongPressPoint | null => {
+  if ('touches' in e) {
+    const touch = e.touches[0] ?? e.changedTouches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  return { x: e.clientX, y: e.clientY };
+};
+
+/**
+ * Whether the gesture started on a *nested* interactive element (link, button,
+ * input, etc.) — one below the element the long-press is bound to. The bound
+ * element itself is allowed even if it is a button/role=button (e.g. a
+ * ListItemButton row), so long-press still works while nested controls keep
+ * their own behavior.
+ */
+const startedOnInteractiveElement = (
+  target: EventTarget | null,
+  currentTarget: EventTarget | null,
+): boolean => {
+  if (!(target instanceof Element)) return false;
+  const interactive = target.closest(INTERACTIVE_TARGET_SELECTOR);
+  return !!interactive && interactive !== currentTarget;
+};
+
+/**
+ * Hook for handling long press gestures.
+ *
+ * Fires `onLongPress` (with the originating point) after `delay` ms of a
+ * stationary press. Movement beyond the slop threshold, an early release, or a
+ * press that begins on an interactive element all cancel the gesture. Also
+ * returns an `onContextMenu` handler consumers can attach to suppress the
+ * browser's native context menu / iOS callout right after a long-press fires.
  */
 export const useLongPress = (
-  onLongPress: () => void,
-  options: { delay?: number; enabled?: boolean; onPressStart?: () => void; onPressEnd?: () => void } = {}
+  onLongPress: (point: LongPressPoint | null) => void,
+  options: {
+    delay?: number;
+    enabled?: boolean;
+    slop?: number;
+    onPressStart?: () => void;
+    onPressEnd?: () => void;
+  } = {}
 ) => {
   const {
     delay = MOBILE_CONSTANTS.LONG_PRESS_DURATION,
     enabled = true,
+    slop = MOBILE_CONSTANTS.LONG_PRESS_SLOP,
     onPressStart,
     onPressEnd,
   } = options;
 
+  const haptics = useHapticFeedback();
   const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isLongPressTriggered = useRef(false);
+  const startPoint = useRef<LongPressPoint | null>(null);
 
-  const start = useCallback((_e: TouchEvent | React.MouseEvent) => {
+  const clearTimer = useCallback(() => {
+    if (timeout.current) {
+      clearTimeout(timeout.current);
+      timeout.current = undefined;
+    }
+  }, []);
+
+  const start = useCallback((e: TouchEvent | React.MouseEvent) => {
     if (!enabled) return;
+    if (startedOnInteractiveElement(e.target, e.currentTarget)) return;
 
     isLongPressTriggered.current = false;
+    startPoint.current = getEventPoint(e);
     onPressStart?.();
 
     timeout.current = setTimeout(() => {
       isLongPressTriggered.current = true;
-      onLongPress();
-      // Haptic feedback
-      if ('vibrate' in navigator) {
-        navigator.vibrate(10);
-      }
+      haptics.longPress();
+      onLongPress(startPoint.current);
     }, delay);
-  }, [enabled, delay, onLongPress, onPressStart]);
+  }, [enabled, delay, onLongPress, onPressStart, haptics]);
+
+  const move = useCallback((e: TouchEvent | React.MouseEvent) => {
+    if (!timeout.current || !startPoint.current) return;
+
+    const point = getEventPoint(e);
+    if (!point) return;
+
+    const dx = Math.abs(point.x - startPoint.current.x);
+    const dy = Math.abs(point.y - startPoint.current.y);
+    if (dx > slop || dy > slop) {
+      clearTimer();
+    }
+  }, [slop, clearTimer]);
 
   const cancel = useCallback(() => {
-    if (timeout.current) {
-      clearTimeout(timeout.current);
-    }
+    clearTimer();
+    startPoint.current = null;
     onPressEnd?.();
-  }, [onPressEnd]);
+  }, [clearTimer, onPressEnd]);
+
+  // Suppress the native context menu / iOS callout that fires immediately after
+  // a long-press. Only preventDefault when our long-press just fired so a real
+  // desktop right-click still passes through.
+  const onContextMenu = useCallback((e: React.MouseEvent) => {
+    if (isLongPressTriggered.current) {
+      e.preventDefault();
+      isLongPressTriggered.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -254,10 +332,13 @@ export const useLongPress = (
 
   return {
     onMouseDown: start,
+    onMouseMove: move,
     onMouseUp: cancel,
     onMouseLeave: cancel,
     onTouchStart: start,
+    onTouchMove: move,
     onTouchEnd: cancel,
+    onContextMenu,
     isLongPressTriggered: () => isLongPressTriggered.current,
   };
 };

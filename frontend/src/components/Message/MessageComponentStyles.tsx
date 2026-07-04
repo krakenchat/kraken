@@ -78,4 +78,12 @@ export const Container = styled("div", {
       opacity: 1,
     },
   },
+  // On touch devices there is no real hover; a tap can produce a sticky :hover
+  // state, so keep the hover toolbar hidden (actions come from the long-press
+  // sheet instead).
+  "@media (hover: none)": {
+    "&:hover .message-tools": {
+      opacity: 0,
+    },
+  },
 }));

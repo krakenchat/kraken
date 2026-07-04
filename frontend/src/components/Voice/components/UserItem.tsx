@@ -19,6 +19,8 @@ import { useParticipantTracks } from "../../../hooks/useParticipantTracks";
 import UserAvatar from "../../Common/UserAvatar";
 import { formatDistanceToNow } from "date-fns";
 import { deriveUserState } from "./voiceUserState";
+import { useResponsive } from "../../../hooks/useResponsive";
+import { useLongPress } from "../../../hooks/useSwipeGesture";
 
 interface UserItemProps {
   user: VoicePresenceUserDto;
@@ -39,6 +41,28 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
 }) => {
   const livekitState = useParticipantTracks(user.id);
   const userState = deriveUserState(livekitState, user);
+  const { shouldUseTouchUI } = useResponsive();
+
+  const longPress = useLongPress(
+    (point) => {
+      if (point) {
+        onContextMenu(
+          { preventDefault: () => {}, clientX: point.x, clientY: point.y } as React.MouseEvent<HTMLElement>,
+          user,
+        );
+      }
+    },
+    { enabled: shouldUseTouchUI },
+  );
+
+  const interactionProps = shouldUseTouchUI
+    ? {
+        onTouchStart: longPress.onTouchStart,
+        onTouchMove: longPress.onTouchMove,
+        onTouchEnd: longPress.onTouchEnd,
+        onContextMenu: longPress.onContextMenu,
+      }
+    : { onContextMenu: (e: React.MouseEvent<HTMLElement>) => onContextMenu(e, user) };
 
   const statusIcons = [];
 
@@ -68,7 +92,7 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
           },
         }}
         onClick={() => onClickUser(user.id)}
-        onContextMenu={(e) => onContextMenu(e, user)}
+        {...interactionProps}
       >
         <ListItemAvatar>
           <UserAvatar userId={user.id} size="small" />
