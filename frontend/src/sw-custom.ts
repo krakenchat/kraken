@@ -61,6 +61,23 @@ interface PushNotificationData {
   };
 }
 
+/**
+ * Set or clear the app-icon badge flag (Badging API, Chromium-only).
+ * Always resolves — feature-detected and error-swallowed so badge support
+ * can never break notification delivery or click handling.
+ */
+function setBadgeFlag(on: boolean): Promise<void> {
+  const nav = self.navigator as Navigator & {
+    setAppBadge?: () => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  const fn = on ? nav.setAppBadge : nav.clearAppBadge;
+  if (typeof fn !== 'function') {
+    return Promise.resolve();
+  }
+  return fn.call(nav).catch(() => {});
+}
+
 // Handle push notifications
 self.addEventListener('push', (event: PushEvent) => {
   if (!event.data) {
@@ -88,25 +105,20 @@ self.addEventListener('push', (event: PushEvent) => {
     requireInteraction: false,
   };
 
-  // Flag the app icon (Badging API, Chromium-only). Count-less form: the SW
-  // doesn't know the total unread count; the app sets the exact count via
-  // useAppBadge whenever it's running.
-  (self.navigator as Navigator & { setAppBadge?: () => Promise<void> })
-    .setAppBadge?.()
-    .catch(() => {});
-
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(data.title, options),
+      // Flag the app icon (Badging API, Chromium-only). Count-less form: the
+      // SW doesn't know the total unread count; the app sets the exact count
+      // via useAppBadge whenever it's running.
+      setBadgeFlag(true),
+    ]),
+  );
 });
 
 // Handle notification click
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
-
-  // Clear the SW-set badge flag; once the app opens, useAppBadge takes over
-  // with the exact unread count.
-  (self.navigator as Navigator & { clearAppBadge?: () => Promise<void> })
-    .clearAppBadge?.()
-    .catch(() => {});
 
   const data = event.notification.data as PushNotificationData['data'];
 
@@ -120,9 +132,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   const targetUrl = new URL(`/${hash}`, self.location.origin).href;
 
-  // Focus existing same-origin window or open new one
+  // Clear the SW-set badge flag, then focus an existing same-origin window
+  // or open a new one; once the app opens, useAppBadge takes over with the
+  // exact unread count.
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+    setBadgeFlag(false).then(() =>
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
+    ).then(async (clients) => {
       const existing = clients.find(
         (c) => new URL(c.url).origin === self.location.origin,
       );

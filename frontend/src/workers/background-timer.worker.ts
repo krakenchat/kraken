@@ -25,6 +25,11 @@ const timers = new Map<string, ReturnType<typeof setInterval>>();
 const idTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
 self.onmessage = (e: MessageEvent) => {
+  // Guard against malformed messages — a destructuring throw here would
+  // crash the worker and silently kill every timer it manages.
+  if (typeof e.data !== 'object' || e.data === null) {
+    return;
+  }
   const { type, name, interval, id, delay } = e.data;
 
   switch (type) {
