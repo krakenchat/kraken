@@ -155,14 +155,19 @@ function MessageComponentInner({
 
   // Under touch UI, wire long-press handlers and suppress native selection /
   // context menu; otherwise keep desktop right-click behavior untouched.
+  // While editing on touch, attach nothing so native text selection and the
+  // clipboard callout work inside the edit form.
   const containerInteractionProps = shouldUseTouchUI
-    ? {
-        onTouchStart: longPress.onTouchStart,
-        onTouchMove: longPress.onTouchMove,
-        onTouchEnd: longPress.onTouchEnd,
-        onContextMenu: longPress.onContextMenu,
-        style: { WebkitTouchCallout: "none", userSelect: "none" } as React.CSSProperties,
-      }
+    ? isEditing
+      ? {}
+      : {
+          onTouchStart: longPress.onTouchStart,
+          onTouchMove: longPress.onTouchMove,
+          onTouchEnd: longPress.onTouchEnd,
+          onTouchCancel: longPress.onTouchCancel,
+          onContextMenu: longPress.onContextMenu,
+          style: { WebkitTouchCallout: "none", userSelect: "none" } as React.CSSProperties,
+        }
     : { onContextMenu: handleContextMenu };
 
   return (

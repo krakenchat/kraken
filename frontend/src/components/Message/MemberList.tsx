@@ -105,6 +105,7 @@ const MemberRow: React.FC<{
         onTouchStart: longPress.onTouchStart,
         onTouchMove: longPress.onTouchMove,
         onTouchEnd: longPress.onTouchEnd,
+        onTouchCancel: longPress.onTouchCancel,
         onContextMenu: longPress.onContextMenu,
       }
     : {

@@ -77,6 +77,7 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
         onTouchStart: longPress.onTouchStart,
         onTouchMove: longPress.onTouchMove,
         onTouchEnd: longPress.onTouchEnd,
+        onTouchCancel: longPress.onTouchCancel,
         onContextMenu: longPress.onContextMenu,
       }
     : { onContextMenu: (e: React.MouseEvent<HTMLElement>) => onContextMenu(e, user) };

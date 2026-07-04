@@ -338,6 +338,7 @@ export const useLongPress = (
     onTouchStart: start,
     onTouchMove: move,
     onTouchEnd: cancel,
+    onTouchCancel: cancel,
     onContextMenu,
     isLongPressTriggered: () => isLongPressTriggered.current,
   };
