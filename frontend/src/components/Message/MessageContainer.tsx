@@ -12,6 +12,7 @@ import { useBidirectionalScroll } from "../../hooks/useBidirectionalScroll";
 import { useAnchoredModeTransition } from "../../hooks/useAnchoredModeTransition";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
 import TypingIndicator from "./TypingIndicator";
+import { shouldVirtualizeMessages } from "./virtualization";
 
 interface MessageContainerProps {
   // Data
@@ -94,6 +95,12 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   // selection follows DOM order, so this is what makes cross-message
   // selection highlight correctly.
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
+  // Virtualization gate. Evaluated here so both the scroll hooks and the render
+  // branch agree on which path is active. The virtualized renderer does not
+  // exist yet (steps 3+), so this currently always resolves to the legacy path;
+  // wiring it now keeps the decision in one place.
+  const isVirtualized = shouldVirtualizeMessages(messages.length, mode);
 
   const {
     scrollContainerRef,
@@ -228,6 +235,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
           <Box
             ref={scrollContainerRef}
             data-testid="scroll-container"
+            data-virtualized={isVirtualized}
             sx={{
               flex: 1,
               minHeight: 0,

@@ -999,6 +999,38 @@ describe('MessageContainer', () => {
     });
   });
 
+  // ── Virtualization gate ────────────────────────────────────────────
+  describe('virtualization gate', () => {
+    const manyMessages = (n: number) =>
+      Array.from({ length: n }, (_, i) => createMessage({ id: `msg-${i}` }));
+
+    it('does not virtualize below the threshold in normal mode', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(10)} />,
+      );
+      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
+    });
+
+    it('virtualizes at or above the threshold in normal mode', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(200)} />,
+      );
+      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'true');
+    });
+
+    it('never virtualizes in anchored mode, even above the threshold', () => {
+      renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={manyMessages(200)}
+          mode="anchored"
+          jumpToPresent={vi.fn()}
+        />,
+      );
+      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
+    });
+  });
+
   // ── Context type ───────────────────────────────────────────────────
   describe('context type', () => {
     it('passes "dm" context type when directMessageGroupId is set', () => {
