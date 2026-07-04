@@ -165,4 +165,58 @@ describe('usePushToTalk', () => {
 
     expect(mockSetMicrophoneEnabled).toHaveBeenCalledTimes(1);
   });
+
+  describe('programmatic pttPress / pttRelease (touch hold-to-talk)', () => {
+    it('pttPress enables the microphone when not server-muted', async () => {
+      const { result } = renderHook(() => usePushToTalk());
+
+      await act(async () => {
+        await result.current.pttPress();
+      });
+
+      expect(mockSetMicrophoneEnabled).toHaveBeenCalledWith(true);
+      expect(result.current.isKeyHeld).toBe(true);
+    });
+
+    it('pttPress is a no-op while server-muted (same guard as keyboard)', async () => {
+      mockVoiceState = { isConnected: true, isServerMuted: true };
+      const { result } = renderHook(() => usePushToTalk());
+
+      await act(async () => {
+        await result.current.pttPress();
+      });
+
+      expect(mockSetMicrophoneEnabled).not.toHaveBeenCalled();
+      expect(result.current.isKeyHeld).toBe(false);
+    });
+
+    it('pttPress reads the CURRENT server-mute state (not a stale closure)', async () => {
+      const { result } = renderHook(() => usePushToTalk());
+
+      // Server mute arrives after render — the stateRef must still see it.
+      mockVoiceState.isServerMuted = true;
+
+      await act(async () => {
+        await result.current.pttPress();
+      });
+
+      expect(mockSetMicrophoneEnabled).not.toHaveBeenCalled();
+    });
+
+    it('pttRelease disables the microphone', async () => {
+      const { result } = renderHook(() => usePushToTalk());
+
+      await act(async () => {
+        await result.current.pttPress();
+      });
+      mockSetMicrophoneEnabled.mockClear();
+
+      await act(async () => {
+        await result.current.pttRelease();
+      });
+
+      expect(mockSetMicrophoneEnabled).toHaveBeenCalledWith(false);
+      expect(result.current.isKeyHeld).toBe(false);
+    });
+  });
 });

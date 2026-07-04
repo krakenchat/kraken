@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Box,
   Paper,
@@ -43,6 +43,8 @@ import { ScreenSourcePicker } from "./ScreenSourcePicker";
 import { VoiceDebugPanel } from "./VoiceDebugPanel";
 import { CaptureReplayModal } from "./CaptureReplayModal";
 import { useResponsive } from "../../hooks/useResponsive";
+import { useHapticFeedback } from "../../hooks/useHapticFeedback";
+import { useWakeLock } from "../../hooks/useWakeLock";
 import { logger } from "../../utils/logger";
 import { LAYOUT_CONSTANTS } from "../../utils/breakpoints";
 import { useSpeaking } from "../../hooks/useSpeaking";
@@ -61,7 +63,8 @@ export const VoiceBottomBar: React.FC = () => {
   const { state, actions } = useVoiceConnection();
   const screenShare = useScreenShare();
   const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
-  const { isMobile } = useResponsive();
+  const { isMobile, shouldUseTouchUI } = useResponsive();
+  const haptic = useHapticFeedback();
   const { user: currentUser } = useCurrentUser();
   const { isSpeaking } = useSpeaking();
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(
@@ -73,10 +76,25 @@ export const VoiceBottomBar: React.FC = () => {
 
   // Use extracted hooks for cleaner organization
   const { showDebugPanel } = useDebugPanelShortcut();
-  const { isActive: isPTTActive, isKeyHeld: isPTTKeyHeld, currentKeyDisplay: pttKeyDisplay } = usePushToTalk();
+  const {
+    isActive: isPTTActive,
+    isKeyHeld: isPTTKeyHeld,
+    currentKeyDisplay: pttKeyDisplay,
+    pttPress,
+    pttRelease,
+  } = usePushToTalk();
+
+  // On touch devices the PTT key can't be pressed, so the mic button becomes a
+  // hold-to-talk control. Desktop PTT (keyboard) and non-PTT tap-to-mute are
+  // unaffected.
+  const isHoldToTalk = isPTTActive && shouldUseTouchUI;
 
   // Prevent tab freeze / OS suspension while in voice
   useBackgroundVoiceKeepAlive({ isConnected: state.isConnected });
+
+  // Keep the screen awake while connected (touch devices / web); no-op in
+  // Electron and where the Wake Lock API is unsupported.
+  useWakeLock(state.isConnected);
 
   // Surface the call via the Media Session API (Android ongoing-call
   // notification + higher background process priority, see #350)
@@ -159,6 +177,28 @@ export const VoiceBottomBar: React.FC = () => {
   const handleToggleScreenShare = useCallback(() => {
     screenShare.toggleScreenShare();
   }, [screenShare]);
+
+  // Hold-to-talk (touch): press engages the mic through the shared PTT logic
+  // (which enforces the server-mute guard), release re-mutes. Pointer capture
+  // keeps transmit tied to this button even if the finger slides off it, so
+  // release is driven by pointerup / pointercancel / lostpointercapture — not
+  // pointerleave, which would end the hold mid-slide. holdEngagedRef makes the
+  // release path idempotent across those overlapping events.
+  const holdEngagedRef = useRef(false);
+  const handlePttPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (state.isServerMuted) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    holdEngagedRef.current = true;
+    haptic.medium();
+    void pttPress?.();
+  }, [state.isServerMuted, haptic, pttPress]);
+
+  const handlePttPointerUp = useCallback(() => {
+    if (!holdEngagedRef.current) return;
+    holdEngagedRef.current = false;
+    haptic.light();
+    void pttRelease?.();
+  }, [haptic, pttRelease]);
 
   // Check if browser supports audio output switching (setSinkId)
   const supportsSpeakerToggle = isMobile && 'setSinkId' in HTMLMediaElement.prototype;
@@ -261,17 +301,28 @@ export const VoiceBottomBar: React.FC = () => {
               title={
                 state.isServerMuted
                   ? "Server Muted — contact a moderator"
-                  : isPTTActive
-                    ? (isPTTKeyHeld ? "Transmitting..." : `Hold ${pttKeyDisplay} to talk`)
-                    : (!isMicrophoneEnabled ? "Unmute" : "Mute")
+                  : isHoldToTalk
+                    ? (isPTTKeyHeld ? "Transmitting..." : "Hold to talk")
+                    : isPTTActive
+                      ? (isPTTKeyHeld ? "Transmitting..." : `Hold ${pttKeyDisplay} to talk`)
+                      : (!isMicrophoneEnabled ? "Unmute" : "Mute")
               }
               arrow={!isMobile}
+              disableTouchListener={isHoldToTalk}
             >
               <IconButton
                 onClick={isPTTActive || state.isServerMuted ? undefined : actions.toggleMute}
+                onPointerDown={isHoldToTalk ? handlePttPointerDown : undefined}
+                onPointerUp={isHoldToTalk ? handlePttPointerUp : undefined}
+                onPointerCancel={isHoldToTalk ? handlePttPointerUp : undefined}
+                onLostPointerCapture={isHoldToTalk ? handlePttPointerUp : undefined}
+                onContextMenu={isHoldToTalk ? (e) => e.preventDefault() : undefined}
                 color={!isMicrophoneEnabled && !isPTTKeyHeld ? "error" : "default"}
                 size={isMobile ? "medium" : "medium"}
                 sx={{
+                  touchAction: isHoldToTalk ? "none" : undefined,
+                  userSelect: isHoldToTalk ? "none" : undefined,
+                  WebkitUserSelect: isHoldToTalk ? "none" : undefined,
                   backgroundColor: isPTTKeyHeld
                     ? theme.palette.semantic.status.positive
                     : state.isServerMuted
