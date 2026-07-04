@@ -33,6 +33,7 @@ import { IncomingCallListener } from "./components/DirectMessage/IncomingCallLis
 import { IncomingCallBanner } from "./components/DirectMessage/IncomingCallBanner";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { useAppBadge } from "./hooks/useAppBadge";
+import { usePushResync } from "./hooks/usePushResync";
 import { disconnectSocket } from "./utils/socketSingleton";
 import { clearSavedConnection } from "./features/voice/voiceActions";
 import { clearTokens, getElectronRefreshToken } from "./utils/tokenService";
@@ -100,6 +101,10 @@ const Layout: React.FC = () => {
 
   // Document title (with "(N)" unread prefix) + PWA icon badge
   useAppBadge(instanceName);
+
+  // Re-sync a rotated push subscription to the backend on startup (the SW
+  // can't authenticate; this is the reliable path).
+  usePushResync();
 
   const [isMenuExpanded, setIsMenuExpanded] = React.useState(false);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(

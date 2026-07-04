@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Room, RoomEvent, ConnectionState, DisconnectReason } from 'livekit-client';
 import { useVoiceDispatch, VoiceActionType, VoiceSessionType, type VoiceState } from '../contexts/VoiceContext';
+import { setUpdateDeferred } from '../utils/swUpdate';
 import { logger } from '../utils/logger';
 
 interface ResyncActions {
@@ -81,6 +82,9 @@ export function useVoiceForegroundResync({ room, state, actions }: UseVoiceForeg
         } else {
           logger.error('[Voice] Cannot rejoin: incomplete voice context state');
           dispatch({ type: VoiceActionType.SetDisconnected });
+          // The call is over (involuntarily) — stop suppressing the SW
+          // update toast, or a pending update stays hidden all session.
+          setUpdateDeferred(false);
         }
         logger.info('[Voice] Foreground resync rejoin complete');
       } catch (error) {
@@ -88,6 +92,9 @@ export function useVoiceForegroundResync({ room, state, actions }: UseVoiceForeg
         // joinVoiceChannel/joinDmVoice already dispatched SetConnectionError;
         // make the UI honest about the dead call.
         dispatch({ type: VoiceActionType.SetDisconnected });
+        // The call is over (involuntarily) — stop suppressing the SW
+        // update toast, or a pending update stays hidden all session.
+        setUpdateDeferred(false);
       } finally {
         resyncInProgressRef.current = false;
       }

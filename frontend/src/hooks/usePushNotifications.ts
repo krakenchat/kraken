@@ -25,6 +25,7 @@ import {
   unsubscribeFromPush,
   extractSubscriptionData,
 } from '../utils/pushSubscription';
+import { swDbSet, swDbDelete, SW_DB_KEYS } from '../utils/swDb';
 
 export interface UsePushNotificationsResult {
   /** Whether push notifications are supported in this environment */
@@ -111,6 +112,12 @@ export function usePushNotifications(): UsePushNotificationsResult {
       const subscriptionData = extractSubscriptionData(subscription);
       await subscribePushMutation({ body: subscriptionData });
 
+      // Persist bookkeeping the SW / startup re-sync need:
+      //  - the VAPID key so the SW can re-subscribe on pushsubscriptionchange
+      //  - the synced endpoint so usePushResync can detect a later rotation
+      await swDbSet(SW_DB_KEYS.applicationServerKey, vapidData.publicKey);
+      await swDbSet(SW_DB_KEYS.lastSyncedEndpoint, subscription.endpoint);
+
       setIsSubscribed(true);
       refetchStatus();
       return true;
@@ -160,6 +167,11 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
       // Unsubscribe locally
       await unsubscribeFromPush();
+
+      // Clear the synced-endpoint marker so a stale value can't trigger a
+      // spurious re-sync of a subscription the user has removed.
+      await swDbDelete(SW_DB_KEYS.lastSyncedEndpoint);
+      await swDbDelete(SW_DB_KEYS.pendingEndpoint);
 
       setIsSubscribed(false);
       refetchStatus();

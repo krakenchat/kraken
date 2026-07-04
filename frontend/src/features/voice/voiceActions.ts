@@ -11,6 +11,7 @@ import { getCachedItem, setCachedItem, removeCachedItem } from "../../utils/stor
 import { refreshToken as refreshAuthToken } from "../../utils/tokenService";
 import { installLivekitWorkerTimers } from "../../utils/livekitWorkerTimers";
 import { playSound, Sounds } from "../../hooks/useSound";
+import { setUpdateDeferred } from "../../utils/swUpdate";
 
 // Storage key must match useDeviceSettings.ts
 const DEVICE_PREFERENCES_KEY = 'semaphore_device_preferences';
@@ -349,6 +350,10 @@ export async function joinVoiceChannel(
       payload: { channelId, channelName, communityId, isPrivate, createdAt },
     });
 
+    // Suppress the "Update available" reload prompt while in a call — a
+    // mid-call SW reload would drop the connection (see swUpdate / UpdateToast).
+    setUpdateDeferred(true);
+
     // Register presence directly (belt-and-suspenders alongside LiveKit webhooks)
     try {
       await voicePresenceControllerJoinPresence({ path: { channelId } });
@@ -410,6 +415,7 @@ export async function leaveVoiceChannel(deps: VoiceActionDeps) {
     setRoom(null);
     dispatch({ type: VoiceActionType.SetDisconnected });
     clearConnectionState();
+    setUpdateDeferred(false);
 
     playSound(Sounds.disconnected);
     logger.info('[Voice] === Voice channel leave complete ===');
@@ -418,6 +424,10 @@ export async function leaveVoiceChannel(deps: VoiceActionDeps) {
     const message = error instanceof Error ? error.message : "Failed to leave voice channel";
     dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     throw error;
+  } finally {
+    // Never leave a pending SW update suppressed after the call is over,
+    // even when disconnect throws.
+    setUpdateDeferred(false);
   }
 }
 
@@ -470,6 +480,9 @@ export async function joinDmVoice(
       payload: { dmGroupId, dmGroupName },
     });
 
+    // Suppress the update-reload prompt while in a call (see above).
+    setUpdateDeferred(true);
+
     queryClient.invalidateQueries({ queryKey: [{ _id: 'voicePresenceControllerGetChannelPresence' }] });
     queryClient.invalidateQueries({ queryKey: [{ _id: 'userVoicePresenceControllerGetMyVoiceChannels' }] });
     queryClient.invalidateQueries({ queryKey: [{ _id: 'dmVoicePresenceControllerGetDmPresence' }] });
@@ -502,11 +515,16 @@ export async function leaveDmVoice(deps: VoiceActionDeps) {
     setRoom(null);
     dispatch({ type: VoiceActionType.SetDisconnected });
     clearConnectionState();
+    setUpdateDeferred(false);
     playSound(Sounds.disconnected);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to leave DM voice call";
     dispatch({ type: VoiceActionType.SetConnectionError, payload: message });
     throw error;
+  } finally {
+    // Never leave a pending SW update suppressed after the call is over,
+    // even when disconnect throws.
+    setUpdateDeferred(false);
   }
 }
 

@@ -1,9 +1,14 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import {
+  precacheAndRoute,
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+} from 'workbox-precaching';
 import { clientsClaim } from 'workbox-core';
-import { registerRoute } from 'workbox-routing';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
+import { swDbGet, swDbSet, SW_DB_KEYS } from './utils/swDb';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -13,9 +18,29 @@ precacheAndRoute(self.__WB_MANIFEST);
 // Clean up old caches
 cleanupOutdatedCaches();
 
-// Take control immediately
-self.skipWaiting();
+// Offline app-shell fallback: serve the precached SPA entry (index.html) for
+// all navigation requests so the app boots offline. HashRouter then resolves
+// the in-app route client-side. The negative lookahead keeps API and asset
+// requests off the navigation handler.
+const navigationHandler = createHandlerBoundToURL('index.html');
+registerRoute(
+  new NavigationRoute(navigationHandler, {
+    denylist: [/^\/api(\/|$)/, /^\/socket\.io(\/|$)/],
+  }),
+);
+
+// Claim uncontrolled clients on activate, but DON'T skipWaiting() at the top
+// level — that would silently swap the SW mid-session (e.g. during a call).
+// Instead we wait for an explicit SKIP_WAITING message from the app (the
+// "Update available → Reload" toast) so updates only apply on user consent.
 clientsClaim();
+
+// Apply a pending update only when the app asks (UpdateToast → updateSW(true)).
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') {
+    event.waitUntil(self.skipWaiting());
+  }
+});
 
 // Cache images
 registerRoute(
@@ -44,6 +69,22 @@ registerRoute(
     ],
   })
 );
+
+/**
+ * Convert a base64url VAPID public key into the Uint8Array that
+ * PushManager.subscribe expects. Mirrors utils/pushSubscription.ts (the SW
+ * can't import that module — it references `window`).
+ */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = self.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 // Push notification types
 interface PushNotificationData {
@@ -158,7 +199,45 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   );
 });
 
-// Note: pushsubscriptionchange handler intentionally omitted.
-// When a subscription expires, the user will need to re-subscribe via the UI.
-// Automatic re-subscription from the SW would require storing auth tokens
-// in the SW which is a security concern for a self-hosted app.
+/**
+ * Best-effort re-subscription when the browser rotates/expires the push
+ * subscription. The SW has no reliable access to the user's JWT (we
+ * deliberately never store auth tokens in the SW for a self-hosted app), so
+ * the authoritative re-sync happens on next app startup (see usePushResync).
+ *
+ * Here we do two things, both best-effort and error-swallowed:
+ *   1. Re-subscribe with the VAPID key stashed in IndexedDB at subscribe time,
+ *      so a valid subscription exists as early as possible.
+ *   2. Record the new endpoint as "pending" in IndexedDB and clear the
+ *      "last synced" marker, so the startup re-sync detects the change and
+ *      POSTs the new subscription to the backend with proper auth.
+ */
+self.addEventListener('pushsubscriptionchange', (rawEvent: Event) => {
+  // `pushsubscriptionchange` isn't in the TS SW event map; it's an
+  // ExtendableEvent at runtime (has waitUntil).
+  const event = rawEvent as ExtendableEvent;
+  event.waitUntil(
+    (async () => {
+      try {
+        const vapidKey = await swDbGet<string>(
+          SW_DB_KEYS.applicationServerKey,
+        );
+        if (!vapidKey) {
+          return;
+        }
+
+        const newSub = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+
+        // Signal the window layer that a re-sync is needed. Clearing the
+        // last-synced endpoint guarantees usePushResync re-POSTs on startup.
+        await swDbSet(SW_DB_KEYS.pendingEndpoint, newSub.endpoint);
+        await swDbSet(SW_DB_KEYS.lastSyncedEndpoint, null);
+      } catch (err) {
+        console.error('[SW] pushsubscriptionchange re-subscribe failed', err);
+      }
+    })(),
+  );
+});
