@@ -405,6 +405,10 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
         open={open}
         anchorEl={anchorEl}
         onClose={onClose}
+        // Without this, the Modal's focus trap re-focuses the emoji BUTTON
+        // when the exit transition finishes — clobbering the composer's
+        // caret/focus restore after inserting an emoji.
+        disableRestoreFocus
         anchorOrigin={{
           vertical: 'top',
           horizontal: 'left',
