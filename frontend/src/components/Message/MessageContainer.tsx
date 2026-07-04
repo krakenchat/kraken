@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
@@ -95,11 +95,17 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   // selection highlight correctly.
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  // Virtualization gate. Evaluated here so both the scroll hooks and the render
-  // branch agree on which path is active. The virtualized renderer does not
-  // exist yet (steps 3+), so this currently always resolves to the legacy path;
-  // wiring it now keeps the decision in one place.
-  const isVirtualized = shouldVirtualizeMessages(messages.length, mode);
+  // Virtualization gate, two-phase. `wantVirtualized` is the raw decision;
+  // `virtualActive` is the rendered reality. When the gate first flips to
+  // virtual mid-session (the user just paginated past the threshold, i.e. is
+  // reading history), a layout effect below captures the current reading
+  // position from the still-mounted legacy DOM before activating the virtual
+  // renderer — otherwise the virtual list would re-home to the bottom and yank
+  // the reader away from where they were.
+  const wantVirtualized = shouldVirtualizeMessages(messages.length, mode);
+  const [virtualActive, setVirtualActive] = useState(wantVirtualized);
+  const transitionAnchorRef = useRef<{ id: string; offsetTop: number } | null>(null);
+  const isVirtualized = virtualActive;
 
   const {
     scrollContainerRef,
@@ -136,6 +142,37 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
   const atBottom = isVirtualized ? virtualAtBottom : legacyAtBottom;
   const scrollToBottom = isVirtualized ? scrollToVirtualBottom : legacyScrollToBottom;
+
+  // Phase 2 of the virtualization gate: activate/deactivate the virtual
+  // renderer one commit after the raw decision changes. On legacy → virtual,
+  // capture the topmost visible message and its viewport offset from the legacy
+  // DOM (still mounted in this commit) so VirtualMessageList can restore the
+  // reading position instead of re-homing to the bottom. When the user is
+  // pinned to the bottom (threshold crossed by incoming messages, or a fresh
+  // mount with a large cache), no anchor is captured and the virtual list
+  // mounts at the bottom, which is correct.
+  useLayoutEffect(() => {
+    if (wantVirtualized === virtualActive) return;
+    if (wantVirtualized) {
+      let anchor: { id: string; offsetTop: number } | null = null;
+      const container = scrollContainerRef.current;
+      if (container && !legacyAtBottom) {
+        const containerTop = container.getBoundingClientRect().top;
+        for (const el of container.querySelectorAll("[data-message-id]")) {
+          const rect = el.getBoundingClientRect();
+          if (rect.bottom > containerTop + 1) {
+            const id = el.getAttribute("data-message-id");
+            if (id) anchor = { id, offsetTop: rect.top - containerTop };
+            break;
+          }
+        }
+      }
+      transitionAnchorRef.current = anchor;
+    } else {
+      transitionAnchorRef.current = null;
+    }
+    setVirtualActive(wantVirtualized);
+  }, [wantVirtualized, virtualActive, legacyAtBottom, scrollContainerRef]);
 
   useAnchoredModeTransition({
     mode,
@@ -264,6 +301,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
               onOpenThread={onOpenThread}
               onQuoteReply={onQuoteReply}
               resetKey={contextKey}
+              initialAnchor={transitionAnchorRef.current}
               onAtBottomChange={setVirtualAtBottom}
             />
           ) : (

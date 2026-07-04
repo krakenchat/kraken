@@ -50,6 +50,14 @@ export interface VirtualMessageListProps {
   /** Changing this (channel/DM switch) re-homes the list at the bottom. */
   resetKey?: string;
 
+  /**
+   * Reading position captured from the legacy list when the virtualization
+   * gate flipped mid-session: the topmost visible message id and its offset
+   * (px) below the viewport top. When set (and the id is present), initial
+   * positioning restores this position instead of jumping to the bottom.
+   */
+  initialAnchor?: { id: string; offsetTop: number } | null;
+
   /** Reports whether the list is pinned to the visual bottom (drives FABs). */
   onAtBottomChange?: (atBottom: boolean) => void;
 
@@ -93,6 +101,7 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       onOpenThread,
       onQuoteReply,
       resetKey,
+      initialAnchor,
       onAtBottomChange,
       onVisibleRangeChange,
     },
@@ -134,14 +143,53 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       prevNewestIdRef.current = undefined;
     }, [resetKey]);
 
-    // Initial positioning: jump to the newest message once data is present.
+    // Initial positioning once data is present. If a transition anchor was
+    // captured (legacy → virtual flip while reading history), restore that
+    // reading position; otherwise jump to the newest message.
+    const initialAnchorRef = useRef(initialAnchor);
+    initialAnchorRef.current = initialAnchor;
     useEffect(() => {
       if (initialPositionedRef.current || len === 0) return;
       const handle = vlistRef.current;
       if (!handle) return;
-      handle.scrollToIndex(len - 1, { align: "end" });
+
+      const anchor = initialAnchorRef.current;
+      const anchorIndex = anchor
+        ? orderedMessages.findIndex((m) => m.id === anchor.id)
+        : -1;
+
+      // Positioning is deferred a frame (VList hasn't initialized/measured at
+      // mount — an immediate scrollToIndex can be a no-op) and re-asserted a
+      // second frame later, after the first measurement pass corrects the
+      // estimated offsets. Positions are estimate-based, so anchor restoration
+      // is approximate — the goal is keeping the reader in the neighborhood
+      // instead of teleporting them.
+      let raf2 = 0;
+      const raf1 = requestAnimationFrame(() => {
+        if (anchor && anchorIndex >= 0) {
+          handle.scrollToIndex(anchorIndex, { align: "start" });
+          raf2 = requestAnimationFrame(() => {
+            handle.scrollToIndex(anchorIndex, { align: "start" });
+            if (anchor.offsetTop !== 0) handle.scrollBy(-anchor.offsetTop);
+          });
+        } else {
+          handle.scrollToIndex(len - 1, { align: "end" });
+          raf2 = requestAnimationFrame(() => {
+            handle.scrollToIndex(len - 1, { align: "end" });
+          });
+        }
+      });
+
+      const anchored = !!(anchor && anchorIndex >= 0);
+      pinnedRef.current = !anchored;
       initialPositionedRef.current = true;
-      onAtBottomChange?.(true);
+      onAtBottomChange?.(!anchored);
+      return () => {
+        cancelAnimationFrame(raf1);
+        cancelAnimationFrame(raf2);
+      };
+      // orderedMessages identity changes with len; anchor lookup uses the ref.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [len, onAtBottomChange]);
 
     // Stick-to-bottom: a newer message appended while pinned (not a prepend).

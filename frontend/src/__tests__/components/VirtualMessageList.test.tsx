@@ -295,4 +295,32 @@ describe('VirtualMessageList', () => {
     act(() => ref.current?.scrollToBottom());
     expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'end' });
   });
+
+  it('restores the reading position from initialAnchor instead of jumping to the bottom', () => {
+    const onAtBottomChange = vi.fn();
+    render(
+      <VirtualMessageList
+        {...baseProps}
+        orderedMessages={messages(10)}
+        initialAnchor={{ id: 'msg-4', offsetTop: 35 }}
+        onAtBottomChange={onAtBottomChange}
+      />,
+    );
+    expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'start' });
+    expect(fakeHandle.scrollBy).toHaveBeenCalledWith(-35);
+    expect(fakeHandle.scrollToIndex).not.toHaveBeenCalledWith(9, { align: 'end' });
+    expect(onAtBottomChange).toHaveBeenCalledWith(false);
+  });
+
+  it('falls back to the bottom when the initialAnchor id is not in the list', () => {
+    render(
+      <VirtualMessageList
+        {...baseProps}
+        orderedMessages={messages(10)}
+        initialAnchor={{ id: 'gone-msg', offsetTop: 35 }}
+      />,
+    );
+    expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(9, { align: 'end' });
+    expect(fakeHandle.scrollBy).not.toHaveBeenCalled();
+  });
 });

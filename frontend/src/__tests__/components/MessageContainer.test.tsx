@@ -93,20 +93,28 @@ vi.mock('../../components/Message/UnreadMessageDivider', () => ({
 
 // Stub the virtualized renderer so gate tests assert routing, not virtua
 // internals (VirtualMessageList has its own test with a mocked VList).
+// Captures the props it last received so transition tests can assert wiring.
+let lastVirtualListProps: { initialAnchor?: { id: string; offsetTop: number } | null } | null = null;
 vi.mock('../../components/Message/VirtualMessageList', async () => {
   const React = await import('react');
   return {
     default: React.forwardRef(
       (
-        { orderedMessages }: { orderedMessages: Array<{ id: string }> },
+        props: {
+          orderedMessages: Array<{ id: string }>;
+          initialAnchor?: { id: string; offsetTop: number } | null;
+        },
         _ref: React.Ref<unknown>,
-      ) => (
-        <div data-testid="virtual-message-list">
-          {orderedMessages.map((m) => (
-            <div key={m.id} data-testid={`vmsg-${m.id}`} />
-          ))}
-        </div>
-      ),
+      ) => {
+        lastVirtualListProps = props;
+        return (
+          <div data-testid="virtual-message-list">
+            {props.orderedMessages.map((m) => (
+              <div key={m.id} data-testid={`vmsg-${m.id}`} />
+            ))}
+          </div>
+        );
+      },
     ),
   };
 });
@@ -190,6 +198,7 @@ function makeRect({ top = 0, height = 0 }: { top?: number; height?: number }) {
 // ── Setup / Teardown ───────────────────────────────────────────────────
 beforeEach(() => {
   resetFactoryCounter();
+  lastVirtualListProps = null;
   mockObserverInstances = [];
   mockResizeInstances = [];
   vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
@@ -1052,6 +1061,65 @@ describe('MessageContainer', () => {
       );
       expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
       expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
+    });
+
+    it('captures the reading position as initialAnchor when crossing the threshold while scrolled up', () => {
+      // Start below the threshold on the legacy path.
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(199)} />,
+      );
+      const container = getScrollContainer();
+
+      // User is reading history: bottom sentinel reports not intersecting.
+      const bottomObserver = findObserverFor(
+        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
+      );
+      act(() => {
+        bottomObserver!.trigger([{ isIntersecting: false }]);
+      });
+
+      // Mock geometry: container top at 0; msg-50 is the topmost visible
+      // message, 20px below the viewport top. All other rows keep jsdom's
+      // zero-rect and are skipped by the capture scan.
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 0, height: 400 }),
+      );
+      const visibleEl = container.querySelector('[data-message-id="msg-50"]') as HTMLElement;
+      vi.spyOn(visibleEl, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 20, height: 30 }),
+      );
+
+      // An older page lands, crossing the threshold (newest-first prop appends
+      // older messages at the end).
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={[...manyMessages(199), createMessage({ id: 'older-msg' })]}
+        />,
+      );
+
+      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
+      expect(lastVirtualListProps?.initialAnchor).toEqual({
+        id: 'msg-50',
+        offsetTop: 20,
+      });
+    });
+
+    it('does not capture an anchor when crossing the threshold while at the bottom', () => {
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(199)} />,
+      );
+      // atBottom defaults to true (no observer trigger) — e.g. incoming
+      // messages grow the cache past the threshold while the user is pinned.
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={[createMessage({ id: 'newer-msg' }), ...manyMessages(199)]}
+        />,
+      );
+
+      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
+      expect(lastVirtualListProps?.initialAnchor).toBeNull();
     });
   });
 
