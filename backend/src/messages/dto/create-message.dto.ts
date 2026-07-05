@@ -21,6 +21,7 @@ class CreateMessageSpanDto {
   specialKind: string | null;
   communityId: string | null;
   aliasId: string | null;
+  emojiId: string | null;
 
   // Composable inline-formatting flags (optional, PLAINTEXT spans).
   @IsOptional()

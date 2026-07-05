@@ -93,6 +93,9 @@ export const DEFAULT_COMMUNITY_CREATOR_ROLE: DefaultRoleConfig = {
     RbacActions.READ_ALIAS_GROUP_MEMBER,
     RbacActions.UPDATE_ALIAS_GROUP_MEMBER,
 
+    // Custom emoji management
+    RbacActions.MANAGE_EMOJIS,
+
     // Reaction management
     RbacActions.CREATE_REACTION,
     RbacActions.DELETE_REACTION,
@@ -219,6 +222,9 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     RbacActions.DELETE_ALIAS_GROUP_MEMBER,
     RbacActions.READ_ALIAS_GROUP_MEMBER,
     RbacActions.UPDATE_ALIAS_GROUP_MEMBER,
+
+    // Custom emoji management
+    RbacActions.MANAGE_EMOJIS,
 
     // Reaction management
     RbacActions.CREATE_REACTION,

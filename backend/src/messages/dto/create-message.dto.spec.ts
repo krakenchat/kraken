@@ -126,9 +126,7 @@ describe('CreateMessageDto', () => {
   it('should preserve rich-text formatting flags on the parsed span', () => {
     const dto = createDto({
       channelId: validUUID,
-      spans: [
-        { type: 'PLAINTEXT', text: 'hi', bold: true, code: true },
-      ] as any,
+      spans: [{ type: 'PLAINTEXT', text: 'hi', bold: true, code: true }] as any,
       attachments: [],
     });
 

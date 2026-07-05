@@ -34,6 +34,7 @@ import MessageActionsSheet from "./MessageActionsSheet";
 import { EmojiPickerPopover } from "./EmojiPicker";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useLongPress } from "../../hooks/useSwipeGesture";
+import { useCommunityCustomEmojis } from "../../hooks/useCommunityCustomEmojis";
 
 interface MessageProps {
   message: MessageType;
@@ -54,12 +55,15 @@ function MessageComponentInner({
   isAuthor,
   isSearchHighlight,
   contextId,
+  communityId,
   isThreadParent,
   isThreadReply,
   onOpenThread,
   onQuoteReply,
   contextType,
 }: MessageProps) {
+  // Community custom emojis (for rendering EMOJI spans + custom reactions).
+  const { byId: emojiById } = useCommunityCustomEmojis(communityId);
   const { data: author } = useQuery({
     ...userControllerGetUserByIdOptions({ path: { id: message.authorId! } }),
     enabled: !!message.authorId,
@@ -264,7 +268,7 @@ function MessageComponentInner({
         ) : (
           <>
             <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-              {renderMessageSpans(message.spans)}
+              {renderMessageSpans(message.spans, emojiById)}
             </Typography>
             <MessageAttachments attachments={message.attachments} />
             <MessageLinkPreviews linkPreviews={message.linkPreviews} />
@@ -272,6 +276,7 @@ function MessageComponentInner({
               messageId={message.id}
               reactions={message.reactions}
               onReactionClick={handleReactionClick}
+              emojiById={emojiById}
             />
             {/* Show thread reply badge if message has replies and not in thread context */}
             {hasReplies && !isThreadParent && !isThreadReply && (
@@ -301,6 +306,7 @@ function MessageComponentInner({
           onUnpin={handleUnpin}
           onReplyInThread={handleOpenThread}
           onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
+          communityId={communityId}
         />
       )}
       <ConfirmDialog
@@ -359,6 +365,11 @@ function MessageComponentInner({
         onClose={handleCloseEmojiPicker}
         onEmojiSelect={(emoji) => {
           handleEmojiSelect(emoji);
+          handleCloseEmojiPicker();
+        }}
+        communityId={communityId}
+        onCustomEmojiSelect={(emoji) => {
+          handleEmojiSelect(`custom:${emoji.id}`);
           handleCloseEmojiPicker();
         }}
       />

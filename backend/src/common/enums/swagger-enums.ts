@@ -14,6 +14,7 @@ export const SpanTypeValues = [
   'COMMUNITY_MENTION',
   'ALIAS_MENTION',
   'CODE_BLOCK',
+  'EMOJI',
 ] as const;
 
 export const FileTypeValues = [
@@ -102,6 +103,7 @@ export const RbacActionsValues = [
   'VIEW_BAN_LIST',
   'VIEW_MODERATION_LOGS',
   'MUTE_PARTICIPANT',
+  'MANAGE_EMOJIS',
 ] as const;
 
 export const InstanceRoleValues = ['OWNER', 'USER'] as const;

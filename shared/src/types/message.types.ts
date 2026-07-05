@@ -7,6 +7,9 @@ export enum SpanType {
   // Multi-line fenced (```) code block. Its `text` is rendered verbatim —
   // no mentions, inline formatting, or auto-linking are parsed inside it.
   CODE_BLOCK = 'CODE_BLOCK',
+  // Community custom emoji (`:shortcode:`). Rendered as an inline image resolved
+  // from `emojiId`; `text` holds the `:shortcode:` for round-trip and fallback.
+  EMOJI = 'EMOJI',
 }
 
 export interface Span {
@@ -16,6 +19,8 @@ export interface Span {
   specialKind?: string;
   communityId?: string;
   aliasId?: string;
+  // For EMOJI spans: id of the community CustomEmoji this shortcode resolved to.
+  emojiId?: string;
   // Composable inline-formatting flags applied to PLAINTEXT spans. They combine
   // freely (a span can be bold AND italic). `code` marks an inline `code` run
   // whose text is rendered verbatim (no formatting/mentions/links inside).

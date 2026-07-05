@@ -205,6 +205,7 @@ describe('ThreadsService', () => {
         specialKind: null,
         communityId: null,
         aliasId: null,
+        emojiId: null,
         bold: null,
         italic: null,
         strikethrough: null,

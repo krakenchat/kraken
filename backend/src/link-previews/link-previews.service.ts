@@ -168,6 +168,7 @@ export class LinkPreviewsService {
                   specialKind: s.specialKind,
                   communityId: s.communityId,
                   aliasId: s.aliasId,
+                  emojiId: s.emojiId ?? null,
                   bold: s.bold ?? null,
                   italic: s.italic ?? null,
                   strikethrough: s.strikethrough ?? null,

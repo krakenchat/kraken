@@ -22,20 +22,31 @@ import { logger } from "../../utils/logger";
 import { EmojiPickerPopover } from "../Message/EmojiPicker";
 import { useResponsive } from "../../hooks/useResponsive";
 import { parseMessageWithMentions } from "../../utils/mentionParser";
+import type { EmojiMention } from "../../utils/mentionParser";
 import { wrapSelection, markerForShortcut } from "../../utils/richTextShortcuts";
+import { useCommunityCustomEmojis } from "../../hooks/useCommunityCustomEmojis";
 
 interface ThreadMessageInputProps {
   parentMessageId: string;
+  /** Community for custom emojis (undefined in DM threads). */
+  communityId?: string;
 }
 
 export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
   parentMessageId,
+  communityId,
 }) => {
   const theme = useTheme();
   const { socket } = useContext(SocketContext);
   const { isTouchDevice } = useResponsive();
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+  const { emojis: customEmojis } = useCommunityCustomEmojis(communityId);
+  const emojiMentions: EmojiMention[] = customEmojis.map(e => ({
+    id: e.id,
+    name: e.name,
+  }));
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLElement | null>(null);
@@ -106,7 +117,7 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
     // Parse markdown-style rich-text formatting (bold/italic/strike/code).
     // Thread replies have no mention autocomplete context, so mentions are
     // left unresolved (rendered as plaintext), matching prior behaviour.
-    let spans = parseMessageWithMentions(trimmedContent);
+    let spans = parseMessageWithMentions(trimmedContent, [], [], [], emojiMentions);
     if (spans.length === 0) {
       spans = [{ type: SpanType.PLAINTEXT, text: trimmedContent }];
     }
@@ -227,6 +238,8 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
         anchorEl={emojiAnchorEl}
         onClose={handleEmojiPickerClose}
         onEmojiSelect={handleEmojiSelect}
+        communityId={communityId}
+        onCustomEmojiSelect={(emoji) => handleEmojiSelect(`:${emoji.name}:`)}
         title="Add Emoji"
       />
     </Box>

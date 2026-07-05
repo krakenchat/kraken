@@ -52,6 +52,7 @@ export class ThreadsService {
       specialKind?: string | null;
       communityId?: string | null;
       aliasId?: string | null;
+      emojiId?: string | null;
       bold?: boolean | null;
       italic?: boolean | null;
       strikethrough?: boolean | null;
@@ -65,6 +66,7 @@ export class ThreadsService {
       specialKind: span.specialKind ?? null,
       communityId: span.communityId ?? null,
       aliasId: span.aliasId ?? null,
+      emojiId: span.emojiId ?? null,
       bold: span.bold ?? null,
       italic: span.italic ?? null,
       strikethrough: span.strikethrough ?? null,

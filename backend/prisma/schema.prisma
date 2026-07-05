@@ -89,6 +89,7 @@ model MessageSpan {
   specialKind String? // For SPECIAL_MENTION: "here", "channel"
   communityId String? // For COMMUNITY_MENTION
   aliasId     String? // For ALIAS_MENTION
+  emojiId     String? // For EMOJI (community custom emoji)
 
   // Composable inline-formatting flags (PLAINTEXT spans). CODE_BLOCK spans use
   // the CODE_BLOCK type; `code` marks an inline code run.
@@ -97,10 +98,11 @@ model MessageSpan {
   strikethrough Boolean? // For PLAINTEXT: strikethrough run
   code          Boolean? // For PLAINTEXT: inline `code` run
 
-  message    Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user       User?       @relation("SpanUser", fields: [userId], references: [id], onDelete: SetNull)
-  community  Community?  @relation("SpanCommunity", fields: [communityId], references: [id], onDelete: SetNull)
-  aliasGroup AliasGroup? @relation("SpanAlias", fields: [aliasId], references: [id], onDelete: SetNull)
+  message    Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user       User?        @relation("SpanUser", fields: [userId], references: [id], onDelete: SetNull)
+  community  Community?   @relation("SpanCommunity", fields: [communityId], references: [id], onDelete: SetNull)
+  aliasGroup AliasGroup?  @relation("SpanAlias", fields: [aliasId], references: [id], onDelete: SetNull)
+  emoji      CustomEmoji? @relation("SpanEmoji", fields: [emojiId], references: [id], onDelete: SetNull)
 
   @@index([messageId])
 }
@@ -458,8 +460,25 @@ model Community {
   mentionSpans  MessageSpan[] @relation("SpanCommunity")
   aliasGroups   AliasGroup[]  @relation("AliasGroupCommunity")
   resourceFiles File[]        @relation("FileResourceCommunity")
+  customEmojis  CustomEmoji[] @relation("CommunityCustomEmojis")
 
   @@unique([name])
+}
+
+model CustomEmoji {
+  id          String   @id @default(uuid())
+  communityId String
+  name        String // shortcode (without colons), e.g. "party_blob"
+  fileId      String
+  createdBy   String? // userId of the creator (audit only, no FK)
+  createdAt   DateTime @default(now())
+
+  community Community     @relation("CommunityCustomEmojis", fields: [communityId], references: [id], onDelete: Cascade)
+  file      File          @relation("CustomEmojiFile", fields: [fileId], references: [id], onDelete: Cascade)
+  spans     MessageSpan[] @relation("SpanEmoji")
+
+  @@unique([communityId, name])
+  @@index([communityId])
 }
 
 model Channel {
@@ -634,6 +653,7 @@ model File {
   // Relations
   replayClips        ReplayClip[]
   messageAttachments MessageAttachment[]
+  customEmojis       CustomEmoji[]       @relation("CustomEmojiFile")
 
   // Avatar/banner back-references
   userAvatars      User[]      @relation("UserAvatar")
@@ -830,6 +850,7 @@ enum RbacActions {
   VIEW_BAN_LIST
   VIEW_MODERATION_LOGS
   MUTE_PARTICIPANT
+  MANAGE_EMOJIS
 }
 
 enum InstanceRole {
@@ -877,4 +898,5 @@ enum SpanType {
   COMMUNITY_MENTION
   ALIAS_MENTION
   CODE_BLOCK
+  EMOJI
 }

@@ -70,6 +70,9 @@ export const RBAC_ACTIONS = {
   CREATE_ATTACHMENT: 'CREATE_ATTACHMENT',
   DELETE_ATTACHMENT: 'DELETE_ATTACHMENT',
 
+  // Custom Emojis
+  MANAGE_EMOJIS: 'MANAGE_EMOJIS',
+
   // Moderation
   BAN_USER: 'BAN_USER',
   KICK_USER: 'KICK_USER',
@@ -144,6 +147,7 @@ export const PERMISSION_GROUPS = {
     RBAC_ACTIONS.DELETE_REACTION,
     RBAC_ACTIONS.CREATE_ATTACHMENT,
     RBAC_ACTIONS.DELETE_ATTACHMENT,
+    RBAC_ACTIONS.MANAGE_EMOJIS,
   ],
   'Alias Groups': [
     RBAC_ACTIONS.CREATE_ALIAS_GROUP,
@@ -220,6 +224,7 @@ export const ACTION_LABELS: Record<RbacAction, string> = {
   [RBAC_ACTIONS.DELETE_REACTION]: 'Remove reactions',
   [RBAC_ACTIONS.CREATE_ATTACHMENT]: 'Upload files',
   [RBAC_ACTIONS.DELETE_ATTACHMENT]: 'Delete files',
+  [RBAC_ACTIONS.MANAGE_EMOJIS]: 'Manage custom emojis',
 
   // Alias Groups
   [RBAC_ACTIONS.CREATE_ALIAS_GROUP]: 'Create mention groups',

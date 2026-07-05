@@ -32,6 +32,7 @@ import {
   PrivateChannelMembership,
   RoleManagement,
   AliasGroupManagement,
+  CustomEmojiManagement,
 } from "../components/Community";
 import {
   BanListPanel,
@@ -126,6 +127,12 @@ const EditCommunityPage: React.FC = () => {
     resourceType: "COMMUNITY",
     resourceId: communityId!,
     actions: ["VIEW_BAN_LIST"],
+  });
+
+  const { hasPermissions: canManageEmojis } = useUserPermissions({
+    resourceType: "COMMUNITY",
+    resourceId: communityId!,
+    actions: ["MANAGE_EMOJIS"],
   });
 
   const {
@@ -264,7 +271,8 @@ const EditCommunityPage: React.FC = () => {
             <Tab label="Private Channels" {...a11yProps(3)} disabled={!canManageChannels} />
             <Tab label="Roles" {...a11yProps(4)} />
             <Tab label="Mention Groups" {...a11yProps(5)} />
-            <Tab label="Moderation" {...a11yProps(6)} disabled={!canViewModeration} />
+            <Tab label="Custom Emoji" {...a11yProps(6)} disabled={!canManageEmojis} />
+            <Tab label="Moderation" {...a11yProps(7)} disabled={!canViewModeration} />
           </Tabs>
         </Box>
 
@@ -349,6 +357,16 @@ const EditCommunityPage: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={6}>
+          {canManageEmojis ? (
+            <CustomEmojiManagement communityId={communityId!} />
+          ) : (
+            <Alert severity="warning">
+              You don't have permission to manage custom emojis.
+            </Alert>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={7}>
           {canViewModeration ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>

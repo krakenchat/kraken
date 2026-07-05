@@ -691,6 +691,7 @@ export class MessagesService {
         specialKind: string | null;
         communityId: string | null;
         aliasId: string | null;
+        emojiId: string | null;
         bold: boolean | null;
         italic: boolean | null;
         strikethrough: boolean | null;
@@ -747,6 +748,7 @@ export class MessagesService {
                   specialKind: s.specialKind,
                   communityId: s.communityId,
                   aliasId: s.aliasId,
+                  emojiId: s.emojiId,
                   bold: s.bold,
                   italic: s.italic,
                   strikethrough: s.strikethrough,

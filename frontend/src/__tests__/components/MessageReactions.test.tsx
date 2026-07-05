@@ -101,4 +101,46 @@ describe('MessageReactions', () => {
     expect(screen.getByText('😂 1')).toBeInTheDocument();
     expect(screen.getByText('🎉 2')).toBeInTheDocument();
   });
+
+  it('renders a custom (custom:{id}) reaction as an inline image', async () => {
+    const emojiById = new Map([
+      ['e1', { id: 'e1', communityId: 'c1', name: 'party_blob', fileId: 'file-9', createdBy: null, createdAt: '2026-01-01' }],
+    ]);
+    const reactions: Reaction[] = [{ emoji: 'custom:e1', userIds: ['u1', 'u2'] }];
+
+    renderWithProviders(
+      <MessageReactions
+        messageId="msg-1"
+        reactions={reactions}
+        onReactionClick={vi.fn()}
+        emojiById={emojiById}
+      />
+    );
+
+    const img = await screen.findByRole('img', { name: ':party_blob:' });
+    expect(img).toHaveAttribute('src', '/api/file/file-9');
+    // Count is still shown alongside the image.
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('sends the custom sentinel back on click', async () => {
+    const emojiById = new Map([
+      ['e1', { id: 'e1', communityId: 'c1', name: 'party_blob', fileId: 'file-9', createdBy: null, createdAt: '2026-01-01' }],
+    ]);
+    const onReactionClick = vi.fn();
+    const reactions: Reaction[] = [{ emoji: 'custom:e1', userIds: ['u1'] }];
+
+    const { user } = renderWithProviders(
+      <MessageReactions
+        messageId="msg-1"
+        reactions={reactions}
+        onReactionClick={onReactionClick}
+        emojiById={emojiById}
+      />
+    );
+
+    const img = await screen.findByRole('img', { name: ':party_blob:' });
+    await user.click(img);
+    expect(onReactionClick).toHaveBeenCalledWith('custom:e1');
+  });
 });
