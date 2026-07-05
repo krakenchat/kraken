@@ -9,12 +9,16 @@ import type { MockSocket } from '../test-utils/mockSocket';
 import { readReceiptsControllerGetUnreadCountsQueryKey } from '../../api-client/@tanstack/react-query.gen';
 import type { UnreadCountDto } from '../../api-client';
 
-// Mock IntersectionObserver for jsdom
+// Mock IntersectionObserver for jsdom; tracks instantiations so tests can
+// assert no observer is created in disableObserver mode.
+let observerInstanceCount = 0;
 class MockIntersectionObserver {
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
-  constructor() {}
+  constructor() {
+    observerInstanceCount++;
+  }
 }
 
 describe('useMessageVisibility', () => {
@@ -23,6 +27,7 @@ describe('useMessageVisibility', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    observerInstanceCount = 0;
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -40,6 +45,7 @@ describe('useMessageVisibility', () => {
     directMessageGroupId?: string;
     messages?: Array<{ id: string }>;
     enabled?: boolean;
+    disableObserver?: boolean;
   }) {
     return renderHook(
       () =>
@@ -235,6 +241,45 @@ describe('useMessageVisibility', () => {
       act(() => vi.advanceTimersByTime(1000));
 
       expect(mockSocket.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('disableObserver (virtualized path)', () => {
+    it('does not create an IntersectionObserver when disableObserver is true', () => {
+      renderVisibility({
+        channelId: 'ch-1',
+        messages: [{ id: 'msg-1' }],
+        disableObserver: true,
+      });
+      expect(observerInstanceCount).toBe(0);
+    });
+
+    it('creates the IntersectionObserver by default', () => {
+      renderVisibility({ channelId: 'ch-1', messages: [{ id: 'msg-1' }] });
+      expect(observerInstanceCount).toBe(1);
+    });
+
+    it('markAsRead still performs optimistic update and debounced emit with disableObserver', () => {
+      seedUnreadData([
+        { channelId: 'ch-1', unreadCount: 4, mentionCount: 1 } as UnreadCountDto,
+      ]);
+      const { result } = renderVisibility({
+        channelId: 'ch-1',
+        messages: [{ id: 'msg-1' }],
+        disableObserver: true,
+      });
+
+      act(() => result.current.markAsRead('msg-1'));
+
+      const data = getUnreadData();
+      expect(data![0].unreadCount).toBe(0);
+      expect(data![0].lastReadMessageId).toBe('msg-1');
+
+      act(() => vi.advanceTimersByTime(1000));
+      expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.MARK_AS_READ, {
+        lastReadMessageId: 'msg-1',
+        channelId: 'ch-1',
+      });
     });
   });
 

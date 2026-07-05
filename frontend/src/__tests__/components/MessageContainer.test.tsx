@@ -91,10 +91,45 @@ vi.mock('../../components/Message/UnreadMessageDivider', () => ({
   ),
 }));
 
+// Stub the virtualized renderer so gate tests assert routing, not virtua
+// internals (VirtualMessageList has its own test with a mocked VList).
+// Captures the props it last received so transition tests can assert wiring.
+let lastVirtualListProps: {
+  initialAnchor?: { id: string; offsetTop: number } | null;
+  onVisibleRangeChange?: (startIndex: number, endIndex: number) => void;
+} | null = null;
+vi.mock('../../components/Message/VirtualMessageList', async () => {
+  const React = await import('react');
+  return {
+    default: React.forwardRef(
+      (
+        props: {
+          orderedMessages: Array<{ id: string }>;
+          initialAnchor?: { id: string; offsetTop: number } | null;
+        },
+        _ref: React.Ref<unknown>,
+      ) => {
+        lastVirtualListProps = props;
+        return (
+          <div data-testid="virtual-message-list">
+            {props.orderedMessages.map((m) => (
+              <div key={m.id} data-testid={`vmsg-${m.id}`} />
+            ))}
+          </div>
+        );
+      },
+    ),
+  };
+});
+
 // ── Mock hooks ─────────────────────────────────────────────────────────
 const mockMarkAsRead = vi.fn();
+let lastVisibilityProps: { disableObserver?: boolean } | null = null;
 vi.mock('../../hooks/useMessageVisibility', () => ({
-  useMessageVisibility: () => ({ markAsRead: mockMarkAsRead }),
+  useMessageVisibility: (props: { disableObserver?: boolean }) => {
+    lastVisibilityProps = props;
+    return { markAsRead: mockMarkAsRead };
+  },
 }));
 
 const mockGetLastReadMessageId = vi.fn((): string | undefined => undefined);
@@ -170,6 +205,9 @@ function makeRect({ top = 0, height = 0 }: { top?: number; height?: number }) {
 // ── Setup / Teardown ───────────────────────────────────────────────────
 beforeEach(() => {
   resetFactoryCounter();
+  lastVirtualListProps = null;
+  lastVisibilityProps = null;
+  mockMarkAsRead.mockClear();
   mockObserverInstances = [];
   mockResizeInstances = [];
   vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
@@ -996,6 +1034,148 @@ describe('MessageContainer', () => {
       // 3 skeletons for newer loading
       const skeletons = screen.getAllByTestId('message-skeleton');
       expect(skeletons.length).toBe(3);
+    });
+  });
+
+  // ── Virtualization gate ────────────────────────────────────────────
+  describe('virtualization gate', () => {
+    const manyMessages = (n: number) =>
+      Array.from({ length: n }, (_, i) => createMessage({ id: `msg-${i}` }));
+
+    it('does not virtualize below the threshold in normal mode', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(10)} />,
+      );
+      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
+      expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
+    });
+
+    it('virtualizes at or above the threshold in normal mode', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(200)} />,
+      );
+      // Legacy scroll container is replaced by the virtualized renderer.
+      expect(screen.queryByTestId('scroll-container')).not.toBeInTheDocument();
+      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
+    });
+
+    it('never virtualizes in anchored mode, even above the threshold', () => {
+      renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={manyMessages(200)}
+          mode="anchored"
+          jumpToPresent={vi.fn()}
+        />,
+      );
+      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
+      expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
+    });
+
+    it('captures the reading position as initialAnchor when crossing the threshold while scrolled up', () => {
+      // Start below the threshold on the legacy path.
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(199)} />,
+      );
+      const container = getScrollContainer();
+
+      // User is reading history: bottom sentinel reports not intersecting.
+      const bottomObserver = findObserverFor(
+        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
+      );
+      act(() => {
+        bottomObserver!.trigger([{ isIntersecting: false }]);
+      });
+
+      // Mock geometry: container top at 0; msg-50 is the topmost visible
+      // message, 20px below the viewport top. All other rows keep jsdom's
+      // zero-rect and are skipped by the capture scan.
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 0, height: 400 }),
+      );
+      const visibleEl = container.querySelector('[data-message-id="msg-50"]') as HTMLElement;
+      vi.spyOn(visibleEl, 'getBoundingClientRect').mockReturnValue(
+        makeRect({ top: 20, height: 30 }),
+      );
+
+      // An older page lands, crossing the threshold (newest-first prop appends
+      // older messages at the end).
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={[...manyMessages(199), createMessage({ id: 'older-msg' })]}
+        />,
+      );
+
+      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
+      expect(lastVirtualListProps?.initialAnchor).toEqual({
+        id: 'msg-50',
+        offsetTop: 20,
+      });
+    });
+
+    it('does not capture an anchor when crossing the threshold while at the bottom', () => {
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(199)} />,
+      );
+      // atBottom defaults to true (no observer trigger) — e.g. incoming
+      // messages grow the cache past the threshold while the user is pinned.
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={[createMessage({ id: 'newer-msg' }), ...manyMessages(199)]}
+        />,
+      );
+
+      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
+      expect(lastVirtualListProps?.initialAnchor).toBeNull();
+    });
+  });
+
+  // ── Virtualized read tracking ──────────────────────────────────────
+  describe('virtualized read tracking', () => {
+    const manyMessages = (n: number) =>
+      Array.from({ length: n }, (_, i) => createMessage({ id: `msg-${i}` }));
+
+    it('disables the IntersectionObserver in the virtualized path', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
+      );
+      expect(lastVisibilityProps?.disableObserver).toBe(true);
+    });
+
+    it('keeps the IntersectionObserver on the legacy path', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(10)} channelId="ch-1" />,
+      );
+      expect(lastVisibilityProps?.disableObserver).toBe(false);
+    });
+
+    it('marks the latest visible message from the virtual range', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
+      );
+      // Chronological render order is the reverse of the newest-first prop:
+      // ordered[k] = msg-(199 - k). Range end 5 → msg-194.
+      act(() => lastVirtualListProps!.onVisibleRangeChange!(0, 5));
+      expect(mockMarkAsRead).toHaveBeenCalledWith('msg-194');
+    });
+
+    it('clamps an out-of-range end index to the newest message', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
+      );
+      act(() => lastVirtualListProps!.onVisibleRangeChange!(190, 500));
+      expect(mockMarkAsRead).toHaveBeenCalledWith('msg-0');
+    });
+
+    it('ignores invalid ranges', () => {
+      renderWithProviders(
+        <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
+      );
+      act(() => lastVirtualListProps!.onVisibleRangeChange!(5, 2));
+      act(() => lastVirtualListProps!.onVisibleRangeChange!(0, -1));
+      expect(mockMarkAsRead).not.toHaveBeenCalled();
     });
   });
 

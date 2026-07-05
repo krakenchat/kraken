@@ -1,17 +1,17 @@
-import React, { useMemo } from "react";
-import MessageComponent from "./MessageComponent";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
-import { UnreadMessageDivider } from "./UnreadMessageDivider";
+import MessageList from "./MessageList";
+import VirtualMessageList, { type VirtualMessageListHandle } from "./VirtualMessageList";
 import type { Message } from "../../types/message.type";
 import { useMessageVisibility } from "../../hooks/useMessageVisibility";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useBidirectionalScroll } from "../../hooks/useBidirectionalScroll";
 import { useAnchoredModeTransition } from "../../hooks/useAnchoredModeTransition";
-import { VoiceSessionType } from "../../contexts/VoiceContext";
 import TypingIndicator from "./TypingIndicator";
+import { shouldVirtualizeMessages } from "./virtualization";
 
 interface MessageContainerProps {
   // Data
@@ -95,13 +95,25 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   // selection highlight correctly.
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
+  // Virtualization gate, two-phase. `wantVirtualized` is the raw decision;
+  // `virtualActive` is the rendered reality. When the gate first flips to
+  // virtual mid-session (the user just paginated past the threshold, i.e. is
+  // reading history), a layout effect below captures the current reading
+  // position from the still-mounted legacy DOM before activating the virtual
+  // renderer — otherwise the virtual list would re-home to the bottom and yank
+  // the reader away from where they were.
+  const wantVirtualized = shouldVirtualizeMessages(messages.length, mode);
+  const [virtualActive, setVirtualActive] = useState(wantVirtualized);
+  const transitionAnchorRef = useRef<{ id: string; offsetTop: number } | null>(null);
+  const isVirtualized = virtualActive;
+
   const {
     scrollContainerRef,
     bottomSentinelRef,
     topSentinelRef,
     messageRefs,
-    atBottom,
-    scrollToBottom,
+    atBottom: legacyAtBottom,
+    scrollToBottom: legacyScrollToBottom,
   } = useBidirectionalScroll({
     messages,
     mode,
@@ -114,7 +126,53 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     onLoadNewer,
     isLoadingNewer,
     hasNewer,
+    // Disable the manual scroll math entirely in the virtualized path —
+    // virtua owns scrollTop there (prepend/stick-to-bottom/growth compensation).
+    disabled: isVirtualized,
   });
+
+  // Virtualized-path scroll state. virtua reports atBottom via a callback and
+  // exposes scrollToBottom through an imperative handle; both are lifted here so
+  // the FABs work identically regardless of which renderer is active.
+  const virtualListRef = useRef<VirtualMessageListHandle>(null);
+  const [virtualAtBottom, setVirtualAtBottom] = useState(true);
+  const scrollToVirtualBottom = useCallback(() => {
+    virtualListRef.current?.scrollToBottom();
+  }, []);
+
+  const atBottom = isVirtualized ? virtualAtBottom : legacyAtBottom;
+  const scrollToBottom = isVirtualized ? scrollToVirtualBottom : legacyScrollToBottom;
+
+  // Phase 2 of the virtualization gate: activate/deactivate the virtual
+  // renderer one commit after the raw decision changes. On legacy → virtual,
+  // capture the topmost visible message and its viewport offset from the legacy
+  // DOM (still mounted in this commit) so VirtualMessageList can restore the
+  // reading position instead of re-homing to the bottom. When the user is
+  // pinned to the bottom (threshold crossed by incoming messages, or a fresh
+  // mount with a large cache), no anchor is captured and the virtual list
+  // mounts at the bottom, which is correct.
+  useLayoutEffect(() => {
+    if (wantVirtualized === virtualActive) return;
+    if (wantVirtualized) {
+      let anchor: { id: string; offsetTop: number } | null = null;
+      const container = scrollContainerRef.current;
+      if (container && !legacyAtBottom) {
+        const containerTop = container.getBoundingClientRect().top;
+        for (const el of container.querySelectorAll("[data-message-id]")) {
+          const rect = el.getBoundingClientRect();
+          if (rect.bottom > containerTop + 1) {
+            const id = el.getAttribute("data-message-id");
+            if (id) anchor = { id, offsetTop: rect.top - containerTop };
+            break;
+          }
+        }
+      }
+      transitionAnchorRef.current = anchor;
+    } else {
+      transitionAnchorRef.current = null;
+    }
+    setVirtualActive(wantVirtualized);
+  }, [wantVirtualized, virtualActive, legacyAtBottom, scrollContainerRef]);
 
   useAnchoredModeTransition({
     mode,
@@ -125,14 +183,37 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     scrollContainerRef,
   });
 
-  // Auto-mark messages as read when they scroll into view
-  useMessageVisibility({
+  // Auto-mark messages as read when they scroll into view. In the virtualized
+  // path the IntersectionObserver is disabled (off-screen rows are unmounted
+  // and would never be observed); visibility is fed from virtua's visible
+  // index range below instead. markAsRead keeps the same optimistic-update +
+  // 1s-debounced-emit path in both modes.
+  const { markAsRead } = useMessageVisibility({
     channelId,
     directMessageGroupId,
     messages,
     containerRef: scrollContainerRef,
     enabled: !isLoading && messages.length > 0,
+    disableObserver: isVirtualized,
   });
+
+  // Virtualized read tracking: the latest (newest) visible message is the end
+  // of virtua's visible index range in the chronological render order. Each
+  // range change updates the pending mark; the debounce inside markAsRead means
+  // the range at debounce time wins, so fast scroll-throughs don't emit
+  // per-message. Out-of-range indices (estimate overshoot at the list edge)
+  // are clamped; empty/invalid ranges are ignored.
+  const orderedMessagesRef = useRef(orderedMessages);
+  orderedMessagesRef.current = orderedMessages;
+  const handleVisibleRangeChange = useCallback(
+    (startIndex: number, endIndex: number) => {
+      const ordered = orderedMessagesRef.current;
+      if (ordered.length === 0 || endIndex < 0 || endIndex < startIndex) return;
+      const latestVisible = ordered[Math.min(endIndex, ordered.length - 1)];
+      if (latestVisible) markAsRead(latestVisible.id);
+    },
+    [markAsRead],
+  );
 
   // Read receipts - determine where to show unread divider
   const { lastReadMessageId: getLastReadMessageId, unreadCount: getUnreadCount } = useReadReceipts();
@@ -225,95 +306,50 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         }}
       >
         {messages.length > 0 ? (
-          <Box
-            ref={scrollContainerRef}
-            data-testid="scroll-container"
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              display: "flex",
-              flexDirection: "column",
-              // useBidirectionalScroll is the single owner of scroll
-              // stabilization. Chrome suppresses native anchoring at
-              // scrollTop===0 — exactly when older pages load — so it can't be
-              // relied on and must not double-compensate with our manual logic.
-              overflowAnchor: "none",
-            }}
-          >
-            {/* Top sentinel: first in DOM = visual top. marginTop: 'auto'
-                bottom-packs sparse channels (content shorter than the
-                viewport sits at the visual bottom, like column-reverse did);
-                once content overflows, the auto margin resolves to 0.
-                Do NOT swap this for justifyContent: flex-end — that breaks
-                scrolling in some engines. */}
-            <Box ref={topSentinelRef} sx={{ height: '1px', flexShrink: 0, marginTop: 'auto' }} />
-
-            {/* Loading skeleton at visual top for older messages */}
-            {isLoadingMore && (
-              <Box sx={{ p: 2, textAlign: "center" }}>
-                <MessageSkeleton />
-                <MessageSkeleton />
-                <MessageSkeleton />
-              </Box>
-            )}
-
-            {/* Messages oldest-first: DOM order = chronological order, so
-                native text selection across messages highlights correctly */}
-            {orderedMessages.map((message, index) => {
-              const isHighlighted = highlightMessageId === message.id;
-              // Show divider right after the last-read message, i.e. before
-              // the first unread message.
-              const showDividerBefore =
-                unreadCount > 0 && lastReadIndex !== -1 && index === lastReadIndex + 1;
-
-              // Composite key: when highlighted, include highlightSeq so React remounts
-              // the element and restarts the CSS flash animation on re-clicks.
-              const key = isHighlighted ? `${message.id}-hl-${highlightSeq}` : message.id;
-
-              return (
-                <React.Fragment key={key}>
-                  {showDividerBefore && (
-                    <UnreadMessageDivider unreadCount={unreadCount} />
-                  )}
-                  <div>
-                    <div
-                      data-message-id={message.id}
-                      ref={(el) => {
-                        if (el) messageRefs.current.set(message.id, el);
-                        else messageRefs.current.delete(message.id);
-                      }}
-                    >
-                      <MessageComponent
-                        message={message}
-                        isAuthor={message.authorId === authorId}
-                        isSearchHighlight={isHighlighted}
-                        contextId={contextId}
-                        communityId={communityId}
-                        onOpenThread={onOpenThread}
-                        onQuoteReply={onQuoteReply}
-                        contextType={directMessageGroupId ? VoiceSessionType.Dm : VoiceSessionType.Channel}
-                      />
-                    </div>
-                  </div>
-                </React.Fragment>
-              );
-            })}
-
-            <Box sx={{ px: 2, minHeight: 20 }} />
-
-            {/* Loading skeleton at visual bottom for newer messages (anchored mode) */}
-            {isLoadingNewer && (
-              <Box sx={{ p: 2, textAlign: "center" }}>
-                <MessageSkeleton />
-                <MessageSkeleton />
-                <MessageSkeleton />
-              </Box>
-            )}
-
-            {/* Bottom sentinel: last in DOM = visual bottom */}
-            <Box ref={bottomSentinelRef} sx={{ height: '1px', flexShrink: 0 }} />
-          </Box>
+          isVirtualized ? (
+            <VirtualMessageList
+              ref={virtualListRef}
+              orderedMessages={orderedMessages}
+              authorId={authorId}
+              isLoadingMore={isLoadingMore}
+              continuationToken={continuationToken}
+              onLoadMore={onLoadMore}
+              unreadCount={unreadCount}
+              lastReadIndex={lastReadIndex}
+              highlightMessageId={highlightMessageId}
+              highlightSeq={highlightSeq}
+              contextId={contextId}
+              communityId={communityId}
+              directMessageGroupId={directMessageGroupId}
+              onOpenThread={onOpenThread}
+              onQuoteReply={onQuoteReply}
+              resetKey={contextKey}
+              initialAnchor={transitionAnchorRef.current}
+              onAtBottomChange={setVirtualAtBottom}
+              onVisibleRangeChange={handleVisibleRangeChange}
+            />
+          ) : (
+            <MessageList
+              orderedMessages={orderedMessages}
+              authorId={authorId}
+              scrollContainerRef={scrollContainerRef}
+              topSentinelRef={topSentinelRef}
+              bottomSentinelRef={bottomSentinelRef}
+              messageRefs={messageRefs}
+              isLoadingMore={isLoadingMore}
+              isLoadingNewer={isLoadingNewer}
+              unreadCount={unreadCount}
+              lastReadIndex={lastReadIndex}
+              highlightMessageId={highlightMessageId}
+              highlightSeq={highlightSeq}
+              contextId={contextId}
+              communityId={communityId}
+              directMessageGroupId={directMessageGroupId}
+              onOpenThread={onOpenThread}
+              onQuoteReply={onQuoteReply}
+              isVirtualized={isVirtualized}
+            />
+          )
         ) : (
           <Box
             sx={{
