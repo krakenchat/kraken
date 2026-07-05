@@ -150,7 +150,9 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     // isLoadingMore=true (scroll events can arrive faster than React commits).
     const loadOlderInFlightRef = useRef(false);
 
-    // Re-home at the bottom when switching contexts (channel/DM).
+    // Re-home at the bottom when switching contexts (channel/DM). The parent
+    // is notified immediately so FAB state doesn't stay stale from the
+    // previous context until the first scroll event.
     useEffect(() => {
       cancelPositioningRafs();
       initialPositionedRef.current = false;
@@ -159,7 +161,8 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       prevOldestIdRef.current = undefined;
       prevLenRef.current = 0;
       prevNewestIdRef.current = undefined;
-    }, [resetKey]);
+      onAtBottomChange?.(true);
+    }, [resetKey, onAtBottomChange]);
 
     // Cancel any pending positioning frames on unmount.
     useEffect(() => cancelPositioningRafs, []);
@@ -206,8 +209,11 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       initialPositionedRef.current = true;
       onAtBottomChange?.(!anchored);
       // orderedMessages identity changes with len; anchor lookup uses the ref.
+      // resetKey is a dep so a context switch re-positions even when the new
+      // context has the same message count (the reset effect above clears
+      // initialPositionedRef but len alone wouldn't re-run this effect).
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [len, onAtBottomChange]);
+    }, [len, resetKey, onAtBottomChange]);
 
     // Stick-to-bottom: a newer message appended while pinned (not a prepend).
     useEffect(() => {

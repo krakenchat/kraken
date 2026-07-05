@@ -130,6 +130,48 @@ describe('VirtualMessageList', () => {
     expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'end' });
   });
 
+  it('re-homes to the bottom on context switch even when the message count is unchanged', () => {
+    const { rerender } = render(
+      <VirtualMessageList {...baseProps} orderedMessages={messages(5)} resetKey="ch-1" />,
+    );
+    fakeHandle.scrollToIndex.mockClear();
+
+    // Same length (5) — positioning must still re-run for the new context.
+    rerender(
+      <VirtualMessageList {...baseProps} orderedMessages={messages(5)} resetKey="ch-2" />,
+    );
+
+    expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'end' });
+  });
+
+  it('notifies onAtBottomChange(true) on context switch so FAB state is not stale', () => {
+    const onAtBottomChange = vi.fn();
+    const { rerender } = render(
+      <VirtualMessageList
+        {...baseProps}
+        orderedMessages={messages(5)}
+        resetKey="ch-1"
+        onAtBottomChange={onAtBottomChange}
+      />,
+    );
+
+    // Scroll up in the old context: offset 0 → 600px from bottom → not atBottom.
+    act(() => capturedProps.onScroll?.(0));
+    expect(onAtBottomChange).toHaveBeenLastCalledWith(false);
+    onAtBottomChange.mockClear();
+
+    rerender(
+      <VirtualMessageList
+        {...baseProps}
+        orderedMessages={messages(5)}
+        resetKey="ch-2"
+        onAtBottomChange={onAtBottomChange}
+      />,
+    );
+
+    expect(onAtBottomChange).toHaveBeenCalledWith(true);
+  });
+
   it('triggers onLoadMore when the visible start index nears the top', () => {
     const onLoadMore = vi.fn().mockResolvedValue(undefined);
     fakeHandle.findItemIndex = vi.fn(() => 2); // near top
