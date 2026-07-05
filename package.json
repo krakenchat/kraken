@@ -27,7 +27,8 @@
       "electron",
       "esbuild",
       "msw",
-      "prisma"
+      "prisma",
+      "sharp"
     ]
   }
 }

@@ -36,12 +36,26 @@ export default defineConfig({
             short_name: "Messages",
             description: "Open direct messages",
             url: "/#/direct-messages",
+            icons: [
+              {
+                src: "shortcut-messages-96.png",
+                sizes: "96x96",
+                type: "image/png",
+              },
+            ],
           },
           {
             name: "Notifications",
             short_name: "Notifications",
             description: "Open notifications",
             url: "/#/notifications",
+            icons: [
+              {
+                src: "shortcut-notifications-96.png",
+                sizes: "96x96",
+                type: "image/png",
+              },
+            ],
           },
         ],
         icons: [
@@ -58,10 +72,32 @@ export default defineConfig({
             purpose: "any",
           },
           {
-            src: "pwa-512x512.png",
+            src: "pwa-192x192-maskable.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "maskable",
+          },
+          {
+            src: "pwa-512x512-maskable.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
+          },
+        ],
+        screenshots: [
+          {
+            src: "screenshots/mobile-chat.png",
+            sizes: "412x915",
+            type: "image/png",
+            form_factor: "narrow",
+            label: "Semaphore Chat on mobile — a community text channel",
+          },
+          {
+            src: "screenshots/desktop-chat.png",
+            sizes: "1920x1080",
+            type: "image/png",
+            form_factor: "wide",
+            label: "Semaphore Chat on desktop — a community text channel",
           },
         ],
       },
