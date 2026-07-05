@@ -548,6 +548,111 @@ export async function expectNoVideoToNonWatcher(
   ).toBeLessThanOrEqual(toleranceBytes);
 }
 
+export interface SoundboardTrackState {
+  published: boolean;
+  subscribed: boolean;
+  hasTrack: boolean;
+}
+
+export interface SoundboardInboundSample {
+  bytesReceived: number;
+  totalAudioEnergy: number;
+  audioLevel?: number;
+}
+
+/**
+ * State of `remoteIdentity`'s SOUNDBOARD publication as seen by `from`.
+ * Soundboard tracks are published as Source.Unknown and identified purely by
+ * `trackName === 'soundboard'` (LiveKit's Source enum is fixed), so this walks
+ * the raw `__lkRoom` state like countScreenShareAudio() does.
+ */
+export async function getSoundboardTrackState(
+  from: Participant,
+  remoteIdentity: string,
+): Promise<SoundboardTrackState> {
+  return from.page.evaluate((id) => {
+    const out = { published: false, subscribed: false, hasTrack: false };
+    const room = window.__lkRoom;
+    if (!room) return out;
+    for (const [, participant] of room.remoteParticipants) {
+      const p = participant as {
+        identity: string;
+        audioTrackPublications: Map<
+          string,
+          { trackName?: string; isSubscribed?: boolean; track?: unknown }
+        >;
+      };
+      if (p.identity !== id) continue;
+      for (const [, pub] of p.audioTrackPublications) {
+        if (pub.trackName !== 'soundboard') continue;
+        out.published = true;
+        out.subscribed = !!pub.isSubscribed;
+        out.hasTrack = !!pub.track;
+      }
+    }
+    return out;
+  }, remoteIdentity);
+}
+
+/**
+ * Inbound RTP stats for `remoteIdentity`'s soundboard track on `from`'s page —
+ * "is `from` actually RECEIVING soundboard audio". totalAudioEnergy is the
+ * decisive signal: the warmed-up track carries silence (≈0 energy), so energy
+ * only accrues while a clip is actually playing.
+ */
+export async function getSoundboardInbound(
+  from: Participant,
+  remoteIdentity: string,
+): Promise<SoundboardInboundSample | undefined> {
+  return from.page.evaluate(async (id) => {
+    const room = window.__lkRoom;
+    if (!room) return undefined;
+    for (const [, participant] of room.remoteParticipants) {
+      const p = participant as {
+        identity: string;
+        audioTrackPublications: Map<
+          string,
+          {
+            trackName?: string;
+            track?: { getRTCStatsReport?: () => Promise<RTCStatsReport | undefined> };
+          }
+        >;
+      };
+      if (p.identity !== id) continue;
+      for (const [, pub] of p.audioTrackPublications) {
+        if (pub.trackName !== 'soundboard') continue;
+        if (!pub.track || typeof pub.track.getRTCStatsReport !== 'function') return undefined;
+        try {
+          const report = await pub.track.getRTCStatsReport();
+          if (!report) return undefined;
+          let out: { bytesReceived: number; totalAudioEnergy: number; audioLevel?: number } | undefined;
+          report.forEach((stat) => {
+            const s = stat as {
+              type: string;
+              kind?: string;
+              mediaType?: string;
+              bytesReceived?: number;
+              totalAudioEnergy?: number;
+              audioLevel?: number;
+            };
+            if (s.type === 'inbound-rtp' && (s.kind === 'audio' || s.mediaType === 'audio')) {
+              out = {
+                bytesReceived: s.bytesReceived ?? 0,
+                totalAudioEnergy: s.totalAudioEnergy ?? 0,
+                audioLevel: s.audioLevel,
+              };
+            }
+          });
+          return out;
+        } catch {
+          return undefined;
+        }
+      }
+    }
+    return undefined;
+  }, remoteIdentity);
+}
+
 /** Trigger a deterministic LiveKit reconnect on a participant (PR #352 repro). */
 export async function forceReconnect(
   p: Participant,

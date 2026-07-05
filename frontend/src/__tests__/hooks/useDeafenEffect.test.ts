@@ -197,6 +197,48 @@ describe('useDeafenEffect', () => {
     expect(cameraTrack.track.setVolume).not.toHaveBeenCalled();
   });
 
+  it('mutes soundboard tracks (Source.Unknown, matched by trackName) when deafened', () => {
+    const soundboardTrack = {
+      source: 'unknown',
+      trackName: 'soundboard',
+      track: { setVolume: vi.fn() },
+    };
+    addParticipant('user-1', [soundboardTrack as never]);
+    mockIsDeafened = true;
+
+    renderHook(() => useDeafenEffect());
+
+    expect(soundboardTrack.track.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('restores soundboard tracks to 100% when undeafened', () => {
+    const soundboardTrack = {
+      source: 'unknown',
+      trackName: 'soundboard',
+      track: { setVolume: vi.fn() },
+    };
+    addParticipant('user-1', [soundboardTrack as never]);
+    mockIsDeafened = false;
+
+    renderHook(() => useDeafenEffect());
+
+    expect(audioBoostManager.applyVolume).toHaveBeenCalledWith(
+      soundboardTrack.track,
+      'user-1:unknown',
+      100,
+    );
+  });
+
+  it('does not mute an unnamed Source.Unknown track when deafened', () => {
+    const unknownTrack = { source: 'unknown', track: { setVolume: vi.fn() } };
+    addParticipant('user-1', [unknownTrack as never]);
+    mockIsDeafened = true;
+
+    renderHook(() => useDeafenEffect());
+
+    expect(unknownTrack.track.setVolume).not.toHaveBeenCalled();
+  });
+
   it('does nothing when no room is available', () => {
     mockRoom = null;
 

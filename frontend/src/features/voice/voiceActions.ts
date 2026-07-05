@@ -8,7 +8,9 @@ import { getResolutionConfig, getScreenShareAudioConfig } from "../../utils/scre
 import { logger } from "../../utils/logger";
 import { isElectron } from "../../utils/platform";
 import { getCachedItem, setCachedItem, removeCachedItem } from "../../utils/storage";
-import { refreshToken as refreshAuthToken } from "../../utils/tokenService";
+import { refreshToken as refreshAuthToken, getAccessToken } from "../../utils/tokenService";
+import { getApiUrl } from "../../config/env";
+import { soundboardPlayer } from "./soundboardPlayer";
 import { installLivekitWorkerTimers } from "../../utils/livekitWorkerTimers";
 import { playSound, Sounds } from "../../hooks/useSound";
 import { setUpdateDeferred } from "../../utils/swUpdate";
@@ -408,6 +410,10 @@ export async function leaveVoiceChannel(deps: VoiceActionDeps) {
       logger.warn('[Voice] Failed to remove voice presence (webhook will handle it):', err);
     }
 
+    // Tear down the soundboard graph before disconnecting so the published
+    // track/AudioContext don't leak across sessions.
+    await soundboardPlayer.dispose(room).catch(() => {});
+
     logger.info('[Voice] Disconnecting from LiveKit room...');
     await room.disconnect();
     logger.info('[Voice] Disconnected from LiveKit');
@@ -511,6 +517,7 @@ export async function leaveDmVoice(deps: VoiceActionDeps) {
   if (!currentDmGroupId || !room) return;
 
   try {
+    await soundboardPlayer.dispose(room).catch(() => {});
     await room.disconnect();
     setRoom(null);
     dispatch({ type: VoiceActionType.SetDisconnected });
@@ -562,6 +569,36 @@ export async function toggleMicrophone(deps: VoiceActionDeps) {
     logger.error("[Voice] Failed to toggle microphone:", error);
     throw error;
   }
+}
+
+/**
+ * Play a soundboard sound to everyone in the voice channel.
+ *
+ * Fetches the authenticated audio blob for `fileId`, then hands it to the
+ * WebAudio-backed soundboard player which publishes a mixed track into the
+ * LiveKit room (audible to remote participants) and monitors locally.
+ */
+export async function playSoundboard(fileId: string, deps: VoiceActionDeps) {
+  const room = deps.getRoom();
+  if (!room) {
+    logger.warn('[Voice] playSoundboard: not connected to a room');
+    return;
+  }
+
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(getApiUrl(`/file/${fileId}`), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch soundboard sound (${response.status})`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+
+  await soundboardPlayer.play(room, fileId, arrayBuffer);
 }
 
 export async function toggleCameraUnified(deps: VoiceActionDeps) {

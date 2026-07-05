@@ -9,5 +9,6 @@ export { default as ChannelManagement } from "./ChannelManagement";
 export { default as PrivateChannelMembership } from "./PrivateChannelMembership";
 export { default as RoleManagement } from "./RoleManagement";
 export { default as AliasGroupManagement } from "./AliasGroupManagement";
+export { default as SoundboardManagement } from "./SoundboardManagement";
 export { default as AliasGroupEditor } from "./AliasGroupEditor";
 export { default as CustomEmojiManagement } from "./CustomEmojiManagement";

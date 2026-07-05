@@ -74,6 +74,7 @@ const TEST_COMMUNITIES = [
       { name: 'voice-edge', type: 'VOICE' },
       { name: 'voice-matrix', type: 'VOICE' },
       { name: 'voice-perms', type: 'VOICE' },
+      { name: 'voice-soundboard', type: 'VOICE' },
     ],
   },
   {

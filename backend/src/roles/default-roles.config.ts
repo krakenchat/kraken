@@ -113,6 +113,11 @@ export const DEFAULT_COMMUNITY_CREATOR_ROLE: DefaultRoleConfig = {
     RbacActions.VIEW_BAN_LIST,
     RbacActions.VIEW_MODERATION_LOGS,
     RbacActions.MUTE_PARTICIPANT,
+
+    // Soundboard management
+    RbacActions.CREATE_SOUNDBOARD_SOUND,
+    RbacActions.DELETE_SOUNDBOARD_SOUND,
+    RbacActions.READ_SOUNDBOARD_SOUND,
   ],
 };
 
@@ -243,6 +248,11 @@ export const DEFAULT_ADMIN_ROLE: DefaultRoleConfig = {
     RbacActions.VIEW_BAN_LIST,
     RbacActions.VIEW_MODERATION_LOGS,
     RbacActions.MUTE_PARTICIPANT,
+
+    // Soundboard management
+    RbacActions.CREATE_SOUNDBOARD_SOUND,
+    RbacActions.DELETE_SOUNDBOARD_SOUND,
+    RbacActions.READ_SOUNDBOARD_SOUND,
   ],
 };
 
@@ -294,6 +304,11 @@ export const DEFAULT_MODERATOR_ROLE: DefaultRoleConfig = {
     RbacActions.DELETE_ANY_MESSAGE,
     RbacActions.VIEW_BAN_LIST,
     RbacActions.MUTE_PARTICIPANT,
+
+    // Soundboard (read to list, manage to add/remove)
+    RbacActions.READ_SOUNDBOARD_SOUND,
+    RbacActions.CREATE_SOUNDBOARD_SOUND,
+    RbacActions.DELETE_SOUNDBOARD_SOUND,
   ],
 };
 
@@ -326,6 +341,9 @@ export const DEFAULT_MEMBER_ROLE: DefaultRoleConfig = {
 
     // Replay capture permission
     RbacActions.CAPTURE_REPLAY,
+
+    // Soundboard: members can list and play sounds (playing is client-side)
+    RbacActions.READ_SOUNDBOARD_SOUND,
   ],
 };
 

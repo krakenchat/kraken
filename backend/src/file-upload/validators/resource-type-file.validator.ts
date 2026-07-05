@@ -6,6 +6,7 @@ import {
   UserAvatarValidationStrategy,
   CommunityBannerValidationStrategy,
   CustomEmojiValidationStrategy,
+  SoundboardSoundValidationStrategy,
 } from './strategies';
 import { matchesDeclaredImageType, readFileHeader } from './magic-bytes.util';
 
@@ -46,6 +47,7 @@ export class ResourceTypeFileValidator extends FileValidator<ResourceTypeFileVal
       [ResourceType.COMMUNITY_AVATAR, new CommunityBannerValidationStrategy()],
       [ResourceType.COMMUNITY_BANNER, new CommunityBannerValidationStrategy()],
       [ResourceType.CUSTOM_EMOJI, new CustomEmojiValidationStrategy()],
+      [ResourceType.SOUNDBOARD_SOUND, new SoundboardSoundValidationStrategy()],
     ]);
   }
 

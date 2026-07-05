@@ -7157,6 +7157,111 @@
           "CustomEmoji"
         ]
       }
+    },
+    "/api/soundboard/community/{communityId}": {
+      "get": {
+        "operationId": "SoundboardController_listCommunitySounds",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SoundboardSoundDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List all soundboard sounds for a community.",
+        "tags": [
+          "Soundboard"
+        ]
+      },
+      "post": {
+        "operationId": "SoundboardController_createSound",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSoundboardSoundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundboardSoundDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a new soundboard sound from a previously uploaded audio file.",
+        "tags": [
+          "Soundboard"
+        ]
+      }
+    },
+    "/api/soundboard/community/{communityId}/{soundId}": {
+      "delete": {
+        "operationId": "SoundboardController_deleteSound",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "soundId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a soundboard sound.",
+        "tags": [
+          "Soundboard"
+        ]
+      }
     }
   },
   "info": {
@@ -7805,7 +7910,10 @@
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
                 "MUTE_PARTICIPANT",
-                "MANAGE_EMOJIS"
+                "MANAGE_EMOJIS",
+                "CREATE_SOUNDBOARD_SOUND",
+                "DELETE_SOUNDBOARD_SOUND",
+                "READ_SOUNDBOARD_SOUND"
               ]
             }
           },
@@ -7965,7 +8073,10 @@
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
                 "MUTE_PARTICIPANT",
-                "MANAGE_EMOJIS"
+                "MANAGE_EMOJIS",
+                "CREATE_SOUNDBOARD_SOUND",
+                "DELETE_SOUNDBOARD_SOUND",
+                "READ_SOUNDBOARD_SOUND"
               ]
             }
           },
@@ -8047,7 +8158,10 @@
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
                 "MUTE_PARTICIPANT",
-                "MANAGE_EMOJIS"
+                "MANAGE_EMOJIS",
+                "CREATE_SOUNDBOARD_SOUND",
+                "DELETE_SOUNDBOARD_SOUND",
+                "READ_SOUNDBOARD_SOUND"
               ]
             }
           },
@@ -11479,7 +11593,8 @@
               "COMMUNITY_AVATAR",
               "MESSAGE_ATTACHMENT",
               "CUSTOM_EMOJI",
-              "REPLAY_CLIP"
+              "REPLAY_CLIP",
+              "SOUNDBOARD_SOUND"
             ]
           },
           "resourceId": {
@@ -11513,7 +11628,8 @@
               "COMMUNITY_AVATAR",
               "MESSAGE_ATTACHMENT",
               "CUSTOM_EMOJI",
-              "REPLAY_CLIP"
+              "REPLAY_CLIP",
+              "SOUNDBOARD_SOUND"
             ]
           },
           "storageType": {
@@ -12719,6 +12835,67 @@
           "name": {
             "type": "string",
             "pattern": "CUSTOM_EMOJI_NAME_REGEX"
+          },
+          "fileId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "name",
+          "fileId"
+        ]
+      },
+      "SoundboardSoundDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "communityId",
+          "name",
+          "emoji",
+          "fileId",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "CreateSoundboardSoundDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "/^[a-zA-Z0-9 _-]+$/"
+          },
+          "emoji": {
+            "type": "string",
+            "maxLength": 16
           },
           "fileId": {
             "type": "string",

@@ -13,6 +13,7 @@ import { ThumbnailBackfillService } from '@/file/thumbnail-backfill.service';
 @Module({
   controllers: [FileUploadController],
   providers: [FileUploadService, ThumbnailService, ThumbnailBackfillService],
+  exports: [FileUploadService],
   imports: [
     MulterModule.registerAsync({
       imports: [ConfigModule],
