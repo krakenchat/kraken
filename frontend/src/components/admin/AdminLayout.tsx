@@ -107,7 +107,7 @@ const AdminLayout: React.FC = () => {
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: `calc(100dvh - ${APPBAR_HEIGHT}px)` }}>
+    <Box sx={{ display: "flex", minHeight: `calc(var(--full-dvh) - ${APPBAR_HEIGHT}px)` }}>
       {/* Sidebar */}
       {isMobile ? (
         <Drawer
@@ -135,7 +135,7 @@ const AdminLayout: React.FC = () => {
               width: DRAWER_WIDTH,
               boxSizing: "border-box",
               position: "relative",
-              minHeight: `calc(100dvh - ${APPBAR_HEIGHT}px)`,
+              minHeight: `calc(var(--full-dvh) - ${APPBAR_HEIGHT}px)`,
               backgroundColor: theme.palette.background.paper,
             },
           }}
