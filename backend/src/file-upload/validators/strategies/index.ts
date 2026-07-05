@@ -3,3 +3,4 @@ export { MessageAttachmentValidationStrategy } from './message-attachment-valida
 export { UserAvatarValidationStrategy } from './user-avatar-validation.strategy';
 export { CommunityBannerValidationStrategy } from './community-banner-validation.strategy';
 export { CustomEmojiValidationStrategy } from './custom-emoji-validation.strategy';
+export { SoundboardSoundValidationStrategy } from './soundboard-sound-validation.strategy';

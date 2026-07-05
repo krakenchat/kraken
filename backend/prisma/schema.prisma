@@ -304,6 +304,9 @@ model User {
   egressSessions EgressSession[]
   replayClips    ReplayClip[]
 
+  // Soundboard sounds uploaded by this user
+  soundboardSounds SoundboardSound[] @relation("SoundboardSoundCreator")
+
   // Push notification subscriptions
   pushSubscriptions PushSubscription[] @relation("UserPushSubscriptions")
 
@@ -461,6 +464,8 @@ model Community {
   aliasGroups   AliasGroup[]  @relation("AliasGroupCommunity")
   resourceFiles File[]        @relation("FileResourceCommunity")
   customEmojis  CustomEmoji[] @relation("CommunityCustomEmojis")
+
+  soundboardSounds SoundboardSound[] @relation("SoundboardSoundCommunity")
 
   @@unique([name])
 }
@@ -654,6 +659,7 @@ model File {
   replayClips        ReplayClip[]
   messageAttachments MessageAttachment[]
   customEmojis       CustomEmoji[]       @relation("CustomEmojiFile")
+  soundboardSounds   SoundboardSound[]
 
   // Avatar/banner back-references
   userAvatars      User[]      @relation("UserAvatar")
@@ -703,6 +709,22 @@ model ReplayClip {
   channel Channel? @relation("ReplayClipChannel", fields: [channelId], references: [id], onDelete: SetNull)
 
   @@index([userId, capturedAt])
+}
+
+model SoundboardSound {
+  id          String   @id @default(uuid())
+  communityId String
+  community   Community @relation("SoundboardSoundCommunity", fields: [communityId], references: [id], onDelete: Cascade)
+  name        String
+  emoji       String? // Optional emoji shown on the sound button
+  fileId      String
+  file        File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  createdBy   String? // User who uploaded the sound (SetNull when user deleted)
+  creator     User?    @relation("SoundboardSoundCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@unique([communityId, name])
+  @@index([communityId])
 }
 
 model CommunityBan {
@@ -775,6 +797,7 @@ enum ResourceType {
   MESSAGE_ATTACHMENT
   CUSTOM_EMOJI
   REPLAY_CLIP
+  SOUNDBOARD_SOUND
 }
 
 enum StorageType {
@@ -851,6 +874,9 @@ enum RbacActions {
   VIEW_MODERATION_LOGS
   MUTE_PARTICIPANT
   MANAGE_EMOJIS
+  CREATE_SOUNDBOARD_SOUND
+  DELETE_SOUNDBOARD_SOUND
+  READ_SOUNDBOARD_SOUND
 }
 
 enum InstanceRole {

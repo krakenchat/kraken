@@ -7053,9 +7053,9 @@
         ]
       }
     },
-    "/api/custom-emoji/community/{communityId}": {
+    "/api/soundboard/community/{communityId}": {
       "get": {
-        "operationId": "CustomEmojiController_listCommunityEmojis",
+        "operationId": "SoundboardController_listCommunitySounds",
         "parameters": [
           {
             "name": "communityId",
@@ -7074,20 +7074,20 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/CustomEmojiDto"
+                    "$ref": "#/components/schemas/SoundboardSoundDto"
                   }
                 }
               }
             }
           }
         },
-        "summary": "List all custom emojis for a community. Available to any community member.",
+        "summary": "List all soundboard sounds for a community.",
         "tags": [
-          "CustomEmoji"
+          "Soundboard"
         ]
       },
       "post": {
-        "operationId": "CustomEmojiController_createEmoji",
+        "operationId": "SoundboardController_createSound",
         "parameters": [
           {
             "name": "communityId",
@@ -7103,7 +7103,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateCustomEmojiDto"
+                "$ref": "#/components/schemas/CreateSoundboardSoundDto"
               }
             }
           }
@@ -7114,21 +7114,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CustomEmojiDto"
+                  "$ref": "#/components/schemas/SoundboardSoundDto"
                 }
               }
             }
           }
         },
-        "summary": "Register a new custom emoji from an uploaded CUSTOM_EMOJI file.",
+        "summary": "Create a new soundboard sound from a previously uploaded audio file.",
         "tags": [
-          "CustomEmoji"
+          "Soundboard"
         ]
       }
     },
-    "/api/custom-emoji/community/{communityId}/{emojiId}": {
+    "/api/soundboard/community/{communityId}/{soundId}": {
       "delete": {
-        "operationId": "CustomEmojiController_deleteEmoji",
+        "operationId": "SoundboardController_deleteSound",
         "parameters": [
           {
             "name": "communityId",
@@ -7139,7 +7139,7 @@
             }
           },
           {
-            "name": "emojiId",
+            "name": "soundId",
             "required": true,
             "in": "path",
             "schema": {
@@ -7152,9 +7152,9 @@
             "description": ""
           }
         },
-        "summary": "Delete a custom emoji from a community.",
+        "summary": "Delete a soundboard sound.",
         "tags": [
-          "CustomEmoji"
+          "Soundboard"
         ]
       }
     }
@@ -7805,7 +7805,9 @@
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
                 "MUTE_PARTICIPANT",
-                "MANAGE_EMOJIS"
+                "CREATE_SOUNDBOARD_SOUND",
+                "DELETE_SOUNDBOARD_SOUND",
+                "READ_SOUNDBOARD_SOUND"
               ]
             }
           },
@@ -7965,7 +7967,9 @@
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
                 "MUTE_PARTICIPANT",
-                "MANAGE_EMOJIS"
+                "CREATE_SOUNDBOARD_SOUND",
+                "DELETE_SOUNDBOARD_SOUND",
+                "READ_SOUNDBOARD_SOUND"
               ]
             }
           },
@@ -8047,7 +8051,9 @@
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
                 "MUTE_PARTICIPANT",
-                "MANAGE_EMOJIS"
+                "CREATE_SOUNDBOARD_SOUND",
+                "DELETE_SOUNDBOARD_SOUND",
+                "READ_SOUNDBOARD_SOUND"
               ]
             }
           },
@@ -8424,8 +8430,7 @@
               "SPECIAL_MENTION",
               "COMMUNITY_MENTION",
               "ALIAS_MENTION",
-              "CODE_BLOCK",
-              "EMOJI"
+              "CODE_BLOCK"
             ]
           },
           "text": {
@@ -8445,10 +8450,6 @@
             "nullable": true
           },
           "aliasId": {
-            "type": "string",
-            "nullable": true
-          },
-          "emojiId": {
             "type": "string",
             "nullable": true
           },
@@ -8475,8 +8476,7 @@
           "userId",
           "specialKind",
           "communityId",
-          "aliasId",
-          "emojiId"
+          "aliasId"
         ]
       },
       "CreateMessageDto": {
@@ -8633,13 +8633,8 @@
               "SPECIAL_MENTION",
               "COMMUNITY_MENTION",
               "ALIAS_MENTION",
-              "CODE_BLOCK",
-              "EMOJI"
+              "CODE_BLOCK"
             ]
-          },
-          "emojiId": {
-            "type": "string",
-            "nullable": true
           },
           "bold": {
             "type": "boolean",
@@ -11479,7 +11474,8 @@
               "COMMUNITY_AVATAR",
               "MESSAGE_ATTACHMENT",
               "CUSTOM_EMOJI",
-              "REPLAY_CLIP"
+              "REPLAY_CLIP",
+              "SOUNDBOARD_SOUND"
             ]
           },
           "resourceId": {
@@ -11513,7 +11509,8 @@
               "COMMUNITY_AVATAR",
               "MESSAGE_ATTACHMENT",
               "CUSTOM_EMOJI",
-              "REPLAY_CLIP"
+              "REPLAY_CLIP",
+              "SOUNDBOARD_SOUND"
             ]
           },
           "storageType": {
@@ -12680,7 +12677,7 @@
           "memberIds"
         ]
       },
-      "CustomEmojiDto": {
+      "SoundboardSoundDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -12691,6 +12688,10 @@
           },
           "name": {
             "type": "string"
+          },
+          "emoji": {
+            "type": "string",
+            "nullable": true
           },
           "fileId": {
             "type": "string"
@@ -12708,17 +12709,24 @@
           "id",
           "communityId",
           "name",
+          "emoji",
           "fileId",
           "createdBy",
           "createdAt"
         ]
       },
-      "CreateCustomEmojiDto": {
+      "CreateSoundboardSoundDto": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "pattern": "CUSTOM_EMOJI_NAME_REGEX"
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "/^[a-zA-Z0-9 _-]+$/"
+          },
+          "emoji": {
+            "type": "string",
+            "maxLength": 16
           },
           "fileId": {
             "type": "string",

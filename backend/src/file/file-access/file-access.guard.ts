@@ -64,6 +64,7 @@ export class FileAccessGuard implements CanActivate {
       [ResourceType.COMMUNITY_AVATAR, communityStrategy],
       [ResourceType.COMMUNITY_BANNER, communityStrategy],
       [ResourceType.CUSTOM_EMOJI, communityStrategy],
+      [ResourceType.SOUNDBOARD_SOUND, communityStrategy],
       [ResourceType.MESSAGE_ATTACHMENT, messageStrategy],
       [ResourceType.REPLAY_CLIP, replayClipStrategy],
     ]);

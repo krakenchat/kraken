@@ -9,6 +9,18 @@ import {
 import { useRoom } from './useRoom';
 import { useVoiceDispatch, VoiceActionType } from '../contexts/VoiceContext';
 import { logger } from '../utils/logger';
+import { SOUNDBOARD_TRACK_NAME } from '../features/voice/soundboardPlayer';
+
+/**
+ * Soundboard tracks are published as Track.Source.Unknown (the enum is fixed and
+ * can't be extended), so they're identified by their publication NAME. They must
+ * be auto-subscribed like the mic, otherwise remote clients never hear them.
+ */
+function isSoundboardPublication(publication: {
+  trackName?: string;
+}): boolean {
+  return publication.trackName === SOUNDBOARD_TRACK_NAME;
+}
 
 /**
  * Duck-types a TrackPublication as a RemoteTrackPublication. Avoids relying on
@@ -97,11 +109,14 @@ function forceResubscribePublication(publication: RemoteTrackPublication, reason
 function applySubscriptionPolicy(participant: RemoteParticipant, force = false) {
   for (const [, publication] of participant.trackPublications) {
     if (!isRemotePublication(publication)) continue;
-    if (publication.source === Track.Source.Microphone) {
+    if (
+      publication.source === Track.Source.Microphone ||
+      isSoundboardPublication(publication)
+    ) {
       if (force) {
-        forceResubscribePublication(publication, `reconnect-resubscribe-mic:${participant.identity}`);
+        forceResubscribePublication(publication, `reconnect-resubscribe:${participant.identity}`);
       } else {
-        subscribePublication(publication, `auto-subscribe-mic:${participant.identity}`);
+        subscribePublication(publication, `auto-subscribe:${participant.identity}`);
       }
     } else if (isOptInSource(publication.source)) {
       unsubscribePublication(publication, `initial-unsubscribe:${participant.identity}`);
@@ -153,9 +168,12 @@ export function useTrackSubscription(): TrackSubscriptionActions {
       participant: RemoteParticipant,
     ) => {
       if (!isRemotePublication(publication)) return;
-      logger.info('[TrackSubscription] TrackPublished', participant.identity, publication.source, publication.trackSid);
-      if (publication.source === Track.Source.Microphone) {
-        subscribePublication(publication, `published-mic:${participant.identity}`);
+      logger.info('[TrackSubscription] TrackPublished', participant.identity, publication.source, publication.trackSid, publication.trackName);
+      if (
+        publication.source === Track.Source.Microphone ||
+        isSoundboardPublication(publication)
+      ) {
+        subscribePublication(publication, `published-audio:${participant.identity}`);
       } else if (isOptInSource(publication.source)) {
         unsubscribePublication(publication, `published:${participant.identity}`);
         // Surface new screen shares: open the video panel so the viewer sees

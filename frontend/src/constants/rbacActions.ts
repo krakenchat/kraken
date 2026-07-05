@@ -88,6 +88,11 @@ export const RBAC_ACTIONS = {
   // Voice / Replay
   CAPTURE_REPLAY: 'CAPTURE_REPLAY',
 
+  // Soundboard
+  CREATE_SOUNDBOARD_SOUND: 'CREATE_SOUNDBOARD_SOUND',
+  DELETE_SOUNDBOARD_SOUND: 'DELETE_SOUNDBOARD_SOUND',
+  READ_SOUNDBOARD_SOUND: 'READ_SOUNDBOARD_SOUND',
+
   // Instance Administration
   READ_INSTANCE_SETTINGS: 'READ_INSTANCE_SETTINGS',
   UPDATE_INSTANCE_SETTINGS: 'UPDATE_INSTANCE_SETTINGS',
@@ -171,6 +176,11 @@ export const PERMISSION_GROUPS = {
     RBAC_ACTIONS.VIEW_MODERATION_LOGS,
     RBAC_ACTIONS.MUTE_PARTICIPANT,
   ],
+  'Soundboard': [
+    RBAC_ACTIONS.READ_SOUNDBOARD_SOUND,
+    RBAC_ACTIONS.CREATE_SOUNDBOARD_SOUND,
+    RBAC_ACTIONS.DELETE_SOUNDBOARD_SOUND,
+  ],
 };
 
 // Human readable action names
@@ -250,6 +260,11 @@ export const ACTION_LABELS: Record<RbacAction, string> = {
 
   // Voice / Replay
   [RBAC_ACTIONS.CAPTURE_REPLAY]: 'Capture voice replays',
+
+  // Soundboard
+  [RBAC_ACTIONS.READ_SOUNDBOARD_SOUND]: 'View soundboard sounds',
+  [RBAC_ACTIONS.CREATE_SOUNDBOARD_SOUND]: 'Add soundboard sounds',
+  [RBAC_ACTIONS.DELETE_SOUNDBOARD_SOUND]: 'Delete soundboard sounds',
 
   // Instance Administration
   [RBAC_ACTIONS.READ_INSTANCE_SETTINGS]: 'View instance settings',

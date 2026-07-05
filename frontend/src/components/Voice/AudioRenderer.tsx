@@ -5,6 +5,7 @@ import { useVoice } from '../../contexts/VoiceContext';
 import { audioBoostManager, boostKey } from '../../features/voice/audioBoostManager';
 import { isBoostableAudioTrack } from '../../features/voice/isBoostableAudioTrack';
 import { getStoredVolumePercent } from '../../features/voice/volumeStorage';
+import { SOUNDBOARD_TRACK_NAME } from '../../features/voice/soundboardPlayer';
 import { logger } from '../../utils/logger';
 
 /**
@@ -121,7 +122,9 @@ export const AudioRenderer: React.FC = () => {
         // Include microphone tracks always; screen share audio only when watching that participant's screen share
         const isMic = publication.source === Track.Source.Microphone;
         const isScreenShareAudio = publication.source === Track.Source.ScreenShareAudio && currentWatching.has(participant.identity);
-        if ((isMic || isScreenShareAudio) && publication.track) {
+        // Soundboard tracks are Source.Unknown, identified by name — always audible.
+        const isSoundboard = publication.trackName === SOUNDBOARD_TRACK_NAME;
+        if ((isMic || isScreenShareAudio || isSoundboard) && publication.track) {
           const key = `${participant.identity}-${publication.trackSid}`;
           newTracks.set(key, { participant, publication });
           logger.debug('[AudioRenderer] Found audio track for:', participant.identity);

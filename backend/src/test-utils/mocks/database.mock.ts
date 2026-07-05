@@ -73,6 +73,7 @@ export type MockDatabaseService = {
   communityTimeout: MockPrismaModel;
   moderationLog: MockPrismaModel;
   replayClip: MockPrismaModel;
+  soundboardSound: MockPrismaModel;
   // Junction table models (PostgreSQL)
   messageSpan: MockPrismaModel;
   messageReaction: MockPrismaModel;
@@ -146,6 +147,7 @@ export function createMockDatabase(): MockDatabaseService {
     communityTimeout: createMockPrismaModel(),
     moderationLog: createMockPrismaModel(),
     replayClip: createMockPrismaModel(),
+    soundboardSound: createMockPrismaModel(),
     // Junction table models (PostgreSQL)
     messageSpan: createMockPrismaModel(),
     messageReaction: createMockPrismaModel(),

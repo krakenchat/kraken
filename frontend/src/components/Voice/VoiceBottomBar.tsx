@@ -39,6 +39,7 @@ import { useReplayBufferState } from "../../contexts/ReplayBufferContext";
 import { useDebugPanelShortcut } from "../../hooks/useDebugPanelShortcut";
 import { usePushToTalk } from "../../hooks/usePushToTalk";
 import { DeviceSettingsDialog } from "./DeviceSettingsDialog";
+import { SoundboardButton } from "./SoundboardButton";
 import { ScreenSourcePicker } from "./ScreenSourcePicker";
 import { VoiceDebugPanel } from "./VoiceDebugPanel";
 import { CaptureReplayModal } from "./CaptureReplayModal";
@@ -517,6 +518,15 @@ export const VoiceBottomBar: React.FC = () => {
                   <MovieCreation />
                 </IconButton>
               </Tooltip>
+            )}
+
+            {/* Soundboard - community voice channels only */}
+            {state.isConnected && state.communityId && actions.playSoundboard && (
+              <SoundboardButton
+                communityId={state.communityId}
+                onPlay={actions.playSoundboard}
+                isMobile={isMobile}
+              />
             )}
 
             {/* Show Video Tiles - visible when tiles are hidden and user is connected */}

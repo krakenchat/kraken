@@ -248,6 +248,7 @@ export class FileUploadService {
       case ResourceType.COMMUNITY_AVATAR:
       case ResourceType.COMMUNITY_BANNER:
       case ResourceType.CUSTOM_EMOJI:
+      case ResourceType.SOUNDBOARD_SOUND:
         return { fileCommunityId: resourceId };
       case ResourceType.MESSAGE_ATTACHMENT:
         return { fileMessageId: resourceId };

@@ -33,6 +33,7 @@ import {
   RoleManagement,
   AliasGroupManagement,
   CustomEmojiManagement,
+  SoundboardManagement,
 } from "../components/Community";
 import {
   BanListPanel,
@@ -273,6 +274,7 @@ const EditCommunityPage: React.FC = () => {
             <Tab label="Mention Groups" {...a11yProps(5)} />
             <Tab label="Custom Emoji" {...a11yProps(6)} disabled={!canManageEmojis} />
             <Tab label="Moderation" {...a11yProps(7)} disabled={!canViewModeration} />
+            <Tab label="Soundboard" {...a11yProps(8)} />
           </Tabs>
         </Box>
 
@@ -386,6 +388,10 @@ const EditCommunityPage: React.FC = () => {
               You don't have permission to view moderation tools.
             </Alert>
           )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={8}>
+          <SoundboardManagement communityId={communityId!} />
         </TabPanel>
       </Paper>
     </Root>

@@ -8,7 +8,8 @@ export type ResourceType =
   | "COMMUNITY_AVATAR"
   | "COMMUNITY_BANNER"
   | "MESSAGE_ATTACHMENT"
-  | "CUSTOM_EMOJI";
+  | "CUSTOM_EMOJI"
+  | "SOUNDBOARD_SOUND";
 
 interface UploadFileOptions {
   resourceType: ResourceType;

@@ -33,6 +33,7 @@ export const ResourceTypeValues = [
   'MESSAGE_ATTACHMENT',
   'CUSTOM_EMOJI',
   'REPLAY_CLIP',
+  'SOUNDBOARD_SOUND',
 ] as const;
 
 export const StorageTypeValues = ['LOCAL', 'S3', 'AZURE_BLOB'] as const;
@@ -104,6 +105,9 @@ export const RbacActionsValues = [
   'VIEW_MODERATION_LOGS',
   'MUTE_PARTICIPANT',
   'MANAGE_EMOJIS',
+  'CREATE_SOUNDBOARD_SOUND',
+  'DELETE_SOUNDBOARD_SOUND',
+  'READ_SOUNDBOARD_SOUND',
 ] as const;
 
 export const InstanceRoleValues = ['OWNER', 'USER'] as const;

@@ -138,6 +138,22 @@ describe('AudioRenderer', () => {
     expect(audioElements.length).toBe(0);
   });
 
+  it('always renders soundboard tracks (Source.Unknown, matched by trackName)', () => {
+    // Soundboard track: unknown source, identified by its name "soundboard"
+    const soundboardPub = {
+      source: 'unknown',
+      trackName: 'soundboard',
+      trackSid: 'sid-soundboard',
+      track: { attach: vi.fn(), detach: vi.fn(), setVolume: vi.fn() },
+    };
+    const participant = createMockRemoteParticipant('user-1', [soundboardPub]);
+    mockRoom!.remoteParticipants.set('user-1', participant);
+
+    const { container } = render(<AudioRenderer />);
+    const audioElements = container.querySelectorAll('audio');
+    expect(audioElements.length).toBe(1);
+  });
+
   it('renders screen share audio only for watched participants when multiple are present', () => {
     mockWatchingScreenShares = new Set(['user-1']);
     const screenAudioPub1 = createMockPublication('screen_share_audio');

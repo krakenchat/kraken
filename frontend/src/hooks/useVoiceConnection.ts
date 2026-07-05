@@ -17,6 +17,7 @@ import {
   switchAudioInputDevice,
   switchAudioOutputDevice,
   switchVideoInputDevice,
+  playSoundboard,
 } from "../features/voice/voiceActions";
 import { useTrackSubscriptionActions } from "./useTrackSubscription";
 
@@ -205,6 +206,13 @@ export const useVoiceConnection = () => {
     dispatch({ type: VoiceActionType.SetRequestMaximize, payload: true });
   }, [dispatch]);
 
+  const handlePlaySoundboard = useCallback(
+    async (fileId: string) => {
+      await playSoundboard(fileId, getDeps());
+    },
+    [getDeps]
+  );
+
   const trackActions = useTrackSubscriptionActions();
 
   return {
@@ -223,6 +231,7 @@ export const useVoiceConnection = () => {
       switchAudioOutputDevice: handleSwitchAudioOutputDevice,
       switchVideoInputDevice: handleSwitchVideoInputDevice,
       requestMaximize: handleRequestMaximize,
+      playSoundboard: handlePlaySoundboard,
       watchCamera: trackActions?.watchCamera ?? undefined,
       stopWatchingCamera: trackActions?.stopWatchingCamera ?? undefined,
       watchScreenShare: trackActions?.watchScreenShare ?? undefined,
