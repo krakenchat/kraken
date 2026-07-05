@@ -691,6 +691,10 @@ export class MessagesService {
         specialKind: string | null;
         communityId: string | null;
         aliasId: string | null;
+        bold: boolean | null;
+        italic: boolean | null;
+        strikethrough: boolean | null;
+        code: boolean | null;
       }[];
       reactions?: { emoji: string; userId: string }[];
       attachments?: {
@@ -743,6 +747,10 @@ export class MessagesService {
                   specialKind: s.specialKind,
                   communityId: s.communityId,
                   aliasId: s.aliasId,
+                  bold: s.bold,
+                  italic: s.italic,
+                  strikethrough: s.strikethrough,
+                  code: s.code,
                 })),
             sentAt: replyToMessage.sentAt,
             deletedAt: replyToMessage.deletedAt,

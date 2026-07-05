@@ -52,6 +52,10 @@ export class ThreadsService {
       specialKind?: string | null;
       communityId?: string | null;
       aliasId?: string | null;
+      bold?: boolean | null;
+      italic?: boolean | null;
+      strikethrough?: boolean | null;
+      code?: boolean | null;
     }[],
   ) {
     return spans.map((span) => ({
@@ -61,6 +65,10 @@ export class ThreadsService {
       specialKind: span.specialKind ?? null,
       communityId: span.communityId ?? null,
       aliasId: span.aliasId ?? null,
+      bold: span.bold ?? null,
+      italic: span.italic ?? null,
+      strikethrough: span.strikethrough ?? null,
+      code: span.code ?? null,
     }));
   }
 
@@ -359,6 +367,10 @@ export class ThreadsService {
         specialKind: string | null;
         communityId: string | null;
         aliasId: string | null;
+        bold: boolean | null;
+        italic: boolean | null;
+        strikethrough: boolean | null;
+        code: boolean | null;
       }[];
       reactions?: { emoji: string; userId: string }[];
       attachments?: {

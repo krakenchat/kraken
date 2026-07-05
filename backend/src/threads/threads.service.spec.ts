@@ -205,6 +205,10 @@ describe('ThreadsService', () => {
         specialKind: null,
         communityId: null,
         aliasId: null,
+        bold: null,
+        italic: null,
+        strikethrough: null,
+        code: null,
       });
     });
 

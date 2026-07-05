@@ -6,6 +6,7 @@ import {
   IsArray,
   IsInt,
   IsUUID,
+  IsBoolean,
   Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -20,6 +21,23 @@ class CreateMessageSpanDto {
   specialKind: string | null;
   communityId: string | null;
   aliasId: string | null;
+
+  // Composable inline-formatting flags (optional, PLAINTEXT spans).
+  @IsOptional()
+  @IsBoolean()
+  bold?: boolean | null;
+
+  @IsOptional()
+  @IsBoolean()
+  italic?: boolean | null;
+
+  @IsOptional()
+  @IsBoolean()
+  strikethrough?: boolean | null;
+
+  @IsOptional()
+  @IsBoolean()
+  code?: boolean | null;
 }
 
 export class CreateMessageDto {

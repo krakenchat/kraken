@@ -32,6 +32,7 @@ import type {
   ChannelMention,
   AliasMention,
 } from "../../utils/mentionParser";
+import { wrapSelection, markerForShortcut } from "../../utils/richTextShortcuts";
 import { useQuery } from "@tanstack/react-query";
 import { aliasGroupsControllerGetCommunityAliasGroupsOptions } from "../../api-client/@tanstack/react-query.gen";
 import { logger } from "../../utils/logger";
@@ -407,8 +408,35 @@ export default function MessageInput({
     [isTouchDevice, emitTypingKeyPress]
   );
 
+  // --- Rich-text formatting shortcut (Ctrl/Cmd+B, Ctrl/Cmd+I) ---
+  const applyFormattingShortcut = (event: React.KeyboardEvent): boolean => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) {
+      return false;
+    }
+    const marker = markerForShortcut(event.key);
+    if (!marker) return false;
+    event.preventDefault();
+    const el = inputRef.current;
+    if (!el) return true;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const result = wrapSelection(el.value, start, end, marker);
+    setText(result.newText);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+        input.setSelectionRange(result.selectionStart, result.selectionEnd);
+      }
+    });
+    return true;
+  };
+
   // --- Keyboard handler ---
   const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (applyFormattingShortcut(event)) {
+      return;
+    }
     if (isChannel) {
       if (mentionHook.state.isOpen && mentionHook.handleKeyDown(event.nativeEvent)) {
         if (event.key === "Enter" || event.key === "Tab") {

@@ -4,6 +4,9 @@ export enum SpanType {
   SPECIAL_MENTION = 'SPECIAL_MENTION',
   COMMUNITY_MENTION = 'COMMUNITY_MENTION',
   ALIAS_MENTION = 'ALIAS_MENTION',
+  // Multi-line fenced (```) code block. Its `text` is rendered verbatim —
+  // no mentions, inline formatting, or auto-linking are parsed inside it.
+  CODE_BLOCK = 'CODE_BLOCK',
 }
 
 export interface Span {
@@ -13,6 +16,13 @@ export interface Span {
   specialKind?: string;
   communityId?: string;
   aliasId?: string;
+  // Composable inline-formatting flags applied to PLAINTEXT spans. They combine
+  // freely (a span can be bold AND italic). `code` marks an inline `code` run
+  // whose text is rendered verbatim (no formatting/mentions/links inside).
+  bold?: boolean;
+  italic?: boolean;
+  strikethrough?: boolean;
+  code?: boolean;
 }
 
 export interface Reaction {

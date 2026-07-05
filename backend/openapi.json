@@ -8315,7 +8315,8 @@
               "USER_MENTION",
               "SPECIAL_MENTION",
               "COMMUNITY_MENTION",
-              "ALIAS_MENTION"
+              "ALIAS_MENTION",
+              "CODE_BLOCK"
             ]
           },
           "text": {
@@ -8336,6 +8337,22 @@
           },
           "aliasId": {
             "type": "string",
+            "nullable": true
+          },
+          "bold": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "italic": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "strikethrough": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "code": {
+            "type": "boolean",
             "nullable": true
           }
         },
@@ -8501,8 +8518,25 @@
               "USER_MENTION",
               "SPECIAL_MENTION",
               "COMMUNITY_MENTION",
-              "ALIAS_MENTION"
+              "ALIAS_MENTION",
+              "CODE_BLOCK"
             ]
+          },
+          "bold": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "italic": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "strikethrough": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "code": {
+            "type": "boolean",
+            "nullable": true
           },
           "text": {
             "type": "string",

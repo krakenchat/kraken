@@ -13,6 +13,7 @@ export const SpanTypeValues = [
   'SPECIAL_MENTION',
   'COMMUNITY_MENTION',
   'ALIAS_MENTION',
+  'CODE_BLOCK',
 ] as const;
 
 export const FileTypeValues = [

@@ -90,6 +90,13 @@ model MessageSpan {
   communityId String? // For COMMUNITY_MENTION
   aliasId     String? // For ALIAS_MENTION
 
+  // Composable inline-formatting flags (PLAINTEXT spans). CODE_BLOCK spans use
+  // the CODE_BLOCK type; `code` marks an inline code run.
+  bold          Boolean? // For PLAINTEXT: bold run
+  italic        Boolean? // For PLAINTEXT: italic run
+  strikethrough Boolean? // For PLAINTEXT: strikethrough run
+  code          Boolean? // For PLAINTEXT: inline `code` run
+
   message    Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user       User?       @relation("SpanUser", fields: [userId], references: [id], onDelete: SetNull)
   community  Community?  @relation("SpanCommunity", fields: [communityId], references: [id], onDelete: SetNull)
@@ -869,4 +876,5 @@ enum SpanType {
   SPECIAL_MENTION
   COMMUNITY_MENTION
   ALIAS_MENTION
+  CODE_BLOCK
 }
