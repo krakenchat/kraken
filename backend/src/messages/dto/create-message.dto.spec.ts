@@ -101,4 +101,51 @@ describe('CreateMessageDto', () => {
     const spanErrors = errors.filter((e) => e.property === 'spans');
     expect(spanErrors.length).toBeGreaterThan(0);
   });
+
+  it('should accept spans carrying rich-text formatting flags', async () => {
+    const dto = createDto({
+      channelId: validUUID,
+      spans: [
+        {
+          type: 'PLAINTEXT',
+          text: 'hi',
+          bold: true,
+          italic: true,
+          strikethrough: false,
+          code: false,
+        },
+      ] as any,
+      attachments: [],
+    });
+
+    const errors = await validate(dto);
+    const spanErrors = errors.filter((e) => e.property === 'spans');
+    expect(spanErrors).toHaveLength(0);
+  });
+
+  it('should preserve rich-text formatting flags on the parsed span', () => {
+    const dto = createDto({
+      channelId: validUUID,
+      spans: [
+        { type: 'PLAINTEXT', text: 'hi', bold: true, code: true },
+      ] as any,
+      attachments: [],
+    });
+
+    expect(dto.spans[0]).toEqual(
+      expect.objectContaining({ bold: true, code: true }),
+    );
+  });
+
+  it('should accept a CODE_BLOCK span', async () => {
+    const dto = createDto({
+      channelId: validUUID,
+      spans: [{ type: 'CODE_BLOCK', text: 'const x = 1;' }] as any,
+      attachments: [],
+    });
+
+    const errors = await validate(dto);
+    const spanErrors = errors.filter((e) => e.property === 'spans');
+    expect(spanErrors).toHaveLength(0);
+  });
 });

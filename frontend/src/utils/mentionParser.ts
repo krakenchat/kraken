@@ -108,14 +108,15 @@ export function findMentions(text: string): MentionMatch[] {
 }
 
 /**
- * Parse message text with resolved mentions into MessageSpan array
- * Used when converting user input to database spans
+ * Convert a run of plain text (already stripped of code and formatting markers)
+ * into PLAINTEXT + resolved mention spans. Whitespace is preserved so that
+ * spacing between formatted runs survives.
  */
-export function parseMessageWithMentions(
+function parseMentionRun(
   text: string,
-  userMentions: UserMention[] = [],
-  channelMentions: ChannelMention[] = [],
-  aliasMentions: AliasMention[] = []
+  userMentions: UserMention[],
+  channelMentions: ChannelMention[],
+  aliasMentions: AliasMention[]
 ): MessageSpan[] {
   const spans: MessageSpan[] = [];
   const mentions = findMentions(text);
@@ -127,10 +128,7 @@ export function parseMessageWithMentions(
     if (mention.start > lastIndex) {
       const plaintext = text.substring(lastIndex, mention.start);
       if (plaintext) {
-        spans.push({
-          type: SpanType.PLAINTEXT,
-          text: plaintext,
-        });
+        spans.push({ type: SpanType.PLAINTEXT, text: plaintext });
       }
     }
 
@@ -161,10 +159,7 @@ export function parseMessageWithMentions(
           });
         } else {
           // Unresolved mention becomes plaintext
-          spans.push({
-            type: SpanType.PLAINTEXT,
-            text: mention.text,
-          });
+          spans.push({ type: SpanType.PLAINTEXT, text: mention.text });
         }
       }
     } else if (mention.type === 'special') {
@@ -188,10 +183,7 @@ export function parseMessageWithMentions(
         });
       } else {
         // Unresolved channel mention becomes plaintext
-        spans.push({
-          type: SpanType.PLAINTEXT,
-          text: mention.text,
-        });
+        spans.push({ type: SpanType.PLAINTEXT, text: mention.text });
       }
     }
 
@@ -202,19 +194,219 @@ export function parseMessageWithMentions(
   if (lastIndex < text.length) {
     const remainingText = text.substring(lastIndex);
     if (remainingText) {
-      spans.push({
-        type: SpanType.PLAINTEXT,
-        text: remainingText,
-      });
+      spans.push({ type: SpanType.PLAINTEXT, text: remainingText });
     }
   }
 
-  // If no mentions were found, return single plaintext span
-  if (spans.length === 0 && text.trim()) {
+  return spans;
+}
+
+/** Composable inline-formatting flags carried while parsing. */
+interface StyleFlags {
+  bold?: boolean;
+  italic?: boolean;
+  strikethrough?: boolean;
+}
+
+/**
+ * Markdown-style inline delimiters. Ordered longest-first so `**` is matched
+ * before `*`.
+ */
+const INLINE_DELIMITERS: { marker: string; flag: keyof StyleFlags }[] = [
+  { marker: '**', flag: 'bold' },
+  { marker: '~~', flag: 'strikethrough' },
+  { marker: '*', flag: 'italic' },
+  { marker: '_', flag: 'italic' },
+];
+
+function isWordChar(ch: string | undefined): boolean {
+  return ch !== undefined && /\w/.test(ch);
+}
+
+/**
+ * Locate the matching closing marker starting at `from`, or -1 if none.
+ * Skips empty pairs (e.g. `****`) and, for `_`, intraword occurrences so that
+ * identifiers like `snake_case` are not mangled into italics.
+ */
+function findClosingMarker(text: string, from: number, marker: string): number {
+  let idx = from;
+  while (idx <= text.length - marker.length) {
+    const found = text.indexOf(marker, idx);
+    if (found === -1) return -1;
+    if (found === from) {
+      // Empty content between the markers — not a valid delimiter pair.
+      idx = found + marker.length;
+      continue;
+    }
+    if (marker === '_' && isWordChar(text[found + marker.length])) {
+      // Intraword underscore (e.g. snake_case) — keep looking.
+      idx = found + 1;
+      continue;
+    }
+    return found;
+  }
+  return -1;
+}
+
+/** Apply the active style flags to a PLAINTEXT span (mentions pass through). */
+function withStyle(span: MessageSpan, style: StyleFlags): MessageSpan {
+  if (span.type !== SpanType.PLAINTEXT) return span;
+  const styled: MessageSpan = { ...span };
+  if (style.bold) styled.bold = true;
+  if (style.italic) styled.italic = true;
+  if (style.strikethrough) styled.strikethrough = true;
+  return styled;
+}
+
+/**
+ * Parse a segment (no fenced code blocks) into spans, handling inline code and
+ * composable bold/italic/strikethrough formatting. Mentions are resolved within
+ * the plain runs between markers. Inline code is verbatim — no formatting,
+ * mentions, or auto-linking inside.
+ */
+function parseInline(
+  text: string,
+  style: StyleFlags,
+  userMentions: UserMention[],
+  channelMentions: ChannelMention[],
+  aliasMentions: AliasMention[]
+): MessageSpan[] {
+  const result: MessageSpan[] = [];
+  let buffer = '';
+  let i = 0;
+
+  const flushBuffer = () => {
+    if (!buffer) return;
+    const runSpans = parseMentionRun(buffer, userMentions, channelMentions, aliasMentions);
+    for (const s of runSpans) result.push(withStyle(s, style));
+    buffer = '';
+  };
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    // Inline code: `...` — rendered verbatim.
+    if (ch === '`') {
+      const close = text.indexOf('`', i + 1);
+      if (close !== -1 && close > i + 1) {
+        flushBuffer();
+        const codeSpan: MessageSpan = {
+          type: SpanType.PLAINTEXT,
+          text: text.slice(i + 1, close),
+          code: true,
+        };
+        if (style.bold) codeSpan.bold = true;
+        if (style.italic) codeSpan.italic = true;
+        if (style.strikethrough) codeSpan.strikethrough = true;
+        result.push(codeSpan);
+        i = close + 1;
+        continue;
+      }
+    }
+
+    // Inline formatting delimiters.
+    let matched = false;
+    for (const { marker, flag } of INLINE_DELIMITERS) {
+      if (style[flag]) continue; // Already inside this style.
+      if (!text.startsWith(marker, i)) continue;
+      if (marker === '_' && isWordChar(text[i - 1])) continue; // Intraword opening.
+      const close = findClosingMarker(text, i + marker.length, marker);
+      if (close === -1) continue;
+      flushBuffer();
+      const inner = text.slice(i + marker.length, close);
+      result.push(
+        ...parseInline(
+          inner,
+          { ...style, [flag]: true },
+          userMentions,
+          channelMentions,
+          aliasMentions
+        )
+      );
+      i = close + marker.length;
+      matched = true;
+      break;
+    }
+    if (matched) continue;
+
+    buffer += ch;
+    i++;
+  }
+
+  flushBuffer();
+  return result;
+}
+
+/**
+ * Strip an optional leading language/info line and a single trailing newline
+ * from a fenced code block's raw contents.
+ */
+function extractCodeBlockContent(raw: string): string {
+  let content = raw;
+  const newlineIdx = content.indexOf('\n');
+  if (newlineIdx !== -1) {
+    const firstLine = content.slice(0, newlineIdx).trim();
+    // Drop the fence's info line when it's blank or a bare language token.
+    if (firstLine === '' || /^[a-zA-Z0-9_+-]+$/.test(firstLine)) {
+      content = content.slice(newlineIdx + 1);
+    }
+  }
+  // Remove the single trailing newline before the closing fence.
+  return content.replace(/\n$/, '');
+}
+
+/**
+ * Parse message text with resolved mentions and markdown-style rich-text
+ * formatting into a MessageSpan array. Used when converting composer input to
+ * database spans.
+ *
+ * Supports: `**bold**`, `*italic*` / `_italic_`, `~~strike~~`, `` `inline code` ``
+ * (verbatim), and ```` ```fenced code blocks``` ```` (verbatim CODE_BLOCK spans).
+ * Formatting composes (bold+italic) and mentions still resolve inside formatted
+ * runs. Nothing is parsed inside code.
+ */
+export function parseMessageWithMentions(
+  text: string,
+  userMentions: UserMention[] = [],
+  channelMentions: ChannelMention[] = [],
+  aliasMentions: AliasMention[] = []
+): MessageSpan[] {
+  const spans: MessageSpan[] = [];
+
+  // Extract fenced code blocks first so their contents stay verbatim.
+  const fenceRegex = /```([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = fenceRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      spans.push(
+        ...parseInline(
+          text.slice(lastIndex, match.index),
+          {},
+          userMentions,
+          channelMentions,
+          aliasMentions
+        )
+      );
+    }
     spans.push({
-      type: SpanType.PLAINTEXT,
-      text: text,
+      type: SpanType.CODE_BLOCK,
+      text: extractCodeBlockContent(match[1]),
     });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    spans.push(
+      ...parseInline(
+        text.slice(lastIndex),
+        {},
+        userMentions,
+        channelMentions,
+        aliasMentions
+      )
+    );
   }
 
   return spans;
@@ -231,9 +423,23 @@ export function spansToText(spans: MessageSpan[]): string {
         return span.text || `@user`;
       case SpanType.SPECIAL_MENTION:
         return span.text || `@${span.specialKind}`;
-      case SpanType.PLAINTEXT:
-      default:
+      case SpanType.COMMUNITY_MENTION:
+      case SpanType.ALIAS_MENTION:
         return span.text || '';
+      case SpanType.CODE_BLOCK:
+        return '```\n' + (span.text || '') + '\n```';
+      case SpanType.PLAINTEXT:
+      default: {
+        let t = span.text || '';
+        // Inline code is verbatim — never wrap it in other markers.
+        if (span.code) return '`' + t + '`';
+        // Re-apply markers inner-to-outer so bold+italic round-trips as
+        // `**_text_**` (avoids the ambiguous `***text***` form).
+        if (span.strikethrough) t = `~~${t}~~`;
+        if (span.italic) t = `_${t}_`;
+        if (span.bold) t = `**${t}**`;
+        return t;
+      }
     }
   }).join('');
 }

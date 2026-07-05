@@ -10,6 +10,14 @@ export class SpanDto {
   specialKind: string | null;
   communityId: string | null;
   aliasId: string | null;
+  @ApiPropertyOptional()
+  bold?: boolean | null;
+  @ApiPropertyOptional()
+  italic?: boolean | null;
+  @ApiPropertyOptional()
+  strikethrough?: boolean | null;
+  @ApiPropertyOptional()
+  code?: boolean | null;
 }
 
 export class ReactionDto {

@@ -82,6 +82,52 @@ describe('MessageSpan URL rendering', () => {
   });
 });
 
+describe('MessageSpan rich-text formatting', () => {
+  it('wraps a bold PLAINTEXT span in <strong>', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'bold text', bold: true };
+    const { container } = renderWithProviders(<MessageSpan span={span} index={0} />);
+    const strong = container.querySelector('strong');
+    expect(strong).not.toBeNull();
+    expect(strong).toHaveTextContent('bold text');
+  });
+
+  it('wraps an italic PLAINTEXT span in <em>', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'italic text', italic: true };
+    const { container } = renderWithProviders(<MessageSpan span={span} index={0} />);
+    expect(container.querySelector('em')).toHaveTextContent('italic text');
+  });
+
+  it('wraps a strikethrough PLAINTEXT span in <s>', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'struck', strikethrough: true };
+    const { container } = renderWithProviders(<MessageSpan span={span} index={0} />);
+    expect(container.querySelector('s')).toHaveTextContent('struck');
+  });
+
+  it('composes bold + italic by nesting <strong> and <em>', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'both', bold: true, italic: true };
+    const { container } = renderWithProviders(<MessageSpan span={span} index={0} />);
+    const strong = container.querySelector('strong');
+    expect(strong).not.toBeNull();
+    expect(strong?.querySelector('em')).toHaveTextContent('both');
+  });
+
+  it('renders an inline code span in <code> without auto-linking', () => {
+    const span: Span = { type: SpanType.PLAINTEXT, text: 'https://example.com', code: true };
+    const { container } = renderWithProviders(<MessageSpan span={span} index={0} />);
+    expect(container.querySelector('code')).toHaveTextContent('https://example.com');
+    // Code is verbatim — no link element should be produced.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders a CODE_BLOCK span as a <pre><code> block', () => {
+    const span: Span = { type: SpanType.CODE_BLOCK, text: 'const x = 1;\nconst y = 2;' };
+    const { container } = renderWithProviders(<MessageSpan span={span} index={0} />);
+    const pre = container.querySelector('pre');
+    expect(pre).not.toBeNull();
+    expect(pre?.querySelector('code')).toHaveTextContent('const x = 1;');
+  });
+});
+
 describe('renderMessageSpans', () => {
   it('renders an array of multiple spans correctly', () => {
     const spans: Span[] = [

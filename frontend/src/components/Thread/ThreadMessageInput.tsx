@@ -21,6 +21,8 @@ import { SpanType } from "../../types/message.type";
 import { logger } from "../../utils/logger";
 import { EmojiPickerPopover } from "../Message/EmojiPicker";
 import { useResponsive } from "../../hooks/useResponsive";
+import { parseMessageWithMentions } from "../../utils/mentionParser";
+import { wrapSelection, markerForShortcut } from "../../utils/richTextShortcuts";
 
 interface ThreadMessageInputProps {
   parentMessageId: string;
@@ -101,14 +103,17 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
       return;
     }
 
+    // Parse markdown-style rich-text formatting (bold/italic/strike/code).
+    // Thread replies have no mention autocomplete context, so mentions are
+    // left unresolved (rendered as plaintext), matching prior behaviour.
+    let spans = parseMessageWithMentions(trimmedContent);
+    if (spans.length === 0) {
+      spans = [{ type: SpanType.PLAINTEXT, text: trimmedContent }];
+    }
+
     const payload = {
       parentMessageId,
-      spans: [
-        {
-          type: SpanType.PLAINTEXT,
-          text: trimmedContent,
-        },
-      ],
+      spans,
       attachments: [],
       pendingAttachments: 0,
     };
@@ -124,7 +129,29 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
     });
   };
 
+  const applyFormattingShortcut = (e: React.KeyboardEvent): boolean => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return false;
+    const marker = markerForShortcut(e.key);
+    if (!marker) return false;
+    e.preventDefault();
+    const el = inputRef.current;
+    if (!el) return true;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const result = wrapSelection(el.value, start, end, marker);
+    setContent(result.newText);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+        input.setSelectionRange(result.selectionStart, result.selectionEnd);
+      }
+    });
+    return true;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (applyFormattingShortcut(e)) return;
     // Touch: Enter inserts a newline (send via button only). Desktop: Enter sends.
     if (e.key === "Enter" && !e.shiftKey && !isTouchDevice) {
       e.preventDefault();

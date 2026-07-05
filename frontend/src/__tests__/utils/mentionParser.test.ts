@@ -261,3 +261,146 @@ describe('resolveMentionText', () => {
     expect(result).toBe('hello world');
   });
 });
+
+describe('parseMessageWithMentions - rich text formatting', () => {
+  it('parses **bold**', () => {
+    expect(parseMessageWithMentions('**hi**')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'hi', bold: true },
+    ]);
+  });
+
+  it('parses *italic* and _italic_', () => {
+    expect(parseMessageWithMentions('*hi*')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'hi', italic: true },
+    ]);
+    expect(parseMessageWithMentions('_hi_')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'hi', italic: true },
+    ]);
+  });
+
+  it('parses ~~strikethrough~~', () => {
+    expect(parseMessageWithMentions('~~hi~~')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'hi', strikethrough: true },
+    ]);
+  });
+
+  it('parses inline `code` verbatim without inner parsing', () => {
+    expect(parseMessageWithMentions('`a *b* @c`')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'a *b* @c', code: true },
+    ]);
+  });
+
+  it('composes bold + italic (**_x_**)', () => {
+    expect(parseMessageWithMentions('**_hi_**')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'hi', bold: true, italic: true },
+    ]);
+  });
+
+  it('keeps surrounding plaintext (and its spacing) around a formatted run', () => {
+    expect(parseMessageWithMentions('a **b** c')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'a ' },
+      { type: SpanType.PLAINTEXT, text: 'b', bold: true },
+      { type: SpanType.PLAINTEXT, text: ' c' },
+    ]);
+  });
+
+  it('resolves a mention inside a bold run', () => {
+    const users = [{ id: 'u1', username: 'alice' }];
+    expect(parseMessageWithMentions('**@alice**', users)).toEqual([
+      { type: SpanType.USER_MENTION, text: '@alice', userId: 'u1' },
+    ]);
+  });
+
+  it('does not treat underscores in snake_case as italic', () => {
+    expect(parseMessageWithMentions('call foo_bar_baz now')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'call foo_bar_baz now' },
+    ]);
+  });
+
+  it('leaves a lone asterisk as literal text', () => {
+    expect(parseMessageWithMentions('2 * 3 = 6')).toEqual([
+      { type: SpanType.PLAINTEXT, text: '2 * 3 = 6' },
+    ]);
+  });
+
+  it('does not parse mentions or formatting inside inline code', () => {
+    const users = [{ id: 'u1', username: 'alice' }];
+    expect(parseMessageWithMentions('`@alice **x**`', users)).toEqual([
+      { type: SpanType.PLAINTEXT, text: '@alice **x**', code: true },
+    ]);
+  });
+
+  it('does not auto-link URLs inside inline code (code is verbatim)', () => {
+    expect(parseMessageWithMentions('`https://example.com`')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'https://example.com', code: true },
+    ]);
+  });
+
+  it('parses a fenced code block into a CODE_BLOCK span', () => {
+    expect(parseMessageWithMentions('```\nconst x = 1;\n```')).toEqual([
+      { type: SpanType.CODE_BLOCK, text: 'const x = 1;' },
+    ]);
+  });
+
+  it('strips the language line from a fenced code block', () => {
+    expect(parseMessageWithMentions('```js\nconst x = 1;\n```')).toEqual([
+      { type: SpanType.CODE_BLOCK, text: 'const x = 1;' },
+    ]);
+  });
+
+  it('preserves a multi-line code block body', () => {
+    expect(parseMessageWithMentions('```\nline1\nline2\n```')).toEqual([
+      { type: SpanType.CODE_BLOCK, text: 'line1\nline2' },
+    ]);
+  });
+
+  it('does not parse formatting or mentions inside a code block', () => {
+    const users = [{ id: 'u1', username: 'alice' }];
+    expect(parseMessageWithMentions('```\n**bold** @alice\n```', users)).toEqual([
+      { type: SpanType.CODE_BLOCK, text: '**bold** @alice' },
+    ]);
+  });
+
+  it('mixes plaintext before and after a fenced code block', () => {
+    expect(parseMessageWithMentions('see:\n```\ncode\n```\ndone')).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'see:\n' },
+      { type: SpanType.CODE_BLOCK, text: 'code' },
+      { type: SpanType.PLAINTEXT, text: '\ndone' },
+    ]);
+  });
+});
+
+describe('spansToText - formatting round-trip', () => {
+  it('re-adds bold markers', () => {
+    expect(
+      spansToText([{ type: SpanType.PLAINTEXT, text: 'hi', bold: true }]),
+    ).toBe('**hi**');
+  });
+
+  it('re-adds combined bold+italic as **_x_**', () => {
+    expect(
+      spansToText([
+        { type: SpanType.PLAINTEXT, text: 'hi', bold: true, italic: true },
+      ]),
+    ).toBe('**_hi_**');
+  });
+
+  it('re-adds inline code markers verbatim (no other wrapping)', () => {
+    expect(
+      spansToText([{ type: SpanType.PLAINTEXT, text: 'x = 1', code: true }]),
+    ).toBe('`x = 1`');
+  });
+
+  it('re-fences a CODE_BLOCK span', () => {
+    expect(spansToText([{ type: SpanType.CODE_BLOCK, text: 'code' }])).toBe(
+      '```\ncode\n```',
+    );
+  });
+
+  it('round-trips bold+italic through parse -> text -> parse', () => {
+    const original = [
+      { type: SpanType.PLAINTEXT, text: 'x', bold: true, italic: true },
+    ];
+    expect(parseMessageWithMentions(spansToText(original))).toEqual(original);
+  });
+});
