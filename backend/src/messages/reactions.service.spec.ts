@@ -1,7 +1,7 @@
 import { TestBed } from '@suites/unit';
 import { ReactionsService } from './reactions.service';
 import { DatabaseService } from '@/database/database.service';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 describe('ReactionsService', () => {
@@ -18,6 +18,15 @@ describe('ReactionsService', () => {
     messageReaction: {
       upsert: jest.fn(),
       deleteMany: jest.fn(),
+    },
+    customEmoji: {
+      findUnique: jest.fn(),
+    },
+    channel: {
+      findUnique: jest.fn(),
+    },
+    membership: {
+      findUnique: jest.fn(),
     },
   };
 
@@ -180,6 +189,103 @@ describe('ReactionsService', () => {
         service.addReaction(randomUUID(), '👍', userId1),
       ).rejects.toThrow(NotFoundException);
 
+      expect(mockDatabaseService.messageReaction.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('addReaction (custom emoji sentinel)', () => {
+    const emojiId = randomUUID();
+    const communityId = randomUUID();
+    const channelId = randomUUID();
+    const message = { id: messageId, channelId, directMessageGroupId: null };
+
+    it('should accept a valid custom reaction for a community member', async () => {
+      mockDatabaseService.message.findUnique
+        .mockResolvedValueOnce(message)
+        .mockResolvedValueOnce({ ...message, reactions: [] });
+      mockDatabaseService.customEmoji.findUnique.mockResolvedValueOnce({
+        id: emojiId,
+        communityId,
+      });
+      mockDatabaseService.channel.findUnique.mockResolvedValueOnce({
+        communityId,
+      });
+      mockDatabaseService.membership.findUnique.mockResolvedValueOnce({
+        userId: userId1,
+        communityId,
+      });
+      mockDatabaseService.messageReaction.upsert.mockResolvedValueOnce({});
+
+      await service.addReaction(messageId, `custom:${emojiId}`, userId1);
+
+      expect(mockDatabaseService.messageReaction.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: {
+            messageId,
+            emoji: `custom:${emojiId}`,
+            userId: userId1,
+          },
+        }),
+      );
+    });
+
+    it('should reject when the custom emoji does not exist', async () => {
+      mockDatabaseService.message.findUnique.mockResolvedValueOnce(message);
+      mockDatabaseService.customEmoji.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.addReaction(messageId, `custom:${emojiId}`, userId1),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockDatabaseService.messageReaction.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should reject a custom reaction on a DM message', async () => {
+      mockDatabaseService.message.findUnique.mockResolvedValueOnce({
+        id: messageId,
+        channelId: null,
+        directMessageGroupId: randomUUID(),
+      });
+      mockDatabaseService.customEmoji.findUnique.mockResolvedValueOnce({
+        id: emojiId,
+        communityId,
+      });
+
+      await expect(
+        service.addReaction(messageId, `custom:${emojiId}`, userId1),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockDatabaseService.messageReaction.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should reject a custom emoji from another community', async () => {
+      mockDatabaseService.message.findUnique.mockResolvedValueOnce(message);
+      mockDatabaseService.customEmoji.findUnique.mockResolvedValueOnce({
+        id: emojiId,
+        communityId,
+      });
+      mockDatabaseService.channel.findUnique.mockResolvedValueOnce({
+        communityId: randomUUID(), // different community
+      });
+
+      await expect(
+        service.addReaction(messageId, `custom:${emojiId}`, userId1),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockDatabaseService.messageReaction.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should reject when reactor is not a community member', async () => {
+      mockDatabaseService.message.findUnique.mockResolvedValueOnce(message);
+      mockDatabaseService.customEmoji.findUnique.mockResolvedValueOnce({
+        id: emojiId,
+        communityId,
+      });
+      mockDatabaseService.channel.findUnique.mockResolvedValueOnce({
+        communityId,
+      });
+      mockDatabaseService.membership.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.addReaction(messageId, `custom:${emojiId}`, userId1),
+      ).rejects.toThrow(BadRequestException);
       expect(mockDatabaseService.messageReaction.upsert).not.toHaveBeenCalled();
     });
   });

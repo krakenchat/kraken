@@ -215,8 +215,23 @@ export function useMessageActions(
           displayName: span.text?.replace('@', '') || 'user',
         }));
 
-      // Parse edited text back to spans, preserving existing mentions
-      let parsedSpans: Span[] = parseMessageWithMentions(editText, mentionedUsers);
+      // Preserve custom emojis already present in the message so editing
+      // doesn't turn their `:shortcode:` back into literal text.
+      const messageEmojis = message.spans
+        .filter(span => span.type === SpanType.EMOJI && span.emojiId)
+        .map(span => ({
+          id: span.emojiId!,
+          name: (span.text || '').replace(/:/g, ''),
+        }));
+
+      // Parse edited text back to spans, preserving existing mentions + emojis
+      let parsedSpans: Span[] = parseMessageWithMentions(
+        editText,
+        mentionedUsers,
+        [],
+        [],
+        messageEmojis,
+      );
 
       // Ensure at least one span exists
       if (parsedSpans.length === 0) {
@@ -235,6 +250,7 @@ export function useMessageActions(
             specialKind: span.specialKind ?? null,
             communityId: span.communityId ?? null,
             aliasId: span.aliasId ?? null,
+            emojiId: span.emojiId ?? null,
           })),
           attachments: editAttachments.map(att => att.id),
         },

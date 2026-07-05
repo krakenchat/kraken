@@ -3,6 +3,9 @@ import { IconButton, Popover, Box, Typography, TextField, InputAdornment } from 
 import { AddReaction as AddReactionIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
 import { useResponsive } from '../../hooks/useResponsive';
 import { MobileSheet } from '../Mobile/common/MobileSheet';
+import { useCommunityCustomEmojis } from '../../hooks/useCommunityCustomEmojis';
+import type { CustomEmojiDto } from '../../api-client/types.gen';
+import { getFileUrl } from '../../utils/fileHelpers';
 
 // Emoji names for search functionality
 export const EMOJI_NAMES: Record<string, string[]> = {
@@ -149,8 +152,19 @@ const EmojiPickerContent: React.FC<{
   onEmojiClick: (emoji: string) => void;
   /** Touch variant: full-width, taller, larger tap targets (for MobileSheet). */
   touch?: boolean;
-}> = ({ onEmojiClick, touch = false }) => {
+  /** Community custom emojis to show in a "Custom" section (channels only). */
+  customEmojis?: CustomEmojiDto[];
+  /** Called when a custom emoji is picked. */
+  onCustomEmojiClick?: (emoji: CustomEmojiDto) => void;
+}> = ({ onEmojiClick, touch = false, customEmojis = [], onCustomEmojiClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredCustomEmojis = useMemo(() => {
+    if (!onCustomEmojiClick || customEmojis.length === 0) return [];
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return customEmojis;
+    return customEmojis.filter((e) => e.name.toLowerCase().includes(query));
+  }, [customEmojis, onCustomEmojiClick, searchQuery]);
 
   // Filter emojis based on search query
   const filteredCategories = useMemo(() => {
@@ -183,7 +197,9 @@ const EmojiPickerContent: React.FC<{
     return results;
   }, [searchQuery]);
 
-  const hasResults = Object.keys(filteredCategories).length > 0;
+  const hasResults =
+    Object.keys(filteredCategories).length > 0 ||
+    filteredCustomEmojis.length > 0;
 
   return (
     <Box sx={{
@@ -274,6 +290,65 @@ const EmojiPickerContent: React.FC<{
           },
         }}
       >
+        {filteredCustomEmojis.length > 0 && (
+          <Box sx={{ mb: 1.5 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                mb: 0.75,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                color: 'text.disabled',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Custom
+            </Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(8, 1fr)',
+                gap: '2px',
+                width: '100%',
+              }}
+            >
+              {filteredCustomEmojis.map((emoji) => (
+                <IconButton
+                  key={emoji.id}
+                  size="small"
+                  title={`:${emoji.name}:`}
+                  aria-label={`:${emoji.name}:`}
+                  onClick={() => onCustomEmojiClick?.(emoji)}
+                  sx={{
+                    padding: touch ? '8px' : '4px',
+                    borderRadius: '4px',
+                    aspectRatio: '1',
+                    minWidth: 'unset',
+                    width: '100%',
+                    height: 'auto',
+                    transition: 'all 0.12s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(88, 101, 242, 0.12)',
+                      transform: 'scale(1.1)',
+                    },
+                  }}
+                >
+                  <img
+                    src={getFileUrl(emoji.fileId) ?? undefined}
+                    alt={`:${emoji.name}:`}
+                    style={{
+                      width: touch ? '24px' : '18px',
+                      height: touch ? '24px' : '18px',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </IconButton>
+              ))}
+            </Box>
+          </Box>
+        )}
         {hasResults ? (
           Object.entries(filteredCategories).map(([categoryName, emojis], index) => (
             <Box key={categoryName} sx={{ mb: 1.5 }}>
@@ -363,6 +438,10 @@ export interface EmojiPickerPopoverProps {
   anchorEl?: HTMLElement | null;
   onClose: () => void;
   onEmojiSelect: (emoji: string) => void;
+  /** When set, a "Custom" section shows this community's emojis (channels only). */
+  communityId?: string | null;
+  /** Called when a custom emoji is picked (composer inserts `:name:`, reactions send the sentinel). */
+  onCustomEmojiSelect?: (emoji: CustomEmojiDto) => void;
   /** Sheet title on touch devices. */
   title?: string;
 }
@@ -379,13 +458,29 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
   anchorEl,
   onClose,
   onEmojiSelect,
+  communityId,
+  onCustomEmojiSelect,
   title = 'Add Reaction',
 }) => {
   const { shouldUseTouchUI } = useResponsive();
+  const { emojis: customEmojis } = useCommunityCustomEmojis(
+    onCustomEmojiSelect ? communityId : undefined,
+  );
 
   const handleEmojiClick = (emoji: string) => {
     onEmojiSelect(emoji);
     onClose();
+  };
+
+  const handleCustomEmojiClick = (emoji: CustomEmojiDto) => {
+    onCustomEmojiSelect?.(emoji);
+    onClose();
+  };
+
+  const contentProps = {
+    onEmojiClick: handleEmojiClick,
+    customEmojis,
+    onCustomEmojiClick: onCustomEmojiSelect ? handleCustomEmojiClick : undefined,
   };
 
   // On touch devices, present the picker as a full-width bottom sheet instead
@@ -393,7 +488,7 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
   if (shouldUseTouchUI) {
     return (
       <MobileSheet open={open} onClose={onClose} title={title} maxHeight="70vh">
-        <EmojiPickerContent onEmojiClick={handleEmojiClick} touch />
+        <EmojiPickerContent {...contentProps} touch />
       </MobileSheet>
     );
   }
@@ -418,7 +513,7 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
           horizontal: 'left',
         }}
       >
-        <EmojiPickerContent onEmojiClick={handleEmojiClick} />
+        <EmojiPickerContent {...contentProps} />
       </Popover>
     );
   }
@@ -434,21 +529,32 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
         horizontal: 'left',
       }}
     >
-      <EmojiPickerContent onEmojiClick={handleEmojiClick} />
+      <EmojiPickerContent {...contentProps} />
     </Popover>
   );
 };
 
 interface EmojiPickerProps {
   onEmojiSelect: (emoji: string) => void;
+  /** When set, a "Custom" section shows this community's emojis (channels only). */
+  communityId?: string | null;
+  /** Called when a custom emoji is picked. */
+  onCustomEmojiSelect?: (emoji: CustomEmojiDto) => void;
 }
 
 /**
  * Self-contained emoji picker with its own trigger button.
  * Used in the message hover toolbar.
  */
-export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
+export const EmojiPicker: React.FC<EmojiPickerProps> = ({
+  onEmojiSelect,
+  communityId,
+  onCustomEmojiSelect,
+}) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const { emojis: customEmojis } = useCommunityCustomEmojis(
+    onCustomEmojiSelect ? communityId : undefined,
+  );
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -460,6 +566,11 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
 
   const handleEmojiClick = (emoji: string) => {
     onEmojiSelect(emoji);
+    handleClose();
+  };
+
+  const handleCustomEmojiClick = (emoji: CustomEmojiDto) => {
+    onCustomEmojiSelect?.(emoji);
     handleClose();
   };
 
@@ -483,7 +594,11 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onEmojiSelect }) => {
           horizontal: 'left',
         }}
       >
-        <EmojiPickerContent onEmojiClick={handleEmojiClick} />
+        <EmojiPickerContent
+          onEmojiClick={handleEmojiClick}
+          customEmojis={customEmojis}
+          onCustomEmojiClick={onCustomEmojiSelect ? handleCustomEmojiClick : undefined}
+        />
       </Popover>
     </>
   );

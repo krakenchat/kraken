@@ -52,6 +52,8 @@ export interface MessageToolbarProps {
   onUnpin: () => void;
   onReplyInThread: () => void;
   onQuoteReply?: () => void;
+  /** Community for the custom-emoji reaction section (channels only). */
+  communityId?: string | null;
 }
 
 export const MessageToolbar: React.FC<MessageToolbarProps> = ({
@@ -70,6 +72,7 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
   onUnpin,
   onReplyInThread,
   onQuoteReply,
+  communityId,
 }) => {
   return (
     <MessageTools
@@ -104,7 +107,11 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
         </>
       ) : (
         <>
-          <EmojiPicker onEmojiSelect={onEmojiSelect} />
+          <EmojiPicker
+            onEmojiSelect={onEmojiSelect}
+            communityId={communityId}
+            onCustomEmojiSelect={(emoji) => onEmojiSelect(`custom:${emoji.id}`)}
+          />
           {onQuoteReply && (
             <Tooltip title="Quote reply">
               <IconButton size="small" onClick={onQuoteReply}>

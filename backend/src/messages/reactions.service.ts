@@ -1,8 +1,20 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { Message, MessageReaction } from '@prisma/client';
 
 type MessageWithReactions = Message & { reactions: MessageReaction[] };
+
+/**
+ * Sentinel prefix for custom (community) emoji reactions. The full value stored
+ * in `MessageReaction.emoji` is `custom:{customEmojiId}`. Unicode reactions are
+ * stored verbatim.
+ */
+const CUSTOM_REACTION_PREFIX = 'custom:';
 
 /**
  * Service for managing message reactions
@@ -33,7 +45,11 @@ export class ReactionsService {
     userId: string,
   ): Promise<MessageWithReactions> {
     try {
-      await this.findMessageOrThrow(messageId);
+      const message = await this.findMessageOrThrow(messageId);
+
+      if (emoji.startsWith(CUSTOM_REACTION_PREFIX)) {
+        await this.validateCustomReaction(message, emoji, userId);
+      }
 
       await this.databaseService.messageReaction.upsert({
         where: {
@@ -85,6 +101,59 @@ export class ReactionsService {
         error,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Validate a `custom:{emojiId}` reaction sentinel:
+   * - the emoji must exist,
+   * - the message must belong to a channel in a community (not a DM),
+   * - the emoji must belong to that same community,
+   * - the reactor must be a member of that community.
+   */
+  private async validateCustomReaction(
+    message: Message,
+    emoji: string,
+    userId: string,
+  ): Promise<void> {
+    const emojiId = emoji.slice(CUSTOM_REACTION_PREFIX.length);
+    if (!emojiId) {
+      throw new BadRequestException('Invalid custom emoji reaction');
+    }
+
+    const customEmoji = await this.databaseService.customEmoji.findUnique({
+      where: { id: emojiId },
+    });
+    if (!customEmoji) {
+      throw new BadRequestException('Custom emoji not found');
+    }
+
+    if (!message.channelId) {
+      throw new BadRequestException(
+        'Custom emoji reactions are only available in communities',
+      );
+    }
+
+    const channel = await this.databaseService.channel.findUnique({
+      where: { id: message.channelId },
+      select: { communityId: true },
+    });
+    if (!channel || channel.communityId !== customEmoji.communityId) {
+      throw new BadRequestException(
+        'Custom emoji does not belong to this community',
+      );
+    }
+
+    const membership = await this.databaseService.membership.findUnique({
+      where: {
+        userId_communityId: {
+          userId,
+          communityId: customEmoji.communityId,
+        },
+      },
+    });
+    if (!membership) {
+      throw new BadRequestException('You are not a member of this community');
     }
   }
 

@@ -9,6 +9,7 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { DatabaseService } from '@/database/database.service';
 import { FileService } from '@/file/file.service';
 import { flattenSpansToText } from '@/common/utils/text.utils';
+import { sanitizeEmojiSpans } from '@/common/utils/emoji-span.utils';
 import { FileType, Prisma } from '@prisma/client';
 import { groupReactions } from '@/common/utils/reactions.utils';
 
@@ -74,9 +75,19 @@ export class MessagesService {
       }
     }
 
-    const searchText = flattenSpansToText(createMessageDto.spans);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, spans, attachments, ...data } = createMessageDto;
+    const { id, spans: rawSpans, attachments, ...data } = createMessageDto;
+
+    // Convert EMOJI spans with unknown/foreign emojiIds to plaintext so a
+    // hand-crafted payload can't trip the FK (P2003 -> 500) or reference
+    // another community's emoji.
+    const spans = await sanitizeEmojiSpans(
+      this.databaseService,
+      rawSpans,
+      createMessageDto.channelId,
+    );
+
+    const searchText = flattenSpansToText(spans);
     const message = await this.databaseService.message.create({
       data: {
         ...data,
@@ -163,18 +174,33 @@ export class MessagesService {
     updateMessageDto: UpdateMessageDto,
     originalAttachments?: string[],
   ) {
+    // Validate EMOJI spans against the message's community (see create()).
+    // Only fetch the message when the edit actually contains EMOJI spans.
+    let sanitizedSpans = updateMessageDto.spans;
+    if (sanitizedSpans?.some((s) => s.type === 'EMOJI')) {
+      const existing = await this.databaseService.message.findUnique({
+        where: { id },
+        select: { channelId: true },
+      });
+      sanitizedSpans = await sanitizeEmojiSpans(
+        this.databaseService,
+        sanitizedSpans,
+        existing?.channelId ?? null,
+      );
+    }
+
     return this.databaseService.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const dataToUpdate: Record<string, unknown> = {};
 
-        if (updateMessageDto.spans) {
-          dataToUpdate.searchText = flattenSpansToText(updateMessageDto.spans);
+        if (sanitizedSpans) {
+          dataToUpdate.searchText = flattenSpansToText(sanitizedSpans);
           dataToUpdate.editedAt = new Date();
 
           // Delete old spans, create new ones
           await tx.messageSpan.deleteMany({ where: { messageId: id } });
           await tx.messageSpan.createMany({
-            data: updateMessageDto.spans.map((span, i) => ({
+            data: sanitizedSpans.map((span, i) => ({
               messageId: id,
               position: i,
               ...span,
@@ -691,6 +717,7 @@ export class MessagesService {
         specialKind: string | null;
         communityId: string | null;
         aliasId: string | null;
+        emojiId: string | null;
         bold: boolean | null;
         italic: boolean | null;
         strikethrough: boolean | null;
@@ -747,6 +774,7 @@ export class MessagesService {
                   specialKind: s.specialKind,
                   communityId: s.communityId,
                   aliasId: s.aliasId,
+                  emojiId: s.emojiId,
                   bold: s.bold,
                   italic: s.italic,
                   strikethrough: s.strikethrough,

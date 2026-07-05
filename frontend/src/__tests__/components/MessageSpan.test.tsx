@@ -143,3 +143,24 @@ describe('renderMessageSpans', () => {
     expect(screen.getByText('#general')).toBeInTheDocument();
   });
 });
+
+describe('MessageSpan custom emoji (EMOJI)', () => {
+  const emojiById = new Map([
+    ['e1', { id: 'e1', communityId: 'c1', name: 'party_blob', fileId: 'file-1', createdBy: null, createdAt: '2026-01-01' }],
+  ]);
+
+  it('renders a known EMOJI span as an inline image', () => {
+    const span: Span = { type: SpanType.EMOJI, text: ':party_blob:', emojiId: 'e1' };
+    renderWithProviders(<MessageSpan span={span} index={0} emojiById={emojiById} />);
+    const img = screen.getByRole('img', { name: ':party_blob:' });
+    expect(img).toHaveAttribute('src', '/api/file/file-1');
+    expect(img).toHaveAttribute('title', ':party_blob:');
+  });
+
+  it('falls back to shortcode text when the emoji is unknown/deleted', () => {
+    const span: Span = { type: SpanType.EMOJI, text: ':gone:', emojiId: 'missing' };
+    renderWithProviders(<MessageSpan span={span} index={0} emojiById={emojiById} />);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText(':gone:')).toBeInTheDocument();
+  });
+});

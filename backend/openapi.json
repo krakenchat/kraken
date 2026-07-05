@@ -7052,6 +7052,111 @@
           "AliasGroups"
         ]
       }
+    },
+    "/api/custom-emoji/community/{communityId}": {
+      "get": {
+        "operationId": "CustomEmojiController_listCommunityEmojis",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomEmojiDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List all custom emojis for a community. Available to any community member.",
+        "tags": [
+          "CustomEmoji"
+        ]
+      },
+      "post": {
+        "operationId": "CustomEmojiController_createEmoji",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomEmojiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomEmojiDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Register a new custom emoji from an uploaded CUSTOM_EMOJI file.",
+        "tags": [
+          "CustomEmoji"
+        ]
+      }
+    },
+    "/api/custom-emoji/community/{communityId}/{emojiId}": {
+      "delete": {
+        "operationId": "CustomEmojiController_deleteEmoji",
+        "parameters": [
+          {
+            "name": "communityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "emojiId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a custom emoji from a community.",
+        "tags": [
+          "CustomEmoji"
+        ]
+      }
     }
   },
   "info": {
@@ -7699,7 +7804,8 @@
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
-                "MUTE_PARTICIPANT"
+                "MUTE_PARTICIPANT",
+                "MANAGE_EMOJIS"
               ]
             }
           },
@@ -7858,7 +7964,8 @@
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
-                "MUTE_PARTICIPANT"
+                "MUTE_PARTICIPANT",
+                "MANAGE_EMOJIS"
               ]
             }
           },
@@ -7939,7 +8046,8 @@
                 "DELETE_ANY_MESSAGE",
                 "VIEW_BAN_LIST",
                 "VIEW_MODERATION_LOGS",
-                "MUTE_PARTICIPANT"
+                "MUTE_PARTICIPANT",
+                "MANAGE_EMOJIS"
               ]
             }
           },
@@ -8316,7 +8424,8 @@
               "SPECIAL_MENTION",
               "COMMUNITY_MENTION",
               "ALIAS_MENTION",
-              "CODE_BLOCK"
+              "CODE_BLOCK",
+              "EMOJI"
             ]
           },
           "text": {
@@ -8336,6 +8445,10 @@
             "nullable": true
           },
           "aliasId": {
+            "type": "string",
+            "nullable": true
+          },
+          "emojiId": {
             "type": "string",
             "nullable": true
           },
@@ -8362,7 +8475,8 @@
           "userId",
           "specialKind",
           "communityId",
-          "aliasId"
+          "aliasId",
+          "emojiId"
         ]
       },
       "CreateMessageDto": {
@@ -8519,8 +8633,13 @@
               "SPECIAL_MENTION",
               "COMMUNITY_MENTION",
               "ALIAS_MENTION",
-              "CODE_BLOCK"
+              "CODE_BLOCK",
+              "EMOJI"
             ]
+          },
+          "emojiId": {
+            "type": "string",
+            "nullable": true
           },
           "bold": {
             "type": "boolean",
@@ -12559,6 +12678,56 @@
         },
         "required": [
           "memberIds"
+        ]
+      },
+      "CustomEmojiDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "communityId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "communityId",
+          "name",
+          "fileId",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "CreateCustomEmojiDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "CUSTOM_EMOJI_NAME_REGEX"
+          },
+          "fileId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "name",
+          "fileId"
         ]
       }
     }

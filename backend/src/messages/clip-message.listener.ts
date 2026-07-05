@@ -58,6 +58,7 @@ export class ClipMessageListener {
           specialKind: null,
           communityId: null,
           aliasId: null,
+          emojiId: null,
         },
       ],
       attachments: [event.fileId],

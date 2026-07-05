@@ -531,6 +531,7 @@ describe('MessagesController', () => {
             specialKind: null,
             communityId: null,
             aliasId: null,
+            emojiId: null,
           },
         ],
       };

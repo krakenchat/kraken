@@ -11,6 +11,8 @@ export class SpanDto {
   communityId: string | null;
   aliasId: string | null;
   @ApiPropertyOptional()
+  emojiId?: string | null;
+  @ApiPropertyOptional()
   bold?: boolean | null;
   @ApiPropertyOptional()
   italic?: boolean | null;

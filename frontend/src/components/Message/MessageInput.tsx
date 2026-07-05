@@ -31,10 +31,12 @@ import type {
   UserMention,
   ChannelMention,
   AliasMention,
+  EmojiMention,
 } from "../../utils/mentionParser";
 import { wrapSelection, markerForShortcut } from "../../utils/richTextShortcuts";
 import { useQuery } from "@tanstack/react-query";
 import { aliasGroupsControllerGetCommunityAliasGroupsOptions } from "../../api-client/@tanstack/react-query.gen";
+import { useCommunityCustomEmojis } from "../../hooks/useCommunityCustomEmojis";
 import { logger } from "../../utils/logger";
 import { ACCEPTED_FILE_TYPES } from "../../constants/messages";
 import { useNotification } from "../../contexts/NotificationContext";
@@ -191,6 +193,16 @@ export default function MessageInput({
     ? aliasGroups.map(group => ({ id: group.id, name: group.name }))
     : [];
 
+  // Custom emojis (channel only) — used to resolve `:shortcode:` at send time
+  // and to power the picker's Custom section.
+  const { emojis: customEmojis } = useCommunityCustomEmojis(
+    isChannel ? communityId : undefined,
+  );
+  const emojiMentions: EmojiMention[] = customEmojis.map(e => ({
+    id: e.id,
+    name: e.name,
+  }));
+
   // Local mention state for DMs
   const [dmMentionState, setDmMentionState] = useState<SimpleMentionState>({
     isOpen: false,
@@ -338,7 +350,7 @@ export default function MessageInput({
     setSending(true);
     try {
       const messageText = text.trim() || "";
-      let spans = parseMessageWithMentions(messageText, userMentions, channelMentions, aliasMentions);
+      let spans = parseMessageWithMentions(messageText, userMentions, channelMentions, aliasMentions, emojiMentions);
 
       if (spans.length === 0) {
         spans = [{ type: SpanType.PLAINTEXT, text: '' }];
@@ -561,6 +573,8 @@ export default function MessageInput({
         anchorEl={emojiAnchorEl}
         onClose={handleEmojiPickerClose}
         onEmojiSelect={handleEmojiSelect}
+        communityId={isChannel ? communityId : undefined}
+        onCustomEmojiSelect={(emoji) => handleEmojiSelect(`:${emoji.name}:`)}
         title="Add Emoji"
       />
     </Box>

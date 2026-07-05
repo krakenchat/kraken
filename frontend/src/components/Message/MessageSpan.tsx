@@ -5,22 +5,66 @@
  * Supports mentions (user, special, community, alias) and plain text.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { useTheme } from "@mui/material/styles";
 import { Span, SpanType } from "../../types/message.type";
+import type { CustomEmojiDto } from "../../api-client/types.gen";
+import { getFileUrl } from "../../utils/fileHelpers";
 
 export interface MessageSpanProps {
   span: Span;
   index: number;
+  /** Community custom emojis, keyed by id — resolves EMOJI spans to images. */
+  emojiById?: Map<string, CustomEmojiDto>;
 }
+
+/**
+ * Inline custom-emoji image with graceful fallback: if the emoji is unknown
+ * (e.g. deleted) or the image fails to load, the `:shortcode:` text is shown.
+ */
+const EmojiImage: React.FC<{ emoji: CustomEmojiDto; fallback: string }> = ({
+  emoji,
+  fallback,
+}) => {
+  const [failed, setFailed] = useState(false);
+  const src = getFileUrl(emoji.fileId);
+  if (failed || !src) return <>{fallback}</>;
+  return (
+    <img
+      src={src}
+      alt={`:${emoji.name}:`}
+      title={`:${emoji.name}:`}
+      onError={() => setFailed(true)}
+      style={{
+        height: "1.375em",
+        width: "auto",
+        verticalAlign: "-0.3em",
+        margin: "0 1px",
+        objectFit: "contain",
+      }}
+    />
+  );
+};
 
 /**
  * Render a single message span with type-specific styling
  */
-export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index }) => {
+export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index, emojiById }) => {
   const theme = useTheme();
 
   switch (span.type) {
+    case SpanType.EMOJI: {
+      const emoji = span.emojiId ? emojiById?.get(span.emojiId) : undefined;
+      if (!emoji) {
+        // Unknown/deleted emoji — render the literal shortcode.
+        return <span key={index}>{span.text || ""}</span>;
+      }
+      return (
+        <span key={index}>
+          <EmojiImage emoji={emoji} fallback={span.text || `:${emoji.name}:`} />
+        </span>
+      );
+    }
     case SpanType.USER_MENTION:
       return (
         <span key={index} style={{ color: theme.palette.primary.main, fontWeight: 600 }}>
@@ -123,6 +167,11 @@ export const MessageSpan: React.FC<MessageSpanProps> = ({ span, index }) => {
  * Render an array of message spans
  */
 // eslint-disable-next-line react-refresh/only-export-components
-export const renderMessageSpans = (spans: Span[]): React.ReactNode => {
-  return spans.map((span, idx) => <MessageSpan key={idx} span={span} index={idx} />);
+export const renderMessageSpans = (
+  spans: Span[],
+  emojiById?: Map<string, CustomEmojiDto>,
+): React.ReactNode => {
+  return spans.map((span, idx) => (
+    <MessageSpan key={idx} span={span} index={idx} emojiById={emojiById} />
+  ));
 };

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { flattenSpansToText } from '@/common/utils/text.utils';
+import { sanitizeEmojiSpans } from '@/common/utils/emoji-span.utils';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { CreateThreadReplyDto } from './dto/create-thread-reply.dto';
 import { Message, $Enums, FileType } from '@prisma/client';
@@ -52,6 +53,7 @@ export class ThreadsService {
       specialKind?: string | null;
       communityId?: string | null;
       aliasId?: string | null;
+      emojiId?: string | null;
       bold?: boolean | null;
       italic?: boolean | null;
       strikethrough?: boolean | null;
@@ -65,6 +67,7 @@ export class ThreadsService {
       specialKind: span.specialKind ?? null,
       communityId: span.communityId ?? null,
       aliasId: span.aliasId ?? null,
+      emojiId: span.emojiId ?? null,
       bold: span.bold ?? null,
       italic: span.italic ?? null,
       strikethrough: span.strikethrough ?? null,
@@ -104,7 +107,17 @@ export class ThreadsService {
     const parent = await this.getParentMessage(parentMessageId);
 
     // Sanitize spans to only include valid Prisma fields
-    const sanitizedSpans = this.sanitizeSpans(spans);
+    const fieldSanitizedSpans = this.sanitizeSpans(spans);
+
+    // Convert EMOJI spans with unknown/foreign emojiIds to plaintext so a
+    // hand-crafted payload can't trip the FK (P2003 -> 500) or reference
+    // another community's emoji. DM threads (no channelId) downgrade all
+    // EMOJI spans since there is no community to validate against.
+    const sanitizedSpans = await sanitizeEmojiSpans(
+      this.databaseService,
+      fieldSanitizedSpans,
+      parent.channelId,
+    );
     const searchText = flattenSpansToText(sanitizedSpans);
 
     // Use transaction to ensure atomicity

@@ -25,6 +25,14 @@ export interface AliasMention {
   name: string;
 }
 
+export interface EmojiMention {
+  id: string;
+  name: string;
+}
+
+/** Matches a `:shortcode:` custom-emoji token (lowercase, digits, underscore). */
+const EMOJI_TOKEN_REGEX = /:([a-z0-9_]{2,32}):/g;
+
 /**
  * Find regions in text that are inside code blocks or inline code.
  * Returns array of [start, end] ranges that should be excluded from mention parsing.
@@ -116,15 +124,49 @@ function parseMentionRun(
   text: string,
   userMentions: UserMention[],
   channelMentions: ChannelMention[],
-  aliasMentions: AliasMention[]
+  aliasMentions: AliasMention[],
+  emojiMentions: EmojiMention[] = []
 ): MessageSpan[] {
   const spans: MessageSpan[] = [];
-  const mentions = findMentions(text);
+
+  // Collect resolved custom-emoji tokens (unknown shortcodes stay literal) and
+  // interleave them with mentions, ordered by position.
+  const emojiTokens: {
+    type: 'emoji';
+    start: number;
+    end: number;
+    text: string;
+    emoji: EmojiMention;
+  }[] = [];
+  if (emojiMentions.length > 0) {
+    const byName = new Map(emojiMentions.map((e) => [e.name, e]));
+    let m: RegExpExecArray | null;
+    EMOJI_TOKEN_REGEX.lastIndex = 0;
+    while ((m = EMOJI_TOKEN_REGEX.exec(text)) !== null) {
+      const emoji = byName.get(m[1]);
+      if (emoji) {
+        emojiTokens.push({
+          type: 'emoji',
+          start: m.index,
+          end: m.index + m[0].length,
+          text: m[0],
+          emoji,
+        });
+      }
+    }
+  }
+
+  const tokens = [...findMentions(text), ...emojiTokens].sort(
+    (a, b) => a.start - b.start
+  );
 
   let lastIndex = 0;
 
-  for (const mention of mentions) {
-    // Add plaintext before this mention
+  for (const mention of tokens) {
+    // Skip tokens overlapping an already-consumed region.
+    if (mention.start < lastIndex) continue;
+
+    // Add plaintext before this token
     if (mention.start > lastIndex) {
       const plaintext = text.substring(lastIndex, mention.start);
       if (plaintext) {
@@ -132,8 +174,13 @@ function parseMentionRun(
       }
     }
 
-    // Find resolved mention
-    if (mention.type === 'user') {
+    if (mention.type === 'emoji') {
+      spans.push({
+        type: SpanType.EMOJI,
+        text: mention.text, // `:shortcode:` for round-trip + fallback
+        emojiId: mention.emoji.id,
+      });
+    } else if (mention.type === 'user') {
       // First check if this is an alias group mention
       const resolvedAlias = aliasMentions.find(
         alias => alias.name.toLowerCase() === mention.query.toLowerCase()
@@ -269,7 +316,8 @@ function parseInline(
   style: StyleFlags,
   userMentions: UserMention[],
   channelMentions: ChannelMention[],
-  aliasMentions: AliasMention[]
+  aliasMentions: AliasMention[],
+  emojiMentions: EmojiMention[] = []
 ): MessageSpan[] {
   const result: MessageSpan[] = [];
   let buffer = '';
@@ -277,7 +325,13 @@ function parseInline(
 
   const flushBuffer = () => {
     if (!buffer) return;
-    const runSpans = parseMentionRun(buffer, userMentions, channelMentions, aliasMentions);
+    const runSpans = parseMentionRun(
+      buffer,
+      userMentions,
+      channelMentions,
+      aliasMentions,
+      emojiMentions
+    );
     for (const s of runSpans) result.push(withStyle(s, style));
     buffer = '';
   };
@@ -320,7 +374,8 @@ function parseInline(
           { ...style, [flag]: true },
           userMentions,
           channelMentions,
-          aliasMentions
+          aliasMentions,
+          emojiMentions
         )
       );
       i = close + marker.length;
@@ -369,7 +424,8 @@ export function parseMessageWithMentions(
   text: string,
   userMentions: UserMention[] = [],
   channelMentions: ChannelMention[] = [],
-  aliasMentions: AliasMention[] = []
+  aliasMentions: AliasMention[] = [],
+  emojiMentions: EmojiMention[] = []
 ): MessageSpan[] {
   const spans: MessageSpan[] = [];
 
@@ -386,7 +442,8 @@ export function parseMessageWithMentions(
           {},
           userMentions,
           channelMentions,
-          aliasMentions
+          aliasMentions,
+          emojiMentions
         )
       );
     }
@@ -404,7 +461,8 @@ export function parseMessageWithMentions(
         {},
         userMentions,
         channelMentions,
-        aliasMentions
+        aliasMentions,
+        emojiMentions
       )
     );
   }
@@ -425,6 +483,9 @@ export function spansToText(spans: MessageSpan[]): string {
         return span.text || `@${span.specialKind}`;
       case SpanType.COMMUNITY_MENTION:
       case SpanType.ALIAS_MENTION:
+        return span.text || '';
+      case SpanType.EMOJI:
+        // Round-trips to `:shortcode:` (stored on span.text).
         return span.text || '';
       case SpanType.CODE_BLOCK:
         return '```\n' + (span.text || '') + '\n```';

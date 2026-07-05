@@ -404,3 +404,62 @@ describe('spansToText - formatting round-trip', () => {
     expect(parseMessageWithMentions(spansToText(original))).toEqual(original);
   });
 });
+
+describe('parseMessageWithMentions custom emojis', () => {
+  const emojis = [
+    { id: 'e1', name: 'party_blob' },
+    { id: 'e2', name: 'cat_jam' },
+  ];
+
+  it('resolves a known :shortcode: to an EMOJI span', () => {
+    const result = parseMessageWithMentions('hi :party_blob:', [], [], [], emojis);
+    expect(result).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'hi ' },
+      { type: SpanType.EMOJI, text: ':party_blob:', emojiId: 'e1' },
+    ]);
+  });
+
+  it('leaves an unknown :shortcode: as literal plaintext', () => {
+    const result = parseMessageWithMentions('hi :unknown_emoji:', [], [], [], emojis);
+    expect(result).toEqual([
+      { type: SpanType.PLAINTEXT, text: 'hi :unknown_emoji:' },
+    ]);
+  });
+
+  it('does not resolve emojis inside inline code', () => {
+    const result = parseMessageWithMentions('`:party_blob:`', [], [], [], emojis);
+    expect(result).toEqual([
+      { type: SpanType.PLAINTEXT, text: ':party_blob:', code: true },
+    ]);
+  });
+
+  it('does not resolve emojis inside a fenced code block', () => {
+    const result = parseMessageWithMentions('```\n:party_blob:\n```', [], [], [], emojis);
+    expect(result).toEqual([
+      { type: SpanType.CODE_BLOCK, text: ':party_blob:' },
+    ]);
+  });
+
+  it('resolves multiple emojis interleaved with mentions', () => {
+    const users = [{ id: 'u1', username: 'alice' }];
+    const result = parseMessageWithMentions(
+      ':party_blob: @alice :cat_jam:',
+      users,
+      [],
+      [],
+      emojis,
+    );
+    expect(result).toEqual([
+      { type: SpanType.EMOJI, text: ':party_blob:', emojiId: 'e1' },
+      { type: SpanType.PLAINTEXT, text: ' ' },
+      { type: SpanType.USER_MENTION, text: '@alice', userId: 'u1' },
+      { type: SpanType.PLAINTEXT, text: ' ' },
+      { type: SpanType.EMOJI, text: ':cat_jam:', emojiId: 'e2' },
+    ]);
+  });
+
+  it('round-trips an EMOJI span back to its :shortcode:', () => {
+    const spans = parseMessageWithMentions('yo :party_blob:', [], [], [], emojis);
+    expect(spansToText(spans)).toBe('yo :party_blob:');
+  });
+});
