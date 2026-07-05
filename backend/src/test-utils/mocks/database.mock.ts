@@ -60,6 +60,7 @@ export type MockDatabaseService = {
   instanceSettings: MockPrismaModel;
   aliasGroup: MockPrismaModel;
   aliasGroupMember: MockPrismaModel;
+  customEmoji: MockPrismaModel;
   readReceipt: MockPrismaModel;
   notification: MockPrismaModel;
   userNotificationSettings: MockPrismaModel;
@@ -132,6 +133,7 @@ export function createMockDatabase(): MockDatabaseService {
     instanceSettings: createMockPrismaModel(),
     aliasGroup: createMockPrismaModel(),
     aliasGroupMember: createMockPrismaModel(),
+    customEmoji: createMockPrismaModel(),
     readReceipt: createMockPrismaModel(),
     notification: createMockPrismaModel(),
     userNotificationSettings: createMockPrismaModel(),

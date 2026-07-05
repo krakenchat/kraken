@@ -213,6 +213,101 @@ describe('ThreadsService', () => {
       });
     });
 
+    it('keeps a valid community emoji span in a channel thread reply', async () => {
+      const parent = MessageFactory.build({
+        id: parentMessageId,
+        channelId,
+        directMessageGroupId: null,
+        parentMessageId: null,
+      });
+      const reply = MessageFactory.build({ authorId, parentMessageId });
+      const emojiDto = {
+        parentMessageId,
+        spans: [{ type: 'EMOJI' as any, text: ':smile:', emojiId: 'emoji-1' }],
+      };
+
+      mockDatabase.message.findUnique.mockResolvedValue(parent);
+      mockDatabase.channel.findUnique.mockResolvedValue({
+        communityId: 'community-1',
+      });
+      mockDatabase.customEmoji.findMany.mockResolvedValue([{ id: 'emoji-1' }]);
+      mockDatabase.message.create.mockResolvedValue(reply);
+      mockDatabase.message.update.mockResolvedValue(parent);
+      mockDatabase.threadSubscriber.upsert.mockResolvedValue({});
+
+      await service.createThreadReply(emojiDto as any, authorId);
+
+      const spans =
+        mockDatabase.message.create.mock.calls[0][0].data.spans.create;
+      expect(spans[0]).toMatchObject({ type: 'EMOJI', emojiId: 'emoji-1' });
+    });
+
+    it('downgrades an unknown emojiId to PLAINTEXT in a thread reply', async () => {
+      const parent = MessageFactory.build({
+        id: parentMessageId,
+        channelId,
+        directMessageGroupId: null,
+        parentMessageId: null,
+      });
+      const reply = MessageFactory.build({ authorId, parentMessageId });
+      const emojiDto = {
+        parentMessageId,
+        spans: [
+          { type: 'EMOJI' as any, text: ':ghost:', emojiId: 'does-not-exist' },
+        ],
+      };
+
+      mockDatabase.message.findUnique.mockResolvedValue(parent);
+      mockDatabase.channel.findUnique.mockResolvedValue({
+        communityId: 'community-1',
+      });
+      mockDatabase.customEmoji.findMany.mockResolvedValue([]);
+      mockDatabase.message.create.mockResolvedValue(reply);
+      mockDatabase.message.update.mockResolvedValue(parent);
+      mockDatabase.threadSubscriber.upsert.mockResolvedValue({});
+
+      await service.createThreadReply(emojiDto as any, authorId);
+
+      const spans =
+        mockDatabase.message.create.mock.calls[0][0].data.spans.create;
+      expect(spans[0]).toMatchObject({
+        type: 'PLAINTEXT',
+        text: ':ghost:',
+        emojiId: null,
+      });
+    });
+
+    it('downgrades emoji spans in a DM thread reply (no community)', async () => {
+      const dmGroupId = 'dm-group-999';
+      const parent = MessageFactory.build({
+        id: parentMessageId,
+        channelId: null,
+        directMessageGroupId: dmGroupId,
+        parentMessageId: null,
+      });
+      const reply = MessageFactory.build({
+        authorId,
+        directMessageGroupId: dmGroupId,
+        parentMessageId,
+      });
+      const emojiDto = {
+        parentMessageId,
+        spans: [{ type: 'EMOJI' as any, text: ':smile:', emojiId: 'emoji-1' }],
+      };
+
+      mockDatabase.message.findUnique.mockResolvedValue(parent);
+      mockDatabase.message.create.mockResolvedValue(reply);
+      mockDatabase.message.update.mockResolvedValue(parent);
+      mockDatabase.threadSubscriber.upsert.mockResolvedValue({});
+
+      await service.createThreadReply(emojiDto as any, authorId);
+
+      const spans =
+        mockDatabase.message.create.mock.calls[0][0].data.spans.create;
+      expect(spans[0]).toMatchObject({ type: 'PLAINTEXT', emojiId: null });
+      expect(mockDatabase.channel.findUnique).not.toHaveBeenCalled();
+    });
+
     it('should throw when parent message is itself a thread reply', async () => {
       const nestedParent = MessageFactory.build({
         id: parentMessageId,

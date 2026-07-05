@@ -99,6 +99,22 @@ describe('CustomEmojiManagement', () => {
     expect(mockUploadFile).not.toHaveBeenCalled();
   });
 
+  it('rejects a letterless shortcode (digits/underscores only)', async () => {
+    setupList([]);
+    const { user } = renderWithProviders(
+      <CustomEmojiManagement communityId={COMMUNITY_ID} />,
+    );
+    await screen.findByText(/no custom emojis yet/i);
+
+    await user.type(screen.getByLabelText(/shortcode/i), '123_45');
+    await user.click(screen.getByRole('button', { name: /add emoji/i }));
+
+    expect(
+      await screen.findByText(/at least one letter/i),
+    ).toBeInTheDocument();
+    expect(mockUploadFile).not.toHaveBeenCalled();
+  });
+
   it('uploads the file then creates the emoji on submit', async () => {
     setupList([]);
     let created: unknown = null;

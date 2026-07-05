@@ -148,6 +148,113 @@ describe('MessagesService', () => {
     });
   });
 
+  describe('EMOJI span sanitization', () => {
+    const emojiSpan = (emojiId: string | null) => ({
+      type: SpanType.EMOJI,
+      text: ':smile:',
+      userId: null,
+      specialKind: null,
+      channelId: null,
+      communityId: null,
+      aliasId: null,
+      emojiId,
+    });
+
+    it('keeps a valid community emoji span on create', async () => {
+      const createDto = {
+        channelId: 'channel-123',
+        authorId: 'user-123',
+        spans: [emojiSpan('emoji-1')],
+      } as any;
+      mockDatabase.channel.findUnique.mockResolvedValue({
+        communityId: 'community-1',
+      });
+      mockDatabase.customEmoji.findMany.mockResolvedValue([{ id: 'emoji-1' }]);
+      mockDatabase.message.create.mockResolvedValue(
+        buildMessageWithIncludes(createDto),
+      );
+
+      await service.create(createDto);
+
+      const createdSpans =
+        mockDatabase.message.create.mock.calls[0][0].data.spans.create;
+      expect(createdSpans[0]).toMatchObject({
+        type: SpanType.EMOJI,
+        emojiId: 'emoji-1',
+      });
+    });
+
+    it('downgrades an unknown emojiId to PLAINTEXT on create (no FK hit)', async () => {
+      const createDto = {
+        channelId: 'channel-123',
+        authorId: 'user-123',
+        spans: [emojiSpan('does-not-exist')],
+      } as any;
+      mockDatabase.channel.findUnique.mockResolvedValue({
+        communityId: 'community-1',
+      });
+      mockDatabase.customEmoji.findMany.mockResolvedValue([]);
+      mockDatabase.message.create.mockResolvedValue(
+        buildMessageWithIncludes(createDto),
+      );
+
+      await service.create(createDto);
+
+      const createdSpans =
+        mockDatabase.message.create.mock.calls[0][0].data.spans.create;
+      expect(createdSpans[0]).toMatchObject({
+        type: SpanType.PLAINTEXT,
+        text: ':smile:',
+        emojiId: null,
+      });
+    });
+
+    it('downgrades all emoji spans in a DM (no channelId)', async () => {
+      const createDto = {
+        directMessageGroupId: 'dm-1',
+        authorId: 'user-123',
+        spans: [emojiSpan('emoji-1')],
+      } as any;
+      mockDatabase.message.create.mockResolvedValue(
+        buildMessageWithIncludes(createDto),
+      );
+
+      await service.create(createDto);
+
+      const createdSpans =
+        mockDatabase.message.create.mock.calls[0][0].data.spans.create;
+      expect(createdSpans[0]).toMatchObject({
+        type: SpanType.PLAINTEXT,
+        emojiId: null,
+      });
+      expect(mockDatabase.channel.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('downgrades an unknown emojiId to PLAINTEXT on update', async () => {
+      const messageId = 'msg-emoji';
+      const updateDto = { spans: [emojiSpan('does-not-exist')] } as any;
+      mockDatabase.message.findUnique.mockResolvedValue({
+        channelId: 'channel-123',
+      });
+      mockDatabase.channel.findUnique.mockResolvedValue({
+        communityId: 'community-1',
+      });
+      mockDatabase.customEmoji.findMany.mockResolvedValue([]);
+      mockDatabase.messageSpan.deleteMany.mockResolvedValue({ count: 1 });
+      mockDatabase.messageSpan.createMany.mockResolvedValue({ count: 1 });
+      mockDatabase.message.update.mockResolvedValue(buildMessageWithIncludes());
+
+      await service.update(messageId, updateDto);
+
+      const createManyArg =
+        mockDatabase.messageSpan.createMany.mock.calls[0][0].data;
+      expect(createManyArg[0]).toMatchObject({
+        type: SpanType.PLAINTEXT,
+        emojiId: null,
+      });
+    });
+  });
+
   describe('findOne', () => {
     it('should return a message by id', async () => {
       const message = buildMessageWithIncludes();

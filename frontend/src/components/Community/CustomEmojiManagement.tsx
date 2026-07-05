@@ -41,7 +41,7 @@ interface CustomEmojiManagementProps {
   communityId: string;
 }
 
-const NAME_REGEX = /^[a-z0-9_]{2,32}$/;
+const NAME_REGEX = /^(?=.*[a-z])[a-z0-9_]{2,32}$/;
 
 const CustomEmojiManagement: React.FC<CustomEmojiManagementProps> = ({ communityId }) => {
   const queryClient = useQueryClient();
@@ -97,7 +97,7 @@ const CustomEmojiManagement: React.FC<CustomEmojiManagementProps> = ({ community
     setFormError(null);
     if (!NAME_REGEX.test(name)) {
       setFormError(
-        "Name must be 2-32 characters of lowercase letters, numbers, or underscores.",
+        "Name must be 2-32 characters of lowercase letters, numbers, or underscores, and include at least one letter.",
       );
       return;
     }
