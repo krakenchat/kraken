@@ -88,6 +88,10 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
           px: showInline ? 1 : 2,
           py: 1,
           cursor: "pointer",
+         ...(shouldUseTouchUI && {
+           WebkitTouchCallout: "none",
+           userSelect: "none",
+         }),
           "&:hover": {
             backgroundColor: "action.hover",
           },

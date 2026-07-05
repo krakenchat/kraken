@@ -92,7 +92,7 @@ function App() {
       <UpdateToast />
       <OfflineBanner />
       <Suspense fallback={
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100dvh' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'var(--full-dvh)' }}>
           <CircularProgress />
         </Box>
       }>

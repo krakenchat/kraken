@@ -127,6 +127,10 @@ const MemberRow: React.FC<{
       sx={{
         px: 2,
         py: 0.5,
+       ...(shouldUseTouchUI && {
+         WebkitTouchCallout: "none",
+         userSelect: "none",
+       }),
         "&:hover": {
           backgroundColor: theme.palette.semantic.overlay.light,
         },

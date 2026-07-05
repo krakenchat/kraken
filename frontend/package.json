@@ -55,7 +55,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "generate:api": "openapi-ts"
+    "generate:api": "openapi-ts",
+    "generate:pwa-assets": "node scripts/generate-pwa-assets.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -105,6 +106,7 @@
     "jsdom": "^28.0.0",
     "msw": "^2.12.10",
     "rimraf": "^6.0.1",
+    "sharp": "^0.34.4",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.26.1",
     "vite": "^6.4.1",

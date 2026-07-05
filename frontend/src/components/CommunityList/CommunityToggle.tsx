@@ -43,13 +43,13 @@ const Sidebar = styled(Drawer, {
     paddingTop: 16,
     paddingBottom: 16,
     top: appBarHeight,
-    height: `calc(100dvh - ${appBarHeight}px)`,
+    height: `calc(var(--full-dvh) - ${appBarHeight}px)`,
     transition: "width 0.3s cubic-bezier(0.4,0,0.2,1)",
     overflowX: "hidden",
   },
   "&.MuiDrawer-root": {
     top: appBarHeight,
-    height: `calc(100dvh - ${appBarHeight}px)`,
+    height: `calc(var(--full-dvh) - ${appBarHeight}px)`,
   },
 }));
 

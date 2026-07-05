@@ -64,7 +64,7 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
 }) => {
   const { goBack } = useMobileNavigation();
   const navigate = useNavigate();
-  const { shouldUseTouchUI } = useResponsive();
+  const { shouldUseTouchUI, isMobile } = useResponsive();
   const { state: voiceState } = useVoiceConnection();
 
   // Fetch channel or DM data
@@ -116,16 +116,19 @@ export const MobileChatPanel: React.FC<MobileChatPanelProps> = ({
   };
 
   // Swipe navigation on the chat surface (touch UI only):
-  //  - Swipe RIGHT anywhere → go back (channel chat → channel list,
-  //    dm-chat → dm list; both handled by the nav context's goBack()).
-  //  - Swipe LEFT → open the members drawer (channel chat only).
+  //  - Swipe RIGHT on phone → go back (channel chat → channel list,
+  //    dm-chat → dm list; both handled by the nav context's goBack()). On
+  //    tablet the channel list is already visible in the split-view sidebar
+  //    (TabletContentArea), so swipe-right must NOT navigate there.
+  //  - Swipe LEFT → open the members drawer (channel chat only). Keeps
+  //    working on tablet as well as phone.
   // Gestures starting within the edge back-gesture zone, on exempt content
   // (inputs, code blocks, horizontally scrollable widgets), or that are mostly
   // vertical (scrolling) are ignored. The SwipeableDrawers render in portals, so
   // touches on them never reach this surface.
   const { onTouchStart, onTouchMove, onTouchEnd } = useSwipeGesture({
     enabled: shouldUseTouchUI,
-    onSwipeRight: () => goBack(),
+    onSwipeRight: isMobile ? () => goBack() : undefined,
     onSwipeLeft: () => {
       if (channelId) setShowMemberDrawer(true);
     },
