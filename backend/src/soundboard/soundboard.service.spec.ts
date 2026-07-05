@@ -1,4 +1,5 @@
 import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import {
   ConflictException,
   NotFoundException,
@@ -7,11 +8,13 @@ import {
 import { ResourceType } from '@prisma/client';
 import { SoundboardService } from './soundboard.service';
 import { DatabaseService } from '@/database/database.service';
+import { FileUploadService } from '@/file-upload/file-upload.service';
 import { createMockDatabase } from '@/test-utils';
 
 describe('SoundboardService', () => {
   let service: SoundboardService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
+  let fileUploadService: Mocked<FileUploadService>;
 
   const communityId = 'community-1';
   const userId = 'user-1';
@@ -39,12 +42,13 @@ describe('SoundboardService', () => {
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit } = await TestBed.solitary(SoundboardService)
+    const { unit, unitRef } = await TestBed.solitary(SoundboardService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
 
     service = unit;
+    fileUploadService = unitRef.get(FileUploadService);
   });
 
   afterEach(() => {
@@ -149,22 +153,91 @@ describe('SoundboardService', () => {
         service.createSound(communityId, userId, dto),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('translates a concurrent P2002 unique violation into ConflictException', async () => {
+      mockDatabase.soundboardSound.findUnique.mockResolvedValue(null);
+      mockDatabase.file.findUnique.mockResolvedValue(buildFile());
+      mockDatabase.soundboardSound.findFirst.mockResolvedValue(null);
+      mockDatabase.soundboardSound.create.mockRejectedValue(
+        Object.assign(new Error('Unique constraint failed'), {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
+
+      await expect(
+        service.createSound(communityId, userId, dto),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rethrows non-P2002 create errors unchanged', async () => {
+      mockDatabase.soundboardSound.findUnique.mockResolvedValue(null);
+      mockDatabase.file.findUnique.mockResolvedValue(buildFile());
+      mockDatabase.soundboardSound.findFirst.mockResolvedValue(null);
+      mockDatabase.soundboardSound.create.mockRejectedValue(
+        new Error('db down'),
+      );
+
+      await expect(
+        service.createSound(communityId, userId, dto),
+      ).rejects.toThrow('db down');
+    });
   });
 
   describe('deleteSound', () => {
-    it('deletes the sound and its backing file', async () => {
+    it('deletes the sound and soft-deletes the backing file as the uploader (quota credited)', async () => {
       mockDatabase.soundboardSound.findUnique.mockResolvedValue(buildSound());
+      mockDatabase.file.findUnique.mockResolvedValue({
+        uploadedById: 'uploader-9',
+        deletedAt: null,
+      });
       mockDatabase.soundboardSound.delete.mockResolvedValue(buildSound());
-      mockDatabase.file.delete.mockResolvedValue(buildFile());
+      fileUploadService.remove.mockResolvedValue(undefined as never);
 
       await service.deleteSound(communityId, 'sound-1');
 
       expect(mockDatabase.soundboardSound.delete).toHaveBeenCalledWith({
         where: { id: 'sound-1' },
       });
-      expect(mockDatabase.file.delete).toHaveBeenCalledWith({
-        where: { id: fileId },
+      // Soft-delete path with the UPLOADER's id, not the deleter's
+      expect(fileUploadService.remove).toHaveBeenCalledWith(
+        fileId,
+        'uploader-9',
+      );
+      // Never hard-deletes the file row
+      expect(mockDatabase.file.delete).not.toHaveBeenCalled();
+    });
+
+    it('falls back to a direct soft-delete when the uploader was deleted (uploadedById null)', async () => {
+      mockDatabase.soundboardSound.findUnique.mockResolvedValue(buildSound());
+      mockDatabase.file.findUnique.mockResolvedValue({
+        uploadedById: null,
+        deletedAt: null,
       });
+      mockDatabase.soundboardSound.delete.mockResolvedValue(buildSound());
+
+      await service.deleteSound(communityId, 'sound-1');
+
+      expect(fileUploadService.remove).not.toHaveBeenCalled();
+      expect(mockDatabase.file.update).toHaveBeenCalledWith({
+        where: { id: fileId },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(mockDatabase.file.delete).not.toHaveBeenCalled();
+    });
+
+    it('skips file cleanup when the backing file is already soft-deleted', async () => {
+      mockDatabase.soundboardSound.findUnique.mockResolvedValue(buildSound());
+      mockDatabase.file.findUnique.mockResolvedValue({
+        uploadedById: 'uploader-9',
+        deletedAt: new Date(),
+      });
+      mockDatabase.soundboardSound.delete.mockResolvedValue(buildSound());
+
+      await service.deleteSound(communityId, 'sound-1');
+
+      expect(fileUploadService.remove).not.toHaveBeenCalled();
+      expect(mockDatabase.file.update).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when the sound does not exist', async () => {
@@ -186,10 +259,14 @@ describe('SoundboardService', () => {
       expect(mockDatabase.soundboardSound.delete).not.toHaveBeenCalled();
     });
 
-    it('still resolves when backing file deletion fails', async () => {
+    it('still resolves when backing file soft-deletion fails', async () => {
       mockDatabase.soundboardSound.findUnique.mockResolvedValue(buildSound());
+      mockDatabase.file.findUnique.mockResolvedValue({
+        uploadedById: 'uploader-9',
+        deletedAt: null,
+      });
       mockDatabase.soundboardSound.delete.mockResolvedValue(buildSound());
-      mockDatabase.file.delete.mockRejectedValue(new Error('file gone'));
+      fileUploadService.remove.mockRejectedValue(new Error('file gone'));
 
       await expect(
         service.deleteSound(communityId, 'sound-1'),

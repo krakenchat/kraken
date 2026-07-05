@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   IconButton,
   Tooltip,
@@ -11,6 +11,8 @@ import {
 import { LibraryMusic as LibraryMusicIcon } from "@mui/icons-material";
 import { useQuery } from "@tanstack/react-query";
 import { soundboardControllerListCommunitySoundsOptions } from "../../api-client/@tanstack/react-query.gen";
+import { useRoom } from "../../hooks/useRoom";
+import { soundboardPlayer } from "../../features/voice/soundboardPlayer";
 import { logger } from "../../utils/logger";
 
 interface SoundboardButtonProps {
@@ -31,6 +33,17 @@ export const SoundboardButton: React.FC<SoundboardButtonProps> = ({
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const open = Boolean(anchorEl);
+  const { room } = useRoom();
+
+  // Eager-publish the (silent) soundboard track as soon as the button mounts
+  // (i.e. connected to community voice) so remote clients have already
+  // subscribed before the first clip plays — a lazy publish on first play
+  // races remote subscription (~100-500ms) and clips the sound. Disposal
+  // stays with the leave actions (leaveVoiceChannel/leaveDmVoice), not here.
+  useEffect(() => {
+    if (!room) return;
+    void soundboardPlayer.warmup(room);
+  }, [room]);
 
   const { data: sounds, isLoading } = useQuery({
     ...soundboardControllerListCommunitySoundsOptions({

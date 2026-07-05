@@ -74,6 +74,28 @@ class SoundboardPlayer {
   }
 
   /**
+   * Eagerly build the WebAudio graph and publish the (silent) soundboard track.
+   *
+   * Called when a community voice session becomes active so the remote
+   * TrackPublished → subscribe → attach pipeline is already warm before the
+   * first clip is triggered — publishing lazily on first play() would race
+   * remote subscription (~100-500ms) and clip or swallow the first sound.
+   *
+   * Safe to call repeatedly; errors are logged, not thrown (play() retries
+   * ensurePublished as a fallback). The AudioContext may start suspended
+   * without a user gesture — that's fine: the published track just carries
+   * silence until play() resumes it on click.
+   */
+  async warmup(room: Room): Promise<void> {
+    try {
+      this.ensureContext();
+      await this.ensurePublished(room);
+    } catch (err) {
+      logger.warn('[Soundboard] Warmup failed (will retry on first play)', err);
+    }
+  }
+
+  /**
    * Fetch already handled by the caller; `arrayBuffer` is the raw encoded audio.
    * Decodes (and caches by fileId) then plays the clip, publishing the track on
    * first use. Rapid re-triggers stop the currently-playing clip and start the

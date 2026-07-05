@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { ResourceType } from '@prisma/client';
 import { DatabaseService } from '@/database/database.service';
+import { FileUploadService } from '@/file-upload/file-upload.service';
+import { isPrismaError } from '@/common/utils/prisma.utils';
 import { CreateSoundboardSoundDto } from './dto/create-soundboard-sound.dto';
 import { SoundboardSoundDto } from './dto/soundboard-sound-response.dto';
 
@@ -14,7 +16,10 @@ import { SoundboardSoundDto } from './dto/soundboard-sound-response.dto';
 export class SoundboardService {
   private readonly logger = new Logger(SoundboardService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly fileUploadService: FileUploadService,
+  ) {}
 
   private toDto(sound: {
     id: string;
@@ -103,25 +108,39 @@ export class SoundboardService {
       );
     }
 
-    const sound = await this.databaseService.soundboardSound.create({
-      data: {
-        communityId,
-        name: dto.name,
-        emoji: dto.emoji ?? null,
-        fileId: dto.fileId,
-        createdBy: userId,
-      },
-    });
+    try {
+      const sound = await this.databaseService.soundboardSound.create({
+        data: {
+          communityId,
+          name: dto.name,
+          emoji: dto.emoji ?? null,
+          fileId: dto.fileId,
+          createdBy: userId,
+        },
+      });
 
-    this.logger.log(
-      `Created soundboard sound "${dto.name}" in community ${communityId}`,
-    );
-    return this.toDto(sound);
+      this.logger.log(
+        `Created soundboard sound "${dto.name}" in community ${communityId}`,
+      );
+      return this.toDto(sound);
+    } catch (error) {
+      // The name pre-check above is not atomic with the create; a concurrent
+      // request can still hit the @@unique([communityId, name]) constraint.
+      if (isPrismaError(error, 'P2002')) {
+        throw new ConflictException(
+          `A soundboard sound named "${dto.name}" already exists in this community`,
+        );
+      }
+      throw error;
+    }
   }
 
   /**
-   * Delete a soundboard sound (scoped to its community). Also removes the
-   * backing file so storage does not leak.
+   * Delete a soundboard sound (scoped to its community), then soft-delete the
+   * backing file via FileUploadService.remove so the storage reaper picks up
+   * the physical blob and the uploader's storage quota is credited back.
+   * (A raw file.delete would hard-delete the row, orphaning the blob on disk
+   * and never decrementing quota.)
    */
   async deleteSound(communityId: string, soundId: string): Promise<void> {
     const sound = await this.databaseService.soundboardSound.findUnique({
@@ -131,21 +150,40 @@ export class SoundboardService {
       throw new NotFoundException('Soundboard sound not found');
     }
 
-    // Deleting the sound row first; then soft/hard delete the backing file.
+    // Look up the uploader before deleting the sound row: remove() enforces
+    // owner-only deletion, so it must be called with the uploader's id (not
+    // the admin performing this delete).
+    const file = await this.databaseService.file.findUnique({
+      where: { id: sound.fileId },
+      select: { uploadedById: true, deletedAt: true },
+    });
+
+    // Delete the sound row first so the soundboard entry disappears even if
+    // the file cleanup below fails.
     await this.databaseService.soundboardSound.delete({
       where: { id: soundId },
     });
 
-    // Remove the backing file record (cascade-safe: sound row already gone).
-    await this.databaseService.file
-      .delete({ where: { id: sound.fileId } })
-      .catch((err: unknown) => {
+    if (file && !file.deletedAt) {
+      try {
+        if (file.uploadedById) {
+          await this.fileUploadService.remove(sound.fileId, file.uploadedById);
+        } else {
+          // Uploader account deleted (uploadedById SetNull): soft-delete
+          // directly so the reaper still removes the blob; no quota to credit.
+          await this.databaseService.file.update({
+            where: { id: sound.fileId },
+            data: { deletedAt: new Date() },
+          });
+        }
+      } catch (err: unknown) {
         this.logger.warn(
-          `Failed to delete backing file ${sound.fileId} for sound ${soundId}: ${String(
+          `Failed to soft-delete backing file ${sound.fileId} for sound ${soundId}: ${String(
             err,
           )}`,
         );
-      });
+      }
+    }
 
     this.logger.log(
       `Deleted soundboard sound "${sound.name}" (${soundId}) from community ${communityId}`,

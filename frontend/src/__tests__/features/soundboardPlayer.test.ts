@@ -127,4 +127,37 @@ describe('soundboardPlayer', () => {
   it('does nothing harmful when disposed without ever playing', async () => {
     await expect(soundboardPlayer.dispose(null)).resolves.toBeUndefined();
   });
+
+  it('warmup eagerly publishes the track without playing anything', async () => {
+    const room = createMockRoom();
+
+    await soundboardPlayer.warmup(room as never);
+
+    expect(room.localParticipant.publishTrack).toHaveBeenCalledTimes(1);
+    const [, opts] = room.localParticipant.publishTrack.mock.calls[0];
+    expect(opts.name).toBe(SOUNDBOARD_TRACK_NAME);
+    // Nothing decoded or started
+    expect(decodeSpy).not.toHaveBeenCalled();
+  });
+
+  it('play after warmup reuses the already-published track', async () => {
+    const room = createMockRoom();
+
+    await soundboardPlayer.warmup(room as never);
+    await soundboardPlayer.play(room as never, 'file-1', new ArrayBuffer(8));
+
+    expect(room.localParticipant.publishTrack).toHaveBeenCalledTimes(1);
+    expect(lastSource.start).toHaveBeenCalled();
+  });
+
+  it('warmup swallows publish errors (play retries later)', async () => {
+    const room = createMockRoom();
+    room.localParticipant.publishTrack.mockRejectedValueOnce(
+      new Error('not connected'),
+    );
+
+    await expect(
+      soundboardPlayer.warmup(room as never),
+    ).resolves.toBeUndefined();
+  });
 });

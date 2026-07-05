@@ -6,9 +6,25 @@ import { Track } from 'livekit-client';
 import { audioBoostManager, boostKey } from '../features/voice/audioBoostManager';
 import { isBoostableAudioTrack } from '../features/voice/isBoostableAudioTrack';
 import { getStoredVolumePercent } from '../features/voice/volumeStorage';
+import { SOUNDBOARD_TRACK_NAME } from '../features/voice/soundboardPlayer';
 
 function isBoostableAudioSource(source: Track.Source | string): boolean {
   return source === Track.Source.Microphone || source === Track.Source.ScreenShareAudio;
+}
+
+/**
+ * Deafen must silence every remote audio path. Soundboard tracks are published
+ * as Source.Unknown and identified by their publication NAME, so match on that
+ * in addition to the boostable sources.
+ */
+function isDeafenableAudioPublication(publication: {
+  source: Track.Source | string;
+  trackName?: string;
+}): boolean {
+  return (
+    isBoostableAudioSource(publication.source) ||
+    publication.trackName === SOUNDBOARD_TRACK_NAME
+  );
 }
 
 /**
@@ -43,7 +59,7 @@ export const useDeafenEffect = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
           const { track } = publication;
-          if (track && isBoostableAudioTrack(track) && isBoostableAudioSource(publication.source)) {
+          if (track && isBoostableAudioTrack(track) && isDeafenableAudioPublication(publication)) {
             track.setVolume(0);
           }
         });
@@ -55,7 +71,8 @@ export const useDeafenEffect = () => {
       room.remoteParticipants.forEach((participant) => {
         participant.audioTrackPublications.forEach((publication) => {
           const { track } = publication;
-          if (track && isBoostableAudioTrack(track) && isBoostableAudioSource(publication.source)) {
+          if (track && isBoostableAudioTrack(track) && isDeafenableAudioPublication(publication)) {
+            // Soundboard tracks have no per-user stored volume; fall back to 100%.
             const volumePercent =
               getStoredVolumePercent(participant.identity, publication.source) ?? 100;
             audioBoostManager.applyVolume(
