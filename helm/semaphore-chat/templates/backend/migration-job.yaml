@@ -28,7 +28,7 @@ spec:
             {{- toYaml .Values.backend.securityContext | nindent 12 }}
           image: {{ include "semaphore-chat.backend.image" . }}
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
-          command: ["npx", "prisma", "migrate", "deploy", "--schema=prisma/schema.prisma"]
+          command: ["/app/node_modules/.bin/prisma", "migrate", "deploy", "--schema=prisma/schema.prisma"]
           env:
             - name: SKIP_PRISMA_MIGRATE
               value: "true"
