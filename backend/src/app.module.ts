@@ -50,6 +50,7 @@ import { AliasGroupsModule } from './alias-groups/alias-groups.module';
 import { CustomEmojiModule } from './custom-emoji/custom-emoji.module';
 import { SoundboardModule } from './soundboard/soundboard.module';
 import { GifsModule } from './gifs/gifs.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { DebugModule } from './debug/debug.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -124,6 +125,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     CustomEmojiModule,
     SoundboardModule,
     GifsModule,
+    WebhooksModule,
     ...(process.env.ADMIN_DEBUG_PANEL === 'true' ? [DebugModule] : []),
     // Prometheus metrics (/api/metrics) — opt-in only; when disabled the
     // module isn't imported, so the endpoint does not exist.

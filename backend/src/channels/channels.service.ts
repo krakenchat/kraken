@@ -168,6 +168,10 @@ export class ChannelsService {
         where: { channelId: id },
       });
 
+      await tx.webhook.deleteMany({
+        where: { channelId: id },
+      });
+
       await tx.threadSubscriber.deleteMany({
         where: { parentMessage: { channelId: id } },
       });

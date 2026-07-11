@@ -37,6 +37,13 @@ export class EnrichedAttachment {
   hasThumbnail: boolean;
 }
 
+export class WebhookInfoDto {
+  id: string;
+  name: string;
+  @ApiPropertyOptional()
+  avatarUrl?: string | null;
+}
+
 export class ReplyToPreviewDto {
   id: string;
   authorId: string | null;
@@ -85,6 +92,8 @@ export class EnrichedMessageDto {
   replyToId?: string | null;
   @ApiPropertyOptional({ type: ReplyToPreviewDto })
   replyTo?: ReplyToPreviewDto | null;
+  @ApiPropertyOptional({ type: WebhookInfoDto })
+  webhook?: WebhookInfoDto | null;
 }
 
 export class MessageDto {
@@ -112,6 +121,8 @@ export class MessageDto {
   parentMessageId: string | null;
   @ApiPropertyOptional()
   replyToId?: string | null;
+  @ApiPropertyOptional({ type: WebhookInfoDto })
+  webhook?: WebhookInfoDto | null;
 }
 
 export class PaginatedMessagesResponseDto {

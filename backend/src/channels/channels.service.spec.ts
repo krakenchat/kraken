@@ -279,6 +279,7 @@ describe('ChannelsService', () => {
         count: 0,
       });
       mockDatabase.readReceipt.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.webhook.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.threadSubscriber.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.message.deleteMany.mockResolvedValue({ count: 0 });
@@ -295,6 +296,9 @@ describe('ChannelsService', () => {
         where: { channelId: channel.id },
       });
       expect(mockDatabase.readReceipt.deleteMany).toHaveBeenCalledWith({
+        where: { channelId: channel.id },
+      });
+      expect(mockDatabase.webhook.deleteMany).toHaveBeenCalledWith({
         where: { channelId: channel.id },
       });
       expect(mockDatabase.threadSubscriber.deleteMany).toHaveBeenCalledWith({

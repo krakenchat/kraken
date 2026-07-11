@@ -413,6 +413,7 @@ describe('CommunityService', () => {
         count: 0,
       });
       mockDatabase.readReceipt.deleteMany.mockResolvedValue({ count: 0 });
+      mockDatabase.webhook.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.threadSubscriber.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.channelMembership.deleteMany.mockResolvedValue({ count: 0 });
       mockDatabase.message.deleteMany.mockResolvedValue({ count: 0 });
@@ -438,6 +439,7 @@ describe('CommunityService', () => {
         mockDatabase.channelNotificationOverride.deleteMany,
       ).toHaveBeenCalled();
       expect(mockDatabase.readReceipt.deleteMany).toHaveBeenCalled();
+      expect(mockDatabase.webhook.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.threadSubscriber.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.channelMembership.deleteMany).toHaveBeenCalled();
       expect(mockDatabase.message.deleteMany).toHaveBeenCalled();

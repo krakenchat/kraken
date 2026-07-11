@@ -111,7 +111,48 @@ describe('MessagesService', () => {
           spans: expect.any(Object),
           reactions: true,
           attachments: expect.any(Object),
+          webhook: { select: { id: true, name: true, avatarUrl: true } },
         }),
+      });
+    });
+
+    it('persists an internal webhookId when provided, without it being part of CreateMessageDto', async () => {
+      const createDto = {
+        channelId: 'channel-123',
+        authorId: null,
+        webhookId: 'webhook-456',
+        spans: [
+          {
+            type: SpanType.PLAINTEXT,
+            text: 'hello from webhook',
+            userId: null,
+            specialKind: null,
+            communityId: null,
+            aliasId: null,
+          },
+        ],
+      } as any;
+      const createdMessage = buildMessageWithIncludes({
+        ...createDto,
+        webhook: { id: 'webhook-456', name: 'CI Bot', avatarUrl: null },
+      });
+
+      mockDatabase.message.create.mockResolvedValue(createdMessage);
+
+      const result = await service.create(createDto);
+
+      expect(mockDatabase.message.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            webhookId: 'webhook-456',
+            authorId: null,
+          }),
+        }),
+      );
+      expect((result as any).webhook).toEqual({
+        id: 'webhook-456',
+        name: 'CI Bot',
+        avatarUrl: null,
       });
     });
 
