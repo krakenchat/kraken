@@ -6,7 +6,7 @@ import { TokenBlacklistService } from './token-blacklist.service';
 import { PasswordResetService } from './password-reset.service';
 import { DatabaseService } from '@/database/database.service';
 import { JwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { UserFactory, createMockDatabase } from '@/test-utils';
 import { UserEntity } from '@/user/dto/user-response.dto';
 
@@ -550,14 +550,16 @@ describe('AuthController', () => {
     it('propagates BadRequestException for an invalid/expired/used token', async () => {
       jest
         .spyOn(passwordResetService, 'resetPassword')
-        .mockRejectedValue(new Error('Invalid or expired reset token'));
+        .mockRejectedValue(
+          new BadRequestException('Invalid or expired reset token'),
+        );
 
       await expect(
         controller.resetPassword({
           token: 'bad-token',
           newPassword: 'brand-new-password',
         }),
-      ).rejects.toThrow('Invalid or expired reset token');
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

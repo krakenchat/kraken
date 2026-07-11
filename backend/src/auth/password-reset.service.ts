@@ -86,25 +86,24 @@ export class PasswordResetService {
     const tokenHash = this.hashToken(token);
 
     await this.databaseService.$transaction(async (tx) => {
+      const now = new Date();
       const resetToken = await tx.passwordResetToken.findUnique({
         where: { tokenHash },
       });
 
-      if (
-        !resetToken ||
-        resetToken.usedAt ||
-        resetToken.expiresAt <= new Date()
-      ) {
+      if (!resetToken || resetToken.usedAt || resetToken.expiresAt <= now) {
         throw new BadRequestException('Invalid or expired reset token');
       }
 
       // Atomically claim the token by conditioning the update on it still
-      // being unused. If two requests race to redeem the same token, only
-      // one `updateMany` can match `usedAt: null` — the loser gets count 0
-      // and fails with the same generic error, never touching the password.
+      // being unused AND unexpired (using the same `now` as the check
+      // above). If two requests race to redeem the same token, or the
+      // token expires between the check and the claim, only one
+      // `updateMany` can match — the loser gets count 0 and fails with the
+      // same generic error, never touching the password.
       const { count } = await tx.passwordResetToken.updateMany({
-        where: { id: resetToken.id, usedAt: null },
-        data: { usedAt: new Date() },
+        where: { id: resetToken.id, usedAt: null, expiresAt: { gt: now } },
+        data: { usedAt: now },
       });
 
       if (count !== 1) {

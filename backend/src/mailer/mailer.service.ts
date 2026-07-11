@@ -32,13 +32,34 @@ export class MailerService {
   }
 
   /**
+   * Parses SMTP_PORT, falling back to the default (587) and warning when
+   * the value is missing or not a valid number.
+   */
+  private getPort(): number {
+    const raw = this.configService.get<string>('SMTP_PORT');
+    if (raw === undefined) {
+      return 587;
+    }
+
+    const parsed = Number(raw);
+    if (Number.isNaN(parsed)) {
+      this.logger.warn(
+        `Invalid SMTP_PORT value "${raw}"; falling back to default port 587`,
+      );
+      return 587;
+    }
+
+    return parsed;
+  }
+
+  /**
    * Builds the nodemailer transport lazily (and only once) so we don't pay
    * the connection-pool setup cost when the feature is disabled.
    */
   private getTransporter(): Transporter {
     if (!this.transporter) {
       const host = this.configService.get<string>('SMTP_HOST');
-      const port = Number(this.configService.get<string>('SMTP_PORT') ?? 587);
+      const port = this.getPort();
       const secure = this.configService.get<string>('SMTP_SECURE') === 'true';
       const user = this.configService.get<string>('SMTP_USER');
       const pass = this.configService.get<string>('SMTP_PASS');

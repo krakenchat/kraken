@@ -201,7 +201,11 @@ describe('PasswordResetService', () => {
       await service.resetPassword('valid-token', 'new-password-123');
 
       expect(mockDatabase.passwordResetToken.updateMany).toHaveBeenCalledWith({
-        where: { id: 'token-1', usedAt: null },
+        where: {
+          id: 'token-1',
+          usedAt: null,
+          expiresAt: { gt: expect.any(Date) },
+        },
         data: { usedAt: expect.any(Date) },
       });
       expect(

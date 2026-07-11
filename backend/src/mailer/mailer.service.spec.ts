@@ -142,6 +142,30 @@ describe('MailerService', () => {
       );
     });
 
+    it('falls back to port 587 and warns when SMTP_PORT is not a valid number', async () => {
+      const service = new MailerService(
+        mockConfigService({ SMTP_PORT: 'not-a-number' }),
+      );
+      const warnSpy = jest
+        .spyOn(
+          (service as unknown as { logger: { warn: (msg: string) => void } })
+            .logger,
+          'warn',
+        )
+        .mockImplementation(() => undefined);
+
+      await service.sendPasswordResetEmail('user@example.com', 'https://x');
+
+      expect(createTransportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 587 }),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Invalid SMTP_PORT value "not-a-number"; falling back to default port 587',
+        ),
+      );
+    });
+
     it('no-ops (logs a warning) and does not build a transport when disabled', async () => {
       const service = new MailerService(
         mockConfigService({ SMTP_HOST: undefined }),
