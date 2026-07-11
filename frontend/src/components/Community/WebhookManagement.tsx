@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Avatar,
@@ -39,6 +39,7 @@ import {
 } from "../../api-client/@tanstack/react-query.gen";
 import type { WebhookDto } from "../../api-client/types.gen";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
+import { copyToClipboard } from "../../utils/clipboard";
 import ConfirmDialog from "../Common/ConfirmDialog";
 
 interface WebhookManagementProps {
@@ -50,10 +51,11 @@ const WebhookManagement: React.FC<WebhookManagementProps> = ({ channelId }) => {
 
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [webhookToDelete, setWebhookToDelete] = useState<WebhookDto | null>(null);
   const [createdWebhookUrl, setCreatedWebhookUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const urlInputRef = useRef<HTMLInputElement>(null);
 
   const { hasPermissions: canManage } = useUserPermissions({
     resourceType: "CHANNEL",
@@ -65,9 +67,10 @@ const WebhookManagement: React.FC<WebhookManagementProps> = ({ channelId }) => {
     data: webhooks,
     isLoading,
     error: listError,
-  } = useQuery(
-    webhooksControllerFindAllForChannelOptions({ path: { channelId } }),
-  );
+  } = useQuery({
+    ...webhooksControllerFindAllForChannelOptions({ path: { channelId } }),
+    enabled: canManage,
+  });
 
   const invalidate = useCallback(
     () =>
@@ -91,14 +94,14 @@ const WebhookManagement: React.FC<WebhookManagementProps> = ({ channelId }) => {
   const resetForm = () => {
     setName("");
     setAvatarUrl("");
-    setFormError(null);
+    setActionError(null);
   };
 
   const handleCreate = useCallback(async () => {
-    setFormError(null);
+    setActionError(null);
     const trimmedName = name.trim();
     if (trimmedName.length < 1 || trimmedName.length > 80) {
-      setFormError("Name must be between 1 and 80 characters.");
+      setActionError("Name must be between 1 and 80 characters.");
       return;
     }
     try {
@@ -112,35 +115,48 @@ const WebhookManagement: React.FC<WebhookManagementProps> = ({ channelId }) => {
       resetForm();
       setCreatedWebhookUrl(created.url);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Failed to create webhook.");
+      setActionError(err instanceof Error ? err.message : "Failed to create webhook.");
     }
   }, [name, avatarUrl, createWebhook, channelId]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!webhookToDelete) return;
+    setActionError(null);
     try {
       await deleteWebhook({
         path: { channelId, webhookId: webhookToDelete.id },
       });
+    } catch (err) {
+      // Close the confirm dialog even on failure so the error banner
+      // below the webhook form (which the dialog would otherwise cover)
+      // is visible to the user.
+      setActionError(err instanceof Error ? err.message : "Failed to delete webhook.");
+    } finally {
       setWebhookToDelete(null);
-    } catch {
-      // surfaced via mutation error state
     }
   }, [webhookToDelete, deleteWebhook, channelId]);
 
   const handleCopy = useCallback(async () => {
     if (!createdWebhookUrl) return;
+    setActionError(null);
+
     try {
-      await navigator.clipboard?.writeText(createdWebhookUrl);
+      await copyToClipboard(createdWebhookUrl);
       setCopied(true);
     } catch {
-      // clipboard may be unavailable (no permission / insecure context)
+      // Clipboard access unavailable (no permission / insecure context) or
+      // failed — select the URL so the user can still copy it manually.
+      urlInputRef.current?.select();
+      setActionError(
+        "Couldn't copy automatically — the URL is selected above so you can copy it manually.",
+      );
     }
   }, [createdWebhookUrl]);
 
   const handleCloseCreatedDialog = useCallback(() => {
     setCreatedWebhookUrl(null);
     setCopied(false);
+    setActionError(null);
   }, []);
 
   if (!canManage) {
@@ -198,9 +214,9 @@ const WebhookManagement: React.FC<WebhookManagementProps> = ({ channelId }) => {
                 Create Webhook
               </Button>
             </Stack>
-            {formError && (
+            {actionError && !createdWebhookUrl && (
               <Alert severity="error" sx={{ mt: 2 }}>
-                {formError}
+                {actionError}
               </Alert>
             )}
           </Paper>
@@ -304,6 +320,7 @@ const WebhookManagement: React.FC<WebhookManagementProps> = ({ channelId }) => {
               value={createdWebhookUrl ?? ""}
               fullWidth
               size="small"
+              inputRef={urlInputRef}
               slotProps={{ htmlInput: { readOnly: true, "aria-label": "Webhook URL" } }}
             />
             <Tooltip title={copied ? "Copied!" : "Copy to clipboard"}>
@@ -312,10 +329,16 @@ const WebhookManagement: React.FC<WebhookManagementProps> = ({ channelId }) => {
               </IconButton>
             </Tooltip>
           </Stack>
-          {copied && (
+          {copied ? (
             <Typography variant="caption" color="success.main" sx={{ mt: 1, display: "block" }}>
               Copied to clipboard.
             </Typography>
+          ) : (
+            actionError && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                {actionError}
+              </Alert>
+            )
           )}
         </DialogContent>
         <DialogActions>

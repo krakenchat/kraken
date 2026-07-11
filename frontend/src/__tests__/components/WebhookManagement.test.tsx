@@ -19,6 +19,10 @@ vi.mock('../../features/roles/useUserPermissions', () => ({
   useUserPermissions: (...args: unknown[]) => mockUseUserPermissions(...(args as [])),
 }));
 
+vi.mock('../../utils/clipboard', () => ({
+  copyToClipboard: vi.fn().mockResolvedValue(undefined),
+}));
+
 const CHANNEL_ID = 'channel-1';
 
 function makeWebhook(overrides: Partial<WebhookDto> = {}): WebhookDto {
@@ -53,6 +57,26 @@ describe('WebhookManagement', () => {
     expect(
       screen.getByText(/don't have permission to manage webhooks/i),
     ).toBeInTheDocument();
+  });
+
+  it('does not fetch the webhooks list when the user cannot manage webhooks', async () => {
+    mockUseUserPermissions.mockReturnValue({ hasPermissions: false });
+    let listCalled = false;
+    server.use(
+      http.get('http://localhost:3000/api/channels/:channelId/webhooks', () => {
+        listCalled = true;
+        return HttpResponse.json([]);
+      }),
+    );
+
+    renderWithProviders(<WebhookManagement channelId={CHANNEL_ID} />);
+    expect(
+      screen.getByText(/don't have permission to manage webhooks/i),
+    ).toBeInTheDocument();
+
+    // Give any (incorrectly) in-flight request a chance to resolve.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(listCalled).toBe(false);
   });
 
   it('renders the empty state when there are no webhooks', async () => {
@@ -143,5 +167,71 @@ describe('WebhookManagement', () => {
     await user.click(await screen.findByRole('button', { name: /^delete$/i }));
 
     await waitFor(() => expect(deleteCalled).toBe(true));
+  });
+
+  it('surfaces an error and closes the confirm dialog when deletion fails', async () => {
+    setupList([makeWebhook()]);
+    server.use(
+      http.delete(
+        'http://localhost:3000/api/channels/:channelId/webhooks/:webhookId',
+        () => HttpResponse.json({ message: 'Failed to delete webhook.' }, { status: 500 }),
+      ),
+    );
+
+    const { user } = renderWithProviders(
+      <WebhookManagement channelId={CHANNEL_ID} />,
+    );
+    await screen.findByText('CI Bot');
+
+    await user.click(screen.getByRole('button', { name: /delete webhook/i }));
+    await user.click(await screen.findByRole('button', { name: /^delete$/i }));
+
+    expect(await screen.findByText(/failed to delete webhook/i)).toBeInTheDocument();
+    // The confirm dialog closes even on failure so the error banner is visible.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('falls back to selecting the URL text and shows a hint when clipboard copy fails', async () => {
+    const { copyToClipboard } = await import('../../utils/clipboard');
+    vi.mocked(copyToClipboard).mockRejectedValueOnce(new Error('denied'));
+    const selectSpy = vi.spyOn(HTMLInputElement.prototype, 'select');
+
+    setupList([]);
+    server.use(
+      http.post(
+        'http://localhost:3000/api/channels/:channelId/webhooks',
+        () =>
+          HttpResponse.json(
+            {
+              id: 'wh-new',
+              channelId: CHANNEL_ID,
+              name: 'CI Bot',
+              avatarUrl: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              url: '/api/webhooks/wh-new/abc123token',
+            },
+            { status: 201 },
+          ),
+      ),
+    );
+
+    const { user } = renderWithProviders(
+      <WebhookManagement channelId={CHANNEL_ID} />,
+    );
+    await screen.findByText(/no webhooks yet/i);
+
+    await user.type(screen.getByLabelText(/^name$/i), 'CI Bot');
+    await user.click(screen.getByRole('button', { name: /create webhook/i }));
+    await screen.findByText(/webhook created/i);
+
+    await user.click(screen.getByRole('button', { name: /copy webhook url/i }));
+
+    expect(await screen.findByText(/copy it manually/i)).toBeInTheDocument();
+    expect(selectSpy).toHaveBeenCalled();
+    expect(screen.queryByText(/copied to clipboard/i)).not.toBeInTheDocument();
+
+    selectSpy.mockRestore();
   });
 });

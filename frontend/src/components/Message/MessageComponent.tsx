@@ -66,7 +66,7 @@ function MessageComponentInner({
   const { byId: emojiById } = useCommunityCustomEmojis(communityId);
   const isWebhookMessage = !!message.webhook;
   const { data: author } = useQuery({
-    ...userControllerGetUserByIdOptions({ path: { id: message.authorId! } }),
+    ...userControllerGetUserByIdOptions({ path: { id: message.authorId ?? '' } }),
     // Webhook messages have no authorId — skip the user lookup entirely.
     enabled: !!message.authorId && !isWebhookMessage,
   });

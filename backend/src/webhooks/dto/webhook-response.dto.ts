@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * Public webhook shape — deliberately excludes `tokenHash` and the `creator`
@@ -19,4 +19,13 @@ export class WebhookDto {
  */
 export class CreateWebhookResponseDto extends WebhookDto {
   url: string;
+}
+
+/**
+ * Returned from the public webhook execution endpoint — just the id of the
+ * message the webhook post created.
+ */
+export class ExecuteWebhookResponseDto {
+  @ApiProperty()
+  id: string;
 }

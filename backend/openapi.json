@@ -7548,7 +7548,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecuteWebhookResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -13433,6 +13440,17 @@
         },
         "required": [
           "content"
+        ]
+      },
+      "ExecuteWebhookResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ]
       }
     }

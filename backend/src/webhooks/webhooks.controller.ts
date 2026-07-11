@@ -27,6 +27,7 @@ import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { ExecuteWebhookDto } from './dto/execute-webhook.dto';
 import {
   CreateWebhookResponseDto,
+  ExecuteWebhookResponseDto,
   WebhookDto,
 } from './dto/webhook-response.dto';
 
@@ -98,11 +99,12 @@ export class WebhookExecutionController {
   @HttpCode(201)
   @Public()
   @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 30, ttl: 60000 } })
+  @ApiCreatedResponse({ type: ExecuteWebhookResponseDto })
   execute(
     @Param('id') id: string,
     @Param('token') token: string,
     @Body() dto: ExecuteWebhookDto,
-  ): Promise<{ id: string }> {
+  ): Promise<ExecuteWebhookResponseDto> {
     return this.webhooksService.execute(id, token, dto.content);
   }
 }
