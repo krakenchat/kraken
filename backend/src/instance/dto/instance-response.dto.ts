@@ -10,6 +10,10 @@ export class PublicSettingsResponseDto {
 
   @ApiProperty()
   maxFileSizeBytes: number;
+
+  /** Whether the Tenor GIF picker is available (TENOR_API_KEY configured). */
+  @ApiProperty()
+  gifSearchEnabled: boolean;
 }
 
 export class InstanceStatsResponseDto {

@@ -7262,6 +7262,92 @@
           "Soundboard"
         ]
       }
+    },
+    "/api/gifs/search": {
+      "get": {
+        "operationId": "GifsController_search",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "pos",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GifSearchResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Search Tenor GIFs by query term.",
+        "tags": [
+          "Gifs"
+        ]
+      }
+    },
+    "/api/gifs/featured": {
+      "get": {
+        "operationId": "GifsController_featured",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "pos",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GifSearchResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Fetch Tenor's currently featured/trending GIFs (shown when the search\nbox is empty).",
+        "tags": [
+          "Gifs"
+        ]
+      }
     }
   },
   "info": {
@@ -11964,12 +12050,17 @@
           },
           "maxFileSizeBytes": {
             "type": "number"
+          },
+          "gifSearchEnabled": {
+            "type": "boolean",
+            "description": "Whether the Tenor GIF picker is available (TENOR_API_KEY configured)."
           }
         },
         "required": [
           "name",
           "registrationMode",
-          "maxFileSizeBytes"
+          "maxFileSizeBytes",
+          "gifSearchEnabled"
         ]
       },
       "InstanceSettingsResponseDto": {
@@ -12905,6 +12996,57 @@
         "required": [
           "name",
           "fileId"
+        ]
+      },
+      "GifResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "Full-size animated GIF URL (media_formats.gif.url) — sent as message content."
+          },
+          "previewUrl": {
+            "type": "string",
+            "description": "Small animated preview used in the picker grid (media_formats.tinygif.url)."
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "url",
+          "previewUrl",
+          "width",
+          "height"
+        ]
+      },
+      "GifSearchResponseDto": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GifResultDto"
+            }
+          },
+          "next": {
+            "type": "string",
+            "description": "Tenor's pagination cursor for the next page; undefined when exhausted."
+          }
+        },
+        "required": [
+          "results"
         ]
       }
     }

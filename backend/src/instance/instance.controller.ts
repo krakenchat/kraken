@@ -8,6 +8,7 @@ import {
   ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { InstanceService } from './instance.service';
 import { RbacActions } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
@@ -25,7 +26,10 @@ import {
 @Controller('instance')
 @UseInterceptors(ClassSerializerInterceptor)
 export class InstanceController {
-  constructor(private readonly instanceService: InstanceService) {}
+  constructor(
+    private readonly instanceService: InstanceService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /**
    * Get instance settings (public - needed for registration mode)
@@ -39,6 +43,7 @@ export class InstanceController {
       name: settings.name,
       registrationMode: settings.registrationMode,
       maxFileSizeBytes: Number(settings.maxFileSizeBytes),
+      gifSearchEnabled: Boolean(this.configService.get('TENOR_API_KEY')),
     };
   }
 

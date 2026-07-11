@@ -21,7 +21,7 @@ import { MessageToolbar } from "./MessageToolbar";
 import { renderMessageSpans } from "./MessageSpan";
 import { Container } from "./MessageComponentStyles";
 import { useMessageActions } from "./useMessageActions";
-import { isUserMentioned } from "./messageUtils";
+import { isUserMentioned, isSoleTenorGifLink } from "./messageUtils";
 import UserAvatar from "../Common/UserAvatar";
 import ConfirmDialog from "../Common/ConfirmDialog";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
@@ -267,9 +267,11 @@ function MessageComponentInner({
           />
         ) : (
           <>
-            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-              {renderMessageSpans(message.spans, emojiById)}
-            </Typography>
+            {!isSoleTenorGifLink(message) && (
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                {renderMessageSpans(message.spans, emojiById)}
+              </Typography>
+            )}
             <MessageAttachments attachments={message.attachments} />
             <MessageLinkPreviews linkPreviews={message.linkPreviews} />
             <MessageReactions

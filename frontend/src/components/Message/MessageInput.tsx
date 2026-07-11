@@ -6,13 +6,17 @@
  * and simple local filtering for DMs.
  */
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, IconButton, CircularProgress } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import EmojiEmotionsOutlinedIcon from "@mui/icons-material/EmojiEmotionsOutlined";
 import { StyledPaper, StyledTextField } from "./MessageInputStyles";
 import { EmojiPickerPopover } from "./EmojiPicker";
+import { GifPickerPopover } from "./GifPicker";
+import type { GifResultDto } from "../../api-client/types.gen";
+import { instanceControllerGetPublicSettingsOptions } from "../../api-client/@tanstack/react-query.gen";
+import GifBoxOutlinedIcon from "@mui/icons-material/GifBoxOutlined";
 import { useResponsive } from "../../hooks/useResponsive";
 import { FilePreview } from "./FilePreview";
 import { MentionDropdown } from "./MentionDropdown";
@@ -88,6 +92,14 @@ export default function MessageInput({
     start: 0,
     end: 0,
   });
+
+  // GIF picker state
+  const [gifAnchorEl, setGifAnchorEl] = useState<HTMLElement | null>(null);
+  const gifPickerOpen = Boolean(gifAnchorEl);
+  const { data: publicSettings } = useQuery(
+    instanceControllerGetPublicSettingsOptions(),
+  );
+  const gifSearchEnabled = Boolean(publicSettings?.gifSearchEnabled);
 
   const captureSelection = useCallback(() => {
     const el = inputRef.current;
@@ -189,19 +201,23 @@ export default function MessageInput({
     enabled: isChannel,
   });
 
-  const aliasMentions: AliasMention[] = isChannel
-    ? aliasGroups.map(group => ({ id: group.id, name: group.name }))
-    : [];
+  const aliasMentions: AliasMention[] = useMemo(
+    () =>
+      isChannel
+        ? aliasGroups.map(group => ({ id: group.id, name: group.name }))
+        : [],
+    [isChannel, aliasGroups],
+  );
 
   // Custom emojis (channel only) — used to resolve `:shortcode:` at send time
   // and to power the picker's Custom section.
   const { emojis: customEmojis } = useCommunityCustomEmojis(
     isChannel ? communityId : undefined,
   );
-  const emojiMentions: EmojiMention[] = customEmojis.map(e => ({
-    id: e.id,
-    name: e.name,
-  }));
+  const emojiMentions: EmojiMention[] = useMemo(
+    () => customEmojis.map(e => ({ id: e.id, name: e.name })),
+    [customEmojis],
+  );
 
   // Local mention state for DMs
   const [dmMentionState, setDmMentionState] = useState<SimpleMentionState>({
@@ -342,41 +358,56 @@ export default function MessageInput({
     }
   };
 
-  // --- Send handler ---
-  const handleSend = async () => {
-    if ((!text || !text.trim()) && selectedFiles.length === 0) return;
-    if (sending) return;
+  // --- Send (core) ---
+  // Shared by the composer's send button/Enter key and the GIF picker, so
+  // there is exactly one place that builds spans and calls onSendMessage.
+  // Returns whether the message was actually sent (false = no-op or error).
+  const sendMessageContent = useCallback(
+    async (rawText: string, files: File[]): Promise<boolean> => {
+      if ((!rawText || !rawText.trim()) && files.length === 0) return false;
+      if (sending) return false;
 
-    setSending(true);
-    try {
-      const messageText = text.trim() || "";
-      let spans = parseMessageWithMentions(messageText, userMentions, channelMentions, aliasMentions, emojiMentions);
+      setSending(true);
+      try {
+        const messageText = rawText.trim() || "";
+        let spans = parseMessageWithMentions(messageText, userMentions, channelMentions, aliasMentions, emojiMentions);
 
-      if (spans.length === 0) {
-        spans = [{ type: SpanType.PLAINTEXT, text: '' }];
-      }
-
-      await onSendMessage(messageText, spans, selectedFiles);
-      sendTypingStop();
-      setText("");
-      clearFiles();
-      if (isChannel) {
-        mentionHook.close();
-      } else {
-        closeDmMentions();
-      }
-
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
+        if (spans.length === 0) {
+          spans = [{ type: SpanType.PLAINTEXT, text: '' }];
         }
-      });
-    } catch (error) {
-      logger.error("Failed to send message:", error);
-      showNotification("Failed to send message. Please try again.", "error");
-    } finally {
-      setSending(false);
+
+        await onSendMessage(messageText, spans, files);
+        sendTypingStop();
+        return true;
+      } catch (error) {
+        logger.error("Failed to send message:", error);
+        showNotification("Failed to send message. Please try again.", "error");
+        return false;
+      } finally {
+        setSending(false);
+      }
+    },
+    [sending, userMentions, channelMentions, aliasMentions, emojiMentions, onSendMessage, sendTypingStop, showNotification],
+  );
+
+  // --- Send handler (composer) ---
+  const handleSend = async () => {
+    const sent = await sendMessageContent(text, selectedFiles);
+    if (!sent) return;
+
+    setText("");
+    clearFiles();
+    if (isChannel) {
+      mentionHook.close();
+    } else {
+      closeDmMentions();
     }
+
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    });
   };
 
   // --- Emoji picker handlers ---
@@ -390,6 +421,25 @@ export default function MessageInput({
   const handleEmojiPickerClose = () => {
     setEmojiAnchorEl(null);
   };
+
+  // --- GIF picker handlers ---
+  const handleGifButtonClick = (event: React.MouseEvent<HTMLElement>) => {
+    setGifAnchorEl(event.currentTarget);
+  };
+
+  const handleGifPickerClose = () => {
+    setGifAnchorEl(null);
+  };
+
+  // Selecting a GIF sends it immediately as its own message (Discord
+  // behavior) — the composer's text/files are left untouched.
+  const handleGifSelect = useCallback(
+    (gif: GifResultDto) => {
+      setGifAnchorEl(null);
+      void sendMessageContent(gif.url, []);
+    },
+    [sendMessageContent],
+  );
 
   const handleEmojiSelect = useCallback(
     (emoji: string) => {
@@ -550,6 +600,15 @@ export default function MessageInput({
           >
             <EmojiEmotionsOutlinedIcon />
           </IconButton>
+          {gifSearchEnabled && (
+            <IconButton
+              onClick={handleGifButtonClick}
+              disabled={sending}
+              aria-label="add gif"
+            >
+              <GifBoxOutlinedIcon />
+            </IconButton>
+          )}
           <IconButton
             onClick={handleFileButtonClick}
             disabled={sending}
@@ -577,6 +636,16 @@ export default function MessageInput({
         onCustomEmojiSelect={(emoji) => handleEmojiSelect(`:${emoji.name}:`)}
         title="Add Emoji"
       />
+
+      {gifSearchEnabled && (
+        <GifPickerPopover
+          open={gifPickerOpen}
+          anchorEl={gifAnchorEl}
+          onClose={handleGifPickerClose}
+          onSelect={handleGifSelect}
+          title="GIFs"
+        />
+      )}
     </Box>
   );
 }

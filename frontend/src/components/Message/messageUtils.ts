@@ -45,3 +45,32 @@ export function isUserMentioned(
     return false;
   });
 }
+
+/**
+ * True when a message's entire content is a single `media.tenor.com` URL
+ * (i.e. sent via the GIF picker) AND there's a matching link preview with an
+ * image. Callers can use this to hide the redundant raw URL text and show
+ * only the rendered preview image — Discord-style GIF messages.
+ */
+export function isSoleTenorGifLink(message: MessageType): boolean {
+  if (message.attachments.length > 0) return false;
+  if (message.spans.length !== 1) return false;
+
+  const [span] = message.spans;
+  if (span.type !== SpanType.PLAINTEXT) return false;
+
+  const text = span.text?.trim();
+  if (!text) return false;
+
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return false;
+  }
+  if (url.hostname !== "media.tenor.com") return false;
+
+  return !!message.linkPreviews?.some(
+    (preview) => preview.url === text && !!preview.imageUrl,
+  );
+}

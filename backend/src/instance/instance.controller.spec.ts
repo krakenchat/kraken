@@ -1,5 +1,6 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { ConfigService } from '@nestjs/config';
 import { InstanceController } from './instance.controller';
 import { InstanceService } from './instance.service';
 import { RegistrationMode } from '@prisma/client';
@@ -7,6 +8,7 @@ import { RegistrationMode } from '@prisma/client';
 describe('InstanceController', () => {
   let controller: InstanceController;
   let service: Mocked<InstanceService>;
+  let configService: Mocked<ConfigService>;
 
   beforeEach(async () => {
     const { unit, unitRef } =
@@ -14,6 +16,8 @@ describe('InstanceController', () => {
 
     controller = unit;
     service = unitRef.get(InstanceService);
+    configService = unitRef.get(ConfigService);
+    configService.get.mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -45,6 +49,7 @@ describe('InstanceController', () => {
         name: 'Test Instance',
         registrationMode: RegistrationMode.OPEN,
         maxFileSizeBytes: 524288000,
+        gifSearchEnabled: false,
       });
     });
 
@@ -66,6 +71,46 @@ describe('InstanceController', () => {
 
       expect(typeof result.maxFileSizeBytes).toBe('number');
       expect(result.maxFileSizeBytes).toBe(1073741824);
+    });
+
+    it('should set gifSearchEnabled to false when TENOR_API_KEY is not configured', async () => {
+      const mockSettings = {
+        id: 'settings-1',
+        name: 'Test Instance',
+        description: null,
+        registrationMode: RegistrationMode.INVITE_ONLY,
+        maxFileSizeBytes: BigInt(524288000),
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      service.getSettings.mockResolvedValue(mockSettings as any);
+      configService.get.mockReturnValue(undefined);
+
+      const result = await controller.getPublicSettings();
+
+      expect(result.gifSearchEnabled).toBe(false);
+    });
+
+    it('should set gifSearchEnabled to true when TENOR_API_KEY is configured', async () => {
+      const mockSettings = {
+        id: 'settings-1',
+        name: 'Test Instance',
+        description: null,
+        registrationMode: RegistrationMode.INVITE_ONLY,
+        maxFileSizeBytes: BigInt(524288000),
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      service.getSettings.mockResolvedValue(mockSettings as any);
+      configService.get.mockImplementation((key: string) =>
+        key === 'TENOR_API_KEY' ? 'tenor-key-123' : undefined,
+      );
+
+      const result = await controller.getPublicSettings();
+
+      expect(result.gifSearchEnabled).toBe(true);
     });
   });
 });
