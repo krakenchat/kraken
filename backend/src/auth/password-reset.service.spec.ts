@@ -191,20 +191,51 @@ describe('PasswordResetService', () => {
         createdAt: new Date(),
       };
       mockDatabase.passwordResetToken.findUnique.mockResolvedValue(resetToken);
+      mockDatabase.passwordResetToken.updateMany.mockResolvedValue({
+        count: 1,
+      });
       mockUserService.resetPasswordAndRevokeSessions.mockResolvedValue(
         UserFactory.build({ id: 'user-1' }),
       );
-      mockDatabase.passwordResetToken.update.mockResolvedValue({} as never);
 
       await service.resetPassword('valid-token', 'new-password-123');
 
+      expect(mockDatabase.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'token-1', usedAt: null },
+        data: { usedAt: expect.any(Date) },
+      });
       expect(
         mockUserService.resetPasswordAndRevokeSessions,
       ).toHaveBeenCalledWith('user-1', 'new-password-123', mockDatabase);
-      expect(mockDatabase.passwordResetToken.update).toHaveBeenCalledWith({
-        where: { id: 'token-1' },
-        data: { usedAt: expect.any(Date) },
+    });
+
+    it('rejects the second of two concurrent redemptions of the same token (atomic claim)', async () => {
+      const resetToken = {
+        id: 'token-1',
+        userId: 'user-1',
+        tokenHash: hashToken('racy-token'),
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        usedAt: null,
+        createdAt: new Date(),
+      };
+
+      // Both concurrent requests read the token before either has claimed it.
+      mockDatabase.passwordResetToken.findUnique.mockResolvedValue(resetToken);
+      // The atomic `updateMany({ where: { usedAt: null } })` guard is what
+      // actually decides the race: only one request's conditional update can
+      // match, so the loser gets count 0 even though its findUnique read
+      // still showed usedAt: null.
+      mockDatabase.passwordResetToken.updateMany.mockResolvedValueOnce({
+        count: 0,
       });
+
+      await expect(
+        service.resetPassword('racy-token', 'new-password-123'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(
+        mockUserService.resetPasswordAndRevokeSessions,
+      ).not.toHaveBeenCalled();
     });
 
     it('rejects reusing the same token a second time (single-use enforced end-to-end)', async () => {
@@ -221,6 +252,9 @@ describe('PasswordResetService', () => {
       mockDatabase.passwordResetToken.findUnique.mockResolvedValueOnce(
         resetToken,
       );
+      mockDatabase.passwordResetToken.updateMany.mockResolvedValueOnce({
+        count: 1,
+      });
       mockUserService.resetPasswordAndRevokeSessions.mockResolvedValue(
         UserFactory.build({ id: 'user-1' }),
       );

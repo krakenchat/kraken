@@ -1,14 +1,7 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `searchVector` on the `Message` table. All the data in the column will be lost.
-
-*/
--- DropIndex
-DROP INDEX "Message_searchVector_idx";
-
--- AlterTable
-ALTER TABLE "Message" DROP COLUMN "searchVector";
+-- NOTE: Prisma's diff wants to DROP the Message."searchVector" generated
+-- tsvector column + GIN index here because generated columns can't be
+-- expressed in schema.prisma (see migration 20260307210420_restore_search_vector).
+-- Those statements are intentionally omitted so full-text search keeps working.
 
 -- CreateTable
 CREATE TABLE "PasswordResetToken" (

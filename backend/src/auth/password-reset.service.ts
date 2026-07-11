@@ -98,16 +98,24 @@ export class PasswordResetService {
         throw new BadRequestException('Invalid or expired reset token');
       }
 
+      // Atomically claim the token by conditioning the update on it still
+      // being unused. If two requests race to redeem the same token, only
+      // one `updateMany` can match `usedAt: null` — the loser gets count 0
+      // and fails with the same generic error, never touching the password.
+      const { count } = await tx.passwordResetToken.updateMany({
+        where: { id: resetToken.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
+      if (count !== 1) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
       await this.userService.resetPasswordAndRevokeSessions(
         resetToken.userId,
         newPassword,
         tx,
       );
-
-      await tx.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { usedAt: new Date() },
-      });
     });
   }
 }
