@@ -283,6 +283,8 @@ model User {
 
   RefreshToken RefreshToken[]
 
+  passwordResetTokens PasswordResetToken[]
+
   directMessageGroupMemberships DirectMessageGroupMember[]
   friendshipsA                  Friendship[]               @relation("FriendshipA")
   friendshipsB                  Friendship[]               @relation("FriendshipB")
@@ -331,6 +333,18 @@ model User {
   communityTimeoutsMade     CommunityTimeout[]    @relation("TimeoutModerator")
   instanceInviteUsages      InstanceInviteUsage[] @relation("InviteUsageUser")
   resourceFiles             File[]                @relation("FileResourceUser")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model RefreshToken {

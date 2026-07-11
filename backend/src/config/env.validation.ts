@@ -96,6 +96,38 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   TENOR_API_KEY?: string;
+
+  // Optional — Password reset via email (SMTP) ----------------------------
+  // The feature is auto-disabled unless SMTP_HOST, SMTP_FROM, and
+  // PUBLIC_APP_URL are all set (see MailerService.isEnabled).
+
+  @IsOptional()
+  @IsString()
+  SMTP_HOST?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_PORT?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_SECURE?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_USER?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_PASS?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_FROM?: string;
+
+  @IsOptional()
+  @IsString()
+  PUBLIC_APP_URL?: string;
 }
 
 /**
@@ -149,6 +181,20 @@ export function validateEnv(
     errors.push(
       'VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be set together (or both omitted).',
     );
+  }
+
+  // SMTP_USER / SMTP_PASS pair check — both or neither.
+  const hasSmtpUser = Boolean(config.SMTP_USER);
+  const hasSmtpPass = Boolean(config.SMTP_PASS);
+  if (hasSmtpUser !== hasSmtpPass) {
+    errors.push(
+      'SMTP_USER and SMTP_PASS must be set together (or both omitted).',
+    );
+  }
+
+  // SMTP_HOST requires SMTP_FROM — a from-address is mandatory to send mail.
+  if (config.SMTP_HOST && !config.SMTP_FROM) {
+    errors.push('SMTP_HOST requires SMTP_FROM to be set.');
   }
 
   if (errors.length > 0) {

@@ -3,6 +3,7 @@ import type { Mocked } from '@suites/doubles.jest';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { PasswordResetService } from './password-reset.service';
 import { DatabaseService } from '@/database/database.service';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
@@ -14,6 +15,7 @@ describe('AuthController', () => {
   let authService: Mocked<AuthService>;
   let tokenBlacklistService: Mocked<TokenBlacklistService>;
   let jwtService: Mocked<JwtService>;
+  let passwordResetService: Mocked<PasswordResetService>;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
 
   const mockUser = new UserEntity(UserFactory.build());
@@ -32,6 +34,7 @@ describe('AuthController', () => {
     authService = unitRef.get(AuthService);
     tokenBlacklistService = unitRef.get(TokenBlacklistService);
     jwtService = unitRef.get(JwtService);
+    passwordResetService = unitRef.get(PasswordResetService);
   });
 
   afterEach(() => {
@@ -486,6 +489,75 @@ describe('AuthController', () => {
 
       expect(jwtService.verifyAsync).not.toHaveBeenCalled();
       expect(tokenBlacklistService.blacklist).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('always returns the same 200 message, regardless of what the service does', async () => {
+      jest
+        .spyOn(passwordResetService, 'requestReset')
+        .mockResolvedValue(undefined);
+
+      const result = await controller.forgotPassword({
+        email: 'someone@example.com',
+      });
+
+      expect(passwordResetService.requestReset).toHaveBeenCalledWith(
+        'someone@example.com',
+      );
+      expect(result).toEqual({
+        message:
+          'If an account with that email exists, a reset link has been sent.',
+      });
+    });
+
+    it('returns the identical response even when requestReset silently no-ops', async () => {
+      // requestReset never throws / never signals whether the email existed
+      // — this asserts the controller doesn't try to branch on it either.
+      jest
+        .spyOn(passwordResetService, 'requestReset')
+        .mockResolvedValue(undefined);
+
+      const result = await controller.forgotPassword({
+        email: 'unknown@example.com',
+      });
+
+      expect(result).toEqual({
+        message:
+          'If an account with that email exists, a reset link has been sent.',
+      });
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('delegates to PasswordResetService and returns a success message', async () => {
+      jest
+        .spyOn(passwordResetService, 'resetPassword')
+        .mockResolvedValue(undefined);
+
+      const result = await controller.resetPassword({
+        token: 'raw-token',
+        newPassword: 'brand-new-password',
+      });
+
+      expect(passwordResetService.resetPassword).toHaveBeenCalledWith(
+        'raw-token',
+        'brand-new-password',
+      );
+      expect(result).toEqual({ message: 'Password has been reset.' });
+    });
+
+    it('propagates BadRequestException for an invalid/expired/used token', async () => {
+      jest
+        .spyOn(passwordResetService, 'resetPassword')
+        .mockRejectedValue(new Error('Invalid or expired reset token'));
+
+      await expect(
+        controller.resetPassword({
+          token: 'bad-token',
+          newPassword: 'brand-new-password',
+        }),
+      ).rejects.toThrow('Invalid or expired reset token');
     });
   });
 });

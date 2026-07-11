@@ -9,8 +9,11 @@ import {
   Alert,
 } from "@mui/material";
 import { LockOutlined } from "@mui/icons-material";
-import { useMutation } from "@tanstack/react-query";
-import { authControllerLoginMutation } from "../api-client/@tanstack/react-query.gen";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  authControllerLoginMutation,
+  instanceControllerGetPublicSettingsOptions,
+} from "../api-client/@tanstack/react-query.gen";
 import { useNavigate, Link } from "react-router-dom";
 import { setAccessToken, storeElectronRefreshToken } from "../utils/tokenService";
 
@@ -18,6 +21,7 @@ const LoginPage: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const { mutateAsync: login, isPending: isLoading, error } = useMutation(authControllerLoginMutation());
+  const { data: publicSettings } = useQuery(instanceControllerGetPublicSettingsOptions());
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -113,6 +117,13 @@ const LoginPage: React.FC = () => {
         >
           {isLoading ? <CircularProgress size={24} color="inherit" /> : "Login"}
         </Button>
+        {publicSettings?.passwordResetEnabled && (
+          <Typography variant="body2" color="textSecondary" sx={{ marginBottom: 1 }}>
+            <Link to="/forgot-password" aria-label="Forgot password?">
+              Forgot password?
+            </Link>
+          </Typography>
+        )}
         <Typography variant="body2" color="textSecondary">
           Don't have an account?{" "}
           <Link to="/register" aria-label="Register for an account">

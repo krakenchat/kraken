@@ -184,6 +184,18 @@ const dmHandlers = [
   }),
 ];
 
+/** Instance handlers */
+const instanceHandlers = [
+  http.get(`${BASE_URL}/api/instance/settings/public`, () => {
+    return HttpResponse.json({
+      name: 'Semaphore Chat',
+      registrationMode: 'OPEN',
+      maxFileSizeBytes: 524288000,
+      passwordResetEnabled: false,
+    });
+  }),
+];
+
 /** Moderation handlers */
 const moderationHandlers = [
   http.post(`${BASE_URL}/api/moderation/ban/:communityId/:userId`, () => {
@@ -220,5 +232,6 @@ export const handlers = [
   ...userHandlers,
   ...channelHandlers,
   ...dmHandlers,
+  ...instanceHandlers,
   ...moderationHandlers,
 ];

@@ -16,6 +16,7 @@ import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
 import { RbacResource, RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { Public } from '@/auth/public.decorator';
+import { MailerService } from '@/mailer/mailer.service';
 import { UpdateInstanceSettingsDto } from './dto/update-instance-settings.dto';
 import { InstanceSettingsResponseDto } from './dto/instance-settings-response.dto';
 import {
@@ -29,6 +30,7 @@ export class InstanceController {
   constructor(
     private readonly instanceService: InstanceService,
     private readonly configService: ConfigService,
+    private readonly mailerService: MailerService,
   ) {}
 
   /**
@@ -44,6 +46,7 @@ export class InstanceController {
       registrationMode: settings.registrationMode,
       maxFileSizeBytes: Number(settings.maxFileSizeBytes),
       gifSearchEnabled: Boolean(this.configService.get('TENOR_API_KEY')),
+      passwordResetEnabled: this.mailerService.isEnabled,
     };
   }
 

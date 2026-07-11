@@ -18,6 +18,8 @@ import { PublicRoute } from "./components/PublicRoute";
 // Eager imports - first-paint routes
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 
 // Lazy-loaded routes
@@ -100,6 +102,8 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/join/:inviteCode" element={<JoinInvitePage />} />
 
