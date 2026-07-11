@@ -72,6 +72,24 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   VAPID_PRIVATE_KEY?: string;
+
+  // Thumbnail backfill (issue #409) ---------------------------------------
+
+  @IsOptional()
+  @IsString()
+  THUMBNAIL_BACKFILL_ENABLED?: string;
+
+  @IsOptional()
+  @IsString()
+  THUMBNAIL_BACKFILL_BATCH_SIZE?: string;
+
+  @IsOptional()
+  @IsString()
+  THUMBNAIL_BACKFILL_STARTUP_DELAY_MS?: string;
+
+  @IsOptional()
+  @IsString()
+  THUMBNAIL_BACKFILL_THROTTLE_MS?: string;
 }
 
 /**
