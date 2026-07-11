@@ -58,6 +58,8 @@ export function isSoleTenorGifLink(message: MessageType): boolean {
 
   const [span] = message.spans;
   if (span.type !== SpanType.PLAINTEXT) return false;
+  // Inline code was an intentional choice to show the raw URL, not hide it.
+  if (span.code === true) return false;
 
   const text = span.text?.trim();
   if (!text) return false;

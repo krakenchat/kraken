@@ -133,4 +133,20 @@ describe('isSoleTenorGifLink', () => {
     });
     expect(isSoleTenorGifLink(message)).toBe(false);
   });
+
+  it('returns false when the sole span is an inline-code span', () => {
+    const message = createMessage({
+      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl, code: true }],
+      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
+    });
+    expect(isSoleTenorGifLink(message)).toBe(false);
+  });
+
+  it('returns true when the sole span has other formatting flags (bold)', () => {
+    const message = createMessage({
+      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl, bold: true }],
+      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
+    });
+    expect(isSoleTenorGifLink(message)).toBe(true);
+  });
 });
