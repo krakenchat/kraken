@@ -67,16 +67,19 @@ export class PasswordResetService {
     const publicAppUrl = this.configService.get<string>('PUBLIC_APP_URL');
     const resetUrl = `${publicAppUrl}/reset-password?token=${rawToken}`;
 
-    try {
-      // user.email is non-null here: we just looked the user up by email.
-      await this.mailerService.sendPasswordResetEmail(user.email!, resetUrl);
-    } catch (err) {
-      // Never let mail-send errors change the HTTP response.
-      this.logger.error(
-        `Failed to send password reset email for user ${user.id}`,
-        err instanceof Error ? err.stack : String(err),
-      );
-    }
+    // Fire-and-forget: never let mail-send latency or errors affect the HTTP
+    // response — awaiting the SMTP round-trip here would make the
+    // known-email path measurably slower than the unknown-email path,
+    // reopening the enumeration channel this method otherwise closes.
+    // user.email is non-null here: we just looked the user up by email.
+    this.mailerService
+      .sendPasswordResetEmail(user.email!, resetUrl)
+      .catch((err: unknown) => {
+        this.logger.error(
+          `Failed to send password reset email for user ${user.id}`,
+          err instanceof Error ? err.stack : String(err),
+        );
+      });
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
