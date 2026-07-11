@@ -92,6 +92,42 @@ describe('ThumbnailBackfillService', () => {
       expect(() => service.onApplicationBootstrap()).not.toThrow();
       await jest.advanceTimersByTimeAsync(60_000);
     });
+
+    it.each(['FALSE', '0', 'off', 'OFF', '  false  '])(
+      'should treat THUMBNAIL_BACKFILL_ENABLED=%s as disabled (case-insensitive, trimmed)',
+      async (value) => {
+        configService.get.mockImplementation((key: string) =>
+          key === 'THUMBNAIL_BACKFILL_ENABLED' ? value : undefined,
+        );
+        const logSpy = jest
+          .spyOn(
+            (service as unknown as { logger: { log: (msg: string) => void } })
+              .logger,
+            'log',
+          )
+          .mockImplementation(() => undefined);
+
+        service.onApplicationBootstrap();
+        await jest.runAllTimersAsync();
+
+        expect(logSpy).toHaveBeenCalledWith(
+          'Thumbnail backfill disabled via THUMBNAIL_BACKFILL_ENABLED',
+        );
+        expect(databaseService.file.findMany).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should treat unrecognized THUMBNAIL_BACKFILL_ENABLED values as enabled', async () => {
+      configService.get.mockImplementation((key: string) =>
+        key === 'THUMBNAIL_BACKFILL_ENABLED' ? 'yes' : undefined,
+      );
+      databaseService.file.findMany.mockResolvedValue([]);
+
+      service.onApplicationBootstrap();
+      await jest.runAllTimersAsync();
+
+      expect(databaseService.file.findMany).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('backfill', () => {
@@ -168,6 +204,124 @@ describe('ThumbnailBackfillService', () => {
         select: { id: true, storagePath: true },
       });
       expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledTimes(3);
+    });
+
+    it.each([
+      ['THUMBNAIL_BACKFILL_BATCH_SIZE', 'not-a-number', 25],
+      ['THUMBNAIL_BACKFILL_BATCH_SIZE', '0', 25],
+      ['THUMBNAIL_BACKFILL_BATCH_SIZE', '-5', 25],
+    ])(
+      'should fall back to the default batch size and warn when %s=%s is invalid',
+      async (key, value, expectedDefault) => {
+        configService.get.mockImplementation((k: string) =>
+          k === key ? value : undefined,
+        );
+        const warnSpy = jest
+          .spyOn(
+            (
+              service as unknown as {
+                logger: { warn: (msg: string) => void };
+              }
+            ).logger,
+            'warn',
+          )
+          .mockImplementation(() => undefined);
+        databaseService.file.findMany.mockResolvedValue([]);
+
+        await service.backfill();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining(
+            `Invalid ${key} value "${value}"; falling back to default ${expectedDefault}`,
+          ),
+        );
+        expect(databaseService.file.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({ take: expectedDefault }),
+        );
+      },
+    );
+
+    it.each([
+      ['THUMBNAIL_BACKFILL_THROTTLE_MS', 'not-a-number'],
+      ['THUMBNAIL_BACKFILL_THROTTLE_MS', '-1'],
+    ])('should fall back to the default for %s=%s', async (key, value) => {
+      configService.get.mockImplementation((k: string) =>
+        k === key ? value : undefined,
+      );
+      const warnSpy = jest
+        .spyOn(
+          (
+            service as unknown as {
+              logger: { warn: (msg: string) => void };
+            }
+          ).logger,
+          'warn',
+        )
+        .mockImplementation(() => undefined);
+      databaseService.file.findMany.mockResolvedValue([]);
+
+      await service.backfill();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Invalid ${key} value "${value}"`),
+      );
+    });
+
+    it.each([
+      ['THUMBNAIL_BACKFILL_STARTUP_DELAY_MS', 'not-a-number'],
+      ['THUMBNAIL_BACKFILL_STARTUP_DELAY_MS', '-1'],
+    ])(
+      'should fall back to the default startup delay (60s) and warn for %s=%s',
+      async (key, value) => {
+        configService.get.mockImplementation((k: string) =>
+          k === key ? value : undefined,
+        );
+        const warnSpy = jest
+          .spyOn(
+            (
+              service as unknown as {
+                logger: { warn: (msg: string) => void };
+              }
+            ).logger,
+            'warn',
+          )
+          .mockImplementation(() => undefined);
+        databaseService.file.findMany.mockResolvedValue([]);
+
+        service.onApplicationBootstrap();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining(`Invalid ${key} value "${value}"`),
+        );
+        expect(databaseService.file.findMany).not.toHaveBeenCalled();
+
+        await jest.advanceTimersByTimeAsync(60_000);
+        expect(databaseService.file.findMany).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('should skip the throttle sleep entirely when THUMBNAIL_BACKFILL_THROTTLE_MS is 0', async () => {
+      configService.get.mockImplementation((key: string) =>
+        key === 'THUMBNAIL_BACKFILL_THROTTLE_MS' ? '0' : undefined,
+      );
+      databaseService.file.findMany
+        .mockResolvedValueOnce([
+          { id: 'file-1', storagePath: '/clips/a.mp4' },
+          { id: 'file-2', storagePath: '/clips/b.mp4' },
+        ] as any)
+        .mockResolvedValueOnce([]);
+      storageService.fileExists.mockResolvedValue(true);
+      thumbnailService.generateVideoThumbnail
+        .mockResolvedValueOnce('thumb-1.jpg')
+        .mockResolvedValueOnce('thumb-2.jpg');
+      databaseService.file.update.mockResolvedValue({} as any);
+
+      // No fake-timer advancement needed: with throttle 0 there is no
+      // setTimeout gating between files, so the promise settles on its own.
+      const result = await service.backfill();
+
+      expect(result).toEqual({ generated: 2, skipped: 0 });
+      expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledTimes(2);
     });
 
     it('should sleep THUMBNAIL_BACKFILL_THROTTLE_MS between files', async () => {

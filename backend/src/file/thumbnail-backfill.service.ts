@@ -41,32 +41,58 @@ export class ThumbnailBackfillService
   ) {}
 
   private isEnabled(): boolean {
-    return (
-      this.configService.get<string>('THUMBNAIL_BACKFILL_ENABLED') !== 'false'
-    );
+    const raw = this.configService.get<string>('THUMBNAIL_BACKFILL_ENABLED');
+    if (raw === undefined) {
+      return true;
+    }
+    const normalized = raw.trim().toLowerCase();
+    return !['false', '0', 'off'].includes(normalized);
+  }
+
+  /**
+   * Parses a non-negative integer env var, warning and falling back to
+   * `defaultValue` when the value is missing, not a number, or (per
+   * `allowZero`) not strictly positive.
+   */
+  private parseIntEnv(
+    key: string,
+    defaultValue: number,
+    { allowZero }: { allowZero: boolean },
+  ): number {
+    const raw = this.configService.get<string>(key);
+    if (raw === undefined) {
+      return defaultValue;
+    }
+
+    const parsed = parseInt(raw, 10);
+    const isValid = allowZero ? parsed >= 0 : parsed > 0;
+
+    if (Number.isNaN(parsed) || !isValid) {
+      this.logger.warn(
+        `Invalid ${key} value "${raw}"; falling back to default ${defaultValue}`,
+      );
+      return defaultValue;
+    }
+
+    return parsed;
   }
 
   private getBatchSize(): number {
-    return parseInt(
-      this.configService.get<string>('THUMBNAIL_BACKFILL_BATCH_SIZE') || '25',
-      10,
-    );
+    return this.parseIntEnv('THUMBNAIL_BACKFILL_BATCH_SIZE', 25, {
+      allowZero: false,
+    });
   }
 
   private getStartupDelayMs(): number {
-    return parseInt(
-      this.configService.get<string>('THUMBNAIL_BACKFILL_STARTUP_DELAY_MS') ||
-        '60000',
-      10,
-    );
+    return this.parseIntEnv('THUMBNAIL_BACKFILL_STARTUP_DELAY_MS', 60000, {
+      allowZero: true,
+    });
   }
 
   private getThrottleMs(): number {
-    return parseInt(
-      this.configService.get<string>('THUMBNAIL_BACKFILL_THROTTLE_MS') ||
-        '1000',
-      10,
-    );
+    return this.parseIntEnv('THUMBNAIL_BACKFILL_THROTTLE_MS', 1000, {
+      allowZero: true,
+    });
   }
 
   onApplicationBootstrap(): void {
@@ -80,12 +106,14 @@ export class ThumbnailBackfillService
     // Defer past peak startup memory, then fire-and-forget so we never
     // block application startup.
     this.startupTimer = setTimeout(() => {
+      this.startupTimer = undefined;
       void this.backfill().catch((error) => {
         this.logger.error(
           `Thumbnail backfill failed: ${error instanceof Error ? error.message : String(error)}`,
         );
       });
     }, this.getStartupDelayMs());
+    this.startupTimer.unref();
   }
 
   onModuleDestroy(): void {
@@ -166,7 +194,12 @@ export class ThumbnailBackfillService
           lastId = file.id;
         }
 
-        await new Promise((resolve) => setTimeout(resolve, throttleMs));
+        if (throttleMs > 0) {
+          await new Promise((resolve) => {
+            const timer = setTimeout(resolve, throttleMs);
+            timer.unref();
+          });
+        }
       }
 
       if (batch.length < batchSize) {
