@@ -85,7 +85,17 @@ export const useJumpToMessage = (
     queryClient.removeQueries({ queryKey: anchoredKey });
 
     setAnchorMessageId(undefined);
-  }, [id, anchorMessageId, type, queryClient]);
+
+    // Dropping the anchor falls back to the normal-mode window, which may
+    // itself be detached from the live edge (e.g. the user jumped here from
+    // a pinned/search link while their normal window had already scrolled
+    // back past MESSAGE_MAX_PAGES). Chain straight into that reset too, so
+    // one click reaches the present instead of landing on the normal
+    // window's false bottom and immediately re-showing the FAB.
+    if (normalResult.isDetachedFromPresent) {
+      void normalResult.resetToPresent();
+    }
+  }, [id, anchorMessageId, type, queryClient, normalResult]);
 
   // If anchored query errors (e.g. message not found), fall back to normal mode
   useEffect(() => {
