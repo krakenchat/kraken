@@ -88,6 +88,17 @@ Generate VAPID keys:
 docker compose run --rm backend npx web-push generate-vapid-keys
 ```
 
+### Thumbnail backfill
+
+On startup, Semaphore Chat retries thumbnail generation for video files that don't have one yet (e.g. uploaded before thumbnail support existed, or whose generation failed). This is deferred and batched so it can't spike memory at boot: at most one ffmpeg frame-extraction child process runs at a time (capped at 30s), and the database working set per batch is just `THUMBNAIL_BACKFILL_BATCH_SIZE` rows of `{ id, storagePath }`.
+
+| Variable | Description | Default |
+|----------|------------|---------|
+| `THUMBNAIL_BACKFILL_ENABLED` | Set to `false` to disable the backfill entirely | `true` |
+| `THUMBNAIL_BACKFILL_BATCH_SIZE` | Rows fetched per batch (id-cursor pagination) | `25` |
+| `THUMBNAIL_BACKFILL_STARTUP_DELAY_MS` | Delay before starting, so it runs after peak startup memory has settled | `60000` |
+| `THUMBNAIL_BACKFILL_THROTTLE_MS` | Delay between files, to spread out ffmpeg/DB load | `1000` |
+
 ## Frontend environment variables
 
 Copy `frontend/.env.sample` to `frontend/.env`. The defaults work for local Docker development.
