@@ -1,10 +1,12 @@
 import { useEffect, useRef, useCallback, useContext } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from '@semaphore-chat/shared';
 import { MarkAsReadPayload } from "../types/read-receipt.type";
 import { readReceiptsControllerGetUnreadCountsQueryKey } from "../api-client/@tanstack/react-query.gen";
-import type { UnreadCountDto } from "../api-client";
+import type { UnreadCountDto, PaginatedMessagesResponseDto } from "../api-client";
+import { channelMessagesQueryKey, dmMessagesQueryKey } from "../utils/messageQueryKeys";
+import { isDetachedFromLiveEdge } from "../utils/messageCacheUpdaters";
 
 interface UseMessageVisibilityProps {
   channelId?: string;
@@ -66,26 +68,41 @@ export const useMessageVisibility = ({
       if (!channelId && !directMessageGroupId) return;
       if (lastMarkedMessageIdRef.current === messageId) return;
 
-      // Optimistic cache clear — immediately remove unread/mention indicators
+      // Optimistic cache clear — immediately remove unread/mention indicators.
+      // Skipped while the messages window is detached from the live edge
+      // (#404 catch-up window): a mid-history message scrolling into view
+      // there does not mean the user has caught up, so zeroing the badge
+      // would be wrong. The server-side watermark clamp makes the emit below
+      // a safe no-op for regressions, so it still fires unconditionally.
       const id = channelId || directMessageGroupId;
       if (id) {
-        const queryKey = readReceiptsControllerGetUnreadCountsQueryKey();
-        queryClient.setQueryData(queryKey, (old: UnreadCountDto[] | undefined) => {
-          if (!old) return old;
-          const index = old.findIndex(
-            (c) => (c.channelId || c.directMessageGroupId) === id
-          );
-          if (index < 0) return old;
-          const next = [...old];
-          next[index] = {
-            ...next[index],
-            unreadCount: 0,
-            mentionCount: 0,
-            lastReadMessageId: messageId,
-            lastReadAt: new Date().toISOString(),
-          };
-          return next;
-        });
+        const messagesQueryKey = channelId
+          ? channelMessagesQueryKey(channelId)
+          : dmMessagesQueryKey(directMessageGroupId!);
+        const messagesData = queryClient.getQueryData<
+          InfiniteData<PaginatedMessagesResponseDto>
+        >(messagesQueryKey);
+        const detached = isDetachedFromLiveEdge(messagesData);
+
+        if (!detached) {
+          const queryKey = readReceiptsControllerGetUnreadCountsQueryKey();
+          queryClient.setQueryData(queryKey, (old: UnreadCountDto[] | undefined) => {
+            if (!old) return old;
+            const index = old.findIndex(
+              (c) => (c.channelId || c.directMessageGroupId) === id
+            );
+            if (index < 0) return old;
+            const next = [...old];
+            next[index] = {
+              ...next[index],
+              unreadCount: 0,
+              mentionCount: 0,
+              lastReadMessageId: messageId,
+              lastReadAt: new Date().toISOString(),
+            };
+            return next;
+          });
+        }
       }
 
       // Debounced socket emit — only fires after scrolling settles
