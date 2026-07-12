@@ -90,6 +90,12 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   THUMBNAIL_BACKFILL_THROTTLE_MS?: string;
+
+  // GIF search (Tenor) — feature is disabled when absent, no production
+  // requirement.
+  @IsOptional()
+  @IsString()
+  TENOR_API_KEY?: string;
 }
 
 /**

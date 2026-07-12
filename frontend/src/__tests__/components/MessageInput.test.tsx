@@ -34,6 +34,56 @@ vi.mock('../../components/Message/EmojiPicker', () => ({
     ) : null,
 }));
 
+// Mock the GIF picker so we can trigger a selection deterministically.
+vi.mock('../../components/Message/GifPicker', () => ({
+  GifPickerPopover: ({
+    open,
+    onSelect,
+  }: {
+    open: boolean;
+    onSelect: (gif: { id: string; url: string; previewUrl: string; title: string; width: number; height: number }) => void;
+  }) =>
+    open ? (
+      <button
+        type="button"
+        data-testid="mock-gif-pick"
+        onClick={() =>
+          onSelect({
+            id: 'gif-1',
+            url: 'https://media.tenor.com/1/cat.gif',
+            previewUrl: 'https://media.tenor.com/1/cat-tiny.gif',
+            title: 'Cat',
+            width: 220,
+            height: 140,
+          })
+        }
+      >
+        pick gif
+      </button>
+    ) : null,
+}));
+
+// Controls the public-settings `gifSearchEnabled` flag consumed by MessageInput.
+// Reset to false in beforeEach; individual tests flip it on.
+let mockGifSearchEnabled = false;
+
+vi.mock('../../api-client/@tanstack/react-query.gen', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    instanceControllerGetPublicSettingsOptions: () => ({
+      queryKey: ['instanceControllerGetPublicSettings'],
+      queryFn: () =>
+        Promise.resolve({
+          name: 'Test Instance',
+          registrationMode: 'OPEN',
+          maxFileSizeBytes: 500 * 1024 * 1024,
+          gifSearchEnabled: mockGifSearchEnabled,
+        }),
+    }),
+  };
+});
+
 // Default: desktop (non-touch). Individual tests override isTouchDevice.
 const mockResponsive = vi.fn(() => ({
   isTouchDevice: false,
@@ -75,6 +125,7 @@ describe('MessageInput', () => {
       isDesktop: true,
       deviceType: 'desktop',
     });
+    mockGifSearchEnabled = false;
   });
 
   describe('emoji insertion', () => {
@@ -144,6 +195,44 @@ describe('MessageInput', () => {
 
       expect(onSendMessage).not.toHaveBeenCalled();
       expect(input.value).toBe('hi\n');
+    });
+  });
+
+  describe('GIF picker', () => {
+    it('hides the GIF button when gifSearchEnabled is false', async () => {
+      mockGifSearchEnabled = false;
+      setup();
+
+      await waitFor(() => {
+        expect(screen.queryByLabelText('add gif')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows the GIF button when gifSearchEnabled is true', async () => {
+      mockGifSearchEnabled = true;
+      setup();
+
+      expect(await screen.findByLabelText('add gif')).toBeInTheDocument();
+    });
+
+    it('sends the GIF url immediately on selection, leaving composer text untouched', async () => {
+      mockGifSearchEnabled = true;
+      const { user, input, onSendMessage } = setup();
+
+      await user.type(input, 'still typing');
+      await user.click(await screen.findByLabelText('add gif'));
+      await user.click(screen.getByTestId('mock-gif-pick'));
+
+      await waitFor(() => {
+        expect(onSendMessage).toHaveBeenCalledTimes(1);
+      });
+      expect(onSendMessage).toHaveBeenCalledWith(
+        'https://media.tenor.com/1/cat.gif',
+        expect.any(Array),
+        [],
+      );
+      // The composer's own draft text is untouched by the GIF send.
+      expect(input.value).toBe('still typing');
     });
   });
 });
