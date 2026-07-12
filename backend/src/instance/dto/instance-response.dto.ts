@@ -14,6 +14,9 @@ export class PublicSettingsResponseDto {
   /** Whether the Tenor GIF picker is available (TENOR_API_KEY configured). */
   @ApiProperty()
   gifSearchEnabled: boolean;
+
+  @ApiProperty()
+  passwordResetEnabled: boolean;
 }
 
 export class InstanceStatsResponseDto {

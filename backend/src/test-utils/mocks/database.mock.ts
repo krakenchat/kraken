@@ -56,6 +56,7 @@ export type MockDatabaseService = {
   friendship: MockPrismaModel;
   file: MockPrismaModel;
   refreshToken: MockPrismaModel;
+  passwordResetToken: MockPrismaModel;
   instanceInvite: MockPrismaModel;
   instanceSettings: MockPrismaModel;
   aliasGroup: MockPrismaModel;
@@ -130,6 +131,7 @@ export function createMockDatabase(): MockDatabaseService {
     friendship: createMockPrismaModel(),
     file: createMockPrismaModel(),
     refreshToken: createMockPrismaModel(),
+    passwordResetToken: createMockPrismaModel(),
     instanceInvite: createMockPrismaModel(),
     instanceSettings: createMockPrismaModel(),
     aliasGroup: createMockPrismaModel(),

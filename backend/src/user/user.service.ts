@@ -439,6 +439,34 @@ export class UserService {
   }
 
   /**
+   * Core password reset logic shared by the admin override
+   * (`setUserPassword`) and the self-service email flow
+   * (`PasswordResetService`): hashes the new password, updates the user, and
+   * revokes all of their refresh tokens so sessions can no longer be renewed
+   * (outstanding access tokens stay valid until they expire, up to 1h).
+   *
+   * Accepts an explicit transaction client so callers can atomically pair
+   * this with other writes (e.g. marking a password-reset token as used).
+   */
+  async resetPasswordAndRevokeSessions(
+    userId: string,
+    newPassword: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<User> {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const user = await tx.user.update({
+      where: { id: userId },
+      data: { hashedPassword },
+    });
+    await tx.refreshToken.deleteMany({
+      where: { userId },
+    });
+
+    return user;
+  }
+
+  /**
    * Set a new password for a user (admin override for forgetful users).
    * Revokes all of the user's refresh tokens so sessions can no longer be
    * renewed; outstanding access tokens stay valid until they expire (1h).
@@ -467,18 +495,9 @@ export class UserService {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    const updatedUser = await this.databaseService.$transaction(async (tx) => {
-      const user = await tx.user.update({
-        where: { id: targetUserId },
-        data: { hashedPassword },
-      });
-      await tx.refreshToken.deleteMany({
-        where: { userId: targetUserId },
-      });
-      return user;
-    });
+    const updatedUser = await this.databaseService.$transaction((tx) =>
+      this.resetPasswordAndRevokeSessions(targetUserId, newPassword, tx),
+    );
 
     this.logger.log(
       `Password reset for user ${targetUserId} by admin ${actingUserId}; all refresh tokens revoked`,

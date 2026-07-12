@@ -4,6 +4,7 @@ import {
   Get,
   Delete,
   Param,
+  Body,
   UseGuards,
   HttpStatus,
   HttpCode,
@@ -19,6 +20,7 @@ import { LocalAuthGuard } from './local-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService, DeviceInfo } from './auth.service';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { PasswordResetService } from './password-reset.service';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/database/database.service';
@@ -32,12 +34,18 @@ import {
   SessionInfoDto,
   RevokeSessionResponseDto,
   RevokeAllSessionsResponseDto,
+  ForgotPasswordResponseDto,
+  ResetPasswordResponseDto,
 } from './dto/auth-response.dto';
 import {
   LoginRequestDto,
   RefreshRequestDto,
   LogoutRequestDto,
 } from './dto/auth-request.dto';
+import {
+  ForgotPasswordRequestDto,
+  ResetPasswordRequestDto,
+} from './dto/password-reset-request.dto';
 import { Public } from './public.decorator';
 
 @Controller('auth')
@@ -49,6 +57,7 @@ export class AuthController {
     private readonly databaseService: DatabaseService,
     private readonly tokenBlacklistService: TokenBlacklistService,
     private readonly jwtService: JwtService,
+    private readonly passwordResetService: PasswordResetService,
   ) {}
 
   /**
@@ -182,6 +191,45 @@ export class AuthController {
     }
 
     return { accessToken: newAccessToken };
+  }
+
+  /**
+   * Request a password-reset email. Always returns the same 200 response
+   * regardless of whether the email matches an account or the feature is
+   * enabled — enumeration-safe by design (see PasswordResetService).
+   */
+  @Public()
+  @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBody({ type: ForgotPasswordRequestDto })
+  @ApiOkResponse({ type: ForgotPasswordResponseDto })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordRequestDto,
+  ): Promise<ForgotPasswordResponseDto> {
+    await this.passwordResetService.requestReset(dto.email);
+    return {
+      message:
+        'If an account with that email exists, a reset link has been sent.',
+    };
+  }
+
+  /**
+   * Redeem a password-reset token to set a new password. Errors are
+   * intentionally generic — never reveals whether the token was wrong,
+   * expired, or already used.
+   */
+  @Public()
+  @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBody({ type: ResetPasswordRequestDto })
+  @ApiOkResponse({ type: ResetPasswordResponseDto })
+  async resetPassword(
+    @Body() dto: ResetPasswordRequestDto,
+  ): Promise<ResetPasswordResponseDto> {
+    await this.passwordResetService.resetPassword(dto.token, dto.newPassword);
+    return { message: 'Password has been reset.' };
   }
 
   @Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })

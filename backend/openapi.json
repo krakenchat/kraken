@@ -84,6 +84,70 @@
         ]
       }
     },
+    "/api/auth/forgot-password": {
+      "post": {
+        "operationId": "AuthController_forgotPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForgotPasswordResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Request a password-reset email. Always returns the same 200 response\nregardless of whether the email matches an account or the feature is\nenabled — enumeration-safe by design (see PasswordResetService).",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetPasswordResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Redeem a password-reset token to set a new password. Errors are\nintentionally generic — never reveals whether the token was wrong,\nexpired, or already used.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/auth/logout": {
       "post": {
         "operationId": "AuthController_logout",
@@ -7404,6 +7468,57 @@
           }
         }
       },
+      "ForgotPasswordRequestDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ForgotPasswordResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "ResetPasswordRequestDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "token",
+          "newPassword"
+        ]
+      },
+      "ResetPasswordResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
       "LogoutRequestDto": {
         "type": "object",
         "properties": {
@@ -12054,13 +12169,17 @@
           "gifSearchEnabled": {
             "type": "boolean",
             "description": "Whether the Tenor GIF picker is available (TENOR_API_KEY configured)."
+          },
+          "passwordResetEnabled": {
+            "type": "boolean"
           }
         },
         "required": [
           "name",
           "registrationMode",
           "maxFileSizeBytes",
-          "gifSearchEnabled"
+          "gifSearchEnabled",
+          "passwordResetEnabled"
         ]
       },
       "InstanceSettingsResponseDto": {

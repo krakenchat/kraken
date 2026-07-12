@@ -3,12 +3,14 @@ import type { Mocked } from '@suites/doubles.jest';
 import { ConfigService } from '@nestjs/config';
 import { InstanceController } from './instance.controller';
 import { InstanceService } from './instance.service';
+import { MailerService } from '@/mailer/mailer.service';
 import { RegistrationMode } from '@prisma/client';
 
 describe('InstanceController', () => {
   let controller: InstanceController;
   let service: Mocked<InstanceService>;
   let configService: Mocked<ConfigService>;
+  let mailerService: Mocked<MailerService>;
 
   beforeEach(async () => {
     const { unit, unitRef } =
@@ -18,6 +20,16 @@ describe('InstanceController', () => {
     service = unitRef.get(InstanceService);
     configService = unitRef.get(ConfigService);
     configService.get.mockReturnValue(undefined);
+    mailerService = unitRef.get(MailerService);
+
+    // MailerService.isEnabled is a getter, which automocking libraries don't
+    // stub the way they do regular methods — define it explicitly so tests
+    // can control it per-case.
+    Object.defineProperty(mailerService, 'isEnabled', {
+      value: false,
+      configurable: true,
+      writable: true,
+    });
   });
 
   afterEach(() => {
@@ -50,6 +62,7 @@ describe('InstanceController', () => {
         registrationMode: RegistrationMode.OPEN,
         maxFileSizeBytes: 524288000,
         gifSearchEnabled: false,
+        passwordResetEnabled: false,
       });
     });
 
@@ -111,6 +124,44 @@ describe('InstanceController', () => {
       const result = await controller.getPublicSettings();
 
       expect(result.gifSearchEnabled).toBe(true);
+    });
+
+    it('reports passwordResetEnabled as false when the mailer is disabled', async () => {
+      const mockSettings = {
+        id: 'settings-1',
+        name: 'Test Instance',
+        description: null,
+        registrationMode: RegistrationMode.INVITE_ONLY,
+        maxFileSizeBytes: BigInt(524288000),
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      service.getSettings.mockResolvedValue(mockSettings as any);
+      Object.defineProperty(mailerService, 'isEnabled', { value: false });
+
+      const result = await controller.getPublicSettings();
+
+      expect(result.passwordResetEnabled).toBe(false);
+    });
+
+    it('reports passwordResetEnabled as true when the mailer is enabled', async () => {
+      const mockSettings = {
+        id: 'settings-1',
+        name: 'Test Instance',
+        description: null,
+        registrationMode: RegistrationMode.INVITE_ONLY,
+        maxFileSizeBytes: BigInt(524288000),
+        defaultStorageQuotaBytes: BigInt(53687091200),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      service.getSettings.mockResolvedValue(mockSettings as any);
+      Object.defineProperty(mailerService, 'isEnabled', { value: true });
+
+      const result = await controller.getPublicSettings();
+
+      expect(result.passwordResetEnabled).toBe(true);
     });
   });
 });

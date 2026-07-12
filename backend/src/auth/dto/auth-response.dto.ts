@@ -25,3 +25,11 @@ export class RevokeAllSessionsResponseDto {
   message: string;
   revokedCount: number;
 }
+
+export class ForgotPasswordResponseDto {
+  message: string;
+}
+
+export class ResetPasswordResponseDto {
+  message: string;
+}

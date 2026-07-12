@@ -8,9 +8,11 @@ import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { PasswordResetService } from './password-reset.service';
 import { RolesModule } from '@/roles/roles.module';
 import { DatabaseModule } from '@/database/database.module';
 import { RedisModule } from '@/redis/redis.module';
+import { MailerModule } from '@/mailer/mailer.module';
 import { RbacGuard } from './rbac.guard';
 import { WsJwtAuthGuard } from './ws-jwt-auth.guard';
 
@@ -21,6 +23,7 @@ import { WsJwtAuthGuard } from './ws-jwt-auth.guard';
     PassportModule,
     DatabaseModule,
     RedisModule,
+    MailerModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -35,6 +38,7 @@ import { WsJwtAuthGuard } from './ws-jwt-auth.guard';
     LocalStrategy,
     JwtStrategy,
     TokenBlacklistService,
+    PasswordResetService,
     RbacGuard,
     WsJwtAuthGuard,
   ],

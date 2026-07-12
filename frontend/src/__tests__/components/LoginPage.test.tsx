@@ -82,6 +82,47 @@ describe('LoginPage', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  it('does not show a "Forgot password?" link when the feature is disabled', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/instance/settings/public', () =>
+        HttpResponse.json({
+          name: 'Semaphore Chat',
+          registrationMode: 'OPEN',
+          maxFileSizeBytes: 524288000,
+          passwordResetEnabled: false,
+        }),
+      ),
+    );
+
+    renderWithProviders(<LoginPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Forgot password?')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows a "Forgot password?" link when the feature is enabled', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/instance/settings/public', () =>
+        HttpResponse.json({
+          name: 'Semaphore Chat',
+          registrationMode: 'OPEN',
+          maxFileSizeBytes: 524288000,
+          passwordResetEnabled: true,
+        }),
+      ),
+    );
+
+    renderWithProviders(<LoginPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Forgot password?')).toHaveAttribute(
+        'href',
+        '/forgot-password',
+      );
+    });
+  });
+
   it('shows loading spinner during submission', async () => {
     // Delay the response to catch the loading state
     server.use(

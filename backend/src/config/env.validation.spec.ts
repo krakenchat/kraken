@@ -131,6 +131,70 @@ describe('validateEnv', () => {
     });
   });
 
+  describe('Test 6b: SMTP pair/dependency checks', () => {
+    it('throws when SMTP_USER is set but SMTP_PASS is missing', () => {
+      const config = {
+        ...BASE_CONFIG,
+        SMTP_USER: 'user',
+        // SMTP_PASS intentionally omitted
+      };
+
+      expect(() => validateEnv(config)).toThrow(/SMTP_USER/);
+    });
+
+    it('throws when SMTP_PASS is set but SMTP_USER is missing', () => {
+      const config = {
+        ...BASE_CONFIG,
+        SMTP_PASS: 'pass',
+        // SMTP_USER intentionally omitted
+      };
+
+      expect(() => validateEnv(config)).toThrow(/SMTP_USER/);
+    });
+
+    it('passes when both SMTP_USER and SMTP_PASS are omitted', () => {
+      const config = { ...BASE_CONFIG };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+
+    it('passes when both SMTP_USER and SMTP_PASS are provided', () => {
+      const config = {
+        ...BASE_CONFIG,
+        SMTP_USER: 'user',
+        SMTP_PASS: 'pass',
+      };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+
+    it('throws when SMTP_HOST is set but SMTP_FROM is missing', () => {
+      const config = {
+        ...BASE_CONFIG,
+        SMTP_HOST: 'smtp.example.com',
+        // SMTP_FROM intentionally omitted
+      };
+
+      expect(() => validateEnv(config)).toThrow(/SMTP_HOST requires SMTP_FROM/);
+    });
+
+    it('passes when SMTP_HOST and SMTP_FROM are both provided', () => {
+      const config = {
+        ...BASE_CONFIG,
+        SMTP_HOST: 'smtp.example.com',
+        SMTP_FROM: 'noreply@example.com',
+      };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+
+    it('passes when SMTP_HOST is omitted entirely (no SMTP_FROM required)', () => {
+      const config = { ...BASE_CONFIG };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+  });
+
   describe('Test 7: Unknown extra env vars are ignored', () => {
     it('does not throw when extra unknown vars are present and passes them through', () => {
       const config = {
