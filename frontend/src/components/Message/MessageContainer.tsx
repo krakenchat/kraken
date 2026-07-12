@@ -154,8 +154,10 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   // shrinks the list below the virtualization threshold), so route the
   // deferred scroll through a ref to always call the latest one.
   const scrollToBottomRef = useRef(scrollToBottom);
+  const atBottomRef = useRef(atBottom);
   useLayoutEffect(() => {
     scrollToBottomRef.current = scrollToBottom;
+    atBottomRef.current = atBottom;
   });
 
   const handleDetachedJumpToPresent = useCallback(() => {
@@ -176,7 +178,12 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   // Scroll to the bottom once a detached window returns to the live edge —
   // covers the FAB, own-send reset, and reconnect reset uniformly. The reset
   // clears data first (isDetachedFromPresent flips false while empty), so
-  // wait for the refetched page to render before scrolling.
+  // wait for the refetched page to render before scrolling. A single rAF is
+  // not enough: the reset also flips the renderer virtual→legacy one commit
+  // later, and a scroll issued against the outgoing renderer's handle is a
+  // silent no-op. Retry across a few frames until the scroll actually lands
+  // (atBottom) so the follow-through survives the renderer switch and any
+  // immediate older-page prepend.
   useEffect(() => {
     if (isDetachedFromPresent) {
       wasDetachedRef.current = true;
@@ -185,7 +192,15 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     if (!wasDetachedRef.current) return;
     if (orderedMessages.length === 0) return;
     wasDetachedRef.current = false;
-    requestAnimationFrame(() => scrollToBottomRef.current());
+    let attempts = 0;
+    const tryScroll = () => {
+      scrollToBottomRef.current();
+      attempts += 1;
+      if (attempts < 10 && !atBottomRef.current) {
+        requestAnimationFrame(tryScroll);
+      }
+    };
+    requestAnimationFrame(tryScroll);
   }, [isDetachedFromPresent, orderedMessages]);
 
   // Phase 2 of the virtualization gate: activate/deactivate the virtual
