@@ -127,14 +127,14 @@ See `.github/workflows/e2e-tests.yml` for configuration.
 ```bash
 # Clean up and rebuild
 ./scripts/run-e2e.sh --clean
-docker-compose -f docker-compose.e2e.yml build --no-cache
+docker compose -p kraken-e2e -f docker-compose.e2e.yml build --no-cache
 ```
 
 ### Database seed fails
 
 ```bash
 # Check backend logs
-docker-compose -f docker-compose.e2e.yml logs backend-test
+docker compose -p kraken-e2e -f docker-compose.e2e.yml logs backend-test
 ```
 
 ### Browser not installed

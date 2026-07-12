@@ -26,7 +26,9 @@ set -uo pipefail
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 cd "$(dirname "$0")/.."
 
-COMPOSE="docker compose -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml -f docker-compose.voice-e2e.host.yml"
+# -p kraken-e2e: dedicated project name so `down -v` can never touch the dev
+# stack, which runs under the default project name (see #403).
+COMPOSE="docker compose -p kraken-e2e -f docker-compose.e2e.yml -f docker-compose.voice-e2e.yml -f docker-compose.voice-e2e.host.yml"
 CLEAN=false
 HEADED=""
 SPEC=""
