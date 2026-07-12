@@ -105,12 +105,21 @@ describe('messageHandlers', () => {
 
       queryClient.setQueryData(queryKey, detached);
       queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+      queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+        { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+      ]);
       const resetSpy = vi.spyOn(queryClient, 'resetQueries');
 
       const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'me' });
       await handleNewMessage({ message: newMsg as never }, queryClient);
 
       expect(resetSpy).toHaveBeenCalledWith({ queryKey, exact: true });
+
+      // Own messages must not bump unread even on the detached reset path.
+      const unread = queryClient.getQueryData<{ channelId: string; unreadCount: number }[]>(
+        readReceiptsControllerGetUnreadCountsQueryKey(),
+      );
+      expect(unread![0].unreadCount).toBe(0);
     });
   });
 
