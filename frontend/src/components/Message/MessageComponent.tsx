@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback } from "react";
-import { Typography, Tooltip, Box, Link } from "@mui/material";
+import { Avatar, Typography, Tooltip, Box, Chip, Link } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import type { Message as MessageType } from "../../types/message.type";
 import { useQuery } from "@tanstack/react-query";
@@ -64,9 +64,11 @@ function MessageComponentInner({
 }: MessageProps) {
   // Community custom emojis (for rendering EMOJI spans + custom reactions).
   const { byId: emojiById } = useCommunityCustomEmojis(communityId);
+  const isWebhookMessage = !!message.webhook;
   const { data: author } = useQuery({
-    ...userControllerGetUserByIdOptions({ path: { id: message.authorId! } }),
-    enabled: !!message.authorId,
+    ...userControllerGetUserByIdOptions({ path: { id: message.authorId ?? '' } }),
+    // Webhook messages have no authorId — skip the user lookup entirely.
+    enabled: !!message.authorId && !isWebhookMessage,
   });
   const { user: currentUser } = useCurrentUser();
   const { openProfile } = useUserProfile();
@@ -183,15 +185,34 @@ function MessageComponentInner({
       {...containerInteractionProps}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
-        <UserAvatar
-          userId={message.authorId ?? undefined}
-          size="small"
-          clickable={!!message.authorId}
-        />
+        {isWebhookMessage ? (
+          <Avatar
+            src={message.webhook?.avatarUrl ?? undefined}
+            sx={{ width: 32, height: 32 }}
+          >
+            {message.webhook!.name.charAt(0).toUpperCase()}
+          </Avatar>
+        ) : (
+          <UserAvatar
+            userId={message.authorId ?? undefined}
+            size="small"
+            clickable={!!message.authorId}
+          />
+        )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          {message.authorId ? (
+          {isWebhookMessage ? (
+            <>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 700, color: "text.primary" }}
+              >
+                {message.webhook!.name}
+              </Typography>
+              <Chip label="APP" size="small" sx={{ height: 18, fontSize: 10 }} />
+            </>
+          ) : message.authorId ? (
             <Link
               component="button"
               variant="body2"

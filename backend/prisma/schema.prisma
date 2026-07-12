@@ -41,6 +41,9 @@ model Message {
   // Link preview metadata (fetched asynchronously after message creation)
   linkPreviews Json? // [{url, title, description, imageUrl, siteName, faviconUrl}]
 
+  // Incoming webhook attribution (set instead of authorId for webhook-posted messages)
+  webhookId String?
+
   // Relations (composite types → proper tables)
   spans       MessageSpan[]
   reactions   MessageReaction[]
@@ -49,6 +52,7 @@ model Message {
   channel            Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   directMessageGroup DirectMessageGroup? @relation("DirectMessageGroupMessages", fields: [directMessageGroupId], references: [id], onDelete: Cascade)
   author             User?               @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  webhook            Webhook?            @relation(fields: [webhookId], references: [id], onDelete: SetNull)
   pinnedByUser       User?               @relation("MessagePinner", fields: [pinnedBy], references: [id], onDelete: SetNull)
   deletedByUser      User?               @relation("MessageDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
   notifications      Notification[]
@@ -132,6 +136,22 @@ model MessageAttachment {
 
   @@unique([messageId, fileId])
   @@index([messageId])
+}
+
+model Webhook {
+  id        String   @id @default(uuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  name      String
+  avatarUrl String?
+  tokenHash String   @unique
+  createdBy String?
+  creator   User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  messages Message[]
+
+  @@index([channelId])
 }
 
 model ThreadSubscriber {
@@ -322,6 +342,7 @@ model User {
   authoredMessages          Message[]             @relation("MessageAuthor")
   pinnedMessages            Message[]             @relation("MessagePinner")
   deletedMessages           Message[]             @relation("MessageDeleter")
+  createdWebhooks           Webhook[]
   mentionSpans              MessageSpan[]         @relation("SpanUser")
   addedChannelMemberships   ChannelMembership[]   @relation("ChannelMembershipAddedBy")
   moderatorLogs             ModerationLog[]       @relation("LogModerator")
@@ -519,6 +540,7 @@ model Channel {
   // FK back-references
   replayClips    ReplayClip[]    @relation("ReplayClipChannel")
   egressSessions EgressSession[] @relation("EgressSessionChannel")
+  webhooks       Webhook[]
 
   @@unique([communityId, name])
   @@index([communityId, type, position])

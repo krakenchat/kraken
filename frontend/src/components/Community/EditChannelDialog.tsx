@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import {
+  Box,
   Button,
   TextField,
   FormControlLabel,
@@ -11,9 +12,10 @@ import {
 import ResponsiveDialog from "../Common/ResponsiveDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { channelsControllerUpdateMutation } from "../../api-client/@tanstack/react-query.gen";
-import type { Channel } from "../../types/channel.type";
+import { ChannelType, type Channel } from "../../types/channel.type";
 import { logger } from "../../utils/logger";
 import { invalidateChannelQueries } from "../../utils/queryInvalidation";
+import WebhookManagement from "./WebhookManagement";
 
 interface EditChannelDialogProps {
   open: boolean;
@@ -98,6 +100,11 @@ const EditChannelDialog: React.FC<EditChannelDialogProps> = ({
           }
           label="Private Channel"
         />
+        {channel && channel.type === ChannelType.TEXT && (
+          <Box mt={3}>
+            <WebhookManagement channelId={channel.id} />
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Cancel</Button>

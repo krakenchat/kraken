@@ -84,4 +84,10 @@ export interface Message {
     sentAt: string;
     deletedAt?: string | null;
   } | null;
+  // Incoming webhook attribution — set instead of authorId for webhook-posted messages
+  webhook?: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  } | null;
 }

@@ -333,6 +333,10 @@ export class CommunityService {
           where: { channelId: { in: channelIds } },
         });
 
+        await tx.webhook.deleteMany({
+          where: { channelId: { in: channelIds } },
+        });
+
         await tx.threadSubscriber.deleteMany({
           where: { parentMessage: { channelId: { in: channelIds } } },
         });

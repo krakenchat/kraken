@@ -7412,6 +7412,156 @@
           "Gifs"
         ]
       }
+    },
+    "/api/channels/{channelId}/webhooks": {
+      "post": {
+        "operationId": "WebhooksController_create",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateWebhookResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Webhooks"
+        ]
+      },
+      "get": {
+        "operationId": "WebhooksController_findAllForChannel",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WebhookDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Webhooks"
+        ]
+      }
+    },
+    "/api/channels/{channelId}/webhooks/{webhookId}": {
+      "delete": {
+        "operationId": "WebhooksController_remove",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "webhookId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/{id}/{token}": {
+      "post": {
+        "operationId": "WebhookExecutionController_execute",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecuteWebhookResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "WebhookExecution"
+        ]
+      }
     }
   },
   "info": {
@@ -7495,7 +7645,8 @@
         "type": "object",
         "properties": {
           "token": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 128
           },
           "newPassword": {
             "type": "string",
@@ -9035,6 +9186,25 @@
           "sentAt"
         ]
       },
+      "WebhookInfoDto": {
+        "type": "object",
+        "properties": {
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
       "EnrichedAttachment": {
         "type": "object",
         "properties": {
@@ -9109,6 +9279,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ReplyToPreviewDto"
+              }
+            ]
+          },
+          "webhook": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookInfoDto"
               }
             ]
           },
@@ -9268,6 +9446,14 @@
           "replyToId": {
             "type": "string",
             "nullable": true
+          },
+          "webhook": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookInfoDto"
+              }
+            ]
           },
           "id": {
             "type": "string"
@@ -13166,6 +13352,105 @@
         },
         "required": [
           "results"
+        ]
+      },
+      "CreateWebhookDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "avatarUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CreateWebhookResponseDto": {
+        "type": "object",
+        "properties": {
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "id",
+          "name",
+          "channelId",
+          "createdAt"
+        ]
+      },
+      "WebhookDto": {
+        "type": "object",
+        "properties": {
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "channelId",
+          "createdAt"
+        ]
+      },
+      "ExecuteWebhookDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "ExecuteWebhookResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ]
       }
     }

@@ -23,6 +23,13 @@ const FILE_METADATA_SELECT = {
   thumbnailPath: true,
 } as const;
 
+/** Prisma select shape for the webhook attribution sent to clients */
+const WEBHOOK_METADATA_SELECT = {
+  id: true,
+  name: true,
+  avatarUrl: true,
+} as const;
+
 /** Standard includes for loading a message with its relations */
 const MESSAGE_INCLUDE = {
   spans: { orderBy: { position: 'asc' as const } },
@@ -31,6 +38,7 @@ const MESSAGE_INCLUDE = {
     include: { file: { select: FILE_METADATA_SELECT } },
     orderBy: { position: 'asc' as const },
   },
+  webhook: { select: WEBHOOK_METADATA_SELECT },
 } as const;
 
 /** MESSAGE_INCLUDE plus the replyToMessage relation for inline quote preview */
@@ -52,7 +60,19 @@ export class MessagesService {
     private readonly fileService: FileService,
   ) {}
 
-  async create(createMessageDto: CreateMessageDto) {
+  /**
+   * Accepts an optional `webhookId` in addition to the public `CreateMessageDto`
+   * shape (and widens `authorId` to allow `null`, for webhook-attributed
+   * messages). Neither is part of the public `CreateMessageDto` (bound to the
+   * POST /messages and WS SEND_MESSAGE payloads) — both are only ever set
+   * internally by the webhooks execution flow, never by client input.
+   */
+  async create(
+    createMessageDto: Omit<CreateMessageDto, 'authorId'> & {
+      authorId: string | null;
+      webhookId?: string | null;
+    },
+  ) {
     // Validate replyToId references a message in the same channel/DM group
     if (createMessageDto.replyToId) {
       const replyTarget = await this.databaseService.message.findUnique({
