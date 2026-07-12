@@ -121,10 +121,15 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const newestId = orderedMessages[len - 1]?.id;
 
     // True on the render immediately after an older page prepended at the start.
+    // At the MESSAGE_MAX_PAGES cap, a prepend adds an older page but evicts the
+    // newest page, so `len` stays unchanged — we can't require `len > prevLen`.
+    // Instead require `len >= prevLen` (deleting only the oldest message shrinks
+    // `len` and is correctly excluded) alongside a defined previous oldest id
+    // (guards the context-switch reset, where it's `undefined`) that changed.
     const isPrepend =
-      prevLenRef.current > 0 &&
-      len > prevLenRef.current &&
-      oldestId !== prevOldestIdRef.current;
+      prevOldestIdRef.current !== undefined &&
+      oldestId !== prevOldestIdRef.current &&
+      len >= prevLenRef.current;
 
     const scrollToBottom = useCallback(() => {
       const handle = vlistRef.current;

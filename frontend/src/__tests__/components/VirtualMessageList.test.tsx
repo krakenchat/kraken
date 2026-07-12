@@ -286,6 +286,38 @@ describe('VirtualMessageList', () => {
     expect(capturedProps.shift).toBe(false);
   });
 
+  it('sets shift=true when an older page prepends at the cap and evicts the newest page (length unchanged)', () => {
+    const initial = messages(5);
+    const { rerender } = render(
+      <VirtualMessageList {...baseProps} orderedMessages={initial} />,
+    );
+    // Pin to the bottom, as the reader typically is when a background
+    // older-page load evicts the newest page.
+    act(() => capturedProps.onScroll?.(600));
+    fakeHandle.scrollToIndex.mockClear();
+
+    // At MESSAGE_MAX_PAGES, an older-page prepend evicts the newest page:
+    // same length (5), new oldest id, and the newest id also changes.
+    const older = createMessage({ id: 'at-cap-older' });
+    const atCap = [older, ...initial.slice(0, 4)]; // drop msg-4 (newest)
+    rerender(<VirtualMessageList {...baseProps} orderedMessages={atCap} />);
+
+    expect(capturedProps.shift).toBe(true);
+    // Stick-to-bottom must be suppressed even though the newest id changed.
+    expect(fakeHandle.scrollToIndex).not.toHaveBeenCalled();
+  });
+
+  it('does not set shift when only the oldest message is dropped (length shrinks)', () => {
+    const initial = messages(5);
+    const { rerender } = render(
+      <VirtualMessageList {...baseProps} orderedMessages={initial} />,
+    );
+    const shrunk = initial.slice(1); // drop msg-0 (oldest), no prepend
+    rerender(<VirtualMessageList {...baseProps} orderedMessages={shrunk} />);
+
+    expect(capturedProps.shift).toBe(false);
+  });
+
   it('sticks to the bottom when a newer message arrives while pinned', () => {
     const initial = messages(5);
     const { rerender } = render(
