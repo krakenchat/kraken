@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
@@ -159,12 +159,34 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   });
 
   const handleDetachedJumpToPresent = useCallback(() => {
-    void resetToPresent?.().then(() => {
-      // Two frames: one for the query reset to commit, one for the
-      // (possible) virtual→legacy renderer switch to mount.
-      requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottomRef.current()));
-    });
+    void resetToPresent?.();
   }, [resetToPresent]);
+
+  // Reset detachment tracking when switching contexts (channel/DM change) so
+  // a stale wasDetachedRef from the previous context can't trigger a scroll
+  // in the new one. Declared before the scroll-follow-through effect below so
+  // it runs first within the same commit when both contextKey and
+  // isDetachedFromPresent change together (i.e. switching away from a
+  // detached channel).
+  const wasDetachedRef = useRef(false);
+  useEffect(() => {
+    wasDetachedRef.current = false;
+  }, [contextKey]);
+
+  // Scroll to the bottom once a detached window returns to the live edge —
+  // covers the FAB, own-send reset, and reconnect reset uniformly. The reset
+  // clears data first (isDetachedFromPresent flips false while empty), so
+  // wait for the refetched page to render before scrolling.
+  useEffect(() => {
+    if (isDetachedFromPresent) {
+      wasDetachedRef.current = true;
+      return;
+    }
+    if (!wasDetachedRef.current) return;
+    if (orderedMessages.length === 0) return;
+    wasDetachedRef.current = false;
+    requestAnimationFrame(() => scrollToBottomRef.current());
+  }, [isDetachedFromPresent, orderedMessages]);
 
   // Phase 2 of the virtualization gate: activate/deactivate the virtual
   // renderer one commit after the raw decision changes. On legacy → virtual,

@@ -469,6 +469,138 @@ describe('MessageContainer', () => {
     });
   });
 
+  // ── Detached → live scroll follow-through (#404 fix round 3) ─────────
+  describe('detached → live scroll follow-through', () => {
+    beforeEach(() => {
+      // Run rAF callbacks synchronously so the deferred scroll is observable
+      // without waiting on a real animation frame.
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      });
+    });
+
+    it('scrolls to bottom once the reset completes and the refetched page renders', () => {
+      const resetToPresent = vi.fn(() => Promise.resolve());
+      // The stale detached window still has content (a deep-scrollback page,
+      // not "no messages yet") — the scroll container exists throughout.
+      const staleMessages = [createMessage({ id: 'stale-1' })];
+      const { rerender } = renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={staleMessages}
+          mode="normal"
+          isDetachedFromPresent
+          resetToPresent={resetToPresent}
+        />,
+      );
+
+      const container = getScrollContainer();
+      container.scrollTo = vi.fn();
+
+      // The reset resolves and the refetched live page renders in the same
+      // commit: isDetachedFromPresent flips false with non-empty messages.
+      const liveMessages = [createMessage({ id: 'live-1' })];
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={liveMessages}
+          mode="normal"
+          isDetachedFromPresent={false}
+          resetToPresent={resetToPresent}
+        />,
+      );
+
+      expect(container.scrollTo).toHaveBeenCalledWith({
+        top: container.scrollHeight,
+        behavior: 'smooth',
+      });
+    });
+
+    it('does not scroll again on a later unrelated re-render once settled', () => {
+      const resetToPresent = vi.fn(() => Promise.resolve());
+      const staleMessages = [createMessage({ id: 'stale-1' })];
+      const { rerender } = renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={staleMessages}
+          mode="normal"
+          isDetachedFromPresent
+          resetToPresent={resetToPresent}
+        />,
+      );
+
+      const container = getScrollContainer();
+      container.scrollTo = vi.fn();
+
+      const liveMessages = [createMessage({ id: 'live-1' })];
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={liveMessages}
+          mode="normal"
+          isDetachedFromPresent={false}
+          resetToPresent={resetToPresent}
+        />,
+      );
+      // The transition itself scrolls once — sanity-check before asserting
+      // it doesn't happen a second time below.
+      expect(container.scrollTo).toHaveBeenCalledTimes(1);
+      (container.scrollTo as ReturnType<typeof vi.fn>).mockClear();
+
+      // A later, ordinary re-render (still not detached) must not re-trigger
+      // the one-shot "just returned from detachment" scroll.
+      const moreMessages = [createMessage({ id: 'live-2' }), ...liveMessages];
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={moreMessages}
+          mode="normal"
+          isDetachedFromPresent={false}
+          resetToPresent={resetToPresent}
+        />,
+      );
+
+      expect(container.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('does not carry a stale detached flag across a context switch', () => {
+      const resetToPresent = vi.fn(() => Promise.resolve());
+      const staleMessagesA = [createMessage({ id: 'stale-a' })];
+      const { rerender } = renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={staleMessagesA}
+          mode="normal"
+          isDetachedFromPresent
+          resetToPresent={resetToPresent}
+          channelId="channel-a"
+        />,
+      );
+
+      // Switch context (e.g. user navigates to a different channel) while
+      // still marked detached for the old channel; the new channel's own
+      // (non-detached) messages load in the same commit.
+      const messagesB = [createMessage({ id: 'msg-b' })];
+      rerender(
+        <MessageContainer
+          {...defaultProps}
+          messages={messagesB}
+          mode="normal"
+          isDetachedFromPresent={false}
+          resetToPresent={resetToPresent}
+          channelId="channel-b"
+        />,
+      );
+
+      const container = getScrollContainer();
+      // The context-switch commit itself must not trigger the "returned from
+      // detachment" scroll for channel-b — only a genuine detached→live
+      // transition within the SAME context should.
+      expect(container.scrollTo).toBeUndefined();
+    });
+  });
+
   // ── Pagination (load more) ────────────────────────────────────────
   describe('pagination', () => {
     it('calls onLoadMore when top sentinel is intersecting', () => {
