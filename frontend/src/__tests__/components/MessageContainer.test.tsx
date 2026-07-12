@@ -420,6 +420,53 @@ describe('MessageContainer', () => {
       });
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
+
+    it('shows Jump to Present in normal mode when detached from the live edge, even at bottom', () => {
+      const resetToPresent = vi.fn(() => Promise.resolve());
+      const messages = [createMessage({ id: 'msg-1' })];
+
+      renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={messages}
+          mode="normal"
+          isDetachedFromPresent
+          resetToPresent={resetToPresent}
+        />,
+      );
+      expect(screen.getByTestId('jump-to-present-fab')).toBeInTheDocument();
+    });
+
+    it('clicking Jump to Present resets the window to the live edge', async () => {
+      const resetToPresent = vi.fn(() => Promise.resolve());
+      const messages = [createMessage({ id: 'msg-1' })];
+
+      const { user } = renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={messages}
+          mode="normal"
+          isDetachedFromPresent
+          resetToPresent={resetToPresent}
+        />,
+      );
+      await user.click(screen.getByTestId('jump-to-present-fab'));
+      expect(resetToPresent).toHaveBeenCalled();
+    });
+
+    it('does not show Jump to Present in normal mode when not detached', () => {
+      const messages = [createMessage({ id: 'msg-1' })];
+
+      renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={messages}
+          mode="normal"
+          isDetachedFromPresent={false}
+        />,
+      );
+      expect(screen.queryByTestId('jump-to-present-fab')).not.toBeInTheDocument();
+    });
   });
 
   // ── Pagination (load more) ────────────────────────────────────────

@@ -32,6 +32,11 @@ interface MessageContainerProps {
   mode?: 'normal' | 'anchored';
   jumpToPresent?: () => void;
 
+  // Live-edge detachment (normal mode): deep scrollback evicted the newest
+  // page, so the loaded bottom is not the present (#404).
+  isDetachedFromPresent?: boolean;
+  resetToPresent?: () => Promise<void>;
+
   // Message Input
   messageInput: React.ReactNode;
 
@@ -70,6 +75,8 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   hasNewer,
   mode = 'normal',
   jumpToPresent,
+  isDetachedFromPresent,
+  resetToPresent,
   messageInput,
   memberListComponent,
   showMemberList = true,
@@ -142,6 +149,22 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
   const atBottom = isVirtualized ? virtualAtBottom : legacyAtBottom;
   const scrollToBottom = isVirtualized ? scrollToVirtualBottom : legacyScrollToBottom;
+
+  // scrollToBottom's identity changes when the renderer switches (reset
+  // shrinks the list below the virtualization threshold), so route the
+  // deferred scroll through a ref to always call the latest one.
+  const scrollToBottomRef = useRef(scrollToBottom);
+  useLayoutEffect(() => {
+    scrollToBottomRef.current = scrollToBottom;
+  });
+
+  const handleDetachedJumpToPresent = useCallback(() => {
+    void resetToPresent?.().then(() => {
+      // Two frames: one for the query reset to commit, one for the
+      // (possible) virtual→legacy renderer switch to mount.
+      requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottomRef.current()));
+    });
+  }, [resetToPresent]);
 
   // Phase 2 of the virtualization gate: activate/deactivate the virtual
   // renderer one commit after the raw decision changes. On legacy → virtual,
@@ -380,6 +403,24 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             variant="extended"
             size="small"
             onClick={jumpToPresent}
+            data-testid="jump-to-present-fab"
+            sx={{
+              position: "absolute",
+              bottom: 80,
+              right: 16,
+              backgroundColor: "primary.main",
+              "&:hover": { backgroundColor: "primary.dark" },
+              color: "primary.contrastText",
+            }}
+          >
+            <KeyboardArrowDownIcon sx={{ mr: 0.5 }} />
+            Jump to Present
+          </Fab>
+        ) : mode === 'normal' && isDetachedFromPresent && resetToPresent ? (
+          <Fab
+            variant="extended"
+            size="small"
+            onClick={handleDetachedJumpToPresent}
             data-testid="jump-to-present-fab"
             sx={{
               position: "absolute",
