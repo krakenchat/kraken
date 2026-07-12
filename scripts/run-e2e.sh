@@ -25,7 +25,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Dedicated compose project name so cleanup (down -v --remove-orphans) can never
-# touch the dev stack, which runs under the default project name (see #403).
+# touch the dev stack, which runs without -p and therefore under the
+# directory-derived default project name (see #403).
 COMPOSE="docker compose -p kraken-e2e -f docker-compose.e2e.yml"
 
 # Parse arguments

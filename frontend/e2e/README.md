@@ -130,6 +130,13 @@ See `.github/workflows/e2e-tests.yml` for configuration.
 docker compose -p kraken-e2e -f docker-compose.e2e.yml build --no-cache
 ```
 
+If the e2e Postgres port (5433) collides with something already running on your
+host, override it:
+
+```bash
+E2E_POSTGRES_PORT=5533 ./scripts/run-e2e.sh
+```
+
 ### Database seed fails
 
 ```bash
