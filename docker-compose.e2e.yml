@@ -6,7 +6,7 @@ services:
   postgres-test:
     image: postgres:17
     ports:
-      - "5433:5432"  # Different port to avoid conflicts
+      - "${E2E_POSTGRES_PORT:-5433}:5432"  # Different port to avoid conflicts; override if 5433 is taken
     environment:
       POSTGRES_USER: semaphore
       POSTGRES_PASSWORD: semaphore

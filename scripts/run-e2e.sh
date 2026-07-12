@@ -24,6 +24,11 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Dedicated compose project name so cleanup (down -v --remove-orphans) can never
+# touch the dev stack, which runs without -p and therefore under the
+# directory-derived default project name (see #403).
+COMPOSE="docker compose -p kraken-e2e -f docker-compose.e2e.yml"
+
 # Parse arguments
 ALL_BROWSERS=false
 UI_MODE=false
@@ -73,7 +78,7 @@ echo ""
 cleanup() {
   echo -e "\n${YELLOW}🧹 Cleaning up Docker containers...${NC}"
   cd "$PROJECT_ROOT"
-  docker-compose -f docker-compose.e2e.yml down -v --remove-orphans 2>/dev/null || true
+  $COMPOSE down -v --remove-orphans 2>/dev/null || true
   echo -e "${GREEN}✓ Cleanup complete${NC}"
 }
 
@@ -89,13 +94,13 @@ trap cleanup EXIT
 # Step 1: Start E2E containers
 echo -e "${BLUE}📦 Starting E2E Docker containers...${NC}"
 cd "$PROJECT_ROOT"
-docker-compose -f docker-compose.e2e.yml down -v --remove-orphans 2>/dev/null || true
-docker-compose -f docker-compose.e2e.yml up -d postgres-test redis-test
+$COMPOSE down -v --remove-orphans 2>/dev/null || true
+$COMPOSE up -d postgres-test redis-test
 
 # Wait for PostgreSQL to be ready
 echo -e "${YELLOW}⏳ Waiting for PostgreSQL...${NC}"
 for i in {1..30}; do
-  if docker-compose -f docker-compose.e2e.yml exec -T postgres-test pg_isready -U semaphore > /dev/null 2>&1; then
+  if $COMPOSE exec -T postgres-test pg_isready -U semaphore > /dev/null 2>&1; then
     echo -e "${GREEN}✓ PostgreSQL is ready${NC}"
     break
   fi
@@ -109,7 +114,7 @@ done
 # Wait for Redis to be ready
 echo -e "${YELLOW}⏳ Waiting for Redis...${NC}"
 for i in {1..30}; do
-  if docker-compose -f docker-compose.e2e.yml exec -T redis-test redis-cli ping > /dev/null 2>&1; then
+  if $COMPOSE exec -T redis-test redis-cli ping > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Redis is ready${NC}"
     break
   fi
@@ -122,7 +127,7 @@ done
 
 # Start backend
 echo -e "${BLUE}🚀 Starting backend service...${NC}"
-docker-compose -f docker-compose.e2e.yml up -d backend-test
+$COMPOSE up -d backend-test
 
 # Wait for backend
 echo -e "${YELLOW}⏳ Waiting for backend...${NC}"
@@ -134,7 +139,7 @@ for i in {1..60}; do
   sleep 2
   if [ $i -eq 60 ]; then
     echo -e "${RED}✗ Backend failed to start. Logs:${NC}"
-    docker-compose -f docker-compose.e2e.yml logs backend-test --tail=50
+    $COMPOSE logs backend-test --tail=50
     exit 1
   fi
 done
@@ -142,10 +147,10 @@ done
 # Step 2: Migrate + seed the database (volumes are fresh after `down -v`,
 # so the schema must be applied before seeding — same order as CI)
 echo -e "${BLUE}🗄️  Running database migrations...${NC}"
-docker-compose -f docker-compose.e2e.yml exec -T backend-test pnpm run prisma:migrate
+$COMPOSE exec -T backend-test pnpm run prisma:migrate
 
 echo -e "${BLUE}🌱 Seeding test database...${NC}"
-docker-compose -f docker-compose.e2e.yml exec -T backend-test npx ts-node prisma/seed-e2e.ts || {
+$COMPOSE exec -T backend-test npx ts-node prisma/seed-e2e.ts || {
   echo -e "${YELLOW}⚠️  Seed script not found, creating test user via API...${NC}"
 
   # Fallback: create users via API
@@ -161,7 +166,7 @@ echo -e "${GREEN}✓ Database seeded${NC}"
 
 # Start frontend
 echo -e "${BLUE}🌐 Starting frontend service...${NC}"
-docker-compose -f docker-compose.e2e.yml up -d frontend-test
+$COMPOSE up -d frontend-test
 
 # Wait for frontend
 echo -e "${YELLOW}⏳ Waiting for frontend...${NC}"
@@ -173,7 +178,7 @@ for i in {1..60}; do
   sleep 2
   if [ $i -eq 60 ]; then
     echo -e "${RED}✗ Frontend failed to start. Logs:${NC}"
-    docker-compose -f docker-compose.e2e.yml logs frontend-test --tail=50
+    $COMPOSE logs frontend-test --tail=50
     exit 1
   fi
 done
