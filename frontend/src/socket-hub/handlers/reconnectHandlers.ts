@@ -1,22 +1,35 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, InfiniteData } from '@tanstack/react-query';
 import {
   readReceiptsControllerGetUnreadCountsQueryKey,
   notificationsControllerGetUnreadCountQueryKey,
   notificationsControllerGetNotificationsQueryKey,
 } from '../../api-client/@tanstack/react-query.gen';
+import type { PaginatedMessagesResponseDto } from '../../api-client/types.gen';
+import { isDetachedFromLiveEdge } from '../../utils/messageCacheUpdaters';
 
 /**
  * Consolidated reconnect handler. After a socket reconnect, invalidate all
  * caches that may have missed updates during the disconnect gap.
  */
 export function handleReconnect(queryClient: QueryClient): void {
-  // Messages
-  queryClient.invalidateQueries({
-    queryKey: [{ _id: 'messagesControllerFindAllForChannel' }],
-  });
-  queryClient.invalidateQueries({
-    queryKey: [{ _id: 'messagesControllerFindAllForGroup' }],
-  });
+  // Messages. A detached window (newest page evicted at MESSAGE_MAX_PAGES)
+  // cannot be recovered by invalidation — the refetch replays the stored
+  // cursors, which no longer include the live edge. Reset those instead.
+  for (const _id of [
+    'messagesControllerFindAllForChannel',
+    'messagesControllerFindAllForGroup',
+  ]) {
+    for (const query of queryClient.getQueryCache().findAll({ queryKey: [{ _id }] })) {
+      const data = query.state.data as
+        | InfiniteData<PaginatedMessagesResponseDto>
+        | undefined;
+      if (isDetachedFromLiveEdge(data)) {
+        void queryClient.resetQueries({ queryKey: query.queryKey, exact: true });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
+      }
+    }
+  }
 
   // Read receipts
   queryClient.invalidateQueries({
