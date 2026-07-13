@@ -12,6 +12,10 @@ import { DatabaseService } from '../database/database.service';
 import { InviteService } from '../invite/invite.service';
 import { ChannelsService } from '../channels/channels.service';
 import { RolesService } from '../roles/roles.service';
+import {
+  EpochBump,
+  PermissionsCacheService,
+} from '../roles/permissions-cache.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { UserEntity } from './dto/user-response.dto';
@@ -28,6 +32,7 @@ export class UserService {
     private channelsService: ChannelsService,
     private rolesService: RolesService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
 
   async findByUsername(username: string): Promise<User | null> {
@@ -71,6 +76,11 @@ export class UserService {
     const role = userCount === 0 ? InstanceRole.OWNER : InstanceRole.USER;
     const verified = userCount === 0;
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Epoch bumps from the tx-nested role mutations below are collected here
+    // and executed only after the transaction commits (see
+    // PermissionsCacheService — bumping pre-commit races concurrent readers).
+    const pendingBumps: EpochBump[] = [];
 
     const user = await this.databaseService.$transaction(async (tx) => {
       const lowerName = username.toLowerCase();
@@ -136,6 +146,7 @@ export class UserService {
               await this.rolesService.createMemberRoleForCommunity(
                 communityId,
                 tx,
+                pendingBumps,
               );
               memberRole =
                 await this.rolesService.getCommunityMemberRole(communityId);
@@ -147,6 +158,7 @@ export class UserService {
                 communityId,
                 memberRole.id,
                 tx,
+                pendingBumps,
               );
               this.logger.log(
                 `Assigned Member role to user ${createdUser.id} in community ${communityId}`,
@@ -168,6 +180,11 @@ export class UserService {
 
       return createdUser;
     });
+
+    // Transaction committed — flush the deferred epoch bumps. On rollback
+    // this line is never reached, which is correct (nothing changed in the
+    // DB). executeBumps never throws (fail-open, logged).
+    await this.permissionsCacheService.executeBumps(pendingBumps);
 
     return user;
   }

@@ -22,6 +22,16 @@ export type PermissionScope =
   | { kind: 'instance' }
   | { kind: 'community'; communityId: string };
 
+/**
+ * A deferred epoch bump, described as data so it can be collected inside a
+ * caller-owned transaction and executed only after that transaction commits.
+ * See RolesService for the collection side and `executeBumps` for the flush.
+ */
+export type EpochBump =
+  | { kind: 'user'; userId: string }
+  | { kind: 'community'; communityId: string }
+  | { kind: 'instance' };
+
 export interface PermissionEpochs {
   userEpoch: number;
   scopeEpoch: number;
@@ -81,6 +91,20 @@ export type PermissionCacheReadResult =
  * is logged at `error` (every time — bumps are rare, so no throttling) and
  * swallowed rather than thrown, so a wedged Redis cannot turn role
  * management into a 500.
+ *
+ * ## Bump ordering vs. transactions
+ *
+ * A bump must happen strictly AFTER the corresponding DB write commits.
+ * Bumping while the transaction is still open creates a race: a concurrent
+ * reader can miss under the NEW epoch, query the DB (which still shows
+ * pre-commit data), and cache that stale result under the post-commit
+ * epoch — a stale grant that persists until the next bump or TTL expiry.
+ * Mutations that own their write (no caller transaction) simply bump right
+ * after the awaited write. Mutations that run inside a caller-owned
+ * transaction instead record an `EpochBump` onto the caller's collector,
+ * and the caller flushes it via `executeBumps` after `$transaction`
+ * resolves. If the transaction rolls back, the collected bumps are simply
+ * never executed — correct, since nothing changed in the DB.
  */
 @Injectable()
 export class PermissionsCacheService {
@@ -154,6 +178,41 @@ export class PermissionsCacheService {
   /** Bump on any instance-level role DEFINITION change. */
   async bumpInstanceEpoch(): Promise<void> {
     await this.bump(this.instanceEpochKey());
+  }
+
+  /** Execute a single bump described as data (see EpochBump). Never throws —
+   * same fail-open posture as the direct bump methods. */
+  async executeBump(bump: EpochBump): Promise<void> {
+    switch (bump.kind) {
+      case 'user':
+        return this.bumpUserEpoch(bump.userId);
+      case 'community':
+        return this.bumpCommunityEpoch(bump.communityId);
+      case 'instance':
+        return this.bumpInstanceEpoch();
+    }
+  }
+
+  /**
+   * Flush epoch bumps that were deferred during a caller-owned transaction.
+   * Call this immediately after `$transaction` resolves (i.e. after commit),
+   * awaited. Duplicate bumps for the same epoch key are coalesced into one
+   * INCR. Never throws — each underlying bump already logs-and-swallows its
+   * own failures.
+   */
+  async executeBumps(bumps: EpochBump[]): Promise<void> {
+    const seen = new Set<string>();
+    for (const bump of bumps) {
+      const key =
+        bump.kind === 'user'
+          ? this.userEpochKey(bump.userId)
+          : bump.kind === 'community'
+            ? this.communityEpochKey(bump.communityId)
+            : this.instanceEpochKey();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      await this.executeBump(bump);
+    }
   }
 
   // ---------------------------------------------------------------------

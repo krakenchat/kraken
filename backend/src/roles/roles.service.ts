@@ -2,7 +2,10 @@ import { DatabaseService } from '@/database/database.service';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoomEvents } from '@/rooms/room-subscription.events';
-import { PermissionsCacheService } from './permissions-cache.service';
+import {
+  EpochBump,
+  PermissionsCacheService,
+} from './permissions-cache.service';
 import {
   Injectable,
   Logger,
@@ -54,6 +57,47 @@ export class RolesService implements OnModuleInit {
       this.logger.warn(
         `Could not ensure default instance roles exist: ${message}`,
       );
+    }
+  }
+
+  /**
+   * Epoch-bump helper for role mutations that can run inside a caller-owned
+   * transaction. Two modes:
+   *
+   * - Without `tx`: the mutation's write is already committed, so bump
+   *   immediately (awaited) — the invalidation is visible before the
+   *   mutation returns.
+   * - With `tx` + `pendingBumps`: the write is NOT committed yet. Bumping
+   *   now would open a race where a concurrent reader misses under the new
+   *   epoch, reads pre-commit data from the DB, and caches it under the
+   *   post-commit epoch — a stale grant. So instead the bump is recorded on
+   *   the caller's collector; the transaction owner flushes it via
+   *   `PermissionsCacheService.executeBumps` right after `$transaction`
+   *   resolves. On rollback the collected bumps are never executed, which
+   *   is correct (nothing changed in the DB).
+   * - With `tx` but no collector (defensive fallback — every tx caller in
+   *   the codebase passes one): bump immediately anyway. That re-opens the
+   *   narrow pre-commit race above, but silently dropping the bump would be
+   *   strictly worse (guaranteed stale grant for up to the value TTL).
+   */
+  private async bumpNowOrDefer(
+    bump: EpochBump,
+    tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
+  ): Promise<void> {
+    if (tx && pendingBumps) {
+      pendingBumps.push(bump);
+      return;
+    }
+    switch (bump.kind) {
+      case 'user':
+        return this.permissionsCacheService.bumpUserEpoch(bump.userId);
+      case 'community':
+        return this.permissionsCacheService.bumpCommunityEpoch(
+          bump.communityId,
+        );
+      case 'instance':
+        return this.permissionsCacheService.bumpInstanceEpoch();
     }
   }
 
@@ -174,6 +218,7 @@ export class RolesService implements OnModuleInit {
   async createDefaultCommunityRoles(
     communityId: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<string> {
     const database = tx || this.databaseService;
     const defaultRoles = getDefaultCommunityRoles();
@@ -197,8 +242,13 @@ export class RolesService implements OnModuleInit {
       }
     }
 
-    // Role definitions changed for this community.
-    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+    // Role definitions changed for this community (bump deferred to after
+    // commit when running inside a caller-owned transaction).
+    await this.bumpNowOrDefer(
+      { kind: 'community', communityId },
+      tx,
+      pendingBumps,
+    );
 
     return adminRoleId!;
   }
@@ -211,6 +261,7 @@ export class RolesService implements OnModuleInit {
     communityId: string,
     roleId: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<void> {
     const database = tx || this.databaseService;
 
@@ -229,11 +280,10 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    // Role assignment changed for this user — always bump, even inside a
-    // transaction (unlike the event emission below): worst case is a
-    // spurious cache miss if the transaction later rolls back, which is
-    // safe. A skipped bump is not.
-    await this.permissionsCacheService.bumpUserEpoch(userId);
+    // Role assignment changed for this user. Like the event emission below,
+    // the bump must not happen while a caller-owned transaction is still
+    // open — see bumpNowOrDefer for the pre-commit race this avoids.
+    await this.bumpNowOrDefer({ kind: 'user', userId }, tx, pendingBumps);
 
     // Only emit when not called within a transaction (e.g., community creation)
     if (!tx) {
@@ -323,6 +373,7 @@ export class RolesService implements OnModuleInit {
   async createMemberRoleForCommunity(
     communityId: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<string> {
     const database = tx || this.databaseService;
 
@@ -336,7 +387,11 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+    await this.bumpNowOrDefer(
+      { kind: 'community', communityId },
+      tx,
+      pendingBumps,
+    );
 
     return role.id;
   }
@@ -507,6 +562,7 @@ export class RolesService implements OnModuleInit {
     userId?: string,
     userInstanceRole?: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<RoleDto> {
     const database = tx || this.databaseService;
 
@@ -588,7 +644,11 @@ export class RolesService implements OnModuleInit {
       `Created custom role "${createRoleDto.name}" for community ${communityId}`,
     );
 
-    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+    await this.bumpNowOrDefer(
+      { kind: 'community', communityId },
+      tx,
+      pendingBumps,
+    );
 
     // Only emit when not called within a transaction (e.g., community creation)
     if (!tx) {
@@ -619,6 +679,7 @@ export class RolesService implements OnModuleInit {
     userId?: string,
     userInstanceRole?: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<RoleDto> {
     const database = tx || this.databaseService;
 
@@ -717,7 +778,11 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Updated role ${roleId}`);
 
-    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+    await this.bumpNowOrDefer(
+      { kind: 'community', communityId },
+      tx,
+      pendingBumps,
+    );
 
     if (!tx) {
       this.eventEmitter.emit(RoomEvents.ROLE_UPDATED, {
@@ -744,6 +809,7 @@ export class RolesService implements OnModuleInit {
     roleId: string,
     communityId: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<void> {
     const database = tx || this.databaseService;
 
@@ -784,7 +850,11 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Deleted role ${roleId}`);
 
-    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+    await this.bumpNowOrDefer(
+      { kind: 'community', communityId },
+      tx,
+      pendingBumps,
+    );
 
     if (!tx) {
       this.eventEmitter.emit(RoomEvents.ROLE_DELETED, {
@@ -802,6 +872,7 @@ export class RolesService implements OnModuleInit {
     communityId: string,
     roleId: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<void> {
     const database = tx || this.databaseService;
 
@@ -827,7 +898,7 @@ export class RolesService implements OnModuleInit {
       `Removed user ${userId} from role ${roleId} in community ${communityId}`,
     );
 
-    await this.permissionsCacheService.bumpUserEpoch(userId);
+    await this.bumpNowOrDefer({ kind: 'user', userId }, tx, pendingBumps);
 
     if (!tx) {
       this.eventEmitter.emit(RoomEvents.ROLE_UNASSIGNED, {
@@ -878,6 +949,7 @@ export class RolesService implements OnModuleInit {
    */
   async createDefaultInstanceRole(
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<string> {
     const database = tx || this.databaseService;
 
@@ -902,7 +974,7 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.permissionsCacheService.bumpInstanceEpoch();
+    await this.bumpNowOrDefer({ kind: 'instance' }, tx, pendingBumps);
 
     this.logger.log(`Created default instance admin role: ${role.id}`);
     return role.id;
@@ -1116,6 +1188,7 @@ export class RolesService implements OnModuleInit {
     userId: string,
     roleId: string,
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<void> {
     const database = tx || this.databaseService;
 
@@ -1150,7 +1223,7 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.permissionsCacheService.bumpUserEpoch(userId);
+    await this.bumpNowOrDefer({ kind: 'user', userId }, tx, pendingBumps);
 
     this.logger.log(
       `Assigned user ${userId} to instance role ${roleId} (${role.name})`,
@@ -1224,6 +1297,7 @@ export class RolesService implements OnModuleInit {
    */
   async createDefaultCommunityCreatorRole(
     tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
   ): Promise<string> {
     const database = tx || this.databaseService;
 
@@ -1248,7 +1322,7 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.permissionsCacheService.bumpInstanceEpoch();
+    await this.bumpNowOrDefer({ kind: 'instance' }, tx, pendingBumps);
 
     this.logger.log(`Created default Community Creator role: ${role.id}`);
     return role.id;

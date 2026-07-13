@@ -12,7 +12,10 @@ import { RolesService } from '@/roles/roles.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { isPrismaError } from '@/common/utils/prisma.utils';
-import { PermissionsCacheService } from '@/roles/permissions-cache.service';
+import {
+  EpochBump,
+  PermissionsCacheService,
+} from '@/roles/permissions-cache.service';
 
 @Injectable()
 export class CommunityService {
@@ -25,8 +28,13 @@ export class CommunityService {
     private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
   async create(createCommunityDto: CreateCommunityDto, creatorId: string) {
+    // Epoch bumps from the tx-nested role mutations below are collected here
+    // and executed only after the transaction commits — bumping while the
+    // transaction is still open would let a concurrent reader cache
+    // pre-commit permission data under the post-commit epoch.
+    const pendingBumps: EpochBump[] = [];
     try {
-      return await this.databaseService.$transaction(async (tx) => {
+      const community = await this.databaseService.$transaction(async (tx) => {
         const community = await tx.community.create({
           data: createCommunityDto,
         });
@@ -49,6 +57,7 @@ export class CommunityService {
         const adminRoleId = await this.rolesService.createDefaultCommunityRoles(
           community.id,
           tx,
+          pendingBumps,
         );
 
         // Assign the creator as admin of the community
@@ -57,10 +66,18 @@ export class CommunityService {
           community.id,
           adminRoleId,
           tx,
+          pendingBumps,
         );
 
         return community;
       });
+
+      // Transaction committed — flush the deferred epoch bumps. On rollback
+      // (transaction threw) this is never reached, which is correct: nothing
+      // changed in the DB. executeBumps never throws (fail-open, logged).
+      await this.permissionsCacheService.executeBumps(pendingBumps);
+
+      return community;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
         throw new ConflictException('Duplicate community name');

@@ -366,6 +366,86 @@ describe('PermissionsCacheService', () => {
     });
   });
 
+  describe('executeBump / executeBumps (deferred post-commit bumps)', () => {
+    it('executeBump maps each bump kind to the correct epoch key', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+
+      await service.executeBump({ kind: 'user', userId: 'user-1' });
+      await service.executeBump({
+        kind: 'community',
+        communityId: 'community-1',
+      });
+      await service.executeBump({ kind: 'instance' });
+
+      expect(incr.mock.calls.map((c) => c[0])).toEqual([
+        'rbac:epoch:user:user-1',
+        'rbac:epoch:community:community-1',
+        'rbac:epoch:instance',
+      ]);
+    });
+
+    it('executeBumps executes every collected bump', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+
+      await service.executeBumps([
+        { kind: 'community', communityId: 'community-1' },
+        { kind: 'user', userId: 'user-1' },
+        { kind: 'instance' },
+      ]);
+
+      expect(incr.mock.calls.map((c) => c[0])).toEqual([
+        'rbac:epoch:community:community-1',
+        'rbac:epoch:user:user-1',
+        'rbac:epoch:instance',
+      ]);
+    });
+
+    it('executeBumps coalesces duplicate bumps for the same key', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+
+      await service.executeBumps([
+        { kind: 'user', userId: 'user-1' },
+        { kind: 'instance' },
+        { kind: 'user', userId: 'user-1' },
+        { kind: 'instance' },
+        { kind: 'user', userId: 'user-2' },
+      ]);
+
+      expect(incr.mock.calls.map((c) => c[0])).toEqual([
+        'rbac:epoch:user:user-1',
+        'rbac:epoch:instance',
+        'rbac:epoch:user:user-2',
+      ]);
+    });
+
+    it('executeBumps is a no-op for an empty collector', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+
+      await service.executeBumps([]);
+
+      expect(incr).not.toHaveBeenCalled();
+    });
+
+    it('executeBumps never throws — failures are logged per bump', async () => {
+      const incr = jest.fn().mockRejectedValue(new Error('Redis down'));
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+      const errorSpy = spyOnError(service);
+
+      await expect(
+        service.executeBumps([
+          { kind: 'user', userId: 'user-1' },
+          { kind: 'instance' },
+        ]),
+      ).resolves.toBeUndefined();
+
+      expect(errorSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('warning rate limiting on read failures', () => {
     it('logs at most one warning per 30 seconds', async () => {
       const redis = makeRedis({

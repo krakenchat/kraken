@@ -2,7 +2,10 @@ import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { RolesService } from './roles.service';
 import { DatabaseService } from '@/database/database.service';
-import { PermissionsCacheService } from './permissions-cache.service';
+import {
+  PermissionsCacheService,
+  type EpochBump,
+} from './permissions-cache.service';
 import { RbacActions } from '@prisma/client';
 import {
   createMockDatabase,
@@ -2326,6 +2329,267 @@ describe('RolesService', () => {
       await service.ensureDefaultInstanceRolesExist();
 
       expect(permissionsCacheService.bumpInstanceEpoch).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===========================================================================
+  // Deferred epoch bumps — when a method runs inside a caller-owned
+  // transaction (tx + pendingBumps collector), it must NOT bump during the
+  // transaction; it records the bump on the collector instead, and the
+  // transaction owner flushes after commit via executeBumps. Bumping while
+  // the transaction is open would let a concurrent reader cache pre-commit
+  // permission data under the post-commit epoch.
+  // ===========================================================================
+  describe('Deferred epoch bumps inside caller-owned transactions', () => {
+    const expectNoImmediateBumps = () => {
+      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
+      expect(permissionsCacheService.bumpCommunityEpoch).not.toHaveBeenCalled();
+      expect(permissionsCacheService.bumpInstanceEpoch).not.toHaveBeenCalled();
+      expect(permissionsCacheService.executeBump).not.toHaveBeenCalled();
+      expect(permissionsCacheService.executeBumps).not.toHaveBeenCalled();
+    };
+
+    it('createDefaultCommunityRoles defers the community bump when tx-nested', async () => {
+      const communityId = 'community-defer-1';
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ name: 'Community Admin', communityId }),
+      );
+
+      await service.createDefaultCommunityRoles(
+        communityId,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+    });
+
+    it('assignUserToCommunityRole defers the user bump when tx-nested', async () => {
+      const userId = 'user-defer-1';
+      const communityId = 'community-defer-2';
+      const roleId = 'role-defer-1';
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.findUnique.mockResolvedValue(
+        RoleFactory.build({ id: roleId, communityId }),
+      );
+      mockDatabase.userRoles.create.mockResolvedValue({});
+
+      await service.assignUserToCommunityRole(
+        userId,
+        communityId,
+        roleId,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'user', userId }]);
+    });
+
+    it('createMemberRoleForCommunity defers the community bump when tx-nested', async () => {
+      const communityId = 'community-defer-3';
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ name: 'Member', communityId }),
+      );
+
+      await service.createMemberRoleForCommunity(
+        communityId,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+    });
+
+    it('createCommunityRole defers the community bump when tx-nested', async () => {
+      const communityId = 'community-defer-4';
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.aggregate.mockResolvedValue({ _max: { position: 20 } });
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId }),
+      );
+
+      await service.createCommunityRole(
+        communityId,
+        { name: 'New Role', actions: [RbacActions.CREATE_MESSAGE] },
+        undefined,
+        undefined,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+    });
+
+    it('updateRole defers the community bump when tx-nested', async () => {
+      const communityId = 'community-defer-5';
+      const roleId = 'role-defer-5';
+      const pendingBumps: EpochBump[] = [];
+      const existingRole = RoleFactory.build({
+        id: roleId,
+        communityId,
+        isDefault: false,
+      });
+      mockDatabase.role.findUnique.mockResolvedValue(existingRole);
+      mockDatabase.role.update.mockResolvedValue({
+        ...existingRole,
+        actions: [RbacActions.READ_MESSAGE],
+      });
+
+      await service.updateRole(
+        roleId,
+        communityId,
+        { actions: [RbacActions.READ_MESSAGE] },
+        undefined,
+        undefined,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+    });
+
+    it('deleteRole defers the community bump when tx-nested', async () => {
+      const communityId = 'community-defer-6';
+      const roleId = 'role-defer-6';
+      const pendingBumps: EpochBump[] = [];
+      const role = RoleFactory.build({
+        id: roleId,
+        communityId,
+        isDefault: false,
+      });
+      mockDatabase.role.findUnique.mockResolvedValue({
+        ...role,
+        UserRoles: [],
+      });
+      mockDatabase.role.delete.mockResolvedValue(role);
+
+      await service.deleteRole(
+        roleId,
+        communityId,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+    });
+
+    it('removeUserFromCommunityRole defers the user bump when tx-nested', async () => {
+      const userId = 'user-defer-2';
+      const communityId = 'community-defer-7';
+      const roleId = 'role-defer-7';
+      const pendingBumps: EpochBump[] = [];
+      const userRole = { id: 'user-role-defer', userId, communityId, roleId };
+      mockDatabase.userRoles.findFirst.mockResolvedValue(userRole);
+      mockDatabase.userRoles.delete.mockResolvedValue(userRole);
+
+      await service.removeUserFromCommunityRole(
+        userId,
+        communityId,
+        roleId,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'user', userId }]);
+    });
+
+    it('createDefaultInstanceRole defers the instance bump when tx-nested', async () => {
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId: null }),
+      );
+
+      await service.createDefaultInstanceRole(
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'instance' }]);
+    });
+
+    it('assignUserToInstanceRole defers the user bump when tx-nested', async () => {
+      const userId = 'user-defer-3';
+      const roleId = 'role-defer-8';
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.findUnique.mockResolvedValue(
+        RoleFactory.build({ id: roleId }),
+      );
+      mockDatabase.userRoles.findFirst.mockResolvedValue(null);
+      mockDatabase.userRoles.create.mockResolvedValue({});
+
+      await service.assignUserToInstanceRole(
+        userId,
+        roleId,
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'user', userId }]);
+    });
+
+    it('createDefaultCommunityCreatorRole defers the instance bump when tx-nested', async () => {
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId: null }),
+      );
+
+      await service.createDefaultCommunityCreatorRole(
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([{ kind: 'instance' }]);
+    });
+
+    it('does not record a bump when the idempotent create finds an existing role', async () => {
+      const pendingBumps: EpochBump[] = [];
+      mockDatabase.role.findFirst.mockResolvedValue(
+        RoleFactory.build({ communityId: null }),
+      );
+
+      await service.createDefaultInstanceRole(
+        mockDatabase as any,
+        pendingBumps,
+      );
+
+      expectNoImmediateBumps();
+      expect(pendingBumps).toEqual([]);
+    });
+
+    it('falls back to an immediate bump when tx is given without a collector', async () => {
+      const userId = 'user-defer-fallback';
+      const communityId = 'community-defer-8';
+      const roleId = 'role-defer-9';
+      mockDatabase.role.findUnique.mockResolvedValue(
+        RoleFactory.build({ id: roleId, communityId }),
+      );
+      mockDatabase.userRoles.create.mockResolvedValue({});
+
+      await service.assignUserToCommunityRole(
+        userId,
+        communityId,
+        roleId,
+        mockDatabase as any,
+      );
+
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        userId,
+      );
     });
   });
 });

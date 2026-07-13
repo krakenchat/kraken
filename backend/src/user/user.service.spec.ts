@@ -5,6 +5,7 @@ import { DatabaseService } from '@/database/database.service';
 import { InviteService } from '@/invite/invite.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { RolesService } from '@/roles/roles.service';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import {
   ConflictException,
   ForbiddenException,
@@ -28,6 +29,7 @@ describe('UserService', () => {
   let inviteService: Mocked<InviteService>;
   let channelsService: Mocked<ChannelsService>;
   let rolesService: Mocked<RolesService>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -41,6 +43,7 @@ describe('UserService', () => {
     inviteService = unitRef.get(InviteService);
     channelsService = unitRef.get(ChannelsService);
     rolesService = unitRef.get(RolesService);
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
 
     // Mock bcrypt
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
@@ -362,6 +365,7 @@ describe('UserService', () => {
         communityId,
         memberRole.id,
         expect.anything(),
+        expect.any(Array),
       );
     });
 
@@ -397,6 +401,7 @@ describe('UserService', () => {
       expect(rolesService.createMemberRoleForCommunity).toHaveBeenCalledWith(
         communityId,
         expect.anything(),
+        expect.any(Array),
       );
     });
 
@@ -458,6 +463,107 @@ describe('UserService', () => {
       );
 
       expect(result).toEqual(newUser);
+    });
+
+    it('flushes deferred epoch bumps only after the transaction commits', async () => {
+      const communityId = 'community-123';
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId },
+      ];
+      const newUser = UserFactory.build();
+      const memberRole = RoleFactory.buildMember();
+      const order: string[] = [];
+
+      mockDatabase.user.findFirst.mockResolvedValue(null);
+      mockDatabase.user.count.mockResolvedValue(1);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
+      mockDatabase.user.create.mockResolvedValue(newUser);
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
+      // The (mocked) tx-nested role mutation records its bump on the
+      // collector the service passes in, like the real implementation does.
+      rolesService.assignUserToCommunityRole.mockImplementation(((
+        userId: string,
+        _communityId: string,
+        _roleId: string,
+        _tx: unknown,
+        bumps: any[],
+      ) => {
+        bumps.push({ kind: 'user', userId });
+        return Promise.resolve();
+      }) as any);
+
+      mockDatabase.$transaction.mockImplementation(async (cb: any) => {
+        const result = await cb(mockDatabase);
+        order.push('commit');
+        return result;
+      });
+      permissionsCacheService.executeBumps.mockImplementation(() => {
+        order.push('flush-bumps');
+        return Promise.resolve();
+      });
+
+      const result = await service.createUser(
+        'invite-code',
+        'user',
+        'password',
+      );
+
+      expect(result).toEqual(newUser);
+      // Bumps must flush strictly AFTER the transaction resolves (commit).
+      expect(order).toEqual(['commit', 'flush-bumps']);
+      expect(permissionsCacheService.executeBumps).toHaveBeenCalledWith([
+        { kind: 'user', userId: newUser.id },
+      ]);
+      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
+    });
+
+    it('does not flush epoch bumps when the transaction rolls back', async () => {
+      const communityId = 'community-123';
+      const invite = InstanceInviteFactory.build();
+      (invite as any).defaultCommunities = [
+        { id: 'dc-1', inviteId: invite.id, communityId },
+      ];
+      const newUser = UserFactory.build();
+      const memberRole = RoleFactory.buildMember();
+
+      mockDatabase.user.findFirst.mockResolvedValue(null);
+      mockDatabase.user.count.mockResolvedValue(1);
+      inviteService.validateInviteCode.mockResolvedValue(invite as any);
+      inviteService.redeemInviteWithTx.mockResolvedValue(invite as any);
+      mockDatabase.user.create.mockResolvedValue(newUser);
+      channelsService.addUserToGeneralChannel.mockResolvedValue(
+        undefined as any,
+      );
+      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
+      rolesService.assignUserToCommunityRole.mockImplementation(((
+        userId: string,
+        _communityId: string,
+        _roleId: string,
+        _tx: unknown,
+        bumps: any[],
+      ) => {
+        bumps.push({ kind: 'user', userId });
+        return Promise.resolve();
+      }) as any);
+
+      // Simulate a commit failure AFTER the callback (and its bump
+      // collection) succeeded — the deferred bumps must never execute.
+      mockDatabase.$transaction.mockImplementation(async (cb: any) => {
+        await cb(mockDatabase);
+        throw new Error('commit failed');
+      });
+
+      await expect(
+        service.createUser('invite-code', 'user', 'password'),
+      ).rejects.toThrow('commit failed');
+
+      expect(permissionsCacheService.executeBumps).not.toHaveBeenCalled();
+      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
     });
   });
 
