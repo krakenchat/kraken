@@ -121,7 +121,7 @@ export const useJumpToMessage = (
     jumpToPresent,
     // The highlight ID for scroll-to and CSS flash (persists after URL clears)
     highlightMessageId: activeHighlight,
-    // Sequence counter — increments on every jump request so useBidirectionalScroll
+    // Sequence counter — increments on every jump request so VirtualMessageList
     // can distinguish re-clicks to the same message from pagination re-renders.
     highlightSeq,
     // Pass through anchored-specific fields

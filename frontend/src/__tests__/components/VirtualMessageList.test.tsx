@@ -43,8 +43,10 @@ vi.mock('virtua', async () => {
 
 // ── Mock child components ──────────────────────────────────────────────
 vi.mock('../../components/Message/MessageComponent', () => ({
-  default: ({ message }: { message: { id: string } }) => (
-    <div data-testid={`msg-${message.id}`}>message-{message.id}</div>
+  default: ({ message, contextType }: { message: { id: string }; contextType?: string }) => (
+    <div data-testid={`msg-${message.id}`} data-context-type={contextType}>
+      message-{message.id}
+    </div>
   ),
 }));
 vi.mock('../../components/Message/MessageSkeleton', () => ({
@@ -370,34 +372,6 @@ describe('VirtualMessageList', () => {
     expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'end' });
   });
 
-  it('restores the reading position from initialAnchor instead of jumping to the bottom', () => {
-    const onAtBottomChange = vi.fn();
-    render(
-      <VirtualMessageList
-        {...baseProps}
-        orderedMessages={messages(10)}
-        initialAnchor={{ id: 'msg-4', offsetTop: 35 }}
-        onAtBottomChange={onAtBottomChange}
-      />,
-    );
-    expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'start' });
-    expect(fakeHandle.scrollBy).toHaveBeenCalledWith(-35);
-    expect(fakeHandle.scrollToIndex).not.toHaveBeenCalledWith(9, { align: 'end' });
-    expect(onAtBottomChange).toHaveBeenCalledWith(false);
-  });
-
-  it('falls back to the bottom when the initialAnchor id is not in the list', () => {
-    render(
-      <VirtualMessageList
-        {...baseProps}
-        orderedMessages={messages(10)}
-        initialAnchor={{ id: 'gone-msg', offsetTop: 35 }}
-      />,
-    );
-    expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(9, { align: 'end' });
-    expect(fakeHandle.scrollBy).not.toHaveBeenCalled();
-  });
-
   describe('jump-to-message', () => {
     it('scrolls to the highlighted message centered', () => {
       render(
@@ -472,6 +446,450 @@ describe('VirtualMessageList', () => {
         expect.anything(),
         { align: 'center' },
       );
+    });
+  });
+
+  describe('anchored mode', () => {
+    it('centers on the highlightMessageId target on initial mount (double-rAF re-assert)', () => {
+      const onAtBottomChange = vi.fn();
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          highlightMessageId="msg-10"
+          highlightSeq={1}
+          onAtBottomChange={onAtBottomChange}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(10, { align: 'center' });
+      // Never falls back to the normal-mode bottom jump.
+      expect(fakeHandle.scrollToIndex).not.toHaveBeenCalledWith(19, { align: 'end' });
+      expect(onAtBottomChange).toHaveBeenCalledWith(false);
+    });
+
+    it('falls back to mid-list centering when no highlightMessageId is present (flash already expired)', () => {
+      const onAtBottomChange = vi.fn();
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(11)}
+          mode="anchored"
+          onAtBottomChange={onAtBottomChange}
+        />,
+      );
+      // 11 messages, indices 0-10 — midpoint is index 5.
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(5, { align: 'center' });
+      expect(onAtBottomChange).toHaveBeenCalledWith(false);
+    });
+
+    it('re-centers on a fresh anchor when highlightSeq bumps while already anchored', () => {
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          highlightMessageId="msg-10"
+          highlightSeq={1}
+        />,
+      );
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Re-anchoring to a different message (e.g. a second search-hit click)
+      // swaps the underlying data window; the highlightSeq bump must still
+      // re-center even though initial positioning already completed once.
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          highlightMessageId="msg-3"
+          highlightSeq={2}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(3, { align: 'center' });
+    });
+
+    it('re-runs positioning when mode flips from normal to anchored, even with an unchanged resetKey', () => {
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="normal"
+          resetKey="ch-1"
+        />,
+      );
+      fakeHandle.scrollToIndex.mockClear();
+
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          resetKey="ch-1"
+          highlightMessageId="msg-7"
+          highlightSeq={1}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(7, { align: 'center' });
+    });
+
+    it('does NOT stick to the bottom when a newer page appends while pinned in anchored mode', () => {
+      const initial = messages(5);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      // Pin to the bottom of the currently-loaded anchored window.
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // A newer page appends below the viewport (oldest id unchanged).
+      const newer = createMessage({ id: 'newer' });
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={[...initial, newer]}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      // No stick-to-bottom jump — would strand the reader past the loaded
+      // page and cascade newer loads to the present.
+      expect(fakeHandle.scrollToIndex).not.toHaveBeenCalled();
+      // Also confirmed via `shift`: an append never sets shift (oldestId
+      // unchanged), matching the existing prepend-only isPrepend contract.
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('does not set shift when a newer-page load crosses MESSAGE_MAX_PAGES and evicts the oldest page (both boundary ids change)', () => {
+      // TanStack's infinite-query cap evicts from the END OPPOSITE the fetch
+      // direction. Anchored newer-loads fetch via fetchPreviousPage (pages
+      // prepended at the front), so at the cap the OLDEST page (the array's
+      // tail) is evicted while the new newer page is added at the front —
+      // same "oldestId changed AND newestId changed, length unchanged"
+      // signature as the older-load prepend-at-cap case (see the sibling
+      // test above in the top-level describe), but this is an append, not a
+      // prepend: shift must stay false or virtua's scroll compensation would
+      // fire backwards and jump the viewport.
+      const initial = messages(5);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      // Pin to the bottom, as the reader typically is when a background
+      // newer-page load evicts the oldest page.
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Same length (5): drop msg-0 (oldest, evicted), append a newer page.
+      const newer = createMessage({ id: 'at-cap-newer' });
+      const atCap = [...initial.slice(1), newer];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('does not set shift when a page-granular newer-load eviction drops several messages from the front while appending several at the back', () => {
+      // TanStack's maxPages eviction is PAGE-granular, not single-message: a
+      // cap-crossing anchored newer-load drops the ENTIRE oldest page (up to
+      // the around-page's 50-message size), not just its first message. Here
+      // a previous window of 8 has its oldest 3 messages evicted while 3
+      // newer messages are appended — the new head is `prevMessages[3]`, not
+      // `prevMessages[1]`, so a shift-by-one-only check misses this.
+      const initial = messages(8);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Drop the oldest 3 (a whole evicted page), append 3 newer (a whole
+      // newly-fetched page). Length is unchanged (8), but the new head sits
+      // 3 slots into the previous array, not 1.
+      const newer = [
+        createMessage({ id: 'at-cap-newer-1' }),
+        createMessage({ id: 'at-cap-newer-2' }),
+        createMessage({ id: 'at-cap-newer-3' }),
+      ];
+      const atCap = [...initial.slice(3), ...newer];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('does not set shift for a realistic 25-message-page eviction at the anchored around-page cap', () => {
+      // Mirrors production dimensions: useAnchoredMessages fetches with
+      // limit: 25, and the initial "around" page is 50 — so a realistic
+      // newer-load-at-cap eviction drops an entire 25-message page from a
+      // ~50-message loaded window.
+      const initial = messages(50);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      const newer = Array.from({ length: 25 }, (_, i) =>
+        createMessage({ id: `at-cap-newer-${i}` }),
+      );
+      const atCap = [...initial.slice(25), ...newer];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('does not set shift when a partial-page eviction grows the length while still classifying as an append', () => {
+      // A partial-page eviction (fewer messages evicted than appended) grows
+      // `len` relative to the previous render — the classifier must not
+      // require len === prevLen (or len >= prevLen in the wrong direction)
+      // to still recognize this as an append, not a prepend.
+      const initial = messages(8);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Drop the oldest 3, append 5 newer — net length grows from 8 to 10.
+      const newer = Array.from({ length: 5 }, (_, i) =>
+        createMessage({ id: `at-cap-newer-${i}` }),
+      );
+      const atCap = [...initial.slice(3), ...newer];
+      expect(atCap.length).toBe(10);
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('still sets shift=true for a genuine older-page prepend at the cap in anchored mode (mirror of the append case above)', () => {
+      // Anchored mode also supports scrolling further into history via
+      // onLoadMore (older). At the cap that evicts the NEWEST page (same
+      // eviction direction as normal mode) — a genuine prepend, which must
+      // still set shift=true. Pins down that isCapEvictionAppend's overlap
+      // check doesn't accidentally swallow this legitimate case too.
+      const initial = messages(5);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Same length (5): drop msg-4 (newest, evicted), prepend an older page.
+      const older = createMessage({ id: 'at-cap-older' });
+      const atCap = [older, ...initial.slice(0, 4)];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(true);
+    });
+
+    it('triggers onLoadNewer when the visible end index nears the bottom of the loaded window', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi
+        .fn()
+        .mockReturnValueOnce(30) // start
+        .mockReturnValueOnce(48); // end — near the last index (49)
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={true}
+          isLoadingNewer={false}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not trigger onLoadNewer when hasNewer is false', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(30).mockReturnValueOnce(49);
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={false}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger onLoadNewer when isLoadingNewer is true', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(30).mockReturnValueOnce(49);
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={true}
+          isLoadingNewer={true}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger onLoadNewer when far from the bottom of the loaded window', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(5).mockReturnValueOnce(15); // far from end (49)
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={true}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(300));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger onLoadNewer in normal mode even if hasNewer/onLoadNewer are (incorrectly) supplied', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(30).mockReturnValueOnce(49);
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="normal"
+          hasNewer={true}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('loading skeletons', () => {
+    it('shows top skeletons while isLoadingMore is true', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(5)}
+          isLoadingMore={true}
+        />,
+      );
+      expect(screen.getAllByTestId('message-skeleton').length).toBe(3);
+    });
+
+    it('shows bottom skeletons while isLoadingNewer is true (anchored mode)', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(5)}
+          mode="anchored"
+          isLoadingNewer={true}
+        />,
+      );
+      expect(screen.getAllByTestId('message-skeleton').length).toBe(3);
+    });
+
+    it('shows both top and bottom skeletons when both are loading', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(5)}
+          mode="anchored"
+          isLoadingMore={true}
+          isLoadingNewer={true}
+        />,
+      );
+      expect(screen.getAllByTestId('message-skeleton').length).toBe(6);
+    });
+
+    it('shows no skeletons when neither is loading', () => {
+      render(<VirtualMessageList {...baseProps} orderedMessages={messages(5)} />);
+      expect(screen.queryByTestId('message-skeleton')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('context type', () => {
+    it('passes the dm context type to messages when directMessageGroupId is set', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(1)}
+          directMessageGroupId="dm-group-1"
+        />,
+      );
+      expect(screen.getByTestId('msg-msg-0')).toHaveAttribute('data-context-type', 'dm');
+    });
+
+    it('passes the channel context type by default', () => {
+      render(<VirtualMessageList {...baseProps} orderedMessages={messages(1)} />);
+      expect(screen.getByTestId('msg-msg-0')).toHaveAttribute('data-context-type', 'channel');
     });
   });
 });

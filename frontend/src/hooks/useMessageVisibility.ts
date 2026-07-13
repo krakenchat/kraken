@@ -11,43 +11,32 @@ import { isDetachedFromLiveEdge } from "../utils/messageCacheUpdaters";
 interface UseMessageVisibilityProps {
   channelId?: string;
   directMessageGroupId?: string;
-  messages: Array<{ id: string }>;
-  containerRef?: React.RefObject<HTMLElement | null>;
   enabled?: boolean;
-  /**
-   * Skip the IntersectionObserver entirely; the caller feeds visibility via
-   * `markAsRead`. Used by the virtualized message list, where off-screen rows
-   * are unmounted (the observer would never see them) and visibility is
-   * derived from the virtualizer's visible index range instead.
-   */
-  disableObserver?: boolean;
 }
 
 /**
- * Hook to track message visibility using Intersection Observer.
- * Automatically marks messages as read when they scroll into view.
+ * Marks messages as read as they scroll into view.
+ *
+ * VirtualMessageList is the only renderer now — it drives visibility itself
+ * (virtua's visible index range, fed to `markAsRead` via
+ * `onVisibleRangeChange` in MessageContainer). This hook used to also run an
+ * IntersectionObserver over the real message DOM nodes for the legacy
+ * (non-virtualized) path; that branch is now dead (off-screen rows are
+ * unmounted in the virtualized path and would never be observed) and has been
+ * removed. What remains is purely the read-marking side effect: an optimistic
+ * cache clear plus a 1s-debounced socket emit, unconditional on how the
+ * caller determined visibility.
  */
 export const useMessageVisibility = ({
   channelId,
   directMessageGroupId,
-  messages,
-  containerRef,
   enabled = true,
-  disableObserver = false,
 }: UseMessageVisibilityProps) => {
   const { socket } = useContext(SocketContext);
   const queryClient = useQueryClient();
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const visibleMessagesRef = useRef<Set<string>>(new Set());
   const lastMarkedMessageIdRef = useRef<string | null>(null);
   const pendingMessageIdRef = useRef<string | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const messagesRef = useRef(messages);
-
-  // Keep messages ref updated
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
 
   // Clean up debounce timer when deps change or on unmount,
   // preventing stale closures from emitting to the wrong channel/socket.
@@ -127,87 +116,6 @@ export const useMessageVisibility = ({
     },
     [socket, channelId, directMessageGroupId, enabled, queryClient]
   );
-
-  // Find the latest visible message using ref
-  const findLatestVisibleMessage = useCallback(() => {
-    if (visibleMessagesRef.current.size === 0) return null;
-
-    let latestVisibleIndex = -1;
-    let latestMessageId: string | null = null;
-
-    messagesRef.current.forEach((message, index) => {
-      if (visibleMessagesRef.current.has(message.id)) {
-        if (latestVisibleIndex === -1 || index < latestVisibleIndex) {
-          latestVisibleIndex = index;
-          latestMessageId = message.id;
-        }
-      }
-    });
-
-    return latestMessageId;
-  }, []); // No dependencies - uses refs
-
-  // Set up IntersectionObserver to track which messages are visible.
-  // Re-runs when messages change so newly added DOM elements get observed.
-  useEffect(() => {
-    if (!enabled || disableObserver) return;
-
-    // Handle intersection changes
-    const handleIntersection = (entries: IntersectionObserverEntry[]) => {
-      let changed = false;
-
-      entries.forEach((entry) => {
-        const messageId = entry.target.getAttribute("data-message-id");
-        if (!messageId) return;
-
-        if (entry.isIntersecting) {
-          if (!visibleMessagesRef.current.has(messageId)) {
-            visibleMessagesRef.current.add(messageId);
-            changed = true;
-          }
-        } else {
-          if (visibleMessagesRef.current.has(messageId)) {
-            visibleMessagesRef.current.delete(messageId);
-            changed = true;
-          }
-        }
-      });
-
-      // If visibility changed, find and mark the latest visible message as read
-      if (changed) {
-        const latestVisible = findLatestVisibleMessage();
-        if (latestVisible) {
-          markAsRead(latestVisible);
-        }
-      }
-    };
-
-    // Use the scroll container as root for accurate visibility detection
-    observerRef.current = new IntersectionObserver(handleIntersection, {
-      root: containerRef?.current || null,
-      rootMargin: "0px",
-      threshold: 0.5, // 50% of message must be visible
-    });
-
-    // Observe all currently rendered message elements
-    const root = containerRef?.current || document;
-    const messageElements = root.querySelectorAll("[data-message-id]");
-    messageElements.forEach((el) => {
-      observerRef.current?.observe(el);
-    });
-
-    // Capture ref value for cleanup to avoid stale reference
-    const visibleMessages = visibleMessagesRef.current;
-
-    // Cleanup
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-        observerRef.current = null;
-      }
-      visibleMessages.clear();
-    };
-  }, [enabled, disableObserver, containerRef, findLatestVisibleMessage, markAsRead, messages]);
 
   return {
     markAsRead,

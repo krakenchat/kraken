@@ -11,26 +11,12 @@ import type { UnreadCountDto } from '../../api-client';
 import { channelMessagesQueryKey, dmMessagesQueryKey } from '../../utils/messageQueryKeys';
 import { createInfiniteData, createMessage } from '../test-utils/factories';
 
-// Mock IntersectionObserver for jsdom; tracks instantiations so tests can
-// assert no observer is created in disableObserver mode.
-let observerInstanceCount = 0;
-class MockIntersectionObserver {
-  observe = vi.fn();
-  unobserve = vi.fn();
-  disconnect = vi.fn();
-  constructor() {
-    observerInstanceCount++;
-  }
-}
-
 describe('useMessageVisibility', () => {
   let queryClient: QueryClient;
   let mockSocket: MockSocket;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    observerInstanceCount = 0;
-    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -45,20 +31,11 @@ describe('useMessageVisibility', () => {
   function renderVisibility(options: {
     channelId?: string;
     directMessageGroupId?: string;
-    messages?: Array<{ id: string }>;
     enabled?: boolean;
-    disableObserver?: boolean;
   }) {
-    return renderHook(
-      () =>
-        useMessageVisibility({
-          ...options,
-          messages: options.messages ?? [],
-        }),
-      {
-        wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
-      },
-    );
+    return renderHook(() => useMessageVisibility(options), {
+      wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
+    });
   }
 
   function seedUnreadData(data: UnreadCountDto[]) {
@@ -293,7 +270,7 @@ describe('useMessageVisibility', () => {
   describe('guard conditions', () => {
     it('does nothing when socket is null', () => {
       const { result } = renderHook(
-        () => useMessageVisibility({ channelId: 'ch-1', messages: [] }),
+        () => useMessageVisibility({ channelId: 'ch-1' }),
         {
           wrapper: createTestWrapper({ queryClient, socket: null }),
         },
@@ -324,45 +301,6 @@ describe('useMessageVisibility', () => {
     });
   });
 
-  describe('disableObserver (virtualized path)', () => {
-    it('does not create an IntersectionObserver when disableObserver is true', () => {
-      renderVisibility({
-        channelId: 'ch-1',
-        messages: [{ id: 'msg-1' }],
-        disableObserver: true,
-      });
-      expect(observerInstanceCount).toBe(0);
-    });
-
-    it('creates the IntersectionObserver by default', () => {
-      renderVisibility({ channelId: 'ch-1', messages: [{ id: 'msg-1' }] });
-      expect(observerInstanceCount).toBe(1);
-    });
-
-    it('markAsRead still performs optimistic update and debounced emit with disableObserver', () => {
-      seedUnreadData([
-        { channelId: 'ch-1', unreadCount: 4, mentionCount: 1 } as UnreadCountDto,
-      ]);
-      const { result } = renderVisibility({
-        channelId: 'ch-1',
-        messages: [{ id: 'msg-1' }],
-        disableObserver: true,
-      });
-
-      act(() => result.current.markAsRead('msg-1'));
-
-      const data = getUnreadData();
-      expect(data![0].unreadCount).toBe(0);
-      expect(data![0].lastReadMessageId).toBe('msg-1');
-
-      act(() => vi.advanceTimersByTime(1000));
-      expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.MARK_AS_READ, {
-        lastReadMessageId: 'msg-1',
-        channelId: 'ch-1',
-      });
-    });
-  });
-
   describe('cleanup', () => {
     it('does not emit after unmount', () => {
       const { result, unmount } = renderVisibility({ channelId: 'ch-1' });
@@ -378,7 +316,7 @@ describe('useMessageVisibility', () => {
     it('cancels pending debounce when channelId changes', () => {
       const { result, rerender } = renderHook(
         ({ channelId }: { channelId: string }) =>
-          useMessageVisibility({ channelId, messages: [] }),
+          useMessageVisibility({ channelId }),
         {
           wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
           initialProps: { channelId: 'ch-1' },
