@@ -8,6 +8,7 @@ import { AuthModule } from '@/auth/auth.module';
 import { UserModule } from '@/user/user.module';
 import { PushNotificationsModule } from '@/push-notifications/push-notifications.module';
 import { PresenceModule } from '@/presence/presence.module';
+import { RedisModule } from '@/redis/redis.module';
 
 @Module({
   controllers: [NotificationsController],
@@ -19,6 +20,7 @@ import { PresenceModule } from '@/presence/presence.module';
     UserModule,
     PushNotificationsModule,
     PresenceModule,
+    RedisModule,
   ],
   exports: [NotificationsService, NotificationsGateway],
 })

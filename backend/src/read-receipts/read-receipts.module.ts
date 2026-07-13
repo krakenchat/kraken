@@ -7,6 +7,7 @@ import { WebsocketModule } from '@/websocket/websocket.module';
 import { AuthModule } from '@/auth/auth.module';
 import { UserModule } from '@/user/user.module';
 import { NotificationsModule } from '@/notifications/notifications.module';
+import { RedisModule } from '@/redis/redis.module';
 
 @Module({
   controllers: [ReadReceiptsController],
@@ -17,6 +18,7 @@ import { NotificationsModule } from '@/notifications/notifications.module';
     AuthModule,
     UserModule,
     NotificationsModule,
+    RedisModule,
   ],
   exports: [ReadReceiptsService],
 })

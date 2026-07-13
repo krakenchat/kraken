@@ -78,11 +78,24 @@ export class FailOpenThrottlerStorage implements ThrottlerStorage {
       timeoutHandle.unref?.();
     });
 
+    const incrementPromise = this.inner.increment(
+      key,
+      ttl,
+      limit,
+      blockDuration,
+      throttlerName,
+    );
+    // If the timeout wins the race below, this incrementPromise reference is
+    // the only thing still attached to the underlying storage call. Without a
+    // handler here, a late rejection (e.g. Redis errors after we've already
+    // failed open) would surface as an unhandled promise rejection. Attaching
+    // .catch() on this separate reference doesn't affect the value
+    // Promise.race resolves/rejects with below — that still comes from
+    // incrementPromise's original resolution/rejection.
+    incrementPromise.catch(() => undefined);
+
     try {
-      return await Promise.race([
-        this.inner.increment(key, ttl, limit, blockDuration, throttlerName),
-        timeoutPromise,
-      ]);
+      return await Promise.race([incrementPromise, timeoutPromise]);
     } catch (error) {
       this.warnFailOpen(error instanceof Error ? error.message : String(error));
       return FAIL_OPEN_RECORD;

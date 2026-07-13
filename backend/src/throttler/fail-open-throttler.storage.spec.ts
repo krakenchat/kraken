@@ -147,6 +147,40 @@ describe('FailOpenThrottlerStorage', () => {
 
       expect(result).toBe(SUCCESS_RECORD);
     });
+
+    it('does not produce an unhandled rejection when inner rejects after the timeout already won the race', async () => {
+      const unhandled = jest.fn();
+      process.on('unhandledRejection', unhandled);
+
+      try {
+        let rejectInner!: (err: Error) => void;
+        const { inner } = makeInner(
+          () =>
+            new Promise((_resolve, reject) => {
+              rejectInner = reject;
+            }),
+        );
+        const storage = new FailOpenThrottlerStorage(inner, {
+          timeoutMs: 200,
+        });
+        spyOnWarn(storage);
+
+        const incrementPromise = storage.increment(...ARGS);
+        await jest.advanceTimersByTimeAsync(201);
+        await expect(incrementPromise).resolves.toEqual(FAIL_OPEN_RECORD);
+
+        // The inner promise is still pending from the storage's perspective —
+        // reject it now, after the timeout has already resolved the race.
+        rejectInner(new Error('late redis failure'));
+        await jest.advanceTimersByTimeAsync(0);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(unhandled).not.toHaveBeenCalled();
+      } finally {
+        process.off('unhandledRejection', unhandled);
+      }
+    });
   });
 
   describe('fast fail-open when Redis is not ready', () => {

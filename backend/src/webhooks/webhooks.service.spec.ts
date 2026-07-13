@@ -5,8 +5,7 @@ import { createHash } from 'crypto';
 import { WebhooksService } from './webhooks.service';
 import { DatabaseService } from '@/database/database.service';
 import { MessagesService } from '@/messages/messages.service';
-import { LinkPreviewsService } from '@/link-previews/link-previews.service';
-import { WebsocketService } from '@/websocket/websocket.service';
+import { MessageDispatchService } from '@/messages/message-dispatch.service';
 import { ConfigService } from '@nestjs/config';
 import { ChannelFactory } from '@/test-utils';
 import { ServerEvents } from '@semaphore-chat/shared';
@@ -14,8 +13,7 @@ import { ServerEvents } from '@semaphore-chat/shared';
 describe('WebhooksService', () => {
   let service: WebhooksService;
   let messagesService: Mocked<MessagesService>;
-  let linkPreviewsService: Mocked<LinkPreviewsService>;
-  let websocketService: Mocked<WebsocketService>;
+  let messageDispatchService: Mocked<MessageDispatchService>;
   let configService: Mocked<ConfigService>;
 
   const mockDatabaseService = {
@@ -38,12 +36,12 @@ describe('WebhooksService', () => {
 
     service = unit;
     messagesService = unitRef.get(MessagesService);
-    linkPreviewsService = unitRef.get(LinkPreviewsService);
-    websocketService = unitRef.get(WebsocketService);
+    messageDispatchService = unitRef.get(MessageDispatchService);
     configService = unitRef.get(ConfigService);
 
     jest.clearAllMocks();
     configService.get.mockReturnValue(undefined);
+    messageDispatchService.dispatch.mockResolvedValue(undefined);
   });
 
   const channelId = 'channel-1';
@@ -218,6 +216,14 @@ describe('WebhooksService', () => {
 
     it('creates a message with webhookId set and authorId null on a valid token', async () => {
       mockDatabaseService.webhook.findUnique.mockResolvedValue(storedWebhook);
+      const builtInput = {
+        id: '',
+        channelId,
+        directMessageGroupId: null,
+        authorId: null,
+        webhookId,
+        spans: [{ type: 'PLAINTEXT', text: 'hello from CI' }],
+      };
       const createdMessage = {
         id: 'message-1',
         channelId,
@@ -226,13 +232,10 @@ describe('WebhooksService', () => {
         spans: [{ type: 'PLAINTEXT', text: 'hello from CI' }],
         attachments: [],
       };
+      messagesService.buildWebhookMessageInput.mockReturnValue(
+        builtInput as never,
+      );
       messagesService.create.mockResolvedValue(createdMessage as never);
-      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
-        createdMessage as never,
-      );
-      linkPreviewsService.processMessageLinkPreviews.mockResolvedValue(
-        undefined,
-      );
 
       const result = await service.execute(
         webhookId,
@@ -241,31 +244,19 @@ describe('WebhooksService', () => {
       );
 
       expect(result).toEqual({ id: 'message-1' });
-      expect(messagesService.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          channelId,
-          authorId: null,
-          webhookId,
-          spans: [
-            expect.objectContaining({
-              type: 'PLAINTEXT',
-              text: 'hello from CI',
-            }),
-          ],
-        }),
+      expect(messagesService.buildWebhookMessageInput).toHaveBeenCalledWith(
+        storedWebhook,
+        'hello from CI',
       );
-      expect(
-        linkPreviewsService.processMessageLinkPreviews,
-      ).toHaveBeenCalledWith(
-        'message-1',
-        createdMessage.spans,
-        channelId,
-        ServerEvents.UPDATE_MESSAGE,
-      );
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        channelId,
-        ServerEvents.NEW_MESSAGE,
-        { message: createdMessage },
+      expect(messagesService.create).toHaveBeenCalledWith(builtInput);
+      expect(messageDispatchService.dispatch).toHaveBeenCalledWith(
+        createdMessage,
+        {
+          room: channelId,
+          event: ServerEvents.NEW_MESSAGE,
+          notifications: false,
+          linkPreviews: true,
+        },
       );
     });
 

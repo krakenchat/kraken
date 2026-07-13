@@ -9,6 +9,7 @@ import { DatabaseModule } from '@/database/database.module';
 import { RolesModule } from '@/roles/roles.module';
 import { VoicePresenceModule } from '@/voice-presence/voice-presence.module';
 import { LivekitModule } from '@/livekit/livekit.module';
+import { RedisModule } from '@/redis/redis.module';
 
 @Module({
   providers: [RoomsGateway, RoomsService, RoomSubscriptionHandler],
@@ -23,6 +24,7 @@ import { LivekitModule } from '@/livekit/livekit.module';
     // events, so there is no longer a cycle back to MessagesModule.
     VoicePresenceModule,
     LivekitModule,
+    RedisModule,
   ],
 })
 export class RoomsModule {}
