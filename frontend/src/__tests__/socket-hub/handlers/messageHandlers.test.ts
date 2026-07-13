@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import type { InfiniteData } from '@tanstack/react-query';
 import type { PaginatedMessagesResponseDto, DmPeerReadDto } from '../../../api-client/types.gen';
@@ -67,6 +67,59 @@ describe('messageHandlers', () => {
 
       const data = queryClient.getQueryData<InfiniteData<PaginatedMessagesResponseDto>>(queryKey);
       expect(data!.pages[0].messages).toHaveLength(1);
+    });
+
+    it('does not insert into a detached window (newest page evicted) but still bumps unread', async () => {
+      const queryClient = new QueryClient();
+      const queryKey = channelMessagesQueryKey('ch-1');
+      const detached: InfiniteData<PaginatedMessagesResponseDto> = {
+        ...makeInfiniteData([makeMessage({ id: 'stale-1' })]),
+        pageParams: ['cursor-uuid'],
+      };
+
+      queryClient.setQueryData(queryKey, detached);
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+      queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+        { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+      ]);
+
+      const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'other' });
+      await handleNewMessage({ message: newMsg as never }, queryClient);
+
+      const after = queryClient.getQueryData(queryKey);
+      expect(after).toBe(detached); // untouched
+
+      const unread = queryClient.getQueryData<{ channelId: string; unreadCount: number }[]>(
+        readReceiptsControllerGetUnreadCountsQueryKey(),
+      );
+      expect(unread![0].unreadCount).toBe(1); // still counted
+    });
+
+    it('resets the query to the live edge when the DETACHED user sends their own message', async () => {
+      const queryClient = new QueryClient();
+      const queryKey = channelMessagesQueryKey('ch-1');
+      const detached: InfiniteData<PaginatedMessagesResponseDto> = {
+        ...makeInfiniteData([makeMessage({ id: 'stale-1' })]),
+        pageParams: ['cursor-uuid'],
+      };
+
+      queryClient.setQueryData(queryKey, detached);
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+      queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+        { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+      ]);
+      const resetSpy = vi.spyOn(queryClient, 'resetQueries');
+
+      const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'me' });
+      await handleNewMessage({ message: newMsg as never }, queryClient);
+
+      expect(resetSpy).toHaveBeenCalledWith({ queryKey, exact: true });
+
+      // Own messages must not bump unread even on the detached reset path.
+      const unread = queryClient.getQueryData<{ channelId: string; unreadCount: number }[]>(
+        readReceiptsControllerGetUnreadCountsQueryKey(),
+      );
+      expect(unread![0].unreadCount).toBe(0);
     });
   });
 

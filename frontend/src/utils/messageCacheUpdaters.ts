@@ -8,11 +8,28 @@ import type { Message } from '../types/message.type';
 
 // --- InfiniteData updaters (used by both channel and DM caches) ---
 
+/**
+ * True when the infinite window no longer contains the live newest page.
+ * The live page is fetched with pageParam '' (initialPageParam); after
+ * MESSAGE_MAX_PAGES eviction the first stored param is an older cursor.
+ * Test factories use `undefined` for the live page — treat both '' and
+ * null/undefined as "live".
+ */
+export function isDetachedFromLiveEdge(
+  data: InfiniteData<PaginatedMessagesResponseDto> | undefined,
+): boolean {
+  const first = data?.pageParams[0];
+  return first != null && first !== '';
+}
+
 export function prependMessageToInfinite(
   old: InfiniteData<PaginatedMessagesResponseDto> | undefined,
   message: Message,
 ): InfiniteData<PaginatedMessagesResponseDto> | undefined {
   if (!old) return old;
+  // Never insert into a detached window: pages[0] is not the live newest
+  // page, so prepending here would splice the message into mid-history.
+  if (isDetachedFromLiveEdge(old)) return old;
   const firstPage = old.pages[0];
   if (!firstPage) return old;
   if (firstPage.messages.some(m => m.id === message.id)) return old;

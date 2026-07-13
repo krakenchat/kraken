@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Fab } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
@@ -31,6 +31,11 @@ interface MessageContainerProps {
   hasNewer?: boolean;
   mode?: 'normal' | 'anchored';
   jumpToPresent?: () => void;
+
+  // Live-edge detachment (normal mode): deep scrollback evicted the newest
+  // page, so the loaded bottom is not the present (#404).
+  isDetachedFromPresent?: boolean;
+  resetToPresent?: () => Promise<void>;
 
   // Message Input
   messageInput: React.ReactNode;
@@ -70,6 +75,8 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
   hasNewer,
   mode = 'normal',
   jumpToPresent,
+  isDetachedFromPresent,
+  resetToPresent,
   messageInput,
   memberListComponent,
   showMemberList = true,
@@ -142,6 +149,59 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
 
   const atBottom = isVirtualized ? virtualAtBottom : legacyAtBottom;
   const scrollToBottom = isVirtualized ? scrollToVirtualBottom : legacyScrollToBottom;
+
+  // scrollToBottom's identity changes when the renderer switches (reset
+  // shrinks the list below the virtualization threshold), so route the
+  // deferred scroll through a ref to always call the latest one.
+  const scrollToBottomRef = useRef(scrollToBottom);
+  const atBottomRef = useRef(atBottom);
+  useLayoutEffect(() => {
+    scrollToBottomRef.current = scrollToBottom;
+    atBottomRef.current = atBottom;
+  });
+
+  const handleDetachedJumpToPresent = useCallback(() => {
+    void resetToPresent?.();
+  }, [resetToPresent]);
+
+  // Reset detachment tracking when switching contexts (channel/DM change) so
+  // a stale wasDetachedRef from the previous context can't trigger a scroll
+  // in the new one. Declared before the scroll-follow-through effect below so
+  // it runs first within the same commit when both contextKey and
+  // isDetachedFromPresent change together (i.e. switching away from a
+  // detached channel).
+  const wasDetachedRef = useRef(false);
+  useEffect(() => {
+    wasDetachedRef.current = false;
+  }, [contextKey]);
+
+  // Scroll to the bottom once a detached window returns to the live edge —
+  // covers the FAB, own-send reset, and reconnect reset uniformly. The reset
+  // clears data first (isDetachedFromPresent flips false while empty), so
+  // wait for the refetched page to render before scrolling. A single rAF is
+  // not enough: the reset also flips the renderer virtual→legacy one commit
+  // later, and a scroll issued against the outgoing renderer's handle is a
+  // silent no-op. Retry across a few frames until the scroll actually lands
+  // (atBottom) so the follow-through survives the renderer switch and any
+  // immediate older-page prepend.
+  useEffect(() => {
+    if (isDetachedFromPresent) {
+      wasDetachedRef.current = true;
+      return;
+    }
+    if (!wasDetachedRef.current) return;
+    if (orderedMessages.length === 0) return;
+    wasDetachedRef.current = false;
+    let attempts = 0;
+    const tryScroll = () => {
+      scrollToBottomRef.current();
+      attempts += 1;
+      if (attempts < 10 && !atBottomRef.current) {
+        requestAnimationFrame(tryScroll);
+      }
+    };
+    requestAnimationFrame(tryScroll);
+  }, [isDetachedFromPresent, orderedMessages]);
 
   // Phase 2 of the virtualization gate: activate/deactivate the virtual
   // renderer one commit after the raw decision changes. On legacy → virtual,
@@ -380,6 +440,24 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             variant="extended"
             size="small"
             onClick={jumpToPresent}
+            data-testid="jump-to-present-fab"
+            sx={{
+              position: "absolute",
+              bottom: 80,
+              right: 16,
+              backgroundColor: "primary.main",
+              "&:hover": { backgroundColor: "primary.dark" },
+              color: "primary.contrastText",
+            }}
+          >
+            <KeyboardArrowDownIcon sx={{ mr: 0.5 }} />
+            Jump to Present
+          </Fab>
+        ) : mode === 'normal' && isDetachedFromPresent && resetToPresent ? (
+          <Fab
+            variant="extended"
+            size="small"
+            onClick={handleDetachedJumpToPresent}
             data-testid="jump-to-present-fab"
             sx={{
               position: "absolute",

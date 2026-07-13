@@ -8,6 +8,8 @@ import { createMockSocket } from '../test-utils/mockSocket';
 import type { MockSocket } from '../test-utils/mockSocket';
 import { readReceiptsControllerGetUnreadCountsQueryKey } from '../../api-client/@tanstack/react-query.gen';
 import type { UnreadCountDto } from '../../api-client';
+import { channelMessagesQueryKey, dmMessagesQueryKey } from '../../utils/messageQueryKeys';
+import { createInfiniteData, createMessage } from '../test-utils/factories';
 
 // Mock IntersectionObserver for jsdom; tracks instantiations so tests can
 // assert no observer is created in disableObserver mode.
@@ -98,6 +100,84 @@ describe('useMessageVisibility', () => {
       const data = getUnreadData();
       expect(data![0].unreadCount).toBe(0);
       expect(data![0].mentionCount).toBe(0);
+    });
+
+    it('still clears unread count when the messages cache is at the live edge', () => {
+      // Explicit inverse of the detached case below: a normal (non-detached)
+      // messages cache must not suppress the optimistic zero.
+      queryClient.setQueryData(
+        channelMessagesQueryKey('ch-1'),
+        createInfiniteData([createMessage({ id: 'msg-1' })]),
+      );
+      seedUnreadData([
+        { channelId: 'ch-1', unreadCount: 5, mentionCount: 2 } as UnreadCountDto,
+      ]);
+
+      const { result } = renderVisibility({ channelId: 'ch-1' });
+
+      act(() => result.current.markAsRead('msg-1'));
+
+      const data = getUnreadData();
+      expect(data![0].unreadCount).toBe(0);
+      expect(data![0].mentionCount).toBe(0);
+    });
+  });
+
+  describe('detached from live edge (#404 catch-up window)', () => {
+    it('does not zero unread/mention counts when the channel messages cache is detached', () => {
+      // Simulate a deep-scrollback window: pageParams[0] is a cursor, not the
+      // live page — the loaded window is stale mid-history, not the present.
+      const detached = {
+        ...createInfiniteData([createMessage({ id: 'stale-1' })]),
+        pageParams: ['cursor-uuid'],
+      };
+      queryClient.setQueryData(channelMessagesQueryKey('ch-1'), detached);
+      seedUnreadData([
+        { channelId: 'ch-1', unreadCount: 1, mentionCount: 0 } as UnreadCountDto,
+      ]);
+
+      const { result } = renderVisibility({ channelId: 'ch-1' });
+
+      act(() => result.current.markAsRead('stale-1'));
+
+      const data = getUnreadData();
+      expect(data![0].unreadCount).toBe(1);
+      expect(data![0].mentionCount).toBe(0);
+      expect(data![0].lastReadMessageId).toBeUndefined();
+
+      // The server-side watermark clamp makes the emit a safe no-op for
+      // regressions, and catch-up readers still legitimately advance it —
+      // so the emit must still be sent even while the cache update is skipped.
+      act(() => vi.advanceTimersByTime(1000));
+      expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.MARK_AS_READ, {
+        lastReadMessageId: 'stale-1',
+        channelId: 'ch-1',
+      });
+    });
+
+    it('does not zero unread/mention counts when the DM messages cache is detached', () => {
+      const detached = {
+        ...createInfiniteData([createMessage({ id: 'stale-1' })]),
+        pageParams: ['cursor-uuid'],
+      };
+      queryClient.setQueryData(dmMessagesQueryKey('dm-1'), detached);
+      seedUnreadData([
+        { directMessageGroupId: 'dm-1', unreadCount: 3, mentionCount: 1 } as UnreadCountDto,
+      ]);
+
+      const { result } = renderVisibility({ directMessageGroupId: 'dm-1' });
+
+      act(() => result.current.markAsRead('stale-1'));
+
+      const data = getUnreadData();
+      expect(data![0].unreadCount).toBe(3);
+      expect(data![0].mentionCount).toBe(1);
+
+      act(() => vi.advanceTimersByTime(1000));
+      expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.MARK_AS_READ, {
+        lastReadMessageId: 'stale-1',
+        directMessageGroupId: 'dm-1',
+      });
     });
   });
 

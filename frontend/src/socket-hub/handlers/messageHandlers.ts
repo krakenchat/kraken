@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, InfiniteData } from '@tanstack/react-query';
 import type {
   NewMessagePayload,
   UpdateMessagePayload,
@@ -11,7 +11,12 @@ import type {
   ReadReceiptUpdatedPayload,
 } from '@semaphore-chat/shared';
 import type { Message } from '../../types/message.type';
-import type { UnreadCountDto, UserControllerGetProfileResponse, DmPeerReadDto } from '../../api-client';
+import type {
+  UnreadCountDto,
+  UserControllerGetProfileResponse,
+  DmPeerReadDto,
+  PaginatedMessagesResponseDto,
+} from '../../api-client';
 import { messageQueryKeyForContext, channelMessagesQueryKey } from '../../utils/messageQueryKeys';
 import {
   readReceiptsControllerGetUnreadCountsQueryKey,
@@ -27,6 +32,7 @@ import {
   updateMessageInInfinite,
   deleteMessageFromInfinite,
   findMessageInInfinite,
+  isDetachedFromLiveEdge,
 } from '../../utils/messageCacheUpdaters';
 import type { SocketEventHandler } from './types';
 import type { ServerEvents } from '@semaphore-chat/shared';
@@ -48,10 +54,17 @@ export const handleNewMessage: SocketEventHandler<
   const contextId = message.channelId || message.directMessageGroupId;
   if (!contextId) return;
 
-  await queryClient.cancelQueries({ queryKey });
-  queryClient.setQueryData(queryKey, (old: unknown) =>
-    prependMessageToInfinite(old as never, message as Message),
-  );
+  // At the MESSAGE_MAX_PAGES cap the newest page gets evicted and pages[0]
+  // is mid-history — inserting there would corrupt the timeline (see #404).
+  const existing = queryClient.getQueryData<InfiniteData<PaginatedMessagesResponseDto>>(queryKey);
+  const detached = isDetachedFromLiveEdge(existing);
+
+  if (!detached) {
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData(queryKey, (old: unknown) =>
+      prependMessageToInfinite(old as never, message as Message),
+    );
+  }
 
   // Invalidate DM groups list so sidebar preview updates
   if (message.directMessageGroupId) {
@@ -64,7 +77,14 @@ export const handleNewMessage: SocketEventHandler<
   const currentUser = queryClient.getQueryData<UserControllerGetProfileResponse>(
     userControllerGetProfileQueryKey(),
   );
-  if (currentUser && message.authorId === currentUser.id) return;
+  if (currentUser && message.authorId === currentUser.id) {
+    // Own message while detached: sending implies "take me to the present" —
+    // reset the window to the live edge (refetches the newest page).
+    if (detached) {
+      void queryClient.resetQueries({ queryKey, exact: true });
+    }
+    return;
+  }
 
   const unreadQueryKey = readReceiptsControllerGetUnreadCountsQueryKey();
   queryClient.setQueryData(unreadQueryKey, (old: UnreadCountDto[] | undefined) => {

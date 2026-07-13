@@ -4,6 +4,7 @@ import {
   updateMessageInInfinite,
   deleteMessageFromInfinite,
   findMessageInInfinite,
+  isDetachedFromLiveEdge,
 } from '../../utils/messageCacheUpdaters';
 import {
   createMessage,
@@ -63,6 +64,33 @@ describe('prependMessageToInfinite', () => {
     const result = prependMessageToInfinite(data as never, createMessage());
     // No first page → returns data unchanged
     expect(result).toEqual(data);
+  });
+
+  it('does not insert when the window is detached from the live edge', () => {
+    const existing = createMessage({ id: 'old-1' });
+    const data = { ...createInfiniteData([existing]), pageParams: ['cursor-uuid'] };
+    const result = prependMessageToInfinite(data, createMessage({ id: 'new-1' }));
+    expect(result).toBe(data); // unchanged, same reference
+  });
+});
+
+describe('isDetachedFromLiveEdge', () => {
+  it('is false for undefined data', () => {
+    expect(isDetachedFromLiveEdge(undefined)).toBe(false);
+  });
+
+  it('is false when the first page param is undefined (factory default)', () => {
+    expect(isDetachedFromLiveEdge(createInfiniteData([createMessage()]))).toBe(false);
+  });
+
+  it('is false when the first page param is the empty string (live initialPageParam)', () => {
+    const data = { ...createInfiniteData([createMessage()]), pageParams: [''] };
+    expect(isDetachedFromLiveEdge(data)).toBe(false);
+  });
+
+  it('is true when the first page param is a cursor (newest page was evicted)', () => {
+    const data = { ...createInfiniteData([createMessage()]), pageParams: ['cursor-uuid'] };
+    expect(isDetachedFromLiveEdge(data)).toBe(true);
   });
 });
 

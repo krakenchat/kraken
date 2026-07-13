@@ -74,6 +74,14 @@ export const useJumpToMessage = (
     }
   }, [highlightMessageId, id, normalResult.isLoading, normalResult.messages]);
 
+  // Destructured so jumpToPresent can depend on these two stable values
+  // instead of the whole normalResult object (a fresh literal every render,
+  // which would defeat the memoization).
+  const {
+    isDetachedFromPresent: normalIsDetached,
+    resetToPresent: resetNormalToPresent,
+  } = normalResult;
+
   const jumpToPresent = useCallback(() => {
     if (!id || !anchorMessageId) return;
 
@@ -85,7 +93,17 @@ export const useJumpToMessage = (
     queryClient.removeQueries({ queryKey: anchoredKey });
 
     setAnchorMessageId(undefined);
-  }, [id, anchorMessageId, type, queryClient]);
+
+    // Dropping the anchor falls back to the normal-mode window, which may
+    // itself be detached from the live edge (e.g. the user jumped here from
+    // a pinned/search link while their normal window had already scrolled
+    // back past MESSAGE_MAX_PAGES). Chain straight into that reset too, so
+    // one click reaches the present instead of landing on the normal
+    // window's false bottom and immediately re-showing the FAB.
+    if (normalIsDetached) {
+      void resetNormalToPresent();
+    }
+  }, [id, anchorMessageId, type, queryClient, normalIsDetached, resetNormalToPresent]);
 
   // If anchored query errors (e.g. message not found), fall back to normal mode
   useEffect(() => {

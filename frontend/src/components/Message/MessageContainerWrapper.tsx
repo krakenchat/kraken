@@ -21,6 +21,8 @@ export interface MessagesHookResult {
   hasNewer?: boolean;
   mode?: 'normal' | 'anchored';
   jumpToPresent?: () => void;
+  isDetachedFromPresent?: boolean;
+  resetToPresent?: () => Promise<void>;
   highlightSeq?: number;
 }
 
@@ -89,6 +91,8 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
     hasNewer,
     mode,
     jumpToPresent,
+    isDetachedFromPresent,
+    resetToPresent,
     highlightSeq,
   } = useMessagesHook();
 
@@ -127,6 +131,8 @@ const MessageContainerWrapper: React.FC<MessageContainerWrapperProps> = ({
       hasNewer={hasNewer}
       mode={mode}
       jumpToPresent={jumpToPresent}
+      isDetachedFromPresent={isDetachedFromPresent}
+      resetToPresent={resetToPresent}
       messageInput={messageInput}
       memberListComponent={memberListComponent}
       emptyStateMessage={emptyStateMessage}
