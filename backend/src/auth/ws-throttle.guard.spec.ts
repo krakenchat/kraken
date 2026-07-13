@@ -159,6 +159,36 @@ describe('WsThrottleGuard', () => {
 
       expect(result).toBe(true);
     });
+
+    it('does not produce an unhandled rejection when eval rejects after the timeout already won the race', async () => {
+      const unhandled = jest.fn();
+      process.on('unhandledRejection', unhandled);
+
+      try {
+        let rejectEval!: (err: Error) => void;
+        mockRedis.eval.mockReturnValue(
+          new Promise((_resolve, reject) => {
+            rejectEval = reject;
+          }),
+        );
+        const ctx = createMockContext('socket-1');
+
+        const resultPromise = guard.canActivate(ctx);
+        await jest.advanceTimersByTimeAsync(EVAL_TIMEOUT_MS + 1);
+        await expect(resultPromise).resolves.toBe(true);
+
+        // The eval promise is still pending from the guard's perspective —
+        // reject it now, after the timeout has already resolved the race.
+        rejectEval(new Error('late redis failure'));
+        await jest.advanceTimersByTimeAsync(0);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(unhandled).not.toHaveBeenCalled();
+      } finally {
+        process.off('unhandledRejection', unhandled);
+      }
+    });
   });
 
   describe('warn throttling on repeated failures', () => {

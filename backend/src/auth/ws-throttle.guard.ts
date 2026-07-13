@@ -119,11 +119,23 @@ export class WsThrottleGuard implements CanActivate {
       timeoutHandle.unref?.();
     });
 
+    const evalPromise = this.redis.eval(
+      INCR_WITH_WINDOW_SCRIPT,
+      1,
+      key,
+      this.windowMs,
+    );
+    // If the timeout wins the race below, this evalPromise reference is the
+    // only thing still attached to the underlying Redis call. Without a
+    // handler here, a late rejection (e.g. the connection drops after we've
+    // already failed open) would surface as an unhandled promise rejection.
+    // Attaching .catch() on this separate reference doesn't affect the value
+    // Promise.race resolves/rejects with below — that still comes from
+    // evalPromise's original resolution/rejection.
+    evalPromise.catch(() => undefined);
+
     try {
-      return (await Promise.race([
-        this.redis.eval(INCR_WITH_WINDOW_SCRIPT, 1, key, this.windowMs),
-        timeoutPromise,
-      ])) as number;
+      return (await Promise.race([evalPromise, timeoutPromise])) as number;
     } finally {
       clearTimeout(timeoutHandle);
     }
