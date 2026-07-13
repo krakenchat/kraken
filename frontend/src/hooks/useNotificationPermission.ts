@@ -83,6 +83,11 @@ export function useNotificationPermission() {
 
     // Note: The Permissions API for notifications is not widely supported
     // This is a best-effort attempt to track permission changes
+    // In Electron, this handler's `permissionStatus.state` may be
+    // inaccurate/stale (Chromium's Permissions API doesn't necessarily
+    // reflect Electron's own deny-by-default permission handler), but it's
+    // unused there in practice: getNotificationPermission() hardcodes
+    // 'granted' for Electron rather than reading this query's result.
     if ('permissions' in navigator && 'query' in navigator.permissions) {
       const handleChange = () => {
         const newPermission = getNotificationPermission();

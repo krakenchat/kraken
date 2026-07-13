@@ -1,18 +1,33 @@
 /**
  * Secure Storage Warning
  *
- * Subscribes to tokenService's one-time "secure storage unavailable"
- * warning and surfaces it via the app's existing snackbar/notification
- * mechanism (NotificationContext). Renders nothing itself.
+ * Surfaces tokenService's one-time "secure storage unavailable" warning via
+ * the app's existing snackbar/notification mechanism (NotificationContext).
+ * Renders nothing itself.
+ *
+ * Delivery has two paths:
+ *  - Mount-time consumption: most real-world triggers (AuthGate's pre-mount
+ *    silent refresh on cold launch, login/register/onboarding) fire BEFORE
+ *    this component mounts, so on mount we check for a durable "pending"
+ *    marker left behind by an earlier trigger and show the warning
+ *    immediately if found — no further event required.
+ *  - Live delivery: if a persist happens while this component is already
+ *    mounted (e.g. a later periodic token refresh), the subscription below
+ *    delivers it immediately.
  *
  * Mounted inside AuthGate's <NotificationProvider> so it's available
- * whenever the user is in the authenticated app shell — where the refresh
- * token gets (re-)persisted on login and on every periodic token refresh.
+ * whenever the user is in the authenticated app shell.
  */
 
 import { useEffect } from 'react';
 import { useNotification } from '../../contexts/NotificationContext';
-import { onSecureStorageWarning } from '../../utils/tokenService';
+import {
+  consumePendingSecureStorageWarning,
+  onSecureStorageWarning,
+} from '../../utils/tokenService';
+
+const SECURE_STORAGE_WARNING_MESSAGE =
+  'Secure credential storage is unavailable on this system; your session token will be stored unencrypted.';
 
 export const SecureStorageWarning = () => {
   const { showNotification } = useNotification();
@@ -20,15 +35,15 @@ export const SecureStorageWarning = () => {
   useEffect(() => {
     if (!window.electronAPI?.isElectron) return;
 
+    // Consume any warning that became pending before this component mounted.
+    if (consumePendingSecureStorageWarning()) {
+      showNotification(SECURE_STORAGE_WARNING_MESSAGE, 'warning');
+    }
+
     return onSecureStorageWarning(() => {
-      showNotification(
-        'Secure credential storage is unavailable on this system; your session token will be stored unencrypted.',
-        'warning'
-      );
+      showNotification(SECURE_STORAGE_WARNING_MESSAGE, 'warning');
     });
   }, [showNotification]);
 
   return null;
 };
-
-export default SecureStorageWarning;

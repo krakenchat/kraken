@@ -623,6 +623,12 @@ function setupIpcHandlers() {
     }
   });
 
+  // Note: get/delete deliberately keep their original null/void contract
+  // (unlike `store` above, which now returns a typed SecureStorageStoreResult).
+  // Callers already treat a null/failed read or delete as "nothing to do"
+  // and don't need availability detail here — only `store` needed a typed
+  // result, since that's the operation that decides whether to fall back to
+  // localStorage and warn the user.
   ipcMain.handle('secure-storage:get', async (_event, key: string) => {
     try {
       if (!safeStorage.isEncryptionAvailable()) {

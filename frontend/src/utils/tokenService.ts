@@ -30,14 +30,35 @@ let refreshPromise: Promise<string | null> | null = null;
 // (for diagnostics/support), but only ever show the user-visible UI warning
 // once — see `onSecureStorageWarning` below, subscribed to by
 // `SecureStorageWarning` (components/Electron/SecureStorageWarning.tsx).
+//
+// Delivery has two paths, because the very first (and often only, in dev)
+// unavailable-store event usually happens during AuthGate's pre-mount silent
+// refresh on cold launch (AuthGate.tsx validateToken()) — before
+// NotificationProvider/SecureStorageWarning exist anywhere in the tree. The
+// same is true of LoginPage/RegisterPage/JoinInvitePage/onboarding's
+// CompletionStep, which all persist a token before the authenticated shell
+// mounts. Waiting for a live listener to eventually show up is not reliable:
+// on a cold launch the *next* trigger is typically next launch's pre-mount
+// refresh again, so the live-only approach could mean the user never sees
+// the warning even though it fires every launch.
+//
+// So: `SECURE_STORAGE_WARNING_KEY` is the "shown" flag — once set, the
+// warning never shows again, full stop. `SECURE_STORAGE_WARNING_PENDING_KEY`
+// is a separate, durable "pending" marker: set whenever an unavailable
+// persist happens with no live listener subscribed. `SecureStorageWarning`
+// consumes it at mount time (see `consumePendingSecureStorageWarning`),
+// which closes the gap — the warning is guaranteed to surface the next time
+// the authenticated shell mounts, with no further trigger event required.
 
 const SECURE_STORAGE_WARNING_KEY = "semaphore:secureStorageWarningShown";
+const SECURE_STORAGE_WARNING_PENDING_KEY = "semaphore:secureStorageWarningPending";
 
 type SecureStorageWarningListener = () => void;
 const secureStorageWarningListeners: Set<SecureStorageWarningListener> = new Set();
 
 /**
- * Subscribe to the one-time "secure storage unavailable" warning.
+ * Subscribe to the one-time "secure storage unavailable" warning's live
+ * delivery path (used when a listener is already mounted at trigger time).
  * @returns Unsubscribe function
  */
 export function onSecureStorageWarning(listener: SecureStorageWarningListener): () => void {
@@ -46,14 +67,43 @@ export function onSecureStorageWarning(listener: SecureStorageWarningListener): 
 }
 
 /**
+ * Consume a pending "secure storage unavailable" warning at mount time.
+ *
+ * Called by `SecureStorageWarning` on mount. Returns true (and marks the
+ * warning permanently shown) exactly once — the first time a pending
+ * warning is found and the warning hasn't already been shown/dismissed.
+ * This is what makes delivery work even when no event fires after mount:
+ * the pending flag was already persisted in localStorage by an earlier,
+ * pre-mount `triggerSecureStorageWarning()` call.
+ */
+export function consumePendingSecureStorageWarning(): boolean {
+  if (localStorage.getItem(SECURE_STORAGE_WARNING_KEY) === "true") {
+    // Already shown/dismissed — pending is irrelevant now; clear it
+    // defensively so it doesn't linger.
+    localStorage.removeItem(SECURE_STORAGE_WARNING_PENDING_KEY);
+    return false;
+  }
+
+  if (localStorage.getItem(SECURE_STORAGE_WARNING_PENDING_KEY) !== "true") {
+    return false;
+  }
+
+  localStorage.setItem(SECURE_STORAGE_WARNING_KEY, "true");
+  localStorage.removeItem(SECURE_STORAGE_WARNING_PENDING_KEY);
+  return true;
+}
+
+/**
  * Called whenever a token persist falls back to localStorage because the OS
  * keychain is unavailable. Always logs (so it's visible in devtools/support
- * bundles on every affected launch), but only notifies UI listeners — and
- * marks the warning as permanently shown — once. If no listener is
- * registered yet (e.g. this fires before the authenticated app shell with
- * the notification provider has mounted, such as during initial login), the
- * "shown" flag is intentionally left unset so the next occurrence can still
- * reach the user.
+ * bundles on every affected launch). If the warning has already been shown
+ * (or dismissed), this is a no-op beyond logging. Otherwise:
+ *  - if a listener is currently subscribed (live path), notify it
+ *    immediately and mark the warning as permanently shown;
+ *  - if not, persist a durable "pending" marker so `SecureStorageWarning`
+ *    can consume it and show the warning as soon as it next mounts, even if
+ *    this is the only trigger event that ever fires (see
+ *    `consumePendingSecureStorageWarning`).
  */
 function triggerSecureStorageWarning(): void {
   logger.warn(
@@ -66,10 +116,15 @@ function triggerSecureStorageWarning(): void {
   }
 
   if (secureStorageWarningListeners.size === 0) {
+    // No live listener mounted right now — persist a durable marker so a
+    // later mount (e.g. SecureStorageWarning once the authenticated shell
+    // renders) can still deliver the warning without needing another event.
+    localStorage.setItem(SECURE_STORAGE_WARNING_PENDING_KEY, "true");
     return;
   }
 
   localStorage.setItem(SECURE_STORAGE_WARNING_KEY, "true");
+  localStorage.removeItem(SECURE_STORAGE_WARNING_PENDING_KEY);
   secureStorageWarningListeners.forEach((listener) => {
     try {
       listener();
