@@ -21,3 +21,4 @@ export { createMockSocket } from './mockSocket';
 export type { MockSocket } from './mockSocket';
 export { createTestWrapper } from './wrappers';
 export { renderWithProviders } from './renderWithProviders';
+export { runAxe, expectNoAxeViolations } from './a11y';

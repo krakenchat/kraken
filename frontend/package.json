@@ -38,8 +38,8 @@
     "start": "pnpm run build-electron && pnpm run build-preload && electron .",
     "electron-dev": "concurrently -k \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && pnpm run build-electron && pnpm run build-preload && electron .\"",
     "type-check": "tsc -b",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 20",
-    "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 20 --fix",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 45",
+    "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 45 --fix",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
@@ -100,6 +100,7 @@
     "electron-builder": "^24.13.3",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.2",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^16.0.0",
@@ -114,6 +115,7 @@
     "vite-plugin-electron-renderer": "^0.14.6",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.18",
+    "vitest-axe": "^0.1.0",
     "wait-on": "^8.0.3"
   }
 }

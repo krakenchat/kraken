@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { renderWithProviders } from '../test-utils';
+import { renderWithProviders, runAxe, expectNoAxeViolations } from '../test-utils';
 import MessageComponent from '../../components/Message/MessageComponent';
 import { createMessage } from '../test-utils/factories';
 import { SpanType } from '../../types/message.type';
@@ -116,5 +116,43 @@ describe('MessageComponent context menu (web)', () => {
 
     expect(mockActions.handleEditClick).toHaveBeenCalledOnce();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('restores focus to the message row on Escape (anchorPosition menus have no anchorEl for MUI to auto-restore to)', async () => {
+    renderMessage();
+
+    const messageText = screen.getByText('Right-click me');
+    // The message row is the nearest ancestor with tabIndex=-1 — added
+    // specifically so it can receive focus programmatically after the
+    // context menu (opened via right-click, not a focusable button) closes.
+    const messageRow = messageText.closest('[tabindex="-1"]');
+    expect(messageRow).not.toBeNull();
+
+    fireEvent.contextMenu(messageText, { clientX: 10, clientY: 10 });
+    const menu = await screen.findByRole('menu');
+
+    fireEvent.keyDown(menu, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(messageRow);
+    });
+  });
+
+  it('has no axe violations while the context menu is open', async () => {
+    renderMessage();
+
+    fireEvent.contextMenu(screen.getByText('Right-click me'), {
+      clientX: 10,
+      clientY: 10,
+    });
+    await screen.findByRole('menu');
+
+    // MUI's Menu portals into document.body (outside RTL's `container`), so
+    // scan the whole document to actually include the open menu.
+    const results = await runAxe(document.body);
+    expectNoAxeViolations(results);
   });
 });

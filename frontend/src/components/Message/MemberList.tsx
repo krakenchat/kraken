@@ -17,6 +17,7 @@ import { UserModerationMenu } from "../Moderation";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useLongPress } from "../../hooks/useSwipeGesture";
+import { useContextMenuFocusRestore } from "../../hooks/useContextMenuFocusRestore";
 
 export interface MemberData {
   id: string;
@@ -88,14 +89,15 @@ const SectionHeader: React.FC<{ label: string; count: number }> = ({ label, coun
 const MemberRow: React.FC<{
   member: MemberData;
   onOpenProfile: (userId: string) => void;
-  onOpenMenu: (position: { top: number; left: number }, member: MemberData) => void;
+  onOpenMenu: (position: { top: number; left: number }, member: MemberData, triggerEl: HTMLElement | null) => void;
 }> = React.memo(function MemberRow({ member, onOpenProfile, onOpenMenu }) {
   const theme = useTheme();
   const { shouldUseTouchUI } = useResponsive();
+  const rowRef = React.useRef<HTMLDivElement>(null);
 
   const longPress = useLongPress(
     (point) => {
-      if (point) onOpenMenu({ top: point.y, left: point.x }, member);
+      if (point) onOpenMenu({ top: point.y, left: point.x }, member, rowRef.current);
     },
     { enabled: shouldUseTouchUI },
   );
@@ -111,12 +113,13 @@ const MemberRow: React.FC<{
     : {
         onContextMenu: (e: React.MouseEvent<HTMLElement>) => {
           e.preventDefault();
-          onOpenMenu({ top: e.clientY, left: e.clientX }, member);
+          onOpenMenu({ top: e.clientY, left: e.clientX }, member, e.currentTarget);
         },
       };
 
   return (
     <ListItemButton
+      ref={rowRef}
       onClick={() => {
         // Ignore the ghost click some browsers (iOS) fire after a long-press —
         // otherwise the profile opens on top of the moderation menu.
@@ -193,16 +196,21 @@ const MemberList: React.FC<MemberListProps> = ({
     position: null,
     member: null,
   });
+  const { captureTrigger, restoreFocus } = useContextMenuFocusRestore();
 
   const openMenu = React.useCallback(
-    (position: { top: number; left: number }, member: MemberData) => {
+    (position: { top: number; left: number }, member: MemberData, triggerEl: HTMLElement | null) => {
+      captureTrigger(triggerEl);
       setContextMenu({ position, member });
     },
-    [],
+    [captureTrigger],
   );
 
   const handleCloseContextMenu = () => {
     setContextMenu({ position: null, member: null });
+    // anchorPosition menus have no anchor element for MUI to auto-restore
+    // focus to on close — return it to the member row that opened this.
+    restoreFocus();
   };
 
   // Group members by display role
