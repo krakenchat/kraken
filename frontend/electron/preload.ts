@@ -8,6 +8,7 @@
  */
 
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import type { SecureStorageAvailability, SecureStorageStoreResult } from './secure-storage.types';
 
 /**
  * Update information passed from main process
@@ -191,7 +192,7 @@ const electronAPI = {
   },
 
   // Secure token storage (OS keychain via safeStorage)
-  storeRefreshToken: (token: string): Promise<true | null> => {
+  storeRefreshToken: (token: string): Promise<SecureStorageStoreResult> => {
     return ipcRenderer.invoke('secure-storage:store', 'refreshToken', token);
   },
 
@@ -201,6 +202,12 @@ const electronAPI = {
 
   deleteRefreshToken: (): Promise<void> => {
     return ipcRenderer.invoke('secure-storage:delete', 'refreshToken');
+  },
+
+  // Lets the renderer proactively check whether the OS keychain is available
+  // (e.g. to surface a one-time warning) without performing a store/read.
+  getSecureStorageAvailability: (): Promise<SecureStorageAvailability> => {
+    return ipcRenderer.invoke('secure-storage:availability');
   },
 
   // Power save blocker for voice calls

@@ -21,6 +21,64 @@ const authFailureListeners: Set<AuthFailureListener> = new Set();
 // Mutex for preventing concurrent refresh attempts
 let refreshPromise: Promise<string | null> | null = null;
 
+// ─── Secure Storage Availability Warning (Electron) ─────────────────────────
+//
+// When the OS keychain isn't available (e.g. no keyring daemon on Linux),
+// storeElectronRefreshToken() falls back to persisting the refresh token in
+// plain localStorage instead of encrypted OS-backed storage. That's an
+// invisible security downgrade unless we surface it. We log every occurrence
+// (for diagnostics/support), but only ever show the user-visible UI warning
+// once — see `onSecureStorageWarning` below, subscribed to by
+// `SecureStorageWarning` (components/Electron/SecureStorageWarning.tsx).
+
+const SECURE_STORAGE_WARNING_KEY = "semaphore:secureStorageWarningShown";
+
+type SecureStorageWarningListener = () => void;
+const secureStorageWarningListeners: Set<SecureStorageWarningListener> = new Set();
+
+/**
+ * Subscribe to the one-time "secure storage unavailable" warning.
+ * @returns Unsubscribe function
+ */
+export function onSecureStorageWarning(listener: SecureStorageWarningListener): () => void {
+  secureStorageWarningListeners.add(listener);
+  return () => secureStorageWarningListeners.delete(listener);
+}
+
+/**
+ * Called whenever a token persist falls back to localStorage because the OS
+ * keychain is unavailable. Always logs (so it's visible in devtools/support
+ * bundles on every affected launch), but only notifies UI listeners — and
+ * marks the warning as permanently shown — once. If no listener is
+ * registered yet (e.g. this fires before the authenticated app shell with
+ * the notification provider has mounted, such as during initial login), the
+ * "shown" flag is intentionally left unset so the next occurrence can still
+ * reach the user.
+ */
+function triggerSecureStorageWarning(): void {
+  logger.warn(
+    "[TokenService] Secure credential storage (OS keychain) is unavailable on this " +
+    "system; your session token will be stored unencrypted in localStorage."
+  );
+
+  if (localStorage.getItem(SECURE_STORAGE_WARNING_KEY) === "true") {
+    return;
+  }
+
+  if (secureStorageWarningListeners.size === 0) {
+    return;
+  }
+
+  localStorage.setItem(SECURE_STORAGE_WARNING_KEY, "true");
+  secureStorageWarningListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (error) {
+      logger.error("[TokenService] Error in secure storage warning listener:", error);
+    }
+  });
+}
+
 // In-memory access token storage.
 // Stored in a module-scoped variable instead of localStorage to prevent
 // XSS-based token theft. On page refresh, the token is recovered via
@@ -160,12 +218,16 @@ export async function storeElectronRefreshToken(token: string): Promise<void> {
   try {
     if (window.electronAPI?.storeRefreshToken) {
       const result = await window.electronAPI.storeRefreshToken(token);
-      if (result !== null) {
+      if (result?.stored) {
         // Clean up legacy localStorage entry after successful migration
         localStorage.removeItem("refreshToken");
         return;
       }
-      // safeStorage unavailable — fall through to localStorage
+      if (result?.availability === "unavailable") {
+        triggerSecureStorageWarning();
+      }
+      // Encryption unavailable, or the write otherwise failed — fall through
+      // to localStorage below.
     }
   } catch {
     logger.debug("[TokenService] Secure storage write failed, falling back to localStorage");

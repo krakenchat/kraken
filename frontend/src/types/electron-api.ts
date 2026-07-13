@@ -27,6 +27,20 @@ export interface ElectronNotificationOptions {
   silent?: boolean;
 }
 
+/**
+ * Whether the OS keychain (via Electron's `safeStorage`) is available for
+ * encrypting values on this system. Mirrors `electron/secure-storage.types.ts`
+ * — kept in sync manually since preload.ts and this file are compiled
+ * separately (see other duplicated types below, e.g. UpdateInfo).
+ */
+export type SecureStorageAvailability = 'available' | 'unavailable';
+
+/** Result of a `storeRefreshToken` call. Mirrors `electron/secure-storage.types.ts`. */
+export interface SecureStorageStoreResult {
+  stored: boolean;
+  availability: SecureStorageAvailability;
+}
+
 export interface ElectronAPI {
   platform?: string;
   isElectron?: boolean;
@@ -51,9 +65,10 @@ export interface ElectronAPI {
   ) => (() => void);
   getSettings?: () => Promise<Record<string, unknown>>;
   setSetting?: (key: string, value: unknown) => Promise<unknown>;
-  storeRefreshToken?: (token: string) => Promise<true | null>;
+  storeRefreshToken?: (token: string) => Promise<SecureStorageStoreResult>;
   getRefreshToken?: () => Promise<string | null>;
   deleteRefreshToken?: () => Promise<void>;
+  getSecureStorageAvailability?: () => Promise<SecureStorageAvailability>;
   requestPowerSaveBlock?: () => Promise<number>;
   releasePowerSaveBlock?: (id: number) => Promise<void>;
   [key: string]: unknown;

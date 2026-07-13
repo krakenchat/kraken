@@ -14,6 +14,7 @@ import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
 import * as path from 'path';
 import * as fs from 'fs';
+import type { SecureStorageAvailability, SecureStorageStoreResult } from './secure-storage.types';
 
 // ─── App Settings (single JSON file in userData) ────────────────────────────
 
@@ -81,6 +82,30 @@ function isWayland(): boolean {
     !!process.env.WAYLAND_DISPLAY ||
     process.env.XDG_SESSION_TYPE === 'wayland'
   );
+}
+
+/**
+ * Determine whether a URL (or origin) belongs to the app itself, as opposed
+ * to a remote page loaded via window-open/will-navigate. Used to gate
+ * media/display-capture/fullscreen permission grants so an unexpected
+ * remote origin can never silently acquire camera/mic/screen access.
+ *
+ * Matches exactly how the app loads in each mode:
+ * - Packaged production: `mainWindow.loadFile(...)` → `file://` origin.
+ * - Development: `mainWindow.loadURL('http://localhost:5173/')`.
+ */
+function isAppOrigin(urlOrOrigin: string): boolean {
+  if (!urlOrOrigin) return false;
+  try {
+    const parsed = new URL(urlOrOrigin);
+    if (parsed.protocol === 'file:') return true;
+    if (parsed.protocol === 'http:' && parsed.hostname === 'localhost' && parsed.port === '5173') {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -569,21 +594,32 @@ function setupIpcHandlers() {
   // Secure storage handlers — encrypt refresh token via OS keychain
   const secureStoragePath = path.join(app.getPath('userData'), 'secure-tokens');
 
-  ipcMain.handle('secure-storage:store', async (_event, key: string, value: string) => {
+  // Lets the renderer proactively check encryption availability (e.g. to
+  // surface a warning) without performing a store/read operation.
+  ipcMain.handle('secure-storage:availability', (): SecureStorageAvailability => {
+    return safeStorage.isEncryptionAvailable() ? 'available' : 'unavailable';
+  });
+
+  ipcMain.handle('secure-storage:store', async (_event, key: string, value: string): Promise<SecureStorageStoreResult> => {
+    const availability: SecureStorageAvailability = safeStorage.isEncryptionAvailable()
+      ? 'available'
+      : 'unavailable';
+
+    if (availability === 'unavailable') {
+      console.warn('safeStorage encryption not available, falling back to renderer localStorage');
+      return { stored: false, availability };
+    }
+
     try {
-      if (!safeStorage.isEncryptionAvailable()) {
-        console.warn('safeStorage encryption not available, falling back to renderer localStorage');
-        return null;
-      }
       const encrypted = safeStorage.encryptString(value);
       if (!fs.existsSync(secureStoragePath)) {
         fs.mkdirSync(secureStoragePath, { recursive: true });
       }
       fs.writeFileSync(path.join(secureStoragePath, key), encrypted);
-      return true;
+      return { stored: true, availability };
     } catch (error) {
       console.error('Failed to store secure token:', error);
-      return null;
+      return { stored: false, availability };
     }
   });
 
@@ -661,6 +697,13 @@ function createWindow() {
       nodeIntegration: false,
       // Security: enable context isolation
       contextIsolation: true,
+      // Security: explicitly enable the OS-level renderer sandbox (Chromium's
+      // process sandbox). Electron defaults to sandbox: true already when
+      // nodeIntegration is false, but pin it explicitly so this doesn't
+      // silently change if Electron's defaults ever do. The preload script
+      // only uses contextBridge/ipcRenderer plus the polyfilled `process`
+      // global (platform/env), all of which remain available under sandbox.
+      sandbox: true,
       // Enable preload script
       preload: path.join(__dirname, 'preload.cjs'),
       // Keep timers and audio running when window is hidden/minimized
@@ -750,17 +793,37 @@ function createWindow() {
 
 // When Electron has finished initialization
 app.whenReady().then(() => {
-  // Setup media permissions for camera, microphone, screen sharing, and fullscreen
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+  // Setup media permissions for camera, microphone, screen sharing, and fullscreen.
+  // Origin-checked: only the app's own page (file:// in packaged prod,
+  // http://localhost:5173 in dev) may be granted these — never a remote
+  // origin that ended up loaded via window-open/will-navigate edge cases.
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
     const allowedPermissions = ['media', 'display-capture', 'fullscreen'];
+    const requestingUrl = details.requestingUrl || webContents.getURL();
 
-    if (allowedPermissions.includes(permission)) {
-      console.log(`Granting permission: ${permission}`);
+    if (allowedPermissions.includes(permission) && isAppOrigin(requestingUrl)) {
+      console.log(`Granting permission: ${permission} (origin: ${requestingUrl})`);
       callback(true);
     } else {
-      console.log(`Denying permission: ${permission}`);
+      console.log(`Denying permission: ${permission} (origin: ${requestingUrl})`);
       callback(false);
     }
+  });
+
+  // Permission checks (synchronous, used e.g. for already-granted-permission
+  // queries) must apply the same origin policy as the request handler above —
+  // otherwise a check could report "allowed" for a permission the request
+  // handler would actually deny.
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    const allowedPermissions = ['media', 'display-capture', 'fullscreen'];
+    const origin = requestingOrigin || webContents?.getURL() || '';
+    const allowed = allowedPermissions.includes(permission) && isAppOrigin(origin);
+
+    if (!allowed) {
+      console.log(`Denying permission check: ${permission} (origin: ${origin})`);
+    }
+
+    return allowed;
   });
 
   // Handle screen sharing requests from LiveKit

@@ -10,7 +10,9 @@ import {
   clearTokens,
   setAccessToken,
   getAccessToken,
+  onSecureStorageWarning,
 } from '../../utils/tokenService';
+import { logger } from '../../utils/logger';
 
 describe('tokenService — Electron secure storage', () => {
   let originalElectronAPI: typeof window.electronAPI;
@@ -87,7 +89,7 @@ describe('tokenService — Electron secure storage', () => {
 
   describe('storeElectronRefreshToken', () => {
     it('should store in secure storage when available', async () => {
-      const mockStore = vi.fn().mockResolvedValue(true);
+      const mockStore = vi.fn().mockResolvedValue({ stored: true, availability: 'available' });
       window.electronAPI = {
         storeRefreshToken: mockStore,
       };
@@ -100,7 +102,7 @@ describe('tokenService — Electron secure storage', () => {
     it('should remove localStorage entry after storing in secure storage', async () => {
       localStorage.setItem('refreshToken', 'legacy-token');
       window.electronAPI = {
-        storeRefreshToken: vi.fn().mockResolvedValue(true),
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: true, availability: 'available' }),
       };
 
       await storeElectronRefreshToken('new-token');
@@ -108,9 +110,9 @@ describe('tokenService — Electron secure storage', () => {
       expect(localStorage.getItem('refreshToken')).toBeNull();
     });
 
-    it('should fall back to localStorage when safeStorage is unavailable (returns null)', async () => {
+    it('should fall back to localStorage when safeStorage is unavailable', async () => {
       window.electronAPI = {
-        storeRefreshToken: vi.fn().mockResolvedValue(null),
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: false, availability: 'unavailable' }),
       };
 
       await storeElectronRefreshToken('fallback-token');
@@ -171,6 +173,89 @@ describe('tokenService — Electron secure storage', () => {
       clearTokens();
 
       expect(localStorage.getItem('refreshToken')).toBeNull();
+    });
+  });
+
+  // ─── Secure storage warning (one-time) ────────────────────────
+
+  describe('secure storage unavailable warning', () => {
+    const WARNING_KEY = 'semaphore:secureStorageWarningShown';
+
+    it('logs on every unavailable store, but notifies a registered listener only once', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: false, availability: 'unavailable' }),
+      };
+
+      const warningListener = vi.fn();
+      const unsubscribe = onSecureStorageWarning(warningListener);
+
+      try {
+        await storeElectronRefreshToken('token-1');
+        await storeElectronRefreshToken('token-2');
+
+        expect(warningListener).toHaveBeenCalledTimes(1);
+        expect(logger.warn).toHaveBeenCalledTimes(2);
+        expect(localStorage.getItem(WARNING_KEY)).toBe('true');
+      } finally {
+        unsubscribe();
+      }
+    });
+
+    it('does not notify listeners when secure storage is available', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: true, availability: 'available' }),
+      };
+
+      const warningListener = vi.fn();
+      const unsubscribe = onSecureStorageWarning(warningListener);
+
+      try {
+        await storeElectronRefreshToken('token');
+
+        expect(warningListener).not.toHaveBeenCalled();
+        expect(logger.warn).not.toHaveBeenCalled();
+        expect(localStorage.getItem(WARNING_KEY)).toBeNull();
+      } finally {
+        unsubscribe();
+      }
+    });
+
+    it('defers marking the warning as shown until a listener is registered', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: false, availability: 'unavailable' }),
+      };
+
+      // No listener registered yet (e.g. warning fires before the
+      // authenticated app shell has mounted) — must not mark as shown, so a
+      // later listener can still catch it.
+      await storeElectronRefreshToken('token-1');
+      expect(localStorage.getItem(WARNING_KEY)).toBeNull();
+
+      const warningListener = vi.fn();
+      const unsubscribe = onSecureStorageWarning(warningListener);
+
+      try {
+        await storeElectronRefreshToken('token-2');
+
+        expect(warningListener).toHaveBeenCalledTimes(1);
+        expect(localStorage.getItem(WARNING_KEY)).toBe('true');
+      } finally {
+        unsubscribe();
+      }
+    });
+
+    it('unsubscribe stops further notifications', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: false, availability: 'unavailable' }),
+      };
+
+      const warningListener = vi.fn();
+      const unsubscribe = onSecureStorageWarning(warningListener);
+      unsubscribe();
+
+      await storeElectronRefreshToken('token');
+
+      expect(warningListener).not.toHaveBeenCalled();
     });
   });
 });

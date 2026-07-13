@@ -14,6 +14,7 @@ import { userControllerGetProfile } from "../api-client/sdk.gen";
 import { SocketProvider } from "../utils/SocketProvider";
 import { AvatarCacheProvider } from "../contexts/AvatarCacheContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
+import { SecureStorageWarning } from "./Electron/SecureStorageWarning";
 import { VoiceProvider } from "../contexts/VoiceContext";
 import { ConnectionStatusBanner } from "./ConnectionStatusBanner";
 import { RoomProvider } from "../contexts/RoomContext";
@@ -155,6 +156,7 @@ export function AuthGate() {
     <SocketProvider>
       <AvatarCacheProvider>
         <NotificationProvider>
+          <SecureStorageWarning />
           <VoiceProvider>
             <ConnectionStatusBanner />
             <RoomProvider>
