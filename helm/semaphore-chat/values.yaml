@@ -405,8 +405,13 @@ fileStorage:
   # Storage size
   size: 100Gi
 
-  # Storage class name (leave empty for no storage class)
-  # If using dynamic provisioning, specify your storage class here
+  # Storage class name. Leave empty ("") to use the cluster's default
+  # StorageClass for dynamic provisioning. If using a non-default
+  # StorageClass, specify its name here.
+  # NOTE: when fileStorage.nfs.enabled=true, the PVC always renders an
+  # explicit storageClassName: "" regardless of this setting — that's
+  # required for static binding to the chart-managed NFS PersistentVolume,
+  # not "no storage class" and not the cluster default.
   storageClassName: ""
 
   # PVC access mode for the uploads volume. Leave empty ("") for automatic
@@ -430,9 +435,11 @@ fileStorage:
     # NFS export path (override with your NFS export path)
     path: "/exports/semaphore-uploads"
 
-  # Escape hatch: set to true to allow backend.replicaCount > 1 (or HPA with
-  # minReplicas > 1) together with fileStorage.enabled=false. Off by default —
-  # this combination silently loses uploaded files, so the chart refuses to
+  # Escape hatch: set to true to allow backend.replicaCount > 1 (or
+  # autoscaling enabled with maxReplicas > 1 — the guard checks the highest
+  # POTENTIAL replica count the backend could ever reach, not minReplicas)
+  # together with fileStorage.enabled=false. Off by default — this
+  # combination silently loses uploaded files, so the chart refuses to
   # render unless you explicitly acknowledge the risk here.
   allowEphemeral: false
 

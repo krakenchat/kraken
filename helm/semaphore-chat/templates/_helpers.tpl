@@ -181,14 +181,22 @@ scales up.
 
 {{/*
 Effective accessMode for the fileStorage uploads PVC. fileStorage.accessMode
-is "auto" when left empty: ReadWriteOnce when the backend can only ever run 1
-pod (see semaphore-chat.backend.potentialReplicas), ReadWriteMany once more
-than one pod could run concurrently. An explicit fileStorage.accessMode value
-always overrides auto-detection.
+is "auto" when left empty: ReadWriteMany when fileStorage.nfs.enabled (the
+chart-managed NFS PersistentVolume only ever advertises ReadWriteMany, so an
+auto-selected ReadWriteOnce PVC could never bind to it), otherwise
+ReadWriteOnce when the backend can only ever run 1 pod (see
+semaphore-chat.backend.potentialReplicas), ReadWriteMany once more than one
+pod could run concurrently. An explicit fileStorage.accessMode value always
+overrides auto-detection — including for NFS mode, so setting it to
+ReadWriteOnce with fileStorage.nfs.enabled=true is possible but will always
+fail to bind (see semaphore-chat.validateFileStorage, which rejects that
+combination at render time rather than leaving the PVC Pending forever).
 */}}
 {{- define "semaphore-chat.fileStorage.accessMode" -}}
 {{- if .Values.fileStorage.accessMode -}}
 {{- .Values.fileStorage.accessMode -}}
+{{- else if .Values.fileStorage.nfs.enabled -}}
+{{- print "ReadWriteMany" -}}
 {{- else -}}
 {{- $replicas := include "semaphore-chat.backend.potentialReplicas" . | int -}}
 {{- if gt $replicas 1 -}}
@@ -213,6 +221,14 @@ file storage config:
    Only one pod can mount an RWO volume at a time, so the other pod(s) would
    fail to schedule. Fails unless the operator switches to an RWX-capable
    accessMode.
+
+3. fileStorage.nfs.enabled=true with an effective accessMode of
+   ReadWriteOnce. The chart-managed NFS PersistentVolume (templates/backend/
+   pv.yaml) only ever advertises ReadWriteMany, so a ReadWriteOnce PVC can
+   never bind to it — it would sit Pending forever regardless of replica
+   count. This can only happen via an explicit fileStorage.accessMode
+   override (auto-detection already forces ReadWriteMany for NFS), so this
+   guard fires independently of potentialReplicas.
 */}}
 {{- define "semaphore-chat.validateFileStorage" -}}
 {{- $replicas := include "semaphore-chat.backend.potentialReplicas" . | int -}}
@@ -221,6 +237,9 @@ file storage config:
 {{- end -}}
 {{- if and (gt $replicas 1) .Values.fileStorage.enabled (eq (include "semaphore-chat.fileStorage.accessMode" .) "ReadWriteOnce") -}}
 {{- fail (printf "semaphore-chat: backend can scale up to %d replicas (backend.replicaCount / backend.autoscaling.maxReplicas) but the uploads PVC would use ReadWriteOnce, which only one pod can mount at a time. Point fileStorage at an RWX-capable storage class (fileStorage.nfs.enabled=true or fileStorage.storageClassName pointing at NFS/EFS/AzureFile/etc.) and set fileStorage.accessMode=ReadWriteMany, or cap the backend at 1 potential replica." $replicas) -}}
+{{- end -}}
+{{- if and .Values.fileStorage.enabled .Values.fileStorage.nfs.enabled (eq (include "semaphore-chat.fileStorage.accessMode" .) "ReadWriteOnce") -}}
+{{- fail "semaphore-chat: fileStorage.nfs.enabled=true but fileStorage.accessMode is explicitly set to ReadWriteOnce. The chart-managed NFS PersistentVolume only advertises ReadWriteMany, so a ReadWriteOnce PVC can never bind to it and would stay Pending indefinitely. Remove the fileStorage.accessMode override (auto-detection already forces ReadWriteMany for NFS) or set it to ReadWriteMany." -}}
 {{- end -}}
 {{- end }}
 
