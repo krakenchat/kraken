@@ -99,6 +99,19 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 
+// ─── Smoke Test Mode (CI PR builds, electron-smoke.yml) ────────────────────
+// With --smoke-test, quit as soon as the main window fires ready-to-show
+// instead of staying open, so CI can verify the app launches without keeping
+// a headless runner alive. If ready-to-show never fires (e.g. a packaging or
+// main-process regression), exit non-zero after a 15s safety timeout.
+const isSmokeTest = process.argv.includes('--smoke-test');
+if (isSmokeTest) {
+  setTimeout(() => {
+    console.error('[smoke-test] ready-to-show did not fire within 15s, exiting 1');
+    app.exit(1);
+  }, 15000).unref();
+}
+
 // Track active notifications
 const activeNotifications = new Map<string, Notification>();
 
@@ -681,6 +694,10 @@ function createWindow() {
   // Show window when ready to prevent flashing
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
+    if (isSmokeTest) {
+      console.log('[smoke-test] ready-to-show fired, exiting 0');
+      app.exit(0);
+    }
   });
 
   // Load the app
