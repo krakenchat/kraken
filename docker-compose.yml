@@ -128,6 +128,47 @@ services:
       redis:
         condition: service_healthy
 
+  # S3-compatible object storage for local dev/testing of STORAGE_TYPE=S3.
+  # Opt-in via profile — doesn't start with a plain `docker compose up`:
+  #   docker compose --profile s3 up -d minio
+  # Then set in backend/.env: STORAGE_TYPE=S3, S3_BUCKET=semaphore-dev,
+  # S3_REGION=us-east-1, S3_ACCESS_KEY_ID=minioadmin,
+  # S3_SECRET_ACCESS_KEY=minioadmin, S3_ENDPOINT=http://minio:9000,
+  # S3_FORCE_PATH_STYLE=true. See docs-site/docs/installation/configuration.md.
+  minio:
+    image: minio/minio:latest
+    profiles: ["s3"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      # - "9001:9001" # Web console — uncomment to browse buckets at http://localhost:9001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - miniodata:/data
+
+  # One-shot sidecar: creates the dev bucket so the backend doesn't have to.
+  # Equivalent manual command if you ever need to re-run it by hand:
+  #   docker compose --profile s3 run --rm minio-init
+  minio-init:
+    image: minio/mc:latest
+    profiles: ["s3"]
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/semaphore-dev
+      "
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
   egress-init:
     image: busybox
     volumes:
@@ -160,3 +201,4 @@ volumes:
   pgdata:
   redisdata:
   egress-data:
+  miniodata:

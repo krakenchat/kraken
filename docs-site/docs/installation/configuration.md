@@ -21,6 +21,51 @@ Copy `backend/env.sample` to `backend/.env` to get started.
     openssl rand -base64 32
     ```
 
+### File storage
+
+File uploads (message attachments, avatars, banners, custom emoji, soundboard sounds) can be stored on the local filesystem or in an S3-compatible object store. Storage is resolved **per file record** — switching `STORAGE_TYPE` only affects where *new* uploads land; existing files keep working from wherever they were originally stored, so mixed-storage instances (e.g. after a mid-life migration to S3) work with zero migration.
+
+| Variable | Description | Default |
+|----------|------------|---------|
+| `STORAGE_TYPE` | `LOCAL` or `S3` | `LOCAL` |
+| `FILE_UPLOAD_DEST` | Local staging directory. For `STORAGE_TYPE=LOCAL` this is also the permanent storage location; for `STORAGE_TYPE=S3` it's scratch space only (files are uploaded to the bucket, then removed) | `./uploads` |
+
+The following are only required when `STORAGE_TYPE=S3` (validated at startup):
+
+| Variable | Description | Example |
+|----------|------------|---------|
+| `S3_BUCKET` | Target bucket name | `semaphore-chat-uploads` |
+| `S3_REGION` | AWS region (or an arbitrary value for MinIO) | `us-east-1` |
+| `S3_ACCESS_KEY_ID` | Access key | |
+| `S3_SECRET_ACCESS_KEY` | Secret key | |
+| `S3_ENDPOINT` | *(Optional)* Custom endpoint — set for S3-compatible services like MinIO | `http://minio:9000` |
+| `S3_FORCE_PATH_STYLE` | *(Optional)* Set `true` for MinIO and most self-hosted S3-compatible services (path-style addressing) | `true` |
+
+!!! note "The backend always streams file bytes, never redirects"
+    Uploads and downloads stream through the backend rather than presigning direct-to-S3 URLs, so the existing file access-control guards stay the single source of truth. Presigned URLs are a possible future optimization for read-heavy deployments, not implemented yet.
+
+#### Local development with MinIO
+
+The dev Docker Compose stack includes a MinIO service (S3-compatible, runs locally) behind an opt-in `s3` profile so it doesn't start by default:
+
+```bash
+docker compose --profile s3 up -d minio
+```
+
+Then set in `backend/.env`:
+
+```bash
+STORAGE_TYPE=S3
+S3_BUCKET=semaphore-dev
+S3_REGION=us-east-1
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
+S3_ENDPOINT=http://minio:9000
+S3_FORCE_PATH_STYLE=true
+```
+
+The `minio-init` sidecar creates the `semaphore-dev` bucket automatically on first start. MinIO's web console (if you enable the console port in `docker-compose.yml`) is available at `http://localhost:9001` with the same credentials.
+
 ### LiveKit (voice/video)
 
 These are optional — voice and video features are disabled if not configured.
