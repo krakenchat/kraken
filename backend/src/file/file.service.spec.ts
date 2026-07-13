@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { FileService } from './file.service';
@@ -75,6 +76,31 @@ describe('FileService', () => {
       );
 
       await expect(service.findOne(fileId)).rejects.toThrow('File not found');
+    });
+
+    it('should map Prisma P2025 (missing or soft-deleted row) to NotFoundException', async () => {
+      const fileId = 'soft-deleted-file';
+
+      // findUniqueOrThrow's `deletedAt: null` filter means a soft-deleted
+      // row rejects with P2025, exactly like a genuinely-missing id.
+      databaseService.file.findUniqueOrThrow.mockRejectedValue({
+        code: 'P2025',
+      });
+
+      await expect(service.findOne(fileId)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(fileId)).rejects.toThrow('File not found');
+    });
+
+    it('should rethrow non-P2025 errors unchanged', async () => {
+      const fileId = 'file-123';
+      const dbError = new Error('connection lost');
+
+      databaseService.file.findUniqueOrThrow.mockRejectedValue(dbError);
+
+      await expect(service.findOne(fileId)).rejects.toThrow('connection lost');
+      await expect(service.findOne(fileId)).rejects.not.toThrow(
+        NotFoundException,
+      );
     });
   });
 

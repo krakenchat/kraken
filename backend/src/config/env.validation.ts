@@ -14,6 +14,7 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -134,9 +135,17 @@ export class EnvironmentVariables {
   // STORAGE_TYPE=S3 (checked imperatively below) — S3_ENDPOINT and
   // S3_FORCE_PATH_STYLE stay optional even then (AWS S3 needs neither;
   // they're for S3-compatible services like MinIO).
+  //
+  // @IsIn is restricted to the real `StorageType` Prisma enum members
+  // (LOCAL, S3, AZURE_BLOB — see schema.prisma) so a typo (e.g. "s3",
+  // "AWS_S3") fails fast at startup instead of silently falling back to
+  // LOCAL via StorageService.getProvider()'s `default:` branch. AZURE_BLOB
+  // is included even though StorageService.getProvider() currently throws
+  // NotImplementedException for it — it's a real, intentionally-reserved
+  // enum value (see storage.service.ts), not a typo.
 
   @IsOptional()
-  @IsString()
+  @IsIn(['LOCAL', 'S3', 'AZURE_BLOB'])
   STORAGE_TYPE?: string;
 
   @IsOptional()

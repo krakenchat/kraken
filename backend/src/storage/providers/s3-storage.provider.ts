@@ -77,6 +77,14 @@ export class S3StorageProvider implements IStorageProvider {
   /**
    * Streams `source` to the S3 object `key` via a multipart upload
    * (`@aws-sdk/lib-storage`'s `Upload`). Never buffers the whole object.
+   *
+   * Size is derived from `Upload`'s own `httpUploadProgress` accounting
+   * (cumulative bytes it has already streamed up) rather than a follow-up
+   * HeadObject call — the bytes were just sent, so re-fetching them costs a
+   * needless extra network round trip. `Upload` only emits progress events
+   * once something has subscribed via `.on(...)` (see its `on()` override),
+   * so the listener below is what turns that accounting on, for both the
+   * single-PutObject and true-multipart code paths.
    */
   async writeStream(
     key: string,
@@ -94,9 +102,15 @@ export class S3StorageProvider implements IStorageProvider {
         },
       });
 
+      let bytesUploaded = 0;
+      upload.on('httpUploadProgress', (progress) => {
+        if (typeof progress.loaded === 'number') {
+          bytesUploaded = progress.loaded;
+        }
+      });
+
       const result = await upload.done();
-      const stats = await this.getFileStats(key);
-      return { size: stats.size, etag: result.ETag ?? stats.etag };
+      return { size: bytesUploaded, etag: result.ETag };
     } catch (error) {
       this.logger.error(`Failed to upload object ${key}:`, error);
       throw error;

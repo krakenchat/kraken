@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { StorageService } from '@/storage/storage.service';
 import { IStorageProvider } from '@/storage/interfaces/storage-provider.interface';
 import { Prisma } from '@prisma/client';
+import { isPrismaError } from '@/common/utils/prisma.utils';
 
 @Injectable()
 export class FileService {
@@ -13,10 +14,22 @@ export class FileService {
     private readonly storageService: StorageService,
   ) {}
 
-  findOne(id: string) {
-    return this.databaseService.file.findUniqueOrThrow({
-      where: { id, deletedAt: null },
-    });
+  async findOne(id: string) {
+    try {
+      return await this.databaseService.file.findUniqueOrThrow({
+        where: { id, deletedAt: null },
+      });
+    } catch (error) {
+      // findUniqueOrThrow rejects with P2025 (not `null`) for both a
+      // genuinely-missing id AND a soft-deleted row (excluded by the
+      // `deletedAt: null` filter above). Left unhandled, this was a raw
+      // Prisma error bubbling past every controller's dead `if (!file)`
+      // check — pre-existing bug, fixed here per repo testing policy.
+      if (isPrismaError(error, 'P2025')) {
+        throw new NotFoundException('File not found');
+      }
+      throw error;
+    }
   }
 
   async markForDeletion(fileId: string, tx?: Prisma.TransactionClient) {

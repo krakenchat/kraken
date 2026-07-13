@@ -27,11 +27,26 @@ jest.mock('@aws-sdk/client-s3', () => ({
 
 const mockUploadDone = jest.fn();
 const mockUploadCtor = jest.fn();
+let progressListener:
+  | ((progress: { loaded?: number; total?: number }) => void)
+  | undefined;
 
 jest.mock('@aws-sdk/lib-storage', () => ({
   Upload: jest.fn().mockImplementation((opts: unknown) => {
     mockUploadCtor(opts);
-    return { done: mockUploadDone };
+    return {
+      on: jest.fn(
+        (
+          event: string,
+          listener: (progress: { loaded?: number; total?: number }) => void,
+        ) => {
+          if (event === 'httpUploadProgress') {
+            progressListener = listener;
+          }
+        },
+      ),
+      done: mockUploadDone,
+    };
   }),
 }));
 
@@ -47,6 +62,7 @@ describe('S3StorageProvider', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    progressListener = undefined;
 
     const { unit } = await TestBed.solitary(S3StorageProvider)
       .mock(ConfigService)
@@ -64,12 +80,13 @@ describe('S3StorageProvider', () => {
 
   describe('writeStream', () => {
     it('streams via lib-storage Upload (never buffers the whole object)', async () => {
-      mockUploadDone.mockResolvedValue({ ETag: '"abc123"' });
-      mockSend.mockResolvedValue({
-        ContentLength: 4096,
-        LastModified: new Date('2026-01-01'),
-        ContentType: 'image/png',
-        ETag: '"abc123"',
+      // Simulate lib-storage's own httpUploadProgress accounting — the
+      // provider must derive `size` from this, never from a follow-up
+      // HeadObject call (mockSend is intentionally left unstubbed here to
+      // prove writeStream never calls `client.send` at all).
+      mockUploadDone.mockImplementation(() => {
+        progressListener?.({ loaded: 4096, total: 4096 });
+        return Promise.resolve({ ETag: '"abc123"' });
       });
       const source = Readable.from([Buffer.from('chunk')]);
 
@@ -88,7 +105,17 @@ describe('S3StorageProvider', () => {
         }),
       );
       expect(mockUploadDone).toHaveBeenCalledTimes(1);
+      expect(mockSend).not.toHaveBeenCalled();
       expect(result).toEqual({ size: 4096, etag: '"abc123"' });
+    });
+
+    it('defaults size to 0 when lib-storage never reports upload progress', async () => {
+      mockUploadDone.mockResolvedValue({ ETag: '"abc123"' });
+      const source = Readable.from([Buffer.from('chunk')]);
+
+      const result = await provider.writeStream('uploads/key.png', source);
+
+      expect(result).toEqual({ size: 0, etag: '"abc123"' });
     });
 
     it('propagates upload errors', async () => {

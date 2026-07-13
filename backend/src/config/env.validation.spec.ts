@@ -260,6 +260,24 @@ describe('validateEnv', () => {
 
       expect(() => validateEnv(config)).not.toThrow();
     });
+
+    it('passes when STORAGE_TYPE=AZURE_BLOB (a real, reserved-for-later enum value)', () => {
+      const config = { ...BASE_CONFIG, STORAGE_TYPE: 'AZURE_BLOB' };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+
+    it("throws on a typo'd STORAGE_TYPE instead of silently falling back to LOCAL", () => {
+      const config = { ...BASE_CONFIG, STORAGE_TYPE: 's3' };
+
+      expect(() => validateEnv(config)).toThrow(/STORAGE_TYPE/);
+    });
+
+    it('throws on an unrecognized STORAGE_TYPE value', () => {
+      const config = { ...BASE_CONFIG, STORAGE_TYPE: 'AWS_S3' };
+
+      expect(() => validateEnv(config)).toThrow(/STORAGE_TYPE/);
+    });
   });
 
   describe('Test 7: Unknown extra env vars are ignored', () => {

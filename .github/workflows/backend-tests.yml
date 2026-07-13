@@ -206,6 +206,28 @@ jobs:
         ports:
           - 6379:6379
 
+      # S3-compatible object storage for storage-s3.e2e-spec.ts. GitHub
+      # Actions service containers cannot override a container's CMD/args
+      # (only `options` flags are supported, appended to `docker create` —
+      # there is no way to pass positional `server /data` args the way
+      # docker-compose's `minio` service does above). `minio/minio`'s
+      # default CMD (`minio` with no subcommand) just prints --help and
+      # exits, which was verified empirically before picking this image —
+      # `bitnamilegacy/minio` starts its server from env vars alone with no
+      # command override needed, so it works as a bare `services:` entry.
+      minio:
+        image: bitnamilegacy/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 9000:9000
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -243,3 +265,10 @@ jobs:
           JWT_SECRET: test-secret-key
           JWT_REFRESH_SECRET: test-refresh-secret-key
           NODE_ENV: test
+          # storage-s3.e2e-spec.ts only: points the suite at the `minio`
+          # service above instead of its compose-network default
+          # (http://minio:9000, unreachable by hostname from a
+          # non-containerized GHA job — services are only reachable via
+          # localhost:<port>).
+          S3_TEST_ENDPOINT: http://localhost:9000
+          S3_TEST_BUCKET: semaphore-dev
