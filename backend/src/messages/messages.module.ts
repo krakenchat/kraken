@@ -17,6 +17,7 @@ import { NotificationsModule } from '@/notifications/notifications.module';
 import { ModerationModule } from '@/moderation/moderation.module';
 import { ReadReceiptsModule } from '@/read-receipts/read-receipts.module';
 import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
+import { RedisModule } from '@/redis/redis.module';
 
 @Module({
   controllers: [MessagesController],
@@ -40,6 +41,7 @@ import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
     ModerationModule,
     ReadReceiptsModule,
     LinkPreviewsModule,
+    RedisModule,
   ],
   exports: [MessagesService, ReactionsService, MessageDispatchService],
 })

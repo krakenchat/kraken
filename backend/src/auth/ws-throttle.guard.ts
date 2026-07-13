@@ -1,81 +1,86 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   Logger,
-  OnModuleDestroy,
 } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
-
-interface RateLimitEntry {
-  count: number;
-  windowStart: number;
-}
+import Redis from 'ioredis';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
 
 /**
- * WebSocket rate limiting guard.
+ * Atomically increments the per-socket counter and, only on the first
+ * increment of a window (i.e. when the key was just created), sets a
+ * millisecond TTL equal to the window length. Returns the post-increment
+ * count. Running this as a single EVAL keeps the "increment + maybe set
+ * TTL" sequence atomic without a round trip for a separate NX check.
+ */
+const INCR_WITH_WINDOW_SCRIPT = `
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return current
+`;
+
+/**
+ * WebSocket rate limiting guard, Redis-backed.
  *
- * Tracks message counts per socket connection using a fixed window.
- * The HTTP ThrottlerGuard doesn't apply to WebSocket gateways,
- * so this provides equivalent protection for WS events.
+ * Tracks message counts per socket connection using a fixed window stored
+ * in Redis (via the shared REDIS_CLIENT), so limits are shared across
+ * replicas and survive process restarts. The HTTP ThrottlerGuard doesn't
+ * apply to WebSocket gateways, so this provides equivalent protection for
+ * WS events.
  *
  * Default: 50 events per 10 seconds per connection.
+ *
+ * Fails OPEN: if Redis is unreachable or errors, the request is allowed and
+ * a warning is logged — rate limiting must never become an availability
+ * dependency for the whole app (mirrors FailOpenThrottlerStorage's
+ * philosophy for the HTTP throttler).
  */
 @Injectable()
-export class WsThrottleGuard implements CanActivate, OnModuleDestroy {
+export class WsThrottleGuard implements CanActivate {
   private readonly logger = new Logger(WsThrottleGuard.name);
-  private readonly limits = new Map<string, RateLimitEntry>();
   private readonly maxEventsPerWindow = 50;
   private readonly windowMs = 10000;
-  private readonly cleanupInterval: NodeJS.Timeout;
 
-  constructor() {
-    // Periodically clean up stale entries (every 60s)
-    this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
-    this.cleanupInterval.unref();
-  }
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
-  onModuleDestroy(): void {
-    clearInterval(this.cleanupInterval);
-  }
-
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     if (process.env.NODE_ENV === 'test') {
       return true;
     }
 
     const client = context.switchToWs().getClient<Socket>();
-    const key = client.id;
-    const now = Date.now();
+    const key = `ws:throttle:${client.id}`;
 
-    let entry = this.limits.get(key);
-
-    if (!entry || now - entry.windowStart > this.windowMs) {
-      // Start a new window
-      entry = { count: 1, windowStart: now };
-      this.limits.set(key, entry);
+    let count: number;
+    try {
+      count = (await this.redis.eval(
+        INCR_WITH_WINDOW_SCRIPT,
+        1,
+        key,
+        this.windowMs,
+      )) as number;
+    } catch (error) {
+      this.logger.warn(
+        `WS throttle store unavailable, failing open (request allowed): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
       return true;
     }
 
-    entry.count++;
-
-    if (entry.count > this.maxEventsPerWindow) {
+    if (count > this.maxEventsPerWindow) {
       this.logger.warn(
-        `WebSocket rate limit exceeded for socket ${key} (${entry.count}/${this.maxEventsPerWindow} in ${this.windowMs}ms)`,
+        `WebSocket rate limit exceeded for socket ${client.id} (${count}/${this.maxEventsPerWindow} in ${this.windowMs}ms)`,
       );
       throw new WsException('Rate limit exceeded. Please slow down.');
     }
 
     return true;
-  }
-
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.limits.entries()) {
-      if (now - entry.windowStart > this.windowMs * 2) {
-        this.limits.delete(key);
-      }
-    }
   }
 }
