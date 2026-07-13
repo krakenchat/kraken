@@ -102,6 +102,44 @@ LiveKit:
 {{- end }}
 {{- end }}
 
+{{- if not .Values.fileStorage.enabled }}
+
+⚠️  WARNING: File storage is EPHEMERAL (fileStorage.enabled=false)
+   Uploaded files (avatars, attachments) live on per-pod disk and will be
+   LOST on pod restart. This is only safe with a single backend replica.
+   To persist uploads across restarts (and to run more than one backend
+   replica), set fileStorage.enabled=true and configure a ReadWriteMany-
+   capable backend (fileStorage.nfs.enabled=true or fileStorage.storageClassName).
+
+{{- end }}
+
+{{- if .Values.fileStorage.enabled }}
+
+ℹ️  NOTE: The uploads PVC accessMode is {{ include "semaphore-chat.fileStorage.accessMode" . }}
+   (auto-detected from backend.replicaCount/backend.autoscaling, or an
+   explicit fileStorage.accessMode override). PVC accessModes are IMMUTABLE
+   in Kubernetes — if you are upgrading a release whose uploads PVC was
+   already created with a different accessMode (older chart versions always
+   used ReadWriteMany), this install will keep using the PVC's existing
+   accessMode, not the one shown above. To actually change it, set
+   fileStorage.accessMode explicitly to match what you want and either keep
+   it consistent going forward, or delete and let Helm recreate the PVC
+   (this destroys any files that were only stored there).
+
+{{- if and (eq (include "semaphore-chat.fileStorage.accessMode" .) "ReadWriteMany") (not .Values.fileStorage.nfs.enabled) (eq .Values.fileStorage.storageClassName "") }}
+
+⚠️  WARNING: fileStorage is set to ReadWriteMany, but neither
+   fileStorage.nfs.enabled nor an explicit fileStorage.storageClassName is
+   configured — the PVC will fall back to your cluster's default
+   StorageClass, which is RWO-only on most providers (EBS, GCP PD, Azure
+   Disk, local-path, minikube hostpath). The PVC may stay Pending forever.
+   Set fileStorage.nfs.enabled=true or fileStorage.storageClassName to an
+   RWX-capable storage class.
+
+{{- end }}
+
+{{- end }}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📚 NEXT STEPS

@@ -7,10 +7,26 @@ metadata:
     {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
 spec:
   accessModes:
-    - ReadWriteMany  # Multiple backend pods can mount simultaneously
-  {{- if hasKey .Values.fileStorage "storageClassName" }}
+    - {{ include "semaphore-chat.fileStorage.accessMode" . }}  # auto: ReadWriteOnce at 1 potential replica, ReadWriteMany when scaled or NFS (override via fileStorage.accessMode)
+  {{- if .Values.fileStorage.nfs.enabled }}
+  # storageClassName: "" is deliberate (not merely "unset") when binding to the
+  # chart-managed NFS PV below via volumeName: an explicit empty string
+  # disables dynamic provisioning so this PVC statically binds to that PV
+  # instead of waiting on the cluster's default StorageClass to provision a
+  # brand new volume. This overrides any fileStorage.storageClassName value.
+  storageClassName: ""
+  {{- else if .Values.fileStorage.storageClassName }}
   storageClassName: {{ .Values.fileStorage.storageClassName | quote }}
   {{- end }}
+  {{/*
+  When neither branch above fires (fileStorage.storageClassName is empty and
+  NFS is off), storageClassName is omitted entirely rather than rendered as
+  "". An ABSENT storageClassName tells Kubernetes to use the cluster's default
+  StorageClass; an explicit "" instead pins to static/pre-bound PVs only and
+  disables dynamic provisioning. Rendering "" unconditionally here was the bug
+  — it silently broke dynamic provisioning on every cluster relying on its
+  default StorageClass.
+  */}}
   resources:
     requests:
       storage: {{ .Values.fileStorage.size }}
