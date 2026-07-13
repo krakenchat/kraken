@@ -1,0 +1,102 @@
+name: Electron Smoke Build
+
+# PR-time sanity check that the desktop app still packages and launches.
+# The full release build (.github/workflows/electron-build.yml) only runs on
+# tags/dispatch, so a PR that breaks electron packaging or the main process
+# (frontend/electron/main.ts) otherwise sails through PR CI and only explodes
+# at release time. This workflow catches that early with a Linux --dir build
+# (no installer, no signing, no publishing) and a best-effort headless launch.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+      - '.github/workflows/electron-smoke.yml'
+
+# One in-flight run per PR ref; a newer push cancels the older run instead of
+# letting duplicate packaging builds pile up.
+concurrency:
+  group: electron-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-build:
+    name: Smoke Build (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      # keep in sync with electron-build.yml
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # keep in sync with electron-build.yml
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      # keep in sync with electron-build.yml
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      # keep in sync with electron-build.yml
+      # Installs from the workspace root (pnpm-workspace.yaml); the root
+      # "prepare" script builds @semaphore-chat/shared automatically.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # keep in sync with electron-build.yml
+      - name: Generate API client
+        working-directory: frontend
+        run: pnpm exec openapi-ts
+
+      # keep in sync with electron-build.yml (build-linux job)
+      # Builds the renderer (vite build), compiles the electron main process
+      # (tsc via electron/tsconfig.electron.json), and compiles the preload
+      # script.
+      - name: Build renderer and electron main
+        working-directory: frontend
+        run: pnpm run build:all
+
+      # Directory-only package: no installer, no code signing, no publish.
+      # Reuses the electron-builder:linux script (package.json) so the
+      # mandated -c.productName=semaphore-chat flag (avoids the
+      # "/opt/Semaphore Chat" space in the install path, #349 — see the note
+      # in electron-builder.yml) stays centralized in one place.
+      # Deliberately no "--" before --dir/--publish: pnpm forwards trailing
+      # flags to the script fine without it, and electron-builder's yargs
+      # CLI treats everything after a literal "--" as positional args, so
+      # `-- --dir --publish never` would silently fail to parse as flags
+      # (verified locally: --dir/--publish never land in argv._ instead of
+      # argv.dir/argv.publish when "--" precedes them).
+      # Unlike electron-build.yml this intentionally does NOT set GH_TOKEN;
+      # --publish never means electron-builder never needs it.
+      - name: Package Linux app (--dir, unpacked)
+        working-directory: frontend
+        run: pnpm run electron-builder:linux --dir --publish never
+
+      # Best-effort: launch the packaged binary headlessly and confirm the
+      # main process reaches ready-to-show. Non-required (continue-on-error)
+      # because CI sandboxing/Xvfb flakiness shouldn't block PRs; the build
+      # step above is the required signal. --smoke-test makes main.ts quit
+      # on its own shortly after ready-to-show (or exit 1 after a 15s
+      # in-app safety timeout); the step-level timeout is a second backstop.
+      - name: Smoke-launch packaged app (best effort)
+        working-directory: frontend
+        timeout-minutes: 1
+        continue-on-error: true
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          # --no-sandbox: the unpacked --dir build never runs the .deb postinst
+          # (deb-after-install.sh) that installs the AppArmor profile Electron's
+          # Linux sandbox needs, so a sandboxed launch would fail here even on a
+          # healthy binary. This means the smoke test does NOT exercise the real
+          # user's sandboxed launch path — do not read a pass as sandbox validation.
+          xvfb-run --auto-servernum ./release/linux-unpacked/semaphore-chat --smoke-test --no-sandbox
