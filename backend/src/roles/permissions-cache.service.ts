@@ -84,13 +84,16 @@ export type PermissionCacheReadResult =
  * falls through to the DB. Failures are logged at `warn`, throttled to once
  * per WARN_INTERVAL_MS.
  *
- * Bumps: always awaited (never fire-and-forget) so a mutation cannot return
- * before the invalidation is visible to subsequent reads — a missed bump
- * means a stale permission grant for up to VALUE_TTL_SECONDS, which this
- * cache treats as unacceptable to risk knowingly. On error/timeout the bump
- * is logged at `error` (every time — bumps are rare, so no throttling) and
- * swallowed rather than thrown, so a wedged Redis cannot turn role
- * management into a 500.
+ * Bumps: always awaited (never fire-and-forget), so on the happy path the
+ * invalidation is guaranteed visible to subsequent reads before the mutation
+ * returns. That guarantee does NOT hold under Redis failure: `bump()` below
+ * runs the INCR through `withTimeout`, and on error or timeout it logs at
+ * `error` (every time — bumps are rare, so no throttling) and swallows the
+ * failure rather than rethrowing — fail-open, same posture as reads — so a
+ * wedged Redis cannot turn role management into a 500. In that case the bump
+ * may not have applied, and staleness is bounded only by VALUE_TTL_SECONDS
+ * (300s): affected cache entries self-expire by then even if the bump never
+ * lands.
  *
  * ## Bump ordering vs. transactions
  *
@@ -326,6 +329,15 @@ export class PermissionsCacheService {
       );
       timeoutHandle.unref?.();
     });
+
+    // Defensive: if the timeout wins the race below, `promise` (bump's
+    // redis.incr, readActions', or writeActions' underlying Redis calls) may
+    // still be pending. Attaching .catch() on this reference doesn't affect
+    // the value Promise.race resolves/rejects with below — that still comes
+    // from `promise`'s own resolution/rejection — it just guarantees a later
+    // rejection can never surface as an unhandled rejection, without relying
+    // on Promise.race's internal subscription behavior to provide that.
+    promise.catch(() => undefined);
 
     return Promise.race([promise, timeoutPromise]).finally(() =>
       clearTimeout(timeoutHandle),

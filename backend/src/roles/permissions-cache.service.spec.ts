@@ -332,6 +332,40 @@ describe('PermissionsCacheService', () => {
 
       expect(result).toEqual({ status: 'hit', actions });
     });
+
+    it('does not produce an unhandled rejection when the underlying Redis call rejects after the timeout already won the race', async () => {
+      const unhandled = jest.fn();
+      process.on('unhandledRejection', unhandled);
+
+      try {
+        let rejectIncr!: (err: Error) => void;
+        const redis = makeRedis({
+          incr: jest.fn(
+            () =>
+              new Promise((_resolve, reject) => {
+                rejectIncr = reject;
+              }),
+          ),
+        });
+        const service = new PermissionsCacheService(redis);
+        spyOnError(service);
+
+        const bumpPromise = service.bumpUserEpoch('user-1');
+        await jest.advanceTimersByTimeAsync(1501);
+        await bumpPromise;
+
+        // The INCR call is still pending from the service's perspective —
+        // reject it now, after the timeout has already resolved the race.
+        rejectIncr(new Error('late redis failure'));
+        await jest.advanceTimersByTimeAsync(0);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(unhandled).not.toHaveBeenCalled();
+      } finally {
+        process.off('unhandledRejection', unhandled);
+      }
+    });
   });
 
   describe('fast fail-open when Redis is not ready', () => {
