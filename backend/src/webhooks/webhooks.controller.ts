@@ -23,6 +23,7 @@ import {
 } from '@/auth/rbac-resource.decorator';
 import { AuthenticatedRequest } from '@/types';
 import { WebhooksService } from './webhooks.service';
+import { WebhookThrottlerGuard } from './webhook-throttler.guard';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { ExecuteWebhookDto } from './dto/execute-webhook.dto';
 import {
@@ -99,6 +100,9 @@ export class WebhookExecutionController {
   @HttpCode(201)
   @Public()
   @Throttle({ short: { limit: 4, ttl: 1000 }, long: { limit: 30, ttl: 60000 } })
+  // Per-webhook-identity limit, independent of the per-IP tiers above — see
+  // WebhookThrottlerGuard for how the two dimensions stay isolated.
+  @UseGuards(WebhookThrottlerGuard)
   @ApiCreatedResponse({ type: ExecuteWebhookResponseDto })
   execute(
     @Param('id') id: string,
