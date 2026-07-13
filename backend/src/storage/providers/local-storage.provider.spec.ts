@@ -1,6 +1,8 @@
 import { TestBed } from '@suites/unit';
 import { LocalStorageProvider } from './local-storage.provider';
-import { promises as fs, createReadStream } from 'fs';
+import { promises as fs, createReadStream, createWriteStream } from 'fs';
+import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 
 // Mock fs module
 jest.mock('fs', () => ({
@@ -15,6 +17,13 @@ jest.mock('fs', () => ({
     writeFile: jest.fn(),
   },
   createReadStream: jest.fn(),
+  createWriteStream: jest.fn(),
+}));
+
+// Mock stream/promises' pipeline — writeStream pipes source -> destination
+// through it; tests only need to assert it was invoked with the right args.
+jest.mock('stream/promises', () => ({
+  pipeline: jest.fn(),
 }));
 
 describe('LocalStorageProvider', () => {
@@ -433,6 +442,71 @@ describe('LocalStorageProvider', () => {
       expect(await provider.getFileUrl('../parent/path')).toBe(
         '../parent/path',
       );
+    });
+  });
+
+  describe('writeStream', () => {
+    it('should ensure the parent directory exists, pipe source to disk, and return the written size', async () => {
+      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
+      (pipeline as unknown as jest.Mock).mockResolvedValue(undefined);
+      (fs.stat as jest.Mock).mockResolvedValue({ size: 2048 });
+      const mockWriteStream = {} as any;
+      (createWriteStream as jest.Mock).mockReturnValue(mockWriteStream);
+      const source = Readable.from([Buffer.from('data')]);
+
+      const result = await provider.writeStream(
+        '/test/nested/file.bin',
+        source,
+      );
+
+      expect(fs.mkdir).toHaveBeenCalledWith('/test/nested', {
+        recursive: true,
+      });
+      expect(createWriteStream).toHaveBeenCalledWith('/test/nested/file.bin');
+      expect(pipeline).toHaveBeenCalledWith(source, mockWriteStream);
+      expect(result).toEqual({ size: 2048 });
+    });
+
+    it('should propagate errors from the pipeline (e.g. disk full)', async () => {
+      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
+      (pipeline as unknown as jest.Mock).mockRejectedValue(new Error('ENOSPC'));
+      (createWriteStream as jest.Mock).mockReturnValue({} as any);
+      const source = Readable.from([Buffer.from('data')]);
+
+      await expect(
+        provider.writeStream('/test/file.bin', source),
+      ).rejects.toThrow('ENOSPC');
+    });
+  });
+
+  describe('getReadStream', () => {
+    it('should return a full-file read stream when no range is given', async () => {
+      const mockStream = {} as any;
+      (createReadStream as jest.Mock).mockReturnValue(mockStream);
+
+      const result = await provider.getReadStream('/test/file.txt');
+
+      expect(result).toBe(mockStream);
+      expect(createReadStream).toHaveBeenCalledWith(
+        '/test/file.txt',
+        undefined,
+      );
+    });
+
+    it('should pass start/end options through for ranged reads', async () => {
+      const mockStream = {} as any;
+      (createReadStream as jest.Mock).mockReturnValue(mockStream);
+
+      const result = await provider.getReadStream('/test/file.txt', {
+        start: 0,
+        end: 999,
+      });
+
+      expect(result).toBe(mockStream);
+      expect(createReadStream).toHaveBeenCalledWith('/test/file.txt', {
+        start: 0,
+        end: 999,
+      });
     });
   });
 });
