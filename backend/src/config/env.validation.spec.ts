@@ -195,6 +195,73 @@ describe('validateEnv', () => {
     });
   });
 
+  describe('Test 6c: S3 storage vars required only when STORAGE_TYPE=S3', () => {
+    it('passes when STORAGE_TYPE is unset (LOCAL default) with no S3 vars', () => {
+      const config = { ...BASE_CONFIG };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+
+    it('passes when STORAGE_TYPE=LOCAL explicitly with no S3 vars', () => {
+      const config = { ...BASE_CONFIG, STORAGE_TYPE: 'LOCAL' };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+
+    it('throws listing every missing S3 var when STORAGE_TYPE=S3 and none are set', () => {
+      const config = { ...BASE_CONFIG, STORAGE_TYPE: 'S3' };
+
+      let error: Error | null = null;
+      try {
+        validateEnv(config);
+      } catch (e) {
+        error = e as Error;
+      }
+
+      expect(error).not.toBeNull();
+      expect(error!.message).toMatch(
+        /S3_BUCKET is required when STORAGE_TYPE=S3/,
+      );
+      expect(error!.message).toMatch(
+        /S3_REGION is required when STORAGE_TYPE=S3/,
+      );
+      expect(error!.message).toMatch(
+        /S3_ACCESS_KEY_ID is required when STORAGE_TYPE=S3/,
+      );
+      expect(error!.message).toMatch(
+        /S3_SECRET_ACCESS_KEY is required when STORAGE_TYPE=S3/,
+      );
+    });
+
+    it('passes when STORAGE_TYPE=S3 with all required S3 vars set (no endpoint needed for AWS)', () => {
+      const config = {
+        ...BASE_CONFIG,
+        STORAGE_TYPE: 'S3',
+        S3_BUCKET: 'my-bucket',
+        S3_REGION: 'us-east-1',
+        S3_ACCESS_KEY_ID: 'AKIA...',
+        S3_SECRET_ACCESS_KEY: 'secret',
+      };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+
+    it('passes when STORAGE_TYPE=S3 with MinIO-style endpoint and path-style flag set', () => {
+      const config = {
+        ...BASE_CONFIG,
+        STORAGE_TYPE: 'S3',
+        S3_BUCKET: 'my-bucket',
+        S3_REGION: 'us-east-1',
+        S3_ACCESS_KEY_ID: 'minioadmin',
+        S3_SECRET_ACCESS_KEY: 'minioadmin',
+        S3_ENDPOINT: 'http://minio:9000',
+        S3_FORCE_PATH_STYLE: 'true',
+      };
+
+      expect(() => validateEnv(config)).not.toThrow();
+    });
+  });
+
   describe('Test 7: Unknown extra env vars are ignored', () => {
     it('does not throw when extra unknown vars are present and passes them through', () => {
       const config = {

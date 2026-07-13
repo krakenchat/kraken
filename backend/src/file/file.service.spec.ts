@@ -3,11 +3,13 @@ import type { Mocked } from '@suites/doubles.jest';
 import { FileService } from './file.service';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
+import type { IStorageProvider } from '@/storage/interfaces/storage-provider.interface';
 
 describe('FileService', () => {
   let service: FileService;
   let databaseService: Mocked<DatabaseService>;
   let storageService: Mocked<StorageService>;
+  let mockProvider: jest.Mocked<IStorageProvider>;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(FileService).compile();
@@ -19,8 +21,18 @@ describe('FileService', () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Default mock for deleteFile
-    storageService.deleteFile.mockResolvedValue(undefined);
+    // Per-record provider resolution: cleanupOldFiles calls
+    // storageService.getProvider(file.storageType) and operates on the
+    // returned provider directly (never the ambient/local-only wrappers).
+    mockProvider = {
+      writeStream: jest.fn(),
+      getReadStream: jest.fn(),
+      deleteFile: jest.fn().mockResolvedValue(undefined),
+      fileExists: jest.fn(),
+      getFileStats: jest.fn(),
+      getFileUrl: jest.fn(),
+    };
+    storageService.getProvider.mockReturnValue(mockProvider);
   });
 
   afterEach(() => {
@@ -135,18 +147,20 @@ describe('FileService', () => {
   });
 
   describe('cleanupOldFiles', () => {
-    it('should cleanup deleted files from local storage', async () => {
+    it('should cleanup deleted files from local storage via the LOCAL provider', async () => {
       const deletedFiles = [
         {
           id: 'file-1',
           storageType: 'LOCAL',
           storagePath: '/tmp/file1.png',
+          thumbnailPath: null,
           deletedAt: new Date(),
         },
         {
           id: 'file-2',
           storageType: 'LOCAL',
           storagePath: '/tmp/file2.png',
+          thumbnailPath: null,
           deletedAt: new Date(),
         },
       ];
@@ -162,9 +176,10 @@ describe('FileService', () => {
         },
       });
 
-      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/file1.png');
-      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/file2.png');
-      expect(storageService.deleteFile).toHaveBeenCalledTimes(2);
+      expect(storageService.getProvider).toHaveBeenCalledWith('LOCAL');
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith('/tmp/file1.png');
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith('/tmp/file2.png');
+      expect(mockProvider.deleteFile).toHaveBeenCalledTimes(2);
 
       expect(databaseService.file.delete).toHaveBeenCalledWith({
         where: { id: 'file-1' },
@@ -174,22 +189,78 @@ describe('FileService', () => {
       });
     });
 
-    it('should skip non-LOCAL storage files', async () => {
+    it('should clean up S3-backed files via the S3 provider (per-record resolution)', async () => {
       const deletedFiles = [
         {
           id: 'file-s3',
           storageType: 'S3',
-          storagePath: 's3://bucket/file.png',
+          storagePath: 'abc123def456',
+          thumbnailPath: null,
           deletedAt: new Date(),
         },
       ];
 
       databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
+      databaseService.file.delete.mockResolvedValue({ id: 'file-s3' } as any);
 
       await service.cleanupOldFiles();
 
-      expect(storageService.deleteFile).not.toHaveBeenCalled();
-      expect(databaseService.file.delete).not.toHaveBeenCalled();
+      expect(storageService.getProvider).toHaveBeenCalledWith('S3');
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith('abc123def456');
+      expect(databaseService.file.delete).toHaveBeenCalledWith({
+        where: { id: 'file-s3' },
+      });
+    });
+
+    it('should also clean up the thumbnail object when present, via the same provider', async () => {
+      const deletedFiles = [
+        {
+          id: 'file-video',
+          storageType: 'S3',
+          storagePath: 'video-key',
+          thumbnailPath: 'thumbnails/file-video.jpg',
+          deletedAt: new Date(),
+        },
+      ];
+
+      databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
+      databaseService.file.delete.mockResolvedValue({} as any);
+
+      await service.cleanupOldFiles();
+
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith('video-key');
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith(
+        'thumbnails/file-video.jpg',
+      );
+      expect(databaseService.file.delete).toHaveBeenCalledWith({
+        where: { id: 'file-video' },
+      });
+    });
+
+    it('should still delete the DB row when thumbnail cleanup fails (non-fatal)', async () => {
+      const deletedFiles = [
+        {
+          id: 'file-video',
+          storageType: 'LOCAL',
+          storagePath: '/tmp/video.mp4',
+          thumbnailPath: '/tmp/thumbnails/file-video.jpg',
+          deletedAt: new Date(),
+        },
+      ];
+
+      databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
+      databaseService.file.delete.mockResolvedValue({} as any);
+      mockProvider.deleteFile.mockImplementation((key: string) =>
+        key.includes('thumbnails')
+          ? Promise.reject(new Error('thumbnail already gone'))
+          : Promise.resolve(),
+      );
+
+      await expect(service.cleanupOldFiles()).resolves.toBeUndefined();
+
+      expect(databaseService.file.delete).toHaveBeenCalledWith({
+        where: { id: 'file-video' },
+      });
     });
 
     it('should skip files without storage path', async () => {
@@ -198,6 +269,7 @@ describe('FileService', () => {
           id: 'file-no-path',
           storageType: 'LOCAL',
           storagePath: null,
+          thumbnailPath: null,
           deletedAt: new Date(),
         },
       ];
@@ -206,7 +278,8 @@ describe('FileService', () => {
 
       await service.cleanupOldFiles();
 
-      expect(storageService.deleteFile).not.toHaveBeenCalled();
+      expect(storageService.getProvider).not.toHaveBeenCalled();
+      expect(mockProvider.deleteFile).not.toHaveBeenCalled();
       expect(databaseService.file.delete).not.toHaveBeenCalled();
     });
 
@@ -216,28 +289,28 @@ describe('FileService', () => {
           id: 'file-error',
           storageType: 'LOCAL',
           storagePath: '/tmp/error.png',
+          thumbnailPath: null,
           deletedAt: new Date(),
         },
         {
           id: 'file-success',
           storageType: 'LOCAL',
           storagePath: '/tmp/success.png',
+          thumbnailPath: null,
           deletedAt: new Date(),
         },
       ];
 
       databaseService.file.findMany.mockResolvedValue(deletedFiles as any);
-      storageService.deleteFile
+      mockProvider.deleteFile
         .mockRejectedValueOnce(new Error('File not found'))
         .mockResolvedValueOnce(undefined);
 
       await service.cleanupOldFiles();
 
       // Should have attempted both files
-      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/error.png');
-      expect(storageService.deleteFile).toHaveBeenCalledWith(
-        '/tmp/success.png',
-      );
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith('/tmp/error.png');
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith('/tmp/success.png');
 
       // Only successful file should be deleted from DB
       expect(databaseService.file.delete).toHaveBeenCalledTimes(1);
@@ -251,7 +324,7 @@ describe('FileService', () => {
 
       await service.cleanupOldFiles();
 
-      expect(storageService.deleteFile).not.toHaveBeenCalled();
+      expect(mockProvider.deleteFile).not.toHaveBeenCalled();
       expect(databaseService.file.delete).not.toHaveBeenCalled();
     });
 
@@ -261,6 +334,7 @@ describe('FileService', () => {
           id: 'file-db-error',
           storageType: 'LOCAL',
           storagePath: '/tmp/file.png',
+          thumbnailPath: null,
           deletedAt: new Date(),
         },
       ];
@@ -273,7 +347,7 @@ describe('FileService', () => {
       // Should not throw - just logs error
       await expect(service.cleanupOldFiles()).resolves.toBeUndefined();
 
-      expect(storageService.deleteFile).toHaveBeenCalledWith('/tmp/file.png');
+      expect(mockProvider.deleteFile).toHaveBeenCalledWith('/tmp/file.png');
     });
   });
 });

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
-import { StorageService } from '@/storage/storage.service';
+import { StorageService, StorageType } from '@/storage/storage.service';
 import { FfmpegProvider } from '@/livekit/providers/ffmpeg.provider';
 
 @Injectable()
@@ -22,15 +22,33 @@ export class ThumbnailService {
    * Generate a JPEG thumbnail from a video file using FFmpeg.
    * Extracts a single frame at ~1 second, scaled to 480px wide.
    *
-   * @param filePath - Absolute path to the uploaded video file
+   * ffmpeg always needs a local filesystem path to write to. For LOCAL
+   * storage that's simply the final thumbnail location (unchanged, single
+   * write). For S3, extraction still lands in a local scratch file next to
+   * it, which is then streamed up to the object store and removed — the
+   * returned value is the S3 KEY, not a local path.
+   *
+   * @param filePath - Absolute path to the uploaded video file (always local — multer staging)
    * @param fileId - Database file ID (used for naming the thumbnail)
-   * @returns The thumbnail path on success, or null on failure (non-fatal)
+   * @param storageType - Where the parent `File` record lives; defaults to LOCAL
+   * @returns The thumbnail path/key on success, or null on failure (non-fatal)
    */
   async generateVideoThumbnail(
     filePath: string,
     fileId: string,
+    storageType: StorageType = StorageType.LOCAL,
   ): Promise<string | null> {
     const thumbnailDir = path.join(this.uploadsDir, 'thumbnails');
+
+    if (storageType !== StorageType.LOCAL) {
+      return this.generateAndUploadThumbnail(
+        filePath,
+        fileId,
+        storageType,
+        thumbnailDir,
+      );
+    }
+
     const thumbnailPath = path.join(thumbnailDir, `${fileId}.jpg`);
 
     try {
@@ -45,6 +63,44 @@ export class ThumbnailService {
         `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
+    }
+  }
+
+  /**
+   * Non-LOCAL variant: extract to a local scratch file, upload it to the
+   * resolved provider, then remove the scratch copy regardless of outcome.
+   */
+  private async generateAndUploadThumbnail(
+    filePath: string,
+    fileId: string,
+    storageType: StorageType,
+    thumbnailDir: string,
+  ): Promise<string | null> {
+    const scratchPath = path.join(thumbnailDir, `${fileId}.jpg.tmp`);
+    const key = `thumbnails/${fileId}.jpg`;
+
+    try {
+      await this.storageService.ensureDirectory(thumbnailDir);
+      await this.runThumbnailExtraction(filePath, scratchPath);
+
+      const provider = this.storageService.getProvider(storageType);
+      await provider.writeStream(
+        key,
+        this.storageService.createReadStream(scratchPath),
+        { contentType: 'image/jpeg' },
+      );
+
+      this.logger.log(`Generated and uploaded thumbnail for file ${fileId}`);
+      return key;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    } finally {
+      // Best-effort scratch-file cleanup — non-fatal even if extraction
+      // never produced the file.
+      await this.storageService.deleteFile(scratchPath).catch(() => undefined);
     }
   }
 

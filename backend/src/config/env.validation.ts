@@ -128,6 +128,40 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   PUBLIC_APP_URL?: string;
+
+  // File storage backend (PR-16) --------------------------------------
+  // STORAGE_TYPE defaults to LOCAL. S3_* vars are only required when
+  // STORAGE_TYPE=S3 (checked imperatively below) — S3_ENDPOINT and
+  // S3_FORCE_PATH_STYLE stay optional even then (AWS S3 needs neither;
+  // they're for S3-compatible services like MinIO).
+
+  @IsOptional()
+  @IsString()
+  STORAGE_TYPE?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_BUCKET?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_REGION?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_ENDPOINT?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_ACCESS_KEY_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_SECRET_ACCESS_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_FORCE_PATH_STYLE?: string;
 }
 
 /**
@@ -195,6 +229,23 @@ export function validateEnv(
   // SMTP_HOST requires SMTP_FROM — a from-address is mandatory to send mail.
   if (config.SMTP_HOST && !config.SMTP_FROM) {
     errors.push('SMTP_HOST requires SMTP_FROM to be set.');
+  }
+
+  // S3 storage vars are required only when STORAGE_TYPE=S3. S3_ENDPOINT and
+  // S3_FORCE_PATH_STYLE are never required — they exist for S3-compatible
+  // services (MinIO) rather than AWS S3 itself.
+  if (validated.STORAGE_TYPE === 'S3') {
+    const REQUIRED_FOR_S3 = [
+      'S3_BUCKET',
+      'S3_REGION',
+      'S3_ACCESS_KEY_ID',
+      'S3_SECRET_ACCESS_KEY',
+    ] as const;
+    for (const key of REQUIRED_FOR_S3) {
+      if (!config[key]) {
+        errors.push(`${key} is required when STORAGE_TYPE=S3`);
+      }
+    }
   }
 
   if (errors.length > 0) {

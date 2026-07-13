@@ -3,18 +3,20 @@ import type { Mocked } from '@suites/doubles.jest';
 import { FileController } from './file.controller';
 import { FileService } from './file.service';
 import { SignedUrlService } from './signed-url.service';
-import { NotFoundException, NotImplementedException } from '@nestjs/common';
+import { StorageService } from '@/storage/storage.service';
+import { NotFoundException } from '@nestjs/common';
 import { StorageType, FileType } from '@prisma/client';
 import { Request, Response } from 'express';
-import * as fs from 'fs';
+import { Readable } from 'stream';
+import type { IStorageProvider } from '@/storage/interfaces/storage-provider.interface';
 import { AuthenticatedRequest } from '@/types';
-
-jest.mock('fs');
 
 describe('FileController', () => {
   let controller: FileController;
   let service: Mocked<FileService>;
   let signedUrlService: Mocked<SignedUrlService>;
+  let storageService: Mocked<StorageService>;
+  let mockProvider: jest.Mocked<IStorageProvider>;
 
   const mockResponse = {
     set: jest.fn(),
@@ -32,16 +34,25 @@ describe('FileController', () => {
     controller = unit;
     service = unitRef.get(FileService);
     signedUrlService = unitRef.get(SignedUrlService);
+    storageService = unitRef.get(StorageService);
 
     // Reset mocks
     jest.clearAllMocks();
 
-    // Mock createReadStream
-    const mockStream = {
-      on: jest.fn(),
-      pipe: jest.fn(),
+    // Per-record provider resolution: the controller always resolves via
+    // storageService.getProvider(file.storageType) and reads through the
+    // returned provider — never a direct fs call.
+    mockProvider = {
+      writeStream: jest.fn(),
+      getReadStream: jest
+        .fn()
+        .mockResolvedValue(Readable.from([Buffer.from('data')])),
+      deleteFile: jest.fn(),
+      fileExists: jest.fn(),
+      getFileStats: jest.fn(),
+      getFileUrl: jest.fn(),
     };
-    (fs.createReadStream as jest.Mock).mockReturnValue(mockStream);
+    storageService.getProvider.mockReturnValue(mockProvider);
   });
 
   afterEach(() => {
@@ -123,7 +134,7 @@ describe('FileController', () => {
   });
 
   describe('getFileThumbnail', () => {
-    it('should stream thumbnail JPEG when available', async () => {
+    it('should stream thumbnail JPEG when available, via the LOCAL provider', async () => {
       const fileId = 'file-video';
       const mockFile = {
         id: fileId,
@@ -136,7 +147,10 @@ describe('FileController', () => {
 
       const result = await controller.getFileThumbnail(fileId, mockResponse);
 
-      expect(fs.createReadStream).toHaveBeenCalledWith(
+      expect(storageService.getProvider).toHaveBeenCalledWith(
+        StorageType.LOCAL,
+      );
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
         '/uploads/thumbnails/file-video.jpg',
       );
       expect(mockResponse.set).toHaveBeenCalledWith({
@@ -145,6 +159,25 @@ describe('FileController', () => {
         'Cross-Origin-Resource-Policy': 'cross-origin',
       });
       expect(result).toBeDefined();
+    });
+
+    it('should stream an S3-backed thumbnail via the S3 provider (per-record resolution)', async () => {
+      const fileId = 'file-video-s3';
+      const mockFile = {
+        id: fileId,
+        thumbnailPath: 'thumbnails/file-video-s3.jpg',
+        storageType: StorageType.S3,
+        storagePath: 'video-key',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+
+      await controller.getFileThumbnail(fileId, mockResponse);
+
+      expect(storageService.getProvider).toHaveBeenCalledWith(StorageType.S3);
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
+        'thumbnails/file-video-s3.jpg',
+      );
     });
 
     it('should throw NotFoundException when no thumbnailPath', async () => {
@@ -170,7 +203,7 @@ describe('FileController', () => {
   });
 
   describe('getFile', () => {
-    it('should return file stream for local storage', async () => {
+    it('should return file stream for local storage via the LOCAL provider', async () => {
       const fileId = 'file-456';
       const mockFile = {
         id: fileId,
@@ -188,11 +221,42 @@ describe('FileController', () => {
       const result = await controller.getFile(fileId, req, mockResponse);
 
       expect(service.findOne).toHaveBeenCalledWith(fileId);
-      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/download.pdf');
+      expect(storageService.getProvider).toHaveBeenCalledWith(
+        StorageType.LOCAL,
+      );
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
+        '/tmp/download.pdf',
+      );
       expect(mockResponse.set).toHaveBeenCalledWith(
         expect.objectContaining({
           'Accept-Ranges': 'bytes',
         }),
+      );
+      expect(result).toBeDefined();
+    });
+
+    it('should return file stream for S3 storage via the S3 provider (per-record resolution)', async () => {
+      const mockFile = {
+        id: 'file-s3',
+        filename: 'remote.png',
+        mimeType: 'image/png',
+        fileType: FileType.IMAGE,
+        size: 1024,
+        storageType: StorageType.S3,
+        storagePath: 'remote-object-key',
+      };
+
+      service.findOne.mockResolvedValue(mockFile as any);
+
+      const result = await controller.getFile(
+        'file-s3',
+        mockRequest(),
+        mockResponse,
+      );
+
+      expect(storageService.getProvider).toHaveBeenCalledWith(StorageType.S3);
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
+        'remote-object-key',
       );
       expect(result).toBeDefined();
     });
@@ -239,10 +303,13 @@ describe('FileController', () => {
       await controller.getFile('file-range', req, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(206);
-      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
-        start: 0,
-        end: 999,
-      });
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
+        '/tmp/video.mp4',
+        {
+          start: 0,
+          end: 999,
+        },
+      );
 
       const setCalls = (mockResponse.set as jest.Mock).mock.calls;
       const allHeaders = setCalls.reduce(
@@ -271,10 +338,13 @@ describe('FileController', () => {
       await controller.getFile('file-range-open', req, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(206);
-      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
-        start: 5000,
-        end: 9999,
-      });
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
+        '/tmp/video.mp4',
+        {
+          start: 5000,
+          end: 9999,
+        },
+      );
     });
 
     it('should return 416 for out-of-range requests', async () => {
@@ -313,10 +383,13 @@ describe('FileController', () => {
       await controller.getFile('file-clamp', req, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(206);
-      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
-        start: 0,
-        end: 9999,
-      });
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
+        '/tmp/video.mp4',
+        {
+          start: 0,
+          end: 9999,
+        },
+      );
 
       const setCalls = (mockResponse.set as jest.Mock).mock.calls;
       const allHeaders = setCalls.reduce(
@@ -345,10 +418,13 @@ describe('FileController', () => {
       await controller.getFile('file-1byte', req, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(206);
-      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4', {
-        start: 100,
-        end: 100,
-      });
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith(
+        '/tmp/video.mp4',
+        {
+          start: 100,
+          end: 100,
+        },
+      );
 
       const setCalls = (mockResponse.set as jest.Mock).mock.calls;
       const allHeaders = setCalls.reduce(
@@ -378,7 +454,7 @@ describe('FileController', () => {
 
       // Should serve full file (no 206, no Content-Range)
       expect(mockResponse.status).not.toHaveBeenCalled();
-      expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/video.mp4');
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith('/tmp/video.mp4');
     });
 
     it('should return 416 when start > end in Range', async () => {
@@ -422,22 +498,28 @@ describe('FileController', () => {
       );
     });
 
-    it('should throw NotImplementedException for non-local storage', async () => {
+    it('should support Range requests for S3-backed files too', async () => {
       const mockFile = {
-        id: 'file-s3',
-        filename: 'remote.png',
-        mimeType: 'image/png',
-        fileType: FileType.IMAGE,
-        size: 1024,
+        id: 'file-s3-range',
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        fileType: FileType.VIDEO,
+        size: 10000,
         storageType: StorageType.S3,
-        storagePath: 's3://bucket/remote.png',
+        storagePath: 's3-video-key',
       };
 
       service.findOne.mockResolvedValue(mockFile as any);
+      const req = mockRequest('bytes=0-999');
 
-      await expect(
-        controller.getFile('file-s3', mockRequest(), mockResponse),
-      ).rejects.toThrow(NotImplementedException);
+      await controller.getFile('file-s3-range', req, mockResponse);
+
+      expect(storageService.getProvider).toHaveBeenCalledWith(StorageType.S3);
+      expect(mockResponse.status).toHaveBeenCalledWith(206);
+      expect(mockProvider.getReadStream).toHaveBeenCalledWith('s3-video-key', {
+        start: 0,
+        end: 999,
+      });
     });
 
     it('should throw NotFoundException if file not found', async () => {
