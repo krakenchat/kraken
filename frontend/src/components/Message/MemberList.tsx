@@ -197,6 +197,11 @@ const MemberList: React.FC<MemberListProps> = ({
     member: null,
   });
   const { captureTrigger, restoreFocus } = useContextMenuFocusRestore();
+  // Fallback restore target: the member row that opened the menu can
+  // unmount while the menu is closing (e.g. the member goes offline and is
+  // re-sorted/removed from view). The scroll container outlives any
+  // individual row, so it's a safe place to land focus in that case.
+  const listContainerRef = React.useRef<HTMLDivElement>(null);
 
   const openMenu = React.useCallback(
     (position: { top: number; left: number }, member: MemberData, triggerEl: HTMLElement | null) => {
@@ -209,8 +214,10 @@ const MemberList: React.FC<MemberListProps> = ({
   const handleCloseContextMenu = () => {
     setContextMenu({ position: null, member: null });
     // anchorPosition menus have no anchor element for MUI to auto-restore
-    // focus to on close — return it to the member row that opened this.
-    restoreFocus();
+    // focus to on close — return it to the member row that opened this,
+    // falling back to the scroll container if that row unmounted while
+    // the menu was closing.
+    restoreFocus(listContainerRef.current);
   };
 
   // Group members by display role
@@ -310,6 +317,8 @@ const MemberList: React.FC<MemberListProps> = ({
 
       {/* Member List */}
       <Box
+        ref={listContainerRef}
+        tabIndex={-1}
         sx={{
           flex: 1,
           overflowY: "auto",

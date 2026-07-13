@@ -170,6 +170,15 @@ describe('EmojiPickerPopover', () => {
       renderWithProviders(<EmojiPickerPopover {...defaultProps()} />);
       await screen.findByPlaceholderText('Search emojis...');
 
+      // MUI's Grow transition finishes its enter animation via a real
+      // setTimeout. axe's scan is slow (multi-second in this environment),
+      // so without draining that timeout first, it can fire mid-scan and
+      // log a "not wrapped in act(...)" warning for the Transition's
+      // internal state update. Settle it here, inside act(), before axe runs.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
+
       // MUI's Popover portals into document.body (outside RTL's render
       // `container`), so scan the whole document to actually include it.
       const results = await runAxe(document.body);

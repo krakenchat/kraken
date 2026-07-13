@@ -19,12 +19,16 @@ import { useCallback, useRef } from 'react';
  *   };
  *   const handleClose = () => {
  *     setPosition(null);
- *     restoreFocus();
+ *     // Pass a fallback (e.g. the list's scroll container) for
+ *     // presence-driven lists, where the triggering row can unmount
+ *     // (e.g. a voice participant disconnects) while the menu is still
+ *     // closing — see the `restoreFocus` fallback param below.
+ *     restoreFocus(listContainerRef.current);
  *   };
  *
  * The triggering element must be focusable (a natively focusable element,
  * or a plain element with `tabIndex={-1}`) for `restoreFocus` to have any
- * effect.
+ * effect. The same applies to the optional fallback element.
  */
 export function useContextMenuFocusRestore() {
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -33,14 +37,28 @@ export function useContextMenuFocusRestore() {
     triggerRef.current = target;
   }, []);
 
-  const restoreFocus = useCallback(() => {
+  /**
+   * Restores focus to the captured trigger, deferred a frame so the menu's
+   * exit transition / focus-trap teardown finishes first (otherwise MUI's
+   * Modal can steal focus back, or focus a mid-transition node that's about
+   * to unmount).
+   *
+   * In presence-driven lists (e.g. voice participants, online members) the
+   * triggering row can unmount *during* that deferred frame — for example a
+   * participant disconnects while their row's context menu is closing.
+   * Calling `.focus()` on an already-detached node is a silent no-op, and
+   * focus would otherwise drop to `<body>`. If a `fallback` element is
+   * given (e.g. the list's scroll container — something stable that
+   * outlives any individual row), it receives focus instead whenever the
+   * trigger is no longer connected to the document by the time the frame
+   * runs. Without a fallback, this case is a documented no-op.
+   */
+  const restoreFocus = useCallback((fallback?: HTMLElement | null) => {
     const el = triggerRef.current;
-    if (!el) return;
-    // Deferred a frame: the menu's exit transition / focus-trap teardown
-    // needs to finish first, otherwise MUI's Modal can steal focus back
-    // (or focus a mid-transition node that's about to unmount).
+    if (!el && !fallback) return;
     requestAnimationFrame(() => {
-      el.focus();
+      const target = el?.isConnected ? el : fallback;
+      target?.focus();
     });
   }, []);
 

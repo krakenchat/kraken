@@ -51,6 +51,7 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLElement | null>(null);
   const emojiPickerOpen = Boolean(emojiAnchorEl);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const lastSelectionRef = useRef<{ start: number; end: number }>({
     start: 0,
     end: 0,
@@ -72,8 +73,22 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
     setEmojiAnchorEl(event.currentTarget);
   };
 
-  const handleEmojiPickerClose = () => {
+  // The Popover's `disableRestoreFocus` (see EmojiPickerPopover) intentionally
+  // stops MUI from refocusing the emoji button on close, since selecting an
+  // emoji instead refocuses the composer input (see handleEmojiSelect).
+  // But that means closing WITHOUT selecting (Escape/backdrop click) leaves
+  // focus nowhere — restore it to the invoking button in that case only, so
+  // it doesn't race the post-select refocus of the input.
+  const handleEmojiPickerClose = (
+    _event?: unknown,
+    reason?: "backdropClick" | "escapeKeyDown",
+  ) => {
     setEmojiAnchorEl(null);
+    if (reason === "escapeKeyDown" || reason === "backdropClick") {
+      requestAnimationFrame(() => {
+        emojiButtonRef.current?.focus();
+      });
+    }
   };
 
   const handleEmojiSelect = useCallback(
@@ -205,9 +220,12 @@ export const ThreadMessageInput: React.FC<ThreadMessageInputProps> = ({
           }}
         />
         <IconButton
+          ref={emojiButtonRef}
           onClick={handleEmojiButtonClick}
           disabled={isSending}
           aria-label="add emoji"
+          aria-haspopup="true"
+          aria-expanded={emojiPickerOpen}
           sx={{
             width: 40,
             height: 40,

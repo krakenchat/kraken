@@ -52,6 +52,11 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   }>({ position: null, user: null });
 
   const { captureTrigger, restoreFocus } = useContextMenuFocusRestore();
+  // Fallback restore target: this list is presence-driven, so the row that
+  // opened the menu can unmount while the menu is closing (e.g. the
+  // participant disconnects). The list/row container outlives any
+  // individual row, so it's a safe place to land focus in that case.
+  const listContainerRef = useRef<HTMLDivElement>(null);
 
   const handleContextMenu = (event: React.MouseEvent<HTMLElement>, user: VoicePresenceUserDto) => {
     event.preventDefault();
@@ -62,8 +67,10 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   const handleCloseContextMenu = () => {
     setContextMenu({ position: null, user: null });
     // anchorPosition menus have no anchor element for MUI to auto-restore
-    // focus to on close — return it to the user row that opened this.
-    restoreFocus();
+    // focus to on close — return it to the user row that opened this,
+    // falling back to the list container if that row unmounted while the
+    // menu was closing (e.g. the participant disconnected).
+    restoreFocus(listContainerRef.current);
   };
 
   // Check if we're connected to this specific channel
@@ -290,6 +297,8 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
     return (
       <>
         <Box
+          ref={listContainerRef}
+          tabIndex={-1}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -321,7 +330,7 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   if (showCompact) {
     return (
       <>
-        <Box>
+        <Box ref={listContainerRef} tabIndex={-1}>
           {presence.users.map((user) => (
             <CompactUserItem
               key={user.id}
@@ -349,6 +358,8 @@ export const VoiceChannelUserList: React.FC<VoiceChannelUserListProps> = ({
   return (
     <>
       <Paper
+        ref={listContainerRef}
+        tabIndex={-1}
         elevation={2}
         sx={{
           maxHeight: 300,
