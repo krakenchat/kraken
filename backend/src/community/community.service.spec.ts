@@ -4,6 +4,7 @@ import { CommunityService } from './community.service';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { RolesService } from '@/roles/roles.service';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   createMockDatabase,
@@ -16,6 +17,7 @@ describe('CommunityService', () => {
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let channelsService: Mocked<ChannelsService>;
   let rolesService: Mocked<RolesService>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -28,6 +30,7 @@ describe('CommunityService', () => {
     service = unit;
     channelsService = unitRef.get(ChannelsService);
     rolesService = unitRef.get(RolesService);
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
 
   afterEach(() => {
@@ -457,6 +460,12 @@ describe('CommunityService', () => {
       expect(mockDatabase.community.delete).toHaveBeenCalledWith({
         where: { id: community.id },
       });
+      // Role definitions and assignments were removed via raw
+      // tx.role.deleteMany / tx.userRoles.deleteMany above, bypassing
+      // RolesService — remove() must bump the community epoch explicitly.
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        community.id,
+      );
     });
 
     it('should throw NotFoundException when community not found', async () => {
@@ -468,6 +477,7 @@ describe('CommunityService', () => {
       await expect(service.remove('nonexistent')).rejects.toThrow(
         'Community not found',
       );
+      expect(permissionsCacheService.bumpCommunityEpoch).not.toHaveBeenCalled();
     });
   });
 });

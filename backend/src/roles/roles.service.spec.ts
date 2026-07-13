@@ -1,6 +1,8 @@
 import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { RolesService } from './roles.service';
 import { DatabaseService } from '@/database/database.service';
+import { PermissionsCacheService } from './permissions-cache.service';
 import { RbacActions } from '@prisma/client';
 import {
   createMockDatabase,
@@ -19,16 +21,18 @@ import {
 describe('RolesService', () => {
   let service: RolesService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit } = await TestBed.solitary(RolesService)
+    const { unit, unitRef } = await TestBed.solitary(RolesService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
 
     service = unit;
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
 
   afterEach(() => {
@@ -2030,6 +2034,298 @@ describe('RolesService', () => {
       );
 
       expect(result.roles[0].position).toBe(10);
+    });
+  });
+
+  // ===========================================================================
+  // Permission cache epoch bumps — one assertion per mutation site enumerated
+  // in the RBAC permission cache task. Every create/delete of a UserRoles row
+  // must bump the affected user's epoch; every create/update/delete of a Role
+  // row must bump the owning community's epoch (or the instance epoch for
+  // communityId: null roles).
+  // ===========================================================================
+  describe('Permission cache epoch bumps', () => {
+    it('createDefaultCommunityRoles bumps the community epoch', async () => {
+      const communityId = 'community-bump-1';
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ name: 'Community Admin', communityId }),
+      );
+
+      await service.createDefaultCommunityRoles(communityId);
+
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        communityId,
+      );
+    });
+
+    it('assignUserToCommunityRole bumps the target user epoch', async () => {
+      const userId = 'user-bump-1';
+      const communityId = 'community-bump-1';
+      const roleId = 'role-bump-1';
+      mockDatabase.role.findUnique.mockResolvedValue(
+        RoleFactory.build({ id: roleId, communityId }),
+      );
+      mockDatabase.userRoles.create.mockResolvedValue({});
+
+      await service.assignUserToCommunityRole(userId, communityId, roleId);
+
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        userId,
+      );
+    });
+
+    it('createMemberRoleForCommunity bumps the community epoch', async () => {
+      const communityId = 'community-bump-2';
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ name: 'Member', communityId }),
+      );
+
+      await service.createMemberRoleForCommunity(communityId);
+
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        communityId,
+      );
+    });
+
+    it('resetDefaultCommunityRoles bumps the community epoch', async () => {
+      const communityId = 'community-bump-3';
+      mockDatabase.$transaction.mockImplementation((fn: any) =>
+        fn(mockDatabase),
+      );
+      mockDatabase.role.findFirst.mockResolvedValue(
+        RoleFactory.build({ communityId }),
+      );
+      mockDatabase.role.update.mockResolvedValue(RoleFactory.build());
+      mockDatabase.role.findMany.mockResolvedValue([]);
+
+      await service.resetDefaultCommunityRoles(communityId);
+
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        communityId,
+      );
+    });
+
+    it('createCommunityRole bumps the community epoch', async () => {
+      const communityId = 'community-bump-4';
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.aggregate.mockResolvedValue({ _max: { position: 20 } });
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId }),
+      );
+
+      await service.createCommunityRole(communityId, {
+        name: 'New Role',
+        actions: [RbacActions.CREATE_MESSAGE],
+      });
+
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        communityId,
+      );
+    });
+
+    it('updateRole bumps the community epoch', async () => {
+      const communityId = 'community-bump-5';
+      const roleId = 'role-bump-5';
+      const existingRole = RoleFactory.build({
+        id: roleId,
+        communityId,
+        isDefault: false,
+      });
+      mockDatabase.role.findUnique.mockResolvedValue(existingRole);
+      mockDatabase.role.update.mockResolvedValue({
+        ...existingRole,
+        actions: [RbacActions.READ_MESSAGE],
+      });
+
+      await service.updateRole(roleId, communityId, {
+        actions: [RbacActions.READ_MESSAGE],
+      });
+
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        communityId,
+      );
+    });
+
+    it('deleteRole bumps the community epoch', async () => {
+      const communityId = 'community-bump-6';
+      const roleId = 'role-bump-6';
+      const role = RoleFactory.build({
+        id: roleId,
+        communityId,
+        isDefault: false,
+      });
+      mockDatabase.role.findUnique.mockResolvedValue({
+        ...role,
+        UserRoles: [],
+      });
+      mockDatabase.role.delete.mockResolvedValue(role);
+
+      await service.deleteRole(roleId, communityId);
+
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        communityId,
+      );
+    });
+
+    it('removeUserFromCommunityRole bumps the target user epoch', async () => {
+      const userId = 'user-bump-2';
+      const communityId = 'community-bump-7';
+      const roleId = 'role-bump-7';
+      const userRole = { id: 'user-role-bump', userId, communityId, roleId };
+      mockDatabase.userRoles.findFirst.mockResolvedValue(userRole);
+      mockDatabase.userRoles.delete.mockResolvedValue(userRole);
+
+      await service.removeUserFromCommunityRole(userId, communityId, roleId);
+
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        userId,
+      );
+    });
+
+    it('createDefaultInstanceRole bumps the instance epoch', async () => {
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId: null }),
+      );
+
+      await service.createDefaultInstanceRole();
+
+      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalled();
+    });
+
+    it('createInstanceRole bumps the instance epoch', async () => {
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId: null }),
+      );
+
+      await service.createInstanceRole('Custom Instance Role', [
+        RbacActions.READ_USER,
+      ]);
+
+      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalled();
+    });
+
+    it('updateInstanceRole bumps the instance epoch', async () => {
+      const roleId = 'role-bump-8';
+      const existingRole = RoleFactory.build({
+        id: roleId,
+        communityId: null,
+        isDefault: false,
+      });
+      mockDatabase.role.findUnique.mockResolvedValue(existingRole);
+      mockDatabase.role.update.mockResolvedValue({
+        ...existingRole,
+        actions: [RbacActions.READ_USER],
+      });
+
+      await service.updateInstanceRole(roleId, {
+        actions: [RbacActions.READ_USER],
+      });
+
+      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalled();
+    });
+
+    it('deleteInstanceRole bumps the instance epoch', async () => {
+      const roleId = 'role-bump-9';
+      const role = RoleFactory.build({
+        id: roleId,
+        communityId: null,
+        name: 'Custom Instance Role',
+      });
+      mockDatabase.role.findUnique.mockResolvedValue({
+        ...role,
+        UserRoles: [],
+      });
+      mockDatabase.role.delete.mockResolvedValue(role);
+
+      await service.deleteInstanceRole(roleId);
+
+      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalled();
+    });
+
+    it('assignUserToInstanceRole bumps the target user epoch', async () => {
+      const userId = 'user-bump-3';
+      const roleId = 'role-bump-10';
+      mockDatabase.role.findUnique.mockResolvedValue(
+        RoleFactory.build({ id: roleId }),
+      );
+      mockDatabase.userRoles.findFirst.mockResolvedValue(null);
+      mockDatabase.userRoles.create.mockResolvedValue({});
+
+      await service.assignUserToInstanceRole(userId, roleId);
+
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        userId,
+      );
+    });
+
+    it('removeUserFromInstanceRole bumps the target user epoch', async () => {
+      const userId = 'user-bump-4';
+      const userRole = { id: 'user-role-bump-2' };
+      mockDatabase.userRoles.findFirst.mockResolvedValue(userRole);
+      mockDatabase.userRoles.delete.mockResolvedValue(userRole);
+
+      await service.removeUserFromInstanceRole(userId, 'role-bump-11');
+
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        userId,
+      );
+    });
+
+    it('createDefaultCommunityCreatorRole bumps the instance epoch', async () => {
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId: null }),
+      );
+
+      await service.createDefaultCommunityCreatorRole();
+
+      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalled();
+    });
+
+    it('reorderRoles bumps the community epoch', async () => {
+      const communityId = 'community-bump-8';
+      const adminRole = RoleFactory.buildAdmin({ communityId });
+      const memberRole = RoleFactory.buildMember({
+        communityId,
+        name: 'Member',
+      });
+
+      mockDatabase.role.findMany.mockResolvedValueOnce([adminRole, memberRole]);
+      mockDatabase.role.update.mockResolvedValue({});
+      mockDatabase.role.findMany.mockResolvedValueOnce([
+        { ...adminRole, position: 10 },
+        { ...memberRole, position: 100 },
+      ]);
+
+      await service.reorderRoles(communityId, [adminRole.id]);
+
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        communityId,
+      );
+    });
+
+    it('ensureDefaultInstanceRolesExist bumps the instance epoch for each newly created role', async () => {
+      mockDatabase.role.findFirst.mockResolvedValue(null);
+      mockDatabase.role.create.mockResolvedValue(
+        RoleFactory.build({ communityId: null, isDefault: true }),
+      );
+
+      await service.ensureDefaultInstanceRolesExist();
+
+      // 4 default instance roles, all missing -> 4 creates -> 4 bumps
+      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalledTimes(
+        4,
+      );
+    });
+
+    it('ensureDefaultInstanceRolesExist does not bump when the role already exists', async () => {
+      mockDatabase.role.findFirst.mockResolvedValue(RoleFactory.build());
+
+      await service.ensureDefaultInstanceRolesExist();
+
+      expect(permissionsCacheService.bumpInstanceEpoch).not.toHaveBeenCalled();
     });
   });
 });

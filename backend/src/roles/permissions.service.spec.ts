@@ -1,6 +1,8 @@
 import { TestBed } from '@suites/unit';
+import type { Mocked } from '@suites/doubles.jest';
 import { PermissionsService } from './permissions.service';
 import { DatabaseService } from '@/database/database.service';
+import { PermissionsCacheService } from './permissions-cache.service';
 import { RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { RbacActions } from '@prisma/client';
 import {
@@ -15,16 +17,25 @@ import {
 describe('PermissionsService', () => {
   let service: PermissionsService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
 
-    const { unit } = await TestBed.solitary(PermissionsService)
+    const { unit, unitRef } = await TestBed.solitary(PermissionsService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .compile();
 
     service = unit;
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
+
+    // Default: cache unavailable, so every existing test below exercises the
+    // DB path exactly as before. Cache-specific behavior (hit short-circuit,
+    // miss populate) is covered in its own describe block further down.
+    permissionsCacheService.getCachedActions.mockResolvedValue({
+      status: 'unavailable',
+    });
   });
 
   afterEach(() => {
@@ -637,6 +648,153 @@ describe('PermissionsService', () => {
         );
 
         expect(result).toBe(false);
+      });
+    });
+
+    describe('Permission cache integration', () => {
+      it('short-circuits the DB findMany on a cache hit (instance scope)', async () => {
+        const user = UserFactory.build();
+        permissionsCacheService.getCachedActions.mockResolvedValue({
+          status: 'hit',
+          actions: [RbacActions.CREATE_COMMUNITY],
+        });
+
+        const result = await service.verifyActionsForUserAndResource(
+          user.id,
+          undefined,
+          undefined,
+          [RbacActions.CREATE_COMMUNITY],
+        );
+
+        expect(result).toBe(true);
+        expect(mockDatabase.userRoles.findMany).not.toHaveBeenCalled();
+        expect(permissionsCacheService.getCachedActions).toHaveBeenCalledWith(
+          user.id,
+          { kind: 'instance' },
+        );
+        expect(permissionsCacheService.setCachedActions).not.toHaveBeenCalled();
+      });
+
+      it('short-circuits the DB findMany on a cache hit (community scope)', async () => {
+        const user = UserFactory.build();
+        const community = CommunityFactory.build();
+        permissionsCacheService.getCachedActions.mockResolvedValue({
+          status: 'hit',
+          actions: [RbacActions.DELETE_CHANNEL],
+        });
+
+        const result = await service.verifyActionsForUserAndResource(
+          user.id,
+          community.id,
+          RbacResourceType.COMMUNITY,
+          [RbacActions.DELETE_CHANNEL],
+        );
+
+        expect(result).toBe(true);
+        expect(mockDatabase.userRoles.findMany).not.toHaveBeenCalled();
+        expect(permissionsCacheService.getCachedActions).toHaveBeenCalledWith(
+          user.id,
+          { kind: 'community', communityId: community.id },
+        );
+      });
+
+      it('queries the DB and populates the cache with miss-time epochs on a miss', async () => {
+        const user = UserFactory.build();
+        const community = CommunityFactory.build();
+        const role = RoleFactory.buildAdmin();
+        const epochs = { userEpoch: 3, scopeEpoch: 7 };
+
+        permissionsCacheService.getCachedActions.mockResolvedValue({
+          status: 'miss',
+          epochs,
+        });
+        mockDatabase.userRoles.findMany.mockResolvedValue([
+          {
+            userId: user.id,
+            communityId: community.id,
+            roleId: role.id,
+            isInstanceRole: false,
+            role,
+          },
+        ]);
+
+        const result = await service.verifyActionsForUserAndResource(
+          user.id,
+          community.id,
+          RbacResourceType.COMMUNITY,
+          [RbacActions.DELETE_CHANNEL],
+        );
+
+        expect(result).toBe(true);
+        expect(mockDatabase.userRoles.findMany).toHaveBeenCalled();
+        expect(permissionsCacheService.setCachedActions).toHaveBeenCalledWith(
+          user.id,
+          { kind: 'community', communityId: community.id },
+          epochs,
+          role.actions,
+        );
+      });
+
+      it('queries the DB but does not attempt to populate the cache when unavailable', async () => {
+        const user = UserFactory.build();
+        const role = RoleFactory.buildAdmin();
+
+        permissionsCacheService.getCachedActions.mockResolvedValue({
+          status: 'unavailable',
+        });
+        mockDatabase.userRoles.findMany.mockResolvedValue([
+          {
+            userId: user.id,
+            roleId: role.id,
+            isInstanceRole: true,
+            role,
+          },
+        ]);
+
+        const result = await service.verifyActionsForUserAndResource(
+          user.id,
+          undefined,
+          undefined,
+          [RbacActions.CREATE_COMMUNITY],
+        );
+
+        expect(result).toBe(true);
+        expect(mockDatabase.userRoles.findMany).toHaveBeenCalled();
+        expect(permissionsCacheService.setCachedActions).not.toHaveBeenCalled();
+      });
+
+      it('uncached membership/resource-resolution checks always hit the DB regardless of cache state', async () => {
+        const user = UserFactory.build();
+        const channel = ChannelFactory.build({ isPrivate: true });
+        const role = RoleFactory.buildMember();
+        permissionsCacheService.getCachedActions.mockResolvedValue({
+          status: 'hit',
+          actions: role.actions,
+        });
+
+        mockDatabase.channel.findUnique.mockResolvedValue({
+          id: channel.id,
+          communityId: channel.communityId,
+          isPrivate: true,
+        });
+        mockDatabase.channelMembership.findUnique.mockResolvedValue({
+          userId: user.id,
+          channelId: channel.id,
+        });
+
+        const result = await service.verifyActionsForUserAndResource(
+          user.id,
+          channel.id,
+          RbacResourceType.CHANNEL,
+          [RbacActions.READ_MESSAGE],
+        );
+
+        expect(result).toBe(true);
+        // Channel resolution and private-channel membership are never cached.
+        expect(mockDatabase.channel.findUnique).toHaveBeenCalled();
+        expect(mockDatabase.channelMembership.findUnique).toHaveBeenCalled();
+        // The role lookup itself did come from cache.
+        expect(mockDatabase.userRoles.findMany).not.toHaveBeenCalled();
       });
     });
   });

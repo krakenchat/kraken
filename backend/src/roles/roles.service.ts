@@ -2,6 +2,7 @@ import { DatabaseService } from '@/database/database.service';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoomEvents } from '@/rooms/room-subscription.events';
+import { PermissionsCacheService } from './permissions-cache.service';
 import {
   Injectable,
   Logger,
@@ -37,6 +38,7 @@ export class RolesService implements OnModuleInit {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
 
   /**
@@ -195,6 +197,9 @@ export class RolesService implements OnModuleInit {
       }
     }
 
+    // Role definitions changed for this community.
+    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+
     return adminRoleId!;
   }
 
@@ -223,6 +228,12 @@ export class RolesService implements OnModuleInit {
         isInstanceRole: false,
       },
     });
+
+    // Role assignment changed for this user — always bump, even inside a
+    // transaction (unlike the event emission below): worst case is a
+    // spurious cache miss if the transaction later rolls back, which is
+    // safe. A skipped bump is not.
+    await this.permissionsCacheService.bumpUserEpoch(userId);
 
     // Only emit when not called within a transaction (e.g., community creation)
     if (!tx) {
@@ -325,6 +336,8 @@ export class RolesService implements OnModuleInit {
       },
     });
 
+    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+
     return role.id;
   }
 
@@ -366,6 +379,8 @@ export class RolesService implements OnModuleInit {
         }
       }
     });
+
+    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
 
     this.logger.log(`Reset default roles for community ${communityId}`);
     return this.getCommunityRoles(communityId);
@@ -465,6 +480,8 @@ export class RolesService implements OnModuleInit {
     });
 
     this.logger.log(`Reordered roles for community ${communityId}`);
+
+    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
 
     // Emit per-role events with correct payload shape
     for (const roleId of reorderableIds) {
@@ -570,6 +587,8 @@ export class RolesService implements OnModuleInit {
     this.logger.log(
       `Created custom role "${createRoleDto.name}" for community ${communityId}`,
     );
+
+    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
 
     // Only emit when not called within a transaction (e.g., community creation)
     if (!tx) {
@@ -698,6 +717,8 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Updated role ${roleId}`);
 
+    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+
     if (!tx) {
       this.eventEmitter.emit(RoomEvents.ROLE_UPDATED, {
         communityId,
@@ -763,6 +784,8 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Deleted role ${roleId}`);
 
+    await this.permissionsCacheService.bumpCommunityEpoch(communityId);
+
     if (!tx) {
       this.eventEmitter.emit(RoomEvents.ROLE_DELETED, {
         communityId,
@@ -803,6 +826,8 @@ export class RolesService implements OnModuleInit {
     this.logger.log(
       `Removed user ${userId} from role ${roleId} in community ${communityId}`,
     );
+
+    await this.permissionsCacheService.bumpUserEpoch(userId);
 
     if (!tx) {
       this.eventEmitter.emit(RoomEvents.ROLE_UNASSIGNED, {
@@ -877,6 +902,8 @@ export class RolesService implements OnModuleInit {
       },
     });
 
+    await this.permissionsCacheService.bumpInstanceEpoch();
+
     this.logger.log(`Created default instance admin role: ${role.id}`);
     return role.id;
   }
@@ -948,6 +975,8 @@ export class RolesService implements OnModuleInit {
         isDefault: false,
       },
     });
+
+    await this.permissionsCacheService.bumpInstanceEpoch();
 
     this.logger.log(`Created custom instance role: ${name}`);
 
@@ -1024,6 +1053,8 @@ export class RolesService implements OnModuleInit {
       },
     });
 
+    await this.permissionsCacheService.bumpInstanceEpoch();
+
     this.logger.log(`Updated instance role ${roleId}`);
 
     return {
@@ -1073,6 +1104,8 @@ export class RolesService implements OnModuleInit {
       where: { id: roleId },
     });
 
+    await this.permissionsCacheService.bumpInstanceEpoch();
+
     this.logger.log(`Deleted instance role ${roleId}`);
   }
 
@@ -1117,6 +1150,8 @@ export class RolesService implements OnModuleInit {
       },
     });
 
+    await this.permissionsCacheService.bumpUserEpoch(userId);
+
     this.logger.log(
       `Assigned user ${userId} to instance role ${roleId} (${role.name})`,
     );
@@ -1144,6 +1179,8 @@ export class RolesService implements OnModuleInit {
     await this.databaseService.userRoles.delete({
       where: { id: userRole.id },
     });
+
+    await this.permissionsCacheService.bumpUserEpoch(userId);
 
     this.logger.log(`Removed user ${userId} from instance role ${roleId}`);
   }
@@ -1210,6 +1247,8 @@ export class RolesService implements OnModuleInit {
         isDefault: true,
       },
     });
+
+    await this.permissionsCacheService.bumpInstanceEpoch();
 
     this.logger.log(`Created default Community Creator role: ${role.id}`);
     return role.id;
@@ -1286,6 +1325,8 @@ export class RolesService implements OnModuleInit {
           isDefault: true,
         },
       });
+
+      await this.permissionsCacheService.bumpInstanceEpoch();
 
       this.logger.log(`Created default instance role: ${roleConfig.name}`);
       return role.id;

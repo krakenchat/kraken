@@ -21,6 +21,7 @@ import {
   CommunityBan,
   CommunityTimeout,
 } from '@prisma/client';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 
 @Injectable()
 export class ModerationService {
@@ -32,6 +33,7 @@ export class ModerationService {
     private readonly membershipService: MembershipService,
     private readonly websocketService: WebsocketService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
 
   /**
@@ -174,6 +176,12 @@ export class ModerationService {
         },
       });
     });
+
+    // removeMemberInternal removed role assignments via a raw
+    // tx.userRoles.deleteMany (bypasses RolesService, so it doesn't
+    // self-bump) — invalidate the banned user's cached permissions now
+    // that the transaction committed.
+    await this.permissionsCacheService.bumpUserEpoch(userId);
 
     // Emit to user's personal room BEFORE removing from community rooms
     // so the banned user receives the event
@@ -342,6 +350,12 @@ export class ModerationService {
         },
       });
     });
+
+    // removeMemberInternal removed role assignments via a raw
+    // tx.userRoles.deleteMany (bypasses RolesService, so it doesn't
+    // self-bump) — invalidate the kicked user's cached permissions now
+    // that the transaction committed.
+    await this.permissionsCacheService.bumpUserEpoch(userId);
 
     // Emit to user's personal room BEFORE removing from community rooms
     // so the kicked user receives the event

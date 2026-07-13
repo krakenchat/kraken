@@ -12,6 +12,7 @@ import { RolesService } from '@/roles/roles.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { isPrismaError } from '@/common/utils/prisma.utils';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 
 @Injectable()
 export class CommunityService {
@@ -21,6 +22,7 @@ export class CommunityService {
     private readonly channelsService: ChannelsService,
     private readonly rolesService: RolesService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
   async create(createCommunityDto: CreateCommunityDto, creatorId: string) {
     try {
@@ -391,5 +393,13 @@ export class CommunityService {
         where: { id },
       });
     });
+
+    // Role definitions and assignments for this community were removed via
+    // raw tx.role.deleteMany / tx.userRoles.deleteMany above (bypasses
+    // RolesService, so they don't self-bump). Bump the community epoch for
+    // completeness/defense-in-depth — in practice no future request can
+    // resolve a permission check against this communityId again, since the
+    // community and its channels/messages are gone.
+    await this.permissionsCacheService.bumpCommunityEpoch(id);
   }
 }

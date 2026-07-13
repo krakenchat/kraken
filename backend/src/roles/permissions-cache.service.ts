@@ -1,0 +1,296 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import Redis from 'ioredis';
+import { RbacActions } from '@prisma/client';
+import { REDIS_CLIENT } from '@/redis/redis.constants';
+
+/** Cached-value TTL. Old-epoch value keys are never explicitly deleted —
+ * they simply become unreachable once the epoch bumps, and expire on their
+ * own after this many seconds. */
+const VALUE_TTL_SECONDS = 300;
+
+/** Max time to wait for Redis before treating the cache as unavailable and
+ * falling through to the DB. Mirrors FailOpenThrottlerStorage/WsThrottleGuard
+ * — a slow cache must never make permission checks slower than a plain DB
+ * query. */
+const REDIS_TIMEOUT_MS = 1500;
+
+/** Minimum interval between "cache unavailable" warning logs, so a sustained
+ * Redis outage doesn't flood the logs on every request. */
+const WARN_INTERVAL_MS = 30_000;
+
+export type PermissionScope =
+  | { kind: 'instance' }
+  | { kind: 'community'; communityId: string };
+
+export interface PermissionEpochs {
+  userEpoch: number;
+  scopeEpoch: number;
+}
+
+export type PermissionCacheReadResult =
+  | { status: 'hit'; actions: RbacActions[] }
+  | { status: 'miss'; epochs: PermissionEpochs }
+  | { status: 'unavailable' };
+
+/**
+ * Redis-backed cache for RBAC permission lookups — specifically the
+ * flattened `actions` arrays produced by the two `userRoles.findMany(...)`
+ * queries in PermissionsService (instance-level and community-level). Those
+ * queries run on every guarded request; this cache lets most of them skip
+ * the DB round trip entirely.
+ *
+ * ## Epoch-based invalidation (no SCAN/pattern deletes)
+ *
+ * Three epoch counters, each a plain Redis key bumped with INCR. A missing
+ * epoch key reads as epoch 0:
+ *
+ *   rbac:epoch:user:{userId}           bumped on any role ASSIGNMENT change
+ *                                       for that user (community or instance)
+ *   rbac:epoch:community:{communityId} bumped on any role DEFINITION change
+ *                                       (create/update/delete) in that community
+ *   rbac:epoch:instance                bumped on any instance-level role
+ *                                       DEFINITION change
+ *
+ * The cached lookup result lives at a key that embeds both the user's and
+ * the scope's current epoch:
+ *
+ *   rbac:actions:{userId}:instance:{userEpoch}:{instanceEpoch}
+ *   rbac:actions:{userId}:{communityId}:{userEpoch}:{communityEpoch}
+ *
+ * Value: `JSON.stringify(RbacActions[])`, TTL 300s (SET EX) — the only data
+ * PermissionsService actually needs from the two `findMany` results is the
+ * flattened `role.actions` union, so that's all that's cached.
+ *
+ * Bumping an epoch never touches the value keys directly — it just changes
+ * which value key subsequent reads address. The old value key is now
+ * unreachable (nothing will ever ask for it again) and simply expires via
+ * its TTL. This is what avoids SCAN/KEYS-based fan-out deletes: invalidation
+ * is O(1) regardless of how many stale cache entries exist.
+ *
+ * ## Fail-open
+ *
+ * Reads: any Redis error, or a call that doesn't resolve within
+ * REDIS_TIMEOUT_MS, is treated as `{ status: 'unavailable' }` — the caller
+ * falls through to the DB. Failures are logged at `warn`, throttled to once
+ * per WARN_INTERVAL_MS.
+ *
+ * Bumps: always awaited (never fire-and-forget) so a mutation cannot return
+ * before the invalidation is visible to subsequent reads — a missed bump
+ * means a stale permission grant for up to VALUE_TTL_SECONDS, which this
+ * cache treats as unacceptable to risk knowingly. On error/timeout the bump
+ * is logged at `error` (every time — bumps are rare, so no throttling) and
+ * swallowed rather than thrown, so a wedged Redis cannot turn role
+ * management into a 500.
+ */
+@Injectable()
+export class PermissionsCacheService {
+  private readonly logger = new Logger(PermissionsCacheService.name);
+  private lastUnavailableWarnAt = Number.NEGATIVE_INFINITY;
+
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+
+  /**
+   * Attempts to read the cached actions for a user/scope. Never throws.
+   */
+  async getCachedActions(
+    userId: string,
+    scope: PermissionScope,
+  ): Promise<PermissionCacheReadResult> {
+    if (!this.isRedisReady()) {
+      this.warnUnavailable(`Redis connection status is '${this.redis.status}'`);
+      return { status: 'unavailable' };
+    }
+
+    try {
+      return await this.withTimeout(this.readActions(userId, scope));
+    } catch (error) {
+      this.warnUnavailable(errorMessage(error));
+      return { status: 'unavailable' };
+    }
+  }
+
+  /**
+   * Populates the cache for a user/scope, using the epochs captured at the
+   * time of the preceding `getCachedActions` MISS (not epochs re-read now).
+   * This ordering matters: if a role mutation (and its epoch bump) happens
+   * concurrently with the DB query that produced `actions`, writing under
+   * the *old* (pre-bump) epoch makes this entry immediately unreachable —
+   * safe. Writing under a freshly re-read epoch could instead cache
+   * possibly-stale `actions` under the epoch that's currently considered
+   * valid, which would be a real staleness bug. Never throws.
+   */
+  async setCachedActions(
+    userId: string,
+    scope: PermissionScope,
+    epochs: PermissionEpochs,
+    actions: RbacActions[],
+  ): Promise<void> {
+    if (!this.isRedisReady()) return;
+
+    try {
+      await this.withTimeout(this.writeActions(userId, scope, epochs, actions));
+    } catch (error) {
+      // Population failures are non-critical — the next request just misses
+      // and re-populates. Not throttled: debug-level, not a warning.
+      this.logger.debug(
+        `Failed to populate RBAC permission cache: ${errorMessage(error)}`,
+      );
+    }
+  }
+
+  /** Bump on any role ASSIGNMENT change (create/delete of a UserRoles row)
+   * for this user — invalidates all of that user's cached entries (both
+   * instance and every community scope). */
+  async bumpUserEpoch(userId: string): Promise<void> {
+    await this.bump(this.userEpochKey(userId));
+  }
+
+  /** Bump on any role DEFINITION change (create/update/delete of a Role row)
+   * scoped to this community. */
+  async bumpCommunityEpoch(communityId: string): Promise<void> {
+    await this.bump(this.communityEpochKey(communityId));
+  }
+
+  /** Bump on any instance-level role DEFINITION change. */
+  async bumpInstanceEpoch(): Promise<void> {
+    await this.bump(this.instanceEpochKey());
+  }
+
+  // ---------------------------------------------------------------------
+  // Internals
+  // ---------------------------------------------------------------------
+
+  private async bump(key: string): Promise<void> {
+    try {
+      await this.withTimeout(this.redis.incr(key));
+    } catch (error) {
+      this.logger.error(
+        `Failed to bump RBAC epoch key '${key}' — cached permissions under ` +
+          `the previous epoch may be served as stale grants for up to ` +
+          `${VALUE_TTL_SECONDS}s: ${errorMessage(error)}`,
+      );
+    }
+  }
+
+  private async readActions(
+    userId: string,
+    scope: PermissionScope,
+  ): Promise<PermissionCacheReadResult> {
+    const epochs = await this.readEpochs(userId, scope);
+    const key = this.valueKey(userId, scope, epochs);
+    const raw = await this.redis.get(key);
+
+    if (!raw) {
+      return { status: 'miss', epochs };
+    }
+
+    try {
+      return { status: 'hit', actions: JSON.parse(raw) as RbacActions[] };
+    } catch {
+      // Corrupt entry — treat as a miss rather than throwing.
+      return { status: 'miss', epochs };
+    }
+  }
+
+  private async writeActions(
+    userId: string,
+    scope: PermissionScope,
+    epochs: PermissionEpochs,
+    actions: RbacActions[],
+  ): Promise<void> {
+    const key = this.valueKey(userId, scope, epochs);
+    await this.redis.set(key, JSON.stringify(actions), 'EX', VALUE_TTL_SECONDS);
+  }
+
+  /** Single MGET round trip for both epochs. */
+  private async readEpochs(
+    userId: string,
+    scope: PermissionScope,
+  ): Promise<PermissionEpochs> {
+    const [userEpochRaw, scopeEpochRaw] = await this.redis.mget(
+      this.userEpochKey(userId),
+      this.scopeEpochKey(scope),
+    );
+
+    return {
+      userEpoch: toEpoch(userEpochRaw),
+      scopeEpoch: toEpoch(scopeEpochRaw),
+    };
+  }
+
+  private valueKey(
+    userId: string,
+    scope: PermissionScope,
+    epochs: PermissionEpochs,
+  ): string {
+    const scopePart =
+      scope.kind === 'instance' ? 'instance' : scope.communityId;
+    return `rbac:actions:${userId}:${scopePart}:${epochs.userEpoch}:${epochs.scopeEpoch}`;
+  }
+
+  private userEpochKey(userId: string): string {
+    return `rbac:epoch:user:${userId}`;
+  }
+
+  private communityEpochKey(communityId: string): string {
+    return `rbac:epoch:community:${communityId}`;
+  }
+
+  private instanceEpochKey(): string {
+    return 'rbac:epoch:instance';
+  }
+
+  private scopeEpochKey(scope: PermissionScope): string {
+    return scope.kind === 'instance'
+      ? this.instanceEpochKey()
+      : this.communityEpochKey(scope.communityId);
+  }
+
+  /** Fast path during outages: skip waiting out the full timeout on every
+   * call when we already know the connection isn't ready. */
+  private isRedisReady(): boolean {
+    return this.redis.status === 'ready';
+  }
+
+  private withTimeout<T>(promise: Promise<T>): Promise<T> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () =>
+          reject(
+            new Error(
+              `RBAC permission cache timed out after ${REDIS_TIMEOUT_MS}ms`,
+            ),
+          ),
+        REDIS_TIMEOUT_MS,
+      );
+      timeoutHandle.unref?.();
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() =>
+      clearTimeout(timeoutHandle),
+    );
+  }
+
+  private warnUnavailable(reason: string): void {
+    const now = Date.now();
+    if (now - this.lastUnavailableWarnAt < WARN_INTERVAL_MS) {
+      return;
+    }
+    this.lastUnavailableWarnAt = now;
+    this.logger.warn(
+      `RBAC permission cache unavailable, falling through to DB: ${reason}`,
+    );
+  }
+}
+
+function toEpoch(raw: string | null): number {
+  if (!raw) return 0;
+  const parsed = parseInt(raw, 10);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
