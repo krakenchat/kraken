@@ -63,10 +63,15 @@ export async function createE2eApp(): Promise<E2eApp> {
  * at boot, so the post-reset state matches a freshly-migrated instance.
  *
  * Destructive by design, so it refuses to run unless the database name in
- * DATABASE_URL contains "test" (CI provisions a dedicated `test` database)
- * or E2E_ALLOW_DB_RESET=1 is set explicitly. Local runs against the dev
- * compose database therefore need:
- *   docker compose run --rm -e E2E_ALLOW_DB_RESET=1 backend pnpm run test:e2e
+ * DATABASE_URL contains "test" (CI provisions a dedicated `test` database).
+ * There is deliberately NO override: an env-var escape hatch documented as
+ * the standard local command once wiped a developer's persistent dev
+ * database. Local runs must point DATABASE_URL at a dedicated test database
+ * instead, e.g.:
+ *   docker compose exec postgres createdb -U semaphore semaphore_e2e_local_test
+ *   docker compose run --rm \
+ *     -e DATABASE_URL=postgresql://semaphore:semaphore@postgres:5432/semaphore_e2e_local_test \
+ *     backend sh -c 'pnpm run prisma:migrate && pnpm run test:e2e'
  */
 export async function resetDatabase(app: E2eApp): Promise<void> {
   let dbName: string;
@@ -81,11 +86,12 @@ export async function resetDatabase(app: E2eApp): Promise<void> {
         'URL, so the target database cannot be identified.',
     );
   }
-  if (!/test/i.test(dbName) && process.env.E2E_ALLOW_DB_RESET !== '1') {
+  if (!/test/i.test(dbName)) {
     throw new Error(
       `resetDatabase() refused: DATABASE_URL points at "${dbName}", which ` +
-        'does not look like a test database. Set E2E_ALLOW_DB_RESET=1 to ' +
-        'wipe it anyway (this destroys all data).',
+        'does not look like a test database. There is no override — point ' +
+        'DATABASE_URL at a database whose name contains "test" (see the ' +
+        'resetDatabase doc comment for the local setup commands).',
     );
   }
 

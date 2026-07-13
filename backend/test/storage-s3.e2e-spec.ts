@@ -5,9 +5,14 @@
  * Requires MinIO running and reachable. Two ways to get that:
  *
  *   1. Local dev: the dev Docker Compose stack ships a `minio` service
- *      behind an opt-in profile —
+ *      behind an opt-in profile. E2e runs must target a dedicated
+ *      test-named database (resetDatabase() refuses anything else, with
+ *      no override — see test/helpers/e2e-app.ts):
  *        docker compose --profile s3 up -d minio minio-init
- *        docker compose run --rm -e E2E_ALLOW_DB_RESET=1 backend pnpm run test:e2e -- storage-s3
+ *        docker compose exec postgres createdb -U semaphore semaphore_e2e_local_test
+ *        docker compose run --rm \
+ *          -e DATABASE_URL=postgresql://semaphore:semaphore@postgres:5432/semaphore_e2e_local_test \
+ *          backend sh -c 'pnpm run prisma:migrate && pnpm run test:e2e -- storage-s3'
  *      S3_ENDPOINT defaults to the compose-network hostname (http://minio:9000).
  *
  *   2. CI: .github/workflows/backend-tests.yml's e2e job runs a `minio`
