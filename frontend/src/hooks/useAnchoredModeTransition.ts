@@ -6,16 +6,26 @@ interface UseAnchoredModeTransitionOptions {
   hasNewer?: boolean;
   isLoadingNewer?: boolean;
   jumpToPresent?: () => void;
-  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
  * Handles automatic transition from anchored mode back to normal mode.
  *
- * - Auto-calls jumpToPresent when user scrolls to bottom and all newer messages
- *   are loaded (hasNewer === false).
- * - Scrolls to visual bottom when the mode transition completes.
- * - Guards against false triggers on initial render via hasBeenAwayFromBottom tracking.
+ * Signals-only: driven entirely by `mode`/`atBottom`/`hasNewer`/`isLoadingNewer`,
+ * no scroll-container refs. The actual "land at the bottom" scroll on the
+ * anchored→normal transition is no longer this hook's job — it falls out of
+ * VirtualMessageList's own reset-on-mode-change positioning (a mode flip
+ * re-runs initial positioning, which jumps to the bottom in normal mode with
+ * no highlight target). This hook only decides WHEN to flip modes.
+ *
+ * - Auto-calls jumpToPresent when the user scrolls to the bottom and all newer
+ *   messages are loaded (hasNewer === false).
+ * - Guards against false triggers on initial render via hasBeenAwayFromBottom
+ *   tracking: atBottom starts as the stale default (true) on the render where
+ *   mode first flips to 'anchored', before VirtualMessageList's own centering
+ *   effect has had a chance to report the real (centered, not-at-bottom)
+ *   position — so an immediate atBottom=true must not be trusted until the
+ *   consumer has observed at least one genuine atBottom=false.
  */
 export const useAnchoredModeTransition = ({
   mode,
@@ -23,11 +33,7 @@ export const useAnchoredModeTransition = ({
   hasNewer,
   isLoadingNewer,
   jumpToPresent,
-  scrollContainerRef,
 }: UseAnchoredModeTransitionOptions) => {
-  // Only auto-transition after the user has scrolled away from the initial
-  // highlight position at least once. Without this guard, atBottom starts as
-  // true before the scroll-to-highlight fires, causing an immediate transition.
   const hasBeenAwayFromBottomRef = useRef(false);
   useEffect(() => {
     if (mode !== 'anchored') {
@@ -49,16 +55,4 @@ export const useAnchoredModeTransition = ({
       jumpToPresent();
     }
   }, [mode, atBottom, hasNewer, isLoadingNewer, jumpToPresent]);
-
-  // Scroll to bottom when transitioning anchored → normal.
-  // The list renders oldest-first in a normal column, so the visual bottom is
-  // scrollTop = scrollHeight (the anchored-mode scrollTop is otherwise kept).
-  const prevModeRef = useRef(mode);
-  useEffect(() => {
-    if (prevModeRef.current === 'anchored' && mode === 'normal') {
-      const el = scrollContainerRef.current;
-      if (el) el.scrollTo({ top: el.scrollHeight });
-    }
-    prevModeRef.current = mode;
-  }, [mode, scrollContainerRef]);
 };

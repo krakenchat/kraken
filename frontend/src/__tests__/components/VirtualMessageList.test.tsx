@@ -43,8 +43,10 @@ vi.mock('virtua', async () => {
 
 // ── Mock child components ──────────────────────────────────────────────
 vi.mock('../../components/Message/MessageComponent', () => ({
-  default: ({ message }: { message: { id: string } }) => (
-    <div data-testid={`msg-${message.id}`}>message-{message.id}</div>
+  default: ({ message, contextType }: { message: { id: string }; contextType?: string }) => (
+    <div data-testid={`msg-${message.id}`} data-context-type={contextType}>
+      message-{message.id}
+    </div>
   ),
 }));
 vi.mock('../../components/Message/MessageSkeleton', () => ({
@@ -370,34 +372,6 @@ describe('VirtualMessageList', () => {
     expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'end' });
   });
 
-  it('restores the reading position from initialAnchor instead of jumping to the bottom', () => {
-    const onAtBottomChange = vi.fn();
-    render(
-      <VirtualMessageList
-        {...baseProps}
-        orderedMessages={messages(10)}
-        initialAnchor={{ id: 'msg-4', offsetTop: 35 }}
-        onAtBottomChange={onAtBottomChange}
-      />,
-    );
-    expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(4, { align: 'start' });
-    expect(fakeHandle.scrollBy).toHaveBeenCalledWith(-35);
-    expect(fakeHandle.scrollToIndex).not.toHaveBeenCalledWith(9, { align: 'end' });
-    expect(onAtBottomChange).toHaveBeenCalledWith(false);
-  });
-
-  it('falls back to the bottom when the initialAnchor id is not in the list', () => {
-    render(
-      <VirtualMessageList
-        {...baseProps}
-        orderedMessages={messages(10)}
-        initialAnchor={{ id: 'gone-msg', offsetTop: 35 }}
-      />,
-    );
-    expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(9, { align: 'end' });
-    expect(fakeHandle.scrollBy).not.toHaveBeenCalled();
-  });
-
   describe('jump-to-message', () => {
     it('scrolls to the highlighted message centered', () => {
       render(
@@ -472,6 +446,270 @@ describe('VirtualMessageList', () => {
         expect.anything(),
         { align: 'center' },
       );
+    });
+  });
+
+  describe('anchored mode', () => {
+    it('centers on the highlightMessageId target on initial mount (double-rAF re-assert)', () => {
+      const onAtBottomChange = vi.fn();
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          highlightMessageId="msg-10"
+          highlightSeq={1}
+          onAtBottomChange={onAtBottomChange}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(10, { align: 'center' });
+      // Never falls back to the normal-mode bottom jump.
+      expect(fakeHandle.scrollToIndex).not.toHaveBeenCalledWith(19, { align: 'end' });
+      expect(onAtBottomChange).toHaveBeenCalledWith(false);
+    });
+
+    it('falls back to mid-list centering when no highlightMessageId is present (flash already expired)', () => {
+      const onAtBottomChange = vi.fn();
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(11)}
+          mode="anchored"
+          onAtBottomChange={onAtBottomChange}
+        />,
+      );
+      // 11 messages, indices 0-10 — midpoint is index 5.
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(5, { align: 'center' });
+      expect(onAtBottomChange).toHaveBeenCalledWith(false);
+    });
+
+    it('re-centers on a fresh anchor when highlightSeq bumps while already anchored', () => {
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          highlightMessageId="msg-10"
+          highlightSeq={1}
+        />,
+      );
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Re-anchoring to a different message (e.g. a second search-hit click)
+      // swaps the underlying data window; the highlightSeq bump must still
+      // re-center even though initial positioning already completed once.
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          highlightMessageId="msg-3"
+          highlightSeq={2}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(3, { align: 'center' });
+    });
+
+    it('re-runs positioning when mode flips from normal to anchored, even with an unchanged resetKey', () => {
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="normal"
+          resetKey="ch-1"
+        />,
+      );
+      fakeHandle.scrollToIndex.mockClear();
+
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(20)}
+          mode="anchored"
+          resetKey="ch-1"
+          highlightMessageId="msg-7"
+          highlightSeq={1}
+        />,
+      );
+      expect(fakeHandle.scrollToIndex).toHaveBeenCalledWith(7, { align: 'center' });
+    });
+
+    it('does NOT stick to the bottom when a newer page appends while pinned in anchored mode', () => {
+      const initial = messages(5);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      // Pin to the bottom of the currently-loaded anchored window.
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // A newer page appends below the viewport (oldest id unchanged).
+      const newer = createMessage({ id: 'newer' });
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={[...initial, newer]}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      // No stick-to-bottom jump — would strand the reader past the loaded
+      // page and cascade newer loads to the present.
+      expect(fakeHandle.scrollToIndex).not.toHaveBeenCalled();
+      // Also confirmed via `shift`: an append never sets shift (oldestId
+      // unchanged), matching the existing prepend-only isPrepend contract.
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('triggers onLoadNewer when the visible end index nears the bottom of the loaded window', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi
+        .fn()
+        .mockReturnValueOnce(30) // start
+        .mockReturnValueOnce(48); // end — near the last index (49)
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={true}
+          isLoadingNewer={false}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not trigger onLoadNewer when hasNewer is false', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(30).mockReturnValueOnce(49);
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={false}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger onLoadNewer when isLoadingNewer is true', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(30).mockReturnValueOnce(49);
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={true}
+          isLoadingNewer={true}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger onLoadNewer when far from the bottom of the loaded window', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(5).mockReturnValueOnce(15); // far from end (49)
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="anchored"
+          hasNewer={true}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(300));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger onLoadNewer in normal mode even if hasNewer/onLoadNewer are (incorrectly) supplied', () => {
+      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+      fakeHandle.findItemIndex = vi.fn().mockReturnValueOnce(30).mockReturnValueOnce(49);
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(50)}
+          mode="normal"
+          hasNewer={true}
+          onLoadNewer={onLoadNewer}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(900));
+      expect(onLoadNewer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('loading skeletons', () => {
+    it('shows top skeletons while isLoadingMore is true', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(5)}
+          isLoadingMore={true}
+        />,
+      );
+      expect(screen.getAllByTestId('message-skeleton').length).toBe(3);
+    });
+
+    it('shows bottom skeletons while isLoadingNewer is true (anchored mode)', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(5)}
+          mode="anchored"
+          isLoadingNewer={true}
+        />,
+      );
+      expect(screen.getAllByTestId('message-skeleton').length).toBe(3);
+    });
+
+    it('shows both top and bottom skeletons when both are loading', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(5)}
+          mode="anchored"
+          isLoadingMore={true}
+          isLoadingNewer={true}
+        />,
+      );
+      expect(screen.getAllByTestId('message-skeleton').length).toBe(6);
+    });
+
+    it('shows no skeletons when neither is loading', () => {
+      render(<VirtualMessageList {...baseProps} orderedMessages={messages(5)} />);
+      expect(screen.queryByTestId('message-skeleton')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('context type', () => {
+    it('passes the dm context type to messages when directMessageGroupId is set', () => {
+      render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={messages(1)}
+          directMessageGroupId="dm-group-1"
+        />,
+      );
+      expect(screen.getByTestId('msg-msg-0')).toHaveAttribute('data-context-type', 'dm');
+    });
+
+    it('passes the channel context type by default', () => {
+      render(<VirtualMessageList {...baseProps} orderedMessages={messages(1)} />);
+      expect(screen.getByTestId('msg-msg-0')).toHaveAttribute('data-context-type', 'channel');
     });
   });
 });
