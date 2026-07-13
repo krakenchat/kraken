@@ -1,118 +1,36 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
-import { screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import MessageContainer from '../../components/Message/MessageContainer';
 import { createMessage, resetFactoryCounter } from '../test-utils/factories';
 
-// ── Mock IntersectionObserver ──────────────────────────────────────────
-type MockObserverInstance = {
-  callback: IntersectionObserverCallback;
-  options: IntersectionObserverInit | undefined;
-  elements: Set<Element>;
-  observe: Mock<(el: Element) => void>;
-  unobserve: Mock<(el: Element) => void>;
-  disconnect: Mock<() => void>;
-  trigger: (entries: Partial<IntersectionObserverEntry>[]) => void;
-};
-
-let mockObserverInstances: MockObserverInstance[] = [];
-
-class MockIntersectionObserver {
-  _instance: MockObserverInstance;
-  constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
-    const instance: MockObserverInstance = {
-      callback,
-      options,
-      elements: new Set(),
-      observe: vi.fn((el: Element) => { instance.elements.add(el); }),
-      unobserve: vi.fn((el: Element) => { instance.elements.delete(el); }),
-      disconnect: vi.fn(() => { instance.elements.clear(); }),
-      trigger: (entries: Partial<IntersectionObserverEntry>[]) => {
-        callback(
-          entries as IntersectionObserverEntry[],
-          this as unknown as IntersectionObserver,
-        );
-      },
-    };
-    this._instance = instance;
-    mockObserverInstances.push(instance);
-  }
-  observe(el: Element) { this._instance.observe(el); }
-  unobserve(el: Element) { this._instance.unobserve(el); }
-  disconnect() { this._instance.disconnect(); }
-}
-
-// ── Mock ResizeObserver ────────────────────────────────────────────────
-type MockResizeInstance = {
-  callback: ResizeObserverCallback;
-  elements: Set<Element>;
-  trigger: (targets: Element[]) => void;
-};
-
-let mockResizeInstances: MockResizeInstance[] = [];
-
-class MockResizeObserver {
-  _instance: MockResizeInstance;
-  constructor(callback: ResizeObserverCallback) {
-    const instance: MockResizeInstance = {
-      callback,
-      elements: new Set(),
-      trigger: (targets: Element[]) => {
-        callback(
-          targets.map((target) => ({ target }) as ResizeObserverEntry),
-          this as unknown as ResizeObserver,
-        );
-      },
-    };
-    this._instance = instance;
-    mockResizeInstances.push(instance);
-  }
-  observe(el: Element) { this._instance.elements.add(el); }
-  unobserve(el: Element) { this._instance.elements.delete(el); }
-  disconnect() { this._instance.elements.clear(); }
-}
-
 // ── Mock child components ──────────────────────────────────────────────
-vi.mock('../../components/Message/MessageComponent', () => ({
-  default: ({ message, isSearchHighlight, contextType }: { message: { id: string; spans: unknown[] }; isSearchHighlight?: boolean; contextType?: string }) => (
-    <div data-testid={`message-${message.id}`} data-highlighted={isSearchHighlight} data-context-type={contextType}>
-      message-{message.id}
-    </div>
-  ),
-}));
-
 vi.mock('../../components/Message/MessageSkeleton', () => ({
   default: () => <div data-testid="message-skeleton" />,
 }));
 
-vi.mock('../../components/Message/UnreadMessageDivider', () => ({
-  UnreadMessageDivider: ({ unreadCount }: { unreadCount: number }) => (
-    <div data-testid="unread-divider">{unreadCount} new messages</div>
-  ),
-}));
-
-// Stub the virtualized renderer so gate tests assert routing, not virtua
-// internals (VirtualMessageList has its own test with a mocked VList).
-// Captures the props it last received so transition tests can assert wiring.
-let lastVirtualListProps: {
-  initialAnchor?: { id: string; offsetTop: number } | null;
-  onVisibleRangeChange?: (startIndex: number, endIndex: number) => void;
-} | null = null;
+// VirtualMessageList is the SINGLE renderer now (both normal and anchored
+// mode). MessageContainer's job is orchestration: which props flow down,
+// FAB visibility/routing, the detached->live scroll retry, and feeding
+// read-tracking from the visible-range callback. Those are exactly what this
+// file tests — VirtualMessageList's own rendering/scroll mechanics (prepend,
+// stick-to-bottom, anchored centering, pagination triggers, unread divider
+// placement, jump-to-message) are unit-tested directly in
+// VirtualMessageList.test.tsx against a mocked `virtua`, where real DOM
+// order/placement can be asserted.
+let lastVirtualListProps: Record<string, unknown> | null = null;
+const mockScrollToBottom = vi.fn();
 vi.mock('../../components/Message/VirtualMessageList', async () => {
   const React = await import('react');
   return {
     default: React.forwardRef(
-      (
-        props: {
-          orderedMessages: Array<{ id: string }>;
-          initialAnchor?: { id: string; offsetTop: number } | null;
-        },
-        _ref: React.Ref<unknown>,
-      ) => {
+      (props: Record<string, unknown>, ref: React.Ref<{ scrollToBottom: () => void }>) => {
         lastVirtualListProps = props;
+        React.useImperativeHandle(ref, () => ({ scrollToBottom: mockScrollToBottom }), []);
+        const orderedMessages = props.orderedMessages as Array<{ id: string }>;
         return (
           <div data-testid="virtual-message-list">
-            {props.orderedMessages.map((m) => (
+            {orderedMessages.map((m) => (
               <div key={m.id} data-testid={`vmsg-${m.id}`} />
             ))}
           </div>
@@ -124,9 +42,9 @@ vi.mock('../../components/Message/VirtualMessageList', async () => {
 
 // ── Mock hooks ─────────────────────────────────────────────────────────
 const mockMarkAsRead = vi.fn();
-let lastVisibilityProps: { disableObserver?: boolean } | null = null;
+let lastVisibilityProps: { channelId?: string; directMessageGroupId?: string; enabled?: boolean } | null = null;
 vi.mock('../../hooks/useMessageVisibility', () => ({
-  useMessageVisibility: (props: { disableObserver?: boolean }) => {
+  useMessageVisibility: (props: { channelId?: string; directMessageGroupId?: string; enabled?: boolean }) => {
     lastVisibilityProps = props;
     return { markAsRead: mockMarkAsRead };
   },
@@ -151,67 +69,13 @@ const defaultProps = {
   messageInput: <div data-testid="message-input">input</div>,
 };
 
-/** Find the message scroll container */
-function getScrollContainer() {
-  return screen.getByTestId('scroll-container');
-}
-
-/**
- * Make scroll geometry mockable on a jsdom element: writable scrollTop plus
- * configurable scrollHeight/clientHeight.
- */
-function mockScrollGeometry(
-  el: HTMLElement,
-  { scrollTop = 0, scrollHeight = 0, clientHeight = 0 } = {},
-) {
-  let top = scrollTop;
-  Object.defineProperty(el, 'scrollTop', {
-    configurable: true,
-    get: () => top,
-    set: (v: number) => { top = v; },
-  });
-  const setScrollHeight = (v: number) =>
-    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => v });
-  setScrollHeight(scrollHeight);
-  Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight });
-  return { setScrollHeight };
-}
-
-/** Get the IntersectionObserver instance that observes a given element */
-function findObserverFor(testFn: (instance: MockObserverInstance) => boolean) {
-  return mockObserverInstances.find(testFn);
-}
-
-/** Get the most recent ResizeObserver instance that observes a given element */
-function findResizeObserverFor(el: Element) {
-  return [...mockResizeInstances].reverse().find((inst) => inst.elements.has(el));
-}
-
-/** Build a partial DOMRect for getBoundingClientRect mocks */
-function makeRect({ top = 0, height = 0 }: { top?: number; height?: number }) {
-  return {
-    top,
-    height,
-    bottom: top + height,
-    left: 0,
-    right: 0,
-    width: 0,
-    x: 0,
-    y: top,
-    toJSON: () => ({}),
-  } as DOMRect;
-}
-
 // ── Setup / Teardown ───────────────────────────────────────────────────
 beforeEach(() => {
   resetFactoryCounter();
   lastVirtualListProps = null;
   lastVisibilityProps = null;
   mockMarkAsRead.mockClear();
-  mockObserverInstances = [];
-  mockResizeInstances = [];
-  vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
-  vi.stubGlobal('ResizeObserver', MockResizeObserver);
+  mockScrollToBottom.mockClear();
   mockGetLastReadMessageId.mockReturnValue(undefined);
   mockGetUnreadCount.mockReturnValue(0);
 });
@@ -261,42 +125,27 @@ describe('MessageContainer', () => {
 
       expect(screen.getByText('Nothing here yet!')).toBeInTheDocument();
     });
+
+    it('does not render VirtualMessageList when there are no messages', () => {
+      renderWithProviders(<MessageContainer {...defaultProps} />);
+      expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
+    });
   });
 
-  // ── Message rendering ──────────────────────────────────────────────
-  describe('message rendering', () => {
-    it('renders all messages', () => {
-      const messages = [
-        createMessage({ id: 'msg-a' }),
-        createMessage({ id: 'msg-b' }),
-        createMessage({ id: 'msg-c' }),
-      ];
-
-      renderWithProviders(
-        <MessageContainer {...defaultProps} messages={messages} />,
-      );
-
-      expect(screen.getByTestId('message-msg-a')).toBeInTheDocument();
-      expect(screen.getByTestId('message-msg-b')).toBeInTheDocument();
-      expect(screen.getByTestId('message-msg-c')).toBeInTheDocument();
-    });
-
-    it('renders scroll container as a normal column', () => {
+  // ── Rendering / renderer routing ───────────────────────────────────
+  describe('rendering', () => {
+    it('always renders through VirtualMessageList (single renderer, any message count)', () => {
       const messages = [createMessage({ id: 'msg-1' })];
-
       renderWithProviders(
         <MessageContainer {...defaultProps} messages={messages} />,
       );
-
-      const container = getScrollContainer();
-      expect(container).toBeInTheDocument();
-      expect(container).toHaveStyle({ flexDirection: 'column' });
+      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
     });
 
-    it('renders messages in chronological DOM order (oldest first) given newest-first input', () => {
-      // Regression test for the cross-message text selection bug: native
-      // selection follows DOM order, so the DOM must be chronological even
-      // though the messages prop arrives newest-first.
+    it('renders messages in chronological order (oldest first) given newest-first input', () => {
+      // Regression for the cross-message text selection bug: native selection
+      // follows DOM/array order, so orderedMessages passed to the renderer
+      // must be chronological even though the messages prop is newest-first.
       const messages = [
         createMessage({ id: 'msg-newest' }),
         createMessage({ id: 'msg-middle' }),
@@ -307,37 +156,47 @@ describe('MessageContainer', () => {
         <MessageContainer {...defaultProps} messages={messages} />,
       );
 
-      const container = getScrollContainer();
-      const rendered = Array.from(
-        container.querySelectorAll('[data-testid^="message-msg-"]'),
-      ).map((el) => el.getAttribute('data-testid'));
-
-      expect(rendered).toEqual([
-        'message-msg-oldest',
-        'message-msg-middle',
-        'message-msg-newest',
+      const ordered = lastVirtualListProps?.orderedMessages as Array<{ id: string }>;
+      expect(ordered.map((m) => m.id)).toEqual([
+        'msg-oldest',
+        'msg-middle',
+        'msg-newest',
       ]);
     });
 
-    it('bottom-packs sparse content: first child of the scroll container has marginTop auto', () => {
-      // Replaces column-reverse's bottom packing: when messages don't fill
-      // the viewport, the auto top margin on the first child absorbs the free
-      // space so content sits at the visual bottom. (justifyContent: flex-end
-      // is NOT an acceptable substitute — it breaks scrolling in some engines.)
+    it('always renders message input outside the message list', () => {
+      renderWithProviders(<MessageContainer {...defaultProps} />);
+      expect(screen.getByTestId('message-input')).toBeInTheDocument();
+    });
+
+    it('passes mode, authorId, and pagination props straight through', () => {
+      const onLoadMore = vi.fn();
+      const onLoadNewer = vi.fn();
       const messages = [createMessage({ id: 'msg-1' })];
 
       renderWithProviders(
-        <MessageContainer {...defaultProps} messages={messages} />,
+        <MessageContainer
+          {...defaultProps}
+          messages={messages}
+          authorId="user-42"
+          mode="anchored"
+          continuationToken="older-token"
+          onLoadMore={onLoadMore}
+          onLoadNewer={onLoadNewer}
+          isLoadingNewer={true}
+          hasNewer={true}
+        />,
       );
 
-      const container = getScrollContainer();
-      expect(container.firstElementChild).toHaveStyle({ marginTop: 'auto' });
-    });
-
-    it('always renders message input outside the scroll container', () => {
-      renderWithProviders(<MessageContainer {...defaultProps} />);
-
-      expect(screen.getByTestId('message-input')).toBeInTheDocument();
+      expect(lastVirtualListProps).toMatchObject({
+        authorId: 'user-42',
+        mode: 'anchored',
+        continuationToken: 'older-token',
+        onLoadMore,
+        onLoadNewer,
+        isLoadingNewer: true,
+        hasNewer: true,
+      });
     });
   });
 
@@ -352,71 +211,46 @@ describe('MessageContainer', () => {
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('shows FAB when bottom sentinel reports not intersecting', () => {
+    it('shows FAB when the renderer reports atBottom=false', () => {
       const messages = [createMessage({ id: 'msg-1' })];
       renderWithProviders(
         <MessageContainer {...defaultProps} messages={messages} />,
       );
 
-      // Find the observer watching the bottom sentinel (threshold: 0)
-      const bottomObserver = findObserverFor(
-        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
-      );
-      expect(bottomObserver).toBeDefined();
-
-      // Simulate scrolling away from bottom
       act(() => {
-        bottomObserver!.trigger([{ isIntersecting: false }]);
+        (lastVirtualListProps!.onAtBottomChange as (b: boolean) => void)(false);
       });
 
-      // FAB should now be visible
       expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
-    it('scrolls to the container scrollHeight when FAB is clicked', async () => {
+    it('calls the renderer imperative scrollToBottom when FAB is clicked', async () => {
       const messages = [createMessage({ id: 'msg-1' })];
       const { user } = renderWithProviders(
         <MessageContainer {...defaultProps} messages={messages} />,
       );
 
-      const container = getScrollContainer();
-      container.scrollTo = vi.fn();
-
-      // Make FAB visible
-      const bottomObserver = findObserverFor(
-        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
-      );
       act(() => {
-        bottomObserver!.trigger([{ isIntersecting: false }]);
+        (lastVirtualListProps!.onAtBottomChange as (b: boolean) => void)(false);
       });
 
       await user.click(screen.getByRole('button'));
-      // Visual bottom in a normal column is scrollTop = scrollHeight
-      // (0 in jsdom, but asserted against the element's own value).
-      expect(container.scrollTo).toHaveBeenCalledWith({
-        top: container.scrollHeight,
-        behavior: 'smooth',
-      });
+      expect(mockScrollToBottom).toHaveBeenCalledTimes(1);
     });
 
-    it('hides FAB when bottom sentinel becomes visible again', () => {
+    it('hides FAB when the renderer reports atBottom=true again', () => {
       const messages = [createMessage({ id: 'msg-1' })];
       renderWithProviders(
         <MessageContainer {...defaultProps} messages={messages} />,
       );
 
-      const bottomObserver = findObserverFor(
-        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
-      );
-
-      // Scroll away then back
       act(() => {
-        bottomObserver!.trigger([{ isIntersecting: false }]);
+        (lastVirtualListProps!.onAtBottomChange as (b: boolean) => void)(false);
       });
       expect(screen.getByRole('button')).toBeInTheDocument();
 
       act(() => {
-        bottomObserver!.trigger([{ isIntersecting: true }]);
+        (lastVirtualListProps!.onAtBottomChange as (b: boolean) => void)(true);
       });
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
@@ -480,10 +314,10 @@ describe('MessageContainer', () => {
       });
     });
 
-    it('scrolls to bottom once the reset completes and the refetched page renders', () => {
+    it('calls the renderer scrollToBottom once the reset completes and the refetched page renders', () => {
       const resetToPresent = vi.fn(() => Promise.resolve());
       // The stale detached window still has content (a deep-scrollback page,
-      // not "no messages yet") — the scroll container exists throughout.
+      // not "no messages yet") — the renderer is mounted throughout.
       const staleMessages = [createMessage({ id: 'stale-1' })];
       const { rerender } = renderWithProviders(
         <MessageContainer
@@ -494,9 +328,6 @@ describe('MessageContainer', () => {
           resetToPresent={resetToPresent}
         />,
       );
-
-      const container = getScrollContainer();
-      container.scrollTo = vi.fn();
 
       // The reset resolves and the refetched live page renders in the same
       // commit: isDetachedFromPresent flips false with non-empty messages.
@@ -511,10 +342,7 @@ describe('MessageContainer', () => {
         />,
       );
 
-      expect(container.scrollTo).toHaveBeenCalledWith({
-        top: container.scrollHeight,
-        behavior: 'smooth',
-      });
+      expect(mockScrollToBottom).toHaveBeenCalledTimes(1);
     });
 
     it('does not scroll again on a later unrelated re-render once settled', () => {
@@ -530,9 +358,6 @@ describe('MessageContainer', () => {
         />,
       );
 
-      const container = getScrollContainer();
-      container.scrollTo = vi.fn();
-
       const liveMessages = [createMessage({ id: 'live-1' })];
       rerender(
         <MessageContainer
@@ -545,8 +370,8 @@ describe('MessageContainer', () => {
       );
       // The transition itself scrolls once — sanity-check before asserting
       // it doesn't happen a second time below.
-      expect(container.scrollTo).toHaveBeenCalledTimes(1);
-      (container.scrollTo as ReturnType<typeof vi.fn>).mockClear();
+      expect(mockScrollToBottom).toHaveBeenCalledTimes(1);
+      mockScrollToBottom.mockClear();
 
       // A later, ordinary re-render (still not detached) must not re-trigger
       // the one-shot "just returned from detachment" scroll.
@@ -561,7 +386,7 @@ describe('MessageContainer', () => {
         />,
       );
 
-      expect(container.scrollTo).not.toHaveBeenCalled();
+      expect(mockScrollToBottom).not.toHaveBeenCalled();
     });
 
     it('does not carry a stale detached flag across a context switch', () => {
@@ -593,316 +418,18 @@ describe('MessageContainer', () => {
         />,
       );
 
-      const container = getScrollContainer();
       // The context-switch commit itself must not trigger the "returned from
       // detachment" scroll for channel-b — only a genuine detached→live
       // transition within the SAME context should.
-      expect(container.scrollTo).toBeUndefined();
+      expect(mockScrollToBottom).not.toHaveBeenCalled();
     });
   });
 
-  // ── Pagination (load more) ────────────────────────────────────────
-  describe('pagination', () => {
-    it('calls onLoadMore when top sentinel is intersecting', () => {
-      const onLoadMore = vi.fn().mockResolvedValue(undefined);
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          continuationToken="next-page-token"
-          onLoadMore={onLoadMore}
-        />,
-      );
-
-      // threshold=0 observers: bottom sentinel (1st) and top sentinel (2nd)
-      const thresholdZeroObservers = mockObserverInstances.filter(
-        (inst) => inst.options?.threshold === 0,
-      );
-      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
-
-      act(() => {
-        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
-      });
-      expect(onLoadMore).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not call onLoadMore when isLoadingMore is true', () => {
-      const onLoadMore = vi.fn().mockResolvedValue(undefined);
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          continuationToken="token"
-          onLoadMore={onLoadMore}
-          isLoadingMore={true}
-        />,
-      );
-
-      const thresholdZeroObservers = mockObserverInstances.filter(
-        (inst) => inst.options?.threshold === 0,
-      );
-      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
-
-      act(() => {
-        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
-      });
-      expect(onLoadMore).not.toHaveBeenCalled();
-    });
-
-    it('does not call onLoadMore without continuationToken', () => {
-      const onLoadMore = vi.fn().mockResolvedValue(undefined);
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          onLoadMore={onLoadMore}
-        />,
-      );
-
-      const thresholdZeroObservers = mockObserverInstances.filter(
-        (inst) => inst.options?.threshold === 0,
-      );
-      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
-
-      act(() => {
-        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
-      });
-      expect(onLoadMore).not.toHaveBeenCalled();
-    });
-
-    it('shows loading skeletons when isLoadingMore is true', () => {
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          isLoadingMore={true}
-        />,
-      );
-
-      // 3 skeletons shown during loading more (in addition to the message)
-      const skeletons = screen.getAllByTestId('message-skeleton');
-      expect(skeletons.length).toBe(3);
-    });
-  });
-
-  // ── Scroll anchoring ───────────────────────────────────────────────
-  describe('scroll anchoring', () => {
-    it('sticks to bottom when a new message arrives while pinned', () => {
-      const m1 = createMessage({ id: 'msg-1' });
-      const m2 = createMessage({ id: 'msg-2' });
-      const { rerender } = renderWithProviders(
-        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
-      );
-
-      const container = getScrollContainer();
-      mockScrollGeometry(container, {
-        scrollTop: 600,
-        scrollHeight: 1000,
-        clientHeight: 400,
-      });
-      // distance from bottom = 1000 - 600 - 400 = 0 → pinned
-      fireEvent.scroll(container);
-
-      // A new newest message arrives (prop is newest-first)
-      const m3 = createMessage({ id: 'msg-3' });
-      rerender(<MessageContainer {...defaultProps} messages={[m3, m2, m1]} />);
-
-      expect(container.scrollTop).toBe(1000);
-    });
-
-    it('does not move the viewport for a new message while reading history', () => {
-      const m1 = createMessage({ id: 'msg-1' });
-      const m2 = createMessage({ id: 'msg-2' });
-      const { rerender } = renderWithProviders(
-        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
-      );
-
-      const container = getScrollContainer();
-      mockScrollGeometry(container, {
-        scrollTop: 100,
-        scrollHeight: 1000,
-        clientHeight: 400,
-      });
-      // distance from bottom = 500 → not pinned
-      fireEvent.scroll(container);
-
-      const m3 = createMessage({ id: 'msg-3' });
-      rerender(<MessageContainer {...defaultProps} messages={[m3, m2, m1]} />);
-
-      expect(container.scrollTop).toBe(100);
-    });
-
-    it('adjusts scrollTop when an older page is prepended', () => {
-      const m1 = createMessage({ id: 'msg-1' });
-      const m2 = createMessage({ id: 'msg-2' });
-      const { rerender } = renderWithProviders(
-        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
-      );
-
-      const container = getScrollContainer();
-      const { setScrollHeight } = mockScrollGeometry(container, {
-        scrollTop: 500,
-        scrollHeight: 1000,
-        clientHeight: 400,
-      });
-      // distance from bottom = 100 → not pinned (reading history)
-      fireEvent.scroll(container);
-
-      // Re-render with a fresh array identity (same content) so the
-      // stabilization effect records the 1000px baseline scrollHeight.
-      rerender(<MessageContainer {...defaultProps} messages={[m2, m1]} />);
-
-      // Older page arrives: appended to the newest-first prop, which renders
-      // as a prepend at the top of the chronological DOM.
-      setScrollHeight(1300);
-      const m0 = createMessage({ id: 'msg-0' });
-      rerender(
-        <MessageContainer {...defaultProps} messages={[m2, m1, m0]} />,
-      );
-
-      // scrollTop shifted by the 300px height delta → viewport stays put
-      expect(container.scrollTop).toBe(800);
-    });
-
-    it('does not yank to bottom when a newer page arrives while pinned in anchored mode', () => {
-      const m1 = createMessage({ id: 'msg-1' });
-      const m2 = createMessage({ id: 'msg-2' });
-      const { rerender } = renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={[m2, m1]}
-          mode="anchored"
-          hasNewer={true}
-        />,
-      );
-
-      const container = getScrollContainer();
-      mockScrollGeometry(container, {
-        scrollTop: 600,
-        scrollHeight: 1000,
-        clientHeight: 400,
-      });
-      // distance from bottom = 0 → pinnedToBottomRef becomes true
-      fireEvent.scroll(container);
-
-      // The bottom-pin ResizeObserver must not observe the container in
-      // anchored mode: it is recreated on message changes and its initial
-      // callbacks fire with stale pinned=true, which would teleport the user.
-      expect(
-        mockResizeInstances.some((inst) => inst.elements.has(container)),
-      ).toBe(false);
-
-      // A newer page lands: a newer newest message appends below the viewport
-      const m3 = createMessage({ id: 'msg-3' });
-      rerender(
-        <MessageContainer
-          {...defaultProps}
-          messages={[m3, m2, m1]}
-          mode="anchored"
-          hasNewer={true}
-        />,
-      );
-
-      // Viewport must stay put — NOT be forced to scrollHeight
-      expect(container.scrollTop).toBe(600);
-    });
-
-    it('compensates scrollTop when content above the viewport grows while unpinned', () => {
-      const m1 = createMessage({ id: 'msg-1' });
-      const m2 = createMessage({ id: 'msg-2' });
-      renderWithProviders(
-        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
-      );
-
-      const container = getScrollContainer();
-      mockScrollGeometry(container, {
-        scrollTop: 100,
-        scrollHeight: 1000,
-        clientHeight: 400,
-      });
-      // distance from bottom = 500 → not pinned (reading history)
-      fireEvent.scroll(container);
-      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
-        makeRect({ top: 0, height: 400 }),
-      );
-
-      // msg-1 sits above the viewport (top edge above the container's top)
-      const el = document.querySelector('[data-message-id="msg-1"]') as HTMLElement;
-      const rectSpy = vi
-        .spyOn(el, 'getBoundingClientRect')
-        .mockReturnValue(makeRect({ top: -250, height: 200 }));
-
-      const growthObserver = findResizeObserverFor(el);
-      expect(growthObserver).toBeDefined();
-
-      // First callback only records the baseline height — no compensation
-      act(() => {
-        growthObserver!.trigger([el]);
-      });
-      expect(container.scrollTop).toBe(100);
-
-      // Media finishes loading: the element grows by 300px above the viewport
-      rectSpy.mockReturnValue(makeRect({ top: -250, height: 500 }));
-      act(() => {
-        growthObserver!.trigger([el]);
-      });
-      expect(container.scrollTop).toBe(400);
-    });
-
-    it('skips above-viewport growth compensation while pinned to the bottom', () => {
-      const m1 = createMessage({ id: 'msg-1' });
-      const m2 = createMessage({ id: 'msg-2' });
-      renderWithProviders(
-        <MessageContainer {...defaultProps} messages={[m2, m1]} />,
-      );
-
-      const container = getScrollContainer();
-      mockScrollGeometry(container, {
-        scrollTop: 600,
-        scrollHeight: 1000,
-        clientHeight: 400,
-      });
-      // distance from bottom = 0 → pinned
-      fireEvent.scroll(container);
-      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
-        makeRect({ top: 0, height: 400 }),
-      );
-
-      const el = document.querySelector('[data-message-id="msg-1"]') as HTMLElement;
-      const rectSpy = vi
-        .spyOn(el, 'getBoundingClientRect')
-        .mockReturnValue(makeRect({ top: -250, height: 200 }));
-
-      const growthObserver = findResizeObserverFor(el);
-      expect(growthObserver).toBeDefined();
-
-      act(() => {
-        growthObserver!.trigger([el]);
-      });
-      rectSpy.mockReturnValue(makeRect({ top: -250, height: 500 }));
-      act(() => {
-        growthObserver!.trigger([el]);
-      });
-
-      // No compensation increment — while pinned, the bottom-pin observer
-      // (a separate mechanism) owns keeping the view glued to the bottom.
-      expect(container.scrollTop).toBe(600);
-    });
-  });
-
-  // ── Unread message divider ─────────────────────────────────────────
+  // ── Unread message divider (index computation) ────────────────────
   describe('unread message divider', () => {
-    it('shows divider at the correct position', () => {
+    it('computes lastReadIndex in chronological order and passes it with unreadCount', () => {
       // Messages newest-first: msg-a (newest), msg-b, msg-c (oldest)
-      // msg-c is the last read message (index 2 in newest-first)
+      // msg-c is the last read message.
       const messages = [
         createMessage({ id: 'msg-a' }),
         createMessage({ id: 'msg-b' }),
@@ -920,29 +447,20 @@ describe('MessageContainer', () => {
         />,
       );
 
-      const divider = screen.getByTestId('unread-divider');
-      expect(divider).toHaveTextContent('2 new messages');
-
-      // Verify DOM order: rendering is chronological (oldest first), so the
-      // DOM is msg-c (last read), divider, msg-b, msg-a — placing the divider
-      // between the last-read message and the first unread one.
-      const container = getScrollContainer();
-      const children = Array.from(container.querySelectorAll('[data-testid]'));
-      const testIds = children.map((el) => el.getAttribute('data-testid'));
-      const dividerIdx = testIds.indexOf('unread-divider');
-      const msgBIdx = testIds.indexOf('message-msg-b');
-      const msgCIdx = testIds.indexOf('message-msg-c');
-      expect(dividerIdx).toBeGreaterThan(msgCIdx);
-      expect(dividerIdx).toBeLessThan(msgBIdx);
+      // Chronological order: msg-c (index 0), msg-b (1), msg-a (2).
+      expect(lastVirtualListProps).toMatchObject({
+        lastReadIndex: 0,
+        unreadCount: 2,
+      });
     });
 
-    it('does not show divider when unreadCount is 0', () => {
+    it('reports lastReadIndex -1 when there is no last-read message', () => {
       const messages = [
         createMessage({ id: 'msg-a' }),
         createMessage({ id: 'msg-b' }),
       ];
 
-      mockGetLastReadMessageId.mockReturnValue('msg-b');
+      mockGetLastReadMessageId.mockReturnValue(undefined);
       mockGetUnreadCount.mockReturnValue(0);
 
       renderWithProviders(
@@ -953,39 +471,16 @@ describe('MessageContainer', () => {
         />,
       );
 
-      expect(screen.queryByTestId('unread-divider')).not.toBeInTheDocument();
-    });
-
-    it('does not show divider when last read message is the newest', () => {
-      const messages = [
-        createMessage({ id: 'msg-a' }),
-        createMessage({ id: 'msg-b' }),
-      ];
-
-      // Last read is the newest message — nothing is unread in view
-      mockGetLastReadMessageId.mockReturnValue('msg-a');
-      mockGetUnreadCount.mockReturnValue(0);
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          channelId="channel-1"
-        />,
-      );
-
-      expect(screen.queryByTestId('unread-divider')).not.toBeInTheDocument();
+      expect(lastVirtualListProps).toMatchObject({
+        lastReadIndex: -1,
+        unreadCount: 0,
+      });
     });
   });
 
-  // ── Highlighted message ────────────────────────────────────────────
+  // ── Highlighted message (passthrough) ──────────────────────────────
   describe('highlighted message', () => {
-    beforeEach(() => {
-      // scrollIntoView is not implemented in jsdom; mock it globally
-      Element.prototype.scrollIntoView = vi.fn();
-    });
-
-    it('marks the correct message as highlighted', () => {
+    it('passes highlightMessageId and highlightSeq straight through', () => {
       const messages = [
         createMessage({ id: 'msg-a' }),
         createMessage({ id: 'msg-b' }),
@@ -996,41 +491,13 @@ describe('MessageContainer', () => {
           {...defaultProps}
           messages={messages}
           highlightMessageId="msg-b"
+          highlightSeq={3}
         />,
       );
 
-      expect(screen.getByTestId('message-msg-b')).toHaveAttribute(
-        'data-highlighted',
-        'true',
-      );
-      expect(screen.getByTestId('message-msg-a')).toHaveAttribute(
-        'data-highlighted',
-        'false',
-      );
-    });
-
-    it('calls scrollIntoView on the highlighted message element', async () => {
-      const messages = [
-        createMessage({ id: 'msg-a' }),
-        createMessage({ id: 'msg-b' }),
-      ];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          highlightMessageId="msg-b"
-          highlightSeq={1}
-        />,
-      );
-
-      const msgEl = document.querySelector('[data-message-id="msg-b"]')!;
-
-      await waitFor(() => {
-        expect(msgEl.scrollIntoView).toHaveBeenCalledWith({
-          behavior: 'instant',
-          block: 'center',
-        });
+      expect(lastVirtualListProps).toMatchObject({
+        highlightMessageId: 'msg-b',
+        highlightSeq: 3,
       });
     });
   });
@@ -1111,8 +578,12 @@ describe('MessageContainer', () => {
       expect(jumpToPresent).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onLoadNewer when bottom sentinel intersects in anchored mode', () => {
-      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
+    it('auto-transitions to normal mode via useAnchoredModeTransition once atBottom and hasNewer=false', () => {
+      // Integration check that MessageContainer wires atBottom (from the
+      // renderer) and hasNewer/isLoadingNewer straight into
+      // useAnchoredModeTransition — the hook's own decision logic is unit
+      // tested in useAnchoredModeTransition.test.ts.
+      const jumpToPresent = vi.fn();
       const messages = [createMessage({ id: 'msg-1' })];
 
       renderWithProviders(
@@ -1120,223 +591,45 @@ describe('MessageContainer', () => {
           {...defaultProps}
           messages={messages}
           mode="anchored"
-          jumpToPresent={vi.fn()}
-          onLoadNewer={onLoadNewer}
+          jumpToPresent={jumpToPresent}
+          hasNewer={true}
           isLoadingNewer={false}
-          hasNewer={true}
         />,
-      );
-
-      // First threshold=0 observer is the bottom sentinel
-      const bottomObserver = mockObserverInstances.find(
-        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
-      );
-      expect(bottomObserver).toBeDefined();
-
-      act(() => {
-        bottomObserver!.trigger([{ isIntersecting: true }]);
-      });
-      expect(onLoadNewer).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not call onLoadNewer when isLoadingNewer is true', () => {
-      const onLoadNewer = vi.fn().mockResolvedValue(undefined);
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          mode="anchored"
-          jumpToPresent={vi.fn()}
-          onLoadNewer={onLoadNewer}
-          isLoadingNewer={true}
-          hasNewer={true}
-        />,
-      );
-
-      const bottomObserver = mockObserverInstances.find(
-        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
       );
 
       act(() => {
-        bottomObserver!.trigger([{ isIntersecting: true }]);
+        (lastVirtualListProps!.onAtBottomChange as (b: boolean) => void)(false);
       });
-      expect(onLoadNewer).not.toHaveBeenCalled();
-    });
-
-    it('releases older pagination when anchored with no pending highlight', () => {
-      // Regression: if the around-fetch outlives the 3s highlight flash,
-      // highlightMessageId is already cleared when messages arrive. Initial
-      // positioning must still complete and release the pagination
-      // suppression — otherwise the anchored view strands with older
-      // pagination permanently dead.
-      const onLoadMore = vi.fn().mockResolvedValue(undefined);
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          mode="anchored"
-          jumpToPresent={vi.fn()}
-          continuationToken="older-token"
-          onLoadMore={onLoadMore}
-        />,
-      );
-
-      // threshold=0 observers: bottom sentinel (1st) and top sentinel (2nd)
-      const thresholdZeroObservers = mockObserverInstances.filter(
-        (inst) => inst.options?.threshold === 0,
-      );
-      expect(thresholdZeroObservers.length).toBeGreaterThanOrEqual(2);
-
-      act(() => {
-        thresholdZeroObservers[1].trigger([{ isIntersecting: true }]);
-      });
-      expect(onLoadMore).toHaveBeenCalledTimes(1);
-    });
-
-    it('shows loading skeletons when isLoadingNewer is true', () => {
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          mode="anchored"
-          jumpToPresent={vi.fn()}
-          isLoadingNewer={true}
-        />,
-      );
-
-      // 3 skeletons for newer loading
-      const skeletons = screen.getAllByTestId('message-skeleton');
-      expect(skeletons.length).toBe(3);
+      expect(jumpToPresent).not.toHaveBeenCalled();
     });
   });
 
-  // ── Virtualization gate ────────────────────────────────────────────
-  describe('virtualization gate', () => {
+  // ── Read tracking (fed by the renderer's visible-range callback) ──
+  describe('read tracking', () => {
     const manyMessages = (n: number) =>
       Array.from({ length: n }, (_, i) => createMessage({ id: `msg-${i}` }));
 
-    it('does not virtualize below the threshold in normal mode', () => {
+    it('enables markAsRead once loaded with messages', () => {
       renderWithProviders(
-        <MessageContainer {...defaultProps} messages={manyMessages(10)} />,
+        <MessageContainer {...defaultProps} messages={manyMessages(5)} channelId="ch-1" />,
       );
-      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
-      expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
+      expect(lastVisibilityProps).toMatchObject({ channelId: 'ch-1', enabled: true });
     });
 
-    it('virtualizes at or above the threshold in normal mode', () => {
+    it('disables markAsRead while loading', () => {
       renderWithProviders(
-        <MessageContainer {...defaultProps} messages={manyMessages(200)} />,
+        <MessageContainer {...defaultProps} messages={[]} isLoading channelId="ch-1" />,
       );
-      // Legacy scroll container is replaced by the virtualized renderer.
-      expect(screen.queryByTestId('scroll-container')).not.toBeInTheDocument();
-      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
+      expect(lastVisibilityProps).toMatchObject({ enabled: false });
     });
 
-    it('never virtualizes in anchored mode, even above the threshold', () => {
+    it('marks the latest visible message from the visible range (anchored mode included — no mode gating)', () => {
       renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={manyMessages(200)}
-          mode="anchored"
-          jumpToPresent={vi.fn()}
-        />,
-      );
-      expect(getScrollContainer()).toHaveAttribute('data-virtualized', 'false');
-      expect(screen.queryByTestId('virtual-message-list')).not.toBeInTheDocument();
-    });
-
-    it('captures the reading position as initialAnchor when crossing the threshold while scrolled up', () => {
-      // Start below the threshold on the legacy path.
-      const { rerender } = renderWithProviders(
-        <MessageContainer {...defaultProps} messages={manyMessages(199)} />,
-      );
-      const container = getScrollContainer();
-
-      // User is reading history: bottom sentinel reports not intersecting.
-      const bottomObserver = findObserverFor(
-        (inst) => inst.options?.threshold === 0 && inst.elements.size > 0,
-      );
-      act(() => {
-        bottomObserver!.trigger([{ isIntersecting: false }]);
-      });
-
-      // Mock geometry: container top at 0; msg-50 is the topmost visible
-      // message, 20px below the viewport top. All other rows keep jsdom's
-      // zero-rect and are skipped by the capture scan.
-      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue(
-        makeRect({ top: 0, height: 400 }),
-      );
-      const visibleEl = container.querySelector('[data-message-id="msg-50"]') as HTMLElement;
-      vi.spyOn(visibleEl, 'getBoundingClientRect').mockReturnValue(
-        makeRect({ top: 20, height: 30 }),
-      );
-
-      // An older page lands, crossing the threshold (newest-first prop appends
-      // older messages at the end).
-      rerender(
-        <MessageContainer
-          {...defaultProps}
-          messages={[...manyMessages(199), createMessage({ id: 'older-msg' })]}
-        />,
-      );
-
-      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
-      expect(lastVirtualListProps?.initialAnchor).toEqual({
-        id: 'msg-50',
-        offsetTop: 20,
-      });
-    });
-
-    it('does not capture an anchor when crossing the threshold while at the bottom', () => {
-      const { rerender } = renderWithProviders(
-        <MessageContainer {...defaultProps} messages={manyMessages(199)} />,
-      );
-      // atBottom defaults to true (no observer trigger) — e.g. incoming
-      // messages grow the cache past the threshold while the user is pinned.
-      rerender(
-        <MessageContainer
-          {...defaultProps}
-          messages={[createMessage({ id: 'newer-msg' }), ...manyMessages(199)]}
-        />,
-      );
-
-      expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument();
-      expect(lastVirtualListProps?.initialAnchor).toBeNull();
-    });
-  });
-
-  // ── Virtualized read tracking ──────────────────────────────────────
-  describe('virtualized read tracking', () => {
-    const manyMessages = (n: number) =>
-      Array.from({ length: n }, (_, i) => createMessage({ id: `msg-${i}` }));
-
-    it('disables the IntersectionObserver in the virtualized path', () => {
-      renderWithProviders(
-        <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
-      );
-      expect(lastVisibilityProps?.disableObserver).toBe(true);
-    });
-
-    it('keeps the IntersectionObserver on the legacy path', () => {
-      renderWithProviders(
-        <MessageContainer {...defaultProps} messages={manyMessages(10)} channelId="ch-1" />,
-      );
-      expect(lastVisibilityProps?.disableObserver).toBe(false);
-    });
-
-    it('marks the latest visible message from the virtual range', () => {
-      renderWithProviders(
-        <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
+        <MessageContainer {...defaultProps} messages={manyMessages(200)} mode="anchored" jumpToPresent={vi.fn()} channelId="ch-1" />,
       );
       // Chronological render order is the reverse of the newest-first prop:
       // ordered[k] = msg-(199 - k). Range end 5 → msg-194.
-      act(() => lastVirtualListProps!.onVisibleRangeChange!(0, 5));
+      act(() => (lastVirtualListProps!.onVisibleRangeChange as (s: number, e: number) => void)(0, 5));
       expect(mockMarkAsRead).toHaveBeenCalledWith('msg-194');
     });
 
@@ -1344,7 +637,7 @@ describe('MessageContainer', () => {
       renderWithProviders(
         <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
       );
-      act(() => lastVirtualListProps!.onVisibleRangeChange!(190, 500));
+      act(() => (lastVirtualListProps!.onVisibleRangeChange as (s: number, e: number) => void)(190, 500));
       expect(mockMarkAsRead).toHaveBeenCalledWith('msg-0');
     });
 
@@ -1352,29 +645,9 @@ describe('MessageContainer', () => {
       renderWithProviders(
         <MessageContainer {...defaultProps} messages={manyMessages(200)} channelId="ch-1" />,
       );
-      act(() => lastVirtualListProps!.onVisibleRangeChange!(5, 2));
-      act(() => lastVirtualListProps!.onVisibleRangeChange!(0, -1));
+      act(() => (lastVirtualListProps!.onVisibleRangeChange as (s: number, e: number) => void)(5, 2));
+      act(() => (lastVirtualListProps!.onVisibleRangeChange as (s: number, e: number) => void)(0, -1));
       expect(mockMarkAsRead).not.toHaveBeenCalled();
-    });
-  });
-
-  // ── Context type ───────────────────────────────────────────────────
-  describe('context type', () => {
-    it('passes "dm" context type when directMessageGroupId is set', () => {
-      const messages = [createMessage({ id: 'msg-1' })];
-
-      renderWithProviders(
-        <MessageContainer
-          {...defaultProps}
-          messages={messages}
-          directMessageGroupId="dm-group-1"
-        />,
-      );
-
-      expect(screen.getByTestId('message-msg-1')).toHaveAttribute(
-        'data-context-type',
-        'dm',
-      );
     });
   });
 });
