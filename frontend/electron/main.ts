@@ -106,10 +106,17 @@ let isQuitting = false;
 // main-process regression), exit non-zero after a 15s safety timeout.
 const isSmokeTest = process.argv.includes('--smoke-test');
 if (isSmokeTest) {
+  // Default to a failing exit code up front so ANY exit before the explicit
+  // ready-to-show success path (e.g. a clean quit via window-all-closed)
+  // reports failure instead of a false-green 0.
+  process.exitCode = 1;
+  // Intentionally not .unref()'d: this timer must keep the process alive so
+  // a hung app (ready-to-show never fires) is still forcibly exited 1 at
+  // 15s instead of running past CI's step timeout.
   setTimeout(() => {
     console.error('[smoke-test] ready-to-show did not fire within 15s, exiting 1');
     app.exit(1);
-  }, 15000).unref();
+  }, 15000);
 }
 
 // Track active notifications

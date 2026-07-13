@@ -66,13 +66,21 @@ jobs:
         run: pnpm run build:all
 
       # Directory-only package: no installer, no code signing, no publish.
-      # -c.productName=semaphore-chat avoids the "/opt/Semaphore Chat" space
-      # in the install path (#349) — see the note in electron-builder.yml.
+      # Reuses the electron-builder:linux script (package.json) so the
+      # mandated -c.productName=semaphore-chat flag (avoids the
+      # "/opt/Semaphore Chat" space in the install path, #349 — see the note
+      # in electron-builder.yml) stays centralized in one place.
+      # Deliberately no "--" before --dir/--publish: pnpm forwards trailing
+      # flags to the script fine without it, and electron-builder's yargs
+      # CLI treats everything after a literal "--" as positional args, so
+      # `-- --dir --publish never` would silently fail to parse as flags
+      # (verified locally: --dir/--publish never land in argv._ instead of
+      # argv.dir/argv.publish when "--" precedes them).
       # Unlike electron-build.yml this intentionally does NOT set GH_TOKEN;
       # --publish never means electron-builder never needs it.
       - name: Package Linux app (--dir, unpacked)
         working-directory: frontend
-        run: pnpm exec electron-builder -c.productName=semaphore-chat --dir --linux --publish never
+        run: pnpm run electron-builder:linux --dir --publish never
 
       # Best-effort: launch the packaged binary headlessly and confirm the
       # main process reaches ready-to-show. Non-required (continue-on-error)
