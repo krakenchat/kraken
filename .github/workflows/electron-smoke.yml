@@ -86,4 +86,9 @@ jobs:
         continue-on-error: true
         run: |
           sudo apt-get update && sudo apt-get install -y xvfb
+          # --no-sandbox: the unpacked --dir build never runs the .deb postinst
+          # (deb-after-install.sh) that installs the AppArmor profile Electron's
+          # Linux sandbox needs, so a sandboxed launch would fail here even on a
+          # healthy binary. This means the smoke test does NOT exercise the real
+          # user's sandboxed launch path — do not read a pass as sandbox validation.
           xvfb-run --auto-servernum ./release/linux-unpacked/semaphore-chat --smoke-test --no-sandbox
