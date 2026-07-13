@@ -49,7 +49,7 @@ The following are only required when `STORAGE_TYPE=S3` (validated at startup):
 The dev Docker Compose stack includes a MinIO service (S3-compatible, runs locally) behind an opt-in `s3` profile so it doesn't start by default:
 
 ```bash
-docker compose --profile s3 up -d minio
+docker compose --profile s3 up -d minio minio-init
 ```
 
 Then set in `backend/.env`:

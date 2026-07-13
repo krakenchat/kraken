@@ -85,7 +85,7 @@ function isMinioReachable(endpoint: string, timeoutMs = 2000): boolean {
   try {
     const url = new URL(endpoint);
     host = url.hostname;
-    port = url.port ? Number(url.port) : 80;
+    port = Number(url.port || (url.protocol === 'https:' ? '443' : '80'));
   } catch {
     return false;
   }
