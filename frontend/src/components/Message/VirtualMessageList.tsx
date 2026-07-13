@@ -82,10 +82,12 @@ export interface VirtualMessageListProps {
  *   mode) change the newest id but not the oldest in the common case, so they
  *   never set `shift` — appending below the viewport needs no index-shift
  *   compensation. At the MESSAGE_MAX_PAGES cap, a newer-page append DOES also
- *   change the oldest id (the oldest page is evicted), producing the same
- *   boundary-id signature as an older-page prepend-at-cap — disambiguated via
- *   content overlap (`isCapEvictionAppend`, next to `isPrepend`'s definition)
- *   so `shift` still stays false for the append.
+ *   change the oldest id (a whole oldest page — up to 50 messages — is
+ *   evicted, page-granular, not just its first message), producing the same
+ *   oldest-id-changed signature as an older-page prepend-at-cap —
+ *   disambiguated via bounded-prefix content membership (`isCapEvictionAppend`,
+ *   next to `isPrepend`'s definition) so `shift` still stays false for the
+ *   append.
  * - **Older pagination**: near the top of the visible range, `onLoadMore` fires.
  * - **Newer pagination (anchored)**: near the end of the visible range,
  *   `onLoadNewer` fires (mirrors the older-load trigger; in-flight-guarded).
@@ -143,8 +145,8 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const prevOldestIdRef = useRef<string | undefined>(undefined);
     const prevLenRef = useRef(0);
     const prevNewestIdRef = useRef<string | undefined>(undefined);
-    // Previous render's full array — only its endpoints are read, to
-    // disambiguate the at-cap case below (see isCapEvictionAppend).
+    // Previous render's full array — a bounded prefix (up to 51 elements) is
+    // read, to disambiguate the at-cap case below (see isCapEvictionAppend).
     const prevMessagesRef = useRef<typeof orderedMessages>([]);
 
     const len = orderedMessages.length;
@@ -152,32 +154,37 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const newestId = orderedMessages[len - 1]?.id;
 
     // At MESSAGE_MAX_PAGES, TanStack evicts pages from the end OPPOSITE the
-    // fetch direction. In normal mode there is only one fetch direction
-    // (older), so an older-page load that crosses the cap always evicts the
-    // newest page — "oldestId and newestId both changed, length unchanged"
-    // unambiguously means a prepend there (see the length reasoning below).
+    // fetch direction, and eviction is PAGE-granular (an entire page — up to
+    // the around-page's 50-message size — is dropped at once, not a single
+    // message). In normal mode there is only one fetch direction (older), so
+    // an older-page load that crosses the cap always evicts the newest page
+    // — "oldestId changed" unambiguously means a prepend there.
     //
     // Anchored mode fetches BOTH directions, so that same id-change
     // signature is ambiguous: a newer-page load crossing the cap evicts the
     // OLDEST page (newer pages are prepended to the query's page array via
     // fetchPreviousPage, and TanStack drops from the opposite/tail end) —
-    // this is an append, not a prepend, even though both boundary ids change
-    // exactly like the genuine prepend-at-cap case. Pure id/length
-    // comparison can't tell them apart; only content overlap can.
+    // this is an append, not a prepend, even though oldestId changes exactly
+    // like the genuine prepend-at-cap case. Pure id/length comparison can't
+    // tell them apart; only content overlap can — and since eviction is
+    // page-granular, the new head can land anywhere in the previous array's
+    // first ~50 elements, not just its second element.
     //
-    // Distinguish via the overlap: a genuine append-at-cap shifts everything
-    // left by one evicted (oldest) message, so the new array's first element
-    // equals the previous array's SECOND element. A genuine prepend-at-cap
-    // instead shifts everything right by one evicted (newest) message, so it
-    // can never also satisfy this. (Ordinary, non-cap prepends/appends grow
-    // `len` and don't line up this way either.)
+    // Distinguish via bounded membership: a genuine append-at-cap's new head
+    // id always already existed somewhere in the previous array (it's just
+    // the previous array with its evicted prefix removed and a new page
+    // appended), so it's found within `prevMessages.slice(0, 51)` (51 =
+    // one more than the 50-message max page size, so a full-page eviction's
+    // new head — at previous index 50 — is still covered). A genuine
+    // prepend-at-cap's new head is always a brand-new id from a
+    // never-before-loaded page, so it can never satisfy this membership
+    // check. This holds regardless of length — a partial-page eviction
+    // (fewer messages evicted than appended) grows `len`, but the new head's
+    // previous-array membership is unaffected by that.
     const prevMessages = prevMessagesRef.current;
     const isCapEvictionAppend =
-      len === prevLenRef.current &&
-      len > 1 &&
-      oldestId !== prevOldestIdRef.current &&
-      newestId !== prevNewestIdRef.current &&
-      orderedMessages[0]?.id === prevMessages[1]?.id;
+      oldestId !== undefined &&
+      prevMessages.slice(0, 51).some((message) => message.id === oldestId);
 
     // True on the render immediately after an older page prepended at the start.
     // At the MESSAGE_MAX_PAGES cap, a prepend adds an older page but evicts the

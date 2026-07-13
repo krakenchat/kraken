@@ -605,6 +605,114 @@ describe('VirtualMessageList', () => {
       expect(capturedProps.shift).toBe(false);
     });
 
+    it('does not set shift when a page-granular newer-load eviction drops several messages from the front while appending several at the back', () => {
+      // TanStack's maxPages eviction is PAGE-granular, not single-message: a
+      // cap-crossing anchored newer-load drops the ENTIRE oldest page (up to
+      // the around-page's 50-message size), not just its first message. Here
+      // a previous window of 8 has its oldest 3 messages evicted while 3
+      // newer messages are appended — the new head is `prevMessages[3]`, not
+      // `prevMessages[1]`, so a shift-by-one-only check misses this.
+      const initial = messages(8);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Drop the oldest 3 (a whole evicted page), append 3 newer (a whole
+      // newly-fetched page). Length is unchanged (8), but the new head sits
+      // 3 slots into the previous array, not 1.
+      const newer = [
+        createMessage({ id: 'at-cap-newer-1' }),
+        createMessage({ id: 'at-cap-newer-2' }),
+        createMessage({ id: 'at-cap-newer-3' }),
+      ];
+      const atCap = [...initial.slice(3), ...newer];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('does not set shift for a realistic 25-message-page eviction at the anchored around-page cap', () => {
+      // Mirrors production dimensions: useAnchoredMessages fetches with
+      // limit: 25, and the initial "around" page is 50 — so a realistic
+      // newer-load-at-cap eviction drops an entire 25-message page from a
+      // ~50-message loaded window.
+      const initial = messages(50);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      const newer = Array.from({ length: 25 }, (_, i) =>
+        createMessage({ id: `at-cap-newer-${i}` }),
+      );
+      const atCap = [...initial.slice(25), ...newer];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('does not set shift when a partial-page eviction grows the length while still classifying as an append', () => {
+      // A partial-page eviction (fewer messages evicted than appended) grows
+      // `len` relative to the previous render — the classifier must not
+      // require len === prevLen (or len >= prevLen in the wrong direction)
+      // to still recognize this as an append, not a prepend.
+      const initial = messages(8);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Drop the oldest 3, append 5 newer — net length grows from 8 to 10.
+      const newer = Array.from({ length: 5 }, (_, i) =>
+        createMessage({ id: `at-cap-newer-${i}` }),
+      );
+      const atCap = [...initial.slice(3), ...newer];
+      expect(atCap.length).toBe(10);
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
     it('still sets shift=true for a genuine older-page prepend at the cap in anchored mode (mirror of the append case above)', () => {
       // Anchored mode also supports scrolling further into history via
       // onLoadMore (older). At the cap that evicts the NEWEST page (same
