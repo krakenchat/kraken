@@ -57,7 +57,7 @@ helm uninstall semaphore-chat
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `backend.replicaCount` | Number of backend pods. Keep at `1` unless `fileStorage.enabled=true` with a ReadWriteMany-capable backend — the chart fails to render otherwise. | `1` |
+| `backend.replicaCount` | Number of backend pods. Scaling beyond `1` requires `fileStorage.enabled=true` on a ReadWriteMany-capable backend (auto-selected) — the chart fails to render otherwise. | `1` |
 | `frontend.replicaCount` | Number of frontend pods | `2` |
 | `backend.resources` | Backend resource limits/requests | See values.yaml |
 | `frontend.resources` | Frontend resource limits/requests | See values.yaml |
@@ -109,10 +109,11 @@ helm uninstall semaphore-chat
 | `fileStorage.enabled` | Persist uploads to a PVC instead of ephemeral per-pod disk | `true` |
 | `fileStorage.size` | Uploads PVC size | `100Gi` |
 | `fileStorage.storageClassName` | Storage class for the uploads PVC | `""` |
+| `fileStorage.accessMode` | Uploads PVC access mode. `""` = auto (`ReadWriteOnce` at 1 potential backend replica, `ReadWriteMany` when scaled). Explicit `ReadWriteOnce`/`ReadWriteMany` overrides auto-detection. PVC accessModes are immutable — see NOTES.txt caveat on upgrade. | `""` |
 | `fileStorage.nfs.enabled` | Bind the uploads PVC to a self-provisioned NFS PV | `false` |
-| `fileStorage.allowEphemeral` | Escape hatch: allow `backend.replicaCount` (or HPA `minReplicas`) `> 1` with `fileStorage.enabled=false`, accepting data loss | `false` |
+| `fileStorage.allowEphemeral` | Escape hatch: allow `backend.replicaCount` (or HPA `maxReplicas`) `> 1` with `fileStorage.enabled=false`, accepting data loss | `false` |
 
-> **Note:** running more than one backend replica with `fileStorage.enabled=false` causes uploaded files to 404 on other pods and be lost on restart. The chart refuses to render (`helm template`/`helm install` fails) in that combination unless you set `fileStorage.allowEphemeral=true`.
+> **Note:** running more than one *potential* backend replica (fixed `replicaCount`, or HPA `maxReplicas` — not `minReplicas`) with `fileStorage.enabled=false` causes uploaded files to 404 on other pods and be lost on restart. The chart refuses to render (`helm template`/`helm install` fails) in that combination unless you set `fileStorage.allowEphemeral=true`. Likewise, it refuses to render if `fileStorage.accessMode` is forced to `ReadWriteOnce` while more than one potential replica is configured.
 
 ### LiveKit Configuration
 

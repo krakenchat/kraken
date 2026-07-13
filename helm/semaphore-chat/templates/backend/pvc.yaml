@@ -7,7 +7,7 @@ metadata:
     {{- include "semaphore-chat.backend.labels" . | nindent 4 }}
 spec:
   accessModes:
-    - ReadWriteMany  # Multiple backend pods can mount simultaneously
+    - {{ include "semaphore-chat.fileStorage.accessMode" . }}  # auto: ReadWriteOnce at 1 potential replica, ReadWriteMany when scaled (override via fileStorage.accessMode)
   {{- if hasKey .Values.fileStorage "storageClassName" }}
   storageClassName: {{ .Values.fileStorage.storageClassName | quote }}
   {{- end }}

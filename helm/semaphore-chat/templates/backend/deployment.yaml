@@ -1,4 +1,4 @@
-{{- include "semaphore-chat.validateFileStorage" . }}
+{{- include "semaphore-chat.validateFileStorage" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

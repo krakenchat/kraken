@@ -234,16 +234,26 @@ Configure your LiveKit server to send webhooks to `https://your-domain.com/api/l
 
 ### File storage
 
-User-uploaded files (avatars, attachments) need a `ReadWriteMany` PVC so all backend replicas can access them. `fileStorage.enabled` defaults to `true`, which is sufficient for the default single-replica install (a `ReadWriteOnce` PVC works fine at `backend.replicaCount: 1`). To run more than one backend replica, point it at a `ReadWriteMany`-capable storage class or NFS export:
+User-uploaded files (avatars, attachments) live on a PVC. `fileStorage.enabled` defaults to `true`, and the PVC's `accessMode` is chosen automatically from `fileStorage.accessMode` (default `""` = auto): `ReadWriteOnce` when the backend can only ever run 1 pod (`backend.replicaCount: 1`, the default, with autoscaling disabled or capped at `maxReplicas: 1`), and `ReadWriteMany` once the backend can scale beyond 1 pod (fixed `replicaCount > 1`, or HPA with `maxReplicas > 1`). `ReadWriteOnce` works with any storage class, including the RWO-only provisioners most clusters default to (EBS, GCP PD, Azure Disk, local-path, minikube hostpath) — this is why the default single-replica install works out of the box without any RWX storage.
+
+To run more than one backend replica, point `fileStorage` at a `ReadWriteMany`-capable storage class or NFS export — the chart will auto-select `ReadWriteMany` once it detects more than one potential replica:
 
 ```yaml
+backend:
+  replicaCount: 2
+
 fileStorage:
   enabled: true
   size: 100Gi
   storageClassName: "your-rwx-storage-class"  # e.g., EFS, AzureFile, NFS
 ```
 
-If you set `fileStorage.enabled: false`, an ephemeral `emptyDir` is used and files are lost on pod restart. The chart refuses to render if you combine this with `backend.replicaCount` (or HPA `minReplicas`) `> 1`, since uploads would 404 on the other pods. Set `fileStorage.allowEphemeral: true` to explicitly accept that risk instead.
+You can also set `fileStorage.accessMode` explicitly (`"ReadWriteOnce"` or `"ReadWriteMany"`) to override auto-detection.
+
+!!! warning "PVC accessModes are immutable"
+    Kubernetes does not allow changing a PVC's `accessModes` after creation. If you're upgrading an existing release, keep `fileStorage.accessMode` set to whatever the PVC was already created with (older chart versions always used `ReadWriteMany`) — don't rely on auto-detection to change it. To actually switch modes, delete and let Helm recreate the PVC (this destroys any files that only lived there).
+
+If you set `fileStorage.enabled: false`, an ephemeral `emptyDir` is used and files are lost on pod restart. The chart refuses to render if you combine this with a backend that can scale beyond 1 replica (`backend.replicaCount` or HPA `maxReplicas` `> 1`), since uploads would 404 on the other pods. Set `fileStorage.allowEphemeral: true` to explicitly accept that risk instead. Similarly, the chart refuses to render if `fileStorage.accessMode` is explicitly forced to `ReadWriteOnce` while the backend can scale beyond 1 replica, since only one pod could mount the volume.
 
 ### Replay storage (LiveKit egress)
 
@@ -272,7 +282,7 @@ The secret must contain: `JWT_SECRET`, `JWT_REFRESH_SECRET`, `LIVEKIT_API_SECRET
 ### Resources and autoscaling
 
 !!! note "File storage required for multiple backend replicas"
-    Scaling the backend beyond 1 replica (fixed `replicaCount` or HPA `minReplicas`) requires `fileStorage.enabled: true` with a `ReadWriteMany`-capable backend — see [File storage](#file-storage). The chart fails to render otherwise.
+    Scaling the backend beyond 1 potential replica (fixed `replicaCount`, or HPA `maxReplicas` — not `minReplicas`, since the HPA can scale up to `maxReplicas` at any time) requires `fileStorage.enabled: true` with a `ReadWriteMany` accessMode and an RWX-capable backend — see [File storage](#file-storage). The chart fails to render otherwise.
 
 ```yaml
 backend:

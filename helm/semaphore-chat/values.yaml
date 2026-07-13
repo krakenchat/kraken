@@ -394,9 +394,12 @@ fileStorage:
   # Enable persistent file storage for uploads
   # Set to false to use ephemeral storage (files lost on pod restart, and not
   # shared between replicas). Defaults to true so a fresh install doesn't
-  # silently lose uploaded files. A ReadWriteOnce-backed PVC is fine at
-  # backend.replicaCount=1 (the default); if you scale to multiple replicas
-  # you need a ReadWriteMany-capable backend (e.g. NFS, EFS, AzureFile).
+  # silently lose uploaded files. The uploads PVC accessMode is chosen
+  # automatically (see accessMode below): ReadWriteOnce at
+  # backend.replicaCount=1 (the default, works with any storage class,
+  # including EBS/GCP PD/Azure Disk/local-path), and ReadWriteMany once you
+  # scale to more than one backend pod — which requires an RWX-capable
+  # backend (e.g. NFS, EFS, AzureFile).
   enabled: true
 
   # Storage size
@@ -405,6 +408,18 @@ fileStorage:
   # Storage class name (leave empty for no storage class)
   # If using dynamic provisioning, specify your storage class here
   storageClassName: ""
+
+  # PVC access mode for the uploads volume. Leave empty ("") for automatic
+  # selection: ReadWriteOnce when the backend can only ever run 1 pod
+  # (backend.replicaCount=1 and autoscaling disabled, or autoscaling
+  # maxReplicas=1), ReadWriteMany otherwise. Set explicitly to
+  # "ReadWriteOnce" or "ReadWriteMany" to override auto-detection.
+  #
+  # NOTE: PVC accessModes are immutable in Kubernetes. If you're upgrading an
+  # existing release whose PVC was already created as ReadWriteMany, either
+  # keep this set to "ReadWriteMany" explicitly or delete/recreate the PVC —
+  # do not rely on auto-detection silently changing the mode underneath you.
+  accessMode: ""
 
   # NFS-specific configuration
   # To use NFS, set nfs.enabled: true and provide your NFS server details
