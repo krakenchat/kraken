@@ -110,9 +110,11 @@ describe('PersistentVideoOverlay', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders VideoTiles on desktop', () => {
+  it('renders VideoTiles on desktop', async () => {
     renderWithProviders(<PersistentVideoOverlay />);
-    expect(screen.getByTestId('video-tiles')).toBeInTheDocument();
+    // VideoTiles is React.lazy-loaded (PR-11 bundle splitting), so it
+    // resolves asynchronously even with the module mocked.
+    expect(await screen.findByTestId('video-tiles')).toBeInTheDocument();
   });
 
   it('renders channel name in PiP header on desktop', () => {
@@ -120,7 +122,7 @@ describe('PersistentVideoOverlay', () => {
     expect(screen.getByText('General Voice')).toBeInTheDocument();
   });
 
-  it('renders mobile full-screen overlay on mobile', () => {
+  it('renders mobile full-screen overlay on mobile', async () => {
     vi.mocked(useResponsive).mockReturnValue({
       isMobile: true,
       isTablet: false,
@@ -131,8 +133,8 @@ describe('PersistentVideoOverlay', () => {
 
     renderWithProviders(<PersistentVideoOverlay />);
 
-    // Mobile overlay should render VideoTiles
-    expect(screen.getByTestId('video-tiles')).toBeInTheDocument();
+    // Mobile overlay should render VideoTiles (React.lazy — see PR-11)
+    expect(await screen.findByTestId('video-tiles')).toBeInTheDocument();
     // Mobile overlay should NOT have minimize/maximize/drag controls
     expect(screen.queryByTestId('DragIndicatorIcon')).not.toBeInTheDocument();
     expect(screen.queryByTestId('MinimizeIcon')).not.toBeInTheDocument();

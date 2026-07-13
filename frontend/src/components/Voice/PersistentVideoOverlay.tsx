@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
   Box,
   Paper,
@@ -22,9 +22,14 @@ import { useVoice, useVoiceDispatch, VoiceSessionType, VoiceActionType } from '.
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useVideoOverlay } from '../../contexts/VideoOverlayContext';
 import { useResponsive } from '../../hooks/useResponsive';
-import { VideoTiles } from './VideoTiles';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
 import { VOICE_BAR_HEIGHT, VOICE_BAR_HEIGHT_MOBILE } from '../../constants/layout';
+
+// VideoTiles pulls in livekit-client runtime enums; lazy-load it so it's only
+// fetched once video is actually shown (see PR-11 bundle splitting). This
+// component itself is always mounted in Layout, but returns null unless
+// voiceState.isConnected && voiceState.showVideoTiles.
+const VideoTiles = lazy(() => import('./VideoTiles').then((m) => ({ default: m.VideoTiles })));
 
 // Constants
 const PIP_SETTINGS_KEY = 'semaphore_pip_settings';
@@ -374,7 +379,9 @@ export const PersistentVideoOverlay: React.FC = () => {
 
         {/* Video content */}
         <Box sx={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-          <VideoTiles />
+          <Suspense fallback={null}>
+            <VideoTiles />
+          </Suspense>
         </Box>
       </Box>
     );
@@ -508,7 +515,9 @@ export const PersistentVideoOverlay: React.FC = () => {
 
       {/* Video Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        <VideoTiles />
+        <Suspense fallback={null}>
+          <VideoTiles />
+        </Suspense>
       </Box>
 
       {/* Resize Handle - hidden when maximized */}
