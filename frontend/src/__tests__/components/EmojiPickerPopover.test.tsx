@@ -166,23 +166,38 @@ describe('EmojiPickerPopover', () => {
   });
 
   describe('accessibility', () => {
+    // axe's scan of the full emoji grid is legitimately slow (3s+ observed
+    // locally, more on a loaded CI runner) — give this one test more room
+    // than the file's default budget instead of letting it ride the shared
+    // 15s testTimeout.
     it('has no axe violations while open', async () => {
-      renderWithProviders(<EmojiPickerPopover {...defaultProps()} />);
-      await screen.findByPlaceholderText('Search emojis...');
+      // MUI's Grow transition (Popover's default `timeout="auto"`) settles
+      // its "entered" state via one or more internal timers (an
+      // auto-computed height-based duration, Popper repositioning, etc).
+      // None of these correspond to a real animation in jsdom (there's no
+      // layout engine), so there's nothing to wait for in real time — a
+      // previous fix drained them with a fixed real 300ms sleep inside
+      // act(), which is timing-coupled to nothing in particular and
+      // flaked/timed out on slow CI runners. Fake timers let us flush all
+      // of them deterministically in virtual time (no real wall-clock
+      // delay) before axe scans the DOM, with no risk of an "update not
+      // wrapped in act(...)" warning landing outside the flush.
+      vi.useFakeTimers();
+      try {
+        renderWithProviders(<EmojiPickerPopover {...defaultProps()} />);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      } finally {
+        vi.useRealTimers();
+      }
 
-      // MUI's Grow transition finishes its enter animation via a real
-      // setTimeout. axe's scan is slow (multi-second in this environment),
-      // so without draining that timeout first, it can fire mid-scan and
-      // log a "not wrapped in act(...)" warning for the Transition's
-      // internal state update. Settle it here, inside act(), before axe runs.
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      });
+      await screen.findByPlaceholderText('Search emojis...');
 
       // MUI's Popover portals into document.body (outside RTL's render
       // `container`), so scan the whole document to actually include it.
       const results = await runAxe(document.body);
       expectNoAxeViolations(results);
-    });
+    }, 20000);
   });
 });
