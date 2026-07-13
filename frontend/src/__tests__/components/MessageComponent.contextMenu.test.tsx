@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { renderWithProviders, runAxe, expectNoAxeViolations } from '../test-utils';
 import MessageComponent from '../../components/Message/MessageComponent';
 import { createMessage } from '../test-utils/factories';
@@ -142,13 +142,31 @@ describe('MessageComponent context menu (web)', () => {
   });
 
   it('has no axe violations while the context menu is open', async () => {
-    renderMessage();
-
-    fireEvent.contextMenu(screen.getByText('Right-click me'), {
-      clientX: 10,
-      clientY: 10,
-    });
-    await screen.findByRole('menu');
+    // MUI's Menu enters via a Grow transition whose "entered" state update
+    // lands on internal timers. axe's scan below is slow (multi-second under
+    // load) and is NOT act-wrapped, so any timer firing mid-scan logs an
+    // "update not wrapped in act(...)" warning. Flush all pending transition
+    // timers deterministically in virtual time first — fake timers must be
+    // installed BEFORE the contextmenu event (that's when the Menu mounts and
+    // schedules them; timers already sitting in the real queue can't be
+    // advanced virtually). Same pattern as EmojiPickerPopover.test.tsx's axe
+    // test. getByRole (not findByRole) because the act-wrapped fireEvent
+    // renders the menu synchronously, and RTL's waitFor shouldn't run under
+    // fake timers.
+    vi.useFakeTimers();
+    try {
+      renderMessage();
+      fireEvent.contextMenu(screen.getByText('Right-click me'), {
+        clientX: 10,
+        clientY: 10,
+      });
+      screen.getByRole('menu');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
 
     // MUI's Menu portals into document.body (outside RTL's `container`), so
     // scan the whole document to actually include the open menu.
