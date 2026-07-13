@@ -14,6 +14,9 @@ import { hasServers } from "./utils/serverStorage";
 import { isElectron } from "./utils/platform";
 import { AuthGate } from "./components/AuthGate";
 import { PublicRoute } from "./components/PublicRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AppErrorFallback } from "./components/AppErrorFallback";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 
 // Eager imports - first-paint routes
 import LoginPage from "./pages/LoginPage";
@@ -93,61 +96,75 @@ function App() {
       <PWAInstallPrompt />
       <UpdateToast />
       <OfflineBanner />
-      <Suspense fallback={
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'var(--full-dvh)' }}>
-          <CircularProgress />
-        </Box>
-      }>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-          <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
-          <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/join/:inviteCode" element={<JoinInvitePage />} />
+      {/*
+        App-level boundary: the outermost safety net for render crashes that
+        escape every closer boundary (e.g. RouteErrorBoundary below). It sits
+        inside ThemeProvider so the fallback is themed, and above the routes
+        so it only catches what a route-level boundary didn't. QueryClient
+        (main.tsx) and the auth/socket/notification providers mounted by
+        AuthGate/Layout live below RouteErrorBoundary's panel-level seams, so
+        ordinary page crashes never reach this far and never unmount them —
+        this boundary firing means a full reload is the safest recovery.
+      */}
+      <ErrorBoundary fallback={(error) => <AppErrorFallback error={error} />}>
+        <Suspense fallback={
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'var(--full-dvh)' }}>
+            <CircularProgress />
+          </Box>
+        }>
+          <RouteErrorBoundary>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+              <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+              <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+              <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/join/:inviteCode" element={<JoinInvitePage />} />
 
-          {/* Authenticated routes — AuthGate validates token + mounts providers */}
-          <Route element={<AuthGate />}>
-            {/* Debug routes — outside Layout so they render on mobile too */}
-            <Route path="debug/pwa" element={<PWADebugPage />} />
+              {/* Authenticated routes — AuthGate validates token + mounts providers */}
+              <Route element={<AuthGate />}>
+                {/* Debug routes — outside Layout so they render on mobile too */}
+                <Route path="debug/pwa" element={<PWADebugPage />} />
 
-            <Route path="/" element={<Layout />}>
-              <Route index element={<HomePage />} />
-              <Route path="direct-messages" element={<DirectMessagesPage />} />
-              <Route path="direct-messages/:dmGroupId" element={<DirectMessagesPage />} />
-              <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="friends" element={<FriendsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<HomePage />} />
+                  <Route path="direct-messages" element={<DirectMessagesPage />} />
+                  <Route path="direct-messages/:dmGroupId" element={<DirectMessagesPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="friends" element={<FriendsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
 
-              {/* Admin routes with dedicated layout */}
-              <Route path="admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="users" element={<AdminUsersPage />} />
-                <Route path="communities" element={<AdminCommunitiesPage />} />
-                <Route path="invites" element={<AdminInvitePage />} />
-                <Route path="roles" element={<AdminRolesPage />} />
-                <Route path="storage" element={<AdminStoragePage />} />
-                <Route path="settings" element={<AdminSettingsPage />} />
-                <Route path="debug" element={<AdminDebugPage />} />
+                  {/* Admin routes with dedicated layout */}
+                  <Route path="admin" element={<AdminLayout />}>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="users" element={<AdminUsersPage />} />
+                    <Route path="communities" element={<AdminCommunitiesPage />} />
+                    <Route path="invites" element={<AdminInvitePage />} />
+                    <Route path="roles" element={<AdminRolesPage />} />
+                    <Route path="storage" element={<AdminStoragePage />} />
+                    <Route path="settings" element={<AdminSettingsPage />} />
+                    <Route path="debug" element={<AdminDebugPage />} />
+                  </Route>
+
+                  {/* Debug routes (admin only - access check in component) */}
+                  <Route path="debug/notifications" element={<NotificationDebugPage />} />
+                  <Route path="profile" element={<ProfileRedirect />} />
+                  <Route path="profile/edit" element={<ProfileEditPage />} />
+                  <Route path="profile/:userId" element={<ProfilePage />} />
+                  <Route path="community/create" element={<CreateCommunityPage />} />
+                  <Route path="community/:communityId">
+                    <Route index element={<CommunityPage />} />
+                    <Route path="edit" element={<EditCommunityPage />} />
+                    <Route path="channel/:channelId" element={<CommunityPage />} />
+                  </Route>
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
               </Route>
-
-              {/* Debug routes (admin only - access check in component) */}
-              <Route path="debug/notifications" element={<NotificationDebugPage />} />
-              <Route path="profile" element={<ProfileRedirect />} />
-              <Route path="profile/edit" element={<ProfileEditPage />} />
-              <Route path="profile/:userId" element={<ProfilePage />} />
-              <Route path="community/create" element={<CreateCommunityPage />} />
-              <Route path="community/:communityId">
-                <Route index element={<CommunityPage />} />
-                <Route path="edit" element={<EditCommunityPage />} />
-                <Route path="channel/:channelId" element={<CommunityPage />} />
-              </Route>
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-          </Route>
-        </Routes>
-      </Suspense>
+            </Routes>
+          </RouteErrorBoundary>
+        </Suspense>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }
