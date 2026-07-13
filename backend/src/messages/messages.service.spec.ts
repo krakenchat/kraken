@@ -189,6 +189,44 @@ describe('MessagesService', () => {
     });
   });
 
+  describe('buildWebhookMessageInput', () => {
+    it('builds a create() input attributed to the webhook, not a user', () => {
+      const webhook = { id: 'webhook-1', channelId: 'channel-1' };
+
+      const result = service.buildWebhookMessageInput(webhook, 'hello world');
+
+      expect(result.authorId).toBeNull();
+      expect(result.webhookId).toBe('webhook-1');
+      expect(result.channelId).toBe('channel-1');
+      expect(result.directMessageGroupId).toBeNull();
+      expect(result.spans).toEqual([
+        expect.objectContaining({
+          type: SpanType.PLAINTEXT,
+          text: 'hello world',
+          userId: null,
+        }),
+      ]);
+      expect(result.attachments).toEqual([]);
+      expect(result.pinned).toBe(false);
+      expect(result.replyCount).toBe(0);
+    });
+
+    it('is passable directly to create()', async () => {
+      const webhook = { id: 'webhook-1', channelId: 'channel-1' };
+      const input = service.buildWebhookMessageInput(webhook, 'hi');
+
+      mockDatabase.message.create.mockResolvedValue(
+        buildMessageWithIncludes({ ...input, id: 'msg-1' }),
+      );
+
+      await service.create(input);
+
+      const callData = mockDatabase.message.create.mock.calls[0][0].data;
+      expect(callData.webhookId).toBe('webhook-1');
+      expect(callData.channelId).toBe('channel-1');
+    });
+  });
+
   describe('EMOJI span sanitization', () => {
     const emojiSpan = (emojiId: string | null) => ({
       type: SpanType.EMOJI,

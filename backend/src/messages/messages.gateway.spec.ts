@@ -4,10 +4,9 @@ import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@semaphore-chat/shared';
-import { NotificationsService } from '@/notifications/notifications.service';
+import { MessageDispatchService } from './message-dispatch.service';
 import { ModerationService } from '@/moderation/moderation.service';
 import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
-import { LinkPreviewsService } from '@/link-previews/link-previews.service';
 import type { Mocked } from '@suites/doubles.jest';
 
 describe('MessagesGateway', () => {
@@ -15,10 +14,9 @@ describe('MessagesGateway', () => {
   let messagesService: Mocked<MessagesService>;
   let reactionsService: Mocked<ReactionsService>;
   let websocketService: Mocked<WebsocketService>;
-  let notificationsService: Mocked<NotificationsService>;
+  let messageDispatchService: Mocked<MessageDispatchService>;
   let moderationService: Mocked<ModerationService>;
   let readReceiptsService: Mocked<ReadReceiptsService>;
-  let linkPreviewsService: Mocked<LinkPreviewsService>;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(MessagesGateway).compile();
@@ -27,10 +25,9 @@ describe('MessagesGateway', () => {
     messagesService = unitRef.get(MessagesService);
     reactionsService = unitRef.get(ReactionsService);
     websocketService = unitRef.get(WebsocketService);
-    notificationsService = unitRef.get(NotificationsService);
+    messageDispatchService = unitRef.get(MessageDispatchService);
     moderationService = unitRef.get(ModerationService);
     readReceiptsService = unitRef.get(ReadReceiptsService);
-    linkPreviewsService = unitRef.get(LinkPreviewsService);
 
     // Set up default return values that tests rely on
     messagesService.checkSlowmode.mockResolvedValue(undefined);
@@ -40,10 +37,7 @@ describe('MessagesGateway', () => {
     moderationService.isUserTimedOut.mockResolvedValue({
       isTimedOut: false,
     } as any);
-    notificationsService.processMessageForNotifications.mockResolvedValue(
-      undefined,
-    );
-    linkPreviewsService.processMessageLinkPreviews.mockResolvedValue(undefined);
+    messageDispatchService.dispatch.mockResolvedValue(undefined);
     readReceiptsService.markAsRead.mockResolvedValue({
       channelId: null,
       directMessageGroupId: null,
@@ -70,7 +64,7 @@ describe('MessagesGateway', () => {
     expect(messagesService).toBeDefined();
     expect(reactionsService).toBeDefined();
     expect(websocketService).toBeDefined();
-    expect(notificationsService).toBeDefined();
+    expect(messageDispatchService).toBeDefined();
   });
 
   describe('afterInit', () => {
@@ -125,12 +119,8 @@ describe('MessagesGateway', () => {
         ...payload,
         authorId: 'user-123',
       };
-      const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
-        enrichedMessage as any,
-      );
 
       const result = await gateway.handleMessage(payload as any, mockClient);
 
@@ -142,11 +132,13 @@ describe('MessagesGateway', () => {
           authorId: 'user-123',
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'channel-123',
-        ServerEvents.NEW_MESSAGE,
+      expect(messageDispatchService.dispatch).toHaveBeenCalledWith(
+        createdMessage,
         {
-          message: enrichedMessage,
+          room: 'channel-123',
+          event: ServerEvents.NEW_MESSAGE,
+          notifications: true,
+          linkPreviews: true,
         },
       );
     });
@@ -165,12 +157,8 @@ describe('MessagesGateway', () => {
         ...payload,
         authorId: 'user-123',
       };
-      const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
-        enrichedMessage as any,
-      );
 
       await gateway.handleMessage(payload as any, mockClient);
 
@@ -209,12 +197,8 @@ describe('MessagesGateway', () => {
         ...payload,
         authorId: 'user-456',
       };
-      const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
-        enrichedMessage as any,
-      );
 
       const result = await gateway.handleDirectMessageWithRBAC(
         payload as any,
@@ -229,11 +213,13 @@ describe('MessagesGateway', () => {
           authorId: 'user-456',
         }),
       );
-      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
-        'dm:dm-group-456',
-        ServerEvents.NEW_DM,
+      expect(messageDispatchService.dispatch).toHaveBeenCalledWith(
+        createdMessage,
         {
-          message: enrichedMessage,
+          room: 'dm:dm-group-456',
+          event: ServerEvents.NEW_DM,
+          notifications: true,
+          linkPreviews: true,
         },
       );
     });
@@ -252,12 +238,8 @@ describe('MessagesGateway', () => {
         ...payload,
         authorId: 'user-456',
       };
-      const enrichedMessage = { ...createdMessage, files: [] };
 
       messagesService.create.mockResolvedValue(createdMessage as any);
-      messagesService.enrichMessageWithFileMetadata.mockReturnValue(
-        enrichedMessage as any,
-      );
 
       await gateway.handleDirectMessageWithRBAC(payload as any, mockClient);
 

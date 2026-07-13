@@ -4,6 +4,7 @@ import { ReactionsService } from './reactions.service';
 import { ClipMessageListener } from './clip-message.listener';
 import { MessagesController } from './messages.controller';
 import { MessagesGateway } from './messages.gateway';
+import { MessageDispatchService } from './message-dispatch.service';
 import { DatabaseModule } from '@/database/database.module';
 import { UserModule } from '@/user/user.module';
 import { RolesModule } from '@/roles/roles.module';
@@ -25,6 +26,7 @@ import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
     MessagesGateway,
     MessageOwnershipGuard,
     ClipMessageListener,
+    MessageDispatchService,
   ],
   imports: [
     DatabaseModule,
@@ -39,6 +41,6 @@ import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
     ReadReceiptsModule,
     LinkPreviewsModule,
   ],
-  exports: [MessagesService, ReactionsService],
+  exports: [MessagesService, ReactionsService, MessageDispatchService],
 })
 export class MessagesModule {}

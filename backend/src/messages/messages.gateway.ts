@@ -31,13 +31,12 @@ import { ClientEvents, ServerEvents } from '@semaphore-chat/shared';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
-import { NotificationsService } from '@/notifications/notifications.service';
 import { ModerationService } from '@/moderation/moderation.service';
 import { ReadReceiptsService } from '@/read-receipts/read-receipts.service';
 import { getSocketUserId } from '@/common/utils/socket.utils';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { RoomName } from '@/common/utils/room-name.util';
-import { LinkPreviewsService } from '@/link-previews/link-previews.service';
+import { MessageDispatchService } from './message-dispatch.service';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -63,10 +62,9 @@ export class MessagesGateway
     private readonly messagesService: MessagesService,
     private readonly reactionsService: ReactionsService,
     private readonly websocketService: WebsocketService,
-    private readonly notificationsService: NotificationsService,
+    private readonly messageDispatchService: MessageDispatchService,
     private readonly moderationService: ModerationService,
     private readonly readReceiptsService: ReadReceiptsService,
-    private readonly linkPreviewsService: LinkPreviewsService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -152,37 +150,12 @@ export class MessagesGateway
         this.logger.error('Failed to auto-mark message as read', error),
       );
 
-    // Process message for notifications (mentions, etc.)
-    // This runs asynchronously and doesn't block message sending
-    this.notificationsService
-      .processMessageForNotifications(message)
-      .catch((error) =>
-        this.logger.error('Failed to process notifications for message', error),
-      );
-
-    // Process link previews (async, non-blocking)
-    this.linkPreviewsService
-      .processMessageLinkPreviews(
-        message.id,
-        message.spans,
-        payload.channelId,
-        ServerEvents.UPDATE_MESSAGE,
-      )
-      .catch((error) =>
-        this.logger.error('Failed to process link previews', error),
-      );
-
-    // Enrich message with file metadata before emitting
-    const enrichedMessage =
-      this.messagesService.enrichMessageWithFileMetadata(message);
-
-    this.websocketService.sendToRoom(
-      payload.channelId,
-      ServerEvents.NEW_MESSAGE,
-      {
-        message: enrichedMessage,
-      },
-    );
+    await this.messageDispatchService.dispatch(message, {
+      room: payload.channelId,
+      event: ServerEvents.NEW_MESSAGE,
+      notifications: true,
+      linkPreviews: true,
+    });
 
     return message.id;
   }
@@ -232,37 +205,12 @@ export class MessagesGateway
         this.logger.error('Failed to auto-mark DM as read', error),
       );
 
-    // Process message for notifications (mentions, DMs, etc.)
-    // This runs asynchronously and doesn't block message sending
-    this.notificationsService
-      .processMessageForNotifications(message)
-      .catch((error) =>
-        this.logger.error('Failed to process notifications for DM', error),
-      );
-
-    // Process link previews (async, non-blocking)
-    this.linkPreviewsService
-      .processMessageLinkPreviews(
-        message.id,
-        message.spans,
-        RoomName.dmGroup(payload.directMessageGroupId),
-        ServerEvents.UPDATE_MESSAGE,
-      )
-      .catch((error) =>
-        this.logger.error('Failed to process link previews for DM', error),
-      );
-
-    // Enrich message with file metadata before emitting
-    const enrichedMessage =
-      this.messagesService.enrichMessageWithFileMetadata(message);
-
-    this.websocketService.sendToRoom(
-      RoomName.dmGroup(payload.directMessageGroupId),
-      ServerEvents.NEW_DM,
-      {
-        message: enrichedMessage,
-      },
-    );
+    await this.messageDispatchService.dispatch(message, {
+      room: RoomName.dmGroup(payload.directMessageGroupId),
+      event: ServerEvents.NEW_DM,
+      notifications: true,
+      linkPreviews: true,
+    });
 
     return message.id;
   }
