@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Helm Chart** — Merged duplicate `redis.master` keys in values.yaml (the second `master:` block was silently clobbering the first, so the bundled Redis deployed without persistence). Changed unsafe defaults: `backend.replicaCount` now defaults to `1` (was `2`) and `fileStorage.enabled` now defaults to `true` (was `false`), so a fresh install doesn't silently lose uploaded files. Added a render-time guard that fails `helm template`/`helm install` if `backend.replicaCount` (or HPA `minReplicas`) is `> 1` while `fileStorage.enabled=false`; set `fileStorage.allowEphemeral=true` to opt out. **Behavior change for existing installs upgrading without pinning these values explicitly.**
+
 ## [0.1.2] - 2026-03-12
 
 ### Added

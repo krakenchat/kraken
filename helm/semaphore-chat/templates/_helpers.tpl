@@ -162,6 +162,24 @@ Backend image
 {{- end }}
 
 {{/*
+Guard against the data-loss combination of multiple backend replicas with
+ephemeral file storage. Uploaded files live on per-pod disk when
+fileStorage.enabled=false, so with more than one backend replica (either a
+fixed replicaCount or an HPA whose minReplicas is > 1), uploads 404 on the
+other pods and are lost on restart. Fails the render unless the operator has
+opted in via fileStorage.allowEphemeral=true.
+*/}}
+{{- define "semaphore-chat.validateFileStorage" -}}
+{{- $replicas := .Values.backend.replicaCount | int -}}
+{{- if .Values.backend.autoscaling.enabled -}}
+{{- $replicas = .Values.backend.autoscaling.minReplicas | int -}}
+{{- end -}}
+{{- if and (gt $replicas 1) (not .Values.fileStorage.enabled) (not .Values.fileStorage.allowEphemeral) -}}
+{{- fail (printf "semaphore-chat: backend is configured for %d replicas (backend.replicaCount / backend.autoscaling.minReplicas) but fileStorage.enabled=false. Ephemeral storage is per-pod: uploaded files will 404 on other pods and be lost on restart. Fix by doing ONE of: (1) set fileStorage.enabled=true and configure a ReadWriteMany-capable backend (fileStorage.nfs.enabled=true or fileStorage.storageClassName pointing at an RWX storage class), (2) set backend.replicaCount=1 and backend.autoscaling.enabled=false, or (3) accept the data-loss risk with --set fileStorage.allowEphemeral=true." $replicas) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Frontend image
 */}}
 {{- define "semaphore-chat.frontend.image" -}}

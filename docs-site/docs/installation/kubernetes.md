@@ -17,7 +17,7 @@ graph LR
 
 | Component | Replicas | Description |
 |-----------|----------|-------------|
-| **Backend** | 2+ | NestJS API server + Socket.IO WebSocket server |
+| **Backend** | 1 (default), 2+ requires shared file storage | NestJS API server + Socket.IO WebSocket server |
 | **Frontend** | 2+ | Static React app served via nginx |
 | **PostgreSQL** | 1+ | Database — bundled or external |
 | **Redis** | 1 | Cache and Socket.IO adapter — bundled or external |
@@ -234,7 +234,7 @@ Configure your LiveKit server to send webhooks to `https://your-domain.com/api/l
 
 ### File storage
 
-User-uploaded files (avatars, attachments) need a `ReadWriteMany` PVC so all backend replicas can access them:
+User-uploaded files (avatars, attachments) need a `ReadWriteMany` PVC so all backend replicas can access them. `fileStorage.enabled` defaults to `true`, which is sufficient for the default single-replica install (a `ReadWriteOnce` PVC works fine at `backend.replicaCount: 1`). To run more than one backend replica, point it at a `ReadWriteMany`-capable storage class or NFS export:
 
 ```yaml
 fileStorage:
@@ -243,7 +243,7 @@ fileStorage:
   storageClassName: "your-rwx-storage-class"  # e.g., EFS, AzureFile, NFS
 ```
 
-When `fileStorage.enabled: false` (the default), an ephemeral `emptyDir` is used and files are lost on pod restart.
+If you set `fileStorage.enabled: false`, an ephemeral `emptyDir` is used and files are lost on pod restart. The chart refuses to render if you combine this with `backend.replicaCount` (or HPA `minReplicas`) `> 1`, since uploads would 404 on the other pods. Set `fileStorage.allowEphemeral: true` to explicitly accept that risk instead.
 
 ### Replay storage (LiveKit egress)
 
@@ -270,6 +270,9 @@ secrets:
 The secret must contain: `JWT_SECRET`, `JWT_REFRESH_SECRET`, `LIVEKIT_API_SECRET`, and `REDIS_PASSWORD` (if using Redis auth).
 
 ### Resources and autoscaling
+
+!!! note "File storage required for multiple backend replicas"
+    Scaling the backend beyond 1 replica (fixed `replicaCount` or HPA `minReplicas`) requires `fileStorage.enabled: true` with a `ReadWriteMany`-capable backend — see [File storage](#file-storage). The chart fails to render otherwise.
 
 ```yaml
 backend:

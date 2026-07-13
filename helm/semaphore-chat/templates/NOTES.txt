@@ -102,6 +102,17 @@ LiveKit:
 {{- end }}
 {{- end }}
 
+{{- if not .Values.fileStorage.enabled }}
+
+⚠️  WARNING: File storage is EPHEMERAL (fileStorage.enabled=false)
+   Uploaded files (avatars, attachments) live on per-pod disk and will be
+   LOST on pod restart. This is only safe with a single backend replica.
+   To persist uploads across restarts (and to run more than one backend
+   replica), set fileStorage.enabled=true and configure a ReadWriteMany-
+   capable backend (fileStorage.nfs.enabled=true or fileStorage.storageClassName).
+
+{{- end }}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📚 NEXT STEPS

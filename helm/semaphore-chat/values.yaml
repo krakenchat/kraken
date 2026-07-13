@@ -16,7 +16,10 @@ global:
 # ============================================
 backend:
   # Number of backend replicas
-  replicaCount: 2
+  # NOTE: keep this at 1 unless fileStorage.enabled=true with a ReadWriteMany-capable
+  # storage backend (e.g. NFS). With ephemeral storage, uploads on one pod 404 on the
+  # others and are lost on restart. A template guard enforces this at render time.
+  replicaCount: 1
 
   image:
     repository: ghcr.io/user/semaphore-backend
@@ -285,15 +288,13 @@ redis:
     enabled: true
     password: "changeme-redis-password"
 
-  # Persistence
+  # Persistence and resources for the bundled Redis master
   master:
     persistence:
       enabled: true
       size: 8Gi
       # storageClass: ""
 
-  # Resources
-  master:
     resources:
       limits:
         cpu: 500m
@@ -391,8 +392,12 @@ metrics:
 # ============================================
 fileStorage:
   # Enable persistent file storage for uploads
-  # Set to false to use ephemeral storage (files lost on pod restart)
-  enabled: false
+  # Set to false to use ephemeral storage (files lost on pod restart, and not
+  # shared between replicas). Defaults to true so a fresh install doesn't
+  # silently lose uploaded files. A ReadWriteOnce-backed PVC is fine at
+  # backend.replicaCount=1 (the default); if you scale to multiple replicas
+  # you need a ReadWriteMany-capable backend (e.g. NFS, EFS, AzureFile).
+  enabled: true
 
   # Storage size
   size: 100Gi
@@ -409,6 +414,12 @@ fileStorage:
     server: "nfs-server.example.com"
     # NFS export path (override with your NFS export path)
     path: "/exports/semaphore-uploads"
+
+  # Escape hatch: set to true to allow backend.replicaCount > 1 (or HPA with
+  # minReplicas > 1) together with fileStorage.enabled=false. Off by default —
+  # this combination silently loses uploaded files, so the chart refuses to
+  # render unless you explicitly acknowledge the risk here.
+  allowEphemeral: false
 
   # Mount options for NFS volumes (optional)
   # If not specified, default NFSv4.1 resilient options are used
