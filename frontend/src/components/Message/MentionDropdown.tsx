@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { MentionSuggestion } from '../../hooks/useMentionAutocomplete';
 import UserAvatar from '../Common/UserAvatar';
+import { MENTION_LISTBOX_ID, mentionOptionId } from './mentionDropdownIds';
 
 const DropdownPaper = styled(Paper)(({ theme }) => ({
   position: 'absolute',
@@ -69,6 +70,7 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
     return (
       <DropdownPaper
         elevation={8}
+        role="status"
         sx={{
           ...position,
           p: 3,
@@ -134,6 +136,9 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
 
       {/* Suggestions List */}
       <List
+        id={MENTION_LISTBOX_ID}
+        role="listbox"
+        aria-label="Mention suggestions"
         sx={{
           p: 0.5,
           flex: 1,
@@ -155,6 +160,9 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
         {suggestions.map((suggestion, index) => (
           <ListItem
             key={suggestion.id}
+            id={mentionOptionId(index)}
+            role="option"
+            aria-selected={index === selectedIndex}
             onClick={() => onSelectSuggestion(index)}
             sx={{
               borderRadius: 2,
