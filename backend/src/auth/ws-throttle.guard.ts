@@ -26,6 +26,25 @@ return current
 `;
 
 /**
+ * Max time to wait for the Redis eval before failing open. Mirrors
+ * FailOpenThrottlerStorage's DEFAULT_TIMEOUT_MS (same value) — a
+ * slow-but-connected Redis never rejects, so without a race the awaited
+ * eval would hang the WS event indefinitely. (FailOpenThrottlerStorage
+ * doesn't expose an env-var override for this in production — it's only
+ * ever constructed with a fixed default in app.module.ts — so there's no
+ * env override to mirror here either.)
+ */
+const EVAL_TIMEOUT_MS = 1500;
+
+/**
+ * Fail-open warning throttle window. Mirrors FailOpenThrottlerStorage's
+ * WARN_INTERVAL_MS so a sustained Redis outage doesn't flood the logs —
+ * WS event volume across 7 gateways makes unthrottled logging worse here
+ * than in the HTTP throttler case.
+ */
+const WARN_INTERVAL_MS = 30_000;
+
+/**
  * WebSocket rate limiting guard, Redis-backed.
  *
  * Tracks message counts per socket connection using a fixed window stored
@@ -36,16 +55,19 @@ return current
  *
  * Default: 50 events per 10 seconds per connection.
  *
- * Fails OPEN: if Redis is unreachable or errors, the request is allowed and
- * a warning is logged — rate limiting must never become an availability
- * dependency for the whole app (mirrors FailOpenThrottlerStorage's
- * philosophy for the HTTP throttler).
+ * Fails OPEN: if Redis is unreachable, errors, or is too slow to respond
+ * within EVAL_TIMEOUT_MS, the request is allowed and a warning is logged
+ * (throttled to once per WARN_INTERVAL_MS) — rate limiting must never
+ * become an availability or latency dependency for the whole app (mirrors
+ * FailOpenThrottlerStorage's philosophy for the HTTP throttler, including
+ * its timeout race and throttled warning).
  */
 @Injectable()
 export class WsThrottleGuard implements CanActivate {
   private readonly logger = new Logger(WsThrottleGuard.name);
   private readonly maxEventsPerWindow = 50;
   private readonly windowMs = 10000;
+  private lastWarnAt = Number.NEGATIVE_INFINITY;
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
@@ -59,18 +81,9 @@ export class WsThrottleGuard implements CanActivate {
 
     let count: number;
     try {
-      count = (await this.redis.eval(
-        INCR_WITH_WINDOW_SCRIPT,
-        1,
-        key,
-        this.windowMs,
-      )) as number;
+      count = await this.evalWithTimeout(key);
     } catch (error) {
-      this.logger.warn(
-        `WS throttle store unavailable, failing open (request allowed): ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      this.warnFailOpen(error instanceof Error ? error.message : String(error));
       return true;
     }
 
@@ -82,5 +95,49 @@ export class WsThrottleGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * Races the Redis eval against EVAL_TIMEOUT_MS (mirrors
+   * FailOpenThrottlerStorage's Promise.race) so a slow-but-connected Redis
+   * can't hang the WS event indefinitely. Rejects on timeout, letting
+   * canActivate's catch fail open.
+   */
+  private async evalWithTimeout(key: string): Promise<number> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () =>
+          reject(
+            new Error(`WS throttle store timed out after ${EVAL_TIMEOUT_MS}ms`),
+          ),
+        EVAL_TIMEOUT_MS,
+      );
+      // Don't let the pending timeout keep the Node event loop alive after
+      // the eval resolves successfully and clearTimeout() is called.
+      timeoutHandle.unref?.();
+    });
+
+    try {
+      return (await Promise.race([
+        this.redis.eval(INCR_WITH_WINDOW_SCRIPT, 1, key, this.windowMs),
+        timeoutPromise,
+      ])) as number;
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
+  }
+
+  /** Logs a fail-open warning, at most once per WARN_INTERVAL_MS. */
+  private warnFailOpen(reason: string): void {
+    const now = Date.now();
+    if (now - this.lastWarnAt < WARN_INTERVAL_MS) {
+      return;
+    }
+    this.lastWarnAt = now;
+    this.logger.warn(
+      `WS throttle store unavailable, failing open (request allowed): ${reason}`,
+    );
   }
 }

@@ -121,4 +121,81 @@ describe('WsThrottleGuard', () => {
 
     expect(mockRedis.eval).not.toHaveBeenCalled();
   });
+
+  describe('hang protection (eval timeout)', () => {
+    // Mirrors EVAL_TIMEOUT_MS in ws-throttle.guard.ts.
+    const EVAL_TIMEOUT_MS = 1500;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('fails open within the timeout window when eval never resolves, and logs a warning', async () => {
+      const warnSpy = jest
+        .spyOn(guard['logger'], 'warn')
+        .mockImplementation(() => undefined);
+      mockRedis.eval.mockReturnValue(new Promise(() => undefined));
+      const ctx = createMockContext('socket-1');
+
+      const resultPromise = guard.canActivate(ctx);
+      await jest.advanceTimersByTimeAsync(EVAL_TIMEOUT_MS + 1);
+
+      await expect(resultPromise).resolves.toBe(true);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toContain('timed out');
+    });
+
+    it('does not fail open when eval resolves before the timeout', async () => {
+      mockRedis.eval.mockResolvedValue(1);
+      const ctx = createMockContext('socket-1');
+
+      const result = await guard.canActivate(ctx);
+      // Timeout was cleared on resolution; running remaining timers is a no-op.
+      await jest.runAllTimersAsync();
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('warn throttling on repeated failures', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('logs at most one warning per 30s window across repeated failures', async () => {
+      const warnSpy = jest
+        .spyOn(guard['logger'], 'warn')
+        .mockImplementation(() => undefined);
+      mockRedis.eval.mockRejectedValue(new Error('ECONNREFUSED'));
+      const ctx = createMockContext('socket-1');
+
+      await guard.canActivate(ctx);
+      await guard.canActivate(ctx);
+      await guard.canActivate(ctx);
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs again after the 30s warn window elapses', async () => {
+      const warnSpy = jest
+        .spyOn(guard['logger'], 'warn')
+        .mockImplementation(() => undefined);
+      mockRedis.eval.mockRejectedValue(new Error('ECONNREFUSED'));
+      const ctx = createMockContext('socket-1');
+
+      await guard.canActivate(ctx);
+      await jest.advanceTimersByTimeAsync(30_001);
+      await guard.canActivate(ctx);
+
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+    });
+  });
 });
