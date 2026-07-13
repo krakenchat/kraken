@@ -18,6 +18,20 @@ interface MemberListContainerProps {
 }
 
 /**
+ * Compare two `displayRole` values by content rather than reference, since
+ * `computeDisplayRole` builds a fresh object every time `baseMembers`
+ * recomputes even when the underlying role hasn't changed.
+ */
+function sameDisplayRole(
+  a?: MemberData["displayRole"],
+  b?: MemberData["displayRole"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.id === b.id && a.name === b.name && a.position === b.position;
+}
+
+/**
  * Compute a member's "display role" from their roles list.
  * The display role is the role with the lowest position (highest priority),
  * excluding the default "Member" role (position 100, isDefault=true).
@@ -95,6 +109,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
             displayName: membership.user!.displayName,
             avatarUrl: membership.user!.avatarUrl,
             status: membership.user!.status,
+            displayRole: undefined as MemberData["displayRole"],
           }));
       }
       // Public channel: use community members (includes roles)
@@ -118,6 +133,7 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
           avatarUrl: member.user.avatarUrl,
           // The DM members endpoint does not return a status field
           status: undefined,
+          displayRole: undefined as MemberData["displayRole"],
         }));
     }
   }, [contextType, isPrivate, channelMembers, communityMembers, dmGroup]);
@@ -139,13 +155,41 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     staleTime: 60_000,
   });
 
+  // Identity cache: preserves referential equality for member objects whose
+  // row-relevant fields haven't changed, so React.memo(MemberRow) can skip
+  // re-rendering members untouched by a given presence event. Rebuilt fresh
+  // from baseMembers on every recompute, so members that disappear are
+  // naturally evicted.
+  const memberIdentityCacheRef = React.useRef<Map<string, MemberData>>(new Map());
+
   // Transform and normalize member data with presence
   const { members, isLoading, error, title } = React.useMemo(() => {
-    const membersWithPresence: MemberData[] = baseMembers
-      .map((member) => ({
-        ...member,
-        isOnline: presenceData?.presence?.[member.id] || false,
-      }));
+    const previousCache = memberIdentityCacheRef.current;
+    const nextCache = new Map<string, MemberData>();
+
+    const membersWithPresence: MemberData[] = baseMembers.map((member) => {
+      const isOnline = presenceData?.presence?.[member.id] || false;
+      const previous = previousCache.get(member.id);
+
+      if (
+        previous &&
+        previous.username === member.username &&
+        previous.displayName === member.displayName &&
+        previous.avatarUrl === member.avatarUrl &&
+        previous.status === member.status &&
+        previous.isOnline === isOnline &&
+        sameDisplayRole(previous.displayRole, member.displayRole)
+      ) {
+        nextCache.set(member.id, previous);
+        return previous;
+      }
+
+      const next: MemberData = { ...member, isOnline };
+      nextCache.set(member.id, next);
+      return next;
+    });
+
+    memberIdentityCacheRef.current = nextCache;
 
     const combinedLoading = contextType === VoiceSessionType.Channel
       ? (isPrivate === undefined ? true : isPrivate ? isChannelMembersLoading : isCommunityLoading) || isPresenceLoading

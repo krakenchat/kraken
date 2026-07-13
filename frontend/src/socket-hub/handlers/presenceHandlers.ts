@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import type { UserPresenceInfo, UserProfileUpdatedPayload, ServerEvents } from '@semaphore-chat/shared';
 import type { UserControllerGetProfileResponse } from '../../api-client';
 import {
@@ -8,6 +8,57 @@ import {
   userControllerGetProfileQueryKey,
 } from '../../api-client/@tanstack/react-query.gen';
 import type { SocketEventHandler } from './types';
+
+/**
+ * Extract the comma-joined `userIds` path param that
+ * `presenceControllerGetMultipleUserPresenceQueryKey` embeds in the query key
+ * (`[{ _id, baseUrl, path: { userIds: 'a,b,c' } }]`). Returns null when the
+ * key doesn't have the expected shape, so callers can fall back to
+ * invalidating instead of guessing.
+ */
+function parseMultiPresenceUserIds(queryKey: QueryKey): string[] | null {
+  const keyPart = queryKey[0];
+  if (typeof keyPart !== 'object' || keyPart === null) return null;
+
+  const path = (keyPart as { path?: unknown }).path;
+  if (typeof path !== 'object' || path === null) return null;
+
+  const userIds = (path as { userIds?: unknown }).userIds;
+  if (typeof userIds !== 'string' || userIds.length === 0) return null;
+
+  return userIds.split(',').filter(Boolean);
+}
+
+/**
+ * Patch every cached `presenceControllerGetMultipleUserPresence` query whose
+ * parsed userIds include `userId`, in place — no refetch, no re-render of
+ * unrelated queries. Queries whose key can't be parsed confidently fall back
+ * to a targeted invalidation of just that query (safety net).
+ */
+function patchMultiPresenceCaches(queryClient: QueryClient, userId: string, isOnline: boolean): void {
+  const queries = queryClient.getQueryCache().findAll({
+    queryKey: [{ _id: 'presenceControllerGetMultipleUserPresence' }],
+  });
+
+  for (const query of queries) {
+    const userIds = parseMultiPresenceUserIds(query.queryKey);
+
+    if (userIds === null) {
+      void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
+      continue;
+    }
+
+    if (!userIds.includes(userId)) continue;
+
+    queryClient.setQueryData(
+      query.queryKey,
+      (old: { presence: Record<string, boolean> } | undefined) => {
+        if (!old) return old;
+        return { ...old, presence: { ...old.presence, [userId]: isOnline } };
+      },
+    );
+  }
+}
 
 export const handleUserOnline: SocketEventHandler<typeof ServerEvents.USER_ONLINE> = (
   data: UserPresenceInfo,
@@ -26,15 +77,7 @@ export const handleUserOnline: SocketEventHandler<typeof ServerEvents.USER_ONLIN
     },
   );
 
-  queryClient.invalidateQueries({
-    predicate: (query) => {
-      const key = query.queryKey[0];
-      if (typeof key === 'object' && key !== null && '_id' in key) {
-        return (key as { _id: string })._id === 'presenceControllerGetMultipleUserPresence';
-      }
-      return false;
-    },
-  });
+  patchMultiPresenceCaches(queryClient, data.userId, true);
 };
 
 export const handleUserOffline: SocketEventHandler<typeof ServerEvents.USER_OFFLINE> = (
@@ -54,15 +97,7 @@ export const handleUserOffline: SocketEventHandler<typeof ServerEvents.USER_OFFL
     },
   );
 
-  queryClient.invalidateQueries({
-    predicate: (query) => {
-      const key = query.queryKey[0];
-      if (typeof key === 'object' && key !== null && '_id' in key) {
-        return (key as { _id: string })._id === 'presenceControllerGetMultipleUserPresence';
-      }
-      return false;
-    },
-  });
+  patchMultiPresenceCaches(queryClient, data.userId, false);
 };
 
 // =============================================================================

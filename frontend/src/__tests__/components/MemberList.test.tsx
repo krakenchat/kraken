@@ -2,11 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import MemberList, { type MemberData } from '../../components/Message/MemberList';
+import UserAvatar from '../../components/Common/UserAvatar';
 
-// Mock UserProfileContext
+// Mock UserProfileContext. openProfile must be referentially stable across
+// renders (like the real useCallback-backed context value) — otherwise
+// React.memo(MemberRow) can never bail out, since a fresh function reference
+// on every render would fail the shallow prop comparison regardless of
+// whether `member` changed.
+const { mockOpenProfile } = vi.hoisted(() => ({ mockOpenProfile: vi.fn() }));
 vi.mock('../../contexts/UserProfileContext', () => ({
   useUserProfile: () => ({
-    openProfile: vi.fn(),
+    openProfile: mockOpenProfile,
   }),
 }));
 
@@ -15,9 +21,12 @@ vi.mock('../../components/Moderation', () => ({
   UserModerationMenu: () => null,
 }));
 
-// Mock UserAvatar to avoid FileCacheProvider dependency
+// Mock UserAvatar to avoid FileCacheProvider dependency. Wrapped in vi.fn()
+// so tests can inspect exactly which member ids re-rendered — UserAvatar is
+// only invoked when its parent MemberRow's function body actually runs, so
+// call counts are a reliable proxy for row re-renders.
 vi.mock('../../components/Common/UserAvatar', () => ({
-  default: () => <div data-testid="user-avatar" />,
+  default: vi.fn(() => <div data-testid="user-avatar" />),
 }));
 
 function createMember(overrides: Partial<MemberData> = {}): MemberData {
@@ -149,5 +158,38 @@ describe('MemberList', () => {
     expect(screen.getByText(/Admin — 2/)).toBeInTheDocument();
     // Online section should show count of 1
     expect(screen.getByText(/Online — 1/)).toBeInTheDocument();
+  });
+
+  describe('MemberRow memoization', () => {
+    it('re-renders only the member row whose object identity changed, not the whole list', () => {
+      const memberA = createMember({ id: 'user-a', username: 'alice', displayName: 'Alice', isOnline: false });
+      const memberB = createMember({ id: 'user-b', username: 'bob', displayName: 'Bob', isOnline: false });
+      const memberC = createMember({ id: 'user-c', username: 'carol', displayName: 'Carol', isOnline: false });
+
+      const { rerender } = renderWithProviders(
+        <MemberList members={[memberA, memberB, memberC]} title="Members" />,
+      );
+
+      const renderCount = (id: string) =>
+        vi.mocked(UserAvatar).mock.calls.filter((call) => call[0].userId === id).length;
+
+      expect(renderCount('user-a')).toBe(1);
+      expect(renderCount('user-b')).toBe(1);
+      expect(renderCount('user-c')).toBe(1);
+
+      // Simulate the identity-preserving merge: only member A gets a new
+      // object (as an online-status change would produce); B and C keep the
+      // exact same references they had before.
+      const updatedMemberA = { ...memberA, isOnline: true };
+
+      rerender(<MemberList members={[updatedMemberA, memberB, memberC]} title="Members" />);
+
+      // Row A re-rendered (its underlying UserAvatar mock was invoked again)...
+      expect(renderCount('user-a')).toBe(2);
+      // ...but rows B and C, whose member objects are referentially
+      // unchanged, were skipped entirely by React.memo(MemberRow).
+      expect(renderCount('user-b')).toBe(1);
+      expect(renderCount('user-c')).toBe(1);
+    });
   });
 });

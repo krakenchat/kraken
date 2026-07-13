@@ -89,7 +89,7 @@ const MemberRow: React.FC<{
   member: MemberData;
   onOpenProfile: (userId: string) => void;
   onOpenMenu: (position: { top: number; left: number }, member: MemberData) => void;
-}> = ({ member, onOpenProfile, onOpenMenu }) => {
+}> = React.memo(function MemberRow({ member, onOpenProfile, onOpenMenu }) {
   const theme = useTheme();
   const { shouldUseTouchUI } = useResponsive();
 
@@ -179,7 +179,7 @@ const MemberRow: React.FC<{
       />
     </ListItemButton>
   );
-};
+});
 
 const MemberList: React.FC<MemberListProps> = ({
   members,
