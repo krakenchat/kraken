@@ -19,6 +19,14 @@ const LOAD_MORE_INDEX_PROXIMITY = 8;
 const LOAD_NEWER_INDEX_PROXIMITY = 8;
 /** Distance from the bottom (px) within which the list is considered pinned. */
 const BOTTOM_PIN_THRESHOLD_PX = 40;
+/**
+ * Previous-array prefix scanned by the cap-eviction disambiguation
+ * (`isCapEvictionAppend`): one more than the 50-message anchored "around"
+ * page (useAnchoredMessages), the largest page a maxPages eviction can drop —
+ * so a full-page eviction's new head, at previous index 50, is still covered.
+ * Keep in sync with the anchored page sizes if they ever change.
+ */
+const CAP_EVICTION_SCAN_PREFIX = 51;
 
 export interface VirtualMessageListHandle {
   scrollToBottom: () => void;
@@ -184,7 +192,9 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const prevMessages = prevMessagesRef.current;
     const isCapEvictionAppend =
       oldestId !== undefined &&
-      prevMessages.slice(0, 51).some((message) => message.id === oldestId);
+      prevMessages
+        .slice(0, CAP_EVICTION_SCAN_PREFIX)
+        .some((message) => message.id === oldestId);
 
     // True on the render immediately after an older page prepended at the start.
     // At the MESSAGE_MAX_PAGES cap, a prepend adds an older page but evicts the
