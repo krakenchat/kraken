@@ -210,13 +210,14 @@ jobs:
       # Actions service containers cannot override a container's CMD/args
       # (only `options` flags are supported, appended to `docker create` —
       # there is no way to pass positional `server /data` args the way
-      # docker-compose's `minio` service does above). `minio/minio`'s
+      # docker-compose's `minio` service does). `minio/minio:latest`'s
       # default CMD (`minio` with no subcommand) just prints --help and
-      # exits, which was verified empirically before picking this image —
-      # `bitnamilegacy/minio` starts its server from env vars alone with no
-      # command override needed, so it works as a bare `services:` entry.
+      # exits, so it can't run as a bare service — but MinIO publishes
+      # `edge-cicd` specifically for CI: its CMD is `minio server /data`
+      # (verified via docker inspect + a boot test with env vars only),
+      # so it works as a bare `services:` entry on the first-party image.
       minio:
-        image: bitnamilegacy/minio:latest
+        image: minio/minio:edge-cicd
         env:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
@@ -254,6 +255,13 @@ jobs:
         run: pnpm run prisma:migrate
         env:
           DATABASE_URL: postgresql://semaphore:semaphore@localhost:5432/test
+
+      # storage-s3.e2e-spec.ts's video-thumbnail leg shells out to the
+      # runner's system ffmpeg (fluent-ffmpeg, no bundled binary). Thumbnail
+      # failures are non-fatal to uploads, so without this check a missing
+      # ffmpeg surfaces as a confusing hasThumbnail assertion failure.
+      - name: Verify ffmpeg is available
+        run: ffmpeg -version | head -1
 
       - name: Run E2E tests
         working-directory: ./backend
