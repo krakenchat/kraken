@@ -121,6 +121,16 @@ describe('tokenService — Electron secure storage', () => {
       expect(localStorage.getItem('refreshToken')).toBe('fallback-token');
     });
 
+    it('should fall back to localStorage when the write fails despite encryption being available', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: false, availability: 'available' }),
+      };
+
+      await storeElectronRefreshToken('fallback-token');
+
+      expect(localStorage.getItem('refreshToken')).toBe('fallback-token');
+    });
+
     it('should fall back to localStorage when storeRefreshToken rejects', async () => {
       window.electronAPI = {
         storeRefreshToken: vi.fn().mockRejectedValue(new Error('IPC error')),
@@ -202,6 +212,58 @@ describe('tokenService — Electron secure storage', () => {
       } finally {
         unsubscribe();
       }
+    });
+
+    it('notifies the listener and logs a distinct write-failure message when the write fails despite available encryption', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: false, availability: 'available' }),
+      };
+
+      const warningListener = vi.fn();
+      const unsubscribe = onSecureStorageWarning(warningListener);
+
+      try {
+        await storeElectronRefreshToken('token-1');
+        await storeElectronRefreshToken('token-2');
+
+        // Same one-time user-visible warning mechanism as the unavailable path...
+        expect(warningListener).toHaveBeenCalledTimes(1);
+        expect(localStorage.getItem(WARNING_KEY)).toBe('true');
+        expect(localStorage.getItem(PENDING_KEY)).toBeNull();
+        // ...but the log line must distinguish write-failure from unavailability.
+        expect(logger.warn).toHaveBeenCalledTimes(2);
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('write failed'));
+        expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('unavailable on this'));
+      } finally {
+        unsubscribe();
+      }
+    });
+
+    it('logs different messages for write-failure vs unavailable-encryption fallbacks', async () => {
+      const store = vi.fn()
+        .mockResolvedValueOnce({ stored: false, availability: 'unavailable' })
+        .mockResolvedValueOnce({ stored: false, availability: 'available' });
+      window.electronAPI = { storeRefreshToken: store };
+
+      await storeElectronRefreshToken('token-1');
+      await storeElectronRefreshToken('token-2');
+
+      const messages = vi.mocked(logger.warn).mock.calls.map((call) => String(call[0]));
+      expect(messages).toHaveLength(2);
+      expect(messages[0]).toContain('unavailable on this');
+      expect(messages[1]).toContain('write failed');
+      expect(messages[0]).not.toBe(messages[1]);
+    });
+
+    it('sets the durable pending marker for a write-failure with no listener registered', async () => {
+      window.electronAPI = {
+        storeRefreshToken: vi.fn().mockResolvedValue({ stored: false, availability: 'available' }),
+      };
+
+      await storeElectronRefreshToken('token-1');
+
+      expect(localStorage.getItem(WARNING_KEY)).toBeNull();
+      expect(localStorage.getItem(PENDING_KEY)).toBe('true');
     });
 
     it('does not notify listeners when secure storage is available', async () => {

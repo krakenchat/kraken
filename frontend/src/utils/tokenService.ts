@@ -24,6 +24,7 @@ let refreshPromise: Promise<string | null> | null = null;
 // ─── Secure Storage Availability Warning (Electron) ─────────────────────────
 //
 // When the OS keychain isn't available (e.g. no keyring daemon on Linux),
+// or the encrypted write itself fails despite the keychain being available,
 // storeElectronRefreshToken() falls back to persisting the refresh token in
 // plain localStorage instead of encrypted OS-backed storage. That's an
 // invisible security downgrade unless we surface it. We log every occurrence
@@ -94,10 +95,12 @@ export function consumePendingSecureStorageWarning(): boolean {
 }
 
 /**
- * Called whenever a token persist falls back to localStorage because the OS
- * keychain is unavailable. Always logs (so it's visible in devtools/support
- * bundles on every affected launch). If the warning has already been shown
- * (or dismissed), this is a no-op beyond logging. Otherwise:
+ * Called whenever a token persist falls back to localStorage instead of
+ * encrypted OS-backed storage. Always logs the supplied message (so it's
+ * visible in devtools/support bundles on every affected launch — the message
+ * distinguishes *why* the downgrade happened: keychain unavailable vs. a
+ * failed write despite available encryption). If the warning has already
+ * been shown (or dismissed), this is a no-op beyond logging. Otherwise:
  *  - if a listener is currently subscribed (live path), notify it
  *    immediately and mark the warning as permanently shown;
  *  - if not, persist a durable "pending" marker so `SecureStorageWarning`
@@ -105,11 +108,8 @@ export function consumePendingSecureStorageWarning(): boolean {
  *    this is the only trigger event that ever fires (see
  *    `consumePendingSecureStorageWarning`).
  */
-function triggerSecureStorageWarning(): void {
-  logger.warn(
-    "[TokenService] Secure credential storage (OS keychain) is unavailable on this " +
-    "system; your session token will be stored unencrypted in localStorage."
-  );
+function triggerSecureStorageWarning(logMessage: string): void {
+  logger.warn(logMessage);
 
   if (localStorage.getItem(SECURE_STORAGE_WARNING_KEY) === "true") {
     return;
@@ -279,10 +279,23 @@ export async function storeElectronRefreshToken(token: string): Promise<void> {
         return;
       }
       if (result?.availability === "unavailable") {
-        triggerSecureStorageWarning();
+        triggerSecureStorageWarning(
+          "[TokenService] Secure credential storage (OS keychain) is unavailable on this " +
+          "system; your session token will be stored unencrypted in localStorage."
+        );
+      } else {
+        // Encryption is AVAILABLE but the write itself failed (e.g. disk/IPC
+        // error). This is still a silent security downgrade — log a distinct
+        // message so support can tell it apart from keychain unavailability,
+        // and surface the same one-time user-visible warning.
+        triggerSecureStorageWarning(
+          "[TokenService] Secure credential storage write failed even though OS keychain " +
+          "encryption is available; your session token will be stored unencrypted in " +
+          "localStorage."
+        );
       }
-      // Encryption unavailable, or the write otherwise failed — fall through
-      // to localStorage below.
+      // Either way the encrypted write didn't happen — fall through to
+      // localStorage below.
     }
   } catch {
     logger.debug("[TokenService] Secure storage write failed, falling back to localStorage");

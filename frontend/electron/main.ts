@@ -14,6 +14,7 @@ import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { initMain } from 'electron-audio-loopback';
 import * as path from 'path';
 import * as fs from 'fs';
+import { fileURLToPath } from 'url';
 import type { SecureStorageAvailability, SecureStorageStoreResult } from './secure-storage.types';
 
 // ─── App Settings (single JSON file in userData) ────────────────────────────
@@ -85,20 +86,54 @@ function isWayland(): boolean {
 }
 
 /**
- * Determine whether a URL (or origin) belongs to the app itself, as opposed
- * to a remote page loaded via window-open/will-navigate. Used to gate
+ * Resolve a filesystem path to its real path (following symlinks), falling
+ * back to the normalized path when it can't be resolved (e.g. doesn't exist).
+ */
+function toRealPath(p: string): string {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+/**
+ * Whether a filesystem path lives inside the app's `dist` directory — the
+ * directory `createWindow()` loads `index.html` from via `loadFile()` in
+ * production. Compared on resolved real paths so symlinks, `..` segments and
+ * Windows drive-letter casing can't bypass the check (Node's win32
+ * `path.relative` compares case-insensitively).
+ */
+function isPathInsideAppDist(fsPath: string): boolean {
+  const distDir = toRealPath(path.join(app.getAppPath(), 'dist'));
+  const target = toRealPath(fsPath);
+  const rel = path.relative(distDir, target);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+/**
+ * Determine whether a URL belongs to the app itself, as opposed to a remote
+ * page loaded via window-open/will-navigate. Used to gate
  * media/display-capture/fullscreen permission grants so an unexpected
  * remote origin can never silently acquire camera/mic/screen access.
  *
  * Matches exactly how the app loads in each mode:
- * - Packaged production: `mainWindow.loadFile(...)` → `file://` origin.
+ * - Production: `mainWindow.loadFile(<appPath>/dist/index.html)` → a `file://`
+ *   URL whose path must resolve inside the app's `dist` directory. An
+ *   arbitrary `file:` URL (or a bare `file://` origin, which carries no
+ *   path) is NOT the app — callers must pass the full URL for file: loads.
  * - Development: `mainWindow.loadURL('http://localhost:5173/')`.
  */
 function isAppOrigin(urlOrOrigin: string): boolean {
   if (!urlOrOrigin) return false;
   try {
     const parsed = new URL(urlOrOrigin);
-    if (parsed.protocol === 'file:') return true;
+    if (parsed.protocol === 'file:') {
+      // fileURLToPath handles platform normalization (Windows drive letters,
+      // percent-decoding). It throws for a pathless origin like 'file://',
+      // which correctly fails closed below.
+      return isPathInsideAppDist(fileURLToPath(parsed));
+    }
     if (parsed.protocol === 'http:' && parsed.hostname === 'localhost' && parsed.port === '5173') {
       return true;
     }
@@ -822,11 +857,19 @@ app.whenReady().then(() => {
   // handler would actually deny.
   session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
     const allowedPermissions = ['media', 'display-capture', 'fullscreen'];
-    const origin = requestingOrigin || webContents?.getURL() || '';
-    const allowed = allowedPermissions.includes(permission) && isAppOrigin(origin);
+    // A file: *origin* carries no path, but isAppOrigin's file: branch needs
+    // the path to verify the page actually lives in the app's dist directory.
+    // For file: loads, evaluate the webContents' full URL instead, so this
+    // handler applies exactly the same policy as the request handler above.
+    // If no webContents is available the bare file:// origin fails closed.
+    let requestingUrl = requestingOrigin || webContents?.getURL() || '';
+    if (requestingUrl.startsWith('file:') && webContents) {
+      requestingUrl = webContents.getURL() || requestingUrl;
+    }
+    const allowed = allowedPermissions.includes(permission) && isAppOrigin(requestingUrl);
 
     if (!allowed) {
-      console.log(`Denying permission check: ${permission} (origin: ${origin})`);
+      console.log(`Denying permission check: ${permission} (origin: ${requestingOrigin || requestingUrl})`);
     }
 
     return allowed;
