@@ -38,6 +38,7 @@ import { disconnectSocket } from "./utils/socketSingleton";
 import { clearSavedConnection } from "./features/voice/voiceActions";
 import { clearTokens, getElectronRefreshToken } from "./utils/tokenService";
 import { isElectron } from "./utils/platform";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 
 const settings = ["My Profile", "Settings", "Logout"];
 
@@ -64,7 +65,17 @@ const LayoutContentArea: React.FC<{ voiceConnected: boolean; isMenuExpanded: boo
       }}
     >
       <Box sx={{ flex: 1, minHeight: "100%" }}>
-        <Outlet />
+        {/*
+          Panel-level seam: wraps only the routed page content so a crash in
+          any single page/panel leaves the AppBar, community sidebar, and
+          voice bottom bar (siblings of LayoutContentArea, rendered below)
+          mounted and functional. This is the boundary that keeps the desktop
+          shell alive — see App.tsx for the outer RouteErrorBoundary that
+          covers everything else (including Layout itself).
+        */}
+        <RouteErrorBoundary>
+          <Outlet />
+        </RouteErrorBoundary>
       </Box>
     </Box>
   );

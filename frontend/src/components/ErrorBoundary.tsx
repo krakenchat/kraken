@@ -5,7 +5,12 @@ import { logger } from '../utils/logger';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
+  /**
+   * Static fallback node, or a render function that receives the caught
+   * error and a reset callback (useful when the fallback needs to show the
+   * error message and/or trigger recovery itself).
+   */
+  fallback?: ReactNode | ((error: Error | undefined, reset: () => void) => ReactNode);
   onReset?: () => void;
 }
 
@@ -48,6 +53,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       // Custom fallback UI if provided
       if (this.props.fallback) {
+        if (typeof this.props.fallback === 'function') {
+          return this.props.fallback(this.state.error, this.handleReset);
+        }
         return this.props.fallback;
       }
 
