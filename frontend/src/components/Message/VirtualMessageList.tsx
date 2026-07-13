@@ -79,8 +79,13 @@ export interface VirtualMessageListProps {
  * - **Prepend without a jump**: `shift` is set true on the render where an older
  *   page prepends (oldest id changes + length grows), so virtua maintains the
  *   position from the end instead of the start. Newer-page appends (anchored
- *   mode) change the newest id but not the oldest, so they never set `shift` —
- *   appending below the viewport needs no index-shift compensation.
+ *   mode) change the newest id but not the oldest in the common case, so they
+ *   never set `shift` — appending below the viewport needs no index-shift
+ *   compensation. At the MESSAGE_MAX_PAGES cap, a newer-page append DOES also
+ *   change the oldest id (the oldest page is evicted), producing the same
+ *   boundary-id signature as an older-page prepend-at-cap — disambiguated via
+ *   content overlap (`isCapEvictionAppend`, next to `isPrepend`'s definition)
+ *   so `shift` still stays false for the append.
  * - **Older pagination**: near the top of the visible range, `onLoadMore` fires.
  * - **Newer pagination (anchored)**: near the end of the visible range,
  *   `onLoadNewer` fires (mirrors the older-load trigger; in-flight-guarded).
@@ -138,10 +143,41 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const prevOldestIdRef = useRef<string | undefined>(undefined);
     const prevLenRef = useRef(0);
     const prevNewestIdRef = useRef<string | undefined>(undefined);
+    // Previous render's full array — only its endpoints are read, to
+    // disambiguate the at-cap case below (see isCapEvictionAppend).
+    const prevMessagesRef = useRef<typeof orderedMessages>([]);
 
     const len = orderedMessages.length;
     const oldestId = orderedMessages[0]?.id;
     const newestId = orderedMessages[len - 1]?.id;
+
+    // At MESSAGE_MAX_PAGES, TanStack evicts pages from the end OPPOSITE the
+    // fetch direction. In normal mode there is only one fetch direction
+    // (older), so an older-page load that crosses the cap always evicts the
+    // newest page — "oldestId and newestId both changed, length unchanged"
+    // unambiguously means a prepend there (see the length reasoning below).
+    //
+    // Anchored mode fetches BOTH directions, so that same id-change
+    // signature is ambiguous: a newer-page load crossing the cap evicts the
+    // OLDEST page (newer pages are prepended to the query's page array via
+    // fetchPreviousPage, and TanStack drops from the opposite/tail end) —
+    // this is an append, not a prepend, even though both boundary ids change
+    // exactly like the genuine prepend-at-cap case. Pure id/length
+    // comparison can't tell them apart; only content overlap can.
+    //
+    // Distinguish via the overlap: a genuine append-at-cap shifts everything
+    // left by one evicted (oldest) message, so the new array's first element
+    // equals the previous array's SECOND element. A genuine prepend-at-cap
+    // instead shifts everything right by one evicted (newest) message, so it
+    // can never also satisfy this. (Ordinary, non-cap prepends/appends grow
+    // `len` and don't line up this way either.)
+    const prevMessages = prevMessagesRef.current;
+    const isCapEvictionAppend =
+      len === prevLenRef.current &&
+      len > 1 &&
+      oldestId !== prevOldestIdRef.current &&
+      newestId !== prevNewestIdRef.current &&
+      orderedMessages[0]?.id === prevMessages[1]?.id;
 
     // True on the render immediately after an older page prepended at the start.
     // At the MESSAGE_MAX_PAGES cap, a prepend adds an older page but evicts the
@@ -149,13 +185,15 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     // Instead require `len >= prevLen` (deleting only the oldest message shrinks
     // `len` and is correctly excluded) alongside a defined previous oldest id
     // (guards the context-switch reset, where it's `undefined`) that changed.
-    // Anchored-mode newer-page appends leave `oldestId` untouched, so they are
-    // correctly excluded from this too — verified: appends only change
-    // `newestId`.
+    // Anchored-mode newer-page appends leave `oldestId` untouched in the
+    // common case, so they are correctly excluded from this too. At the cap
+    // they DO change `oldestId` (see isCapEvictionAppend above) — excluded
+    // explicitly, since that's an append wearing the prepend's id signature.
     const isPrepend =
       prevOldestIdRef.current !== undefined &&
       oldestId !== prevOldestIdRef.current &&
-      len >= prevLenRef.current;
+      len >= prevLenRef.current &&
+      !isCapEvictionAppend;
 
     const scrollToBottom = useCallback(() => {
       const handle = vlistRef.current;
@@ -200,6 +238,7 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       prevOldestIdRef.current = undefined;
       prevLenRef.current = 0;
       prevNewestIdRef.current = undefined;
+      prevMessagesRef.current = [];
       onAtBottomChange?.(true);
     }, [resetKey, mode, onAtBottomChange]);
 
@@ -291,6 +330,7 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     useEffect(() => {
       prevOldestIdRef.current = oldestId;
       prevLenRef.current = len;
+      prevMessagesRef.current = orderedMessages;
     });
 
     // Jump-to-message / anchored initial centering (once per highlightSeq,

@@ -566,6 +566,78 @@ describe('VirtualMessageList', () => {
       expect(capturedProps.shift).toBe(false);
     });
 
+    it('does not set shift when a newer-page load crosses MESSAGE_MAX_PAGES and evicts the oldest page (both boundary ids change)', () => {
+      // TanStack's infinite-query cap evicts from the END OPPOSITE the fetch
+      // direction. Anchored newer-loads fetch via fetchPreviousPage (pages
+      // prepended at the front), so at the cap the OLDEST page (the array's
+      // tail) is evicted while the new newer page is added at the front —
+      // same "oldestId changed AND newestId changed, length unchanged"
+      // signature as the older-load prepend-at-cap case (see the sibling
+      // test above in the top-level describe), but this is an append, not a
+      // prepend: shift must stay false or virtua's scroll compensation would
+      // fire backwards and jump the viewport.
+      const initial = messages(5);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      // Pin to the bottom, as the reader typically is when a background
+      // newer-page load evicts the oldest page.
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Same length (5): drop msg-0 (oldest, evicted), append a newer page.
+      const newer = createMessage({ id: 'at-cap-newer' });
+      const atCap = [...initial.slice(1), newer];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(false);
+    });
+
+    it('still sets shift=true for a genuine older-page prepend at the cap in anchored mode (mirror of the append case above)', () => {
+      // Anchored mode also supports scrolling further into history via
+      // onLoadMore (older). At the cap that evicts the NEWEST page (same
+      // eviction direction as normal mode) — a genuine prepend, which must
+      // still set shift=true. Pins down that isCapEvictionAppend's overlap
+      // check doesn't accidentally swallow this legitimate case too.
+      const initial = messages(5);
+      const { rerender } = render(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={initial}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+      act(() => capturedProps.onScroll?.(600));
+      fakeHandle.scrollToIndex.mockClear();
+
+      // Same length (5): drop msg-4 (newest, evicted), prepend an older page.
+      const older = createMessage({ id: 'at-cap-older' });
+      const atCap = [older, ...initial.slice(0, 4)];
+      rerender(
+        <VirtualMessageList
+          {...baseProps}
+          orderedMessages={atCap}
+          mode="anchored"
+          hasNewer={true}
+        />,
+      );
+
+      expect(capturedProps.shift).toBe(true);
+    });
+
     it('triggers onLoadNewer when the visible end index nears the bottom of the loaded window', () => {
       const onLoadNewer = vi.fn().mockResolvedValue(undefined);
       fakeHandle.findItemIndex = vi
