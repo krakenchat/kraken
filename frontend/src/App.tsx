@@ -13,6 +13,7 @@ import { OfflineBanner } from "./components/PWA/OfflineBanner";
 import { hasServers } from "./utils/serverStorage";
 import { isElectron } from "./utils/platform";
 import { AuthGate } from "./components/AuthGate";
+import { useDeepLinks } from "./hooks/useDeepLinks";
 import { PublicRoute } from "./components/PublicRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AppErrorFallback } from "./components/AppErrorFallback";
@@ -70,6 +71,11 @@ function App() {
   // Check if running in Electron and needs server configuration
   const needsServerSetup = isElectron() && !hasServers();
   const [showWizard, setShowWizard] = useState(needsServerSetup);
+
+  // Deep link (semaphore://) listener — mounted unconditionally (not inside
+  // AuthGate/Layout) so it's alive on public routes and before a server is
+  // configured too. See hooks/useDeepLinks.ts for the full seam rationale.
+  useDeepLinks();
 
   // Show connection wizard for Electron if no servers configured
   if (showWizard) {

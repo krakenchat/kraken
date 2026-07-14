@@ -9,6 +9,7 @@
 
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { SecureStorageAvailability, SecureStorageStoreResult } from './secure-storage.types';
+import type { DeepLinkRoute } from './deep-link-parser';
 
 /**
  * Update information passed from main process
@@ -217,6 +218,25 @@ const electronAPI = {
 
   releasePowerSaveBlock: (id: number): Promise<void> => {
     return ipcRenderer.invoke('voice:release-power-save-block', id);
+  },
+
+  // Deep links (semaphore://) — subscribe to parsed, validated routes
+  // forwarded by main (see electron/deep-link-parser.ts). Main never sends
+  // the raw URL, only the typed result of parsing it.
+  onDeepLink: (callback: (route: DeepLinkRoute) => void) => {
+    const subscription = (_event: IpcRendererEvent, route: DeepLinkRoute) => callback(route);
+    ipcRenderer.on('deep-link', subscription);
+
+    return () => {
+      ipcRenderer.removeListener('deep-link', subscription);
+    };
+  },
+
+  // Tell main the renderer's onDeepLink listener is now mounted, so any
+  // URL that arrived before this (cold start / second-instance racing
+  // startup) can be flushed. See the 'deep-link:ready' handler in main.ts.
+  notifyDeepLinkReady: () => {
+    ipcRenderer.send('deep-link:ready');
   },
 };
 

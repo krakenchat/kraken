@@ -41,6 +41,19 @@ export interface SecureStorageStoreResult {
   availability: SecureStorageAvailability;
 }
 
+/**
+ * A parsed `semaphore://` deep link, as produced (and validated) by
+ * `electron/deep-link-parser.ts` in the main process. Mirrored here —
+ * data shape only, no parsing logic — since main.ts and this file are
+ * compiled separately, same as the other duplicated types above.
+ */
+export type DeepLinkRoute =
+  | { type: 'community'; communityId: string }
+  | { type: 'channel'; communityId: string; channelId: string }
+  | { type: 'dm-inbox' }
+  | { type: 'dm'; dmGroupId: string }
+  | { type: 'invite'; inviteCode: string };
+
 export interface ElectronAPI {
   platform?: string;
   isElectron?: boolean;
@@ -71,6 +84,9 @@ export interface ElectronAPI {
   getSecureStorageAvailability?: () => Promise<SecureStorageAvailability>;
   requestPowerSaveBlock?: () => Promise<number>;
   releasePowerSaveBlock?: (id: number) => Promise<void>;
+  // Deep links (semaphore://)
+  onDeepLink?: (callback: (route: DeepLinkRoute) => void) => (() => void);
+  notifyDeepLinkReady?: () => void;
   [key: string]: unknown;
 }
 

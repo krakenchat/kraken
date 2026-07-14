@@ -5,6 +5,19 @@ appId: com.semaphorechat.app
 productName: Semaphore Chat
 copyright: Copyright © 2025
 
+# Custom URL scheme for deep links (semaphore://community/<id>, .../channel/<id>,
+# semaphore://direct-messages[/<id>], semaphore://join/<code>). Installers register
+# this with the OS: NSIS registry keys on Windows, xdg-mime/.desktop MimeType on
+# Linux, CFBundleURLTypes on macOS (see docs-site/docs/installation/desktop-app.md).
+# NOTE: the .deb/.rpm/AppImage MimeType registration only takes effect on an
+# INSTALLED build, not an unpacked `--dir` build — verify with a real package
+# install, not just `electron-builder --dir` (see PR-14 report for the manual QA
+# steps: `xdg-open semaphore://...` after installing).
+protocols:
+  name: Semaphore Chat
+  schemes:
+    - semaphore
+
 # Directories
 directories:
   buildResources: build

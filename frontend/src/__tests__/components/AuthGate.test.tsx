@@ -5,6 +5,7 @@ import { server } from '../msw/server';
 import { renderWithProviders } from '../test-utils';
 import { AuthGate } from '../../components/AuthGate';
 import { notifyAuthFailure, setAccessToken, getAccessToken, clearTokens } from '../../utils/tokenService';
+import { stashDeepLinkRoute, takeStashedDeepLinkRoute } from '../../utils/deepLinkStash';
 import { Route, Routes } from 'react-router-dom';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
@@ -112,6 +113,7 @@ describe('AuthGate', () => {
     vi.clearAllMocks();
     socketProviderMounted = false;
     mockDisconnectSocket.mockReset();
+    takeStashedDeepLinkRoute(); // discard any leftover stash from a prior test
   });
 
   // ─── Loading State ─────────────────────────────────────────────
@@ -550,6 +552,69 @@ describe('AuthGate', () => {
 
       await waitFor(() => {
         expect(screen.queryByTestId('socket-provider')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  // ─── Deep Link Flush (useDeepLinks integration) ────────────────
+  // useDeepLinks (mounted in App.tsx) stashes routes that need auth via
+  // utils/deepLinkStash when the user isn't signed in yet. AuthGate is
+  // responsible for flushing that stash once its own state reaches
+  // Authenticated, regardless of how auth was reached (see AuthGate.tsx).
+
+  describe('deep link stash flush', () => {
+    it('navigates to a stashed route once authentication completes', async () => {
+      stashDeepLinkRoute({ type: 'channel', communityId: 'commA', channelId: 'chanA' });
+      setAccessToken(validToken());
+      mockOnboardingOk();
+
+      renderAuthGate();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('channel')).toBeInTheDocument();
+      });
+    });
+
+    it('clears the stash after flushing so it is not replayed', async () => {
+      stashDeepLinkRoute({ type: 'channel', communityId: 'commA', channelId: 'chanA' });
+      setAccessToken(validToken());
+      mockOnboardingOk();
+
+      renderAuthGate();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('channel')).toBeInTheDocument();
+      });
+      expect(takeStashedDeepLinkRoute()).toBeNull();
+    });
+
+    it('does not navigate anywhere when nothing is stashed', async () => {
+      setAccessToken(validToken());
+      mockOnboardingOk();
+
+      renderAuthGate();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('home')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('channel')).not.toBeInTheDocument();
+    });
+
+    it('does not flush a stashed route while still unauthenticated', async () => {
+      stashDeepLinkRoute({ type: 'channel', communityId: 'commA', channelId: 'chanA' });
+      mockOnboardingOk();
+
+      renderAuthGate();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('login')).toBeInTheDocument();
+      });
+      // Stash survives the (failed) auth attempt — still there for the
+      // eventual sign-in.
+      expect(takeStashedDeepLinkRoute()).toEqual({
+        type: 'channel',
+        communityId: 'commA',
+        channelId: 'chanA',
       });
     });
   });
