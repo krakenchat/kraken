@@ -15,10 +15,10 @@ import { useTheme } from "@mui/material/styles";
 import { Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon } from "@mui/icons-material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  membershipControllerFindAllForCommunityOptions,
   membershipControllerCreateMutation,
   membershipControllerRemoveMutation,
 } from "../../api-client/@tanstack/react-query.gen";
+import { useAllCommunityMembers } from "../../hooks/useAllCommunityMembers";
 import { useUserPermissions } from "../../features/roles/useUserPermissions";
 import { userControllerFindAllUsersOptions } from "../../api-client/@tanstack/react-query.gen";
 import type { UserControllerFindAllUsersData } from "../../api-client/types.gen";
@@ -46,7 +46,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ communityId }) => {
     data: members,
     isLoading: loadingMembers,
     error: membersError,
-  } = useQuery(membershipControllerFindAllForCommunityOptions({ path: { communityId } }));
+  } = useAllCommunityMembers(communityId);
 
   const {
     data: usersData,

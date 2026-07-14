@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Box,
+  Button,
   Typography,
   List,
   ListItem,
@@ -34,6 +35,12 @@ interface MemberListProps {
   error?: unknown;
   title?: string;
   communityId?: string; // For moderation actions
+  /** True when more members can be loaded (paginated community list). */
+  hasMore?: boolean;
+  /** True while the next page of members is being fetched. */
+  isLoadingMore?: boolean;
+  /** Load the next page of members. */
+  onLoadMore?: () => void;
 }
 
 const MemberListSkeleton: React.FC = () => (
@@ -187,6 +194,9 @@ const MemberList: React.FC<MemberListProps> = ({
   error = null,
   title = "Members",
   communityId,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }) => {
   const { openProfile } = useUserProfile();
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -295,7 +305,7 @@ const MemberList: React.FC<MemberListProps> = ({
       {/* Header */}
       <Box sx={{ p: 2, pb: 1 }}>
         <Typography variant="h6" sx={{ fontSize: "14px", fontWeight: 600 }}>
-          {title} — {isLoading ? "..." : members.length}
+          {title} — {isLoading ? "..." : `${members.length}${hasMore ? "+" : ""}`}
         </Typography>
       </Box>
       <Divider />
@@ -346,6 +356,20 @@ const MemberList: React.FC<MemberListProps> = ({
                     <SectionHeader label="Offline" count={offlineMembers.length} />
                     {offlineMembers.map(renderMember)}
                   </>
+                )}
+
+                {/* Load next page of the paginated community member list */}
+                {hasMore && onLoadMore && (
+                  <ListItem sx={{ px: 2, py: 1 }}>
+                    <Button
+                      size="small"
+                      fullWidth
+                      onClick={onLoadMore}
+                      disabled={isLoadingMore}
+                    >
+                      {isLoadingMore ? "Loading..." : "Show more"}
+                    </Button>
+                  </ListItem>
                 )}
               </>
             )}

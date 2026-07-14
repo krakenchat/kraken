@@ -12,11 +12,11 @@ import { useJumpToMessage } from "../../hooks/useJumpToMessage";
 import { useMessageFileUpload } from "../../hooks/useMessageFileUpload";
 import { useQuery } from "@tanstack/react-query";
 import {
-  membershipControllerFindAllForCommunityOptions,
   channelsControllerGetMentionableChannelsOptions,
   channelsControllerFindOneOptions,
   moderationControllerGetPinnedMessagesOptions,
 } from "../../api-client/@tanstack/react-query.gen";
+import { useAllCommunityMembers } from "../../hooks/useAllCommunityMembers";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import ChannelNotificationMenu from "./ChannelNotificationMenu";
 import { useAutoMarkNotificationsRead } from "../../hooks/useAutoMarkNotificationsRead";
@@ -111,8 +111,7 @@ const ChannelMessageContainer: React.FC<ChannelMessageContainerProps> = ({
   });
 
   // Fetch community members and channels for mention resolution
-  const { data: memberData = [] } = useQuery({
-    ...membershipControllerFindAllForCommunityOptions({ path: { communityId: communityId || "" } }),
+  const { data: memberData = [] } = useAllCommunityMembers(communityId || "", {
     enabled: !!communityId,
   });
   const { data: channelData = [] } = useQuery({

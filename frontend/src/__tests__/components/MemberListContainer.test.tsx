@@ -18,52 +18,57 @@ vi.mock('../../api-client/client.gen', async (importOriginal) => {
 
 const BASE_URL = 'http://localhost:3000';
 
-let capturedMembersHistory: MemberData[][] = [];
+interface CapturedMemberListProps {
+  members: MemberData[];
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+}
+
+let capturedPropsHistory: CapturedMemberListProps[] = [];
 vi.mock('../../components/Message/MemberList', () => ({
-  default: (props: { members: MemberData[] }) => {
-    capturedMembersHistory.push(props.members);
+  default: (props: CapturedMemberListProps) => {
+    capturedPropsHistory.push(props);
     return <div data-testid="member-list-mock">{props.members.length}</div>;
   },
 }));
 
+function membershipFixture(
+  suffix: string,
+  username: string,
+  displayName: string,
+) {
+  return {
+    id: `membership-${suffix}`,
+    userId: `user-${suffix}`,
+    communityId: 'community-1',
+    joinedAt: '2025-01-01T00:00:00Z',
+    roles: [],
+    user: {
+      id: `user-${suffix}`,
+      username,
+      displayName,
+      avatarUrl: null,
+      status: null,
+    },
+  };
+}
+
 describe('MemberListContainer identity-preserving merge', () => {
   beforeEach(() => {
-    capturedMembersHistory = [];
+    capturedPropsHistory = [];
   });
 
   it('reuses the previous member object for members unaffected by a presence event, and creates a new one for the affected member', async () => {
     server.use(
       http.get(`${BASE_URL}/api/membership/community/community-1`, () =>
-        HttpResponse.json([
-          {
-            id: 'membership-a',
-            userId: 'user-a',
-            communityId: 'community-1',
-            joinedAt: '2025-01-01T00:00:00Z',
-            roles: [],
-            user: {
-              id: 'user-a',
-              username: 'alice',
-              displayName: 'Alice',
-              avatarUrl: null,
-              status: null,
-            },
-          },
-          {
-            id: 'membership-b',
-            userId: 'user-b',
-            communityId: 'community-1',
-            joinedAt: '2025-01-01T00:00:00Z',
-            roles: [],
-            user: {
-              id: 'user-b',
-              username: 'bob',
-              displayName: 'Bob',
-              avatarUrl: null,
-              status: null,
-            },
-          },
-        ]),
+        HttpResponse.json({
+          members: [
+            membershipFixture('a', 'alice', 'Alice'),
+            membershipFixture('b', 'bob', 'Bob'),
+          ],
+          continuationToken: undefined,
+        }),
       ),
       http.get(`${BASE_URL}/api/presence/users/:userIds`, () =>
         HttpResponse.json({ presence: { 'user-a': false, 'user-b': false } }),
@@ -83,7 +88,7 @@ describe('MemberListContainer identity-preserving merge', () => {
       expect(screen.getByTestId('member-list-mock')).toHaveTextContent('2');
     });
 
-    const beforeMembers = capturedMembersHistory[capturedMembersHistory.length - 1];
+    const beforeMembers = capturedPropsHistory[capturedPropsHistory.length - 1].members;
     const memberABefore = beforeMembers.find((m) => m.id === 'user-a')!;
     const memberBBefore = beforeMembers.find((m) => m.id === 'user-b')!;
     expect(memberABefore.isOnline).toBe(false);
@@ -96,12 +101,12 @@ describe('MemberListContainer identity-preserving merge', () => {
     });
 
     await waitFor(() => {
-      const latest = capturedMembersHistory[capturedMembersHistory.length - 1];
+      const latest = capturedPropsHistory[capturedPropsHistory.length - 1].members;
       const latestA = latest.find((m) => m.id === 'user-a')!;
       expect(latestA.isOnline).toBe(true);
     });
 
-    const afterMembers = capturedMembersHistory[capturedMembersHistory.length - 1];
+    const afterMembers = capturedPropsHistory[capturedPropsHistory.length - 1].members;
     const memberAAfter = afterMembers.find((m) => m.id === 'user-a')!;
     const memberBAfter = afterMembers.find((m) => m.id === 'user-b')!;
 
@@ -111,5 +116,84 @@ describe('MemberListContainer identity-preserving merge', () => {
     // so React.memo(MemberRow) can bail out of re-rendering it.
     expect(memberBAfter).toBe(memberBBefore);
     expect(memberBAfter.isOnline).toBe(false);
+  });
+});
+
+describe('MemberListContainer paginated community members', () => {
+  beforeEach(() => {
+    capturedPropsHistory = [];
+  });
+
+  it('loads the first page, exposes hasMore, and appends the next page on load-more while preserving member identity', async () => {
+    server.use(
+      http.get(
+        `${BASE_URL}/api/membership/community/community-1`,
+        ({ request }) => {
+          const url = new URL(request.url);
+          const token = url.searchParams.get('continuationToken');
+          if (!token) {
+            // Page 1: full page with a continuation token
+            return HttpResponse.json({
+              members: [
+                membershipFixture('a', 'alice', 'Alice'),
+                membershipFixture('b', 'bob', 'Bob'),
+              ],
+              continuationToken: 'membership-b',
+            });
+          }
+          // Page 2: final partial page, no token
+          return HttpResponse.json({
+            members: [membershipFixture('c', 'carol', 'Carol')],
+            continuationToken: undefined,
+          });
+        },
+      ),
+      http.get(`${BASE_URL}/api/presence/users/:userIds`, () =>
+        HttpResponse.json({
+          presence: { 'user-a': false, 'user-b': false, 'user-c': false },
+        }),
+      ),
+    );
+
+    renderWithProviders(
+      <MemberListContainer
+        contextType={VoiceSessionType.Channel}
+        contextId="channel-1"
+        communityId="community-1"
+        isPrivate={false}
+      />,
+    );
+
+    // Page 1 renders with a load-more affordance
+    await waitFor(() => {
+      expect(screen.getByTestId('member-list-mock')).toHaveTextContent('2');
+    });
+    const page1Props = capturedPropsHistory[capturedPropsHistory.length - 1];
+    expect(page1Props.hasMore).toBe(true);
+    expect(page1Props.onLoadMore).toBeTypeOf('function');
+
+    const memberABefore = page1Props.members.find((m) => m.id === 'user-a')!;
+
+    // Trigger load-more (what the Show more button does in MemberList)
+    act(() => {
+      page1Props.onLoadMore!();
+    });
+
+    // Both pages flattened; no more pages left
+    await waitFor(() => {
+      expect(screen.getByTestId('member-list-mock')).toHaveTextContent('3');
+    });
+    const page2Props = capturedPropsHistory[capturedPropsHistory.length - 1];
+    expect(page2Props.hasMore).toBe(false);
+    expect(page2Props.members.map((m) => m.id)).toEqual([
+      'user-a',
+      'user-b',
+      'user-c',
+    ]);
+
+    // Identity-preserving merge still holds across page appends: the
+    // unaffected page-1 member keeps its object reference.
+    const memberAAfter = page2Props.members.find((m) => m.id === 'user-a')!;
+    expect(memberAAfter).toBe(memberABefore);
   });
 });

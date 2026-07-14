@@ -114,6 +114,33 @@ const userHandlers = [
   }),
 ];
 
+/** Membership handlers */
+const membershipHandlers = [
+  // Paginated envelope: { members, continuationToken? } — mirrors the
+  // messages continuationToken pattern.
+  http.get(`${BASE_URL}/api/membership/community/:communityId`, () => {
+    return HttpResponse.json({
+      members: [
+        {
+          id: 'membership-1',
+          userId: 'current-user-1',
+          communityId: 'community-1',
+          joinedAt: '2025-01-01T00:00:00Z',
+          roles: [],
+          user: {
+            id: 'current-user-1',
+            username: 'testuser',
+            displayName: 'Test User',
+            avatarUrl: null,
+            status: null,
+          },
+        },
+      ],
+      continuationToken: undefined,
+    });
+  }),
+];
+
 /** Channel handlers */
 const channelHandlers = [
   http.get(`${BASE_URL}/api/channels/community/:communityId`, () => {
@@ -230,6 +257,7 @@ export const handlers = [
 
   ...authHandlers,
   ...userHandlers,
+  ...membershipHandlers,
   ...channelHandlers,
   ...dmHandlers,
   ...instanceHandlers,
