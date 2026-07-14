@@ -2,7 +2,32 @@ import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
 import tseslint from 'typescript-eslint'
+
+// jsx-a11y's own "recommended" preset ships most rules at 'error'. This repo
+// wants it advisory (warn) rather than build-breaking while the codebase
+// catches up — downgrade every enabled rule's severity to 'warn' but keep
+// each rule's own options (and leave anything explicitly 'off' alone).
+//
+// NOTE on package.json's `lint`/`lint:fix` scripts (`--max-warnings 45`):
+// that ceiling was bumped 20 -> 45 to make room for ~41 pre-existing
+// warnings this ruleset surfaced across the app (mostly jsx-a11y/no-autofocus
+// and jsx-a11y/media-has-caption — real, easy a11y wins), none of which were
+// introduced or fixed by the PR that added jsx-a11y. Burning that count down
+// is tracked as a follow-up, not scoped into this PR — see
+// task-pr15-report.md's "Concerns"/follow-ups.
+function toWarnOnly(rules) {
+  return Object.fromEntries(
+    Object.entries(rules).map(([ruleId, config]) => {
+      if (Array.isArray(config)) {
+        const [severity, ...options] = config
+        return [ruleId, severity === 'off' ? config : ['warn', ...options]]
+      }
+      return [ruleId, config === 'off' ? config : 'warn']
+    }),
+  )
+}
 
 export default tseslint.config(
   { ignores: ['dist', 'src/api-client', 'coverage'] },
@@ -39,5 +64,14 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
     },
+  },
+  // jsx-a11y recommended ruleset, downgraded to warnings (see toWarnOnly).
+  {
+    files: ['**/*.{ts,tsx}'],
+    plugins: { 'jsx-a11y': jsxA11y },
+    languageOptions: {
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+    rules: toWarnOnly(jsxA11y.flatConfigs.recommended.rules),
   },
 )

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { renderWithProviders } from '../test-utils';
+import { renderWithProviders, runAxe, expectNoAxeViolations } from '../test-utils';
 import MessageInput from '../../components/Message/MessageInput';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
+import type { UserMention } from '../../utils/mentionParser';
 
 // Let MSW intercept API-client requests
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
@@ -12,6 +13,12 @@ vi.mock('../../api-client/client.gen', async (importOriginal) => {
     client: createClient(createConfig({ baseUrl: 'http://localhost:3000' })),
   };
 });
+
+// MentionDropdown renders UserAvatar for user-type suggestions, which needs
+// a FileCacheProvider renderWithProviders doesn't set up. Stub it out.
+vi.mock('../../components/Common/UserAvatar', () => ({
+  default: () => <div data-testid="avatar" />,
+}));
 
 // Mock the emoji picker so we can trigger a selection deterministically.
 // When open, it renders a button that inserts a fixed emoji.
@@ -98,12 +105,12 @@ vi.mock('../../hooks/useResponsive', () => ({
   useResponsive: () => mockResponsive(),
 }));
 
-function setup(onSendMessage = vi.fn()) {
+function setup(onSendMessage = vi.fn(), userMentions: UserMention[] = []) {
   const utils = renderWithProviders(
     <MessageInput
       contextType={VoiceSessionType.Dm}
       contextId="dm-1"
-      userMentions={[]}
+      userMentions={userMentions}
       onSendMessage={onSendMessage}
     />,
   );
@@ -112,6 +119,11 @@ function setup(onSendMessage = vi.fn()) {
   ) as HTMLTextAreaElement;
   return { ...utils, input, onSendMessage };
 }
+
+const MENTION_MEMBERS: UserMention[] = [
+  { id: 'u-alice', username: 'alice', displayName: 'Alice' },
+  { id: 'u-alan', username: 'alan', displayName: 'Alan' },
+];
 
 describe('MessageInput', () => {
   beforeEach(() => {
@@ -233,6 +245,82 @@ describe('MessageInput', () => {
       );
       // The composer's own draft text is untouched by the GIF send.
       expect(input.value).toBe('still typing');
+    });
+  });
+
+  describe('mention autocomplete (combobox pattern)', () => {
+    it('marks the input as a combobox wired to the listbox, with aria-activedescendant tracking the highlighted option', async () => {
+      const { user, input } = setup(vi.fn(), MENTION_MEMBERS);
+
+      expect(input).toHaveAttribute('aria-autocomplete', 'list');
+      expect(input).not.toHaveAttribute('aria-controls');
+      expect(input).not.toHaveAttribute('aria-activedescendant');
+
+      await user.type(input, '@a');
+
+      const listbox = await screen.findByRole('listbox', { name: /mention suggestions/i });
+      const options = screen.getAllByRole('option');
+      expect(options.length).toBeGreaterThanOrEqual(2);
+
+      expect(input).toHaveAttribute('aria-controls', listbox.id);
+      expect(input).toHaveAttribute('aria-activedescendant', options[0].id);
+      expect(options[0]).toHaveAttribute('aria-selected', 'true');
+      expect(options[1]).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it('ArrowDown moves the highlighted option and updates aria-activedescendant to match', async () => {
+      const { user, input } = setup(vi.fn(), MENTION_MEMBERS);
+
+      await user.type(input, '@a');
+      const options = await screen.findAllByRole('option');
+      expect(input).toHaveAttribute('aria-activedescendant', options[0].id);
+
+      await user.keyboard('{ArrowDown}');
+
+      expect(input).toHaveAttribute('aria-activedescendant', options[1].id);
+      expect(options[1]).toHaveAttribute('aria-selected', 'true');
+      expect(options[0]).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it('Enter selects the highlighted suggestion and closes the listbox, keeping focus on the input', async () => {
+      const { user, input } = setup(vi.fn(), MENTION_MEMBERS);
+
+      await user.type(input, '@a');
+      await screen.findAllByRole('option');
+      // Move to the second suggestion (alan) before committing.
+      await user.keyboard('{ArrowDown}{Enter}');
+
+      expect(input.value).toContain('@Alan');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(input).not.toHaveAttribute('aria-controls');
+      expect(input).not.toHaveAttribute('aria-activedescendant');
+      // The combobox pattern keeps focus on the input throughout — there is
+      // no separate menu to invoke/restore focus from.
+      expect(document.activeElement).toBe(input);
+    });
+
+    it('Escape closes the listbox without inserting a mention, and focus stays on the input', async () => {
+      const { user, input } = setup(vi.fn(), MENTION_MEMBERS);
+
+      await user.type(input, '@a');
+      await screen.findAllByRole('option');
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(input).not.toHaveAttribute('aria-controls');
+      expect(input.value).toBe('@a');
+      expect(document.activeElement).toBe(input);
+    });
+
+    it('has no axe violations while the mention dropdown is open', async () => {
+      const { user, input, container } = setup(vi.fn(), MENTION_MEMBERS);
+
+      await user.type(input, '@a');
+      await screen.findByRole('listbox');
+
+      const results = await runAxe(container);
+      expectNoAxeViolations(results);
     });
   });
 });

@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   NotFoundException,
-  NotImplementedException,
   Param,
   Req,
   Res,
@@ -14,8 +13,7 @@ import { ApiOkResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { FileService } from './file.service';
 import { SignedUrlService } from './signed-url.service';
-import { StorageType } from '@prisma/client';
-import { createReadStream } from 'fs';
+import { StorageService } from '@/storage/storage.service';
 
 import { FileAccessGuard } from '@/file/file-access/file-access.guard';
 import { FileAuthGuard } from '@/file/file-auth.guard';
@@ -30,6 +28,7 @@ export class FileController {
   constructor(
     private readonly fileService: FileService,
     private readonly signedUrlService: SignedUrlService,
+    private readonly storageService: StorageService,
   ) {}
 
   @Get(':id/signed-url')
@@ -90,7 +89,10 @@ export class FileController {
       throw new NotFoundException('No thumbnail available for this file');
     }
 
-    const stream = createReadStream(file.thumbnailPath);
+    // Per-record provider resolution: a mixed instance can have both
+    // LOCAL and S3 files, each served by its own storageType's provider.
+    const provider = this.storageService.getProvider(file.storageType);
+    const stream = await provider.getReadStream(file.thumbnailPath);
 
     res.set({
       'Content-Type': 'image/jpeg',
@@ -114,11 +116,13 @@ export class FileController {
       throw new NotFoundException('File not found');
     }
 
-    if (file.storageType !== StorageType.LOCAL) {
-      throw new NotImplementedException(
-        'Only local file storage is supported at this time',
-      );
-    }
+    // Per-record provider resolution: a mixed instance can have both
+    // LOCAL and S3 files, each served by its own storageType's provider.
+    // Access control (FileAuthGuard / FileAccessGuard) has already run by
+    // this point — the backend always streams object bytes through this
+    // route rather than redirecting to a presigned URL, so that guard
+    // chain stays the single source of truth for file access.
+    const provider = this.storageService.getProvider(file.storageType);
 
     // Sanitize filename for Content-Disposition header (RFC 5987)
     const sanitizedFilename = file.filename.replace(/["\\\n\r]/g, '_');
@@ -161,7 +165,7 @@ export class FileController {
         // Clamp end to file boundary (per RFC 7233 §2.1)
         const clampedEnd = Math.min(end, fileSize - 1);
         const chunkSize = clampedEnd - start + 1;
-        const stream = createReadStream(file.storagePath, {
+        const stream = await provider.getReadStream(file.storagePath, {
           start,
           end: clampedEnd,
         });
@@ -177,7 +181,7 @@ export class FileController {
     }
 
     // No Range header — serve full file
-    const stream = createReadStream(file.storagePath);
+    const stream = await provider.getReadStream(file.storagePath);
 
     res.set({
       'Content-Type': file.mimeType,

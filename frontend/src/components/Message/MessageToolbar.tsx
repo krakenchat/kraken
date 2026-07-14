@@ -98,10 +98,11 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
             size="small"
             onClick={onConfirmDelete}
             color="error"
+            aria-label="Confirm delete"
           >
             <CheckIcon fontSize="small" />
           </IconButton>
-          <IconButton size="small" onClick={onCancelDelete}>
+          <IconButton size="small" onClick={onCancelDelete} aria-label="Cancel delete">
             <CancelIcon fontSize="small" />
           </IconButton>
         </>
@@ -114,14 +115,14 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
           />
           {onQuoteReply && (
             <Tooltip title="Quote reply">
-              <IconButton size="small" onClick={onQuoteReply}>
+              <IconButton size="small" onClick={onQuoteReply} aria-label="Quote reply">
                 <FormatQuoteIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
           {canThread && (
             <Tooltip title="Reply in thread">
-              <IconButton size="small" onClick={onReplyInThread}>
+              <IconButton size="small" onClick={onReplyInThread} aria-label="Reply in thread">
                 <ChatBubbleOutlineIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -132,13 +133,14 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
                 size="small"
                 onClick={isPinned ? onUnpin : onPin}
                 sx={{ color: isPinned ? "primary.main" : undefined }}
+                aria-label={isPinned ? "Unpin message" : "Pin message"}
               >
                 {isPinned ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
           )}
           {canEdit && (
-            <IconButton size="small" onClick={onEdit}>
+            <IconButton size="small" onClick={onEdit} aria-label="Edit message">
               <EditIcon fontSize="small" />
             </IconButton>
           )}
@@ -147,6 +149,7 @@ export const MessageToolbar: React.FC<MessageToolbarProps> = ({
               size="small"
               onClick={onDelete}
               color="error"
+              aria-label="Delete message"
             >
               <DeleteIcon fontSize="small" />
             </IconButton>

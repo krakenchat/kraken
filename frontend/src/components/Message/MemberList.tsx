@@ -18,6 +18,7 @@ import { UserModerationMenu } from "../Moderation";
 import { useUserProfile } from "../../contexts/UserProfileContext";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useLongPress } from "../../hooks/useSwipeGesture";
+import { useContextMenuFocusRestore } from "../../hooks/useContextMenuFocusRestore";
 
 export interface MemberData {
   id: string;
@@ -95,14 +96,15 @@ const SectionHeader: React.FC<{ label: string; count: number }> = ({ label, coun
 const MemberRow: React.FC<{
   member: MemberData;
   onOpenProfile: (userId: string) => void;
-  onOpenMenu: (position: { top: number; left: number }, member: MemberData) => void;
+  onOpenMenu: (position: { top: number; left: number }, member: MemberData, triggerEl: HTMLElement | null) => void;
 }> = React.memo(function MemberRow({ member, onOpenProfile, onOpenMenu }) {
   const theme = useTheme();
   const { shouldUseTouchUI } = useResponsive();
+  const rowRef = React.useRef<HTMLDivElement>(null);
 
   const longPress = useLongPress(
     (point) => {
-      if (point) onOpenMenu({ top: point.y, left: point.x }, member);
+      if (point) onOpenMenu({ top: point.y, left: point.x }, member, rowRef.current);
     },
     { enabled: shouldUseTouchUI },
   );
@@ -118,12 +120,13 @@ const MemberRow: React.FC<{
     : {
         onContextMenu: (e: React.MouseEvent<HTMLElement>) => {
           e.preventDefault();
-          onOpenMenu({ top: e.clientY, left: e.clientX }, member);
+          onOpenMenu({ top: e.clientY, left: e.clientX }, member, e.currentTarget);
         },
       };
 
   return (
     <ListItemButton
+      ref={rowRef}
       onClick={() => {
         // Ignore the ghost click some browsers (iOS) fire after a long-press —
         // otherwise the profile opens on top of the moderation menu.
@@ -203,16 +206,28 @@ const MemberList: React.FC<MemberListProps> = ({
     position: null,
     member: null,
   });
+  const { captureTrigger, restoreFocus } = useContextMenuFocusRestore();
+  // Fallback restore target: the member row that opened the menu can
+  // unmount while the menu is closing (e.g. the member goes offline and is
+  // re-sorted/removed from view). The scroll container outlives any
+  // individual row, so it's a safe place to land focus in that case.
+  const listContainerRef = React.useRef<HTMLDivElement>(null);
 
   const openMenu = React.useCallback(
-    (position: { top: number; left: number }, member: MemberData) => {
+    (position: { top: number; left: number }, member: MemberData, triggerEl: HTMLElement | null) => {
+      captureTrigger(triggerEl);
       setContextMenu({ position, member });
     },
-    [],
+    [captureTrigger],
   );
 
   const handleCloseContextMenu = () => {
     setContextMenu({ position: null, member: null });
+    // anchorPosition menus have no anchor element for MUI to auto-restore
+    // focus to on close — return it to the member row that opened this,
+    // falling back to the scroll container if that row unmounted while
+    // the menu was closing.
+    restoreFocus(listContainerRef.current);
   };
 
   // Group members by display role
@@ -312,6 +327,8 @@ const MemberList: React.FC<MemberListProps> = ({
 
       {/* Member List */}
       <Box
+        ref={listContainerRef}
+        tabIndex={-1}
         sx={{
           flex: 1,
           overflowY: "auto",

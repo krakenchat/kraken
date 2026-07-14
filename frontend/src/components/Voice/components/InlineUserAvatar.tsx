@@ -49,6 +49,9 @@ const InlineUserAvatar: React.FC<InlineUserAvatarProps> = ({
   return (
     <Tooltip key={user.id} title={user.displayName || user.username}>
       <Box
+        // Not in tab order (-1) — only focused programmatically, to restore
+        // focus here after the right-click/long-press context menu closes.
+        tabIndex={-1}
         sx={{
           width: 24,
           height: 24,

@@ -5,9 +5,15 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FileType } from '@prisma/client';
+import { FileType, StorageType } from '@prisma/client';
+import { promises as fs, createWriteStream } from 'fs';
+import { pipeline } from 'stream/promises';
+import * as os from 'os';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
+import { IStorageProvider } from '@/storage/interfaces/storage-provider.interface';
 import { ThumbnailService } from './thumbnail.service';
 
 /**
@@ -142,7 +148,7 @@ export class ThumbnailBackfillService
         },
         orderBy: { id: 'asc' },
         take: batchSize,
-        select: { id: true, storagePath: true },
+        select: { id: true, storagePath: true, storageType: true },
       });
 
       if (batch.length === 0) {
@@ -159,7 +165,11 @@ export class ThumbnailBackfillService
       // Best-effort per file: one failure must not abort the remaining candidates.
       for (const file of batch) {
         try {
-          if (!(await this.storageService.fileExists(file.storagePath))) {
+          // Per-record provider resolution: an instance may have files
+          // across both LOCAL and S3 storageType, especially mid-migration.
+          const provider = this.storageService.getProvider(file.storageType);
+
+          if (!(await provider.fileExists(file.storagePath))) {
             this.logger.warn(
               `Skipping thumbnail backfill for file ${file.id}: source ${file.storagePath} not found`,
             );
@@ -167,12 +177,11 @@ export class ThumbnailBackfillService
             continue;
           }
 
-          // generateVideoThumbnail logs and returns null on failure
-          const thumbnailPath =
-            await this.thumbnailService.generateVideoThumbnail(
-              file.storagePath,
-              file.id,
-            );
+          // generateThumbnailForFile logs and returns null on failure
+          const thumbnailPath = await this.generateThumbnailForFile(
+            file,
+            provider,
+          );
 
           if (!thumbnailPath) {
             skipped++;
@@ -214,5 +223,42 @@ export class ThumbnailBackfillService
     }
 
     return { generated, skipped };
+  }
+
+  /**
+   * Generates a thumbnail for a backfill candidate, resolving its source
+   * per-record. LOCAL files feed ffmpeg directly (it already reads from
+   * disk). Non-LOCAL (S3) files are downloaded to a local scratch file
+   * first — ffmpeg has no concept of reading from an object store — then
+   * cleaned up regardless of outcome.
+   */
+  private async generateThumbnailForFile(
+    file: { id: string; storagePath: string; storageType: StorageType },
+    provider: IStorageProvider,
+  ): Promise<string | null> {
+    if (file.storageType === StorageType.LOCAL) {
+      return this.thumbnailService.generateVideoThumbnail(
+        file.storagePath,
+        file.id,
+        file.storageType,
+      );
+    }
+
+    const tmpPath = path.join(
+      os.tmpdir(),
+      `thumbnail-backfill-${file.id}-${randomUUID()}`,
+    );
+
+    try {
+      const readStream = await provider.getReadStream(file.storagePath);
+      await pipeline(readStream, createWriteStream(tmpPath));
+      return await this.thumbnailService.generateVideoThumbnail(
+        tmpPath,
+        file.id,
+        file.storageType,
+      );
+    } finally {
+      await fs.rm(tmpPath, { force: true }).catch(() => undefined);
+    }
   }
 }
