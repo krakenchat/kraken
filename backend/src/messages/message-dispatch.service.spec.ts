@@ -175,6 +175,10 @@ describe('MessageDispatchService', () => {
       }),
     ).resolves.toBeUndefined();
 
+    // dispatch() no longer awaits the enqueue, so let the fire-and-forget
+    // call's internal catch run before asserting on it.
+    await new Promise((resolve) => setImmediate(resolve));
+
     expect(errorSpy).toHaveBeenCalledWith(
       `Failed to enqueue notification fan-out for message ${rawMessage.id}`,
       error,
@@ -197,9 +201,41 @@ describe('MessageDispatchService', () => {
       }),
     ).resolves.toBeUndefined();
 
+    // dispatch() no longer awaits the enqueue, so let the fire-and-forget
+    // call's internal catch run before asserting on it.
+    await new Promise((resolve) => setImmediate(resolve));
+
     expect(errorSpy).toHaveBeenCalledWith(
       `Failed to enqueue link preview processing for message ${rawMessage.id}`,
       error,
     );
+  });
+
+  it('resolves without waiting on the enqueue promises (fire-and-forget ack latency)', async () => {
+    // Simulate a hung/never-resolving Redis call — if dispatch() awaited
+    // either enqueue, this test would time out.
+    (messageFanoutQueue.add as jest.Mock).mockReturnValue(
+      new Promise(() => {
+        /* never resolves */
+      }),
+    );
+    (linkPreviewsQueue.add as jest.Mock).mockReturnValue(
+      new Promise(() => {
+        /* never resolves */
+      }),
+    );
+
+    await expect(
+      service.dispatch(rawMessage as any, {
+        room: 'channel-1',
+        event: ServerEvents.NEW_MESSAGE,
+        notifications: true,
+        linkPreviews: true,
+      }),
+    ).resolves.toBeUndefined();
+
+    // The calls were still made synchronously — just not awaited.
+    expect(messageFanoutQueue.add).toHaveBeenCalled();
+    expect(linkPreviewsQueue.add).toHaveBeenCalled();
   });
 });

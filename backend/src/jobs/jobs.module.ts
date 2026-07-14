@@ -28,6 +28,19 @@ import { MESSAGE_FANOUT_QUEUE, LINK_PREVIEWS_QUEUE } from './jobs.constants';
  * JobsModule plus the two processor providers — @nestjs/bullmq workers run
  * identically in any process that has this module and a processor provider,
  * no HTTP server required.
+ *
+ * ROLLING-DEPLOY PAYLOAD CONVENTION: because processors run in-process on
+ * every API replica, a rolling deploy has old and new code enqueuing/
+ * consuming the SAME queues simultaneously — an old replica's worker can
+ * pick up a job enqueued by a new replica, and vice versa, until the
+ * rollout finishes. Job payload shapes (`MessageFanoutJobData`,
+ * `LinkPreviewJobData` in jobs.types.ts) must therefore stay
+ * additive/backward-compatible for at least one release: only add optional
+ * fields, never remove/rename/repurpose an existing field, and give new
+ * processor logic a fallback for payloads that predate it. If a genuinely
+ * breaking payload change is ever unavoidable, add a `version` field to the
+ * payload (default/absent = the current shape) so processors can branch on
+ * it instead of assuming every job in the queue matches the newest shape.
  */
 @Global()
 @Module({

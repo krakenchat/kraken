@@ -2,16 +2,15 @@ import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { DatabaseService } from '@/database/database.service';
-import { MESSAGE_FANOUT_QUEUE } from '@/jobs/jobs.constants';
+import {
+  MESSAGE_FANOUT_QUEUE,
+  resolveJobWorkerConcurrency,
+} from '@/jobs/jobs.constants';
 import { MessageFanoutJobData } from '@/jobs/jobs.types';
 import { NotificationsService } from './notifications.service';
 
-/**
- * Max jobs this processor runs concurrently. Read directly from
- * process.env (not ConfigService) because @Processor's options are
- * evaluated at class-decoration time, before Nest's DI container exists.
- */
-const CONCURRENCY = Number(process.env.JOB_WORKER_CONCURRENCY) || 4;
+/** Max jobs this processor runs concurrently — see resolveJobWorkerConcurrency(). */
+const CONCURRENCY = resolveJobWorkerConcurrency();
 
 /**
  * Consumes the `message-fanout` queue: re-reads the message (spans + author

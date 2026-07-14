@@ -259,8 +259,18 @@ export class NotificationsService {
     const raw = this.configService.get<string>(
       'CHANNEL_MESSAGE_MEMBER_THRESHOLD',
     );
-    const parsed = raw ? parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000;
+    if (!raw) return 5000;
+
+    const parsed = parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      // Explicit but invalid (e.g. "0", negative, non-numeric) — treat as a
+      // misconfiguration and fall back loudly rather than silently.
+      this.logger.warn(
+        `Invalid CHANNEL_MESSAGE_MEMBER_THRESHOLD="${raw}" (must be a positive number) — falling back to default threshold 5000`,
+      );
+      return 5000;
+    }
+    return parsed;
   }
 
   /**
@@ -291,6 +301,17 @@ export class NotificationsService {
    *   5. ONE notification.findMany() over the just-created rows (matching
    *      createNotification()'s include shape) to emit the WS event and
    *      send push notifications per recipient — unchanged from before.
+   *
+   * Retry idempotency: this method is invoked from a BullMQ job
+   * (NotificationsFanoutProcessor) whose errors propagate so the queue
+   * retries the whole job on failure. A prior attempt may have already run
+   * createMany for some of these recipients before failing later (e.g. a
+   * push/WS-side error, or a later throw in the same job for the
+   * mention/DM notifications). Re-running from the top must not re-create
+   * rows for recipients who already have one — see the
+   * notification.findMany() existing-check below, which excludes them from
+   * BOTH createMany AND the post-create WS/push emission by keeping them
+   * out of `eligibleUserIds` entirely.
    */
   private async createChannelMessageNotifications(
     message: Message,
@@ -344,10 +365,33 @@ export class NotificationsService {
     }
 
     // Filter out author and already-notified users
-    const eligibleUserIds = userIds.filter(
+    let eligibleUserIds = userIds.filter(
       (userId) =>
         userId !== message.authorId && !alreadyNotifiedUserIds.has(userId),
     );
+
+    if (eligibleUserIds.length === 0) return;
+
+    // Retry idempotency: exclude anyone who already has a CHANNEL_MESSAGE
+    // notification for this message from a prior (partial) attempt at this
+    // same BullMQ job. This runs against the CURRENT recipient list on every
+    // attempt, not just the in-run mention/DM dedupe above.
+    const alreadyCreated = await this.databaseService.notification.findMany({
+      where: {
+        messageId: message.id,
+        type: NotificationType.CHANNEL_MESSAGE,
+        userId: { in: eligibleUserIds },
+      },
+      select: { userId: true },
+    });
+    if (alreadyCreated.length > 0) {
+      const alreadyCreatedUserIds = new Set(
+        alreadyCreated.map((n) => n.userId),
+      );
+      eligibleUserIds = eligibleUserIds.filter(
+        (userId) => !alreadyCreatedUserIds.has(userId),
+      );
+    }
 
     if (eligibleUserIds.length === 0) return;
 
@@ -422,7 +466,20 @@ export class NotificationsService {
   }
 
   /**
-   * Create a notification if user's settings allow it
+   * Create a notification if user's settings allow it.
+   *
+   * Retry idempotency: called for USER_MENTION/DIRECT_MESSAGE recipients
+   * from processMessageForNotifications, which is invoked from a BullMQ job
+   * whose errors propagate for retry. A prior attempt at this job may have
+   * already created this exact (userId, messageId, type) notification
+   * before a later recipient in the same Promise.all() batch threw. There's
+   * no unique DB constraint on (userId, messageId, type) to enforce this at
+   * the database level (see schema.prisma Notification model), so this is a
+   * check-then-insert rather than createMany+skipDuplicates. That's safe
+   * without a transaction/lock: BullMQ's jobId dedupe (see
+   * MessageDispatchService) guarantees only one worker processes a given
+   * message's fan-out job at a time, so no concurrent duplicate job can
+   * race this check.
    */
   private async createNotificationIfAllowed(
     userId: string,
@@ -438,6 +495,14 @@ export class NotificationsService {
     );
 
     if (!shouldNotify || !message.authorId) {
+      return null;
+    }
+
+    const existing = await this.databaseService.notification.findFirst({
+      where: { userId, messageId: message.id, type },
+      select: { id: true },
+    });
+    if (existing) {
       return null;
     }
 

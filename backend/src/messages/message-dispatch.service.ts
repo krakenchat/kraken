@@ -52,7 +52,12 @@ export class MessageDispatchService {
     private readonly linkPreviewsQueue: Queue<LinkPreviewJobData>,
   ) {}
 
-  async dispatch(
+  // Deliberately NOT `async`: the body below has nothing left to await (see
+  // the fire-and-forget comment) — an `async` function with no `await`
+  // would trip `@typescript-eslint/require-await`. The explicit
+  // `Promise.resolve()` return keeps the public signature (`Promise<void>`,
+  // already `await`-ed by every caller) unchanged.
+  dispatch(
     message: DispatchableMessage,
     opts: MessageDispatchOptions,
   ): Promise<void> {
@@ -64,13 +69,23 @@ export class MessageDispatchService {
       message: enrichedMessage,
     });
 
+    // Fire-and-forget: the message-send ack (this method's resolution) must
+    // not depend on the queue/Redis round-trip. Both enqueue methods already
+    // catch and log internally, so a rejected enqueue never surfaces here
+    // whether we await it or not — not awaiting just means dispatch() no
+    // longer waits on it. If Redis is down, the enqueue is lost exactly like
+    // a fire-and-forget side effect was lost in the pre-queue architecture —
+    // an accepted tradeoff to keep message-send acks fast and independent of
+    // queue availability.
     if (opts.notifications) {
-      await this.enqueueNotificationFanout(message);
+      void this.enqueueNotificationFanout(message);
     }
 
     if (opts.linkPreviews) {
-      await this.enqueueLinkPreviews(message, opts.room);
+      void this.enqueueLinkPreviews(message, opts.room);
     }
+
+    return Promise.resolve();
   }
 
   /**

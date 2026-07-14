@@ -6,6 +6,7 @@ import { NotificationsService } from './notifications.service';
 import { DatabaseService } from '@/database/database.service';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 import { PresenceService } from '@/presence/presence.service';
+import { NotificationsGateway } from './notifications.gateway';
 import { NotificationType, SpanType } from '@prisma/client';
 import {
   createMockDatabase,
@@ -22,6 +23,7 @@ describe('NotificationsService', () => {
   let pushNotificationsService: Mocked<PushNotificationsService>;
   let presenceService: Mocked<PresenceService>;
   let configService: Mocked<ConfigService>;
+  let notificationsGateway: Mocked<NotificationsGateway>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -36,6 +38,7 @@ describe('NotificationsService', () => {
     pushNotificationsService = unitRef.get(PushNotificationsService);
     presenceService = unitRef.get(PresenceService);
     configService = unitRef.get(ConfigService);
+    notificationsGateway = unitRef.get(NotificationsGateway);
 
     // Default mock behaviors
     pushNotificationsService.isEnabled.mockReturnValue(false);
@@ -520,29 +523,33 @@ describe('NotificationsService', () => {
         ]);
         mockDatabase.channelNotificationOverride.findMany.mockResolvedValue([]);
         mockDatabase.notification.createMany.mockResolvedValue({ count: 2 });
-        mockDatabase.notification.findMany.mockResolvedValue(
-          NotificationFactory.buildMany(2, {
-            type: NotificationType.CHANNEL_MESSAGE,
-            channelId,
-            authorId,
-          }).map((n, i) => ({
-            ...n,
-            userId: `user-${i + 1}`,
-            author: {
-              id: authorId,
-              username: 'a',
-              displayName: null,
-              avatarUrl: null,
-            },
-            message: {
-              id: 'msg-1',
-              spans: [],
+        mockDatabase.notification.findMany
+          // 1st call: retry-idempotency existing-check — nobody created yet.
+          .mockResolvedValueOnce([])
+          // 2nd call: post-create read for WS/push emission.
+          .mockResolvedValueOnce(
+            NotificationFactory.buildMany(2, {
+              type: NotificationType.CHANNEL_MESSAGE,
               channelId,
-              directMessageGroupId: null,
-            },
-            channel: { id: channelId, name: 'general', communityId },
-          })),
-        );
+              authorId,
+            }).map((n, i) => ({
+              ...n,
+              userId: `user-${i + 1}`,
+              author: {
+                id: authorId,
+                username: 'a',
+                displayName: null,
+                avatarUrl: null,
+              },
+              message: {
+                id: 'msg-1',
+                spans: [],
+                channelId,
+                directMessageGroupId: null,
+              },
+              channel: { id: channelId, name: 'general', communityId },
+            })),
+          );
 
         await service.processMessageForNotifications(buildMessage() as any);
 
@@ -562,8 +569,10 @@ describe('NotificationsService', () => {
             }),
           ],
         });
-        // WS emit + push flow still fires per created recipient.
-        expect(mockDatabase.notification.findMany).toHaveBeenCalledTimes(1);
+        // notification.findMany is called twice: the retry-idempotency
+        // existing-check before createMany, then the post-create read that
+        // drives the WS emit + push flow per created recipient.
+        expect(mockDatabase.notification.findMany).toHaveBeenCalledTimes(2);
       });
 
       it('excludes a member whose default level is "mentions" (rule: mentions-only excludes CHANNEL_MESSAGE)', async () => {
@@ -736,6 +745,25 @@ describe('NotificationsService', () => {
         );
       });
 
+      it('treats an explicit "0" threshold as invalid, warns, and falls back to the default 5000', async () => {
+        configService.get.mockImplementation((key: string) =>
+          key === 'CHANNEL_MESSAGE_MEMBER_THRESHOLD' ? '0' : undefined,
+        );
+        mockPublicChannel(4999);
+        mockDatabase.membership.findMany.mockResolvedValue([]);
+        const warnSpy = jest
+          .spyOn(service['logger'], 'warn')
+          .mockImplementation(() => undefined);
+
+        await service.processMessageForNotifications(buildMessage() as any);
+
+        // Falls back to 5000, so 4999 members is still under threshold.
+        expect(mockDatabase.membership.findMany).toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Invalid CHANNEL_MESSAGE_MEMBER_THRESHOLD'),
+        );
+      });
+
       it('defaults the threshold to 5000 when CHANNEL_MESSAGE_MEMBER_THRESHOLD is unset', async () => {
         configService.get.mockReturnValue(undefined);
         mockPublicChannel(5001);
@@ -780,6 +808,181 @@ describe('NotificationsService', () => {
         await expect(
           service.processMessageForNotifications(buildMessage() as any),
         ).rejects.toThrow('DB error');
+      });
+
+      it('excludes a recipient who already has a CHANNEL_MESSAGE notification for this message from a prior attempt, and only emits WS/push for newly-created rows (rule: BullMQ retry idempotency)', async () => {
+        mockPublicChannel();
+        mockDatabase.membership.findMany.mockResolvedValue([
+          { userId: 'user-1' },
+          { userId: 'user-2' },
+        ]);
+        mockDatabase.userNotificationSettings.findMany.mockResolvedValue([
+          { userId: 'user-1', defaultChannelLevel: 'all' },
+          { userId: 'user-2', defaultChannelLevel: 'all' },
+        ]);
+        mockDatabase.channelNotificationOverride.findMany.mockResolvedValue([]);
+        // user-1 already has a CHANNEL_MESSAGE notification for this
+        // message — simulating a prior (failed) attempt at this job.
+        mockDatabase.notification.findMany
+          .mockResolvedValueOnce([{ userId: 'user-1' }])
+          .mockResolvedValueOnce(
+            NotificationFactory.buildMany(1, {
+              type: NotificationType.CHANNEL_MESSAGE,
+              channelId,
+              authorId,
+            }).map((n) => ({
+              ...n,
+              userId: 'user-2',
+              author: {
+                id: authorId,
+                username: 'a',
+                displayName: null,
+                avatarUrl: null,
+              },
+              message: {
+                id: 'msg-1',
+                spans: [],
+                channelId,
+                directMessageGroupId: null,
+              },
+              channel: { id: channelId, name: 'general', communityId },
+            })),
+          );
+        mockDatabase.notification.createMany.mockResolvedValue({ count: 1 });
+
+        await service.processMessageForNotifications(buildMessage() as any);
+
+        // Only user-2 (the recipient without a prior notification) is
+        // (re-)created — user-1 is excluded from both the write and the
+        // settings/override lookups that would otherwise run for them.
+        expect(mockDatabase.notification.createMany).toHaveBeenCalledTimes(1);
+        expect(mockDatabase.notification.createMany).toHaveBeenCalledWith({
+          data: [expect.objectContaining({ userId: 'user-2' })],
+        });
+        expect(
+          notificationsGateway.emitNotificationToUser,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          notificationsGateway.emitNotificationToUser,
+        ).toHaveBeenCalledWith(
+          'user-2',
+          expect.objectContaining({ userId: 'user-2' }),
+        );
+      });
+    });
+
+    describe('retry idempotency across a partial-failure retry (BullMQ job)', () => {
+      it('does not duplicate a notification created before the job failed, and emits WS only for the newly-created recipient on retry', async () => {
+        const authorId = 'author-1';
+        const channelId = 'channel-1';
+        const communityId = 'community-1';
+        const message = MessageFactory.build({
+          id: 'msg-1',
+          channelId,
+          authorId,
+          spans: [
+            {
+              type: SpanType.USER_MENTION,
+              userId: 'user-mention',
+              text: null,
+              specialKind: null,
+              communityId: null,
+              aliasId: null,
+            },
+          ],
+        } as any);
+
+        jest.spyOn(service, 'shouldNotify').mockResolvedValue(true);
+        mockDatabase.channel.findUnique.mockResolvedValue({
+          isPrivate: false,
+          communityId,
+        });
+        mockDatabase.membership.findMany.mockResolvedValue([
+          { userId: 'user-channel' },
+        ]);
+        mockDatabase.membership.count.mockResolvedValue(1);
+        mockDatabase.notification.create.mockResolvedValue(
+          NotificationFactory.build({
+            userId: 'user-mention',
+            type: NotificationType.USER_MENTION,
+          }),
+        );
+
+        // --- Run 1: mention notification is created, then the channel
+        // batch throws (simulating a failure partway through the job) ---
+        mockDatabase.notification.findFirst.mockResolvedValueOnce(null); // no prior mention notification
+        // channel-batch existing-check (run 1): nobody created yet.
+        mockDatabase.notification.findMany.mockResolvedValueOnce([]);
+        mockDatabase.userNotificationSettings.findMany.mockRejectedValueOnce(
+          new Error('DB blip'),
+        );
+
+        await expect(
+          service.processMessageForNotifications(message as any),
+        ).rejects.toThrow('DB blip');
+
+        expect(mockDatabase.notification.create).toHaveBeenCalledTimes(1);
+
+        // --- Run 2 (BullMQ retry): same message re-processed ---
+        // The mention notification now already exists in the DB.
+        mockDatabase.notification.findFirst.mockResolvedValueOnce({
+          id: 'existing-mention-notif',
+        });
+        mockDatabase.userNotificationSettings.findMany.mockResolvedValue([
+          { userId: 'user-channel', defaultChannelLevel: 'all' },
+        ]);
+        mockDatabase.channelNotificationOverride.findMany.mockResolvedValue([]);
+        mockDatabase.notification.findMany
+          .mockResolvedValueOnce([]) // channel-batch existing-check: nobody yet
+          .mockResolvedValueOnce([
+            {
+              ...NotificationFactory.build({
+                userId: 'user-channel',
+                type: NotificationType.CHANNEL_MESSAGE,
+              }),
+              author: {
+                id: authorId,
+                username: 'a',
+                displayName: null,
+                avatarUrl: null,
+              },
+              message: {
+                id: 'msg-1',
+                spans: [],
+                channelId,
+                directMessageGroupId: null,
+              },
+              channel: { id: channelId, name: 'general', communityId },
+            },
+          ]);
+        mockDatabase.notification.createMany.mockResolvedValue({ count: 1 });
+
+        await service.processMessageForNotifications(message as any);
+
+        // The mention notification was NOT re-created on retry.
+        expect(mockDatabase.notification.create).toHaveBeenCalledTimes(1);
+        // The channel-message notification for the new recipient was created.
+        expect(mockDatabase.notification.createMany).toHaveBeenCalledTimes(1);
+        expect(mockDatabase.notification.createMany).toHaveBeenCalledWith({
+          data: [expect.objectContaining({ userId: 'user-channel' })],
+        });
+        // WS emit only fired for: user-mention (run 1) + user-channel (run 2).
+        // Never a second emit for user-mention on the retry.
+        expect(
+          notificationsGateway.emitNotificationToUser,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+          notificationsGateway.emitNotificationToUser,
+        ).toHaveBeenCalledWith(
+          'user-mention',
+          expect.objectContaining({ userId: 'user-mention' }),
+        );
+        expect(
+          notificationsGateway.emitNotificationToUser,
+        ).toHaveBeenCalledWith(
+          'user-channel',
+          expect.objectContaining({ userId: 'user-channel' }),
+        );
       });
     });
   });
