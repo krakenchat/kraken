@@ -13,10 +13,8 @@ import { RoomsModule } from '@/rooms/rooms.module';
 import { AuthModule } from '@/auth/auth.module';
 import { FileModule } from '@/file/file.module';
 import { MessageOwnershipGuard } from '@/auth/message-ownership.guard';
-import { NotificationsModule } from '@/notifications/notifications.module';
 import { ModerationModule } from '@/moderation/moderation.module';
 import { ReadReceiptsModule } from '@/read-receipts/read-receipts.module';
-import { LinkPreviewsModule } from '@/link-previews/link-previews.module';
 import { RedisModule } from '@/redis/redis.module';
 
 @Module({
@@ -37,10 +35,12 @@ import { RedisModule } from '@/redis/redis.module';
     RoomsModule,
     AuthModule,
     FileModule,
-    NotificationsModule,
+    // NotificationsModule/LinkPreviewsModule are no longer imported here —
+    // MessageDispatchService and MessagesController talk to the
+    // message-fanout/link-previews BullMQ queues directly (via JobsModule,
+    // which is @Global()) instead of calling those services in-process.
     ModerationModule,
     ReadReceiptsModule,
-    LinkPreviewsModule,
     RedisModule,
   ],
   exports: [MessagesService, ReactionsService, MessageDispatchService],
