@@ -51,3 +51,8 @@ export class MembershipResponseDto {
     }
   }
 }
+
+export class PaginatedMembershipsResponseDto {
+  members: MembershipResponseDto[];
+  continuationToken?: string;
+}

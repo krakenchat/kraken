@@ -53,19 +53,45 @@ describe('MembershipController', () => {
   });
 
   describe('findAllForCommunity', () => {
-    it('should return all members of a community', async () => {
+    it('should return the paginated envelope of members for a community', async () => {
       const communityId = 'community-123';
-      const mockMemberships = [
-        MembershipFactory.build({ communityId }),
-        MembershipFactory.build({ communityId }),
-      ];
+      const mockResponse = {
+        members: [
+          MembershipFactory.build({ communityId }),
+          MembershipFactory.build({ communityId }),
+        ],
+        continuationToken: undefined,
+      };
 
-      service.findAllForCommunity.mockResolvedValue(mockMemberships as any);
+      service.findAllForCommunity.mockResolvedValue(mockResponse as any);
 
-      const result = await controller.findAllForCommunity(communityId);
+      const result = await controller.findAllForCommunity(
+        communityId,
+        100,
+        undefined,
+      );
 
-      expect(service.findAllForCommunity).toHaveBeenCalledWith(communityId);
-      expect(result).toEqual(mockMemberships);
+      expect(service.findAllForCommunity).toHaveBeenCalledWith(
+        communityId,
+        100,
+        undefined,
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should pass through the continuationToken and cap an oversized limit', async () => {
+      const communityId = 'community-123';
+      const mockResponse = { members: [], continuationToken: undefined };
+
+      service.findAllForCommunity.mockResolvedValue(mockResponse as any);
+
+      await controller.findAllForCommunity(communityId, 9999, 'some-token');
+
+      expect(service.findAllForCommunity).toHaveBeenCalledWith(
+        communityId,
+        500,
+        'some-token',
+      );
     });
   });
 

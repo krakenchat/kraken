@@ -80,6 +80,8 @@ export class WebhooksService {
     const webhooks = await this.databaseService.webhook.findMany({
       where: { channelId },
       orderBy: { createdAt: 'asc' },
+      // Per-channel webhook counts are small in practice; cap defensively.
+      take: 100,
     });
 
     return webhooks.map((webhook) => ({

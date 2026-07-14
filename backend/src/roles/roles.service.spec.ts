@@ -952,7 +952,19 @@ describe('RolesService', () => {
       expect(mockDatabase.role.findMany).toHaveBeenCalledWith({
         where: { communityId },
         orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+        take: 200,
       });
+    });
+
+    it('should cap the roles list at 200', async () => {
+      const communityId = 'community-123';
+      mockDatabase.role.findMany.mockResolvedValue([]);
+
+      await service.getCommunityRoles(communityId);
+
+      expect(mockDatabase.role.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 200 }),
+      );
     });
 
     it('should return empty roles list when no roles found', async () => {

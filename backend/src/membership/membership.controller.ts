@@ -14,9 +14,13 @@ import {
   DefaultValuePipe,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import { MembershipService } from './membership.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
-import { MembershipResponseDto } from './dto/membership-response.dto';
+import {
+  MembershipResponseDto,
+  PaginatedMembershipsResponseDto,
+} from './dto/membership-response.dto';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { RbacGuard } from '@/auth/rbac.guard';
 import { RequiredActions } from '@/auth/rbac-action.decorator';
@@ -49,6 +53,7 @@ export class MembershipController {
   }
 
   @Get('/community/:communityId')
+  @ApiOkResponse({ type: PaginatedMembershipsResponseDto })
   @RequiredActions(RbacActions.READ_MEMBER)
   @RbacResource({
     type: RbacResourceType.COMMUNITY,
@@ -57,8 +62,15 @@ export class MembershipController {
   })
   findAllForCommunity(
     @Param('communityId', ParseUUIDPipe) communityId: string,
-  ): Promise<MembershipResponseDto[]> {
-    return this.membershipService.findAllForCommunity(communityId);
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
+    @Query('continuationToken') continuationToken?: string,
+  ): Promise<PaginatedMembershipsResponseDto> {
+    limit = Math.min(limit, 500);
+    return this.membershipService.findAllForCommunity(
+      communityId,
+      limit,
+      continuationToken,
+    );
   }
 
   @Get('/community/:communityId/search')

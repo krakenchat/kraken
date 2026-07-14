@@ -565,6 +565,10 @@ export class NotificationsService {
    */
   async getUserNotifications(userId: string, query: NotificationQueryDto) {
     const { unreadOnly, limit = 50, offset = 0 } = query;
+    // NotificationQueryDto already enforces @Max(100) at the validation
+    // layer, but cap again here defensively in case this method is ever
+    // called directly (bypassing the pipe).
+    const cappedLimit = Math.min(limit, 100);
 
     return this.databaseService.notification.findMany({
       where: {
@@ -572,7 +576,7 @@ export class NotificationsService {
         ...(unreadOnly && { read: false }),
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: cappedLimit,
       skip: offset,
       include: {
         author: {

@@ -450,6 +450,9 @@ export class RolesService implements OnModuleInit {
     const roles = await this.databaseService.role.findMany({
       where: { communityId },
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      // Community role tables are small in practice; cap defensively so a
+      // pathological community can't return an unbounded list.
+      take: 200,
     });
 
     const roleDtos: RoleDto[] = roles.map((role) => ({
