@@ -3,6 +3,10 @@ import { DatabaseService } from '@/database/database.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import Redis from 'ioredis';
 import { RolesService } from '@/roles/roles.service';
+import {
+  EpochBump,
+  PermissionsCacheService,
+} from '@/roles/permissions-cache.service';
 import { InstanceRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -18,6 +22,7 @@ export class OnboardingService {
     private readonly databaseService: DatabaseService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly rolesService: RolesService,
+    private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
 
   /**
@@ -111,6 +116,11 @@ export class OnboardingService {
       throw new ConflictException('Instance setup is no longer needed');
     }
 
+    // Epoch bumps from the tx-nested role mutations below are collected here
+    // and executed only after the transaction commits (see
+    // PermissionsCacheService — bumping pre-commit races concurrent readers).
+    const pendingBumps: EpochBump[] = [];
+
     const result = await this.databaseService.$transaction(async (tx) => {
       // 1. Create admin user
       const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
@@ -186,6 +196,7 @@ export class OnboardingService {
         const adminRoleId = await this.rolesService.createDefaultCommunityRoles(
           defaultCommunity.id,
           tx,
+          pendingBumps,
         );
 
         // Assign the admin user to the Community Admin role
@@ -194,6 +205,7 @@ export class OnboardingService {
           defaultCommunity.id,
           adminRoleId,
           tx,
+          pendingBumps,
         );
 
         this.logger.log(
@@ -224,18 +236,22 @@ export class OnboardingService {
 
       // 3. Create default instance admin role and assign to OWNER
       const instanceAdminRoleId =
-        await this.rolesService.createDefaultInstanceRole(tx);
+        await this.rolesService.createDefaultInstanceRole(tx, pendingBumps);
       await this.rolesService.assignUserToInstanceRole(
         adminUser.id,
         instanceAdminRoleId,
         tx,
+        pendingBumps,
       );
       this.logger.log(
         `Created default instance admin role and assigned to OWNER user`,
       );
 
       // 4. Create default Community Creator role (available for assignment to users)
-      await this.rolesService.createDefaultCommunityCreatorRole(tx);
+      await this.rolesService.createDefaultCommunityCreatorRole(
+        tx,
+        pendingBumps,
+      );
       this.logger.log(`Created default Community Creator role`);
 
       // 5. Create a permanent instance invite for future users
@@ -259,6 +275,11 @@ export class OnboardingService {
         defaultCommunity,
       };
     });
+
+    // Transaction committed — flush the deferred epoch bumps. On rollback
+    // this line is never reached, which is correct (nothing changed in the
+    // DB). executeBumps never throws (fail-open, logged).
+    await this.permissionsCacheService.executeBumps(pendingBumps);
 
     // Clear the setup token from Redis after successful transaction
     await this.redis.del(this.SETUP_TOKEN_KEY);

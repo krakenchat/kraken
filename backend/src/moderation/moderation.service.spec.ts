@@ -6,6 +6,7 @@ import { DatabaseService } from '@/database/database.service';
 import { RolesService } from '@/roles/roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import {
   ForbiddenException,
   NotFoundException,
@@ -28,6 +29,7 @@ describe('ModerationService', () => {
   let membershipService: Mocked<MembershipService>;
   let websocketService: Mocked<WebsocketService>;
   let eventEmitter: Mocked<EventEmitter2>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   const moderatorId = 'moderator-123';
   const userId = 'user-456';
@@ -48,6 +50,7 @@ describe('ModerationService', () => {
     membershipService = unitRef.get(MembershipService);
     websocketService = unitRef.get(WebsocketService);
     eventEmitter = unitRef.get(EventEmitter2);
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
 
     // Default: user lookups return empty (enrichment queries)
     mockDatabase.user.findMany.mockResolvedValue([]);
@@ -267,6 +270,12 @@ describe('ModerationService', () => {
         expect.any(String),
         expect.objectContaining({ communityId, userId }),
       );
+      // removeMemberInternal removes role assignments via a raw
+      // tx.userRoles.deleteMany, bypassing RolesService — banUser must
+      // bump the target user's epoch explicitly.
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        userId,
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower rank (higher position number)', async () => {
@@ -278,6 +287,7 @@ describe('ModerationService', () => {
       await expect(
         service.banUser(communityId, userId, moderatorId, 'spam'),
       ).rejects.toThrow(ForbiddenException);
+      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when user is not a member', async () => {
@@ -461,6 +471,12 @@ describe('ModerationService', () => {
         expect.any(String),
         expect.objectContaining({ communityId, userId }),
       );
+      // removeMemberInternal removes role assignments via a raw
+      // tx.userRoles.deleteMany, bypassing RolesService — kickUser must
+      // bump the target user's epoch explicitly.
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        userId,
+      );
     });
 
     it('should throw ForbiddenException when moderator has lower rank (higher position number)', async () => {
@@ -472,6 +488,7 @@ describe('ModerationService', () => {
       await expect(
         service.kickUser(communityId, userId, moderatorId, 'rule violation'),
       ).rejects.toThrow(ForbiddenException);
+      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
     });
   });
 
@@ -508,6 +525,10 @@ describe('ModerationService', () => {
         expect.any(String),
         expect.objectContaining({ communityId, userId }),
       );
+      // Timeouts don't touch UserRoles/Role and aren't consulted by
+      // PermissionsService — no epoch bump is expected.
+      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
+      expect(permissionsCacheService.bumpCommunityEpoch).not.toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException when moderator has lower rank (higher position number)', async () => {

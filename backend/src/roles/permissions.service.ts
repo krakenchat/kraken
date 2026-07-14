@@ -2,18 +2,67 @@ import { RbacResourceType } from '@/auth/rbac-resource.decorator';
 import { DatabaseService } from '@/database/database.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { RbacActions } from '@prisma/client';
+import {
+  PermissionScope,
+  PermissionsCacheService,
+} from './permissions-cache.service';
 
 /**
  * RBAC permission verification (hot path — runs on every guarded request).
  *
  * Extracted from RolesService so that verification is separate from role
  * management (CRUD, default-role setup), which remains in RolesService.
+ *
+ * The two `userRoles.findMany` lookups (instance-level and community-level)
+ * are cached via PermissionsCacheService — see that service's doc comment
+ * for the epoch-based invalidation design. Every other lookup in this file
+ * (channel/message/DM/alias-group resolution, private-channel and DM
+ * membership checks) stays on the direct DB path: those are either cheap
+ * primary-key lookups or correctness-sensitive membership checks that the
+ * cache design intentionally excludes.
  */
 @Injectable()
 export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly permissionsCacheService: PermissionsCacheService,
+  ) {}
+
+  /**
+   * Resolves the flattened `actions` for a user/scope, consulting the cache
+   * first. On a cache hit, `dbQuery` is never called. On a miss, `dbQuery`
+   * runs and — unless the cache was unavailable — the result is written
+   * back under the epochs captured at miss time.
+   */
+  private async resolveActions(
+    userId: string,
+    scope: PermissionScope,
+    dbQuery: () => Promise<RbacActions[]>,
+  ): Promise<RbacActions[]> {
+    const cacheResult = await this.permissionsCacheService.getCachedActions(
+      userId,
+      scope,
+    );
+
+    if (cacheResult.status === 'hit') {
+      return cacheResult.actions;
+    }
+
+    const actions = await dbQuery();
+
+    if (cacheResult.status === 'miss') {
+      await this.permissionsCacheService.setCachedActions(
+        userId,
+        scope,
+        cacheResult.epochs,
+        actions,
+      );
+    }
+
+    return actions;
+  }
 
   async verifyActionsForUserAndResource(
     userId: string,
@@ -26,18 +75,25 @@ export class PermissionsService {
       resourceId === undefined ||
       resourceType === RbacResourceType.INSTANCE
     ) {
-      const userRoles = await this.databaseService.userRoles.findMany({
-        where: {
-          userId,
-          isInstanceRole: true,
-        },
-        include: {
-          role: true,
-        },
-      });
+      const allActions = await this.resolveActions(
+        userId,
+        { kind: 'instance' },
+        async () => {
+          const userRoles = await this.databaseService.userRoles.findMany({
+            where: {
+              userId,
+              isInstanceRole: true,
+            },
+            include: {
+              role: true,
+            },
+          });
 
-      const roles = userRoles.map((ur) => ur.role);
-      const allActions = roles.flatMap((role) => role.actions);
+          const roles = userRoles.map((ur) => ur.role);
+          return roles.flatMap((role) => role.actions);
+        },
+      );
+
       return action.every((a) => allActions.includes(a));
     }
 
@@ -176,19 +232,25 @@ export class PermissionsService {
     }
 
     // Check user roles in the resolved community
-    const userRoles = await this.databaseService.userRoles.findMany({
-      where: {
-        userId,
-        communityId,
-        isInstanceRole: false,
-      },
-      include: {
-        role: true,
-      },
-    });
+    const allActions = await this.resolveActions(
+      userId,
+      { kind: 'community', communityId },
+      async () => {
+        const userRoles = await this.databaseService.userRoles.findMany({
+          where: {
+            userId,
+            communityId,
+            isInstanceRole: false,
+          },
+          include: {
+            role: true,
+          },
+        });
 
-    const roles = userRoles.map((ur) => ur.role);
-    const allActions = roles.flatMap((role) => role.actions);
+        const roles = userRoles.map((ur) => ur.role);
+        return roles.flatMap((role) => role.actions);
+      },
+    );
 
     // Check if the user has all the required actions
     return action.every((a) => allActions.includes(a));

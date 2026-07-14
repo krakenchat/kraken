@@ -4,6 +4,7 @@ import { CommunityService } from './community.service';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
 import { RolesService } from '@/roles/roles.service';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   createMockDatabase,
@@ -16,6 +17,7 @@ describe('CommunityService', () => {
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let channelsService: Mocked<ChannelsService>;
   let rolesService: Mocked<RolesService>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -28,6 +30,7 @@ describe('CommunityService', () => {
     service = unit;
     channelsService = unitRef.get(ChannelsService);
     rolesService = unitRef.get(RolesService);
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
 
   afterEach(() => {
@@ -87,13 +90,104 @@ describe('CommunityService', () => {
       expect(rolesService.createDefaultCommunityRoles).toHaveBeenCalledWith(
         community.id,
         mockDatabase,
+        expect.any(Array),
       );
       expect(rolesService.assignUserToCommunityRole).toHaveBeenCalledWith(
         user.id,
         community.id,
         'admin-role-id',
         mockDatabase,
+        expect.any(Array),
       );
+    });
+
+    it('flushes deferred epoch bumps only after the transaction commits', async () => {
+      const user = UserFactory.build();
+      const community = CommunityFactory.build();
+      const createDto = {
+        name: 'Test Community',
+        description: null,
+        avatar: null,
+        banner: null,
+      } as any;
+
+      const order: string[] = [];
+
+      mockDatabase.community.create.mockResolvedValue(community);
+      mockDatabase.membership.create.mockResolvedValue({});
+      channelsService.createDefaultGeneralChannel.mockResolvedValue({} as any);
+
+      // The (mocked) tx-nested role mutations record their bumps on the
+      // collector the service passes in, exactly like the real ones do.
+      rolesService.createDefaultCommunityRoles.mockImplementation(((
+        _id: string,
+        _tx: unknown,
+        bumps: any[],
+      ) => {
+        bumps.push({ kind: 'community', communityId: community.id });
+        return Promise.resolve('admin-role-id');
+      }) as any);
+      rolesService.assignUserToCommunityRole.mockImplementation(((
+        userId: string,
+        _communityId: string,
+        _roleId: string,
+        _tx: unknown,
+        bumps: any[],
+      ) => {
+        bumps.push({ kind: 'user', userId });
+        return Promise.resolve();
+      }) as any);
+
+      mockDatabase.$transaction.mockImplementation(async (cb: any) => {
+        const result = await cb(mockDatabase);
+        order.push('commit');
+        return result;
+      });
+      permissionsCacheService.executeBumps.mockImplementation(() => {
+        order.push('flush-bumps');
+        return Promise.resolve();
+      });
+
+      const result = await service.create(createDto, user.id);
+
+      expect(result).toEqual(community);
+      // Bumps must flush strictly AFTER the transaction resolves (commit).
+      expect(order).toEqual(['commit', 'flush-bumps']);
+      expect(permissionsCacheService.executeBumps).toHaveBeenCalledWith([
+        { kind: 'community', communityId: community.id },
+        { kind: 'user', userId: user.id },
+      ]);
+      // No direct bumps during the transaction.
+      expect(permissionsCacheService.bumpCommunityEpoch).not.toHaveBeenCalled();
+      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
+    });
+
+    it('does not flush epoch bumps when the transaction rolls back', async () => {
+      const user = UserFactory.build();
+      const community = CommunityFactory.build();
+      const createDto = {
+        name: 'Test Community',
+        description: null,
+        avatar: null,
+        banner: null,
+      } as any;
+
+      mockDatabase.community.create.mockResolvedValue(community);
+      mockDatabase.membership.create.mockResolvedValue({});
+      channelsService.createDefaultGeneralChannel.mockResolvedValue({} as any);
+      rolesService.createDefaultCommunityRoles.mockResolvedValue(
+        'admin-role-id' as any,
+      );
+      // Fails after the role mutations would have collected bumps.
+      rolesService.assignUserToCommunityRole.mockRejectedValue(
+        new Error('assignment failed'),
+      );
+
+      await expect(service.create(createDto, user.id)).rejects.toThrow(
+        'assignment failed',
+      );
+
+      expect(permissionsCacheService.executeBumps).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException for duplicate community name', async () => {
@@ -457,6 +551,12 @@ describe('CommunityService', () => {
       expect(mockDatabase.community.delete).toHaveBeenCalledWith({
         where: { id: community.id },
       });
+      // Role definitions and assignments were removed via raw
+      // tx.role.deleteMany / tx.userRoles.deleteMany above, bypassing
+      // RolesService — remove() must bump the community epoch explicitly.
+      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
+        community.id,
+      );
     });
 
     it('should throw NotFoundException when community not found', async () => {
@@ -468,6 +568,7 @@ describe('CommunityService', () => {
       await expect(service.remove('nonexistent')).rejects.toThrow(
         'Community not found',
       );
+      expect(permissionsCacheService.bumpCommunityEpoch).not.toHaveBeenCalled();
     });
   });
 });

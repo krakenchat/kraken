@@ -5,6 +5,7 @@ import { MembershipService } from './membership.service';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
@@ -24,6 +25,7 @@ describe('MembershipService', () => {
   let communityService: Mocked<CommunityService>;
   let rolesService: Mocked<RolesService>;
   let eventEmitter: Mocked<EventEmitter2>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();
@@ -37,6 +39,7 @@ describe('MembershipService', () => {
     communityService = unitRef.get(CommunityService);
     rolesService = unitRef.get(RolesService);
     eventEmitter = unitRef.get(EventEmitter2);
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
 
   afterEach(() => {
@@ -628,6 +631,11 @@ describe('MembershipService', () => {
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         RoomEvents.MEMBERSHIP_REMOVED,
         { userId: user.id, communityId: community.id },
+      );
+      // Role assignments were removed via the raw tx.userRoles.deleteMany
+      // above, which bypasses RolesService — remove() must bump explicitly.
+      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
+        user.id,
       );
     });
 

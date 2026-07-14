@@ -14,6 +14,7 @@ import { RolesService } from '@/roles/roles.service';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import { RoomEvents } from '@/rooms/room-subscription.events';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 
 @Injectable()
 export class MembershipService {
@@ -24,6 +25,7 @@ export class MembershipService {
     private readonly communityService: CommunityService,
     private readonly rolesService: RolesService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
 
   async create(
@@ -298,6 +300,11 @@ export class MembershipService {
           },
         });
       });
+
+      // Role assignments were removed via the raw tx.userRoles.deleteMany
+      // above (bypasses RolesService, so it doesn't self-bump) — invalidate
+      // this user's cached permissions now that the transaction committed.
+      await this.permissionsCacheService.bumpUserEpoch(userId);
 
       // Emit domain event — the RoomSubscriptionHandler will remove sockets
       this.eventEmitter.emit(RoomEvents.MEMBERSHIP_REMOVED, {

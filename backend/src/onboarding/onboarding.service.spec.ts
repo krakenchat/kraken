@@ -3,6 +3,7 @@ import { OnboardingService } from './onboarding.service';
 import { DatabaseService } from '@/database/database.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import { RolesService } from '@/roles/roles.service';
+import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import { ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import {
@@ -28,6 +29,7 @@ describe('OnboardingService', () => {
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let mockRedis: ReturnType<typeof createMockRedis>;
   let rolesService: Mocked<RolesService>;
+  let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
@@ -47,7 +49,7 @@ describe('OnboardingService', () => {
         .mockResolvedValue('mock-community-creator-role-id'),
     };
 
-    const { unit } = await TestBed.solitary(OnboardingService)
+    const { unit, unitRef } = await TestBed.solitary(OnboardingService)
       .mock(DatabaseService)
       .final(mockDatabase)
       .mock(REDIS_CLIENT)
@@ -58,6 +60,7 @@ describe('OnboardingService', () => {
 
     service = unit;
     rolesService = mockRolesService as unknown as Mocked<RolesService>;
+    permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
 
   afterEach(() => {
@@ -376,6 +379,86 @@ describe('OnboardingService', () => {
       );
 
       expect(result.adminUser.username).toBe('admin');
+    });
+
+    it('flushes deferred epoch bumps only after the transaction commits', async () => {
+      const order: string[] = [];
+      const dto: SetupInstanceDto = {
+        ...validSetupDto,
+        createDefaultCommunity: false,
+      };
+
+      mockDatabase.$transaction.mockImplementation(async (callback: any) => {
+        const mockTx = createMockDatabase();
+        mockTx.user.create.mockResolvedValue(mockAdmin);
+        mockTx.instanceInvite.create.mockResolvedValue(mockInvite);
+        const result = await callback(mockTx);
+        order.push('commit');
+        return result;
+      });
+
+      // The (mocked) tx-nested role mutations record their bumps on the
+      // collector the service passes in, like the real implementations do.
+      rolesService.createDefaultInstanceRole.mockImplementation(((
+        _tx: unknown,
+        bumps: any[],
+      ) => {
+        bumps.push({ kind: 'instance' });
+        return Promise.resolve('mock-instance-admin-role-id');
+      }) as any);
+      rolesService.assignUserToInstanceRole.mockImplementation(((
+        userId: string,
+        _roleId: string,
+        _tx: unknown,
+        bumps: any[],
+      ) => {
+        bumps.push({ kind: 'user', userId });
+        return Promise.resolve();
+      }) as any);
+      rolesService.createDefaultCommunityCreatorRole.mockImplementation(((
+        _tx: unknown,
+        bumps: any[],
+      ) => {
+        bumps.push({ kind: 'instance' });
+        return Promise.resolve('mock-community-creator-role-id');
+      }) as any);
+      permissionsCacheService.executeBumps.mockImplementation(() => {
+        order.push('flush-bumps');
+        return Promise.resolve();
+      });
+
+      await service.completeSetup(dto, 'valid-token');
+
+      // Bumps must flush strictly AFTER the transaction resolves (commit).
+      expect(order).toEqual(['commit', 'flush-bumps']);
+      expect(permissionsCacheService.executeBumps).toHaveBeenCalledWith([
+        { kind: 'instance' },
+        { kind: 'user', userId: mockAdmin.id },
+        { kind: 'instance' },
+      ]);
+    });
+
+    it('does not flush epoch bumps when the setup transaction rolls back', async () => {
+      const dto: SetupInstanceDto = {
+        ...validSetupDto,
+        createDefaultCommunity: false,
+      };
+
+      mockDatabase.$transaction.mockImplementation((callback: any) => {
+        const mockTx = createMockDatabase();
+        mockTx.user.create.mockResolvedValue(mockAdmin);
+        mockTx.instanceInvite.create.mockResolvedValue(mockInvite);
+        return callback(mockTx);
+      });
+      rolesService.createDefaultInstanceRole.mockRejectedValue(
+        new Error('instance role creation failed'),
+      );
+
+      await expect(service.completeSetup(dto, 'valid-token')).rejects.toThrow(
+        'instance role creation failed',
+      );
+
+      expect(permissionsCacheService.executeBumps).not.toHaveBeenCalled();
     });
 
     it('should use default community name if not provided', async () => {
