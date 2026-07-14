@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import MessageComponent from '../../components/Message/MessageComponent';
 import { createMessage } from '../test-utils/factories';
@@ -118,6 +118,45 @@ describe('MessageComponent optimistic states (PR-13)', () => {
 
     await user.click(deleteButton);
     expect(mockRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not warn about setting state on an unmounted component when unmounted mid-retry (Minor 4, fix round 1)', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let resolveRetry: (() => void) | undefined;
+    mockRetry.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveRetry = resolve;
+      }),
+    );
+
+    const message = createMessage({
+      id: 'pending-3',
+      clientId: 'pending-3',
+      sendStatus: 'failed',
+      authorId: 'user-1',
+      spans: [{ type: SpanType.PLAINTEXT, text: 'oops' }],
+    });
+
+    const { user, unmount } = renderWithProviders(<MessageComponent message={message} isAuthor />);
+    const retryButton = screen.getByRole('button', { name: 'Retry sending message' });
+
+    await user.click(retryButton);
+    expect(mockRetry).toHaveBeenCalledTimes(1);
+
+    // Unmount while the retry promise is still pending, then resolve it —
+    // the finally-block's setIsRetrying(false) must be skipped (guarded by
+    // the mounted ref), not fire on an unmounted component.
+    unmount();
+    await act(async () => {
+      resolveRetry!();
+      await Promise.resolve();
+    });
+
+    const unmountedStateWarning = consoleError.mock.calls.some(call =>
+      String(call[0]).includes("Can't perform a React state update on an unmounted component"),
+    );
+    expect(unmountedStateWarning).toBe(false);
+    consoleError.mockRestore();
   });
 
   it('renders a settled (real) message with no pending/failed chrome', () => {

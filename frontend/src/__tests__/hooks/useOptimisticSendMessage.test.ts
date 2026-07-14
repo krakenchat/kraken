@@ -132,10 +132,18 @@ describe('useOptimisticSendMessage', () => {
       expect(messages[0].id).toBe('real-1');
       expect(messages[0].sendStatus).toBeUndefined();
 
-      // Step 3: WS echo arrives after — must be a no-op (dedupe by id), never a duplicate.
+      // Step 3: WS echo arrives after — id already present, so it MERGES into
+      // the promoted row (id match) rather than duplicating it.
       await act(async () => {
         await handleNewMessage(
-          { message: createMessage({ id: 'real-1', channelId: 'ch-1', authorId: 'me' }) as never },
+          {
+            message: createMessage({
+              id: 'real-1',
+              channelId: 'ch-1',
+              authorId: 'me',
+              spans: payload().spans,
+            }) as never,
+          },
           queryClient,
         );
       });
@@ -162,10 +170,18 @@ describe('useOptimisticSendMessage', () => {
       expect(cacheMessages()).toHaveLength(1);
       expect(cacheMessages()[0].sendStatus).toBe('pending');
 
-      // Step 2: WS echo arrives first — reconciles the optimistic row in place.
+      // Step 2: WS echo arrives first — reconciles the optimistic row in place
+      // (content-matches the pending row's spans, per the correlation rule).
       await act(async () => {
         await handleNewMessage(
-          { message: createMessage({ id: 'real-1', channelId: 'ch-1', authorId: 'me' }) as never },
+          {
+            message: createMessage({
+              id: 'real-1',
+              channelId: 'ch-1',
+              authorId: 'me',
+              spans: payload().spans,
+            }) as never,
+          },
           queryClient,
         );
       });
@@ -205,7 +221,14 @@ describe('useOptimisticSendMessage', () => {
 
         const echo = () =>
           handleNewMessage(
-            { message: createMessage({ id: 'real-1', channelId: 'ch-1', authorId: 'me' }) as never },
+            {
+              message: createMessage({
+                id: 'real-1',
+                channelId: 'ch-1',
+                authorId: 'me',
+                spans: payload().spans,
+              }) as never,
+            },
             qc,
           );
 
@@ -239,6 +262,98 @@ describe('useOptimisticSendMessage', () => {
       expect(ackFirstResult[0].id).toBe(echoFirstResult[0].id);
       expect(ackFirstResult[0].sendStatus).toBeUndefined();
       expect(echoFirstResult[0].sendStatus).toBeUndefined();
+    });
+
+    it('ack-first enrichment (fix round 1, Important 2): a later echo with resolved replyTo MERGES into the row instead of being dropped', async () => {
+      let ack: ((id: string) => void) | undefined;
+      mockSocket.emit.mockImplementation((_event, _p, ackFn) => {
+        ack = ackFn as (id: string) => void;
+      });
+      const { result } = renderHook(() => useOptimisticSendMessage(VoiceSessionType.Channel, 'ch-1'), {
+        wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
+      });
+
+      let sendPromise!: Promise<SendMessageResult>;
+      act(() => {
+        sendPromise = result.current.sendMessage(payload());
+      });
+
+      // Ack-first: promotes the row to the real id using only locally-known content.
+      await act(async () => {
+        ack!('real-1');
+        await sendPromise;
+      });
+      let messages = cacheMessages();
+      expect(messages).toHaveLength(1);
+      expect(messages[0].id).toBe('real-1');
+      expect((messages[0] as unknown as { replyTo?: unknown }).replyTo).toBeUndefined();
+
+      // The echo arrives after, carrying richer, server-resolved content
+      // that the ack alone never had (e.g. a resolved replyTo object).
+      await act(async () => {
+        await handleNewMessage(
+          {
+            message: createMessage({
+              id: 'real-1',
+              channelId: 'ch-1',
+              authorId: 'me',
+              spans: payload().spans,
+              replyToId: 'parent-1',
+              replyTo: { id: 'parent-1', authorId: 'other', spans: [], deletedAt: null } as never,
+            }) as never,
+          },
+          queryClient,
+        );
+      });
+
+      messages = cacheMessages();
+      expect(messages).toHaveLength(1);
+      expect(messages[0].id).toBe('real-1');
+      // The enrichment landed — it's no longer discarded as a no-op dedupe.
+      expect((messages[0] as unknown as { replyTo?: { id: string } }).replyTo).toMatchObject({ id: 'parent-1' });
+    });
+  });
+
+  describe('concurrency guard (fix round 1, Important 3)', () => {
+    it('a second concurrent retry for the same clientId no-ops instead of firing a duplicate send', async () => {
+      const failed = createMessage({
+        id: 'pending-xyz',
+        clientId: 'pending-xyz',
+        sendStatus: 'failed',
+        channelId: 'ch-1',
+        authorId: 'me',
+      });
+      queryClient.setQueryData(queryKey, createInfiniteData([failed]));
+
+      let resolveAck: ((id: string) => void) | undefined;
+      const ackPromise = new Promise<string>((resolve) => {
+        resolveAck = resolve;
+      });
+      mockSocket.emit.mockImplementation((_event, _p, ackFn) => {
+        void ackPromise.then((id) => (ackFn as (id: string) => void)(id));
+      });
+
+      const { result } = renderHook(() => useOptimisticMessageRetry(failed), {
+        wrapper: createTestWrapper({ queryClient, socket: mockSocket }),
+      });
+
+      let firstRetry!: Promise<void>;
+      let secondRetry!: Promise<void>;
+      act(() => {
+        firstRetry = result.current.retry();
+        secondRetry = result.current.retry();
+      });
+
+      await act(async () => {
+        resolveAck!('real-1');
+        await Promise.all([firstRetry, secondRetry]);
+      });
+
+      // Only one socket.emit — the second concurrent retry() call was a no-op.
+      expect(mockSocket.emit).toHaveBeenCalledTimes(1);
+      const messages = cacheMessages();
+      expect(messages).toHaveLength(1);
+      expect(messages[0].id).toBe('real-1');
     });
   });
 

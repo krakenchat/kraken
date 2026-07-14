@@ -21,13 +21,25 @@ interface OptimisticMessageActionsProps {
 export const OptimisticMessageActions: React.FC<OptimisticMessageActionsProps> = ({ message }) => {
   const { retry, remove } = useOptimisticMessageRetry(message);
   const [isRetrying, setIsRetrying] = React.useState(false);
+  // Guards the finally-block setState below: `retry` awaits a socket
+  // round-trip (up to the 10s send timeout), and this row can unmount
+  // before that settles (e.g. the message list re-renders past it, or the
+  // whole view is torn down). Without this, React warns about a state
+  // update on an unmounted component.
+  const mountedRef = React.useRef(true);
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleRetry = async () => {
     setIsRetrying(true);
     try {
       await retry();
     } finally {
-      setIsRetrying(false);
+      if (mountedRef.current) setIsRetrying(false);
     }
   };
 

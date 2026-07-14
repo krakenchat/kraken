@@ -39,11 +39,13 @@ function queryKeyFor(contextType: MessageContext, contextId: string): MessageQue
  * - success + the real id is NOT in the cache yet (ack beat the echo):
  *   promote the optimistic row in place to the real id (best-effort — we
  *   only have `messageId` from the ack, not the full enriched message, so
- *   this keeps our own locally-known content). When the echo arrives after,
- *   `prependMessageToInfinite`'s dedupe-by-id sees the id already present
- *   and no-ops — a documented v1 tradeoff: any content the echo would have
- *   added (e.g. resolved link previews) won't retroactively populate this
- *   row until the next update.
+ *   this keeps our own locally-known content). `clientId` is intentionally
+ *   KEPT (not cleared) on the promoted row so it keeps a stable React key
+ *   across the id swap (see VirtualMessageList's row keying). When the echo
+ *   arrives after, `prependOrReconcileOptimistic`'s id-match branch now
+ *   MERGES the echo into this row instead of no-op'ing on the id-already-
+ *   present check — so any richer content the echo carries (e.g. a resolved
+ *   `replyTo`) still lands (fix round 1; previously permanently dropped).
  * - failure: mark 'failed' for the retry/delete UI.
  *
  * This is a no-op against a clientId that's already gone (the echo-first
@@ -67,13 +69,31 @@ function reconcileAfterSend(
         ...optimisticMessage,
         id: result.messageId,
         sendStatus: undefined,
-        clientId: undefined,
       };
       return replaceOptimisticMessage(typedOld, clientId, promoted);
     }
     return markOptimisticFailed(typedOld, clientId);
   });
 }
+
+/**
+ * Module-level in-flight guard (fix round 1, Important 3): prevents a
+ * second submit for the SAME optimistic row's clientId from racing a send
+ * that's already outstanding — e.g. a double-clicked Retry button, or Retry
+ * firing while the original send is still in flight. Consulted by both
+ * `sendMessage` and `retry` so they see each other's in-flight state
+ * (retry runs in a different hook instance than the composer's send).
+ *
+ * This does NOT prevent multiple DIFFERENT optimistic rows from being in
+ * flight concurrently for the same author (composer send + a retry of an
+ * older failed row, or two sequential composer sends) — that's expected
+ * and handled by the content-based echo correlation in
+ * `prependOrReconcileOptimistic`, not by this guard.
+ *
+ * Module-level (not component/hook-instance state) because it must be
+ * shared across every hook instance that could touch the same clientId.
+ */
+const inFlightClientIds = new Set<string>();
 
 export interface UseOptimisticSendMessageResult {
   sendMessage: (payload: NewMessagePayload) => Promise<SendMessageResult>;
@@ -140,14 +160,40 @@ export function useOptimisticSendMessage(
         prependMessageToInfinite(old as never, optimisticMessage),
       );
 
-      const result = await rawSendMessage(payload);
-      reconcileAfterSend(queryClient, queryKey, clientId, optimisticMessage, result);
-      return result;
+      inFlightClientIds.add(clientId);
+      try {
+        const result = await rawSendMessage(payload);
+        reconcileAfterSend(queryClient, queryKey, clientId, optimisticMessage, result);
+        return result;
+      } finally {
+        inFlightClientIds.delete(clientId);
+      }
     },
     [queryClient, queryKey, currentUser, rawSendMessage],
   );
 
   return { sendMessage, canSend };
+}
+
+/**
+ * Builds the wire payload for a retry from an explicit field allowlist —
+ * NOT destructure-and-spread of the cached `Message` — so a future
+ * cache-only field added to `Message` (alongside `sendStatus`/`clientId`)
+ * can't silently leak onto the wire just by existing on the object. Mirrors
+ * the fields useMessageFileUpload's handleSendMessage builds for the
+ * original (non-attachment) send.
+ */
+function buildRetryPayload(message: Message, sentAt: string): NewMessagePayload {
+  return {
+    ...(message.channelId ? { channelId: message.channelId } : {}),
+    ...(message.directMessageGroupId ? { directMessageGroupId: message.directMessageGroupId } : {}),
+    authorId: message.authorId,
+    spans: message.spans,
+    attachments: message.attachments,
+    reactions: message.reactions,
+    sentAt,
+    ...(message.replyToId ? { replyToId: message.replyToId } : {}),
+  };
 }
 
 export interface UseOptimisticMessageRetryResult {
@@ -174,16 +220,23 @@ export function useOptimisticMessageRetry(message: Message): UseOptimisticMessag
   const retry = useCallback(async () => {
     const clientId = message.clientId;
     if (!clientId) return;
+    // Guard: a retry already in flight for this clientId (e.g. double-clicked
+    // Retry) no-ops rather than firing a second concurrent send.
+    if (inFlightClientIds.has(clientId)) return;
 
-    const { id: _id, sendStatus: _status, clientId: _clientId, ...rest } = message;
     const sentAt = new Date().toISOString();
-    const retryPayload: NewMessagePayload = { ...rest, sentAt };
+    const retryPayload = buildRetryPayload(message, sentAt);
     const optimisticMessage: Message = { ...message, sentAt, sendStatus: "pending" };
 
     queryClient.setQueryData(queryKey, (old: unknown) => markOptimisticPending(old as never, clientId));
 
-    const result = await rawSendMessage(retryPayload);
-    reconcileAfterSend(queryClient, queryKey, clientId, optimisticMessage, result);
+    inFlightClientIds.add(clientId);
+    try {
+      const result = await rawSendMessage(retryPayload);
+      reconcileAfterSend(queryClient, queryKey, clientId, optimisticMessage, result);
+    } finally {
+      inFlightClientIds.delete(clientId);
+    }
   }, [message, queryClient, queryKey, rawSendMessage]);
 
   const remove = useCallback(() => {
