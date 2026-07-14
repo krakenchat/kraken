@@ -33,6 +33,17 @@ export class FileUploadService {
     createFileUploadDto: CreateFileUploadDto,
     user: UserEntity,
   ) {
+    // The active default storage type decides where this NEW upload lands.
+    // Existing records keep whatever storageType they were created with —
+    // resolved per-record everywhere else (serve, delete, backfill).
+    const storageType = this.storageService.getDefaultStorageType();
+    // For LOCAL, multer already wrote the final storage location at
+    // file.path — the object key IS that path (zero-copy, unchanged
+    // behavior). For S3, multer's write is just local staging; the object
+    // key is the bare multer-generated filename and the bytes get streamed
+    // up below before the DB record is created.
+    let objectKey = file.path;
+
     try {
       // Check storage quota before processing
       const quotaCheck = await this.storageQuotaService.canUploadFile(
@@ -62,11 +73,31 @@ export class FileUploadService {
         );
       }
 
-      // Generate checksum
+      // Generate checksum (streamed — never buffers the whole file)
       const checksum = await this.generateChecksum(file.path);
 
       // Determine file type from MIME type
       const fileType = this.getFileTypeFromMimeType(file.mimetype);
+
+      // For S3, stream the staged tmp file up to the bucket now, before
+      // creating the DB record — a failed upload must never produce an
+      // orphan row. The local tmp file stays put: video thumbnailing (below)
+      // still needs a local path for ffmpeg, so it's cleaned up afterwards.
+      if (storageType === StorageType.S3) {
+        objectKey = file.filename;
+        try {
+          const provider = this.storageService.getProvider(StorageType.S3);
+          await provider.writeStream(
+            objectKey,
+            this.storageService.createReadStream(file.path),
+            { contentType: file.mimetype },
+          );
+        } catch (uploadError) {
+          await this.cleanupFile(file.path);
+          this.logger.error(`Failed to upload file to S3: ${uploadError}`);
+          throw uploadError;
+        }
+      }
 
       // Create database record
       try {
@@ -84,8 +115,8 @@ export class FileUploadService {
             size: file.size,
             checksum,
             uploadedById: user.id,
-            storageType: StorageType.LOCAL,
-            storagePath: file.path,
+            storageType,
+            storagePath: objectKey,
           },
         });
 
@@ -97,14 +128,29 @@ export class FileUploadService {
         // Failure is non-fatal — the upload succeeds without a thumbnail.
         const finalRecord =
           fileType === FileType.VIDEO
-            ? ((await this.generateThumbnail(file.path, fileRecord.id)) ??
-              fileRecord)
+            ? ((await this.generateThumbnail(
+                file.path,
+                fileRecord.id,
+                storageType,
+              )) ?? fileRecord)
             : fileRecord;
+
+        // The local tmp copy is only scratch space for S3 uploads (ffmpeg
+        // thumbnailing needed it above) — safe to remove now. For LOCAL,
+        // file.path IS the permanent storage location and must never be
+        // deleted here.
+        if (storageType === StorageType.S3) {
+          await this.cleanupFile(file.path);
+        }
 
         return new FileUploadResponseDto(finalRecord);
       } catch (dbError) {
-        // If DB insert fails, clean up the file
+        // If DB insert fails, clean up the local tmp file and, if the
+        // object was already uploaded to S3, the now-orphaned remote copy.
         await this.cleanupFile(file.path);
+        if (storageType === StorageType.S3) {
+          await this.cleanupRemoteObject(objectKey);
+        }
         this.logger.error(`Database error during file upload: ${dbError}`);
         throw dbError;
       }
@@ -129,11 +175,16 @@ export class FileUploadService {
    *
    * @returns The updated file record, or null if generation failed
    */
-  private async generateThumbnail(filePath: string, fileId: string) {
+  private async generateThumbnail(
+    filePath: string,
+    fileId: string,
+    storageType: StorageType,
+  ) {
     try {
       const thumbnailPath = await this.thumbnailService.generateVideoThumbnail(
         filePath,
         fileId,
+        storageType,
       );
       if (!thumbnailPath) {
         return null;
@@ -147,6 +198,24 @@ export class FileUploadService {
         `Failed to generate thumbnail for file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
+    }
+  }
+
+  /**
+   * Best-effort cleanup of an S3 object orphaned by a failed DB insert
+   * (upload succeeded, but the record that would reference it never
+   * committed). Logged, never thrown — mirrors cleanupFile's non-fatal
+   * cleanup semantics.
+   */
+  private async cleanupRemoteObject(key: string): Promise<void> {
+    try {
+      const provider = this.storageService.getProvider(StorageType.S3);
+      await provider.deleteFile(key);
+      this.logger.debug(`Cleaned up orphaned S3 object: ${key}`);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to clean up orphaned S3 object ${key}: ${error}`,
+      );
     }
   }
 
@@ -167,7 +236,9 @@ export class FileUploadService {
   }
 
   /**
-   * Delete a file from disk
+   * Delete the local tmp file staged by multer. Always local — this never
+   * needs per-record provider resolution (it runs before any DB record, or
+   * S3 upload, exists).
    */
   private async cleanupFile(filePath: string): Promise<void> {
     try {
@@ -179,11 +250,16 @@ export class FileUploadService {
   }
 
   /**
-   * Generate SHA-256 checksum for a file
+   * Generate a SHA-256 checksum for a file by streaming it through the
+   * hash — never buffers the whole file into memory.
    */
   private async generateChecksum(filePath: string): Promise<string> {
-    const fileBuffer = await this.storageService.readFile(filePath);
-    return createHash('sha256').update(fileBuffer).digest('hex');
+    const hash = createHash('sha256');
+    const stream = this.storageService.createReadStream(filePath);
+    for await (const chunk of stream) {
+      hash.update(chunk as Buffer);
+    }
+    return hash.digest('hex');
   }
 
   /**

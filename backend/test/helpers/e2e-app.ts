@@ -14,6 +14,7 @@
 import {
   ClassSerializerInterceptor,
   INestApplication,
+  LoggerService,
   ValidationPipe,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -31,14 +32,24 @@ export type E2eApp = INestApplication<App>;
 /** Instance invite code seeded for registration in e2e flows. */
 export const E2E_INVITE_CODE = 'e2e-test-invite';
 
-export async function createE2eApp(): Promise<E2eApp> {
+export async function createE2eApp(options?: {
+  /**
+   * Override the app's Nest logger. Defaults to `false` (silenced) to keep
+   * test output readable — Nest boot logs are noisy. Pass a `LoggerService`
+   * (e.g. a capturing logger) when a suite needs to inspect service-level
+   * `Logger.warn`/`.error` calls that are normally swallowed by `false`,
+   * such as diagnosing a non-fatal background failure (thumbnail
+   * generation, etc.) that otherwise surfaces only as an opaque assertion
+   * failure.
+   */
+  logger?: LoggerService | false;
+}): Promise<E2eApp> {
   const moduleFixture = await Test.createTestingModule({
     imports: [AppModule],
   }).compile();
 
   const app: E2eApp = moduleFixture.createNestApplication({
-    // Keep test output readable — Nest boot logs are noisy.
-    logger: false,
+    logger: options?.logger ?? false,
   });
 
   // Mirror src/main.ts request pipeline.
@@ -57,16 +68,81 @@ export async function createE2eApp(): Promise<E2eApp> {
 }
 
 /**
+ * `LoggerService` that buffers every call instead of writing to stdout, so a
+ * failing e2e assertion can dump exactly what the app's `Logger.log/warn/
+ * error/debug/verbose` calls said right before the failure — most useful for
+ * diagnosing non-fatal background failures (e.g. thumbnail generation
+ * catching and logging an ffmpeg error, then returning null) that otherwise
+ * surface only as an opaque assertion failure with no indication of *why*
+ * the backend didn't do what was expected.
+ *
+ * Pass an instance to `createE2eApp({ logger })` in place of the default
+ * `false`, call `logger.clear()` before each test, and on catch print
+ * `logger.dump()` before rethrowing.
+ */
+export class CapturingLogger implements LoggerService {
+  private entries: string[] = [];
+
+  log(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('LOG', message, optionalParams);
+  }
+
+  error(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('ERROR', message, optionalParams);
+  }
+
+  warn(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('WARN', message, optionalParams);
+  }
+
+  debug(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('DEBUG', message, optionalParams);
+  }
+
+  verbose(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('VERBOSE', message, optionalParams);
+  }
+
+  clear(): void {
+    this.entries = [];
+  }
+
+  dump(): string {
+    return this.entries.length > 0
+      ? this.entries.join('\n')
+      : '(no backend log entries captured)';
+  }
+
+  private record(
+    level: string,
+    message: unknown,
+    optionalParams: unknown[],
+  ): void {
+    const rest = optionalParams
+      .map((p) => (typeof p === 'string' ? p : JSON.stringify(p)))
+      .join(' ');
+    const text =
+      typeof message === 'string' ? message : JSON.stringify(message);
+    this.entries.push(`[${level}] ${text}${rest ? ` ${rest}` : ''}`);
+  }
+}
+
+/**
  * Truncate every table in the public schema except _prisma_migrations.
  * Single TRUNCATE ... CASCADE statement — fast, and resets identity columns.
  * Afterwards re-seeds the default instance roles that RolesService creates
  * at boot, so the post-reset state matches a freshly-migrated instance.
  *
  * Destructive by design, so it refuses to run unless the database name in
- * DATABASE_URL contains "test" (CI provisions a dedicated `test` database)
- * or E2E_ALLOW_DB_RESET=1 is set explicitly. Local runs against the dev
- * compose database therefore need:
- *   docker compose run --rm -e E2E_ALLOW_DB_RESET=1 backend pnpm run test:e2e
+ * DATABASE_URL contains "test" (CI provisions a dedicated `test` database).
+ * There is deliberately NO override: an env-var escape hatch documented as
+ * the standard local command once wiped a developer's persistent dev
+ * database. Local runs must point DATABASE_URL at a dedicated test database
+ * instead, e.g.:
+ *   docker compose exec postgres createdb -U semaphore semaphore_e2e_local_test
+ *   docker compose run --rm \
+ *     -e DATABASE_URL=postgresql://semaphore:semaphore@postgres:5432/semaphore_e2e_local_test \
+ *     backend sh -c 'pnpm run prisma:migrate && pnpm run test:e2e'
  */
 export async function resetDatabase(app: E2eApp): Promise<void> {
   let dbName: string;
@@ -81,11 +157,12 @@ export async function resetDatabase(app: E2eApp): Promise<void> {
         'URL, so the target database cannot be identified.',
     );
   }
-  if (!/test/i.test(dbName) && process.env.E2E_ALLOW_DB_RESET !== '1') {
+  if (!/test/i.test(dbName)) {
     throw new Error(
       `resetDatabase() refused: DATABASE_URL points at "${dbName}", which ` +
-        'does not look like a test database. Set E2E_ALLOW_DB_RESET=1 to ' +
-        'wipe it anyway (this destroys all data).',
+        'does not look like a test database. There is no override — point ' +
+        'DATABASE_URL at a database whose name contains "test" (see the ' +
+        'resetDatabase doc comment for the local setup commands).',
     );
   }
 

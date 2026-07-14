@@ -1,11 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { promises as fs, createReadStream, ReadStream } from 'fs';
-import { join } from 'path';
+import {
+  promises as fs,
+  createReadStream,
+  createWriteStream,
+  ReadStream,
+} from 'fs';
+import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
+import { join, dirname } from 'path';
 import {
   IStorageProvider,
   FileStats,
   DeleteDirectoryOptions,
   ListFilesOptions,
+  WriteResult,
+  ReadRange,
 } from '../interfaces/storage-provider.interface';
 
 /**
@@ -13,6 +22,17 @@ import {
  *
  * Implements storage operations using Node.js filesystem (fs/promises).
  * This provider handles all direct disk operations.
+ *
+ * Implements `IStorageProvider` (the generic object-store contract used for
+ * `File` DB records) plus a local-only filesystem surface (ensureDirectory,
+ * directoryExists, deleteDirectory, listFiles, readFile, writeFile,
+ * deleteOldFiles, the synchronous createReadStream, resolvePath, and the
+ * *WithPrefix variants) that is NOT part of `IStorageProvider` — S3 has no
+ * directory concept. `StorageService` addresses that local-only surface
+ * directly (hard-pinned, independent of the configured default storage
+ * type) because it is used exclusively by the LiveKit replay/egress
+ * pipeline and thumbnail generation, both of which require a genuine local
+ * scratch filesystem regardless of where `File` records are stored.
  */
 @Injectable()
 export class LocalStorageProvider implements IStorageProvider {
@@ -225,6 +245,43 @@ export class LocalStorageProvider implements IStorageProvider {
   getFileUrl(path: string): Promise<string> {
     // For local storage, the path is the URL
     return Promise.resolve(path);
+  }
+
+  /**
+   * Streams `source` to `key` (a filesystem path for this provider).
+   * Ensures the parent directory exists, then pipes the stream directly to
+   * disk — never buffers the whole object in memory.
+   */
+  async writeStream(key: string, source: Readable): Promise<WriteResult> {
+    // `meta` (e.g. contentType) is part of the generic IStorageProvider
+    // contract for object-store backends but has no local-filesystem
+    // equivalent — content type is derived from the file at serve time,
+    // not stored alongside it. Callers may still pass it; it's ignored.
+    try {
+      await fs.mkdir(dirname(key), { recursive: true });
+      await pipeline(source, createWriteStream(key));
+      const stats = await fs.stat(key);
+      this.logger.debug(`Streamed write complete: ${key}`);
+      return { size: stats.size };
+    } catch (error) {
+      this.logger.error(`Failed to stream-write ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Returns a readable stream for `key`, optionally scoped to a byte range.
+   * Part of the generic IStorageProvider contract (object-store semantics);
+   * distinct from the local-only synchronous `createReadStream` above,
+   * which the LiveKit replay pipeline uses directly.
+   */
+  getReadStream(key: string, range?: ReadRange): Promise<Readable> {
+    return Promise.resolve(
+      createReadStream(
+        key,
+        range ? { start: range.start, end: range.end } : undefined,
+      ),
+    );
   }
 
   /**

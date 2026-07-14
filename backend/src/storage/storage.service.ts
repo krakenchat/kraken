@@ -1,7 +1,9 @@
 import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ReadStream } from 'fs';
+import { StorageType } from '@prisma/client';
 import { LocalStorageProvider } from './providers/local-storage.provider';
+import { S3StorageProvider } from './providers/s3-storage.provider';
 import {
   IStorageProvider,
   FileStats,
@@ -10,36 +12,59 @@ import {
 } from './interfaces/storage-provider.interface';
 
 /**
- * Storage Type Enumeration
- * Matches the StorageType in Prisma schema
+ * Storage Type re-export.
+ *
+ * IMPORTANT: this MUST be the same `StorageType` as the Prisma `File` model's
+ * `storageType` column (re-exported here, not redeclared) — per-record
+ * provider resolution passes `file.storageType` straight into
+ * `getProvider()`. A locally-redeclared enum with identical string values
+ * would still be a structurally-identical-but-nominally-distinct TS type,
+ * breaking that call at every File-record call site.
  */
-export enum StorageType {
-  LOCAL = 'LOCAL',
-  S3 = 'S3',
-  AZURE_BLOB = 'AZURE_BLOB',
-}
+export { StorageType };
 
 /**
  * Storage Service
  *
- * Main service for storage operations. Uses provider pattern to support
- * multiple storage backends (filesystem, S3, Azure Blob, etc.).
+ * Resolves the `IStorageProvider` (LOCAL or S3) appropriate for a given
+ * `File` DB record, and additionally exposes a local-only filesystem
+ * convenience surface used exclusively by the LiveKit replay/egress
+ * pipeline and thumbnail generation.
  *
- * Currently implements LOCAL storage only. Future providers can be added
- * by implementing IStorageProvider interface and updating getProvider().
+ * Two distinct usage patterns:
  *
- * @example
- * ```typescript
- * // Use default provider (LOCAL)
- * await this.storageService.ensureDirectory('/path/to/dir');
+ * 1. Per-record object-store operations (file upload/serve/delete/backfill):
+ *    ALWAYS resolve the provider explicitly for the record in hand —
+ *    `getProvider(file.storageType)` — never rely on the default. A mixed
+ *    local/S3 instance must keep serving old LOCAL rows correctly even
+ *    after STORAGE_TYPE is switched to S3 for new uploads.
  *
- * // Specify provider type explicitly
- * const provider = this.storageService.getProvider(StorageType.LOCAL);
- * await provider.deleteOldFiles('/path/to/dir', new Date());
- * ```
+ *      const provider = this.storageService.getProvider(file.storageType);
+ *      const stream = await provider.getReadStream(file.storagePath);
+ *
+ *    `getProvider()` with no argument resolves the *configured default*
+ *    (STORAGE_TYPE), which is the right choice exactly once: deciding where
+ *    a brand-new upload should land.
+ *
+ * 2. Local-only filesystem convenience methods (ensureDirectory,
+ *    directoryExists, deleteDirectory, listFiles, readFile, writeFile,
+ *    deleteOldFiles, createReadStream, resolvePath, the *WithPrefix
+ *    variants, and the segment-* helpers): these hard-delegate to
+ *    `LocalStorageProvider` directly, independent of STORAGE_TYPE. They
+ *    exist for the LiveKit replay/egress pipeline and ffmpeg thumbnail
+ *    generation, which require a genuine local scratch filesystem
+ *    regardless of where `File` records themselves are stored — S3 has no
+ *    directory concept, so these are intentionally NOT part of
+ *    `IStorageProvider` and are not affected by the configured default
+ *    storage type. `deleteFile`, `fileExists`, `getFileStats`, and
+ *    `getFileUrl` also have ambient (no-arg-type) convenience wrappers here
+ *    for the same reason — their only current ambient call sites (LiveKit
+ *    clip cleanup, ffmpeg temp-file stats) are inherently local-disk
+ *    operations. Any File-record call site MUST use `getProvider(type)`
+ *    explicitly instead of these ambient wrappers.
  */
 @Injectable()
-export class StorageService implements IStorageProvider {
+export class StorageService {
   private readonly logger = new Logger(StorageService.name);
   private readonly defaultStorageType: StorageType;
   private readonly segmentsPrefix: string;
@@ -47,7 +72,8 @@ export class StorageService implements IStorageProvider {
   constructor(
     private readonly configService: ConfigService,
     private readonly localStorageProvider: LocalStorageProvider,
-    // Future: inject S3Provider, AzureBlobProvider, etc.
+    private readonly s3StorageProvider: S3StorageProvider,
+    // Future: inject AzureBlobProvider, etc.
   ) {
     // Default to LOCAL storage, configurable via environment
     this.defaultStorageType =
@@ -66,8 +92,11 @@ export class StorageService implements IStorageProvider {
   }
 
   /**
-   * Gets the appropriate storage provider based on type
-   * @param type - Storage type (defaults to configured default)
+   * Gets the appropriate storage provider based on type.
+   * @param type - Storage type. ALWAYS pass the specific `File` record's
+   *   `storageType` for read/delete/backfill operations. Omit only to
+   *   resolve the configured default (i.e. where a brand-new upload
+   *   should land).
    * @returns Storage provider instance
    */
   getProvider(type?: StorageType): IStorageProvider {
@@ -78,10 +107,7 @@ export class StorageService implements IStorageProvider {
         return this.localStorageProvider;
 
       case StorageType.S3:
-        // Future: return this.s3Provider;
-        throw new NotImplementedException(
-          'S3 storage provider not yet implemented',
-        );
+        return this.s3StorageProvider;
 
       case StorageType.AZURE_BLOB:
         // Future: return this.azureBlobProvider;
@@ -97,72 +123,80 @@ export class StorageService implements IStorageProvider {
     }
   }
 
+  /**
+   * The configured default storage type (STORAGE_TYPE env var). Used to
+   * decide where a brand-new upload should land.
+   */
+  getDefaultStorageType(): StorageType {
+    return this.defaultStorageType;
+  }
+
   // ==========================================
-  // Convenience methods that delegate to the default provider
-  // These allow services to inject StorageService and call methods directly
-  // without needing to call getProvider() explicitly
+  // Local-only filesystem convenience methods
+  // Hard-pinned to LocalStorageProvider — see class doc. NOT affected by
+  // the configured default storage type.
   // ==========================================
 
   async ensureDirectory(path: string): Promise<void> {
-    return this.getProvider().ensureDirectory(path);
+    return this.localStorageProvider.ensureDirectory(path);
   }
 
   async directoryExists(path: string): Promise<boolean> {
-    return this.getProvider().directoryExists(path);
+    return this.localStorageProvider.directoryExists(path);
   }
 
   async deleteDirectory(
     path: string,
     options?: DeleteDirectoryOptions,
   ): Promise<void> {
-    return this.getProvider().deleteDirectory(path, options);
+    return this.localStorageProvider.deleteDirectory(path, options);
   }
 
   async deleteFile(path: string): Promise<void> {
-    return this.getProvider().deleteFile(path);
+    return this.localStorageProvider.deleteFile(path);
   }
 
   async fileExists(path: string): Promise<boolean> {
-    return this.getProvider().fileExists(path);
+    return this.localStorageProvider.fileExists(path);
   }
 
   async listFiles(
     dirPath: string,
     options?: ListFilesOptions,
   ): Promise<string[]> {
-    return this.getProvider().listFiles(dirPath, options);
+    return this.localStorageProvider.listFiles(dirPath, options);
   }
 
   async getFileStats(path: string): Promise<FileStats> {
-    return this.getProvider().getFileStats(path);
+    return this.localStorageProvider.getFileStats(path);
   }
 
   async readFile(path: string): Promise<Buffer> {
-    return this.getProvider().readFile(path);
+    return this.localStorageProvider.readFile(path);
   }
 
   async writeFile(path: string, data: Buffer | string): Promise<void> {
-    return this.getProvider().writeFile(path, data);
+    return this.localStorageProvider.writeFile(path, data);
   }
 
   async deleteOldFiles(dirPath: string, olderThan: Date): Promise<number> {
-    return this.getProvider().deleteOldFiles(dirPath, olderThan);
+    return this.localStorageProvider.deleteOldFiles(dirPath, olderThan);
   }
 
   createReadStream(path: string): ReadStream {
-    return this.getProvider().createReadStream(path);
+    return this.localStorageProvider.createReadStream(path);
   }
 
   async getFileUrl(path: string): Promise<string> {
-    return this.getProvider().getFileUrl(path);
+    return this.localStorageProvider.getFileUrl(path);
   }
 
   // ==========================================
-  // Prefix-aware delegation methods
+  // Prefix-aware delegation methods (local-only, see above)
   // ==========================================
 
   resolvePath(relativePath: string, prefix: string): string {
-    return this.getProvider().resolvePath(relativePath, prefix);
+    return this.localStorageProvider.resolvePath(relativePath, prefix);
   }
 
   async listFilesWithPrefix(
@@ -170,14 +204,18 @@ export class StorageService implements IStorageProvider {
     prefix: string,
     options?: ListFilesOptions,
   ): Promise<string[]> {
-    return this.getProvider().listFilesWithPrefix(relativeDir, prefix, options);
+    return this.localStorageProvider.listFilesWithPrefix(
+      relativeDir,
+      prefix,
+      options,
+    );
   }
 
   async readFileWithPrefix(
     relativePath: string,
     prefix: string,
   ): Promise<Buffer> {
-    return this.getProvider().readFileWithPrefix(relativePath, prefix);
+    return this.localStorageProvider.readFileWithPrefix(relativePath, prefix);
   }
 
   async deleteDirectoryWithPrefix(
@@ -185,7 +223,7 @@ export class StorageService implements IStorageProvider {
     prefix: string,
     options?: DeleteDirectoryOptions,
   ): Promise<void> {
-    return this.getProvider().deleteDirectoryWithPrefix(
+    return this.localStorageProvider.deleteDirectoryWithPrefix(
       relativeDir,
       prefix,
       options,
@@ -196,18 +234,24 @@ export class StorageService implements IStorageProvider {
     relativePath: string,
     prefix: string,
   ): Promise<FileStats> {
-    return this.getProvider().getFileStatsWithPrefix(relativePath, prefix);
+    return this.localStorageProvider.getFileStatsWithPrefix(
+      relativePath,
+      prefix,
+    );
   }
 
   async directoryExistsWithPrefix(
     relativeDir: string,
     prefix: string,
   ): Promise<boolean> {
-    return this.getProvider().directoryExistsWithPrefix(relativeDir, prefix);
+    return this.localStorageProvider.directoryExistsWithPrefix(
+      relativeDir,
+      prefix,
+    );
   }
 
   // ==========================================
-  // Segment-specific convenience methods
+  // Segment-specific convenience methods (local-only, see above)
   // These auto-apply the REPLAY_SEGMENTS_PATH prefix
   // ==========================================
 

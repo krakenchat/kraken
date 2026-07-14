@@ -3,10 +3,12 @@ import type { Mocked } from '@suites/doubles.jest';
 import { ConfigService } from '@nestjs/config';
 import { StorageService, StorageType } from './storage.service';
 import { LocalStorageProvider } from './providers/local-storage.provider';
+import { S3StorageProvider } from './providers/s3-storage.provider';
 
 describe('StorageService', () => {
   let service: StorageService;
   let localProvider: Mocked<LocalStorageProvider>;
+  let s3Provider: Mocked<S3StorageProvider>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -20,6 +22,7 @@ describe('StorageService', () => {
 
     service = unit;
     localProvider = unitRef.get(LocalStorageProvider);
+    s3Provider = unitRef.get(S3StorageProvider);
   });
 
   afterEach(() => {
@@ -48,6 +51,25 @@ describe('StorageService', () => {
       const provider = svc.getProvider();
       expect(provider).toBe(mockLocalProvider);
     });
+
+    it('should resolve the default provider to S3 when STORAGE_TYPE=S3', async () => {
+      const { unit: svc, unitRef: ref } = await TestBed.solitary(StorageService)
+        .mock(ConfigService)
+        .final({
+          get: jest.fn().mockReturnValue(StorageType.S3),
+        })
+        .compile();
+
+      const mockS3Provider = ref.get(S3StorageProvider);
+      expect(svc.getProvider()).toBe(mockS3Provider);
+      expect(svc.getDefaultStorageType()).toBe(StorageType.S3);
+    });
+  });
+
+  describe('getDefaultStorageType', () => {
+    it('defaults to LOCAL when STORAGE_TYPE is unset', () => {
+      expect(service.getDefaultStorageType()).toBe(StorageType.LOCAL);
+    });
   });
 
   describe('getProvider', () => {
@@ -56,10 +78,9 @@ describe('StorageService', () => {
       expect(provider).toBe(localProvider);
     });
 
-    it('should throw error for S3 type (not implemented)', () => {
-      expect(() => service.getProvider(StorageType.S3)).toThrow(
-        'S3 storage provider not yet implemented',
-      );
+    it('should return S3 storage provider for S3 type', () => {
+      const provider = service.getProvider(StorageType.S3);
+      expect(provider).toBe(s3Provider);
     });
 
     it('should throw error for AZURE_BLOB type (not implemented)', () => {
@@ -74,7 +95,28 @@ describe('StorageService', () => {
     });
   });
 
-  describe('delegation methods', () => {
+  describe('local-only convenience methods (hard-pinned, independent of STORAGE_TYPE)', () => {
+    it('stays pinned to LocalStorageProvider even when the default type is S3', async () => {
+      const { unit: svc, unitRef: ref } = await TestBed.solitary(StorageService)
+        .mock(ConfigService)
+        .final({
+          get: jest.fn().mockReturnValue(StorageType.S3),
+        })
+        .compile();
+
+      const mockLocalProvider = ref.get(LocalStorageProvider);
+      const mockS3Provider = ref.get(S3StorageProvider);
+      mockLocalProvider.fileExists.mockResolvedValue(true);
+
+      const result = await svc.fileExists('/local/replay/segment.ts');
+
+      expect(result).toBe(true);
+      expect(mockLocalProvider.fileExists).toHaveBeenCalledWith(
+        '/local/replay/segment.ts',
+      );
+      expect(mockS3Provider.fileExists).not.toHaveBeenCalled();
+    });
+
     it('should delegate ensureDirectory to provider', async () => {
       localProvider.ensureDirectory.mockResolvedValue(undefined);
       await service.ensureDirectory('/test/path');

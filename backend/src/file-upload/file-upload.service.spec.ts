@@ -9,6 +9,8 @@ import { ThumbnailService } from '@/file/thumbnail.service';
 import { UnprocessableEntityException } from '@nestjs/common';
 import { ResourceType, FileType, StorageType } from '@prisma/client';
 import * as crypto from 'crypto';
+import { Readable } from 'stream';
+import type { IStorageProvider } from '@/storage/interfaces/storage-provider.interface';
 import { FileUploadResponseDto } from './dto/file-upload-response.dto';
 
 jest.mock('./validators/resource-type-file.validator');
@@ -19,6 +21,7 @@ describe('FileUploadService', () => {
   let storageService: Mocked<StorageService>;
   let storageQuotaService: Mocked<StorageQuotaService>;
   let thumbnailService: Mocked<ThumbnailService>;
+  let mockS3Provider: jest.Mocked<IStorageProvider>;
 
   const mockUser = {
     id: 'user-123',
@@ -52,9 +55,24 @@ describe('FileUploadService', () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Default mock implementations - use StorageService instead of direct fs calls
-    storageService.readFile.mockResolvedValue(Buffer.from('test'));
+    // Default mock implementations - use StorageService instead of direct fs calls.
+    // Checksum computation streams the file through createReadStream (never
+    // buffers the whole file) — give it a real async-iterable stream.
+    storageService.createReadStream.mockImplementation(
+      () => Readable.from([Buffer.from('test')]) as any,
+    );
     storageService.deleteFile.mockResolvedValue(undefined);
+    // Default active storage type: LOCAL (zero-behavior-change default).
+    storageService.getDefaultStorageType.mockReturnValue(StorageType.LOCAL);
+    mockS3Provider = {
+      writeStream: jest.fn().mockResolvedValue({ size: 1024 }),
+      getReadStream: jest.fn(),
+      deleteFile: jest.fn().mockResolvedValue(undefined),
+      fileExists: jest.fn(),
+      getFileStats: jest.fn(),
+      getFileUrl: jest.fn(),
+    };
+    storageService.getProvider.mockReturnValue(mockS3Provider);
 
     // Default quota check passes
     storageQuotaService.canUploadFile.mockResolvedValue({
@@ -208,6 +226,7 @@ describe('FileUploadService', () => {
         expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledWith(
           '/tmp/clip-123.mp4',
           'file-video-1',
+          StorageType.LOCAL,
         );
         expect(databaseService.file.update).toHaveBeenCalledWith({
           where: { id: 'file-video-1' },
@@ -485,6 +504,7 @@ describe('FileUploadService', () => {
       expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledWith(
         '/tmp/clip.mp4',
         'file-video-1',
+        StorageType.LOCAL,
       );
       expect(databaseService.file.update).toHaveBeenCalledWith({
         where: { id: 'file-video-1' },
@@ -565,13 +585,147 @@ describe('FileUploadService', () => {
 
       await service.uploadFile(mockFile, createDto, mockUser);
 
-      expect(storageService.readFile).toHaveBeenCalledWith('/tmp/test-123.png');
+      expect(storageService.createReadStream).toHaveBeenCalledWith(
+        '/tmp/test-123.png',
+      );
       expect(crypto.createHash).toHaveBeenCalledWith('sha256');
       expect(databaseService.file.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           checksum: 'abc123def456',
         }),
       });
+    });
+  });
+
+  describe('uploadFile — S3 storage (STORAGE_TYPE=S3)', () => {
+    const createDto = {
+      resourceType: ResourceType.MESSAGE_ATTACHMENT,
+      resourceId: 'msg-123',
+    };
+
+    beforeEach(() => {
+      storageService.getDefaultStorageType.mockReturnValue(StorageType.S3);
+
+      const {
+        ResourceTypeFileValidator,
+      } = require('./validators/resource-type-file.validator');
+      ResourceTypeFileValidator.mockImplementation(() => ({
+        isValid: jest.fn().mockResolvedValue(true),
+      }));
+    });
+
+    it('streams the staged tmp file to the S3 provider and persists the bare filename as the key', async () => {
+      databaseService.file.create.mockResolvedValue({
+        id: 'file-s3-1',
+      } as any);
+
+      await service.uploadFile(mockFile, createDto, mockUser);
+
+      expect(storageService.getProvider).toHaveBeenCalledWith(StorageType.S3);
+      expect(mockS3Provider.writeStream).toHaveBeenCalledWith(
+        'test-123.png', // file.filename — bare multer-generated key
+        expect.anything(),
+        { contentType: 'image/png' },
+      );
+      expect(databaseService.file.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          storageType: StorageType.S3,
+          storagePath: 'test-123.png',
+        }),
+      });
+    });
+
+    it('deletes the local tmp file after a successful S3 upload + DB insert', async () => {
+      databaseService.file.create.mockResolvedValue({
+        id: 'file-s3-2',
+      } as any);
+
+      await service.uploadFile(mockFile, createDto, mockUser);
+
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/test-123.png',
+      );
+    });
+
+    it('never deletes the local tmp path for LOCAL uploads (it IS the permanent storage)', async () => {
+      storageService.getDefaultStorageType.mockReturnValue(StorageType.LOCAL);
+      databaseService.file.create.mockResolvedValue({
+        id: 'file-local-1',
+      } as any);
+
+      await service.uploadFile(mockFile, createDto, mockUser);
+
+      expect(storageService.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('cleans up the local tmp file and rethrows when the S3 upload itself fails', async () => {
+      mockS3Provider.writeStream.mockRejectedValue(new Error('S3 unreachable'));
+
+      await expect(
+        service.uploadFile(mockFile, createDto, mockUser),
+      ).rejects.toThrow('S3 unreachable');
+
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/test-123.png',
+      );
+      expect(databaseService.file.create).not.toHaveBeenCalled();
+    });
+
+    it('cleans up both the local tmp file AND the orphaned S3 object when the DB insert fails after a successful upload', async () => {
+      databaseService.file.create.mockRejectedValue(
+        new Error('Database error'),
+      );
+
+      await expect(
+        service.uploadFile(mockFile, createDto, mockUser),
+      ).rejects.toThrow('Database error');
+
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/test-123.png',
+      );
+      expect(mockS3Provider.deleteFile).toHaveBeenCalledWith('test-123.png');
+    });
+
+    it('does not attempt to clean up a remote object when the DB fails for a LOCAL upload', async () => {
+      storageService.getDefaultStorageType.mockReturnValue(StorageType.LOCAL);
+      databaseService.file.create.mockRejectedValue(
+        new Error('Database error'),
+      );
+
+      await expect(
+        service.uploadFile(mockFile, createDto, mockUser),
+      ).rejects.toThrow('Database error');
+
+      expect(mockS3Provider.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('passes the S3 storageType through to thumbnail generation for video uploads', async () => {
+      const videoFile = {
+        ...mockFile,
+        originalname: 'clip.mp4',
+        mimetype: 'video/mp4',
+        filename: 'clip-123.mp4',
+        path: '/tmp/clip-123.mp4',
+      };
+      databaseService.file.create.mockResolvedValue({
+        id: 'file-video-s3',
+      } as any);
+      thumbnailService.generateVideoThumbnail.mockResolvedValue(
+        'thumbnails/file-video-s3.jpg',
+      );
+      databaseService.file.update.mockResolvedValue({} as any);
+
+      await service.uploadFile(videoFile, createDto, mockUser);
+
+      expect(thumbnailService.generateVideoThumbnail).toHaveBeenCalledWith(
+        '/tmp/clip-123.mp4',
+        'file-video-s3',
+        StorageType.S3,
+      );
+      // tmp cleanup happens only after thumbnail generation completes
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
+        '/tmp/clip-123.mp4',
+      );
     });
   });
 
