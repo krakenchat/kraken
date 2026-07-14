@@ -16,6 +16,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 import type { SecureStorageAvailability, SecureStorageStoreResult } from './secure-storage.types';
+import { parseDeepLink, extractDeepLinkUrls, DEEP_LINK_PROTOCOL, type DeepLinkRoute } from './deep-link-parser';
 
 // ─── App Settings (single JSON file in userData) ────────────────────────────
 
@@ -736,6 +737,14 @@ function setupIpcHandlers() {
   ipcMain.on('clipboard:write', (_event, text: string) => {
     clipboard.writeText(text);
   });
+
+  // Deep links: renderer signals once its `onDeepLink` listener is mounted
+  // so any URL that arrived before then (cold start, second-instance) can
+  // be delivered without being lost to a race. Idempotent — once flushed,
+  // the queue is empty, so a later resend (e.g. dev HMR remount) is a no-op.
+  ipcMain.on('deep-link:ready', () => {
+    flushPendingDeepLinks();
+  });
 }
 
 /**
@@ -851,6 +860,71 @@ function createWindow() {
     } catch { /* ignore invalid URLs */ }
   });
 }
+
+// ─── Deep Links (semaphore://) ──────────────────────────────────────────────
+//
+// URLs arriving before the renderer confirms its `onDeepLink` listener is
+// mounted (cold start; a second-instance launch that races window/renderer
+// startup) are queued here and flushed on the explicit 'deep-link:ready'
+// IPC sent by useDeepLinks (see setupIpcHandlers below) rather than on
+// `did-finish-load` — did-finish-load fires once the page's scripts have
+// loaded, which is before React has mounted and useDeepLinks has actually
+// subscribed, so flushing there risks losing the very first link.
+let rendererDeepLinkReady = false;
+const pendingDeepLinks: DeepLinkRoute[] = [];
+
+/** Forward a parsed route to the renderer and surface the window. Never navigates the BrowserWindow itself. */
+function deliverDeepLink(route: DeepLinkRoute): void {
+  if (!mainWindow) return;
+  mainWindow.webContents.send('deep-link', route);
+  if (!mainWindow.isVisible()) mainWindow.show();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+}
+
+/** Parse+validate a raw URL and either deliver it now or queue it until the renderer is ready. */
+function handleDeepLinkUrl(rawUrl: string): void {
+  const route = parseDeepLink(rawUrl);
+  if (!route) {
+    console.warn('[deep-link] dropped malformed/hostile URL:', String(rawUrl).slice(0, 200));
+    return;
+  }
+  if (rendererDeepLinkReady) {
+    deliverDeepLink(route);
+    return;
+  }
+  pendingDeepLinks.push(route);
+  // Surface the (still-loading) window so the user sees the app respond.
+  if (mainWindow) {
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+function flushPendingDeepLinks(): void {
+  rendererDeepLinkReady = true;
+  while (pendingDeepLinks.length > 0) {
+    deliverDeepLink(pendingDeepLinks.shift()!);
+  }
+}
+
+// Register the OS protocol handler as early as possible (before
+// whenReady — macOS can fire 'open-url' prior to it). In dev, Electron is
+// launched as `electron .`, so the OS needs the interpreter path
+// (execPath) plus the resolved script arg to relaunch this app correctly;
+// without that form, dev-mode registration silently no-ops on
+// Windows/Linux.
+if (!app.isPackaged && process.argv[1]) {
+  app.setAsDefaultProtocolClient(DEEP_LINK_PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
+} else {
+  app.setAsDefaultProtocolClient(DEEP_LINK_PROTOCOL);
+}
+
+// macOS delivers the URL via this event.
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleDeepLinkUrl(url);
+});
 
 /**
  * App lifecycle
@@ -1039,6 +1113,11 @@ app.whenReady().then(() => {
   setupApplicationMenu();
   setupAutoUpdater();
   setupIpcHandlers();
+
+  // Cold start: Windows/Linux deliver a semaphore:// URL as an argv entry
+  // on the process that just launched (rather than a second-instance
+  // relaunch). The renderer isn't ready yet, so this queues.
+  extractDeepLinkUrls(process.argv).forEach(handleDeepLinkUrl);
 });
 
 // Tray keeps the app alive — don't quit when windows are hidden
@@ -1069,7 +1148,7 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     // Show and focus the main window if user tries to open another instance
     if (mainWindow) {
       if (!mainWindow.isVisible()) {
@@ -1080,5 +1159,8 @@ if (!gotTheLock) {
       }
       mainWindow.focus();
     }
+
+    // Windows/Linux deliver semaphore:// URLs as an argv entry on relaunch.
+    extractDeepLinkUrls(argv).forEach(handleDeepLinkUrl);
   });
 }

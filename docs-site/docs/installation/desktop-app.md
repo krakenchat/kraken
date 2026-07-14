@@ -56,6 +56,23 @@ The desktop app checks for updates automatically on startup and periodically whi
 
 Updates are served from GitHub Releases — no additional infrastructure required.
 
+## Deep links
+
+The desktop app registers the `semaphore://` URL scheme, so links can open the app directly to a specific community, channel, direct message, or invite instead of your browser:
+
+| Link form | Opens |
+|-----------|-------|
+| `semaphore://community/<communityId>` | A community |
+| `semaphore://community/<communityId>/channel/<channelId>` | A specific channel |
+| `semaphore://direct-messages` | Your direct messages inbox |
+| `semaphore://direct-messages/<dmGroupId>` | A specific DM/group DM |
+| `semaphore://join/<inviteCode>` | An invite (works even if you're signed out — you'll be prompted to sign in or register, then join) |
+
+If you're signed out when you click a community, channel, or DM link, the app takes you to sign-in first and opens the link automatically once you're signed in.
+
+!!! note "Links open in your active server"
+    Semaphore Chat's desktop app can be connected to multiple self-hosted instances. Deep links don't encode which server they belong to — they always open within whichever server is currently active. If a link is meant for a different server than the one you have active, switch servers first.
+
 ## Desktop-only features
 
 The desktop app includes capabilities not available in the browser:
