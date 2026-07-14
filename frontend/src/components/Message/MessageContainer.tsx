@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Fab } from "@mui/material";
+import { visuallyHidden } from "@mui/utils";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MessageSkeleton from "./MessageSkeleton";
 import VirtualMessageList, { type VirtualMessageListHandle } from "./VirtualMessageList";
@@ -8,6 +9,7 @@ import { useMessageVisibility } from "../../hooks/useMessageVisibility";
 import { useReadReceipts } from "../../hooks/useReadReceipts";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useAnchoredModeTransition } from "../../hooks/useAnchoredModeTransition";
+import { useMessageListAnnouncer } from "../../hooks/useMessageListAnnouncer";
 import TypingIndicator from "./TypingIndicator";
 
 interface MessageContainerProps {
@@ -118,6 +120,31 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
     scrollToBottomRef.current = scrollToBottom;
     atBottomRef.current = atBottom;
   });
+
+  // Throttled aria-live announcement for new incoming messages arriving
+  // while the reader is scrolled away from the live edge — wired off the
+  // same `atBottom` signal the FAB/unread logic above already uses.
+  const liveAnnouncement = useMessageListAnnouncer({
+    orderedMessages,
+    atBottom,
+    authorId,
+    contextKey,
+    enabled: !isLoading,
+  });
+
+  // Escape (pressed while a message row has roving focus) returns focus to
+  // the composer. The composer is rendered as `messageInput` below —
+  // structurally always the sibling Box right after the list — so it's
+  // located via a DOM query relative to that Box rather than threading a
+  // ref through every page that constructs a <MessageInput />.
+  const messageInputBoxRef = useRef<HTMLDivElement>(null);
+  const handleEscapeToInput = useCallback(() => {
+    const root = messageInputBoxRef.current;
+    const target = root?.querySelector<HTMLElement>(
+      'textarea, [contenteditable="true"]',
+    );
+    target?.focus();
+  }, []);
 
   const handleDetachedJumpToPresent = useCallback(() => {
     void resetToPresent?.();
@@ -313,6 +340,7 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
             resetKey={contextKey}
             onAtBottomChange={setAtBottom}
             onVisibleRangeChange={handleVisibleRangeChange}
+            onEscapeToInput={handleEscapeToInput}
           />
         ) : (
           <Box
@@ -335,8 +363,21 @@ const MessageContainer: React.FC<MessageContainerProps> = ({
         </Box>
 
         {/* Input rendered outside scroll container — stable DOM, never unmounted by message changes */}
-        <Box sx={{ flexShrink: 0 }}>
+        <Box ref={messageInputBoxRef} sx={{ flexShrink: 0 }}>
           {messageInput}
+        </Box>
+
+        {/* Polite live region for new-message announcements (throttled,
+            coalescing — see useMessageListAnnouncer). Always mounted so
+            screen readers pick up mutations; visually hidden. */}
+        <Box
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="message-list-live-region"
+          sx={visuallyHidden}
+        >
+          {liveAnnouncement}
         </Box>
 
         {mode === 'anchored' && jumpToPresent ? (
