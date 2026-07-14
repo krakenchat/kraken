@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { renderWithProviders, runAxe, expectNoAxeViolations } from '../test-utils';
@@ -139,6 +140,70 @@ describe('MessageComponent context menu (web)', () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(messageRow);
     });
+  });
+
+  it('falls back to the list container when the row unmounts before the deferred focus-restore frame runs', async () => {
+    // Mirrors MemberList.contextMenuFocusRestore.test.tsx's "detached-node"
+    // case: a message row can disappear from the loaded window (pagination
+    // cap eviction) while its context menu is still in the middle of
+    // closing — restoreFocus's fallback must land on the list container
+    // instead of silently dropping focus to <body>.
+    //
+    // Unlike MemberList (whose menu is owned by the LIST, decoupled from
+    // the row), MessageContextMenu is a child of MessageComponent itself —
+    // removing the row also tears down the menu, so the row can't be
+    // removed *before* Escape the way MemberList's test does (there'd be no
+    // menu left to fire Escape on). Instead this pins down the actual race:
+    // restoreFocus's requestAnimationFrame is captured (not run) so the row
+    // can be removed in the gap between "Escape closed the menu" and "the
+    // deferred frame actually executes" — real rAF fires within ~1 frame,
+    // too fast to reliably interleave a synchronous rerender otherwise.
+    const rafCallbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+
+    try {
+      const message = createMessage({
+        spans: [{ type: SpanType.PLAINTEXT, text: 'Removable message' }],
+      });
+
+      function Wrapper({ show }: { show: boolean }) {
+        const listRef = React.useRef<HTMLDivElement>(null);
+        return (
+          <div ref={listRef} tabIndex={-1} data-testid="list-container">
+            {show && <MessageComponent message={message} listContainerRef={listRef} />}
+          </div>
+        );
+      }
+
+      const { rerender } = renderWithProviders(<Wrapper show={true} />);
+
+      fireEvent.contextMenu(screen.getByText('Removable message'), {
+        clientX: 10,
+        clientY: 10,
+      });
+      const menu = await screen.findByRole('menu');
+
+      // MUI calls onClose synchronously for Escape (ahead of the exit
+      // transition), so handleCloseContextMenu — and the requestAnimationFrame
+      // it schedules — has already run by the time this returns.
+      fireEvent.keyDown(menu, { key: 'Escape' });
+      expect(rafCallbacks.length).toBeGreaterThan(0);
+
+      // The row is removed from the tree before the deferred frame runs.
+      rerender(<Wrapper show={false} />);
+      expect(screen.queryByText('Removable message')).not.toBeInTheDocument();
+
+      act(() => {
+        rafCallbacks.forEach((cb) => cb(0));
+      });
+
+      expect(document.activeElement).toBe(screen.getByTestId('list-container'));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('has no axe violations while the context menu is open', async () => {

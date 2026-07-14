@@ -51,6 +51,25 @@ interface MessageProps {
   onQuoteReply?: (message: MessageType) => void;
   /** Context type to determine if read receipts should be shown */
   contextType?: VoiceSessionType;
+
+  // ── Roving row focus (keyboard navigation across the message list) ──
+  /** This row's position in the rendered (chronological) order. Required for
+   * roving-focus key handling to report the right target to the parent. */
+  rowIndex?: number;
+  /** True when this row is the current roving-tabindex target (tabIndex=0). */
+  isRovingFocused?: boolean;
+  /** ArrowUp/Down/Home/End/Escape, delegated up — the parent owns index math,
+   * scrolling the target into view, and imperatively focusing it once mounted. */
+  onRovingKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>, index: number) => void;
+  /** Fired when this row's Container actually receives DOM focus (Tab, a
+   * mouse-driven restore, or the parent's own imperative focus after an
+   * arrow-key move) — keeps the parent's roving-tabindex state in sync with
+   * reality regardless of how focus got here. */
+  onRovingFocus?: (index: number) => void;
+  /** Stable ref to the list's scroll container — passed to the context-menu
+   * focus-restore fallback so a row deleted while its menu is still closing
+   * doesn't drop focus to <body> (mirrors MemberList's wiring from #428). */
+  listContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
 function MessageComponentInner({
@@ -64,6 +83,11 @@ function MessageComponentInner({
   onOpenThread,
   onQuoteReply,
   contextType,
+  rowIndex,
+  isRovingFocused,
+  onRovingKeyDown,
+  onRovingFocus,
+  listContainerRef,
 }: MessageProps) {
   // Community custom emojis (for rendering EMOJI spans + custom reactions).
   const { byId: emojiById } = useCommunityCustomEmojis(communityId);
@@ -145,15 +169,56 @@ function MessageComponentInner({
     event.preventDefault();
     captureTrigger(event.currentTarget as HTMLElement);
     setContextMenuPosition({ top: event.clientY, left: event.clientX });
-  }, [captureTrigger]);
+    // Right-click also claims the roving-tabindex slot for this row, so
+    // keyboard navigation resumes from here once the menu closes (instead of
+    // wherever it happened to be before the click).
+    if (rowIndex !== undefined) onRovingFocus?.(rowIndex);
+  }, [captureTrigger, rowIndex, onRovingFocus]);
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenuPosition(null);
     // Right-click (and long-press) open this menu with no keyboard-reachable
     // invoker button, so — unlike an anchorEl Menu — MUI can't auto-restore
-    // focus. Return it to the message row itself.
-    restoreFocus();
-  }, [restoreFocus]);
+    // focus. Return it to the message row itself. If the row was removed
+    // from the list while the menu was still closing (e.g. deleted), fall
+    // back to the list's scroll container instead of dropping to <body>.
+    restoreFocus(listContainerRef?.current);
+  }, [restoreFocus, listContainerRef]);
+
+  /**
+   * Enter / ContextMenu (menu key) / Shift+F10 open the row's action menu
+   * from the keyboard, positioned near the focused row itself (there's no
+   * MouseEvent to read a click position from). Guarded to only fire when the
+   * Container itself is the focus target — bubbled keydowns from the edit
+   * textarea, toolbar buttons, or menu items must not be hijacked.
+   */
+  const handleContainerKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+
+      if (
+        event.key === 'Enter' ||
+        event.key === 'ContextMenu' ||
+        (event.shiftKey && event.key === 'F10')
+      ) {
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        captureTrigger(event.currentTarget);
+        setContextMenuPosition({ top: rect.bottom, left: rect.left });
+        if (rowIndex !== undefined) onRovingFocus?.(rowIndex);
+        return;
+      }
+
+      if (rowIndex !== undefined) {
+        onRovingKeyDown?.(event, rowIndex);
+      }
+    },
+    [captureTrigger, rowIndex, onRovingFocus, onRovingKeyDown],
+  );
+
+  const handleContainerFocus = useCallback(() => {
+    if (rowIndex !== undefined) onRovingFocus?.(rowIndex);
+  }, [rowIndex, onRovingFocus]);
 
   const handleAddReaction = useCallback(() => {
     // Save position for emoji picker, close context menu
@@ -182,8 +247,9 @@ function MessageComponentInner({
     // reached via the context menu, so closing the emoji picker should
     // return focus to the message row too (a no-op if it was opened via
     // the touch sheet instead, since no trigger was captured for that path).
-    restoreFocus();
-  }, [restoreFocus]);
+    // Same list-container fallback as handleCloseContextMenu.
+    restoreFocus(listContainerRef?.current);
+  }, [restoreFocus, listContainerRef]);
 
   // Under touch UI, wire long-press handlers and suppress native selection /
   // context menu; otherwise keep desktop right-click behavior untouched.
@@ -210,9 +276,13 @@ function MessageComponentInner({
       isSearchHighlight={isSearchHighlight}
       isPending={isPending}
       isFailed={isFailed}
-      // Not in tab order (-1) — only focused programmatically, to restore
-      // focus here after the right-click/long-press context menu closes.
-      tabIndex={-1}
+      // Roving tabindex: only the current roving-focus row is in the natural
+      // Tab order (0); every other row is -1 — still focusable
+      // programmatically (context-menu restore, arrow-key navigation).
+      tabIndex={isRovingFocused ? 0 : -1}
+      data-row-focus-target="true"
+      onKeyDown={handleContainerKeyDown}
+      onFocus={handleContainerFocus}
       {...containerInteractionProps}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>
@@ -465,6 +535,12 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevProps.isThreadReply === nextProps.isThreadReply &&
     prevProps.isAuthor === nextProps.isAuthor &&
     prevProps.contextType === nextProps.contextType &&
+    // Roving-focus wiring: these genuinely change per-row across renders
+    // (a prepend shifts rowIndex; focus moving changes isRovingFocused for
+    // exactly two rows) and must not be skipped by the memo, or a row can
+    // end up with a stale index closure or a stuck tabIndex.
+    prevProps.rowIndex === nextProps.rowIndex &&
+    prevProps.isRovingFocused === nextProps.isRovingFocused &&
     // Deep compare spans array (content equality, not reference)
     prevMsg.spans.length === nextMsg.spans.length &&
     prevMsg.spans.every((s, i) =>

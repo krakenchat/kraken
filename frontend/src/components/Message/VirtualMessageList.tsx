@@ -3,7 +3,10 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
+  useState,
+  type KeyboardEvent,
 } from "react";
 import { Box } from "@mui/material";
 import { VList, type VListHandle } from "virtua";
@@ -76,6 +79,11 @@ export interface VirtualMessageListProps {
    * Consumed by read-tracking (fed to markAsRead) in MessageContainer.
    */
   onVisibleRangeChange?: (startIndex: number, endIndex: number) => void;
+
+  /** Escape (pressed while a row has roving focus, no menu open) returns
+   * focus to the message composer — implemented by the caller since the
+   * composer lives outside this component. */
+  onEscapeToInput?: () => void;
 }
 
 /**
@@ -117,6 +125,20 @@ export interface VirtualMessageListProps {
  *   Both positioning paths use the double-rAF re-assert pattern (a single
  *   rAF races virtua's measurement readiness on first mount).
  * - **atBottom**: derived from virtua's scroll offset, reported upward for FABs.
+ *
+ * **Roving row focus**: exactly one row is in the natural Tab order at a
+ * time (`focusedRowKey`, tracked by row identity — `clientId ?? id` — so it
+ * survives prepends/appends/the optimistic id-swap without any manual index
+ * shifting). ArrowUp/Down/Home/End move it; the target index is resolved to
+ * a message, `scrollToIndex` brings it into virtua's real render window, and
+ * a short rAF-retry loop focuses the row once it actually mounts. virtua's
+ * `keepMounted` was investigated as an alternative and rejected: items kept
+ * mounted outside the true visible window are rendered with
+ * `visibility: hidden` (see virtua's Virtualizer item wrapper), and
+ * hidden elements are not part of the focus order in any browser — so
+ * `keepMounted` preserves component state across scroll but cannot itself
+ * hold focus. Scrolling the target into the *real* window first is the only
+ * way to land focus on it, which is what `moveFocus` below does.
  */
 const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageListProps>(
   (
@@ -142,10 +164,12 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       resetKey,
       onAtBottomChange,
       onVisibleRangeChange,
+      onEscapeToInput,
     },
     ref,
   ) => {
     const vlistRef = useRef<VListHandle>(null);
+    const listContainerRef = useRef<HTMLDivElement>(null);
     const pinnedRef = useRef(true);
     const initialPositionedRef = useRef(false);
 
@@ -160,6 +184,127 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const len = orderedMessages.length;
     const oldestId = orderedMessages[0]?.id;
     const newestId = orderedMessages[len - 1]?.id;
+
+    // ── Roving row focus ──────────────────────────────────────────────
+    // Tracked by row identity (matches the `rowKey` used below) rather than
+    // a raw array index, so it survives prepends/appends/the optimistic
+    // id-swap without any manual index-shifting.
+    const [focusedRowKey, setFocusedRowKey] = useState<string | null>(null);
+    const focusedIndex = useMemo(() => {
+      if (focusedRowKey === null) return -1;
+      return orderedMessages.findIndex(
+        (m) => (m.clientId ?? m.id) === focusedRowKey,
+      );
+    }, [orderedMessages, focusedRowKey]);
+
+    // Latest-value refs so the stable callbacks below (moveFocus, row
+    // key/focus delegates) never need `orderedMessages`/`len` in their own
+    // dependency arrays — keeps their identities stable across renders,
+    // which matters since they're passed straight through to a
+    // React.memo'd child (MessageComponent).
+    const orderedMessagesRef = useRef(orderedMessages);
+    orderedMessagesRef.current = orderedMessages;
+    const onEscapeToInputRef = useRef(onEscapeToInput);
+    onEscapeToInputRef.current = onEscapeToInput;
+
+    // Default/fallback roving target: whenever `focusedRowKey` is unset
+    // (initial mount), or no longer resolves to a loaded row (context/mode
+    // switch swapped the data window entirely, the row was deleted, or it
+    // was evicted at the pagination cap), fall back to a sensible default —
+    // the newest row in normal mode, the centered row in anchored mode
+    // (mirroring the initial-positioning effect above). This is a *pure*
+    // derived value (useMemo, not an effect + setState): it only decides
+    // what's DISPLAYED as the tabIndex=0 row this render. It deliberately
+    // does not write the fallback back into `focusedRowKey` state — the
+    // first genuine navigation (moveFocus/handleRowFocus) does that. An
+    // earlier version computed this via an effect that called setState,
+    // which scheduled an extra render on every eviction/context-switch;
+    // since `isPrepend`'s baseline ref updates unconditionally after every
+    // commit (not just "real" ones), that extra render re-derived
+    // `isPrepend` against an already-advanced baseline and silently
+    // flipped `shift` back to false one render after virtua needed to see
+    // it true — corrupting the prepend/cap-eviction scroll-compensation
+    // tests. A pure fallback avoids the extra render entirely.
+    const effectiveFocusedIndex = useMemo(() => {
+      if (focusedIndex !== -1) return focusedIndex;
+      if (len === 0) return -1;
+      return mode === 'anchored' ? Math.max(0, Math.floor((len - 1) / 2)) : len - 1;
+    }, [focusedIndex, len, mode]);
+
+    /** Moves the roving target to `rawIndex` (clamped), scrolls it into
+     * virtua's real render window, and imperatively focuses it once it
+     * mounts (retried across a few animation frames — see the module doc
+     * comment for why `keepMounted` alone can't do this). */
+    const moveFocus = useCallback((rawIndex: number) => {
+      const messages = orderedMessagesRef.current;
+      const targetLen = messages.length;
+      if (targetLen === 0) return;
+      const targetIndex = Math.max(0, Math.min(rawIndex, targetLen - 1));
+      const targetMessage = messages[targetIndex];
+      if (!targetMessage) return;
+
+      setFocusedRowKey(targetMessage.clientId ?? targetMessage.id);
+      vlistRef.current?.scrollToIndex(targetIndex, { align: 'nearest' });
+
+      let attempts = 0;
+      const tryFocus = () => {
+        const root = listContainerRef.current;
+        if (root) {
+          const rows = root.querySelectorAll<HTMLElement>('[data-message-id]');
+          for (const row of rows) {
+            if (row.dataset.messageId === targetMessage.id) {
+              const focusTarget = row.querySelector<HTMLElement>(
+                '[data-row-focus-target]',
+              );
+              if (focusTarget) {
+                focusTarget.focus();
+                return;
+              }
+              break;
+            }
+          }
+        }
+        attempts += 1;
+        if (attempts < 12) requestAnimationFrame(tryFocus);
+      };
+      requestAnimationFrame(tryFocus);
+    }, []);
+
+    const handleRowKeyDown = useCallback(
+      (event: KeyboardEvent<HTMLDivElement>, index: number) => {
+        switch (event.key) {
+          case 'ArrowDown':
+            event.preventDefault();
+            moveFocus(index + 1);
+            break;
+          case 'ArrowUp':
+            event.preventDefault();
+            moveFocus(index - 1);
+            break;
+          case 'Home':
+            event.preventDefault();
+            moveFocus(0);
+            break;
+          case 'End':
+            event.preventDefault();
+            moveFocus(orderedMessagesRef.current.length - 1);
+            break;
+          case 'Escape':
+            event.preventDefault();
+            onEscapeToInputRef.current?.();
+            break;
+          default:
+            break;
+        }
+      },
+      [moveFocus],
+    );
+
+    const handleRowFocus = useCallback((index: number) => {
+      const message = orderedMessagesRef.current[index];
+      if (!message) return;
+      setFocusedRowKey(message.clientId ?? message.id);
+    }, []);
 
     // At MESSAGE_MAX_PAGES, TanStack evicts pages from the end OPPOSITE the
     // fetch direction, and eviction is PAGE-granular (an entire page — up to
@@ -256,6 +401,9 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       prevLenRef.current = 0;
       prevNewestIdRef.current = undefined;
       prevMessagesRef.current = [];
+      // Roving-focus reset for a context/mode switch is handled by the
+      // focusResetKeyRef-guarded effect above (folded in deliberately — see
+      // its comment for why a separate reset here caused a mount-time race).
       onAtBottomChange?.(true);
     }, [resetKey, mode, onAtBottomChange]);
 
@@ -453,7 +601,12 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
 
     return (
       <Box
+        ref={listContainerRef}
         data-testid="virtual-scroll-container"
+        // Not in the natural Tab order — only a fallback focus target for
+        // the context-menu restore when a row is removed while its menu is
+        // still closing (see MessageComponent's listContainerRef usage).
+        tabIndex={-1}
         sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
       >
         {isLoadingMore && (
@@ -463,8 +616,21 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
             <MessageSkeleton />
           </Box>
         )}
+        {/* role="list"/"listitem" rather than the ARIA "feed" pattern:
+            feed's aria-posinset/aria-setsize imply an honest, stable total
+            item count, which this virtualized + paginated + cap-evicted
+            window can't provide (the loaded window's size isn't the
+            channel's total message count, and it shrinks/grows via
+            eviction independent of user action). Feed's Ctrl+Arrow
+            per-article navigation model also doesn't fit — rows aren't
+            independently-landmarked articles, they're moved between via the
+            plain roving-tabindex Arrow keys implemented here. A plain list
+            with an aria-label, one listitem per row, correctly conveys
+            "a list of messages" without those false guarantees. */}
         <VList
           ref={vlistRef}
+          role="list"
+          aria-label="Messages"
           shift={isPrepend}
           onScroll={handleScroll}
           style={{ flex: 1, minHeight: 0 }}
@@ -491,7 +657,7 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
               : rowKey;
 
             return (
-              <div key={key} data-message-id={message.id}>
+              <div key={key} data-message-id={message.id} role="listitem">
                 {showDividerBefore && (
                   <UnreadMessageDivider unreadCount={unreadCount} />
                 )}
@@ -508,6 +674,11 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
                       ? VoiceSessionType.Dm
                       : VoiceSessionType.Channel
                   }
+                  rowIndex={index}
+                  isRovingFocused={index === effectiveFocusedIndex}
+                  onRovingKeyDown={handleRowKeyDown}
+                  onRovingFocus={handleRowFocus}
+                  listContainerRef={listContainerRef}
                 />
               </div>
             );
