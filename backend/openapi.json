@@ -3968,6 +3968,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "continuationToken",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3976,10 +3992,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MembershipResponseDto"
-                  }
+                  "$ref": "#/components/schemas/PaginatedMembershipsResponseDto"
                 }
               }
             }
@@ -10434,6 +10447,23 @@
           "userId",
           "communityId",
           "joinedAt"
+        ]
+      },
+      "PaginatedMembershipsResponseDto": {
+        "type": "object",
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MembershipResponseDto"
+            }
+          },
+          "continuationToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "members"
         ]
       },
       "CreateChannelMembershipDto": {

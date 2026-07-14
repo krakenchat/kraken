@@ -158,8 +158,9 @@ describe('Security (e2e)', () => {
         .get(`/api/membership/community/${communityId}`)
         .set('Authorization', `Bearer ${ownerToken}`)
         .expect(200);
-      expect(Array.isArray(members.body)).toBe(true);
-      expect((members.body as unknown[]).length).toBeGreaterThan(0);
+      const membersBody = members.body as { members: unknown[] };
+      expect(Array.isArray(membersBody.members)).toBe(true);
+      expect(membersBody.members.length).toBeGreaterThan(0);
       expectNoSensitiveLeaks(members.body);
     });
 

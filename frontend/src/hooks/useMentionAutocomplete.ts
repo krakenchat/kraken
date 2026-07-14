@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  membershipControllerFindAllForCommunityOptions,
-  aliasGroupsControllerGetCommunityAliasGroupsOptions,
-} from '../api-client/@tanstack/react-query.gen';
+import { aliasGroupsControllerGetCommunityAliasGroupsOptions } from '../api-client/@tanstack/react-query.gen';
+import { useAllCommunityMembers } from './useAllCommunityMembers';
 import { getCurrentMention } from '../utils/mentionParser';
 
 export interface MentionSuggestion {
@@ -43,12 +41,12 @@ export function useMentionAutocomplete({
     return getCurrentMention(text, cursorPosition);
   }, [text, cursorPosition]);
 
-  // Get all community members (cached) - only if we have a valid communityId
+  // Get all community members (cached, full paginated set) - only if we
+  // have a valid communityId
   const {
     data: allMembers = [],
     isLoading: isLoadingMembers,
-  } = useQuery({
-    ...membershipControllerFindAllForCommunityOptions({ path: { communityId } }),
+  } = useAllCommunityMembers(communityId, {
     enabled: !!communityId && communityId.trim() !== '',
   });
 

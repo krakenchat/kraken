@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateMembershipDto } from './dto/create-membership.dto';
-import { MembershipResponseDto } from './dto/membership-response.dto';
+import {
+  MembershipResponseDto,
+  PaginatedMembershipsResponseDto,
+} from './dto/membership-response.dto';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
@@ -166,14 +169,31 @@ export class MembershipService {
 
   async findAllForCommunity(
     communityId: string,
-  ): Promise<MembershipResponseDto[]> {
+    limit = 100,
+    continuationToken?: string,
+  ): Promise<PaginatedMembershipsResponseDto> {
     const memberships = await this.databaseService.membership.findMany({
       where: { communityId },
       include: {
         user: { select: PUBLIC_USER_SELECT },
       },
-      take: 1000,
+      // Order by joinedAt with id as a tiebreaker — joinedAt alone isn't
+      // unique (bulk-created memberships can share a timestamp), and the
+      // cursor below relies on a stable, deterministic sort order.
+      orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+      ...(continuationToken
+        ? { cursor: { id: continuationToken }, skip: 1 }
+        : {}),
     });
+
+    // Mirrors the messages cursor pattern: the token is the id of the last
+    // row returned, only emitted when the page was full (a partial page
+    // means we've reached the end).
+    const nextToken =
+      memberships.length === limit
+        ? memberships[memberships.length - 1].id
+        : undefined;
 
     // Batch fetch user roles scoped to returned members (not entire community)
     const memberUserIds = memberships.map((m) => m.userId);
@@ -210,13 +230,16 @@ export class MembershipService {
       rolesByUserId.set(ur.userId, existing);
     }
 
-    return memberships.map(
-      (membership) =>
-        new MembershipResponseDto(
-          membership,
-          rolesByUserId.get(membership.userId),
-        ),
-    );
+    return {
+      members: memberships.map(
+        (membership) =>
+          new MembershipResponseDto(
+            membership,
+            rolesByUserId.get(membership.userId),
+          ),
+      ),
+      continuationToken: nextToken,
+    };
   }
 
   async findAllForUser(userId: string): Promise<MembershipResponseDto[]> {

@@ -1200,6 +1200,20 @@ describe('NotificationsService', () => {
         include: expect.any(Object),
       });
     });
+
+    it('should cap an oversized limit at 100 even if it bypasses DTO validation', async () => {
+      const userId = 'user-1';
+      mockDatabase.notification.findMany.mockResolvedValue([]);
+
+      await service.getUserNotifications(userId, {
+        limit: 99999,
+        offset: 0,
+      });
+
+      expect(mockDatabase.notification.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 }),
+      );
+    });
   });
 
   describe('getUnreadCount', () => {

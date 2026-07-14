@@ -1,13 +1,17 @@
 import React from "react";
 import MemberList, { type MemberData } from "./MemberList";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import {
-  membershipControllerFindAllForCommunityOptions,
   presenceControllerGetMultipleUserPresenceOptions,
   directMessagesControllerFindDmGroupOptions,
   channelMembershipControllerFindAllForChannelOptions,
 } from "../../api-client/@tanstack/react-query.gen";
+import { membershipControllerFindAllForCommunity } from "../../api-client/sdk.gen";
 import type { RoleDto } from "../../api-client/types.gen";
+import {
+  communityMembersQueryKey,
+  MEMBER_LIST_PAGE_SIZE,
+} from "../../utils/membershipQueryKeys";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
 
 interface MemberListContainerProps {
@@ -76,15 +80,47 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     enabled: contextType === VoiceSessionType.Channel && !!isPrivate,
   });
 
-  // For public channels, fetch community members
+  // For public channels, fetch community members — paginated (cursor
+  // envelope), loading more progressively via the "Show more" affordance.
   const {
-    data: communityMembers,
+    data: communityMembersData,
     isLoading: isCommunityLoading,
     error: communityError,
-  } = useQuery({
-    ...membershipControllerFindAllForCommunityOptions({ path: { communityId: communityId || "" } }),
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: communityMembersQueryKey(communityId || ""),
+    queryFn: async ({ pageParam, signal }) => {
+      const { data } = await membershipControllerFindAllForCommunity({
+        path: { communityId: communityId! },
+        query: { limit: MEMBER_LIST_PAGE_SIZE, continuationToken: pageParam },
+        throwOnError: true,
+        signal,
+      });
+      return data;
+    },
+    initialPageParam: "",
+    getNextPageParam: (lastPage) => lastPage.continuationToken || undefined,
+    // No `maxPages` here on purpose: it's a sliding-window CACHE bound in
+    // TanStack v5 (fetching page N+1 evicts page 1), which would silently
+    // drop already-rendered members from the flatMap'd list past the
+    // window — defeating the "Show more" pagination UX. Memory growth is
+    // bounded instead by the 100/page size and user-driven "Show more"
+    // pacing (each click is one explicit fetch).
     enabled: contextType === VoiceSessionType.Channel && !!communityId && isPrivate === false,
   });
+
+  const communityMembers = React.useMemo(
+    () => communityMembersData?.pages.flatMap((page) => page.members),
+    [communityMembersData],
+  );
+
+  const handleLoadMoreMembers = React.useCallback(() => {
+    if (!isFetchingNextPage && hasNextPage) {
+      void fetchNextPage();
+    }
+  }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
 
   // For DM context, fetch DM group members
   const {
@@ -225,6 +261,13 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     dmGroup?.isGroup,
   ]);
 
+  // Only the community members query is paginated; private-channel and DM
+  // member lists are single fetches.
+  const showLoadMore =
+    contextType === VoiceSessionType.Channel &&
+    isPrivate === false &&
+    !!hasNextPage;
+
   return (
     <MemberList
       members={members}
@@ -232,6 +275,9 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
       error={error}
       title={title}
       communityId={communityId}
+      hasMore={showLoadMore}
+      isLoadingMore={isFetchingNextPage}
+      onLoadMore={handleLoadMoreMembers}
     />
   );
 };

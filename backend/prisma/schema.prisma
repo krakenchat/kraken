@@ -468,6 +468,9 @@ model Membership {
   communityId String
 
   @@unique([userId, communityId])
+  // Supports findAllForCommunity's cursor-paginated page query
+  // (where: communityId, orderBy: [joinedAt, id]).
+  @@index([communityId, joinedAt, id])
 }
 
 model Community {

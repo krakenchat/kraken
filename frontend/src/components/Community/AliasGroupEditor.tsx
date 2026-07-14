@@ -25,7 +25,7 @@ import {
   Search as SearchIcon,
 } from "@mui/icons-material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { membershipControllerFindAllForCommunityOptions } from "../../api-client/@tanstack/react-query.gen";
+import { useAllCommunityMembers } from "../../hooks/useAllCommunityMembers";
 import {
   aliasGroupsControllerGetAliasGroupOptions,
   aliasGroupsControllerCreateAliasGroupMutation,
@@ -56,11 +56,11 @@ const AliasGroupEditor: React.FC<AliasGroupEditorProps> = ({
 
   const isEditing = Boolean(group);
 
-  // Fetch community members for selection
+  // Fetch community members for selection (full paginated set)
   const {
     data: members,
     isLoading: loadingMembers,
-  } = useQuery(membershipControllerFindAllForCommunityOptions({ path: { communityId } }));
+  } = useAllCommunityMembers(communityId);
 
   const queryClient = useQueryClient();
 

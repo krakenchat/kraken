@@ -163,6 +163,16 @@ describe('WebhooksService', () => {
       expect(JSON.stringify(result)).not.toContain('should-not-leak');
       expect(JSON.stringify(result)).not.toContain('createdBy');
     });
+
+    it('caps the query at 100 webhooks', async () => {
+      mockDatabaseService.webhook.findMany.mockResolvedValue([]);
+
+      await service.listForChannel(channelId);
+
+      expect(mockDatabaseService.webhook.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 }),
+      );
+    });
   });
 
   describe('remove', () => {

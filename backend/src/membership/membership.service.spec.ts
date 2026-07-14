@@ -398,16 +398,17 @@ describe('MembershipService', () => {
       const result = await service.findAllForCommunity(community.id);
 
       expect(result).toBeDefined();
-      expect(result).toHaveLength(2);
+      expect(result.members).toHaveLength(2);
+      expect(result.continuationToken).toBeUndefined();
 
       // User1 should have admin role
-      const user1Membership = result.find((m) => m.userId === user1.id);
+      const user1Membership = result.members.find((m) => m.userId === user1.id);
       expect(user1Membership?.roles).toHaveLength(1);
       expect(user1Membership?.roles?.[0].name).toBe('Admin');
       expect(user1Membership?.roles?.[0].position).toBe(10);
 
       // User2 should have member role
-      const user2Membership = result.find((m) => m.userId === user2.id);
+      const user2Membership = result.members.find((m) => m.userId === user2.id);
       expect(user2Membership?.roles).toHaveLength(1);
       expect(user2Membership?.roles?.[0].name).toBe('Member');
       expect(user2Membership?.roles?.[0].position).toBe(100);
@@ -417,7 +418,8 @@ describe('MembershipService', () => {
         include: {
           user: { select: PUBLIC_USER_SELECT },
         },
-        take: 1000,
+        orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }],
+        take: 100,
       });
 
       expect(mockDatabase.userRoles.findMany).toHaveBeenCalledWith({
@@ -429,14 +431,14 @@ describe('MembershipService', () => {
       });
     });
 
-    it('should return empty array when no memberships exist', async () => {
+    it('should return empty members array when no memberships exist', async () => {
       const community = CommunityFactory.build();
       mockDatabase.membership.findMany.mockResolvedValue([]);
       mockDatabase.userRoles.findMany.mockResolvedValue([]);
 
       const result = await service.findAllForCommunity(community.id);
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ members: [], continuationToken: undefined });
     });
 
     it('should return memberships without roles when no user roles exist', async () => {
@@ -457,8 +459,8 @@ describe('MembershipService', () => {
 
       const result = await service.findAllForCommunity(community.id);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].roles).toBeUndefined();
+      expect(result.members).toHaveLength(1);
+      expect(result.members[0].roles).toBeUndefined();
     });
 
     it('should rethrow errors', async () => {
@@ -470,6 +472,102 @@ describe('MembershipService', () => {
       await expect(service.findAllForCommunity(community.id)).rejects.toThrow(
         'Database error',
       );
+    });
+
+    it('should not leak sensitive user fields even when the query returns a full user row', async () => {
+      const community = CommunityFactory.build();
+      const fullUser = UserFactory.buildComplete({ username: 'alice' });
+      const memberships = [
+        {
+          ...MembershipFactory.build({
+            communityId: community.id,
+            userId: fullUser.id,
+          }),
+          user: fullUser,
+        },
+      ];
+
+      mockDatabase.membership.findMany.mockResolvedValue(memberships);
+      mockDatabase.userRoles.findMany.mockResolvedValue([]);
+
+      const result = await service.findAllForCommunity(community.id);
+
+      expect(result.members[0].user).toBeDefined();
+      expectNoSensitiveUserFields(result.members[0].user!);
+    });
+
+    it('should cap the requested limit passed through to Prisma', async () => {
+      const community = CommunityFactory.build();
+      mockDatabase.membership.findMany.mockResolvedValue([]);
+      mockDatabase.userRoles.findMany.mockResolvedValue([]);
+
+      await service.findAllForCommunity(community.id, 50);
+
+      expect(mockDatabase.membership.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 50 }),
+      );
+    });
+
+    it('should paginate with a continuationToken (cursor round-trip, no overlap between pages)', async () => {
+      const community = CommunityFactory.build();
+      // 3 members with page size 2: page1 full (token emitted), page2
+      // partial (no token) — exercises both the "more pages" and
+      // "reached the end" branches of the nextToken computation.
+      const users = Array.from({ length: 3 }, () => UserFactory.build());
+      const memberships = users.map((user, index) => ({
+        ...MembershipFactory.build({
+          communityId: community.id,
+          userId: user.id,
+          id: `membership-${index}`,
+        }),
+        user,
+      }));
+
+      // Page 1: first 2 memberships, full page -> continuationToken set
+      mockDatabase.membership.findMany.mockResolvedValueOnce(
+        memberships.slice(0, 2),
+      );
+      mockDatabase.userRoles.findMany.mockResolvedValue([]);
+
+      const page1 = await service.findAllForCommunity(community.id, 2);
+
+      expect(page1.members).toHaveLength(2);
+      expect(page1.continuationToken).toBe('membership-1');
+      expect(mockDatabase.membership.findMany).toHaveBeenLastCalledWith({
+        where: { communityId: community.id },
+        include: { user: { select: PUBLIC_USER_SELECT } },
+        orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }],
+        take: 2,
+      });
+
+      // Page 2: final membership only, partial page -> no continuationToken
+      mockDatabase.membership.findMany.mockResolvedValueOnce(
+        memberships.slice(2, 3),
+      );
+
+      const page2 = await service.findAllForCommunity(
+        community.id,
+        2,
+        page1.continuationToken,
+      );
+
+      expect(page2.members).toHaveLength(1);
+      expect(page2.continuationToken).toBeUndefined();
+      expect(mockDatabase.membership.findMany).toHaveBeenLastCalledWith({
+        where: { communityId: community.id },
+        include: { user: { select: PUBLIC_USER_SELECT } },
+        orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }],
+        take: 2,
+        cursor: { id: 'membership-1' },
+        skip: 1,
+      });
+
+      // No overlap and no gaps across the two pages
+      const page1Ids = page1.members.map((m) => m.userId);
+      const page2Ids = page2.members.map((m) => m.userId);
+      expect(page1Ids).toEqual(users.slice(0, 2).map((u) => u.id));
+      expect(page2Ids).toEqual(users.slice(2, 3).map((u) => u.id));
+      expect(page1Ids.filter((id) => page2Ids.includes(id))).toHaveLength(0);
     });
   });
 
