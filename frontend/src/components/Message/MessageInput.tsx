@@ -80,6 +80,12 @@ export default function MessageInput({
   communityId,
 }: MessageInputProps) {
   const [text, setText] = useState("");
+  // LOAD-BEARING for optimistic-send correctness: `sending` serializes
+  // composer submits until the current send's ack/timeout settles, which is
+  // what makes two same-author PENDING rows with identical content
+  // unreachable from the composer alone (echo correlation is content-based —
+  // see messageCacheUpdaters.ts). If this ever becomes fire-and-forget, land
+  // the server-echoed client nonce follow-up first.
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
