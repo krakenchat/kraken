@@ -1,5 +1,7 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { getQueueToken } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { ReactionsService } from './reactions.service';
@@ -11,14 +13,14 @@ import { AddReactionDto } from './dto/add-reaction.dto';
 import { RemoveReactionDto } from './dto/remove-reaction.dto';
 import { AddAttachmentDto } from './dto/add-attachment.dto';
 import { ServerEvents } from '@semaphore-chat/shared';
-import { LinkPreviewsService } from '@/link-previews/link-previews.service';
+import { LINK_PREVIEWS_QUEUE } from '@/jobs/jobs.constants';
 
 describe('MessagesController', () => {
   let controller: MessagesController;
   let service: Mocked<MessagesService>;
   let reactionsService: Mocked<ReactionsService>;
   let websocketService: Mocked<WebsocketService>;
-  let linkPreviewsService: Mocked<LinkPreviewsService>;
+  let linkPreviewsQueue: Mocked<Queue>;
 
   const mockUser = UserFactory.build();
   const mockRequest = {
@@ -33,8 +35,8 @@ describe('MessagesController', () => {
     service = unitRef.get(MessagesService);
     reactionsService = unitRef.get(ReactionsService);
     websocketService = unitRef.get(WebsocketService);
-    linkPreviewsService = unitRef.get(LinkPreviewsService);
-    linkPreviewsService.processMessageLinkPreviews.mockResolvedValue(undefined);
+    linkPreviewsQueue = unitRef.get(getQueueToken(LINK_PREVIEWS_QUEUE));
+    (linkPreviewsQueue.add as jest.Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -569,6 +571,113 @@ describe('MessagesController', () => {
         { message: enrichedMessage },
       );
       expect(result).toEqual(enrichedMessage);
+
+      // Edit path enqueues link-preview reprocessing with a jobId distinct
+      // from the create-path job (`preview-${id}`, no suffix) in
+      // MessageDispatchService — otherwise BullMQ's jobId dedupe could
+      // swallow the edit's reprocessing as a duplicate of an
+      // still-queued/active create job for the same message. `-` separators
+      // because BullMQ rejects custom jobIds containing `:`.
+      expect(linkPreviewsQueue.add).toHaveBeenCalledWith(
+        'process',
+        {
+          messageId,
+          room: 'channel-123',
+          event: ServerEvents.UPDATE_MESSAGE,
+        },
+        {
+          jobId: expect.stringMatching(
+            new RegExp(`^preview-${messageId}-edit-`),
+          ),
+        },
+      );
+      const [, , options] = (linkPreviewsQueue.add as jest.Mock).mock.calls[0];
+      expect(options.jobId).not.toBe(`preview-${messageId}`);
+      expect(options.jobId).not.toContain(':');
+    });
+
+    it('does not enqueue link-preview reprocessing when the update has no spans', async () => {
+      const messageId = 'msg-999';
+      const updateDto: UpdateMessageDto = {};
+
+      const originalMessage = MessageFactory.build({
+        id: messageId,
+        channelId: 'channel-123',
+        attachments: [],
+      } as any);
+      const updatedMessage = MessageFactory.build({ id: messageId });
+      const enrichedMessage = { ...updatedMessage, attachments: [] };
+
+      service.findOne.mockResolvedValue(originalMessage as any);
+      service.update.mockResolvedValue(updatedMessage as any);
+      service.enrichMessageWithFileMetadata.mockReturnValue(
+        enrichedMessage as any,
+      );
+
+      await controller.update(messageId, updateDto);
+
+      expect(linkPreviewsQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('enqueues two edits of the same message with distinct jobIds', async () => {
+      const messageId = 'msg-777';
+      const updateDto: UpdateMessageDto = { spans: [] };
+
+      const originalMessage = MessageFactory.build({
+        id: messageId,
+        channelId: 'channel-123',
+        attachments: [],
+      } as any);
+      const updatedMessage = MessageFactory.build({ id: messageId });
+
+      service.findOne.mockResolvedValue(originalMessage as any);
+      service.update.mockResolvedValue(updatedMessage as any);
+      service.enrichMessageWithFileMetadata.mockReturnValue({
+        ...updatedMessage,
+        attachments: [],
+      } as any);
+
+      await controller.update(messageId, updateDto);
+      await controller.update(messageId, updateDto);
+
+      const jobIds = (linkPreviewsQueue.add as jest.Mock).mock.calls.map(
+        (call) => call[2].jobId,
+      );
+      expect(jobIds).toHaveLength(2);
+      expect(jobIds[0]).not.toBe(jobIds[1]);
+    });
+
+    it('logs and swallows an enqueue failure without failing the request', async () => {
+      const messageId = 'msg-321';
+      const updateDto: UpdateMessageDto = { spans: [] };
+
+      const originalMessage = MessageFactory.build({
+        id: messageId,
+        channelId: 'channel-123',
+        attachments: [],
+      } as any);
+      const updatedMessage = MessageFactory.build({ id: messageId });
+      const enrichedMessage = { ...updatedMessage, attachments: [] };
+
+      service.findOne.mockResolvedValue(originalMessage as any);
+      service.update.mockResolvedValue(updatedMessage as any);
+      service.enrichMessageWithFileMetadata.mockReturnValue(
+        enrichedMessage as any,
+      );
+      (linkPreviewsQueue.add as jest.Mock).mockRejectedValue(
+        new Error('redis boom'),
+      );
+      const warnSpy = jest
+        .spyOn(controller['logger'], 'warn')
+        .mockImplementation(() => undefined);
+
+      const result = await controller.update(messageId, updateDto);
+
+      expect(result).toEqual(enrichedMessage);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Failed to enqueue link preview processing on edit',
+        expect.any(Error),
+      );
     });
 
     it('should handle DM group message updates', async () => {

@@ -5,6 +5,7 @@ import {
   forwardRef,
   Inject,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/database/database.service';
 import {
   Message,
@@ -25,6 +26,33 @@ import { PresenceService } from '@/presence/presence.service';
 import { flattenSpansToDisplayText } from '@/common/utils/text.utils';
 import { isDndActive } from './dnd.util';
 
+/** Full includes for a freshly-created Notification, matching createNotification()'s shape. */
+const NOTIFICATION_INCLUDE = {
+  author: {
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+    },
+  },
+  message: {
+    select: {
+      id: true,
+      spans: true,
+      channelId: true,
+      directMessageGroupId: true,
+    },
+  },
+  channel: {
+    select: {
+      id: true,
+      name: true,
+      communityId: true,
+    },
+  },
+} as const;
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -35,6 +63,7 @@ export class NotificationsService {
     private readonly notificationsGateway: NotificationsGateway,
     private readonly pushNotificationsService: PushNotificationsService,
     private readonly presenceService: PresenceService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -46,69 +75,68 @@ export class NotificationsService {
       spans: Pick<MessageSpan, 'type' | 'userId' | 'specialKind' | 'aliasId'>[];
     },
   ): Promise<void> {
-    try {
-      // Don't create notifications for deleted messages
-      if (message.deletedAt) {
-        return;
+    // Don't create notifications for deleted messages
+    if (message.deletedAt) {
+      return;
+    }
+
+    // NOTE: this method used to swallow all errors here (notification
+    // failures "shouldn't break message sending"). That reasoning applied
+    // when this was invoked fire-and-forget from the request path. It is
+    // now called from NotificationsFanoutProcessor (a BullMQ job) — the
+    // request path already returned once the job was enqueued, so letting
+    // errors propagate here is what lets BullMQ retry the job instead of
+    // silently losing the fan-out.
+    const mentionedUserIds = new Set<string>();
+
+    // Extract mentioned users from spans
+    for (const span of message.spans) {
+      if (span.type === SpanType.USER_MENTION && span.userId) {
+        mentionedUserIds.add(span.userId);
       }
 
-      const mentionedUserIds = new Set<string>();
-
-      // Extract mentioned users from spans
-      for (const span of message.spans) {
-        if (span.type === SpanType.USER_MENTION && span.userId) {
-          mentionedUserIds.add(span.userId);
-        }
-
-        // Handle @here and @channel special mentions
-        if (span.type === SpanType.SPECIAL_MENTION) {
-          const users = await this.getSpecialMentionUsers(
-            message.channelId,
-            span.specialKind,
-          );
-          users.forEach((userId) => mentionedUserIds.add(userId));
-        }
-
-        // Handle alias group mentions
-        if (span.type === SpanType.ALIAS_MENTION && span.aliasId) {
-          const aliasMembers = await this.getAliasMentionUsers(span.aliasId);
-          aliasMembers.forEach((userId) => mentionedUserIds.add(userId));
-        }
+      // Handle @here and @channel special mentions
+      if (span.type === SpanType.SPECIAL_MENTION) {
+        const users = await this.getSpecialMentionUsers(
+          message.channelId,
+          span.specialKind,
+        );
+        users.forEach((userId) => mentionedUserIds.add(userId));
       }
 
-      // Remove the author from mentioned users (don't notify yourself)
-      if (message.authorId) {
-        mentionedUserIds.delete(message.authorId);
+      // Handle alias group mentions
+      if (span.type === SpanType.ALIAS_MENTION && span.aliasId) {
+        const aliasMembers = await this.getAliasMentionUsers(span.aliasId);
+        aliasMembers.forEach((userId) => mentionedUserIds.add(userId));
       }
+    }
 
-      // Create notifications for mentioned users
-      const mentionPromises = Array.from(mentionedUserIds).map((userId) =>
-        this.createNotificationIfAllowed(
-          userId,
-          message.channelId
-            ? NotificationType.USER_MENTION
-            : NotificationType.DIRECT_MESSAGE,
-          message,
-        ),
-      );
+    // Remove the author from mentioned users (don't notify yourself)
+    if (message.authorId) {
+      mentionedUserIds.delete(message.authorId);
+    }
 
-      await Promise.all(mentionPromises);
+    // Create notifications for mentioned users
+    const mentionPromises = Array.from(mentionedUserIds).map((userId) =>
+      this.createNotificationIfAllowed(
+        userId,
+        message.channelId
+          ? NotificationType.USER_MENTION
+          : NotificationType.DIRECT_MESSAGE,
+        message,
+      ),
+    );
 
-      // Handle DM notifications for all DM members (excluding already-notified via mentions)
-      if (message.directMessageGroupId) {
-        await this.createDMNotifications(message, mentionedUserIds);
-      }
+    await Promise.all(mentionPromises);
 
-      // Handle CHANNEL_MESSAGE notifications for users with "all" notification level
-      if (message.channelId) {
-        await this.createChannelMessageNotifications(message, mentionedUserIds);
-      }
-    } catch (error) {
-      this.logger.error(
-        `Error processing message ${message.id} for notifications`,
-        error,
-      );
-      // Don't throw - notification failures shouldn't break message sending
+    // Handle DM notifications for all DM members (excluding already-notified via mentions)
+    if (message.directMessageGroupId) {
+      await this.createDMNotifications(message, mentionedUserIds);
+    }
+
+    // Handle CHANNEL_MESSAGE notifications for users with "all" notification level
+    if (message.channelId) {
+      await this.createChannelMessageNotifications(message, mentionedUserIds);
     }
   }
 
@@ -225,22 +253,80 @@ export class NotificationsService {
   /**
    * Max community size for CHANNEL_MESSAGE notifications.
    * Skipped for larger communities to avoid performance issues on self-hosted instances.
+   * Configurable via CHANNEL_MESSAGE_MEMBER_THRESHOLD (default 5000).
    */
-  private static readonly CHANNEL_MESSAGE_MEMBER_THRESHOLD = 500;
+  private getChannelMessageMemberThreshold(): number {
+    const raw = this.configService.get<string>(
+      'CHANNEL_MESSAGE_MEMBER_THRESHOLD',
+    );
+    if (!raw) return 5000;
+
+    const parsed = parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      // Explicit but invalid (e.g. "0", negative, non-numeric) — treat as a
+      // misconfiguration and fall back loudly rather than silently.
+      this.logger.warn(
+        `Invalid CHANNEL_MESSAGE_MEMBER_THRESHOLD="${raw}" (must be a positive number) — falling back to default threshold 5000`,
+      );
+      return 5000;
+    }
+    return parsed;
+  }
 
   /**
-   * Create CHANNEL_MESSAGE notifications for users with "all" notification level.
-   * Only users whose settings resolve to level 'all' will actually get records
-   * (the existing shouldNotify() filters out CHANNEL_MESSAGE for 'mentions' level).
+   * The schema default for UserNotificationSettings.defaultChannelLevel —
+   * used below as the in-memory default for members who have no settings
+   * row, instead of reading (and create-on-read auto-creating) one per
+   * member the way getUserSettings()/shouldNotify() do.
+   */
+  private static readonly DEFAULT_CHANNEL_LEVEL = 'mentions';
+
+  /**
+   * Create CHANNEL_MESSAGE notifications for users with "all" notification
+   * level, batched to avoid the O(recipients) query fan-out of calling
+   * shouldNotify()/createNotification() per member:
+   *
+   *   1. ONE userNotificationSettings.findMany() for all eligible members
+   *      (in-memory default applied for members with no settings row — no
+   *      create-on-read here, unlike getUserSettings()).
+   *   2. ONE channelNotificationOverride.findMany() for the same members.
+   *   3. Compute the allowed set in memory. For this call site
+   *      (channelId set, directMessageGroupId null, type ===
+   *      CHANNEL_MESSAGE always) shouldNotify()'s rules collapse to: allow
+   *      iff the resolved level (override ?? defaultChannelLevel) === 'all'
+   *      — the DM gate and THREAD_REPLY bypass branches never apply here,
+   *      and 'none'/'mentions' both resolve to false for this type, so
+   *      checking for 'all' exactly reproduces shouldNotify()'s result.
+   *   4. ONE notification.createMany() for the allowed set.
+   *   5. ONE notification.findMany() over the just-created rows (matching
+   *      createNotification()'s include shape) to emit the WS event and
+   *      send push notifications per recipient — unchanged from before.
+   *
+   * Retry idempotency: this method is invoked from a BullMQ job
+   * (NotificationsFanoutProcessor) whose errors propagate so the queue
+   * retries the whole job on failure. A prior attempt may have already run
+   * createMany for some of these recipients before failing later (e.g. a
+   * push/WS-side error, or a later throw in the same job for the
+   * mention/DM notifications). Re-running from the top must not re-create
+   * rows for recipients who already have one — see the
+   * notification.findMany() existing-check below, which excludes them from
+   * BOTH createMany AND the post-create WS/push emission by keeping them
+   * out of `eligibleUserIds` entirely.
    */
   private async createChannelMessageNotifications(
     message: Message,
     alreadyNotifiedUserIds: Set<string>,
   ): Promise<void> {
     if (!message.channelId) return;
+    // Notification.authorId is required — matches createNotificationIfAllowed's
+    // `!message.authorId` guard (e.g. webhook-posted messages have no author).
+    if (!message.authorId) return;
+
+    const channelId = message.channelId;
+    const authorId = message.authorId;
 
     const channel = await this.databaseService.channel.findUnique({
-      where: { id: message.channelId },
+      where: { id: channelId },
       select: { isPrivate: true, communityId: true },
     });
 
@@ -251,9 +337,10 @@ export class NotificationsService {
       const memberCount = await this.databaseService.membership.count({
         where: { communityId: channel.communityId },
       });
-      if (memberCount > NotificationsService.CHANNEL_MESSAGE_MEMBER_THRESHOLD) {
-        this.logger.debug(
-          `Skipping CHANNEL_MESSAGE notifications for channel ${message.channelId}: community has ${memberCount} members (threshold: ${NotificationsService.CHANNEL_MESSAGE_MEMBER_THRESHOLD})`,
+      const threshold = this.getChannelMessageMemberThreshold();
+      if (memberCount > threshold) {
+        this.logger.warn(
+          `Skipping CHANNEL_MESSAGE notifications for channel ${channelId}: community has ${memberCount} members (threshold: ${threshold})`,
         );
         return;
       }
@@ -264,7 +351,7 @@ export class NotificationsService {
     if (channel.isPrivate) {
       const memberships = await this.databaseService.channelMembership.findMany(
         {
-          where: { channelId: message.channelId },
+          where: { channelId },
           select: { userId: true },
         },
       );
@@ -278,28 +365,121 @@ export class NotificationsService {
     }
 
     // Filter out author and already-notified users
-    const eligibleUserIds = userIds.filter(
+    let eligibleUserIds = userIds.filter(
       (userId) =>
         userId !== message.authorId && !alreadyNotifiedUserIds.has(userId),
     );
 
-    // Process in batches to avoid overwhelming the DB with per-user queries
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < eligibleUserIds.length; i += BATCH_SIZE) {
-      const batch = eligibleUserIds.slice(i, i + BATCH_SIZE);
-      const batchPromises = batch.map((userId) =>
-        this.createNotificationIfAllowed(
-          userId,
-          NotificationType.CHANNEL_MESSAGE,
-          message,
-        ),
+    if (eligibleUserIds.length === 0) return;
+
+    // Retry idempotency: exclude anyone who already has a CHANNEL_MESSAGE
+    // notification for this message from a prior (partial) attempt at this
+    // same BullMQ job. This runs against the CURRENT recipient list on every
+    // attempt, not just the in-run mention/DM dedupe above.
+    const alreadyCreated = await this.databaseService.notification.findMany({
+      where: {
+        messageId: message.id,
+        type: NotificationType.CHANNEL_MESSAGE,
+        userId: { in: eligibleUserIds },
+      },
+      select: { userId: true },
+    });
+    if (alreadyCreated.length > 0) {
+      const alreadyCreatedUserIds = new Set(
+        alreadyCreated.map((n) => n.userId),
       );
-      await Promise.all(batchPromises);
+      eligibleUserIds = eligibleUserIds.filter(
+        (userId) => !alreadyCreatedUserIds.has(userId),
+      );
+    }
+
+    if (eligibleUserIds.length === 0) return;
+
+    // ONE query for settings across all eligible recipients (no create-on-read).
+    const settingsRows =
+      await this.databaseService.userNotificationSettings.findMany({
+        where: { userId: { in: eligibleUserIds } },
+        select: { userId: true, defaultChannelLevel: true },
+      });
+    const defaultLevelByUser = new Map(
+      settingsRows.map((s) => [s.userId, s.defaultChannelLevel]),
+    );
+
+    // ONE query for channel-specific overrides across all eligible recipients.
+    const overrideRows =
+      await this.databaseService.channelNotificationOverride.findMany({
+        where: { channelId, userId: { in: eligibleUserIds } },
+        select: { userId: true, level: true },
+      });
+    const overrideLevelByUser = new Map(
+      overrideRows.map((o) => [o.userId, o.level]),
+    );
+
+    const allowedUserIds = eligibleUserIds.filter((userId) => {
+      const defaultLevel =
+        defaultLevelByUser.get(userId) ??
+        NotificationsService.DEFAULT_CHANNEL_LEVEL;
+      const level = overrideLevelByUser.get(userId) ?? defaultLevel;
+      return level === 'all';
+    });
+
+    if (allowedUserIds.length === 0) return;
+
+    await this.databaseService.notification.createMany({
+      data: allowedUserIds.map((userId) => ({
+        userId,
+        type: NotificationType.CHANNEL_MESSAGE,
+        messageId: message.id,
+        channelId,
+        directMessageGroupId: message.directMessageGroupId ?? undefined,
+        authorId,
+      })),
+    });
+
+    // ONE follow-up query to get full records for WS emit + push, mirroring
+    // createNotification()'s include shape.
+    const createdNotifications =
+      await this.databaseService.notification.findMany({
+        where: {
+          messageId: message.id,
+          type: NotificationType.CHANNEL_MESSAGE,
+          userId: { in: allowedUserIds },
+        },
+        include: NOTIFICATION_INCLUDE,
+      });
+
+    for (const notification of createdNotifications) {
+      this.notificationsGateway.emitNotificationToUser(
+        notification.userId,
+        notification,
+      );
+
+      this.sendPushNotification(notification.userId, notification).catch(
+        (error) => {
+          this.logger.error(
+            `Failed to send push notification to user ${notification.userId}:`,
+            error,
+          );
+        },
+      );
     }
   }
 
   /**
-   * Create a notification if user's settings allow it
+   * Create a notification if user's settings allow it.
+   *
+   * Retry idempotency: called for USER_MENTION/DIRECT_MESSAGE recipients
+   * from processMessageForNotifications, which is invoked from a BullMQ job
+   * whose errors propagate for retry. A prior attempt at this job may have
+   * already created this exact (userId, messageId, type) notification
+   * before a later recipient in the same Promise.all() batch threw. There's
+   * no unique DB constraint on (userId, messageId, type) to enforce this at
+   * the database level (see schema.prisma Notification model), so this is a
+   * check-then-insert rather than createMany+skipDuplicates. That's safe
+   * without a transaction/lock: BullMQ's jobId dedupe (see
+   * MessageDispatchService) guarantees only one worker processes a given
+   * message's fan-out job at a time, so no concurrent duplicate job can
+   * race this check.
    */
   private async createNotificationIfAllowed(
     userId: string,
@@ -315,6 +495,14 @@ export class NotificationsService {
     );
 
     if (!shouldNotify || !message.authorId) {
+      return null;
+    }
+
+    const existing = await this.databaseService.notification.findFirst({
+      where: { userId, messageId: message.id, type },
+      select: { id: true },
+    });
+    if (existing) {
       return null;
     }
 
@@ -386,31 +574,7 @@ export class NotificationsService {
         authorId: dto.authorId,
         parentMessageId: dto.parentMessageId,
       },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        message: {
-          select: {
-            id: true,
-            spans: true,
-            channelId: true,
-            directMessageGroupId: true,
-          },
-        },
-        channel: {
-          select: {
-            id: true,
-            name: true,
-            communityId: true,
-          },
-        },
-      },
+      include: NOTIFICATION_INCLUDE,
     });
 
     // Emit WebSocket event to notify the user in real-time

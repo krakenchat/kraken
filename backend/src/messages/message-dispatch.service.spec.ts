@@ -1,18 +1,22 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
+import { getQueueToken } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { MessageDispatchService } from './message-dispatch.service';
 import { MessagesService } from './messages.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { NotificationsService } from '@/notifications/notifications.service';
-import { LinkPreviewsService } from '@/link-previews/link-previews.service';
+import {
+  MESSAGE_FANOUT_QUEUE,
+  LINK_PREVIEWS_QUEUE,
+} from '@/jobs/jobs.constants';
 import { ServerEvents } from '@semaphore-chat/shared';
 
 describe('MessageDispatchService', () => {
   let service: MessageDispatchService;
   let messagesService: Mocked<MessagesService>;
   let websocketService: Mocked<WebsocketService>;
-  let notificationsService: Mocked<NotificationsService>;
-  let linkPreviewsService: Mocked<LinkPreviewsService>;
+  let messageFanoutQueue: Mocked<Queue>;
+  let linkPreviewsQueue: Mocked<Queue>;
 
   const rawMessage = {
     id: 'msg-1',
@@ -30,16 +34,14 @@ describe('MessageDispatchService', () => {
     service = unit;
     messagesService = unitRef.get(MessagesService);
     websocketService = unitRef.get(WebsocketService);
-    notificationsService = unitRef.get(NotificationsService);
-    linkPreviewsService = unitRef.get(LinkPreviewsService);
+    messageFanoutQueue = unitRef.get(getQueueToken(MESSAGE_FANOUT_QUEUE));
+    linkPreviewsQueue = unitRef.get(getQueueToken(LINK_PREVIEWS_QUEUE));
 
     messagesService.enrichMessageWithFileMetadata.mockReturnValue(
       enrichedMessage as any,
     );
-    notificationsService.processMessageForNotifications.mockResolvedValue(
-      undefined,
-    );
-    linkPreviewsService.processMessageLinkPreviews.mockResolvedValue(undefined);
+    (messageFanoutQueue.add as jest.Mock).mockResolvedValue(undefined);
+    (linkPreviewsQueue.add as jest.Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -100,7 +102,7 @@ describe('MessageDispatchService', () => {
     );
   });
 
-  it('fires notifications when notifications: true', async () => {
+  it('enqueues a message-fanout job with an idempotent jobId when notifications: true', async () => {
     await service.dispatch(rawMessage as any, {
       room: 'channel-1',
       event: ServerEvents.NEW_MESSAGE,
@@ -108,12 +110,15 @@ describe('MessageDispatchService', () => {
       linkPreviews: false,
     });
 
-    expect(
-      notificationsService.processMessageForNotifications,
-    ).toHaveBeenCalledWith(rawMessage);
+    // `-` separator (not `:`): BullMQ rejects custom jobIds containing `:`.
+    expect(messageFanoutQueue.add).toHaveBeenCalledWith(
+      'fanout',
+      { messageId: rawMessage.id },
+      { jobId: `fanout-${rawMessage.id}` },
+    );
   });
 
-  it('skips notifications when notifications: false (webhook path)', async () => {
+  it('skips the message-fanout enqueue when notifications: false (webhook path)', async () => {
     await service.dispatch(rawMessage as any, {
       room: 'channel-1',
       event: ServerEvents.NEW_MESSAGE,
@@ -121,12 +126,10 @@ describe('MessageDispatchService', () => {
       linkPreviews: false,
     });
 
-    expect(
-      notificationsService.processMessageForNotifications,
-    ).not.toHaveBeenCalled();
+    expect(messageFanoutQueue.add).not.toHaveBeenCalled();
   });
 
-  it('fires link preview processing when linkPreviews: true, using the dispatch room', async () => {
+  it('enqueues a link-previews job using the dispatch room, always as UPDATE_MESSAGE', async () => {
     await service.dispatch(rawMessage as any, {
       room: 'dm:group-1',
       event: ServerEvents.NEW_DM,
@@ -134,15 +137,18 @@ describe('MessageDispatchService', () => {
       linkPreviews: true,
     });
 
-    expect(linkPreviewsService.processMessageLinkPreviews).toHaveBeenCalledWith(
-      rawMessage.id,
-      rawMessage.spans,
-      'dm:group-1',
-      ServerEvents.UPDATE_MESSAGE,
+    expect(linkPreviewsQueue.add).toHaveBeenCalledWith(
+      'process',
+      {
+        messageId: rawMessage.id,
+        room: 'dm:group-1',
+        event: ServerEvents.UPDATE_MESSAGE,
+      },
+      { jobId: `preview-${rawMessage.id}` },
     );
   });
 
-  it('skips link preview processing when linkPreviews: false', async () => {
+  it('skips the link-previews enqueue when linkPreviews: false', async () => {
     await service.dispatch(rawMessage as any, {
       room: 'channel-1',
       event: ServerEvents.NEW_MESSAGE,
@@ -150,16 +156,12 @@ describe('MessageDispatchService', () => {
       linkPreviews: false,
     });
 
-    expect(
-      linkPreviewsService.processMessageLinkPreviews,
-    ).not.toHaveBeenCalled();
+    expect(linkPreviewsQueue.add).not.toHaveBeenCalled();
   });
 
-  it('catches and logs a rejected notifications promise without throwing', async () => {
-    const error = new Error('notif boom');
-    notificationsService.processMessageForNotifications.mockRejectedValue(
-      error,
-    );
+  it('catches and logs a rejected message-fanout enqueue without throwing', async () => {
+    const error = new Error('redis boom');
+    (messageFanoutQueue.add as jest.Mock).mockRejectedValue(error);
     const errorSpy = jest
       .spyOn(service['logger'], 'error')
       .mockImplementation(() => undefined);
@@ -173,19 +175,19 @@ describe('MessageDispatchService', () => {
       }),
     ).resolves.toBeUndefined();
 
-    // Allow the fire-and-forget rejection's .catch() to run.
-    await Promise.resolve();
-    await Promise.resolve();
+    // dispatch() no longer awaits the enqueue, so let the fire-and-forget
+    // call's internal catch run before asserting on it.
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(errorSpy).toHaveBeenCalledWith(
-      'Failed to process notifications for message',
+      `Failed to enqueue notification fan-out for message ${rawMessage.id}`,
       error,
     );
   });
 
-  it('catches and logs a rejected link-preview promise without throwing', async () => {
-    const error = new Error('preview boom');
-    linkPreviewsService.processMessageLinkPreviews.mockRejectedValue(error);
+  it('catches and logs a rejected link-previews enqueue without throwing', async () => {
+    const error = new Error('redis boom');
+    (linkPreviewsQueue.add as jest.Mock).mockRejectedValue(error);
     const errorSpy = jest
       .spyOn(service['logger'], 'error')
       .mockImplementation(() => undefined);
@@ -199,12 +201,41 @@ describe('MessageDispatchService', () => {
       }),
     ).resolves.toBeUndefined();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    // dispatch() no longer awaits the enqueue, so let the fire-and-forget
+    // call's internal catch run before asserting on it.
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(errorSpy).toHaveBeenCalledWith(
-      'Failed to process link previews',
+      `Failed to enqueue link preview processing for message ${rawMessage.id}`,
       error,
     );
+  });
+
+  it('resolves without waiting on the enqueue promises (fire-and-forget ack latency)', async () => {
+    // Simulate a hung/never-resolving Redis call — if dispatch() awaited
+    // either enqueue, this test would time out.
+    (messageFanoutQueue.add as jest.Mock).mockReturnValue(
+      new Promise(() => {
+        /* never resolves */
+      }),
+    );
+    (linkPreviewsQueue.add as jest.Mock).mockReturnValue(
+      new Promise(() => {
+        /* never resolves */
+      }),
+    );
+
+    await expect(
+      service.dispatch(rawMessage as any, {
+        room: 'channel-1',
+        event: ServerEvents.NEW_MESSAGE,
+        notifications: true,
+        linkPreviews: true,
+      }),
+    ).resolves.toBeUndefined();
+
+    // The calls were still made synchronously — just not awaited.
+    expect(messageFanoutQueue.add).toHaveBeenCalled();
+    expect(linkPreviewsQueue.add).toHaveBeenCalled();
   });
 });

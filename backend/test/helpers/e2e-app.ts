@@ -142,7 +142,16 @@ export class CapturingLogger implements LoggerService {
  *   docker compose exec postgres createdb -U semaphore semaphore_e2e_local_test
  *   docker compose run --rm \
  *     -e DATABASE_URL=postgresql://semaphore:semaphore@postgres:5432/semaphore_e2e_local_test \
+ *     -e REDIS_DB=1 \
  *     backend sh -c 'pnpm run prisma:migrate && pnpm run test:e2e'
+ *
+ * LOCAL RUNS + BULLMQ: the `-e REDIS_DB=1` above matters when the dev
+ * `backend` container is up. The dev container runs BullMQ workers on the
+ * same Redis db 0 and `semaphore:jobs` prefix — without isolation it
+ * consumes the jobs the e2e app enqueues (message-fanout, link-previews)
+ * and processes them against the DEV database, so e2e assertions on job
+ * outcomes never see their results. CI's dedicated Redis service has no
+ * other consumers, so it doesn't need this.
  */
 export async function resetDatabase(app: E2eApp): Promise<void> {
   let dbName: string;

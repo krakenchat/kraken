@@ -45,7 +45,11 @@ import {
 } from './dto/message-response.dto';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { RoomName } from '@/common/utils/room-name.util';
-import { LinkPreviewsService } from '@/link-previews/link-previews.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { randomUUID } from 'crypto';
+import { LINK_PREVIEWS_QUEUE } from '@/jobs/jobs.constants';
+import { LinkPreviewJobData } from '@/jobs/jobs.types';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RbacGuard)
@@ -56,7 +60,8 @@ export class MessagesController {
     private readonly messagesService: MessagesService,
     private readonly reactionsService: ReactionsService,
     private readonly websocketService: WebsocketService,
-    private readonly linkPreviewsService: LinkPreviewsService,
+    @InjectQueue(LINK_PREVIEWS_QUEUE)
+    private readonly linkPreviewsQueue: Queue<LinkPreviewJobData>,
   ) {}
 
   @Post()
@@ -395,18 +400,27 @@ export class MessagesController {
         message: enrichedMessage,
       });
 
-      // Re-process link previews if spans changed (async, non-blocking)
+      // Re-process link previews if spans changed. Enqueued with a
+      // jobId distinct from the create-path job (`preview-${id}` in
+      // MessageDispatchService) — using the SAME jobId here would let
+      // BullMQ's dedupe silently swallow the edit's reprocessing if a
+      // create job for this message were still queued/active. The random
+      // suffix also lets rapid successive edits each get their own job
+      // rather than deduping against each other. (`-` separators: BullMQ
+      // rejects custom jobIds containing `:`.)
       if (updateMessageDto.spans) {
-        this.linkPreviewsService
-          .processMessageLinkPreviews(
-            id,
-            updatedMessage.spans,
-            roomId,
-            ServerEvents.UPDATE_MESSAGE,
-          )
-          .catch((error) =>
-            this.logger.warn('Failed to process link previews on edit', error),
+        try {
+          await this.linkPreviewsQueue.add(
+            'process',
+            { messageId: id, room: roomId, event: ServerEvents.UPDATE_MESSAGE },
+            { jobId: `preview-${id}-edit-${randomUUID()}` },
           );
+        } catch (error) {
+          this.logger.warn(
+            'Failed to enqueue link preview processing on edit',
+            error,
+          );
+        }
       }
     }
 

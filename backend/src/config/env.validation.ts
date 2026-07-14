@@ -98,6 +98,15 @@ export class EnvironmentVariables {
   @IsString()
   TENOR_API_KEY?: string;
 
+  // Background jobs (BullMQ) — queued notification fan-out + link previews.
+  @IsOptional()
+  @IsString()
+  JOB_WORKER_CONCURRENCY?: string;
+
+  @IsOptional()
+  @IsString()
+  CHANNEL_MESSAGE_MEMBER_THRESHOLD?: string;
+
   // Optional — Password reset via email (SMTP) ----------------------------
   // The feature is auto-disabled unless SMTP_HOST, SMTP_FROM, and
   // PUBLIC_APP_URL are all set (see MailerService.isEnabled).

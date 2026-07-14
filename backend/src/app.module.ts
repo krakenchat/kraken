@@ -54,6 +54,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { DebugModule } from './debug/debug.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -64,6 +65,11 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
+    // Global BullMQ registration (message-fanout, link-previews queues) —
+    // imported once here, exactly like ConfigModule.forRoot's isGlobal
+    // pattern above, so feature modules can @InjectQueue/@Processor without
+    // importing JobsModule themselves.
+    JobsModule,
     RolesModule,
     UserModule,
     CommunityModule,

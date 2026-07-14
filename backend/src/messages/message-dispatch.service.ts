@@ -1,9 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { ServerEvents } from '@semaphore-chat/shared';
 import { MessagesService } from './messages.service';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { NotificationsService } from '@/notifications/notifications.service';
-import { LinkPreviewsService } from '@/link-previews/link-previews.service';
+import {
+  MESSAGE_FANOUT_QUEUE,
+  LINK_PREVIEWS_QUEUE,
+} from '@/jobs/jobs.constants';
+import { MessageFanoutJobData, LinkPreviewJobData } from '@/jobs/jobs.types';
 
 /** The shape returned by `MessagesService.create()` — enriched by dispatch(). */
 type DispatchableMessage = Awaited<ReturnType<MessagesService['create']>>;
@@ -22,15 +27,17 @@ export interface MessageDispatchOptions {
 /**
  * Shared post-create message pipeline used by every path that creates a
  * message (channel SEND_MESSAGE, SEND_DM, incoming webhooks): enrich the
- * message with file metadata, broadcast it to the target room, then kick
- * off the non-blocking side effects (notifications, link previews).
+ * message with file metadata, broadcast it to the target room, then enqueue
+ * the non-blocking side effects (notifications, link previews) onto their
+ * BullMQ queues.
  *
  * User-specific steps (timeout checks, slowmode, read-receipt auto-mark)
  * are NOT part of this pipeline — those stay in the caller.
  *
- * The two side-effect methods are intentionally private and separate so a
- * follow-up task can swap their bodies for job-queue enqueues without
- * touching `dispatch()` itself.
+ * The two side effects are queued rather than run in-process: this is the
+ * seam issue B1 (BullMQ job queue) was designed around, so that side
+ * effects survive an API process restart and get automatic retries instead
+ * of being silently lost as fire-and-forget promises.
  */
 @Injectable()
 export class MessageDispatchService {
@@ -39,15 +46,17 @@ export class MessageDispatchService {
   constructor(
     private readonly messagesService: MessagesService,
     private readonly websocketService: WebsocketService,
-    private readonly notificationsService: NotificationsService,
-    private readonly linkPreviewsService: LinkPreviewsService,
+    @InjectQueue(MESSAGE_FANOUT_QUEUE)
+    private readonly messageFanoutQueue: Queue<MessageFanoutJobData>,
+    @InjectQueue(LINK_PREVIEWS_QUEUE)
+    private readonly linkPreviewsQueue: Queue<LinkPreviewJobData>,
   ) {}
 
-  // Not declared `async`: every step here (enrich, sendToRoom, and kicking
-  // off the two fire-and-forget side effects) is synchronous. The `Promise`
-  // return type is kept because it's the public contract of this pipeline —
-  // a follow-up task that awaits a queue enqueue can add `await` here
-  // without changing callers.
+  // Deliberately NOT `async`: the body below has nothing left to await (see
+  // the fire-and-forget comment) — an `async` function with no `await`
+  // would trip `@typescript-eslint/require-await`. The explicit
+  // `Promise.resolve()` return keeps the public signature (`Promise<void>`,
+  // already `await`-ed by every caller) unchanged.
   dispatch(
     message: DispatchableMessage,
     opts: MessageDispatchOptions,
@@ -60,51 +69,87 @@ export class MessageDispatchService {
       message: enrichedMessage,
     });
 
+    // Fire-and-forget: the message-send ack (this method's resolution) must
+    // not depend on the queue/Redis round-trip. Both enqueue methods already
+    // catch and log internally, so a rejected enqueue never surfaces here
+    // whether we await it or not — not awaiting just means dispatch() no
+    // longer waits on it. If Redis is down, the enqueue is lost exactly like
+    // a fire-and-forget side effect was lost in the pre-queue architecture —
+    // an accepted tradeoff to keep message-send acks fast and independent of
+    // queue availability.
     if (opts.notifications) {
-      this.dispatchNotifications(message);
+      void this.enqueueNotificationFanout(message);
     }
 
     if (opts.linkPreviews) {
-      this.dispatchLinkPreviews(message, opts.room);
+      void this.enqueueLinkPreviews(message, opts.room);
     }
 
     return Promise.resolve();
   }
 
   /**
-   * Process message for notifications (mentions, etc.)
-   * This runs asynchronously and doesn't block message sending.
+   * Enqueue notification fan-out (mentions, DMs, channel-message "all"
+   * level) for processing by NotificationsFanoutProcessor.
    *
-   * NOTE: kept as a standalone private method (fire-and-forget) so a
-   * follow-up task can replace the body with a job-queue enqueue.
+   * jobId `fanout-${messageId}` makes re-dispatch of the same message
+   * idempotent — a duplicate enqueue attempt for a message that's already
+   * queued/active is a no-op rather than a second fan-out. NOTE: the `-`
+   * separator is load-bearing — BullMQ rejects custom jobIds containing
+   * `:` ("Custom Id cannot contain :") since `:` is its Redis key
+   * delimiter, and the enqueue's catch would swallow that error silently.
+   *
+   * Enqueue failures are logged and swallowed (never rethrown): message
+   * creation has already succeeded and broadcast by this point, and a
+   * transient Redis hiccup on the side-effect path shouldn't fail the
+   * request that created the message.
    */
-  private dispatchNotifications(message: DispatchableMessage): void {
-    this.notificationsService
-      .processMessageForNotifications(message)
-      .catch((error) =>
-        this.logger.error('Failed to process notifications for message', error),
+  private async enqueueNotificationFanout(
+    message: DispatchableMessage,
+  ): Promise<void> {
+    try {
+      await this.messageFanoutQueue.add(
+        'fanout',
+        { messageId: message.id },
+        { jobId: `fanout-${message.id}` },
       );
+    } catch (error) {
+      this.logger.error(
+        `Failed to enqueue notification fan-out for message ${message.id}`,
+        error,
+      );
+    }
   }
 
   /**
-   * Process link previews (async, non-blocking).
+   * Enqueue link-preview processing for processing by LinkPreviewsProcessor.
    *
-   * NOTE: kept as a standalone private method (fire-and-forget) so a
-   * follow-up task can replace the body with a job-queue enqueue.
+   * jobId `preview-${messageId}` (no edit suffix) — this is the CREATE path;
+   * the message-edit path (messages.controller.ts#update) enqueues with a
+   * distinct `preview-${messageId}-edit-${uuid}` jobId so an edit's
+   * reprocessing is never swallowed as a duplicate of the create job.
+   * (`-` separator for the same BullMQ no-colon rule as above.)
+   *
+   * Always broadcasts as UPDATE_MESSAGE regardless of the original dispatch
+   * event (NEW_MESSAGE/NEW_DM) — link-preview processing re-emits the
+   * message as an *update* once previews are fetched, matching prior
+   * (pre-queue) behavior.
    */
-  private dispatchLinkPreviews(
+  private async enqueueLinkPreviews(
     message: DispatchableMessage,
     room: string,
-  ): void {
-    this.linkPreviewsService
-      .processMessageLinkPreviews(
-        message.id,
-        message.spans,
-        room,
-        ServerEvents.UPDATE_MESSAGE,
-      )
-      .catch((error) =>
-        this.logger.error('Failed to process link previews', error),
+  ): Promise<void> {
+    try {
+      await this.linkPreviewsQueue.add(
+        'process',
+        { messageId: message.id, room, event: ServerEvents.UPDATE_MESSAGE },
+        { jobId: `preview-${message.id}` },
       );
+    } catch (error) {
+      this.logger.error(
+        `Failed to enqueue link preview processing for message ${message.id}`,
+        error,
+      );
+    }
   }
 }

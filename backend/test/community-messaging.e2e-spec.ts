@@ -1,5 +1,8 @@
 import * as request from 'supertest';
 import { DatabaseService } from '@/database/database.service';
+import { MessagesService } from '@/messages/messages.service';
+import { MessageDispatchService } from '@/messages/message-dispatch.service';
+import { ServerEvents } from '@semaphore-chat/shared';
 import {
   createE2eApp,
   resetDatabase,
@@ -35,6 +38,8 @@ describe('Community messaging flow (e2e)', () => {
 
   let ownerToken: string;
   let outsiderToken: string;
+  let ownerId: string;
+  let outsiderId: string;
   let communityId: string;
   let channelId: string;
 
@@ -45,8 +50,10 @@ describe('Community messaging flow (e2e)', () => {
     await resetDatabase(app);
     await seedInstanceInvite(app);
 
-    await registerUser(app, owner); // first → OWNER
-    await registerUser(app, outsider); // second → USER
+    const ownerUser = await registerUser(app, owner); // first → OWNER
+    const outsiderUser = await registerUser(app, outsider); // second → USER
+    ownerId = ownerUser.id;
+    outsiderId = outsiderUser.id;
 
     ownerToken = (await loginUser(app, owner.username, owner.password))
       .accessToken;
@@ -199,5 +206,82 @@ describe('Community messaging flow (e2e)', () => {
         attachments: [],
       })
       .expect(403);
+  });
+
+  /**
+   * Issue B1: notification fan-out moved off the request path onto a BullMQ
+   * queue (message-fanout), consumed in-process by
+   * NotificationsFanoutProcessor. This is a black-box check of the whole
+   * pipeline against real Postgres + Redis: enqueue (MessageDispatchService)
+   * -> worker pickup -> processMessageForNotifications -> Notification row.
+   *
+   * NOTE: exercised via MessagesService.create() + MessageDispatchService
+   * .dispatch() directly (the exact calls messages.gateway.ts's SEND_MESSAGE
+   * handler makes) rather than POST /api/messages — that REST endpoint does
+   * not call MessageDispatchService at all (broadcast/notifications/link
+   * previews are WS-only), so it wouldn't exercise the queue either before
+   * or after this change. A full transport-level test would need a
+   * socket.io-client harness this test suite doesn't have yet.
+   *
+   * Polls briefly since processing is now asynchronous relative to
+   * dispatch() returning (dispatch() awaits the *enqueue*, not the job).
+   * Placed last so the extra message it creates doesn't disturb the
+   * channel-message-count assertions above.
+   */
+  it('delivers a mention notification asynchronously via the message-fanout queue', async () => {
+    const messagesService = app.get(MessagesService);
+    const messageDispatchService = app.get(MessageDispatchService);
+    const db = app.get(DatabaseService);
+
+    // Only the fields the create flow actually consumes — the DTO's
+    // remaining @Exclude()'d bookkeeping fields are irrelevant here.
+    const createInput = {
+      channelId,
+      authorId: ownerId,
+      sentAt: new Date(),
+      spans: [
+        {
+          type: 'USER_MENTION',
+          text: null,
+          userId: outsiderId,
+          specialKind: null,
+          communityId: null,
+          aliasId: null,
+        },
+      ],
+      attachments: [],
+    } as unknown as Parameters<MessagesService['create']>[0];
+    const message = await messagesService.create(createInput);
+
+    await messageDispatchService.dispatch(message, {
+      room: channelId,
+      event: ServerEvents.NEW_MESSAGE,
+      notifications: true,
+      linkPreviews: false,
+    });
+
+    let notification: {
+      id: string;
+      authorId: string;
+      channelId: string | null;
+    } | null = null;
+    for (let attempt = 0; attempt < 40 && !notification; attempt++) {
+      notification = await db.notification.findFirst({
+        where: {
+          userId: outsiderId,
+          messageId: message.id,
+          type: 'USER_MENTION',
+        },
+      });
+      if (!notification) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+
+    expect(notification).not.toBeNull();
+    expect(notification).toMatchObject({
+      authorId: ownerId,
+      channelId,
+    });
   });
 });
