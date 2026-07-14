@@ -9,13 +9,24 @@ import ThemeToggle from "./components/ThemeToggle/ThemeToggle";
 import CommunityToggle from "./components/CommunityList/CommunityToggle";
 import NavigationLinks from "./components/NavBar/NavigationLinks";
 import ProfileIcon from "./components/NavBar/ProfileIcon";
-import { VoiceBottomBar, AudioRenderer } from "./components/Voice";
+// Import directly from source files, NOT the `./components/Voice` barrel
+// (components/Voice/index.ts) — that barrel also re-exports VideoTiles,
+// VoiceChannelUserList, DeviceSettingsDialog, ScreenSourcePicker, some of
+// which hold runtime livekit-client imports and are intentionally
+// React.lazy'd elsewhere. Importing the barrel from this always-mounted
+// module relies on Rollup successfully tree-shaking those unused re-exports
+// (and the livekit-client module itself, which likely has top-level side
+// effects the bundler can't prove away) — a direct import removes that risk
+// entirely instead of depending on bundler behavior. See PR-11.
+import { VoiceBottomBar } from "./components/Voice/VoiceBottomBar";
+import { AudioRenderer } from "./components/Voice/AudioRenderer";
 import { PersistentVideoOverlay } from "./components/Voice/PersistentVideoOverlay";
 import { TrackSubscriptionProvider } from "./components/Voice/TrackSubscriptionProvider";
 import { VoiceEventLogProvider } from "./hooks/useVoiceEventLog";
 import { VoiceTestHooks } from "./features/voice/VoiceTestHooks";
 import { useVoiceConnection } from "./hooks/useVoiceConnection";
 import { useVoiceRecovery } from "./hooks/useVoiceRecovery";
+import { useVoiceForegroundResync } from "./hooks/useVoiceForegroundResync";
 import { MobileLayout } from "./components/Mobile/MobileLayout";
 import { TabletLayout } from "./components/Mobile/Tablet/TabletLayout";
 import { useResponsive } from "./hooks/useResponsive";
@@ -109,6 +120,27 @@ const Layout: React.FC = () => {
 
   // Attempt to recover voice connection after page refresh
   useVoiceRecovery();
+
+  // Recover calls that silently died while backgrounded/locked (#350).
+  //
+  // Mounted here (always-mounted Layout) rather than inside VoiceBottomBarContent
+  // (lazy, only mounted once `state.isConnected`) so its `room.on(Disconnected, ...)`
+  // listener attaches as soon as `voiceState.room` exists — i.e. right after
+  // connectToLiveKitRoom()'s `setRoom(room)` call, which happens BEFORE mic setup
+  // and BEFORE `isConnected` flips true (see voiceActions.ts). That gap can be a
+  // few seconds (mic-enable has a 5s timeout in VAD mode); a disconnect during it
+  // would previously go undetected until the *next* foreground transition.
+  // `useVoiceForegroundResync` only holds `import type` livekit-client references
+  // (see hooks/useVoiceForegroundResync.ts and features/voice/livekitEvents.ts),
+  // so mounting it here doesn't reintroduce an eager livekit-client value import.
+  useVoiceForegroundResync({
+    room: voiceState.room,
+    state: voiceState,
+    actions: {
+      joinVoiceChannel: voiceActions.joinVoiceChannel,
+      joinDmVoice: voiceActions.joinDmVoice,
+    },
+  });
 
   // Document title (with "(N)" unread prefix) + PWA icon badge
   useAppBadge(instanceName);
