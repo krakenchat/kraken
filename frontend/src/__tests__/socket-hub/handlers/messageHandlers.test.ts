@@ -95,6 +95,31 @@ describe('messageHandlers', () => {
       expect(unread![0].unreadCount).toBe(1); // still counted
     });
 
+    it('reconciles an own pending optimistic row in place instead of duplicating it (echo-first race)', async () => {
+      const queryClient = new QueryClient();
+      const queryKey = channelMessagesQueryKey('ch-1');
+      const optimistic = makeMessage({
+        id: 'pending-abc',
+        clientId: 'pending-abc',
+        sendStatus: 'pending',
+        authorId: 'me',
+      });
+
+      queryClient.setQueryData(queryKey, makeInfiniteData([optimistic]));
+      queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+      queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+        { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+      ]);
+
+      const realMsg = makeMessage({ id: 'real-1', channelId: 'ch-1', authorId: 'me' });
+      await handleNewMessage({ message: realMsg as never }, queryClient);
+
+      const data = queryClient.getQueryData<InfiniteData<PaginatedMessagesResponseDto>>(queryKey);
+      // Exactly one row for this message — the real one — never both.
+      expect(data!.pages[0].messages).toHaveLength(1);
+      expect(data!.pages[0].messages[0].id).toBe('real-1');
+    });
+
     it('resets the query to the live edge when the DETACHED user sends their own message', async () => {
       const queryClient = new QueryClient();
       const queryKey = channelMessagesQueryKey('ch-1');

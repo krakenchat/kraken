@@ -4,6 +4,7 @@ import { VoiceSessionType } from "../contexts/VoiceContext";
 import { messagesControllerAddAttachmentMutation } from "../api-client/@tanstack/react-query.gen";
 import { useFileUpload } from "./useFileUpload";
 import { useSendMessage } from "./useSendMessage";
+import { useOptimisticSendMessage } from "./useOptimisticSendMessage";
 import { useNotification } from "../contexts/NotificationContext";
 import { channelMessagesQueryKey, dmMessagesQueryKey } from "../utils/messageQueryKeys";
 import { updateMessageInInfinite } from "../utils/messageCacheUpdaters";
@@ -39,6 +40,9 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
     },
   });
 
+  // Attachment-bearing sends bypass the optimistic path entirely (v1 scope —
+  // see useOptimisticSendMessage's doc comment). This raw sender still owns
+  // the post-ack upload-then-attach continuation via its callback.
   const { sendMessage } = useSendMessage(contextType, async (messageId: string) => {
     const files = pendingFilesRef.current;
     if (!files || files.length === 0) return;
@@ -78,6 +82,8 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
     }
   });
 
+  const { sendMessage: sendOptimisticMessage } = useOptimisticSendMessage(contextType, contextId);
+
   const handleSendMessage = async (_messageContent: string, spans: Span[], files?: File[], replyToId?: string) => {
     const msg = {
       ...(contextType === VoiceSessionType.Channel
@@ -92,14 +98,26 @@ export const useMessageFileUpload = ({ contextType, contextId, authorId }: UseMe
       ...(replyToId ? { replyToId } : {}),
     };
 
-    pendingFilesRef.current = files || null;
+    // Messages with pending attachments are excluded from the optimistic
+    // path (v1 scope): they have their own upload-then-attach flow driven
+    // off the raw sender's ack callback above.
+    const hasAttachments = !!(files && files.length > 0);
 
-    const result = await sendMessage(msg);
-    if (!result.success) {
-      const errorMessage = result.error instanceof Error ? result.error.message : "Failed to send message";
-      showNotification(errorMessage, "error");
+    if (hasAttachments) {
+      pendingFilesRef.current = files || null;
+      const result = await sendMessage(msg);
+      if (!result.success) {
+        const errorMessage = result.error instanceof Error ? result.error.message : "Failed to send message";
+        showNotification(errorMessage, "error");
+      }
       return;
     }
+
+    pendingFilesRef.current = null;
+    // Failures surface inline via the message's 'failed' sendStatus
+    // (retry/delete UI in MessageComponent) instead of a toast — the
+    // optimistic bubble IS the error affordance here.
+    await sendOptimisticMessage(msg);
   };
 
   return { handleSendMessage };

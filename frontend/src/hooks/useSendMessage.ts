@@ -6,8 +6,11 @@ import { SocketContext } from "../utils/SocketContext";
 import { ClientEvents } from '@semaphore-chat/shared';
 import type { Message } from "../types/message.type";
 
-// Omit id for new message payloads
-export type NewMessagePayload = Omit<Message, "id">;
+// Omit id for new message payloads. sendStatus/clientId are cache-local
+// fields added for optimistic sending (see types/message.type.ts) — they
+// must never be part of an outgoing socket payload, so they're excluded
+// here too, not just left optional.
+export type NewMessagePayload = Omit<Message, "id" | "sendStatus" | "clientId">;
 
 export type MessageContext = VoiceSessionType;
 

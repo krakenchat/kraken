@@ -5,6 +5,11 @@ import {
   deleteMessageFromInfinite,
   findMessageInInfinite,
   isDetachedFromLiveEdge,
+  prependOrReconcileOptimistic,
+  replaceOptimisticMessage,
+  removeOptimisticMessage,
+  markOptimisticFailed,
+  markOptimisticPending,
 } from '../../utils/messageCacheUpdaters';
 import {
   createMessage,
@@ -198,6 +203,180 @@ describe('findMessageInInfinite', () => {
   it('returns undefined when message not found', () => {
     const data = createInfiniteData([createMessage({ id: 'msg-1' })]);
     expect(findMessageInInfinite(data, 'nonexistent')).toBeUndefined();
+  });
+});
+
+// --- Optimistic send (PR-13) ---
+
+describe('prependOrReconcileOptimistic', () => {
+  it('reconciles in place when a pending row from the same author exists (echo-first)', () => {
+    const optimistic = createMessage({
+      id: 'pending-abc',
+      authorId: 'user-1',
+      clientId: 'pending-abc',
+      sendStatus: 'pending',
+    });
+    const other = createMessage({ id: 'other-1', authorId: 'user-2' });
+    const data = createInfiniteData([optimistic, other]);
+
+    const real = createMessage({ id: 'real-1', authorId: 'user-1' });
+    const result = prependOrReconcileOptimistic(data, real);
+
+    expect(result!.pages[0].messages).toHaveLength(2);
+    // Real message swapped in at the SAME position the optimistic row held
+    // (preserves chronological order relative to `other`).
+    expect(result!.pages[0].messages[0]).toMatchObject({ id: 'real-1' });
+    expect(result!.pages[0].messages[1]).toMatchObject({ id: 'other-1' });
+    // No lingering optimistic row anywhere.
+    expect(result!.pages[0].messages.some(m => m.id === 'pending-abc')).toBe(false);
+  });
+
+  it('reconciles a failed row too (late echo after a timed-out ack)', () => {
+    const optimistic = createMessage({
+      id: 'pending-abc',
+      authorId: 'user-1',
+      clientId: 'pending-abc',
+      sendStatus: 'failed',
+    });
+    const data = createInfiniteData([optimistic]);
+
+    const real = createMessage({ id: 'real-1', authorId: 'user-1' });
+    const result = prependOrReconcileOptimistic(data, real);
+
+    expect(result!.pages[0].messages).toHaveLength(1);
+    expect(result!.pages[0].messages[0]).toMatchObject({ id: 'real-1' });
+  });
+
+  it('falls back to a plain prepend when no matching optimistic row exists', () => {
+    const existing = createMessage({ id: 'existing-1', authorId: 'user-2' });
+    const data = createInfiniteData([existing]);
+
+    const real = createMessage({ id: 'real-1', authorId: 'user-1' });
+    const result = prependOrReconcileOptimistic(data, real);
+
+    expect(result!.pages[0].messages).toHaveLength(2);
+    expect(result!.pages[0].messages[0]).toMatchObject({ id: 'real-1' });
+    expect(result!.pages[0].messages[1]).toMatchObject({ id: 'existing-1' });
+  });
+
+  it('does not reconcile against a pending row from a DIFFERENT author', () => {
+    const optimistic = createMessage({
+      id: 'pending-abc',
+      authorId: 'user-2',
+      clientId: 'pending-abc',
+      sendStatus: 'pending',
+    });
+    const data = createInfiniteData([optimistic]);
+
+    const real = createMessage({ id: 'real-1', authorId: 'user-1' });
+    const result = prependOrReconcileOptimistic(data, real);
+
+    expect(result!.pages[0].messages).toHaveLength(2);
+    expect(result!.pages[0].messages[0]).toMatchObject({ id: 'real-1' });
+    expect(result!.pages[0].messages[1]).toMatchObject({ id: 'pending-abc' });
+  });
+
+  it('deduplicates when the real message id is already present', () => {
+    const real = createMessage({ id: 'real-1', authorId: 'user-1' });
+    const data = createInfiniteData([real]);
+
+    const result = prependOrReconcileOptimistic(data, createMessage({ id: 'real-1', authorId: 'user-1' }));
+    expect(result!.pages[0].messages).toHaveLength(1);
+  });
+
+  it('does not insert into a detached window', () => {
+    const data = { ...createInfiniteData([createMessage({ id: 'old-1' })]), pageParams: ['cursor-uuid'] };
+    const result = prependOrReconcileOptimistic(data, createMessage({ id: 'new-1' }));
+    expect(result).toBe(data);
+  });
+});
+
+describe('replaceOptimisticMessage', () => {
+  it('replaces the optimistic row matched by clientId with the real message', () => {
+    const optimistic = createMessage({
+      id: 'pending-abc',
+      clientId: 'pending-abc',
+      sendStatus: 'pending',
+    });
+    const data = createInfiniteData([optimistic]);
+
+    const real = createMessage({ id: 'real-1' });
+    const result = replaceOptimisticMessage(data, 'pending-abc', real);
+
+    expect(result!.pages[0].messages).toHaveLength(1);
+    expect(result!.pages[0].messages[0]).toMatchObject({ id: 'real-1' });
+  });
+
+  it('is a no-op when no row with that clientId is found (already reconciled by the echo)', () => {
+    const real = createMessage({ id: 'real-1' });
+    const data = createInfiniteData([real]);
+
+    const result = replaceOptimisticMessage(data, 'pending-abc', createMessage({ id: 'real-1' }));
+    expect(result).toBe(data);
+  });
+
+  it('returns undefined when given undefined', () => {
+    expect(replaceOptimisticMessage(undefined, 'pending-abc', createMessage())).toBeUndefined();
+  });
+});
+
+describe('removeOptimisticMessage', () => {
+  it('removes the row matched by clientId', () => {
+    const optimistic = createMessage({ id: 'pending-abc', clientId: 'pending-abc', sendStatus: 'failed' });
+    const keep = createMessage({ id: 'keep-1' });
+    const data = createInfiniteData([optimistic, keep]);
+
+    const result = removeOptimisticMessage(data, 'pending-abc');
+    expect(result!.pages[0].messages).toHaveLength(1);
+    expect(result!.pages[0].messages[0]).toMatchObject({ id: 'keep-1' });
+  });
+
+  it('leaves data unchanged when clientId not found', () => {
+    const data = createInfiniteData([createMessage({ id: 'keep-1' })]);
+    const result = removeOptimisticMessage(data, 'nonexistent');
+    expect(result!.pages[0].messages).toHaveLength(1);
+  });
+
+  it('returns undefined when given undefined', () => {
+    expect(removeOptimisticMessage(undefined, 'pending-abc')).toBeUndefined();
+  });
+});
+
+describe('markOptimisticFailed', () => {
+  it("sets sendStatus to 'failed' on the row matched by clientId", () => {
+    const optimistic = createMessage({ id: 'pending-abc', clientId: 'pending-abc', sendStatus: 'pending' });
+    const data = createInfiniteData([optimistic]);
+
+    const result = markOptimisticFailed(data, 'pending-abc');
+    expect(result!.pages[0].messages[0]).toMatchObject({ sendStatus: 'failed', id: 'pending-abc' });
+  });
+
+  it('leaves other rows untouched', () => {
+    const optimistic = createMessage({ id: 'pending-abc', clientId: 'pending-abc', sendStatus: 'pending' });
+    const other = createMessage({ id: 'other-1' });
+    const data = createInfiniteData([optimistic, other]);
+
+    const result = markOptimisticFailed(data, 'pending-abc');
+    expect(result!.pages[0].messages[1]).toMatchObject({ id: 'other-1' });
+    expect((result!.pages[0].messages[1] as { sendStatus?: string }).sendStatus).toBeUndefined();
+  });
+
+  it('returns undefined when given undefined', () => {
+    expect(markOptimisticFailed(undefined, 'pending-abc')).toBeUndefined();
+  });
+});
+
+describe('markOptimisticPending', () => {
+  it("resets a 'failed' row back to 'pending', keeping the same id", () => {
+    const optimistic = createMessage({ id: 'pending-abc', clientId: 'pending-abc', sendStatus: 'failed' });
+    const data = createInfiniteData([optimistic]);
+
+    const result = markOptimisticPending(data, 'pending-abc');
+    expect(result!.pages[0].messages[0]).toMatchObject({ sendStatus: 'pending', id: 'pending-abc' });
+  });
+
+  it('returns undefined when given undefined', () => {
+    expect(markOptimisticPending(undefined, 'pending-abc')).toBeUndefined();
   });
 });
 
