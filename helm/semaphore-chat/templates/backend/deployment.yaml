@@ -17,6 +17,9 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/backend/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/backend/secret.yaml") . | sha256sum }}
+        {{- if .Values.fileStorage.s3.enabled }}
+        checksum/s3-secret: {{ include (print $.Template.BasePath "/backend/s3-secret.yaml") . | sha256sum }}
+        {{- end }}
         {{- with .Values.backend.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -37,6 +40,19 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+          {{- if .Values.fileStorage.s3.enabled }}
+          env:
+            - name: S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.fileStorage.s3.existingSecret }}{{ .Values.fileStorage.s3.existingSecret }}{{ else }}{{ include "semaphore-chat.fullname" . }}-s3-secret{{ end }}
+                  key: {{ if .Values.fileStorage.s3.existingSecret }}{{ .Values.fileStorage.s3.existingSecretAccessKeyIdKey }}{{ else }}S3_ACCESS_KEY_ID{{ end }}
+            - name: S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.fileStorage.s3.existingSecret }}{{ .Values.fileStorage.s3.existingSecret }}{{ else }}{{ include "semaphore-chat.fullname" . }}-s3-secret{{ end }}
+                  key: {{ if .Values.fileStorage.s3.existingSecret }}{{ .Values.fileStorage.s3.existingSecretSecretAccessKeyKey }}{{ else }}S3_SECRET_ACCESS_KEY{{ end }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "semaphore-chat.fullname" . }}-backend-config

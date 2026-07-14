@@ -102,15 +102,34 @@ LiveKit:
 {{- end }}
 {{- end }}
 
+{{- if .Values.fileStorage.s3.enabled }}
+
+☁️  File storage: S3 object storage ENABLED
+   New uploads (avatars, attachments) write directly to bucket
+   "{{ .Values.fileStorage.s3.bucket }}" in region "{{ .Values.fileStorage.s3.region }}".
+   No ReadWriteMany/NFS PVC is required for multi-replica deployments.
+{{- if .Values.fileStorage.enabled }}
+   ℹ️  MIXED MODE: fileStorage.enabled=true also keeps the local uploads PVC
+   mounted, to keep serving files uploaded before switching to S3
+   (STORAGE_TYPE=LOCAL). That PVC's accessMode/RWX requirements still apply
+   to it at more than one backend replica. Once no LOCAL-storage files
+   remain, set fileStorage.enabled=false to drop the PVC entirely.
+{{- end }}
+
+{{- end }}
+
 {{- if not .Values.fileStorage.enabled }}
+{{- if not .Values.fileStorage.s3.enabled }}
 
 ⚠️  WARNING: File storage is EPHEMERAL (fileStorage.enabled=false)
    Uploaded files (avatars, attachments) live on per-pod disk and will be
    LOST on pod restart. This is only safe with a single backend replica.
    To persist uploads across restarts (and to run more than one backend
    replica), set fileStorage.enabled=true and configure a ReadWriteMany-
-   capable backend (fileStorage.nfs.enabled=true or fileStorage.storageClassName).
+   capable backend (fileStorage.nfs.enabled=true or fileStorage.storageClassName),
+   or set fileStorage.s3.enabled=true to store uploads in S3 instead.
 
+{{- end }}
 {{- end }}
 
 {{- if .Values.fileStorage.enabled }}

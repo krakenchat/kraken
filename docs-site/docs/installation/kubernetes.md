@@ -253,7 +253,48 @@ You can also set `fileStorage.accessMode` explicitly (`"ReadWriteOnce"` or `"Rea
 !!! warning "PVC accessModes are immutable"
     Kubernetes does not allow changing a PVC's `accessModes` after creation. If you're upgrading an existing release, keep `fileStorage.accessMode` set to whatever the PVC was already created with (older chart versions always used `ReadWriteMany`) — don't rely on auto-detection to change it. To actually switch modes, delete and let Helm recreate the PVC (this destroys any files that only lived there).
 
-If you set `fileStorage.enabled: false`, an ephemeral `emptyDir` is used and files are lost on pod restart. The chart refuses to render if you combine this with a backend that can scale beyond 1 replica (`backend.replicaCount` or HPA `maxReplicas` `> 1`), since uploads would 404 on the other pods. Set `fileStorage.allowEphemeral: true` to explicitly accept that risk instead. Similarly, the chart refuses to render if `fileStorage.accessMode` is explicitly forced to `ReadWriteOnce` while the backend can scale beyond 1 replica, since only one pod could mount the volume.
+If you set `fileStorage.enabled: false`, an ephemeral `emptyDir` is used and files are lost on pod restart. The chart refuses to render if you combine this with a backend that can scale beyond 1 replica (`backend.replicaCount` or HPA `maxReplicas` `> 1`), since uploads would 404 on the other pods. Set `fileStorage.allowEphemeral: true` to explicitly accept that risk instead, or — better — enable S3 object storage below, which removes the requirement entirely. Similarly, the chart refuses to render if `fileStorage.accessMode` is explicitly forced to `ReadWriteOnce` while the backend can scale beyond 1 replica, since only one pod could mount the volume.
+
+### S3 object storage
+
+As an alternative to the RWX-capable PVC above, the backend can write uploads directly to S3 (or an S3-compatible provider — MinIO, Cloudflare R2, Backblaze B2, etc.). This is the simplest way to run more than one backend replica: S3 uploads need no shared filesystem, so the RWX/NFS requirement in [File storage](#file-storage) doesn't apply.
+
+```yaml
+fileStorage:
+  # Set false once no files remain from a previous STORAGE_TYPE=LOCAL
+  # deployment — see the mixed-mode note below. Leave true while migrating.
+  enabled: false
+
+  s3:
+    enabled: true
+    bucket: "my-semaphore-uploads"
+    region: "us-east-1"
+    # endpoint: "https://minio.example.com"  # only for S3-compatible providers
+    # forcePathStyle: true                   # most self-hosted providers (e.g. MinIO) need this
+
+    # Preferred: reference a pre-created Secret instead of putting credentials
+    # in values (keeps them out of `helm get values` / release history).
+    existingSecret: "my-s3-credentials"
+    existingSecretAccessKeyIdKey: "S3_ACCESS_KEY_ID"       # key within the secret
+    existingSecretSecretAccessKeyKey: "S3_SECRET_ACCESS_KEY"
+```
+
+Without `existingSecret`, set `fileStorage.s3.accessKeyId` and `fileStorage.s3.secretAccessKey` inline instead — the chart renders them into a Secret it manages (`<release>-s3-secret`):
+
+```yaml
+fileStorage:
+  s3:
+    enabled: true
+    bucket: "my-semaphore-uploads"
+    region: "us-east-1"
+    accessKeyId: "AKIA..."
+    secretAccessKey: "..."
+```
+
+`fileStorage.s3.bucket`, `region`, and credentials (via one of the two routes above) are required when `s3.enabled: true` — the chart fails to render with a descriptive error if any are missing, mirroring the backend's own `STORAGE_TYPE=S3` validation.
+
+!!! note "Mixed mode: S3 plus the local PVC"
+    `fileStorage.enabled` and `fileStorage.s3.enabled` are independent switches. If both are `true`, the uploads PVC stays mounted alongside S3 — this is "mixed mode," for files that were uploaded while `STORAGE_TYPE=LOCAL` was active before you switched to S3. New uploads go to S3, but pre-existing local files keep being served from the PVC, so the PVC's `accessMode`/RWX requirements (and the render-time guard) still apply to it at more than one backend replica. Once no LOCAL-storage files remain, set `fileStorage.enabled: false` to drop the PVC (and its RWX requirement) entirely — at that point the backend can scale to any replica count with no shared storage of any kind.
 
 ### Replay storage (LiveKit egress)
 
@@ -279,10 +320,12 @@ secrets:
 
 The secret must contain: `JWT_SECRET`, `JWT_REFRESH_SECRET`, `LIVEKIT_API_SECRET`, and `REDIS_PASSWORD` (if using Redis auth).
 
+S3 credentials use a separate `fileStorage.s3.existingSecret` (see [S3 object storage](#s3-object-storage)) rather than this one, so you can manage/rotate them independently.
+
 ### Resources and autoscaling
 
 !!! note "File storage required for multiple backend replicas"
-    Scaling the backend beyond 1 potential replica (fixed `replicaCount`, or HPA `maxReplicas` — not `minReplicas`, since the HPA can scale up to `maxReplicas` at any time) requires `fileStorage.enabled: true` with a `ReadWriteMany` accessMode and an RWX-capable backend — see [File storage](#file-storage). The chart fails to render otherwise.
+    Scaling the backend beyond 1 potential replica (fixed `replicaCount`, or HPA `maxReplicas` — not `minReplicas`, since the HPA can scale up to `maxReplicas` at any time) requires EITHER `fileStorage.enabled: true` with a `ReadWriteMany` accessMode and an RWX-capable backend, OR `fileStorage.s3.enabled: true` (with `fileStorage.enabled: false`, once no local files remain) — see [File storage](#file-storage) and [S3 object storage](#s3-object-storage). The chart fails to render otherwise.
 
 ```yaml
 backend:
@@ -379,7 +422,7 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 - [ ] Resource limits and autoscaling configured
 - [ ] External PostgreSQL with authentication (recommended over bundled)
 - [ ] External Redis with authentication
-- [ ] `ReadWriteMany` PVC for file storage
+- [ ] `ReadWriteMany` PVC for file storage, or `fileStorage.s3.enabled: true` for S3 object storage
 - [ ] LiveKit webhook URL configured
 - [ ] Monitoring and alerting in place
 - [ ] Backup strategy for PostgreSQL

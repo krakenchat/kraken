@@ -39,3 +39,15 @@ data:
   # Replay segments storage path
   REPLAY_SEGMENTS_PATH: {{ .Values.replayStorage.mountPath | quote }}
   {{- end }}
+
+  {{- if .Values.fileStorage.s3.enabled }}
+  # S3 object storage backend (credentials injected separately via
+  # secretKeyRef — see templates/backend/deployment.yaml)
+  STORAGE_TYPE: "S3"
+  S3_BUCKET: {{ .Values.fileStorage.s3.bucket | quote }}
+  S3_REGION: {{ .Values.fileStorage.s3.region | quote }}
+  {{- if .Values.fileStorage.s3.endpoint }}
+  S3_ENDPOINT: {{ .Values.fileStorage.s3.endpoint | quote }}
+  {{- end }}
+  S3_FORCE_PATH_STYLE: {{ .Values.fileStorage.s3.forcePathStyle | quote }}
+  {{- end }}
