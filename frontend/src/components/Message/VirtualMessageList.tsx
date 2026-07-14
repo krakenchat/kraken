@@ -3,7 +3,10 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
+  useState,
+  type KeyboardEvent,
 } from "react";
 import { Box } from "@mui/material";
 import { VList, type VListHandle } from "virtua";
@@ -76,6 +79,11 @@ export interface VirtualMessageListProps {
    * Consumed by read-tracking (fed to markAsRead) in MessageContainer.
    */
   onVisibleRangeChange?: (startIndex: number, endIndex: number) => void;
+
+  /** Escape (pressed while a row has roving focus, no menu open) returns
+   * focus to the message composer — implemented by the caller since the
+   * composer lives outside this component. */
+  onEscapeToInput?: () => void;
 }
 
 /**
@@ -117,6 +125,35 @@ export interface VirtualMessageListProps {
  *   Both positioning paths use the double-rAF re-assert pattern (a single
  *   rAF races virtua's measurement readiness on first mount).
  * - **atBottom**: derived from virtua's scroll offset, reported upward for FABs.
+ *
+ * **Roving row focus**: exactly one row is in the natural Tab order at a
+ * time (`focusedRowKey`, tracked by row identity — `clientId ?? id` — so it
+ * survives prepends/appends/the optimistic id-swap without any manual index
+ * shifting). ArrowUp/Down/Home/End move it; the target index is resolved to
+ * a message, `scrollToIndex` brings it into virtua's real render window, and
+ * a short rAF-retry loop focuses the row once it actually mounts. virtua's
+ * `keepMounted` was investigated as an alternative and rejected: items kept
+ * mounted outside the true visible window are rendered with
+ * `visibility: hidden` (see virtua's Virtualizer item wrapper), and
+ * hidden elements are not part of the focus order in any browser — so
+ * `keepMounted` preserves component state across scroll but cannot itself
+ * hold focus. Scrolling the target into the *real* window first is the only
+ * way to land focus on it, which is what `moveFocus` below does. Concurrent
+ * calls (a second arrow-key press before the first target has mounted) are
+ * resolved by a supersession token so only the LATEST call's loop can ever
+ * apply `.focus()` — see `moveFocus`'s own doc comment for the mechanism.
+ *
+ * Re-render note (pre-existing class, not introduced by this feature):
+ * `MessageContainer`'s `useMessageListAnnouncer` batch-flush calls
+ * `setAnnouncement`, which — like every other piece of state this
+ * component's parent already owns (`atBottom`, loading flags, etc.) —
+ * re-renders `MessageContainer` and cascades a re-render of this
+ * (non-memoized) `VirtualMessageList`. That's harmless here: `orderedMessages`
+ * keeps its memoized reference, virtua's own diffing is cheap, and every row
+ * (`MessageComponent`) is wrapped in `React.memo` with an explicit
+ * comparator, so the cascade stops there without re-rendering the list body.
+ * Same category of re-render this component has always tolerated from its
+ * parent; not a new performance concern from the announcer.
  */
 const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageListProps>(
   (
@@ -142,10 +179,12 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       resetKey,
       onAtBottomChange,
       onVisibleRangeChange,
+      onEscapeToInput,
     },
     ref,
   ) => {
     const vlistRef = useRef<VListHandle>(null);
+    const listContainerRef = useRef<HTMLDivElement>(null);
     const pinnedRef = useRef(true);
     const initialPositionedRef = useRef(false);
 
@@ -160,6 +199,173 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const len = orderedMessages.length;
     const oldestId = orderedMessages[0]?.id;
     const newestId = orderedMessages[len - 1]?.id;
+
+    // ── Roving row focus ──────────────────────────────────────────────
+    // Tracked by row identity (matches the `rowKey` used below) rather than
+    // a raw array index, so it survives prepends/appends/the optimistic
+    // id-swap without any manual index-shifting.
+    const [focusedRowKey, setFocusedRowKey] = useState<string | null>(null);
+    const focusedIndex = useMemo(() => {
+      if (focusedRowKey === null) return -1;
+      return orderedMessages.findIndex(
+        (m) => (m.clientId ?? m.id) === focusedRowKey,
+      );
+    }, [orderedMessages, focusedRowKey]);
+
+    // Latest-value refs so the stable callbacks below (moveFocus, row
+    // key/focus delegates) never need `orderedMessages`/`len` in their own
+    // dependency arrays — keeps their identities stable across renders,
+    // which matters since they're passed straight through to a
+    // React.memo'd child (MessageComponent).
+    const orderedMessagesRef = useRef(orderedMessages);
+    orderedMessagesRef.current = orderedMessages;
+    const onEscapeToInputRef = useRef(onEscapeToInput);
+    onEscapeToInputRef.current = onEscapeToInput;
+
+    // moveFocus's rAF-retry supersession (see moveFocus's doc comment):
+    // `focusRequestSeqRef` is bumped once per moveFocus call and captured by
+    // that call's retry closure; `pendingFocusRafRef` tracks the currently
+    // in-flight frame id so it can be cancelled outright (superseded by a
+    // newer moveFocus call, or the component unmounting) rather than left to
+    // self-abort on its own next tick.
+    const focusRequestSeqRef = useRef(0);
+    const pendingFocusRafRef = useRef(0);
+    const cancelPendingFocusRaf = () => {
+      if (pendingFocusRafRef.current) {
+        cancelAnimationFrame(pendingFocusRafRef.current);
+        pendingFocusRafRef.current = 0;
+      }
+    };
+
+    // Default/fallback roving target: whenever `focusedRowKey` is unset
+    // (initial mount), or no longer resolves to a loaded row (context/mode
+    // switch swapped the data window entirely, the row was deleted, or it
+    // was evicted at the pagination cap), fall back to a sensible default —
+    // the newest row in normal mode, the centered row in anchored mode
+    // (mirroring the initial-positioning effect above). This is a *pure*
+    // derived value (useMemo, not an effect + setState): it only decides
+    // what's DISPLAYED as the tabIndex=0 row this render. It deliberately
+    // does not write the fallback back into `focusedRowKey` state — the
+    // first genuine navigation (moveFocus/handleRowFocus) does that. An
+    // earlier version computed this via an effect that called setState,
+    // which scheduled an extra render on every eviction/context-switch;
+    // since `isPrepend`'s baseline ref updates unconditionally after every
+    // commit (not just "real" ones), that extra render re-derived
+    // `isPrepend` against an already-advanced baseline and silently
+    // flipped `shift` back to false one render after virtua needed to see
+    // it true — corrupting the prepend/cap-eviction scroll-compensation
+    // tests. A pure fallback avoids the extra render entirely.
+    const effectiveFocusedIndex = useMemo(() => {
+      if (focusedIndex !== -1) return focusedIndex;
+      if (len === 0) return -1;
+      return mode === 'anchored' ? Math.max(0, Math.floor((len - 1) / 2)) : len - 1;
+    }, [focusedIndex, len, mode]);
+
+    /** Moves the roving target to `rawIndex` (clamped), scrolls it into
+     * virtua's real render window, and imperatively focuses it once it
+     * mounts (retried across a few animation frames — see the module doc
+     * comment for why `keepMounted` alone can't do this).
+     *
+     * Each call spawns its own rAF-retry loop, and a fast second call
+     * (another arrow-key press before the first loop's target has mounted)
+     * would otherwise leave two independent loops running concurrently —
+     * whichever's frame happens to fire LAST wins `.focus()`, which can
+     * silently apply a stale, superseded target over the real current one.
+     * Guarded with a supersession token (`focusRequestSeqRef`): each call
+     * claims the next seq, and the retry closure aborts (no focus, no
+     * further reschedule) the moment it observes a newer claim — that seq
+     * guard alone is what guarantees only the latest call's loop can act.
+     * The in-flight frame id is additionally tracked (`pendingFocusRafRef`)
+     * so a superseded or unmounting loop is also cancelled outright rather
+     * than left to self-abort on its next tick. */
+    const moveFocus = useCallback((rawIndex: number) => {
+      const messages = orderedMessagesRef.current;
+      const targetLen = messages.length;
+      if (targetLen === 0) return;
+      const targetIndex = Math.max(0, Math.min(rawIndex, targetLen - 1));
+      const targetMessage = messages[targetIndex];
+      if (!targetMessage) return;
+
+      setFocusedRowKey(targetMessage.clientId ?? targetMessage.id);
+      vlistRef.current?.scrollToIndex(targetIndex, { align: 'nearest' });
+
+      // Cancel any still-pending retry loop from a prior moveFocus call
+      // before starting this one, and claim a fresh seq so that loop's
+      // closure (if its frame is already mid-flight) recognizes it's stale.
+      cancelPendingFocusRaf();
+      const seq = ++focusRequestSeqRef.current;
+
+      let attempts = 0;
+      const tryFocus = () => {
+        // Superseded by a newer moveFocus call (or a context/mode switch or
+        // unmount — both also bump the seq)? Abort silently: no focus, no
+        // reschedule. Checked BEFORE touching `pendingFocusRafRef`, so a
+        // stale frame that slipped past cancellation can never zero the ref
+        // while it holds the LIVE loop's pending frame id (which would
+        // orphan that frame from the unmount cleanup). Correctness rests on
+        // this seq guard alone; the cancelAnimationFrame calls are an
+        // optimization that stops stale frames from firing at all.
+        if (seq !== focusRequestSeqRef.current) return;
+        pendingFocusRafRef.current = 0;
+        const root = listContainerRef.current;
+        if (root) {
+          const rows = root.querySelectorAll<HTMLElement>('[data-message-id]');
+          for (const row of rows) {
+            if (row.dataset.messageId === targetMessage.id) {
+              const focusTarget = row.querySelector<HTMLElement>(
+                '[data-row-focus-target]',
+              );
+              if (focusTarget) {
+                focusTarget.focus();
+                return;
+              }
+              break;
+            }
+          }
+        }
+        attempts += 1;
+        if (attempts < 12) {
+          pendingFocusRafRef.current = requestAnimationFrame(tryFocus);
+        }
+      };
+      pendingFocusRafRef.current = requestAnimationFrame(tryFocus);
+    }, []);
+
+    const handleRowKeyDown = useCallback(
+      (event: KeyboardEvent<HTMLDivElement>, index: number) => {
+        switch (event.key) {
+          case 'ArrowDown':
+            event.preventDefault();
+            moveFocus(index + 1);
+            break;
+          case 'ArrowUp':
+            event.preventDefault();
+            moveFocus(index - 1);
+            break;
+          case 'Home':
+            event.preventDefault();
+            moveFocus(0);
+            break;
+          case 'End':
+            event.preventDefault();
+            moveFocus(orderedMessagesRef.current.length - 1);
+            break;
+          case 'Escape':
+            event.preventDefault();
+            onEscapeToInputRef.current?.();
+            break;
+          default:
+            break;
+        }
+      },
+      [moveFocus],
+    );
+
+    const handleRowFocus = useCallback((index: number) => {
+      const message = orderedMessagesRef.current[index];
+      if (!message) return;
+      setFocusedRowKey(message.clientId ?? message.id);
+    }, []);
 
     // At MESSAGE_MAX_PAGES, TanStack evicts pages from the end OPPOSITE the
     // fetch direction, and eviction is PAGE-granular (an entire page — up to
@@ -256,11 +462,39 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       prevLenRef.current = 0;
       prevNewestIdRef.current = undefined;
       prevMessagesRef.current = [];
+      // Roving focus: a context switch (new channel/DM) obviously must not
+      // carry over the old context's focused row. A bare mode switch
+      // (normal <-> anchored) within the SAME context needs the same reset
+      // even though the previously-focused message id can still resolve in
+      // the new data window (normal-window cache vs. anchored-window cache
+      // overlap) — carrying it over would silently land tabIndex=0 on
+      // whatever row happened to occupy that id, rather than the mode's own
+      // sensible default (newest in normal, centered in anchored). Cleared
+      // here (not left to the pure `effectiveFocusedIndex` fallback alone)
+      // so the fallback's "nothing explicitly focused" case is actually
+      // true again after a mode flip, not just papered over by the fallback
+      // still resolving the stale key to a live row.
+      setFocusedRowKey(null);
+      // Kill any in-flight moveFocus retry loop from the previous
+      // context/mode: cancel its pending frame, and bump the supersession
+      // seq so a frame already dequeued past cancellation self-aborts.
+      cancelPendingFocusRaf();
+      focusRequestSeqRef.current += 1;
       onAtBottomChange?.(true);
     }, [resetKey, mode, onAtBottomChange]);
 
-    // Cancel any pending positioning frames on unmount.
-    useEffect(() => cancelPositioningRafs, []);
+    // Cancel any pending positioning AND roving-focus retry frames on
+    // unmount — an in-flight moveFocus rAF loop must not keep querying
+    // (or scheduling further frames against) a torn-down listContainerRef.
+    // The seq bump invalidates any frame that has already been dequeued and
+    // can no longer be cancelled (see tryFocus's seq guard).
+    useEffect(() => {
+      return () => {
+        cancelPositioningRafs();
+        cancelPendingFocusRaf();
+        focusRequestSeqRef.current += 1;
+      };
+    }, []);
 
     // highlightMessageId as of the latest render, read (not depended on) by
     // the initial-positioning effect below so it can detect "no jump target"
@@ -453,7 +687,12 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
 
     return (
       <Box
+        ref={listContainerRef}
         data-testid="virtual-scroll-container"
+        // Not in the natural Tab order — only a fallback focus target for
+        // the context-menu restore when a row is removed while its menu is
+        // still closing (see MessageComponent's listContainerRef usage).
+        tabIndex={-1}
         sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
       >
         {isLoadingMore && (
@@ -463,8 +702,21 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
             <MessageSkeleton />
           </Box>
         )}
+        {/* role="list"/"listitem" rather than the ARIA "feed" pattern:
+            feed's aria-posinset/aria-setsize imply an honest, stable total
+            item count, which this virtualized + paginated + cap-evicted
+            window can't provide (the loaded window's size isn't the
+            channel's total message count, and it shrinks/grows via
+            eviction independent of user action). Feed's Ctrl+Arrow
+            per-article navigation model also doesn't fit — rows aren't
+            independently-landmarked articles, they're moved between via the
+            plain roving-tabindex Arrow keys implemented here. A plain list
+            with an aria-label, one listitem per row, correctly conveys
+            "a list of messages" without those false guarantees. */}
         <VList
           ref={vlistRef}
+          role="list"
+          aria-label="Messages"
           shift={isPrepend}
           onScroll={handleScroll}
           style={{ flex: 1, minHeight: 0 }}
@@ -491,7 +743,7 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
               : rowKey;
 
             return (
-              <div key={key} data-message-id={message.id}>
+              <div key={key} data-message-id={message.id} role="listitem">
                 {showDividerBefore && (
                   <UnreadMessageDivider unreadCount={unreadCount} />
                 )}
@@ -508,6 +760,11 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
                       ? VoiceSessionType.Dm
                       : VoiceSessionType.Channel
                   }
+                  rowIndex={index}
+                  isRovingFocused={index === effectiveFocusedIndex}
+                  onRovingKeyDown={handleRowKeyDown}
+                  onRovingFocus={handleRowFocus}
+                  listContainerRef={listContainerRef}
                 />
               </div>
             );

@@ -3,6 +3,7 @@ import { screen, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import MessageContainer from '../../components/Message/MessageContainer';
 import { createMessage, resetFactoryCounter } from '../test-utils/factories';
+import { SpanType } from '../../types/message.type';
 
 // ── Mock child components ──────────────────────────────────────────────
 vi.mock('../../components/Message/MessageSkeleton', () => ({
@@ -648,6 +649,134 @@ describe('MessageContainer', () => {
       act(() => (lastVirtualListProps!.onVisibleRangeChange as (s: number, e: number) => void)(5, 2));
       act(() => (lastVirtualListProps!.onVisibleRangeChange as (s: number, e: number) => void)(0, -1));
       expect(mockMarkAsRead).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── aria-live announcements (useMessageListAnnouncer wiring) ─────────
+  describe('live-region announcements', () => {
+    const otherMessage = (id: string, text: string) =>
+      createMessage({
+        id,
+        authorId: 'other-user',
+        spans: [{ type: SpanType.PLAINTEXT, text }],
+      });
+    const ownMessage = (id: string, text: string) =>
+      createMessage({
+        id,
+        authorId: 'current-user-1',
+        spans: [{ type: SpanType.PLAINTEXT, text }],
+      });
+
+    function liveRegionText(): string {
+      return screen.getByTestId('message-list-live-region').textContent ?? '';
+    }
+
+    function setAtBottom(atBottom: boolean) {
+      act(() => {
+        (lastVirtualListProps!.onAtBottomChange as (b: boolean) => void)(atBottom);
+      });
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function flushAnnouncer() {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2100);
+      });
+    }
+
+    it('is silent for the initial page load (no baseline "new message" spam)', async () => {
+      renderWithProviders(
+        <MessageContainer
+          {...defaultProps}
+          messages={[otherMessage('m1', 'hello there')]}
+          channelId="ch-1"
+        />,
+      );
+      await flushAnnouncer();
+      expect(liveRegionText()).toBe('');
+    });
+
+    it('announces a new message from another author when not at the live edge', async () => {
+      const initial = [otherMessage('m1', 'hello there')];
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={initial} channelId="ch-1" />,
+      );
+      setAtBottom(false);
+
+      const withNew = [otherMessage('m2', 'second message'), ...initial];
+      rerender(<MessageContainer {...defaultProps} messages={withNew} channelId="ch-1" />);
+
+      await flushAnnouncer();
+      expect(liveRegionText()).toContain('second message');
+    });
+
+    it('does not announce while at the bottom (message already visible)', async () => {
+      const initial = [otherMessage('m1', 'hello there')];
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={initial} channelId="ch-1" />,
+      );
+      // atBottom defaults to true — never toggled false here.
+
+      const withNew = [otherMessage('m2', 'second message'), ...initial];
+      rerender(<MessageContainer {...defaultProps} messages={withNew} channelId="ch-1" />);
+
+      await flushAnnouncer();
+      expect(liveRegionText()).toBe('');
+    });
+
+    it('does not announce the reader\'s own messages', async () => {
+      const initial = [otherMessage('m1', 'hello there')];
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={initial} channelId="ch-1" />,
+      );
+      setAtBottom(false);
+
+      const withOwn = [ownMessage('m2', 'my own message'), ...initial];
+      rerender(<MessageContainer {...defaultProps} messages={withOwn} channelId="ch-1" />);
+
+      await flushAnnouncer();
+      expect(liveRegionText()).toBe('');
+    });
+
+    it('coalesces several messages arriving within the batch window into a count', async () => {
+      const initial = [otherMessage('m1', 'hello there')];
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={initial} channelId="ch-1" />,
+      );
+      setAtBottom(false);
+
+      const withNew = [
+        otherMessage('m3', 'third'),
+        otherMessage('m2', 'second'),
+        ...initial,
+      ];
+      rerender(<MessageContainer {...defaultProps} messages={withNew} channelId="ch-1" />);
+
+      await flushAnnouncer();
+      expect(liveRegionText()).toContain('2 new messages');
+    });
+
+    it('does not announce across a channel switch (baseline resets, not a "new message")', async () => {
+      const initial = [otherMessage('m1', 'hello there')];
+      const { rerender } = renderWithProviders(
+        <MessageContainer {...defaultProps} messages={initial} channelId="ch-1" />,
+      );
+      setAtBottom(false);
+
+      const otherChannelMessages = [otherMessage('m2', 'a different channel')];
+      rerender(
+        <MessageContainer {...defaultProps} messages={otherChannelMessages} channelId="ch-2" />,
+      );
+
+      await flushAnnouncer();
+      expect(liveRegionText()).toBe('');
     });
   });
 });
