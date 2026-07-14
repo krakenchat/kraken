@@ -35,20 +35,28 @@ export const Container = styled("div", {
     prop !== "stagedForDelete" &&
     prop !== "isDeleting" &&
     prop !== "isHighlighted" &&
-    prop !== "isSearchHighlight",
+    prop !== "isSearchHighlight" &&
+    prop !== "isPending" &&
+    prop !== "isFailed",
 })<{
   stagedForDelete?: boolean;
   isDeleting?: boolean;
   isHighlighted?: boolean;
   isSearchHighlight?: boolean;
-}>(({ theme, stagedForDelete, isDeleting, isHighlighted, isSearchHighlight }) => ({
+  /** Optimistic send in flight — reduced opacity, no layout change (PR-13). */
+  isPending?: boolean;
+  /** Optimistic send failed — error tint (PR-13). */
+  isFailed?: boolean;
+}>(({ theme, stagedForDelete, isDeleting, isHighlighted, isSearchHighlight, isPending, isFailed }) => ({
   padding: theme.spacing(0.5, 2),
   display: "flex",
   alignItems: "flex-start",
   width: "100%",
   marginBottom: 0,
   position: "relative",
-  backgroundColor: isHighlighted
+  backgroundColor: isFailed
+    ? alpha(theme.palette.error.main, 0.06)
+    : isHighlighted
     ? alpha(theme.palette.primary.main, 0.08)
     : "transparent",
   border: stagedForDelete
@@ -58,7 +66,11 @@ export const Container = styled("div", {
     : "2px solid transparent",
   borderRadius: stagedForDelete || isSearchHighlight ? theme.spacing(1) : 0,
   transition: isDeleting ? "all 0.3s ease-out" : "all 0.2s ease-in-out",
-  opacity: isDeleting ? 0 : 1,
+  // Pending/failed opacity is independent of the delete-animation opacity —
+  // isDeleting (0) always wins since a row can't be mid-delete-animation
+  // while also optimistic. Kept at 1 for the real (settled) state so the
+  // pending -> real transition never shifts anything but this one value.
+  opacity: isDeleting ? 0 : isPending ? 0.6 : 1,
   transform: isDeleting
     ? "translateY(-10px) scale(0.98)"
     : "translateY(0) scale(1)",
@@ -71,6 +83,8 @@ export const Container = styled("div", {
   "&:hover": {
     backgroundColor: stagedForDelete
       ? theme.palette.error.light
+      : isFailed
+      ? alpha(theme.palette.error.main, 0.1)
       : isHighlighted
       ? alpha(theme.palette.primary.main, 0.12)
       : theme.palette.action.hover,

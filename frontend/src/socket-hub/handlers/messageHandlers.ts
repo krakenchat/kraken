@@ -28,7 +28,7 @@ import {
 } from '../../api-client/@tanstack/react-query.gen';
 import type { ThreadRepliesResponseDto, EnrichedThreadReplyDto } from '../../api-client';
 import {
-  prependMessageToInfinite,
+  prependOrReconcileOptimistic,
   updateMessageInInfinite,
   deleteMessageFromInfinite,
   findMessageInInfinite,
@@ -61,8 +61,11 @@ export const handleNewMessage: SocketEventHandler<
 
   if (!detached) {
     await queryClient.cancelQueries({ queryKey });
+    // Reconciles in place with a matching optimistic (pending/failed) row
+    // from the same author if the echo beats the sender's own ack — see
+    // prependOrReconcileOptimistic (PR-13).
     queryClient.setQueryData(queryKey, (old: unknown) =>
-      prependMessageToInfinite(old as never, message as Message),
+      prependOrReconcileOptimistic(old as never, message as Message),
     );
   }
 

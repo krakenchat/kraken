@@ -110,6 +110,27 @@ describe('VirtualMessageList', () => {
     expect(document.querySelector('[data-message-id="msg-2"]')).toBeTruthy();
   });
 
+  it('keeps the same DOM node across an optimistic id swap when clientId is stable (no remount, PR-13 fix round 1 Minor 6)', () => {
+    const pending = createMessage({ id: 'pending-1', clientId: 'pending-1', sendStatus: 'pending' });
+    const { rerender } = render(
+      <VirtualMessageList {...baseProps} orderedMessages={[pending]} />,
+    );
+    const beforeNode = document.querySelector('[data-message-id="pending-1"]');
+    expect(beforeNode).toBeTruthy();
+
+    // Reconciliation swaps id -> the real server id but retains clientId
+    // (see messageCacheUpdaters.ts) so the row's React key (clientId ?? id)
+    // stays stable across the swap.
+    const settled = createMessage({ id: 'real-1', clientId: 'pending-1' });
+    rerender(<VirtualMessageList {...baseProps} orderedMessages={[settled]} />);
+
+    const afterNode = document.querySelector('[data-message-id="real-1"]');
+    expect(afterNode).toBeTruthy();
+    // Same DOM node — proves React reconciled in place rather than
+    // unmounting the old row and mounting a new one (which would blink).
+    expect(afterNode).toBe(beforeNode);
+  });
+
   it('places the unread divider before the first unread message', () => {
     // lastReadIndex 1 → divider before index 2 (msg-2)
     render(

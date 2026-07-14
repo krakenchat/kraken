@@ -473,10 +473,22 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
             const isHighlighted = highlightMessageId === message.id;
             const showDividerBefore =
               unreadCount > 0 && lastReadIndex !== -1 && index === lastReadIndex + 1;
+            // Key by clientId when present so an optimistic message's row
+            // survives the id swap (pending-<uuid> -> real id) on
+            // reconciliation without remounting (PR-13 fix round 1, Minor
+            // 6) — clientId is preserved through both the ack-first and
+            // echo-first reconcile paths (see messageCacheUpdaters.ts) for
+            // exactly this reason. Falls back to message.id for every
+            // ordinary (non-optimistic) row, unchanged from before.
+            // Known one-off: a full refetch rebuilds rows from server data,
+            // which never carries clientId, so a previously-optimistic row's
+            // key flips clientId → id once (remount) — invisible in practice
+            // since the refetch rebuilds the whole list anyway.
+            const rowKey = message.clientId ?? message.id;
             // Composite key restarts the CSS flash on re-clicks (highlightSeq).
             const key = isHighlighted
-              ? `${message.id}-hl-${highlightSeq}`
-              : message.id;
+              ? `${rowKey}-hl-${highlightSeq}`
+              : rowKey;
 
             return (
               <div key={key} data-message-id={message.id}>

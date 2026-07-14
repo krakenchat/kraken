@@ -8,6 +8,7 @@
 import React, { useState, useCallback } from "react";
 import { Avatar, Typography, Tooltip, Box, Chip, Link } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 import type { Message as MessageType } from "../../types/message.type";
 import { useQuery } from "@tanstack/react-query";
 import { userControllerGetUserByIdOptions } from "../../api-client/@tanstack/react-query.gen";
@@ -36,6 +37,7 @@ import { useResponsive } from "../../hooks/useResponsive";
 import { useLongPress } from "../../hooks/useSwipeGesture";
 import { useCommunityCustomEmojis } from "../../hooks/useCommunityCustomEmojis";
 import { useContextMenuFocusRestore } from "../../hooks/useContextMenuFocusRestore";
+import { OptimisticMessageActions } from "./OptimisticMessageActions";
 
 interface MessageProps {
   message: MessageType;
@@ -66,6 +68,13 @@ function MessageComponentInner({
   // Community custom emojis (for rendering EMOJI spans + custom reactions).
   const { byId: emojiById } = useCommunityCustomEmojis(communityId);
   const isWebhookMessage = !!message.webhook;
+  // Optimistic (not-yet-settled) send — see types/message.type.ts. Neither
+  // state has a real, persisted message id, so every action that would hit
+  // the API (edit/delete/pin/react/thread) is disabled below; retry/delete
+  // for the optimistic row itself is handled by OptimisticMessageActions.
+  const isPending = message.sendStatus === 'pending';
+  const isFailed = message.sendStatus === 'failed';
+  const isOptimistic = isPending || isFailed;
   const { data: author } = useQuery({
     ...userControllerGetUserByIdOptions({ path: { id: message.authorId ?? '' } }),
     // Webhook messages have no authorId — skip the user lookup entirely.
@@ -78,15 +87,19 @@ function MessageComponentInner({
   const isMentioned = isUserMentioned(message, currentUser?.id);
 
   // Use extracted hook for cleaner permission logic
-  const { canEdit, canDelete, canPin, canReact } = useMessagePermissions({
+  const messagePermissions = useMessagePermissions({
     message,
     currentUserId: currentUser?.id,
   });
+  const canEdit = messagePermissions.canEdit && !isOptimistic;
+  const canDelete = messagePermissions.canDelete && !isOptimistic;
+  const canPin = messagePermissions.canPin && !isOptimistic;
+  const canReact = messagePermissions.canReact && !isOptimistic;
 
   const isPinned = message.pinned === true;
 
   // Thread logic: Can start a thread if not already a thread reply and handler is provided
-  const canThread = !isThreadReply && !isThreadParent && !!onOpenThread;
+  const canThread = !isOptimistic && !isThreadReply && !isThreadParent && !!onOpenThread;
   const hasReplies = (message.replyCount ?? 0) > 0;
 
   const handleOpenThread = () => {
@@ -195,6 +208,8 @@ function MessageComponentInner({
       isDeleting={isDeleting}
       isHighlighted={isMentioned}
       isSearchHighlight={isSearchHighlight}
+      isPending={isPending}
+      isFailed={isFailed}
       // Not in tab order (-1) — only focused programmatically, to restore
       // focus here after the right-click/long-press context menu closes.
       tabIndex={-1}
@@ -266,6 +281,14 @@ function MessageComponentInner({
             {message.editedAt && (
               <span style={{ marginLeft: 4 }}>(edited)</span>
             )}
+            {isPending && (
+              <Tooltip title="Sending...">
+                <ScheduleIcon
+                  data-testid="message-pending-icon"
+                  sx={{ fontSize: 13, ml: 0.5, verticalAlign: "text-bottom" }}
+                />
+              </Tooltip>
+            )}
             {/* Show read status for own messages in DMs with "seen by" tooltip */}
             {contextType === VoiceSessionType.Dm && isAuthor && contextId && (
               <SeenByTooltip
@@ -325,6 +348,7 @@ function MessageComponentInner({
                 onClick={handleOpenThread}
               />
             )}
+            {isFailed && <OptimisticMessageActions message={message} />}
           </>
         )}
       </div>
@@ -344,7 +368,7 @@ function MessageComponentInner({
           onPin={handlePin}
           onUnpin={handleUnpin}
           onReplyInThread={handleOpenThread}
-          onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
+          onQuoteReply={onQuoteReply && !message.deletedAt && !isOptimistic ? () => onQuoteReply(message) : undefined}
           communityId={communityId}
         />
       )}
@@ -373,7 +397,7 @@ function MessageComponentInner({
         onPin={handlePin}
         onUnpin={handleUnpin}
         onReplyInThread={handleOpenThread}
-        onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
+        onQuoteReply={onQuoteReply && !message.deletedAt && !isOptimistic ? () => onQuoteReply(message) : undefined}
         onAddReaction={handleAddReaction}
       />
       {shouldUseTouchUI && (
@@ -393,7 +417,7 @@ function MessageComponentInner({
           onPin={handlePin}
           onUnpin={handleUnpin}
           onReplyInThread={handleOpenThread}
-          onQuoteReply={onQuoteReply && !message.deletedAt ? () => onQuoteReply(message) : undefined}
+          onQuoteReply={onQuoteReply && !message.deletedAt && !isOptimistic ? () => onQuoteReply(message) : undefined}
           onAddReaction={handleSheetAddReaction}
           onEmojiSelect={handleEmojiSelect}
         />
@@ -435,6 +459,7 @@ const MessageComponent = React.memo(MessageComponentInner, (prevProps, nextProps
     prevMsg.lastReplyAt === nextMsg.lastReplyAt &&
     prevMsg.replyToId === nextMsg.replyToId &&
     prevMsg.deletedAt === nextMsg.deletedAt &&
+    prevMsg.sendStatus === nextMsg.sendStatus &&
     prevProps.isSearchHighlight === nextProps.isSearchHighlight &&
     prevProps.isThreadParent === nextProps.isThreadParent &&
     prevProps.isThreadReply === nextProps.isThreadReply &&
