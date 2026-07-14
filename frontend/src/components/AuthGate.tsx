@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { onboardingControllerGetStatusOptions } from "../api-client/@tanstack/react-query.gen";
@@ -15,6 +15,8 @@ import { SocketProvider } from "../utils/SocketProvider";
 import { AvatarCacheProvider } from "../contexts/AvatarCacheContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { SecureStorageWarning } from "./Electron/SecureStorageWarning";
+import { takeStashedDeepLinkRoute } from "../utils/deepLinkStash";
+import { mapDeepLinkRouteToPath } from "../utils/deepLinkRoute";
 import { VoiceProvider } from "../contexts/VoiceContext";
 import { ConnectionStatusBanner } from "./ConnectionStatusBanner";
 import { RoomProvider } from "../contexts/RoomContext";
@@ -32,6 +34,7 @@ enum AuthState {
 
 export function AuthGate() {
   const [authState, setAuthState] = useState<AuthState>(AuthState.Loading);
+  const navigate = useNavigate();
 
   // Phase 1: Onboarding check (no auth required)
   const {
@@ -72,6 +75,19 @@ export function AuthGate() {
       setAuthState(AuthState.Unauthenticated);
     });
   }, []);
+
+  // Flush any deep link stashed by useDeepLinks (mounted in App.tsx, alive
+  // even while unauthenticated) once sign-in completes. AuthGate is the one
+  // place every sign-in path — LoginPage, RegisterPage, JoinInvitePage,
+  // onboarding completion, and silent refresh — funnels through and
+  // observes Authenticated, so it's the right place to own the flush.
+  useEffect(() => {
+    if (authState !== AuthState.Authenticated) return;
+    const pending = takeStashedDeepLinkRoute();
+    if (!pending) return;
+    const path = mapDeepLinkRouteToPath(pending);
+    if (path) navigate(path);
+  }, [authState, navigate]);
 
   async function validateToken() {
     const token = getAccessToken();
