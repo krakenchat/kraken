@@ -449,6 +449,57 @@ fileStorage:
   # Example custom options: ["nfsvers=4.1", "hard", "tcp"]
   # mountOptions: []
 
+  # S3-compatible object storage for uploads (avatars, attachments). When
+  # enabled, sets STORAGE_TYPE=S3 on the backend so new uploads write
+  # directly to the bucket instead of the local uploads PVC — this removes
+  # the RWX/NFS requirement for multi-replica deployments entirely (see
+  # semaphore-chat.validateFileStorage in _helpers.tpl).
+  #
+  # If fileStorage.enabled is ALSO true, the uploads PVC still gets created
+  # and mounted — that's "mixed mode": files uploaded before switching to S3
+  # (STORAGE_TYPE=LOCAL) remain on the PVC and are served from there, so the
+  # PVC's accessMode/RWX requirements still apply to it at >1 backend
+  # replicas. Once no LOCAL-storage files remain, set fileStorage.enabled to
+  # false to drop the PVC requirement completely.
+  s3:
+    # Set true to use S3 (or an S3-compatible provider) for file uploads.
+    enabled: false
+
+    # S3 bucket name. Required when s3.enabled=true.
+    bucket: ""
+
+    # AWS region, or the region your S3-compatible provider expects.
+    # Required when s3.enabled=true.
+    region: ""
+
+    # Custom S3 endpoint for S3-compatible providers (MinIO, R2, Backblaze
+    # B2, etc.). Leave empty ("") to use AWS S3's default endpoint for the
+    # configured region.
+    endpoint: ""
+
+    # Use path-style addressing (https://endpoint/bucket/key) instead of
+    # virtual-hosted-style (https://bucket.endpoint/key). Most self-hosted
+    # S3-compatible providers (e.g. MinIO) require this; leave false for AWS
+    # S3.
+    forcePathStyle: false
+
+    # Name of a pre-existing Kubernetes Secret containing the S3 credentials.
+    # Preferred over the inline accessKeyId/secretAccessKey below (keeps
+    # credentials out of `helm get values` / release history). When set, the
+    # inline credential values are ignored and no chart-managed Secret is
+    # created for S3 credentials.
+    existingSecret: ""
+    # Key within existingSecret holding the access key ID.
+    existingSecretAccessKeyIdKey: "S3_ACCESS_KEY_ID"
+    # Key within existingSecret holding the secret access key.
+    existingSecretSecretAccessKeyKey: "S3_SECRET_ACCESS_KEY"
+
+    # Inline credentials, used only when existingSecret is empty. Rendered
+    # into a chart-managed Secret (<release>-s3-secret) the same way
+    # secrets.jwtSecret etc. are rendered into <release>-secrets.
+    accessKeyId: ""
+    secretAccessKey: ""
+
 # ============================================
 # Replay Segments Storage Configuration
 # ============================================

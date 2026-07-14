@@ -208,8 +208,8 @@ combination at render time rather than leaving the PVC Pending forever).
 {{- end }}
 
 {{/*
-Guard against two data-loss/unschedulable combinations of backend scale and
-file storage config:
+Guard against data-loss/unschedulable/misconfigured combinations of backend
+scale, file storage config, and S3 object storage config:
 
 1. Ephemeral storage with more than one pod. Uploaded files live on per-pod
    disk when fileStorage.enabled=false, so with more than one potential
@@ -217,10 +217,24 @@ file storage config:
    404 on the other pods and are lost on restart. Fails unless the operator
    has opted in via fileStorage.allowEphemeral=true.
 
+   NOT triggered when fileStorage.s3.enabled=true: with no PVC at all
+   (fileStorage.enabled=false) and S3 handling uploads, there is no ephemeral
+   per-pod disk in the upload path, so scaling to any number of replicas is
+   safe without allowEphemeral.
+
 2. A ReadWriteOnce uploads PVC with more than one potential backend replica.
    Only one pod can mount an RWO volume at a time, so the other pod(s) would
    fail to schedule. Fails unless the operator switches to an RWX-capable
    accessMode.
+
+   Still applies even when fileStorage.s3.enabled=true, AS LONG AS
+   fileStorage.enabled is ALSO true: that combination ("mixed mode") keeps
+   the uploads PVC mounted to serve files that were uploaded before the
+   switch to S3 (STORAGE_TYPE=LOCAL), so the PVC's accessMode/RWX
+   requirements still apply to it independently of S3. The failure message is
+   adjusted to explain the mixed-mode reason and mention that
+   fileStorage.enabled=false is also a valid fix once no LOCAL-storage files
+   remain (S3 itself needs no PVC).
 
 3. fileStorage.nfs.enabled=true with an effective accessMode of
    ReadWriteOnce. The chart-managed NFS PersistentVolume (templates/backend/
@@ -228,18 +242,44 @@ file storage config:
    never bind to it — it would sit Pending forever regardless of replica
    count. This can only happen via an explicit fileStorage.accessMode
    override (auto-detection already forces ReadWriteMany for NFS), so this
-   guard fires independently of potentialReplicas.
+   guard fires independently of potentialReplicas and of S3.
+
+4. fileStorage.s3.enabled=true with missing required S3 config: bucket,
+   region, and credentials via exactly one of existingSecret or the inline
+   accessKeyId/secretAccessKey pair. Mirrors the backend's own imperative
+   validation for STORAGE_TYPE=S3 (see backend/src/config/env.validation.ts)
+   so misconfiguration fails at `helm template`/`helm install` time instead
+   of as a backend crash loop.
+
+When fileStorage.s3.enabled=false, none of the S3-specific carve-outs above
+apply and this guard behaves byte-identically to its pre-S3 form.
 */}}
 {{- define "semaphore-chat.validateFileStorage" -}}
 {{- $replicas := include "semaphore-chat.backend.potentialReplicas" . | int -}}
-{{- if and (gt $replicas 1) (not .Values.fileStorage.enabled) (not .Values.fileStorage.allowEphemeral) -}}
-{{- fail (printf "semaphore-chat: backend can scale up to %d replicas (backend.replicaCount / backend.autoscaling.maxReplicas) but fileStorage.enabled=false. Ephemeral storage is per-pod: uploaded files will 404 on other pods and be lost on restart. Fix by doing ONE of: (1) set fileStorage.enabled=true and configure a ReadWriteMany-capable backend (fileStorage.nfs.enabled=true or fileStorage.storageClassName pointing at an RWX storage class), (2) cap backend.replicaCount=1 and backend.autoscaling.maxReplicas=1 (or disable autoscaling), or (3) accept the data-loss risk with --set fileStorage.allowEphemeral=true." $replicas) -}}
+{{- $s3 := .Values.fileStorage.s3 -}}
+{{- if and (gt $replicas 1) (not .Values.fileStorage.enabled) (not $s3.enabled) (not .Values.fileStorage.allowEphemeral) -}}
+{{- fail (printf "semaphore-chat: backend can scale up to %d replicas (backend.replicaCount / backend.autoscaling.maxReplicas) but fileStorage.enabled=false. Ephemeral storage is per-pod: uploaded files will 404 on other pods and be lost on restart. Fix by doing ONE of: (1) set fileStorage.enabled=true and configure a ReadWriteMany-capable backend (fileStorage.nfs.enabled=true or fileStorage.storageClassName pointing at an RWX storage class), (2) set fileStorage.s3.enabled=true to store uploads in S3 instead (no PVC required), (3) cap backend.replicaCount=1 and backend.autoscaling.maxReplicas=1 (or disable autoscaling), or (4) accept the data-loss risk with --set fileStorage.allowEphemeral=true." $replicas) -}}
 {{- end -}}
 {{- if and (gt $replicas 1) .Values.fileStorage.enabled (eq (include "semaphore-chat.fileStorage.accessMode" .) "ReadWriteOnce") -}}
+{{- if $s3.enabled -}}
+{{- fail (printf "semaphore-chat: fileStorage.s3.enabled=true, but fileStorage.enabled=true also keeps the local uploads PVC mounted (mixed mode, for files uploaded before switching to S3) and that PVC would use ReadWriteOnce while the backend can scale up to %d replicas — only one pod can mount it. Fix by doing ONE of: (1) point fileStorage at an RWX-capable storage class (fileStorage.nfs.enabled=true or fileStorage.storageClassName) and set fileStorage.accessMode=ReadWriteMany, (2) cap the backend at 1 potential replica, or (3) once no LOCAL-storage files remain, set fileStorage.enabled=false — S3 uploads don't need the PVC at all." $replicas) -}}
+{{- else -}}
 {{- fail (printf "semaphore-chat: backend can scale up to %d replicas (backend.replicaCount / backend.autoscaling.maxReplicas) but the uploads PVC would use ReadWriteOnce, which only one pod can mount at a time. Point fileStorage at an RWX-capable storage class (fileStorage.nfs.enabled=true or fileStorage.storageClassName pointing at NFS/EFS/AzureFile/etc.) and set fileStorage.accessMode=ReadWriteMany, or cap the backend at 1 potential replica." $replicas) -}}
+{{- end -}}
 {{- end -}}
 {{- if and .Values.fileStorage.enabled .Values.fileStorage.nfs.enabled (eq (include "semaphore-chat.fileStorage.accessMode" .) "ReadWriteOnce") -}}
 {{- fail "semaphore-chat: fileStorage.nfs.enabled=true but fileStorage.accessMode is explicitly set to ReadWriteOnce. The chart-managed NFS PersistentVolume only advertises ReadWriteMany, so a ReadWriteOnce PVC can never bind to it and would stay Pending indefinitely. Remove the fileStorage.accessMode override (auto-detection already forces ReadWriteMany for NFS) or set it to ReadWriteMany." -}}
+{{- end -}}
+{{- if $s3.enabled -}}
+{{- if not $s3.bucket -}}
+{{- fail "semaphore-chat: fileStorage.s3.enabled=true requires fileStorage.s3.bucket to be set." -}}
+{{- end -}}
+{{- if not $s3.region -}}
+{{- fail "semaphore-chat: fileStorage.s3.enabled=true requires fileStorage.s3.region to be set." -}}
+{{- end -}}
+{{- if and (not $s3.existingSecret) (or (not $s3.accessKeyId) (not $s3.secretAccessKey)) -}}
+{{- fail "semaphore-chat: fileStorage.s3.enabled=true requires S3 credentials. Set fileStorage.s3.existingSecret to a pre-created Secret containing the access key ID / secret access key (see existingSecretAccessKeyIdKey / existingSecretSecretAccessKeyKey), or set both fileStorage.s3.accessKeyId and fileStorage.s3.secretAccessKey to have the chart create one." -}}
+{{- end -}}
 {{- end -}}
 {{- end }}
 
