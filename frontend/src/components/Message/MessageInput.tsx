@@ -20,6 +20,7 @@ import GifBoxOutlinedIcon from "@mui/icons-material/GifBoxOutlined";
 import { useResponsive } from "../../hooks/useResponsive";
 import { FilePreview } from "./FilePreview";
 import { MentionDropdown } from "./MentionDropdown";
+import { MENTION_LISTBOX_ID, mentionOptionId } from "./mentionDropdownIds";
 import { useFileAttachments } from "./useFileAttachments";
 import { useDropZone } from "./useDropZone";
 import { DropZoneOverlay } from "./DropZoneOverlay";
@@ -88,6 +89,7 @@ export default function MessageInput({
   // Emoji picker state + last-known selection (captured before the picker steals focus)
   const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLElement | null>(null);
   const emojiPickerOpen = Boolean(emojiAnchorEl);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const lastSelectionRef = useRef<{ start: number; end: number }>({
     start: 0,
     end: 0,
@@ -418,8 +420,22 @@ export default function MessageInput({
     setEmojiAnchorEl(event.currentTarget);
   };
 
-  const handleEmojiPickerClose = () => {
+  // The Popover's `disableRestoreFocus` (see EmojiPickerPopover) intentionally
+  // stops MUI from refocusing the emoji button on close, since selecting an
+  // emoji instead refocuses the composer input (see handleEmojiSelect).
+  // But that means closing WITHOUT selecting (Escape/backdrop click) leaves
+  // focus nowhere — restore it to the invoking button in that case only, so
+  // it doesn't race the post-select refocus of the input.
+  const handleEmojiPickerClose = (
+    _event?: unknown,
+    reason?: "backdropClick" | "escapeKeyDown",
+  ) => {
     setEmojiAnchorEl(null);
+    if (reason === "escapeKeyDown" || reason === "backdropClick") {
+      requestAnimationFrame(() => {
+        emojiButtonRef.current?.focus();
+      });
+    }
   };
 
   // --- GIF picker handlers ---
@@ -592,11 +608,33 @@ export default function MessageInput({
             autoComplete="off"
             multiline
             maxRows={4}
+            slotProps={{
+              // Note: no `role="combobox"` and no `aria-expanded` here — this
+              // field is `multiline` (renders a <textarea>), and ARIA 1.2's
+              // `aria-allowed-role`/`aria-allowed-attr` restrict both to
+              // <input> hosts (or contenteditable), not <textarea> — axe
+              // flags either as a violation on this element. `aria-autocomplete`
+              // on the textarea's native textbox role, plus
+              // aria-controls/aria-activedescendant (present only while the
+              // dropdown is actually open), still fully conveys the
+              // combobox-listbox relationship to assistive tech.
+              htmlInput: {
+                "aria-autocomplete": "list",
+                "aria-controls": mentionIsOpen ? MENTION_LISTBOX_ID : undefined,
+                "aria-activedescendant":
+                  mentionIsOpen && mentionSuggestions.length > 0
+                    ? mentionOptionId(mentionSelectedIndex)
+                    : undefined,
+              },
+            }}
           />
           <IconButton
+            ref={emojiButtonRef}
             onClick={handleEmojiButtonClick}
             disabled={sending}
             aria-label="add emoji"
+            aria-haspopup="true"
+            aria-expanded={emojiPickerOpen}
           >
             <EmojiEmotionsOutlinedIcon />
           </IconButton>
@@ -605,6 +643,8 @@ export default function MessageInput({
               onClick={handleGifButtonClick}
               disabled={sending}
               aria-label="add gif"
+              aria-haspopup="true"
+              aria-expanded={gifPickerOpen}
             >
               <GifBoxOutlinedIcon />
             </IconButton>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { IconButton, Popover, Box, Typography, TextField, InputAdornment } from '@mui/material';
 import { AddReaction as AddReactionIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -6,6 +6,15 @@ import { MobileSheet } from '../Mobile/common/MobileSheet';
 import { useCommunityCustomEmojis } from '../../hooks/useCommunityCustomEmojis';
 import type { CustomEmojiDto } from '../../api-client/types.gen';
 import { getFileUrl } from '../../utils/fileHelpers';
+import {
+  computeNextEmojiGridPosition,
+  isEmojiGridNavKey,
+  type EmojiGridPosition,
+  type EmojiGridSection,
+} from '../../utils/emojiGridNavigation';
+
+/** Section key for the "Custom" emoji group in the roving-tabindex grid. */
+const CUSTOM_SECTION_KEY = '__custom__';
 
 // Emoji names for search functionality
 export const EMOJI_NAMES: Record<string, string[]> = {
@@ -201,6 +210,75 @@ const EmojiPickerContent: React.FC<{
     Object.keys(filteredCategories).length > 0 ||
     filteredCustomEmojis.length > 0;
 
+  // --- Roving-tabindex grid navigation ---
+  // The grid isn't a single native <table>/CSS-grid-with-role — categories
+  // are independent fixed-column (8) CSS grids stacked in one scrollable
+  // region, with no tab strip to jump between them (see file doc comment).
+  // We model that as an ordered list of "sections" (custom emojis, then each
+  // category) and let `computeNextEmojiGridPosition` do the row/column math;
+  // only one cell is in the tab order (tabIndex 0) at a time, and arrow keys
+  // move both the logical position and real DOM focus together.
+  const gridSections: EmojiGridSection[] = useMemo(() => {
+    const sections: EmojiGridSection[] = [];
+    if (filteredCustomEmojis.length > 0) {
+      sections.push({ key: CUSTOM_SECTION_KEY, count: filteredCustomEmojis.length });
+    }
+    Object.entries(filteredCategories).forEach(([name, emojis]) => {
+      sections.push({ key: name, count: emojis.length });
+    });
+    return sections;
+  }, [filteredCustomEmojis.length, filteredCategories]);
+
+  const [activeCell, setActiveCell] = useState<EmojiGridPosition>(() => ({
+    section: gridSections[0]?.key ?? '',
+    index: 0,
+  }));
+
+  // Keep the active cell valid as the result set changes (typing a search
+  // query can shrink/reorder sections out from under the current position).
+  useEffect(() => {
+    setActiveCell((prev) => {
+      const stillValid = gridSections.find((s) => s.key === prev.section);
+      if (stillValid && prev.index < stillValid.count) return prev;
+      return { section: gridSections[0]?.key ?? '', index: 0 };
+    });
+  }, [gridSections]);
+
+  const cellRefs = useRef<Record<string, (HTMLButtonElement | null)[]>>({});
+  const setCellRef = useCallback(
+    (sectionKey: string, index: number) => (el: HTMLButtonElement | null) => {
+      const arr = (cellRefs.current[sectionKey] ??= []);
+      arr[index] = el;
+    },
+    [],
+  );
+
+  const isActiveCell = useCallback(
+    (sectionKey: string, index: number) =>
+      activeCell.section === sectionKey && activeCell.index === index,
+    [activeCell],
+  );
+
+  const handleCellFocus = useCallback(
+    (sectionKey: string, index: number) => () => {
+      setActiveCell({ section: sectionKey, index });
+    },
+    [],
+  );
+
+  const handleGridKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (!isEmojiGridNavKey(event.key) || gridSections.length === 0) return;
+      event.preventDefault();
+      const next = computeNextEmojiGridPosition(event.key, activeCell, gridSections);
+      if (next.section !== activeCell.section || next.index !== activeCell.index) {
+        setActiveCell(next);
+        cellRefs.current[next.section]?.[next.index]?.focus();
+      }
+    },
+    [activeCell, gridSections],
+  );
+
   return (
     <Box sx={{
       width: touch ? '100%' : '300px',
@@ -223,6 +301,11 @@ const EmojiPickerContent: React.FC<{
           placeholder="Search emojis..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          // Intentional: this is the first focusable control inside a
+          // just-opened popover/sheet (not the page), matching the WAI-ARIA
+          // pattern of moving focus into a newly-opened dialog/menu and
+          // satisfying "search field first in tab order".
+          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
           fullWidth
           sx={{
@@ -268,6 +351,9 @@ const EmojiPickerContent: React.FC<{
 
       {/* Scrollable Content */}
       <Box
+        role="group"
+        aria-label="Emojis"
+        onKeyDown={handleGridKeyDown}
         sx={{
           flex: 1,
           overflowY: 'auto',
@@ -291,7 +377,7 @@ const EmojiPickerContent: React.FC<{
         }}
       >
         {filteredCustomEmojis.length > 0 && (
-          <Box sx={{ mb: 1.5 }}>
+          <Box role="group" aria-label="Custom" sx={{ mb: 1.5 }}>
             <Typography
               variant="caption"
               sx={{
@@ -314,9 +400,12 @@ const EmojiPickerContent: React.FC<{
                 width: '100%',
               }}
             >
-              {filteredCustomEmojis.map((emoji) => (
+              {filteredCustomEmojis.map((emoji, cellIndex) => (
                 <IconButton
                   key={emoji.id}
+                  ref={setCellRef(CUSTOM_SECTION_KEY, cellIndex)}
+                  tabIndex={isActiveCell(CUSTOM_SECTION_KEY, cellIndex) ? 0 : -1}
+                  onFocus={handleCellFocus(CUSTOM_SECTION_KEY, cellIndex)}
                   size="small"
                   title={`:${emoji.name}:`}
                   aria-label={`:${emoji.name}:`}
@@ -351,7 +440,7 @@ const EmojiPickerContent: React.FC<{
         )}
         {hasResults ? (
           Object.entries(filteredCategories).map(([categoryName, emojis], index) => (
-            <Box key={categoryName} sx={{ mb: 1.5 }}>
+            <Box key={categoryName} role="group" aria-label={categoryName} sx={{ mb: 1.5 }}>
               {/* Category Header */}
               <Typography
                 variant="caption"
@@ -378,10 +467,14 @@ const EmojiPickerContent: React.FC<{
                   width: '100%',
                 }}
               >
-                {emojis.map((emoji) => (
+                {emojis.map((emoji, cellIndex) => (
                   <IconButton
                     key={`${categoryName}-${emoji}`}
+                    ref={setCellRef(categoryName, cellIndex)}
+                    tabIndex={isActiveCell(categoryName, cellIndex) ? 0 : -1}
+                    onFocus={handleCellFocus(categoryName, cellIndex)}
                     size="small"
+                    aria-label={EMOJI_NAMES[emoji]?.[0] ?? emoji}
                     onClick={() => onEmojiClick(emoji)}
                     sx={{
                       fontSize: touch ? '24px' : '16px',
@@ -578,7 +671,13 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
 
   return (
     <>
-      <IconButton size="small" onClick={handleClick}>
+      <IconButton
+        size="small"
+        onClick={handleClick}
+        aria-label="Add reaction"
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
         <AddReactionIcon fontSize="small" />
       </IconButton>
       <Popover

@@ -137,6 +137,9 @@ export const ChannelNotificationMenu: React.FC<ChannelNotificationMenuProps> = (
           onClick={handleClick}
           size="small"
           disabled={overrideLoading || isLoading}
+          aria-label={getTooltipText()}
+          aria-haspopup="menu"
+          aria-expanded={open}
         >
           {overrideLoading ? <CircularProgress size={20} /> : getIcon()}
         </IconButton>

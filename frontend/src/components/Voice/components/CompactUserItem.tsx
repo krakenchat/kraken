@@ -93,6 +93,9 @@ const CompactUserItem: React.FC<CompactUserItemProps> = React.memo(({
 
   return (
     <ListItem
+      // Not in tab order (-1) — only focused programmatically, to restore
+      // focus here after the right-click/long-press context menu closes.
+      tabIndex={-1}
       sx={{
         px: 1,
         py: 0.5,

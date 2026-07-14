@@ -35,6 +35,7 @@ import { EmojiPickerPopover } from "./EmojiPicker";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useLongPress } from "../../hooks/useSwipeGesture";
 import { useCommunityCustomEmojis } from "../../hooks/useCommunityCustomEmojis";
+import { useContextMenuFocusRestore } from "../../hooks/useContextMenuFocusRestore";
 
 interface MessageProps {
   message: MessageType;
@@ -125,14 +126,21 @@ function MessageComponentInner({
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [actionsSheetOpen, setActionsSheetOpen] = useState(false);
 
+  const { captureTrigger, restoreFocus } = useContextMenuFocusRestore();
+
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
+    captureTrigger(event.currentTarget as HTMLElement);
     setContextMenuPosition({ top: event.clientY, left: event.clientX });
-  }, []);
+  }, [captureTrigger]);
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenuPosition(null);
-  }, []);
+    // Right-click (and long-press) open this menu with no keyboard-reachable
+    // invoker button, so — unlike an anchorEl Menu — MUI can't auto-restore
+    // focus. Return it to the message row itself.
+    restoreFocus();
+  }, [restoreFocus]);
 
   const handleAddReaction = useCallback(() => {
     // Save position for emoji picker, close context menu
@@ -157,7 +165,12 @@ function MessageComponentInner({
   const handleCloseEmojiPicker = useCallback(() => {
     setEmojiPickerPosition(null);
     setEmojiPickerOpen(false);
-  }, []);
+    // Reuses the same trigger captured on right-click: "Add Reaction" is
+    // reached via the context menu, so closing the emoji picker should
+    // return focus to the message row too (a no-op if it was opened via
+    // the touch sheet instead, since no trigger was captured for that path).
+    restoreFocus();
+  }, [restoreFocus]);
 
   // Under touch UI, wire long-press handlers and suppress native selection /
   // context menu; otherwise keep desktop right-click behavior untouched.
@@ -182,6 +195,9 @@ function MessageComponentInner({
       isDeleting={isDeleting}
       isHighlighted={isMentioned}
       isSearchHighlight={isSearchHighlight}
+      // Not in tab order (-1) — only focused programmatically, to restore
+      // focus here after the right-click/long-press context menu closes.
+      tabIndex={-1}
       {...containerInteractionProps}
     >
       <div style={{ marginRight: 12, marginTop: 4 }}>

@@ -84,6 +84,9 @@ const UserItem: React.FC<UserItemProps> = React.memo(({
   return (
     <React.Fragment key={user.id}>
       <ListItem
+        // Not in tab order (-1) — only focused programmatically, to restore
+        // focus here after the right-click/long-press context menu closes.
+        tabIndex={-1}
         sx={{
           px: showInline ? 1 : 2,
           py: 1,

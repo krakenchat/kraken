@@ -37,7 +37,14 @@ const ProfileIcon: React.FC<ProfileIconProps> = ({
   return (
     <>
       <Tooltip title="Open settings">
-        <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+        <IconButton
+          onClick={handleOpenUserMenu}
+          sx={{ p: 0 }}
+          aria-label="Open settings"
+          aria-haspopup="menu"
+          aria-controls={anchorElUser ? "menu-appbar" : undefined}
+          aria-expanded={Boolean(anchorElUser)}
+        >
           <UserAvatar userId={userData?.id} size="medium" />
         </IconButton>
       </Tooltip>
