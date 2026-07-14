@@ -138,7 +138,22 @@ export interface VirtualMessageListProps {
  * hidden elements are not part of the focus order in any browser — so
  * `keepMounted` preserves component state across scroll but cannot itself
  * hold focus. Scrolling the target into the *real* window first is the only
- * way to land focus on it, which is what `moveFocus` below does.
+ * way to land focus on it, which is what `moveFocus` below does. Concurrent
+ * calls (a second arrow-key press before the first target has mounted) are
+ * resolved by a supersession token so only the LATEST call's loop can ever
+ * apply `.focus()` — see `moveFocus`'s own doc comment for the mechanism.
+ *
+ * Re-render note (pre-existing class, not introduced by this feature):
+ * `MessageContainer`'s `useMessageListAnnouncer` batch-flush calls
+ * `setAnnouncement`, which — like every other piece of state this
+ * component's parent already owns (`atBottom`, loading flags, etc.) —
+ * re-renders `MessageContainer` and cascades a re-render of this
+ * (non-memoized) `VirtualMessageList`. That's harmless here: `orderedMessages`
+ * keeps its memoized reference, virtua's own diffing is cheap, and every row
+ * (`MessageComponent`) is wrapped in `React.memo` with an explicit
+ * comparator, so the cascade stops there without re-rendering the list body.
+ * Same category of re-render this component has always tolerated from its
+ * parent; not a new performance concern from the announcer.
  */
 const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageListProps>(
   (
@@ -207,6 +222,21 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     const onEscapeToInputRef = useRef(onEscapeToInput);
     onEscapeToInputRef.current = onEscapeToInput;
 
+    // moveFocus's rAF-retry supersession (see moveFocus's doc comment):
+    // `focusRequestSeqRef` is bumped once per moveFocus call and captured by
+    // that call's retry closure; `pendingFocusRafRef` tracks the currently
+    // in-flight frame id so it can be cancelled outright (superseded by a
+    // newer moveFocus call, or the component unmounting) rather than left to
+    // self-abort on its own next tick.
+    const focusRequestSeqRef = useRef(0);
+    const pendingFocusRafRef = useRef(0);
+    const cancelPendingFocusRaf = () => {
+      if (pendingFocusRafRef.current) {
+        cancelAnimationFrame(pendingFocusRafRef.current);
+        pendingFocusRafRef.current = 0;
+      }
+    };
+
     // Default/fallback roving target: whenever `focusedRowKey` is unset
     // (initial mount), or no longer resolves to a loaded row (context/mode
     // switch swapped the data window entirely, the row was deleted, or it
@@ -234,7 +264,20 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
     /** Moves the roving target to `rawIndex` (clamped), scrolls it into
      * virtua's real render window, and imperatively focuses it once it
      * mounts (retried across a few animation frames — see the module doc
-     * comment for why `keepMounted` alone can't do this). */
+     * comment for why `keepMounted` alone can't do this).
+     *
+     * Each call spawns its own rAF-retry loop, and a fast second call
+     * (another arrow-key press before the first loop's target has mounted)
+     * would otherwise leave two independent loops running concurrently —
+     * whichever's frame happens to fire LAST wins `.focus()`, which can
+     * silently apply a stale, superseded target over the real current one.
+     * Guarded with a supersession token (`focusRequestSeqRef`): each call
+     * claims the next seq, and the retry closure aborts (no focus, no
+     * further reschedule) the moment it observes a newer claim — that seq
+     * guard alone is what guarantees only the latest call's loop can act.
+     * The in-flight frame id is additionally tracked (`pendingFocusRafRef`)
+     * so a superseded or unmounting loop is also cancelled outright rather
+     * than left to self-abort on its next tick. */
     const moveFocus = useCallback((rawIndex: number) => {
       const messages = orderedMessagesRef.current;
       const targetLen = messages.length;
@@ -246,8 +289,24 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       setFocusedRowKey(targetMessage.clientId ?? targetMessage.id);
       vlistRef.current?.scrollToIndex(targetIndex, { align: 'nearest' });
 
+      // Cancel any still-pending retry loop from a prior moveFocus call
+      // before starting this one, and claim a fresh seq so that loop's
+      // closure (if its frame is already mid-flight) recognizes it's stale.
+      cancelPendingFocusRaf();
+      const seq = ++focusRequestSeqRef.current;
+
       let attempts = 0;
       const tryFocus = () => {
+        // Superseded by a newer moveFocus call (or a context/mode switch or
+        // unmount — both also bump the seq)? Abort silently: no focus, no
+        // reschedule. Checked BEFORE touching `pendingFocusRafRef`, so a
+        // stale frame that slipped past cancellation can never zero the ref
+        // while it holds the LIVE loop's pending frame id (which would
+        // orphan that frame from the unmount cleanup). Correctness rests on
+        // this seq guard alone; the cancelAnimationFrame calls are an
+        // optimization that stops stale frames from firing at all.
+        if (seq !== focusRequestSeqRef.current) return;
+        pendingFocusRafRef.current = 0;
         const root = listContainerRef.current;
         if (root) {
           const rows = root.querySelectorAll<HTMLElement>('[data-message-id]');
@@ -265,9 +324,11 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
           }
         }
         attempts += 1;
-        if (attempts < 12) requestAnimationFrame(tryFocus);
+        if (attempts < 12) {
+          pendingFocusRafRef.current = requestAnimationFrame(tryFocus);
+        }
       };
-      requestAnimationFrame(tryFocus);
+      pendingFocusRafRef.current = requestAnimationFrame(tryFocus);
     }, []);
 
     const handleRowKeyDown = useCallback(
@@ -401,14 +462,39 @@ const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageLi
       prevLenRef.current = 0;
       prevNewestIdRef.current = undefined;
       prevMessagesRef.current = [];
-      // Roving-focus reset for a context/mode switch is handled by the
-      // focusResetKeyRef-guarded effect above (folded in deliberately — see
-      // its comment for why a separate reset here caused a mount-time race).
+      // Roving focus: a context switch (new channel/DM) obviously must not
+      // carry over the old context's focused row. A bare mode switch
+      // (normal <-> anchored) within the SAME context needs the same reset
+      // even though the previously-focused message id can still resolve in
+      // the new data window (normal-window cache vs. anchored-window cache
+      // overlap) — carrying it over would silently land tabIndex=0 on
+      // whatever row happened to occupy that id, rather than the mode's own
+      // sensible default (newest in normal, centered in anchored). Cleared
+      // here (not left to the pure `effectiveFocusedIndex` fallback alone)
+      // so the fallback's "nothing explicitly focused" case is actually
+      // true again after a mode flip, not just papered over by the fallback
+      // still resolving the stale key to a live row.
+      setFocusedRowKey(null);
+      // Kill any in-flight moveFocus retry loop from the previous
+      // context/mode: cancel its pending frame, and bump the supersession
+      // seq so a frame already dequeued past cancellation self-aborts.
+      cancelPendingFocusRaf();
+      focusRequestSeqRef.current += 1;
       onAtBottomChange?.(true);
     }, [resetKey, mode, onAtBottomChange]);
 
-    // Cancel any pending positioning frames on unmount.
-    useEffect(() => cancelPositioningRafs, []);
+    // Cancel any pending positioning AND roving-focus retry frames on
+    // unmount — an in-flight moveFocus rAF loop must not keep querying
+    // (or scheduling further frames against) a torn-down listContainerRef.
+    // The seq bump invalidates any frame that has already been dequeued and
+    // can no longer be cancelled (see tryFocus's seq guard).
+    useEffect(() => {
+      return () => {
+        cancelPositioningRafs();
+        cancelPendingFocusRaf();
+        focusRequestSeqRef.current += 1;
+      };
+    }, []);
 
     // highlightMessageId as of the latest render, read (not depended on) by
     // the initial-positioning effect below so it can detect "no jump target"

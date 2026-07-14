@@ -100,4 +100,15 @@ export const Container = styled("div", {
       opacity: 0,
     },
   },
+  // Roving-tabindex focus ring: mirrors the app's other themed
+  // `outline: 2px solid` treatment (see TrimTimeline's trim-handle
+  // `&:focus` styling) rather than relying on the browser default outline,
+  // which is invisible against this Container's own border/background
+  // states above. `:focus-visible` (not `:focus`) so a mouse/touch click
+  // that also focuses the row (context menu, restoreFocus fallback) doesn't
+  // draw the ring — only real keyboard navigation does.
+  "&:focus-visible": {
+    outline: `2px solid ${theme.palette.primary.main}`,
+    outlineOffset: -2,
+  },
 }));
