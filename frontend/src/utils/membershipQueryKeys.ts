@@ -3,8 +3,13 @@ import { membershipControllerFindAllForCommunityQueryKey } from '../api-client/@
 /** Members per page for the infinite community member list (MemberListContainer). */
 export const MEMBER_LIST_PAGE_SIZE = 100;
 
-/** Max pages kept in memory for the infinite member list (100 * 20 = 2000 members). */
-export const MEMBER_LIST_MAX_PAGES = 20;
+/**
+ * No `maxPages` cap for the infinite member list on purpose: in TanStack v5
+ * `maxPages` is a sliding-window CACHE bound (fetching page N+1 evicts page
+ * 1), which would silently drop already-rendered members from the list —
+ * defeating the "Show more" pagination UX. Memory is bounded instead by the
+ * 100/page size and user-driven "Show more" pacing.
+ */
 
 /** Page size used by fetchAllMembershipPages (server max). */
 export const FULL_MEMBER_LIST_PAGE_SIZE = 500;

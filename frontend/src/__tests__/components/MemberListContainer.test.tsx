@@ -196,4 +196,81 @@ describe('MemberListContainer paginated community members', () => {
     const memberAAfter = page2Props.members.find((m) => m.id === 'user-a')!;
     expect(memberAAfter).toBe(memberABefore);
   });
+
+  it('does not evict earlier pages after loading a third page (regression guard for useInfiniteQuery maxPages eviction)', async () => {
+    // Regression guard: TanStack v5's `maxPages` is a sliding-window CACHE
+    // bound, not a render limit — fetching page N+1 would silently evict
+    // page 1 from the cache, dropping already-rendered members from the
+    // flatMap'd list. MemberListContainer must not set `maxPages` at all.
+    // If it's ever reintroduced (e.g. `maxPages: 2`), this 3-page fixture
+    // will fail because page 1's member would disappear once page 3 loads.
+    server.use(
+      http.get(
+        `${BASE_URL}/api/membership/community/community-3`,
+        ({ request }) => {
+          const url = new URL(request.url);
+          const token = url.searchParams.get('continuationToken');
+          if (!token) {
+            return HttpResponse.json({
+              members: [membershipFixture('d', 'dave', 'Dave')],
+              continuationToken: 'membership-d',
+            });
+          }
+          if (token === 'membership-d') {
+            return HttpResponse.json({
+              members: [membershipFixture('e', 'erin', 'Erin')],
+              continuationToken: 'membership-e',
+            });
+          }
+          return HttpResponse.json({
+            members: [membershipFixture('f', 'frank', 'Frank')],
+            continuationToken: undefined,
+          });
+        },
+      ),
+      http.get(`${BASE_URL}/api/presence/users/:userIds`, () =>
+        HttpResponse.json({
+          presence: { 'user-d': false, 'user-e': false, 'user-f': false },
+        }),
+      ),
+    );
+
+    renderWithProviders(
+      <MemberListContainer
+        contextType={VoiceSessionType.Channel}
+        contextId="channel-3"
+        communityId="community-3"
+        isPrivate={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('member-list-mock')).toHaveTextContent('1');
+    });
+
+    // Load page 2.
+    act(() => {
+      capturedPropsHistory[capturedPropsHistory.length - 1].onLoadMore!();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('member-list-mock')).toHaveTextContent('2');
+    });
+
+    // Load page 3 — with maxPages eviction, page 1's member ('dave') would
+    // be dropped from the cache here, leaving only 2 members rendered.
+    act(() => {
+      capturedPropsHistory[capturedPropsHistory.length - 1].onLoadMore!();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('member-list-mock')).toHaveTextContent('3');
+    });
+
+    const finalProps = capturedPropsHistory[capturedPropsHistory.length - 1];
+    expect(finalProps.hasMore).toBe(false);
+    expect(finalProps.members.map((m) => m.id)).toEqual([
+      'user-d',
+      'user-e',
+      'user-f',
+    ]);
+  });
 });

@@ -11,7 +11,6 @@ import type { RoleDto } from "../../api-client/types.gen";
 import {
   communityMembersQueryKey,
   MEMBER_LIST_PAGE_SIZE,
-  MEMBER_LIST_MAX_PAGES,
 } from "../../utils/membershipQueryKeys";
 import { VoiceSessionType } from "../../contexts/VoiceContext";
 
@@ -103,7 +102,12 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
     },
     initialPageParam: "",
     getNextPageParam: (lastPage) => lastPage.continuationToken || undefined,
-    maxPages: MEMBER_LIST_MAX_PAGES,
+    // No `maxPages` here on purpose: it's a sliding-window CACHE bound in
+    // TanStack v5 (fetching page N+1 evicts page 1), which would silently
+    // drop already-rendered members from the flatMap'd list past the
+    // window — defeating the "Show more" pagination UX. Memory growth is
+    // bounded instead by the 100/page size and user-driven "Show more"
+    // pacing (each click is one explicit fetch).
     enabled: contextType === VoiceSessionType.Channel && !!communityId && isPrivate === false,
   });
 
