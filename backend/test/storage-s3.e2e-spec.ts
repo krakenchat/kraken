@@ -48,6 +48,7 @@ import {
   seedInstanceInvite,
   registerUser,
   loginUser,
+  CapturingLogger,
   E2eApp,
 } from './helpers/e2e-app';
 
@@ -145,6 +146,14 @@ const MP4_FIXTURE = Buffer.from(
 describeS3('Storage (S3/MinIO) e2e', () => {
   let app: E2eApp;
   let s3Client: S3Client;
+  // Nest's built-in Logger is silenced app-wide by createE2eApp()'s default
+  // `logger: false` — which means ThumbnailService's `this.logger.warn(...)`
+  // on a caught ffmpeg failure (see file/thumbnail.service.ts) normally
+  // vanishes without a trace, so a failure of the video-thumbnail test below
+  // shows only "hasThumbnail expected true, got false" with no clue why
+  // generation didn't happen. Capture app logs instead so the real error
+  // (e.g. ffmpeg missing/failing on the CI runner) prints on failure.
+  const capturingLogger = new CapturingLogger();
 
   beforeAll(async () => {
     for (const key of Object.keys(S3_ENV)) {
@@ -178,7 +187,7 @@ describeS3('Storage (S3/MinIO) e2e', () => {
       }
     }
 
-    app = await createE2eApp();
+    app = await createE2eApp({ logger: capturingLogger });
     await resetDatabase(app);
     await seedInstanceInvite(app);
   });
@@ -196,6 +205,23 @@ describeS3('Storage (S3/MinIO) e2e', () => {
   });
 
   it('generates and serves a thumbnail for a video message attachment through S3 storage', async () => {
+    capturingLogger.clear();
+    try {
+      await runVideoThumbnailTest();
+    } catch (error) {
+      // Surface whatever the backend actually logged (e.g. a caught ffmpeg
+      // spawn/decode failure from ThumbnailService) alongside the assertion
+      // failure — without this, a `hasThumbnail` mismatch gives no clue
+      // whether generation threw, timed out, or never ran.
+
+      console.error(
+        `[storage-s3.e2e-spec] backend logs captured during failing test:\n${capturingLogger.dump()}`,
+      );
+      throw error;
+    }
+  });
+
+  async function runVideoThumbnailTest(): Promise<void> {
     const username = 'e2e-s3-video-user';
     const password = 'Password123!';
 
@@ -307,7 +333,7 @@ describeS3('Storage (S3/MinIO) e2e', () => {
     // image, not just that some bytes made it through the pipe.
     expect(bytes[0]).toBe(0xff);
     expect(bytes[1]).toBe(0xd8);
-  });
+  }
 
   it('round-trips an image upload through S3 storage: upload -> serve (full + ranged) -> soft delete -> 404', async () => {
     const username = 'e2e-s3-user';

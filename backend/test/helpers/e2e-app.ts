@@ -14,6 +14,7 @@
 import {
   ClassSerializerInterceptor,
   INestApplication,
+  LoggerService,
   ValidationPipe,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -31,14 +32,24 @@ export type E2eApp = INestApplication<App>;
 /** Instance invite code seeded for registration in e2e flows. */
 export const E2E_INVITE_CODE = 'e2e-test-invite';
 
-export async function createE2eApp(): Promise<E2eApp> {
+export async function createE2eApp(options?: {
+  /**
+   * Override the app's Nest logger. Defaults to `false` (silenced) to keep
+   * test output readable — Nest boot logs are noisy. Pass a `LoggerService`
+   * (e.g. a capturing logger) when a suite needs to inspect service-level
+   * `Logger.warn`/`.error` calls that are normally swallowed by `false`,
+   * such as diagnosing a non-fatal background failure (thumbnail
+   * generation, etc.) that otherwise surfaces only as an opaque assertion
+   * failure.
+   */
+  logger?: LoggerService | false;
+}): Promise<E2eApp> {
   const moduleFixture = await Test.createTestingModule({
     imports: [AppModule],
   }).compile();
 
   const app: E2eApp = moduleFixture.createNestApplication({
-    // Keep test output readable — Nest boot logs are noisy.
-    logger: false,
+    logger: options?.logger ?? false,
   });
 
   // Mirror src/main.ts request pipeline.
@@ -54,6 +65,66 @@ export async function createE2eApp(): Promise<E2eApp> {
 
   await app.init();
   return app;
+}
+
+/**
+ * `LoggerService` that buffers every call instead of writing to stdout, so a
+ * failing e2e assertion can dump exactly what the app's `Logger.log/warn/
+ * error/debug/verbose` calls said right before the failure — most useful for
+ * diagnosing non-fatal background failures (e.g. thumbnail generation
+ * catching and logging an ffmpeg error, then returning null) that otherwise
+ * surface only as an opaque assertion failure with no indication of *why*
+ * the backend didn't do what was expected.
+ *
+ * Pass an instance to `createE2eApp({ logger })` in place of the default
+ * `false`, call `logger.clear()` before each test, and on catch print
+ * `logger.dump()` before rethrowing.
+ */
+export class CapturingLogger implements LoggerService {
+  private entries: string[] = [];
+
+  log(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('LOG', message, optionalParams);
+  }
+
+  error(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('ERROR', message, optionalParams);
+  }
+
+  warn(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('WARN', message, optionalParams);
+  }
+
+  debug(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('DEBUG', message, optionalParams);
+  }
+
+  verbose(message: unknown, ...optionalParams: unknown[]): void {
+    this.record('VERBOSE', message, optionalParams);
+  }
+
+  clear(): void {
+    this.entries = [];
+  }
+
+  dump(): string {
+    return this.entries.length > 0
+      ? this.entries.join('\n')
+      : '(no backend log entries captured)';
+  }
+
+  private record(
+    level: string,
+    message: unknown,
+    optionalParams: unknown[],
+  ): void {
+    const rest = optionalParams
+      .map((p) => (typeof p === 'string' ? p : JSON.stringify(p)))
+      .join(' ');
+    const text =
+      typeof message === 'string' ? message : JSON.stringify(message);
+    this.entries.push(`[${level}] ${text}${rest ? ` ${rest}` : ''}`);
+  }
 }
 
 /**

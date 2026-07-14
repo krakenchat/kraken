@@ -260,8 +260,24 @@ jobs:
       # runner's system ffmpeg (fluent-ffmpeg, no bundled binary). Thumbnail
       # failures are non-fatal to uploads, so without this check a missing
       # ffmpeg surfaces as a confusing hasThumbnail assertion failure.
+      #
+      # ubuntu-latest does NOT ship ffmpeg preinstalled (confirmed via a CI
+      # run where the old verify step's `ffmpeg -version | head -1` printed
+      # "ffmpeg: command not found" yet the step still reported success —
+      # `bash -e` without `pipefail`, GitHub Actions' default shell mode,
+      # only checks the exit code of the *last* command in a pipe, i.e.
+      # `head`, which exits 0 even on empty input). Install it explicitly
+      # rather than assuming the runner image provides it.
+      - name: Install ffmpeg
+        run: sudo apt-get update -y && sudo apt-get install -y ffmpeg
+
+      # Hard-fail (via pipefail) if ffmpeg is somehow still missing after the
+      # install step above, instead of silently continuing like the old
+      # unguarded pipe did.
       - name: Verify ffmpeg is available
-        run: ffmpeg -version | head -1
+        run: |
+          set -euo pipefail
+          ffmpeg -version | head -1
 
       - name: Run E2E tests
         working-directory: ./backend
