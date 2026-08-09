@@ -1622,6 +1622,103 @@ describe('NotificationsService', () => {
   });
 
   // ============================================================================
+  // PUSH ACTION TOKEN (Mark as read)
+  // ============================================================================
+
+  describe('push notification action token', () => {
+    const authorId = 'author-1';
+    const targetUserId = 'target-user';
+    const channelId = 'channel-1';
+
+    beforeEach(() => {
+      pushNotificationsService.isEnabled.mockReturnValue(true);
+    });
+
+    function setupForPushTest() {
+      const notification = NotificationFactory.build({
+        type: NotificationType.USER_MENTION,
+        authorId,
+        channelId,
+      });
+
+      mockDatabase.notification.create.mockResolvedValue({
+        ...notification,
+        author: {
+          id: authorId,
+          username: 'johndoe',
+          displayName: 'John Doe',
+          avatarUrl: null,
+        },
+        message: {
+          id: 'msg-1',
+          spans: [{ text: 'Hello' }],
+          channelId,
+          directMessageGroupId: null,
+        },
+        channel: { id: channelId, name: 'general', communityId: 'community-1' },
+      });
+
+      const settings = UserNotificationSettingsFactory.build();
+      mockDatabase.userNotificationSettings.upsert.mockResolvedValue(settings);
+      mockDatabase.channelNotificationOverride.findUnique.mockResolvedValue(
+        null,
+      );
+
+      return MessageFactory.build({
+        id: 'msg-1',
+        channelId,
+        authorId,
+        spans: [
+          {
+            type: SpanType.USER_MENTION,
+            userId: targetUserId,
+            text: null,
+            specialKind: null,
+            communityId: null,
+            aliasId: null,
+          },
+        ],
+      } as any);
+    }
+
+    it('should include markReadToken in push payload data when a token is created', async () => {
+      pushNotificationsService.createActionToken.mockReturnValue(
+        'signed-token-value',
+      );
+      const message = setupForPushTest();
+
+      await service.processMessageForNotifications(message as any);
+
+      expect(pushNotificationsService.createActionToken).toHaveBeenCalledWith(
+        targetUserId,
+        expect.any(String),
+      );
+      expect(pushNotificationsService.sendToUser).toHaveBeenCalledWith(
+        targetUserId,
+        expect.objectContaining({
+          data: expect.objectContaining({
+            markReadToken: 'signed-token-value',
+          }),
+        }),
+      );
+    });
+
+    it('should omit markReadToken from push payload data when token creation returns null', async () => {
+      pushNotificationsService.createActionToken.mockReturnValue(null);
+      const message = setupForPushTest();
+
+      await service.processMessageForNotifications(message as any);
+
+      const call = pushNotificationsService.sendToUser.mock.calls.find(
+        ([uid]) => uid === targetUserId,
+      );
+      expect(call).toBeDefined();
+      const data = call![1].data as Record<string, unknown>;
+      expect(data).not.toHaveProperty('markReadToken');
+    });
+  });
+
+  // ============================================================================
   // PUSH NOTIFICATION BODY
   // ============================================================================
 

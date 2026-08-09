@@ -1,6 +1,7 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { ConfigService } from '@nestjs/config';
+import { createHmac } from 'node:crypto';
 import { PushNotificationsService } from './push-notifications.service';
 import { DatabaseService } from '@/database/database.service';
 import { createMockDatabase } from '@/test-utils';
@@ -508,6 +509,167 @@ describe('PushNotificationsService', () => {
       expect(result).toEqual({ sent: 0, failed: 1 });
       expect(mockDatabase.pushSubscription.delete).toHaveBeenCalledWith({
         where: { id: 'sub-1' },
+      });
+    });
+  });
+
+  describe('action tokens', () => {
+    const jwtSecret = 'test-jwt-secret';
+    const userId = 'user-123';
+    const notificationId = 'notification-456';
+
+    beforeEach(() => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'JWT_SECRET') return jwtSecret;
+        return undefined;
+      });
+    });
+
+    describe('createActionToken', () => {
+      it('should return null when JWT_SECRET is not configured', () => {
+        configService.get.mockReturnValue(undefined);
+
+        const token = service.createActionToken(userId, notificationId);
+
+        expect(token).toBeNull();
+      });
+
+      it('should create a token with exactly two dot-separated parts', () => {
+        const token = service.createActionToken(userId, notificationId);
+
+        expect(token).not.toBeNull();
+        expect(token!.split('.')).toHaveLength(2);
+      });
+    });
+
+    describe('verifyActionToken', () => {
+      it('should round-trip: verify returns the ids used to create the token', () => {
+        const token = service.createActionToken(userId, notificationId);
+
+        const claims = service.verifyActionToken(token!);
+
+        expect(claims).toEqual({ userId, notificationId });
+      });
+
+      it('should return null when JWT_SECRET is not configured', () => {
+        const token = service.createActionToken(userId, notificationId);
+
+        configService.get.mockReturnValue(undefined);
+        const claims = service.verifyActionToken(token!);
+
+        expect(claims).toBeNull();
+      });
+
+      it('should reject a token with a tampered payload', () => {
+        const token = service.createActionToken(userId, notificationId);
+        const [, signature] = token!.split('.');
+
+        const tamperedPayload = Buffer.from(
+          JSON.stringify({
+            u: 'attacker',
+            n: notificationId,
+            exp: Math.floor(Date.now() / 1000) + 1000,
+          }),
+        ).toString('base64url');
+
+        const claims = service.verifyActionToken(
+          `${tamperedPayload}.${signature}`,
+        );
+
+        expect(claims).toBeNull();
+      });
+
+      it('should reject a token with a tampered signature', () => {
+        const token = service.createActionToken(userId, notificationId);
+        const [payloadB64, signature] = token!.split('.');
+        // Flip a character in the middle of the signature (not the last
+        // char — in a 32-byte base64url digest the last char's low bits
+        // are padding, so some substitutions there are no-ops).
+        const mid = Math.floor(signature.length / 2);
+        const tamperedChar = signature[mid] === 'A' ? 'B' : 'A';
+        const tamperedSignature =
+          signature.slice(0, mid) + tamperedChar + signature.slice(mid + 1);
+
+        const claims = service.verifyActionToken(
+          `${payloadB64}.${tamperedSignature}`,
+        );
+
+        expect(claims).toBeNull();
+      });
+
+      it('should reject a token with a truncated signature', () => {
+        const token = service.createActionToken(userId, notificationId);
+        const [payloadB64, signature] = token!.split('.');
+
+        const claims = service.verifyActionToken(
+          `${payloadB64}.${signature.slice(0, 4)}`,
+        );
+
+        expect(claims).toBeNull();
+      });
+
+      it.each(['', 'abc', 'a.b.c'])(
+        'should reject malformed token %j',
+        (malformed) => {
+          const claims = service.verifyActionToken(malformed);
+
+          expect(claims).toBeNull();
+        },
+      );
+
+      it('should reject an expired token', () => {
+        // Hand-craft a token using the same derivation as the service, but
+        // with an already-expired `exp`.
+        const key = createHmac('sha256', jwtSecret)
+          .update('semaphore-push-action-v1')
+          .digest();
+        const payload = {
+          u: userId,
+          n: notificationId,
+          exp: Math.floor(Date.now() / 1000) - 10,
+        };
+        const payloadB64 = Buffer.from(JSON.stringify(payload)).toString(
+          'base64url',
+        );
+        const signature = createHmac('sha256', key)
+          .update(payloadB64)
+          .digest('base64url');
+        const expiredToken = `${payloadB64}.${signature}`;
+
+        const claims = service.verifyActionToken(expiredToken);
+
+        expect(claims).toBeNull();
+      });
+
+      it('should reject a token whose payload is missing required fields', () => {
+        const key = createHmac('sha256', jwtSecret)
+          .update('semaphore-push-action-v1')
+          .digest();
+        const payload = { u: userId }; // missing n and exp
+        const payloadB64 = Buffer.from(JSON.stringify(payload)).toString(
+          'base64url',
+        );
+        const signature = createHmac('sha256', key)
+          .update(payloadB64)
+          .digest('base64url');
+
+        const claims = service.verifyActionToken(`${payloadB64}.${signature}`);
+
+        expect(claims).toBeNull();
+      });
+
+      it('should reject a token whose payload is unparseable JSON', () => {
+        const key = createHmac('sha256', jwtSecret)
+          .update('semaphore-push-action-v1')
+          .digest();
+        const payloadB64 = Buffer.from('not-json').toString('base64url');
+        const signature = createHmac('sha256', key)
+          .update(payloadB64)
+          .digest('base64url');
+
+        const claims = service.verifyActionToken(`${payloadB64}.${signature}`);
+
+        expect(claims).toBeNull();
       });
     });
   });

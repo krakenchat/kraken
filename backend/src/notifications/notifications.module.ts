@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
+import { PushActionsController } from './push-actions.controller';
 import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsFanoutProcessor } from './notifications-fanout.processor';
 import { DatabaseModule } from '@/database/database.module';
@@ -12,7 +13,7 @@ import { PresenceModule } from '@/presence/presence.module';
 import { RedisModule } from '@/redis/redis.module';
 
 @Module({
-  controllers: [NotificationsController],
+  controllers: [NotificationsController, PushActionsController],
   providers: [
     NotificationsService,
     NotificationsGateway,

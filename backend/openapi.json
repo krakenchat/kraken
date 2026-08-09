@@ -4410,640 +4410,6 @@
         ]
       }
     },
-    "/api/notifications": {
-      "get": {
-        "operationId": "NotificationsController_getNotifications",
-        "parameters": [
-          {
-            "name": "unreadOnly",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50,
-              "type": "number"
-            }
-          },
-          {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 0,
-              "default": 0,
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationListResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get notifications for current user with pagination\nGET /notifications?unreadOnly=true&limit=50&offset=0",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/unread-count": {
-      "get": {
-        "operationId": "NotificationsController_getUnreadCount",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnreadCountResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get unread notification count\nGET /notifications/unread-count",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/{id}/read": {
-      "post": {
-        "operationId": "NotificationsController_markAsRead",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Mark a notification as read\nPOST /notifications/:id/read",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/read-all": {
-      "post": {
-        "operationId": "NotificationsController_markAllAsRead",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnreadCountResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Mark all notifications as read\nPOST /notifications/read-all",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/{id}/dismiss": {
-      "post": {
-        "operationId": "NotificationsController_dismissNotification",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Dismiss a notification\nPOST /notifications/:id/dismiss",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/{id}": {
-      "delete": {
-        "operationId": "NotificationsController_deleteNotification",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "summary": "Delete a notification\nDELETE /notifications/:id",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/settings": {
-      "get": {
-        "operationId": "NotificationsController_getSettings",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserNotificationSettingsDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get user notification settings\nGET /notifications/settings",
-        "tags": [
-          "Notifications"
-        ]
-      },
-      "put": {
-        "operationId": "NotificationsController_updateSettings",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateNotificationSettingsDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserNotificationSettingsDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Update user notification settings\nPUT /notifications/settings",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/channels/{channelId}/override": {
-      "get": {
-        "operationId": "NotificationsController_getChannelOverride",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChannelNotificationOverrideDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get channel notification override\nGET /notifications/channels/:channelId/override",
-        "tags": [
-          "Notifications"
-        ]
-      },
-      "put": {
-        "operationId": "NotificationsController_setChannelOverride",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateChannelOverrideDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChannelNotificationOverrideDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Set channel notification override\nPUT /notifications/channels/:channelId/override",
-        "tags": [
-          "Notifications"
-        ]
-      },
-      "delete": {
-        "operationId": "NotificationsController_deleteChannelOverride",
-        "parameters": [
-          {
-            "name": "channelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "summary": "Delete channel notification override\nDELETE /notifications/channels/:channelId/override",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/debug/send-test": {
-      "post": {
-        "operationId": "NotificationsController_sendTestNotification",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SendTestNotificationDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DebugNotificationResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "DEBUG: Send a test notification to the current user\nPOST /notifications/debug/send-test\nOnly available to OWNER users",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/debug/subscriptions": {
-      "get": {
-        "operationId": "NotificationsController_getDebugSubscriptions",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DebugSubscriptionsResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "DEBUG: Get all push subscriptions for current user\nGET /notifications/debug/subscriptions\nOnly available to OWNER users",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/notifications/debug/clear-all": {
-      "delete": {
-        "operationId": "NotificationsController_clearDebugSettings",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClearNotificationDataResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "DEBUG: Clear all notification settings for current user\nDELETE /notifications/debug/clear-all\nOnly available to OWNER users",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
-    "/api/push/vapid-public-key": {
-      "get": {
-        "operationId": "PushNotificationsController_getVapidPublicKey",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VapidPublicKeyResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get the VAPID public key for client subscription\nReturns null if push notifications are not configured",
-        "tags": [
-          "PushNotifications"
-        ]
-      }
-    },
-    "/api/push/subscribe": {
-      "post": {
-        "operationId": "PushNotificationsController_subscribe",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscribePushDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessMessageDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Subscribe to push notifications",
-        "tags": [
-          "PushNotifications"
-        ]
-      }
-    },
-    "/api/push/unsubscribe": {
-      "delete": {
-        "operationId": "PushNotificationsController_unsubscribe",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UnsubscribePushDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessMessageDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Unsubscribe from push notifications",
-        "tags": [
-          "PushNotifications"
-        ]
-      }
-    },
-    "/api/push/status": {
-      "get": {
-        "operationId": "PushNotificationsController_getStatus",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PushStatusResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get current push subscription status",
-        "tags": [
-          "PushNotifications"
-        ]
-      }
-    },
-    "/api/push/test": {
-      "post": {
-        "operationId": "PushNotificationsController_sendTestPushToSelf",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TestPushResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Send a test push notification to the current user\nPOST /push/test\nAny authenticated user can test their own push notifications",
-        "tags": [
-          "PushNotifications"
-        ]
-      }
-    },
-    "/api/push/debug/send-test": {
-      "post": {
-        "operationId": "PushNotificationsController_sendTestPush",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TestPushResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "PushNotifications"
-        ]
-      }
-    },
-    "/api/presence/user/{userId}": {
-      "get": {
-        "operationId": "PresenceController_getUserPresence",
-        "parameters": [
-          {
-            "name": "userId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Presence"
-        ]
-      }
-    },
-    "/api/presence/users/bulk": {
-      "get": {
-        "operationId": "PresenceController_getBulkPresence",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Presence"
-        ]
-      }
-    },
-    "/api/presence/users/{userIds}": {
-      "get": {
-        "operationId": "PresenceController_getMultipleUserPresence",
-        "parameters": [
-          {
-            "name": "userIds",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Presence"
-        ]
-      }
-    },
     "/api/moderation/ban/{communityId}/{userId}": {
       "post": {
         "operationId": "ModerationController_banUser",
@@ -5805,6 +5171,672 @@
         "summary": "Get all users who have read a specific message\nGET /read-receipts/message/:messageId/readers?channelId=xxx or ?directMessageGroupId=xxx",
         "tags": [
           "ReadReceipts"
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "operationId": "NotificationsController_getNotifications",
+        "parameters": [
+          {
+            "name": "unreadOnly",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get notifications for current user with pagination\nGET /notifications?unreadOnly=true&limit=50&offset=0",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/unread-count": {
+      "get": {
+        "operationId": "NotificationsController_getUnreadCount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get unread notification count\nGET /notifications/unread-count",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "post": {
+        "operationId": "NotificationsController_markAsRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark a notification as read\nPOST /notifications/:id/read",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "operationId": "NotificationsController_markAllAsRead",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark all notifications as read\nPOST /notifications/read-all",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/{id}/dismiss": {
+      "post": {
+        "operationId": "NotificationsController_dismissNotification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Dismiss a notification\nPOST /notifications/:id/dismiss",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/{id}": {
+      "delete": {
+        "operationId": "NotificationsController_deleteNotification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a notification\nDELETE /notifications/:id",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/settings": {
+      "get": {
+        "operationId": "NotificationsController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserNotificationSettingsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user notification settings\nGET /notifications/settings",
+        "tags": [
+          "Notifications"
+        ]
+      },
+      "put": {
+        "operationId": "NotificationsController_updateSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserNotificationSettingsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update user notification settings\nPUT /notifications/settings",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/channels/{channelId}/override": {
+      "get": {
+        "operationId": "NotificationsController_getChannelOverride",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelNotificationOverrideDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get channel notification override\nGET /notifications/channels/:channelId/override",
+        "tags": [
+          "Notifications"
+        ]
+      },
+      "put": {
+        "operationId": "NotificationsController_setChannelOverride",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChannelOverrideDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelNotificationOverrideDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set channel notification override\nPUT /notifications/channels/:channelId/override",
+        "tags": [
+          "Notifications"
+        ]
+      },
+      "delete": {
+        "operationId": "NotificationsController_deleteChannelOverride",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Delete channel notification override\nDELETE /notifications/channels/:channelId/override",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/debug/send-test": {
+      "post": {
+        "operationId": "NotificationsController_sendTestNotification",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendTestNotificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugNotificationResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "DEBUG: Send a test notification to the current user\nPOST /notifications/debug/send-test\nOnly available to OWNER users",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/debug/subscriptions": {
+      "get": {
+        "operationId": "NotificationsController_getDebugSubscriptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugSubscriptionsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "DEBUG: Get all push subscriptions for current user\nGET /notifications/debug/subscriptions\nOnly available to OWNER users",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/debug/clear-all": {
+      "delete": {
+        "operationId": "NotificationsController_clearDebugSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearNotificationDataResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "DEBUG: Clear all notification settings for current user\nDELETE /notifications/debug/clear-all\nOnly available to OWNER users",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/push/mark-read": {
+      "post": {
+        "operationId": "PushActionsController_markRead",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushMarkReadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark a notification as read from a push notification action button.\nPOST /notifications/push/mark-read",
+        "tags": [
+          "PushActions"
+        ]
+      }
+    },
+    "/api/push/vapid-public-key": {
+      "get": {
+        "operationId": "PushNotificationsController_getVapidPublicKey",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VapidPublicKeyResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get the VAPID public key for client subscription\nReturns null if push notifications are not configured",
+        "tags": [
+          "PushNotifications"
+        ]
+      }
+    },
+    "/api/push/subscribe": {
+      "post": {
+        "operationId": "PushNotificationsController_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribePushDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Subscribe to push notifications",
+        "tags": [
+          "PushNotifications"
+        ]
+      }
+    },
+    "/api/push/unsubscribe": {
+      "delete": {
+        "operationId": "PushNotificationsController_unsubscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnsubscribePushDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Unsubscribe from push notifications",
+        "tags": [
+          "PushNotifications"
+        ]
+      }
+    },
+    "/api/push/status": {
+      "get": {
+        "operationId": "PushNotificationsController_getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushStatusResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get current push subscription status",
+        "tags": [
+          "PushNotifications"
+        ]
+      }
+    },
+    "/api/push/test": {
+      "post": {
+        "operationId": "PushNotificationsController_sendTestPushToSelf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestPushResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Send a test push notification to the current user\nPOST /push/test\nAny authenticated user can test their own push notifications",
+        "tags": [
+          "PushNotifications"
+        ]
+      }
+    },
+    "/api/push/debug/send-test": {
+      "post": {
+        "operationId": "PushNotificationsController_sendTestPush",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestPushResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "PushNotifications"
+        ]
+      }
+    },
+    "/api/presence/user/{userId}": {
+      "get": {
+        "operationId": "PresenceController_getUserPresence",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Presence"
+        ]
+      }
+    },
+    "/api/presence/users/bulk": {
+      "get": {
+        "operationId": "PresenceController_getBulkPresence",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Presence"
+        ]
+      }
+    },
+    "/api/presence/users/{userIds}": {
+      "get": {
+        "operationId": "PresenceController_getMultipleUserPresence",
+        "parameters": [
+          {
+            "name": "userIds",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPresenceResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Presence"
         ]
       }
     },
@@ -10513,489 +10545,16 @@
           "joinedAt"
         ]
       },
-      "NotificationAuthorDto": {
+      "ModerationBanUserDto": {
         "type": "object",
         "properties": {
-          "id": {
+          "reason": {
             "type": "string"
           },
-          "username": {
+          "expiresAt": {
             "type": "string"
-          },
-          "displayName": {
-            "type": "string",
-            "nullable": true
-          },
-          "avatarUrl": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "username",
-          "displayName",
-          "avatarUrl"
-        ]
-      },
-      "NotificationMessageDto": {
-        "type": "object",
-        "properties": {
-          "spans": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SpanDto"
-            }
-          },
-          "id": {
-            "type": "string"
-          },
-          "channelId": {
-            "type": "string",
-            "nullable": true
-          },
-          "directMessageGroupId": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "spans",
-          "id",
-          "channelId",
-          "directMessageGroupId"
-        ]
-      },
-      "NotificationDto": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "USER_MENTION",
-              "SPECIAL_MENTION",
-              "DIRECT_MESSAGE",
-              "CHANNEL_MESSAGE",
-              "THREAD_REPLY"
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "messageId": {
-            "type": "string",
-            "nullable": true
-          },
-          "channelId": {
-            "type": "string",
-            "nullable": true
-          },
-          "directMessageGroupId": {
-            "type": "string",
-            "nullable": true
-          },
-          "communityId": {
-            "type": "string",
-            "nullable": true
-          },
-          "authorId": {
-            "type": "string"
-          },
-          "parentMessageId": {
-            "type": "string",
-            "nullable": true
-          },
-          "read": {
-            "type": "boolean"
-          },
-          "dismissed": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "author": {
-            "$ref": "#/components/schemas/NotificationAuthorDto"
-          },
-          "message": {
-            "nullable": true,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NotificationMessageDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "id",
-          "userId",
-          "messageId",
-          "channelId",
-          "directMessageGroupId",
-          "authorId",
-          "parentMessageId",
-          "read",
-          "dismissed",
-          "createdAt"
-        ]
-      },
-      "NotificationListResponseDto": {
-        "type": "object",
-        "properties": {
-          "notifications": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationDto"
-            }
-          },
-          "total": {
-            "type": "number"
-          },
-          "unreadCount": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "notifications",
-          "total",
-          "unreadCount"
-        ]
-      },
-      "UnreadCountResponseDto": {
-        "type": "object",
-        "properties": {
-          "count": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "count"
-        ]
-      },
-      "UserNotificationSettingsDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "desktopEnabled": {
-            "type": "boolean"
-          },
-          "playSound": {
-            "type": "boolean"
-          },
-          "soundType": {
-            "type": "string"
-          },
-          "doNotDisturb": {
-            "type": "boolean"
-          },
-          "dndStartTime": {
-            "type": "string",
-            "nullable": true
-          },
-          "dndEndTime": {
-            "type": "string",
-            "nullable": true
-          },
-          "dndTimezone": {
-            "type": "string",
-            "nullable": true
-          },
-          "defaultChannelLevel": {
-            "type": "string"
-          },
-          "dmNotifications": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "userId",
-          "desktopEnabled",
-          "playSound",
-          "soundType",
-          "doNotDisturb",
-          "dndStartTime",
-          "dndEndTime",
-          "dndTimezone",
-          "defaultChannelLevel",
-          "dmNotifications",
-          "createdAt",
-          "updatedAt"
-        ]
-      },
-      "UpdateNotificationSettingsDto": {
-        "type": "object",
-        "properties": {
-          "desktopEnabled": {
-            "type": "boolean"
-          },
-          "playSound": {
-            "type": "boolean"
-          },
-          "soundType": {
-            "type": "string",
-            "enum": [
-              "default",
-              "mention",
-              "dm"
-            ]
-          },
-          "doNotDisturb": {
-            "type": "boolean"
-          },
-          "dndStartTime": {
-            "type": "string",
-            "pattern": "/^([01]\\d|2[0-3]):([0-5]\\d)$/"
-          },
-          "dndEndTime": {
-            "type": "string",
-            "pattern": "/^([01]\\d|2[0-3]):([0-5]\\d)$/"
-          },
-          "dndTimezone": {
-            "type": "string",
-            "pattern": "/^[A-Za-z_]+(\\/[A-Za-z0-9_+-]+)*$/"
-          },
-          "defaultChannelLevel": {
-            "type": "string",
-            "enum": [
-              "all",
-              "mentions",
-              "none"
-            ]
-          },
-          "dmNotifications": {
-            "type": "boolean"
           }
         }
-      },
-      "ChannelNotificationOverrideDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "channelId": {
-            "type": "string"
-          },
-          "level": {
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "userId",
-          "channelId",
-          "level",
-          "createdAt",
-          "updatedAt"
-        ]
-      },
-      "UpdateChannelOverrideDto": {
-        "type": "object",
-        "properties": {
-          "level": {
-            "type": "string",
-            "enum": [
-              "all",
-              "mentions",
-              "none"
-            ]
-          }
-        },
-        "required": [
-          "level"
-        ]
-      },
-      "SendTestNotificationDto": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "USER_MENTION",
-              "SPECIAL_MENTION",
-              "DIRECT_MESSAGE",
-              "CHANNEL_MESSAGE",
-              "THREAD_REPLY"
-            ]
-          },
-          "customMessage": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "type"
-        ]
-      },
-      "DebugNotificationResponseDto": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "notification": {
-            "$ref": "#/components/schemas/NotificationDto"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "success",
-          "notification",
-          "message"
-        ]
-      },
-      "DebugPushSubscriptionDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "endpoint": {
-            "type": "string"
-          },
-          "userAgent": {
-            "type": "string",
-            "nullable": true
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "endpoint",
-          "createdAt"
-        ]
-      },
-      "DebugSubscriptionsResponseDto": {
-        "type": "object",
-        "properties": {
-          "subscriptions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DebugPushSubscriptionDto"
-            }
-          },
-          "count": {
-            "type": "number"
-          },
-          "pushEnabled": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "subscriptions",
-          "count",
-          "pushEnabled"
-        ]
-      },
-      "ClearNotificationDataResponseDto": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "notificationsDeleted": {
-            "type": "number"
-          },
-          "settingsDeleted": {
-            "type": "number"
-          },
-          "overridesDeleted": {
-            "type": "number"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "success",
-          "notificationsDeleted",
-          "settingsDeleted",
-          "overridesDeleted",
-          "message"
-        ]
-      },
-      "VapidPublicKeyResponseDto": {
-        "type": "object",
-        "properties": {
-          "publicKey": {
-            "type": "string",
-            "nullable": true
-          },
-          "enabled": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "publicKey",
-          "enabled"
-        ]
-      },
-      "PushSubscriptionKeys": {
-        "type": "object",
-        "properties": {
-          "p256dh": {
-            "type": "string"
-          },
-          "auth": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "p256dh",
-          "auth"
-        ]
-      },
-      "SubscribePushDto": {
-        "type": "object",
-        "properties": {
-          "endpoint": {
-            "type": "string"
-          },
-          "keys": {
-            "$ref": "#/components/schemas/PushSubscriptionKeys"
-          },
-          "userAgent": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "endpoint",
-          "keys"
-        ]
       },
       "SuccessMessageDto": {
         "type": "object",
@@ -11011,95 +10570,6 @@
           "success",
           "message"
         ]
-      },
-      "UnsubscribePushDto": {
-        "type": "object",
-        "properties": {
-          "endpoint": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "endpoint"
-        ]
-      },
-      "PushStatusResponseDto": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "subscriptionCount": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "enabled",
-          "subscriptionCount"
-        ]
-      },
-      "TestPushResponseDto": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "sent": {
-            "type": "number"
-          },
-          "failed": {
-            "type": "number"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "success",
-          "sent",
-          "failed",
-          "message"
-        ]
-      },
-      "UserPresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string"
-          },
-          "isOnline": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "userId",
-          "isOnline"
-        ]
-      },
-      "BulkPresenceResponseDto": {
-        "type": "object",
-        "properties": {
-          "presence": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "boolean"
-            }
-          }
-        },
-        "required": [
-          "presence"
-        ]
-      },
-      "ModerationBanUserDto": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "string"
-          }
-        }
       },
       "UnbanUserDto": {
         "type": "object",
@@ -11764,6 +11234,580 @@
           "displayName",
           "avatarUrl",
           "readAt"
+        ]
+      },
+      "NotificationAuthorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "avatarUrl"
+        ]
+      },
+      "NotificationMessageDto": {
+        "type": "object",
+        "properties": {
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "spans",
+          "id",
+          "channelId",
+          "directMessageGroupId"
+        ]
+      },
+      "NotificationDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "USER_MENTION",
+              "SPECIAL_MENTION",
+              "DIRECT_MESSAGE",
+              "CHANNEL_MESSAGE",
+              "THREAD_REPLY"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "channelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "directMessageGroupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "communityId": {
+            "type": "string",
+            "nullable": true
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "parentMessageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "dismissed": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/NotificationAuthorDto"
+          },
+          "message": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationMessageDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "userId",
+          "messageId",
+          "channelId",
+          "directMessageGroupId",
+          "authorId",
+          "parentMessageId",
+          "read",
+          "dismissed",
+          "createdAt"
+        ]
+      },
+      "NotificationListResponseDto": {
+        "type": "object",
+        "properties": {
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "unreadCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "notifications",
+          "total",
+          "unreadCount"
+        ]
+      },
+      "UnreadCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "UserNotificationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "desktopEnabled": {
+            "type": "boolean"
+          },
+          "playSound": {
+            "type": "boolean"
+          },
+          "soundType": {
+            "type": "string"
+          },
+          "doNotDisturb": {
+            "type": "boolean"
+          },
+          "dndStartTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "dndEndTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "dndTimezone": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultChannelLevel": {
+            "type": "string"
+          },
+          "dmNotifications": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "desktopEnabled",
+          "playSound",
+          "soundType",
+          "doNotDisturb",
+          "dndStartTime",
+          "dndEndTime",
+          "dndTimezone",
+          "defaultChannelLevel",
+          "dmNotifications",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateNotificationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "desktopEnabled": {
+            "type": "boolean"
+          },
+          "playSound": {
+            "type": "boolean"
+          },
+          "soundType": {
+            "type": "string",
+            "enum": [
+              "default",
+              "mention",
+              "dm"
+            ]
+          },
+          "doNotDisturb": {
+            "type": "boolean"
+          },
+          "dndStartTime": {
+            "type": "string",
+            "pattern": "/^([01]\\d|2[0-3]):([0-5]\\d)$/"
+          },
+          "dndEndTime": {
+            "type": "string",
+            "pattern": "/^([01]\\d|2[0-3]):([0-5]\\d)$/"
+          },
+          "dndTimezone": {
+            "type": "string",
+            "pattern": "/^[A-Za-z_]+(\\/[A-Za-z0-9_+-]+)*$/"
+          },
+          "defaultChannelLevel": {
+            "type": "string",
+            "enum": [
+              "all",
+              "mentions",
+              "none"
+            ]
+          },
+          "dmNotifications": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ChannelNotificationOverrideDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "channelId",
+          "level",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateChannelOverrideDto": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "all",
+              "mentions",
+              "none"
+            ]
+          }
+        },
+        "required": [
+          "level"
+        ]
+      },
+      "SendTestNotificationDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "USER_MENTION",
+              "SPECIAL_MENTION",
+              "DIRECT_MESSAGE",
+              "CHANNEL_MESSAGE",
+              "THREAD_REPLY"
+            ]
+          },
+          "customMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "DebugNotificationResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "notification": {
+            "$ref": "#/components/schemas/NotificationDto"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "notification",
+          "message"
+        ]
+      },
+      "DebugPushSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "userAgent": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "endpoint",
+          "createdAt"
+        ]
+      },
+      "DebugSubscriptionsResponseDto": {
+        "type": "object",
+        "properties": {
+          "subscriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DebugPushSubscriptionDto"
+            }
+          },
+          "count": {
+            "type": "number"
+          },
+          "pushEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "subscriptions",
+          "count",
+          "pushEnabled"
+        ]
+      },
+      "ClearNotificationDataResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "notificationsDeleted": {
+            "type": "number"
+          },
+          "settingsDeleted": {
+            "type": "number"
+          },
+          "overridesDeleted": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "notificationsDeleted",
+          "settingsDeleted",
+          "overridesDeleted",
+          "message"
+        ]
+      },
+      "PushMarkReadDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Signed action token embedded in the push payload (data.markReadToken)."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "VapidPublicKeyResponseDto": {
+        "type": "object",
+        "properties": {
+          "publicKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "publicKey",
+          "enabled"
+        ]
+      },
+      "PushSubscriptionKeys": {
+        "type": "object",
+        "properties": {
+          "p256dh": {
+            "type": "string"
+          },
+          "auth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "p256dh",
+          "auth"
+        ]
+      },
+      "SubscribePushDto": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushSubscriptionKeys"
+          },
+          "userAgent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ]
+      },
+      "UnsubscribePushDto": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
+        ]
+      },
+      "PushStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "subscriptionCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "subscriptionCount"
+        ]
+      },
+      "TestPushResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "sent": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "sent",
+          "failed",
+          "message"
+        ]
+      },
+      "UserPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "isOnline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "userId",
+          "isOnline"
+        ]
+      },
+      "BulkPresenceResponseDto": {
+        "type": "object",
+        "properties": {
+          "presence": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
+        },
+        "required": [
+          "presence"
         ]
       },
       "OnboardingStatusDto": {
