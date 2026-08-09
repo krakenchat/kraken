@@ -202,7 +202,15 @@ jobs:
         # install path is /opt/semaphore-chat (no space — spaces break
         # Electron's zygote re-exec, #349). Keep using this script for every
         # Linux electron-builder invocation.
-        run: pnpm run build:all && pnpm run electron-builder:linux -- AppImage deb rpm --publish never
+        #
+        # NOTE: do NOT pass args to electron-builder via `pnpm run <script> --
+        # <args>`. pnpm forwards a literal `--` to the script, and
+        # electron-builder's CLI treats `--` as end-of-options, silently
+        # dropping anything after it — `--publish never` was ignored this way,
+        # so on a tag push electron-builder tried to publish, hit a 403 with a
+        # read-only GITHUB_TOKEN, and the whole Linux build (incl. the AppImage)
+        # failed. pnpm forwards bare args without the `--` separator.
+        run: pnpm run build:all && pnpm run electron-builder:linux AppImage deb rpm --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
