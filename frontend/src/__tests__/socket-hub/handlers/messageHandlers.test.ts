@@ -228,6 +228,38 @@ describe('messageHandlers', () => {
         expect(unread![0].unreadCount).toBe(0);
       });
 
+      it('still increments unread for the active, focused channel when detached from the live edge (#404)', async () => {
+        hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        window.history.pushState({}, '', '/community/c1/channel/ch-1');
+
+        const queryClient = new QueryClient();
+        const queryKey = channelMessagesQueryKey('ch-1');
+        const detached: InfiniteData<PaginatedMessagesResponseDto> = {
+          ...makeInfiniteData([makeMessage({ id: 'stale-1' })]),
+          pageParams: ['cursor-uuid'],
+        };
+        queryClient.setQueryData(queryKey, detached);
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+        ]);
+
+        const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'other' });
+        await handleNewMessage({ message: newMsg as never }, queryClient);
+
+        // Detached: message not inserted and not visible, so the bump is the
+        // only signal — suppression must not apply even though the channel is
+        // actively viewed and focused.
+        const unread = queryClient.getQueryData<{ channelId: string; unreadCount: number }[]>(
+          readReceiptsControllerGetUnreadCountsQueryKey(),
+        );
+        expect(unread![0].unreadCount).toBe(1);
+      });
+
       it('still increments unread for the active channel when the tab is blurred', async () => {
         hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
         window.history.pushState({}, '', '/community/c1/channel/ch-1');

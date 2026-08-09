@@ -92,9 +92,11 @@ export const handleNewMessage: SocketEventHandler<
 
   // Skip the unread bump when the user is actively viewing this exact
   // context with the tab focused — it would just be cleared moments later
-  // by visible-range markAsRead, causing a badge flash. The message-cache
-  // insert above still happens unconditionally.
-  if (isContextViewedAndFocused(message.channelId, message.directMessageGroupId)) {
+  // by visible-range markAsRead, causing a badge flash. Not applied while
+  // detached from the live edge (#404): the new message wasn't inserted and
+  // isn't visible, so visible-range markAsRead won't fire and the bump is
+  // the only signal that messages arrived.
+  if (!detached && isContextViewedAndFocused(message.channelId, message.directMessageGroupId)) {
     return;
   }
 

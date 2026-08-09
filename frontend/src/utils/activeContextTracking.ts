@@ -23,8 +23,14 @@ export function isContextViewedAndFocused(
   const focused = document.hasFocus() && document.visibilityState === 'visible';
   if (!focused) return false;
 
-  if (channelId && window.location.pathname.includes(`/channel/${channelId}`)) {
-    return true;
+  if (channelId) {
+    // Boundary-safe match — a bare includes() would let one id prefix-match
+    // another (e.g. `ch-1` vs `/channel/ch-10`).
+    const segment = `/channel/${channelId}`;
+    const path = window.location.pathname;
+    if (path.endsWith(segment) || path.includes(`${segment}/`)) {
+      return true;
+    }
   }
 
   if (dmGroupId && getActiveDmGroupId() === dmGroupId) {

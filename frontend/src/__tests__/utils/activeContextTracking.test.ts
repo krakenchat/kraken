@@ -47,6 +47,18 @@ describe('activeContextTracking', () => {
     expect(isContextViewedAndFocused('ch-1', undefined)).toBe(false);
   });
 
+  it('does not prefix-match a channel id against a longer id in the route', () => {
+    window.history.pushState({}, '', '/community/c1/channel/ch-10');
+
+    expect(isContextViewedAndFocused('ch-1', undefined)).toBe(false);
+  });
+
+  it('matches when the channel segment is followed by a sub-route', () => {
+    window.history.pushState({}, '', '/community/c1/channel/ch-1/threads');
+
+    expect(isContextViewedAndFocused('ch-1', undefined)).toBe(true);
+  });
+
   it('returns true when focused and the active DM group matches', () => {
     setActiveDmGroupId('dm-1');
 
