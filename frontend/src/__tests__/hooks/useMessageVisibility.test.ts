@@ -21,11 +21,21 @@ describe('useMessageVisibility', () => {
       defaultOptions: { queries: { retry: false } },
     });
     mockSocket = createMockSocket();
+    // jsdom defaults document.hasFocus() to false, but every pre-existing
+    // test in this file assumes a focused/visible tab (that's the common
+    // case being tested) — stub it focused by default; the "blurred tab"
+    // describe block below overrides per-test.
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      configurable: true,
+    });
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   function renderVisibility(options: {
@@ -297,6 +307,101 @@ describe('useMessageVisibility', () => {
       act(() => result.current.markAsRead('msg-1'));
       act(() => vi.advanceTimersByTime(1000));
 
+      expect(mockSocket.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('background-tab auto-read gating', () => {
+    it('does not optimistically clear or emit while the tab is blurred', () => {
+      vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+      seedUnreadData([
+        { channelId: 'ch-1', unreadCount: 5, mentionCount: 2 } as UnreadCountDto,
+      ]);
+
+      const { result } = renderVisibility({ channelId: 'ch-1' });
+
+      act(() => result.current.markAsRead('msg-1'));
+
+      const data = getUnreadData();
+      expect(data![0].unreadCount).toBe(5);
+      expect(data![0].mentionCount).toBe(2);
+
+      act(() => vi.advanceTimersByTime(1000));
+      expect(mockSocket.emit).not.toHaveBeenCalled();
+    });
+
+    it('does not optimistically clear or emit while the tab is hidden (visibilityState)', () => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true,
+      });
+      seedUnreadData([
+        { channelId: 'ch-1', unreadCount: 5, mentionCount: 2 } as UnreadCountDto,
+      ]);
+
+      const { result } = renderVisibility({ channelId: 'ch-1' });
+
+      act(() => result.current.markAsRead('msg-1'));
+
+      expect(getUnreadData()![0].unreadCount).toBe(5);
+      act(() => vi.advanceTimersByTime(1000));
+      expect(mockSocket.emit).not.toHaveBeenCalled();
+    });
+
+    it('replays the last pending message id once focus returns', () => {
+      const hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+      seedUnreadData([
+        { channelId: 'ch-1', unreadCount: 5, mentionCount: 2 } as UnreadCountDto,
+      ]);
+
+      const { result } = renderVisibility({ channelId: 'ch-1' });
+
+      // MessageContainer keeps calling markAsRead with the newest visible id
+      // even while blurred — simulate a couple of calls, only the latest
+      // should survive to be replayed.
+      act(() => {
+        result.current.markAsRead('msg-1');
+        result.current.markAsRead('msg-2');
+      });
+
+      // Still blurred: no optimistic clear, no emit.
+      expect(getUnreadData()![0].unreadCount).toBe(5);
+      act(() => vi.advanceTimersByTime(1000));
+      expect(mockSocket.emit).not.toHaveBeenCalled();
+
+      // Focus regained.
+      hasFocusSpy.mockReturnValue(true);
+      act(() => {
+        window.dispatchEvent(new Event('focus'));
+      });
+
+      const data = getUnreadData();
+      expect(data![0].unreadCount).toBe(0);
+      expect(data![0].mentionCount).toBe(0);
+      expect(data![0].lastReadMessageId).toBe('msg-2');
+
+      act(() => vi.advanceTimersByTime(1000));
+      expect(mockSocket.emit).toHaveBeenCalledWith(ClientEvents.MARK_AS_READ, {
+        lastReadMessageId: 'msg-2',
+        channelId: 'ch-1',
+      });
+    });
+
+    it('does nothing on focus regained when there was no pending blurred id', () => {
+      const hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+      seedUnreadData([
+        { channelId: 'ch-1', unreadCount: 5, mentionCount: 2 } as UnreadCountDto,
+      ]);
+
+      renderVisibility({ channelId: 'ch-1' });
+
+      hasFocusSpy.mockReturnValue(true);
+      act(() => {
+        window.dispatchEvent(new Event('focus'));
+      });
+
+      // Nothing was pending, so the count is untouched (markAsRead was never called).
+      expect(getUnreadData()![0].unreadCount).toBe(5);
       expect(mockSocket.emit).not.toHaveBeenCalled();
     });
   });

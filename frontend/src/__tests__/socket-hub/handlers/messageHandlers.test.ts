@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import type { InfiniteData } from '@tanstack/react-query';
 import type { PaginatedMessagesResponseDto, DmPeerReadDto } from '../../../api-client/types.gen';
@@ -16,6 +16,7 @@ import {
   readReceiptsControllerGetDmPeerReadsQueryKey,
   userControllerGetProfileQueryKey,
 } from '../../../api-client/@tanstack/react-query.gen';
+import { setActiveDmGroupId } from '../../../utils/activeDmTracking';
 
 function makeMessage(overrides: Record<string, unknown> = {}) {
   return {
@@ -189,6 +190,165 @@ describe('messageHandlers', () => {
         readReceiptsControllerGetUnreadCountsQueryKey(),
       );
       expect(unread![0].unreadCount).toBe(0);
+    });
+
+    describe('unread suppression for the actively-viewed context (transient badge flash)', () => {
+      let hasFocusSpy: ReturnType<typeof vi.spyOn>;
+
+      afterEach(() => {
+        hasFocusSpy?.mockRestore();
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        window.history.pushState({}, '', '/');
+        setActiveDmGroupId(null);
+      });
+
+      it('does not increment unread when the channel is actively viewed and the tab is focused', async () => {
+        hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        window.history.pushState({}, '', '/community/c1/channel/ch-1');
+
+        const queryClient = new QueryClient();
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+        ]);
+
+        const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'other' });
+        await handleNewMessage({ message: newMsg as never }, queryClient);
+
+        const unread = queryClient.getQueryData<{ channelId: string; unreadCount: number }[]>(
+          readReceiptsControllerGetUnreadCountsQueryKey(),
+        );
+        expect(unread![0].unreadCount).toBe(0);
+      });
+
+      it('still increments unread for the active channel when the tab is blurred', async () => {
+        hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+        window.history.pushState({}, '', '/community/c1/channel/ch-1');
+
+        const queryClient = new QueryClient();
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+        ]);
+
+        const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'other' });
+        await handleNewMessage({ message: newMsg as never }, queryClient);
+
+        const unread = queryClient.getQueryData<{ channelId: string; unreadCount: number }[]>(
+          readReceiptsControllerGetUnreadCountsQueryKey(),
+        );
+        expect(unread![0].unreadCount).toBe(1);
+      });
+
+      it('still increments unread when focused but viewing a different channel', async () => {
+        hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        window.history.pushState({}, '', '/community/c1/channel/other-channel');
+
+        const queryClient = new QueryClient();
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+        ]);
+
+        const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'other' });
+        await handleNewMessage({ message: newMsg as never }, queryClient);
+
+        const unread = queryClient.getQueryData<{ channelId: string; unreadCount: number }[]>(
+          readReceiptsControllerGetUnreadCountsQueryKey(),
+        );
+        expect(unread![0].unreadCount).toBe(1);
+      });
+
+      it('does not increment unread when the DM is actively viewed and the tab is focused', async () => {
+        hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        setActiveDmGroupId('dm-1');
+
+        const queryClient = new QueryClient();
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { directMessageGroupId: 'dm-1', unreadCount: 0, mentionCount: 0 },
+        ]);
+
+        const newMsg = makeMessage({
+          id: 'new-1',
+          channelId: null,
+          directMessageGroupId: 'dm-1',
+          authorId: 'other',
+        });
+        await handleNewMessage({ message: newMsg as never }, queryClient);
+
+        const unread = queryClient.getQueryData<{ directMessageGroupId: string; unreadCount: number }[]>(
+          readReceiptsControllerGetUnreadCountsQueryKey(),
+        );
+        expect(unread![0].unreadCount).toBe(0);
+      });
+
+      it('still increments unread for a different DM group even when focused', async () => {
+        hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        setActiveDmGroupId('dm-other');
+
+        const queryClient = new QueryClient();
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { directMessageGroupId: 'dm-1', unreadCount: 0, mentionCount: 0 },
+        ]);
+
+        const newMsg = makeMessage({
+          id: 'new-1',
+          channelId: null,
+          directMessageGroupId: 'dm-1',
+          authorId: 'other',
+        });
+        await handleNewMessage({ message: newMsg as never }, queryClient);
+
+        const unread = queryClient.getQueryData<{ directMessageGroupId: string; unreadCount: number }[]>(
+          readReceiptsControllerGetUnreadCountsQueryKey(),
+        );
+        expect(unread![0].unreadCount).toBe(1);
+      });
+
+      it('still inserts the message into the message cache even when the unread bump is suppressed', async () => {
+        hasFocusSpy = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        window.history.pushState({}, '', '/community/c1/channel/ch-1');
+
+        const queryClient = new QueryClient();
+        const queryKey = channelMessagesQueryKey('ch-1');
+        queryClient.setQueryData(queryKey, makeInfiniteData([]));
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'me' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { channelId: 'ch-1', unreadCount: 0, mentionCount: 0 },
+        ]);
+
+        const newMsg = makeMessage({ id: 'new-1', channelId: 'ch-1', authorId: 'other' });
+        await handleNewMessage({ message: newMsg as never }, queryClient);
+
+        const data = queryClient.getQueryData<InfiniteData<PaginatedMessagesResponseDto>>(queryKey);
+        expect(data!.pages[0].messages).toHaveLength(1);
+        expect(data!.pages[0].messages[0].id).toBe('new-1');
+      });
     });
   });
 
@@ -465,6 +625,132 @@ describe('messageHandlers', () => {
 
       const peerReads = queryClient.getQueryData<DmPeerReadDto[]>(peerReadsKey);
       expect(peerReads).toHaveLength(0);
+    });
+
+    describe('Bug-A regression matrix: cross-user DM badge clearing', () => {
+      function seedForCurrentUser(queryClient: QueryClient) {
+        queryClient.setQueryData(userControllerGetProfileQueryKey(), { id: 'user-a' });
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { directMessageGroupId: 'g1', unreadCount: 3, mentionCount: 1, communityId: 'c1' },
+        ]);
+      }
+
+      function getUnreadEntry(queryClient: QueryClient) {
+        const data = queryClient.getQueryData<
+          { directMessageGroupId: string; unreadCount: number; mentionCount: number; communityId?: string }[]
+        >(readReceiptsControllerGetUnreadCountsQueryKey());
+        return data![0];
+      }
+
+      it('userId belongs to a DM peer: own unread counts are unchanged, but peer-reads cache is updated', () => {
+        const queryClient = new QueryClient();
+        seedForCurrentUser(queryClient);
+        const peerReadsKey = readReceiptsControllerGetDmPeerReadsQueryKey({
+          path: { directMessageGroupId: 'g1' },
+        });
+        queryClient.setQueryData(peerReadsKey, [] as DmPeerReadDto[]);
+
+        handleReadReceiptUpdated(
+          {
+            channelId: null,
+            directMessageGroupId: 'g1',
+            lastReadMessageId: 'msg-5',
+            lastReadAt: '2024-01-01T00:00:00Z',
+            userId: 'user-b',
+          },
+          queryClient,
+        );
+
+        const entry = getUnreadEntry(queryClient);
+        expect(entry.unreadCount).toBe(3);
+        expect(entry.mentionCount).toBe(1);
+
+        const peerReads = queryClient.getQueryData<DmPeerReadDto[]>(peerReadsKey);
+        expect(peerReads).toHaveLength(1);
+        expect(peerReads![0].userId).toBe('user-b');
+      });
+
+      it('userId matches the current user (self-sync-with-userId variant): counts are zeroed', () => {
+        const queryClient = new QueryClient();
+        seedForCurrentUser(queryClient);
+
+        handleReadReceiptUpdated(
+          {
+            channelId: null,
+            directMessageGroupId: 'g1',
+            lastReadMessageId: 'msg-5',
+            lastReadAt: '2024-01-01T00:00:00Z',
+            userId: 'user-a',
+          },
+          queryClient,
+        );
+
+        const entry = getUnreadEntry(queryClient);
+        expect(entry.unreadCount).toBe(0);
+        expect(entry.mentionCount).toBe(0);
+      });
+
+      it('no userId (self-sync): counts are zeroed', () => {
+        const queryClient = new QueryClient();
+        seedForCurrentUser(queryClient);
+
+        handleReadReceiptUpdated(
+          {
+            channelId: null,
+            directMessageGroupId: 'g1',
+            lastReadMessageId: 'msg-5',
+            lastReadAt: '2024-01-01T00:00:00Z',
+          },
+          queryClient,
+        );
+
+        const entry = getUnreadEntry(queryClient);
+        expect(entry.unreadCount).toBe(0);
+        expect(entry.mentionCount).toBe(0);
+      });
+
+      it('userId present but no profile cached yet: skips zeroing (safe — self-sync copy will still clear)', () => {
+        const queryClient = new QueryClient();
+        // No profile seeded.
+        queryClient.setQueryData(readReceiptsControllerGetUnreadCountsQueryKey(), [
+          { directMessageGroupId: 'g1', unreadCount: 3, mentionCount: 1, communityId: 'c1' },
+        ]);
+
+        handleReadReceiptUpdated(
+          {
+            channelId: null,
+            directMessageGroupId: 'g1',
+            lastReadMessageId: 'msg-5',
+            lastReadAt: '2024-01-01T00:00:00Z',
+            userId: 'user-b',
+          },
+          queryClient,
+        );
+
+        const entry = getUnreadEntry(queryClient);
+        expect(entry.unreadCount).toBe(3);
+        expect(entry.mentionCount).toBe(1);
+      });
+
+      it('zeroing preserves extra fields (e.g. communityId) already present on the entry', () => {
+        const queryClient = new QueryClient();
+        seedForCurrentUser(queryClient);
+
+        handleReadReceiptUpdated(
+          {
+            channelId: null,
+            directMessageGroupId: 'g1',
+            lastReadMessageId: 'msg-5',
+            lastReadAt: '2024-01-01T00:00:00Z',
+          },
+          queryClient,
+        );
+
+        const entry = getUnreadEntry(queryClient);
+        expect(entry.unreadCount).toBe(0);
+        expect(entry.mentionCount).toBe(0);
+        expect(entry.communityId).toBe('c1');
+      });
     });
   });
 });

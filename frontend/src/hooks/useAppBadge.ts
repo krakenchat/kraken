@@ -12,7 +12,10 @@ import { notificationsControllerGetUnreadCountOptions } from '../api-client/@tan
  * handlers, so this re-renders on every unread change without polling.
  */
 export function useAppBadge(baseTitle: string): void {
-  const { data } = useQuery(notificationsControllerGetUnreadCountOptions());
+  const { data } = useQuery({
+    ...notificationsControllerGetUnreadCountOptions(),
+    refetchOnWindowFocus: true,
+  });
   const unreadCount = data?.count ?? 0;
 
   // PWA icon badge

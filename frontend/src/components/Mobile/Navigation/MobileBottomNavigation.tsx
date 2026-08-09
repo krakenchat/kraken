@@ -28,7 +28,10 @@ import { LAYOUT_CONSTANTS, TOUCH_TARGETS } from '../../../utils/breakpoints';
  */
 export const MobileBottomNavigation: React.FC = () => {
   const { activeTab, setActiveTab } = useMobileNavigation();
-  const { data: unreadData } = useQuery(notificationsControllerGetUnreadCountOptions());
+  const { data: unreadData } = useQuery({
+    ...notificationsControllerGetUnreadCountOptions(),
+    refetchOnWindowFocus: true,
+  });
   const notificationCount = unreadData?.count ?? 0;
   const { totalDmUnreadCount } = useReadReceipts();
 
