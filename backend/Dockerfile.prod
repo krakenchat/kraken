@@ -59,8 +59,10 @@ ARG BUILD_DATE
 
 # Pull in Alpine security patches (base image can lag fixed packages, which
 # fails the Trivy gate in CI), then install OpenSSL for Prisma and FFmpeg for
-# video processing (replay clips)
-RUN apk upgrade --no-cache && apk add --no-cache openssl ffmpeg
+# video processing (replay clips). libssh comes in via ffmpeg — the explicit
+# floor both enforces the patched version and busts this layer's build cache
+# (a cached `apk upgrade` layer keeps serving stale packages).
+RUN apk upgrade --no-cache && apk add --no-cache openssl ffmpeg 'libssh>=0.12.1-r0'
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
