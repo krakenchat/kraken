@@ -4,9 +4,10 @@ import { readReceiptsControllerGetUnreadCountsOptions } from "../api-client/@tan
 import type { UnreadCountDto } from "../api-client";
 
 export function useReadReceipts() {
-  const { data: unreadCounts } = useQuery(
-    readReceiptsControllerGetUnreadCountsOptions()
-  );
+  const { data: unreadCounts } = useQuery({
+    ...readReceiptsControllerGetUnreadCountsOptions(),
+    refetchOnWindowFocus: true,
+  });
 
   const byId = useMemo(() => {
     const map = new Map<string, UnreadCountDto>();

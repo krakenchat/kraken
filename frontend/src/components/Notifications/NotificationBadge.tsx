@@ -19,7 +19,10 @@ interface NotificationBadgeProps {
 
 export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ onClick }) => {
   // Unread count is seeded on mount and kept current via WebSocket cache updates in useNotifications
-  const { data } = useQuery(notificationsControllerGetUnreadCountOptions());
+  const { data } = useQuery({
+    ...notificationsControllerGetUnreadCountOptions(),
+    refetchOnWindowFocus: true,
+  });
 
   const unreadCount = data?.count ?? 0;
 

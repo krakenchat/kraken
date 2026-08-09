@@ -18,6 +18,7 @@ import type {
   PaginatedMessagesResponseDto,
 } from '../../api-client';
 import { messageQueryKeyForContext, channelMessagesQueryKey } from '../../utils/messageQueryKeys';
+import { isContextViewedAndFocused } from '../../utils/activeContextTracking';
 import {
   readReceiptsControllerGetUnreadCountsQueryKey,
   readReceiptsControllerGetDmPeerReadsQueryKey,
@@ -86,6 +87,16 @@ export const handleNewMessage: SocketEventHandler<
     if (detached) {
       void queryClient.resetQueries({ queryKey, exact: true });
     }
+    return;
+  }
+
+  // Skip the unread bump when the user is actively viewing this exact
+  // context with the tab focused — it would just be cleared moments later
+  // by visible-range markAsRead, causing a badge flash. Not applied while
+  // detached from the live edge (#404): the new message wasn't inserted and
+  // isn't visible, so visible-range markAsRead won't fire and the bump is
+  // the only signal that messages arrived.
+  if (!detached && isContextViewedAndFocused(message.channelId, message.directMessageGroupId)) {
     return;
   }
 
@@ -302,34 +313,52 @@ export const handleReadReceiptUpdated: SocketEventHandler<typeof ServerEvents.RE
   const { channelId, directMessageGroupId, lastReadMessageId } = payload;
   const id = channelId || directMessageGroupId;
   if (!id) return;
-  const queryKey = readReceiptsControllerGetUnreadCountsQueryKey();
-  queryClient.setQueryData(queryKey, (old: UnreadCountDto[] | undefined) => {
-    if (!old) return old;
-    const updated: UnreadCountDto = {
-      channelId: channelId || undefined,
-      directMessageGroupId: directMessageGroupId || undefined,
-      unreadCount: 0,
-      mentionCount: 0,
-      lastReadMessageId,
-      lastReadAt: new Date().toISOString(),
-    };
-    const index = old.findIndex(
-      (c) => (c.channelId || c.directMessageGroupId) === id,
-    );
-    if (index >= 0) {
-      const next = [...old];
-      next[index] = updated;
-      return next;
-    }
-    return [...old, updated];
-  });
+
+  const currentUser = queryClient.getQueryData<UserControllerGetProfileResponse>(
+    userControllerGetProfileQueryKey(),
+  );
+
+  // The backend emits this event twice for a DM read: once to the reader's
+  // user room WITHOUT `userId` (self-sync — always applies to us), and once
+  // to the DM room WITH `userId` (seen-by fan-out to all participants,
+  // including peers). Only zero OUR unread badge when the receipt isn't a
+  // peer's. If `userId` is present but we don't have our own profile cached
+  // yet, skip zeroing — the self-sync copy (no userId) will still clear it.
+  const isPeerReceipt = !!payload.userId && payload.userId !== currentUser?.id;
+
+  if (!isPeerReceipt) {
+    const queryKey = readReceiptsControllerGetUnreadCountsQueryKey();
+    queryClient.setQueryData(queryKey, (old: UnreadCountDto[] | undefined) => {
+      if (!old) return old;
+      const index = old.findIndex(
+        (c) => (c.channelId || c.directMessageGroupId) === id,
+      );
+      if (index >= 0) {
+        const next = [...old];
+        next[index] = {
+          ...next[index],
+          unreadCount: 0,
+          mentionCount: 0,
+          lastReadMessageId,
+          lastReadAt: new Date().toISOString(),
+        };
+        return next;
+      }
+      const updated: UnreadCountDto = {
+        channelId: channelId || undefined,
+        directMessageGroupId: directMessageGroupId || undefined,
+        unreadCount: 0,
+        mentionCount: 0,
+        lastReadMessageId,
+        lastReadAt: new Date().toISOString(),
+      };
+      return [...old, updated];
+    });
+  }
 
   // Direct cache update for DM peer reads (watermark-based "seen by" real-time sync)
   if (payload.userId && payload.directMessageGroupId) {
     // Skip if this is the current user's own read receipt
-    const currentUser = queryClient.getQueryData<UserControllerGetProfileResponse>(
-      userControllerGetProfileQueryKey(),
-    );
     if (currentUser && payload.userId === currentUser.id) return;
 
     const peerReadsKey = readReceiptsControllerGetDmPeerReadsQueryKey({

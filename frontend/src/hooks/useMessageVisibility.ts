@@ -7,6 +7,7 @@ import { readReceiptsControllerGetUnreadCountsQueryKey } from "../api-client/@ta
 import type { UnreadCountDto, PaginatedMessagesResponseDto } from "../api-client";
 import { channelMessagesQueryKey, dmMessagesQueryKey } from "../utils/messageQueryKeys";
 import { isDetachedFromLiveEdge } from "../utils/messageCacheUpdaters";
+import { useWindowFocus } from "./useWindowFocus";
 
 interface UseMessageVisibilityProps {
   channelId?: string;
@@ -34,9 +35,14 @@ export const useMessageVisibility = ({
 }: UseMessageVisibilityProps) => {
   const { socket } = useContext(SocketContext);
   const queryClient = useQueryClient();
+  const isFocused = useWindowFocus();
   const lastMarkedMessageIdRef = useRef<string | null>(null);
   const pendingMessageIdRef = useRef<string | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Holds the latest message id seen while the tab was blurred/hidden —
+  // MessageContainer keeps calling markAsRead with the newest visible id
+  // even while backgrounded, so this always ends up holding the freshest one.
+  const pendingWhileUnfocusedRef = useRef<string | null>(null);
 
   // Clean up debounce timer when deps change or on unmount,
   // preventing stale closures from emitting to the wrong channel/socket.
@@ -46,6 +52,7 @@ export const useMessageVisibility = ({
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
+      pendingWhileUnfocusedRef.current = null;
     };
   }, [socket, channelId, directMessageGroupId, enabled]);
 
@@ -56,6 +63,15 @@ export const useMessageVisibility = ({
       if (!socket || !enabled) return;
       if (!channelId && !directMessageGroupId) return;
       if (lastMarkedMessageIdRef.current === messageId) return;
+
+      // Background tabs must not silently mark messages as read — stash the
+      // id and replay it once focus returns (see the focus-regained effect
+      // below). Checked imperatively (not via the useWindowFocus() value) so
+      // this callback's identity/deps stay stable across focus changes.
+      if (!(document.hasFocus() && document.visibilityState === 'visible')) {
+        pendingWhileUnfocusedRef.current = messageId;
+        return;
+      }
 
       // Optimistic cache clear — immediately remove unread/mention indicators.
       // Skipped while the messages window is detached from the live edge
@@ -116,6 +132,16 @@ export const useMessageVisibility = ({
     },
     [socket, channelId, directMessageGroupId, enabled, queryClient]
   );
+
+  // Replay the most recent visible message once the tab regains focus.
+  useEffect(() => {
+    if (!isFocused) return;
+    if (!socket || !enabled) return;
+    const pendingId = pendingWhileUnfocusedRef.current;
+    if (!pendingId) return;
+    pendingWhileUnfocusedRef.current = null;
+    markAsRead(pendingId);
+  }, [isFocused, socket, enabled, markAsRead]);
 
   return {
     markAsRead,
