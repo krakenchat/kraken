@@ -1,10 +1,27 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import * as webpush from 'web-push';
 import { DatabaseService } from '@/database/database.service';
 import { SubscribePushDto } from './dto/subscribe.dto';
 import { PushSubscription } from '@prisma/client';
+
+/**
+ * Domain-separation string used when deriving the push action-token signing
+ * key from JWT_SECRET. Never sign action tokens with the raw JWT_SECRET —
+ * a token signed with the raw secret could potentially be replayed against
+ * the passport JWT strategy.
+ */
+const ACTION_TOKEN_KEY_INFO = 'semaphore-push-action-v1';
+
+const ACTION_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+interface ActionTokenPayload {
+  u: string;
+  n: string;
+  exp: number;
+}
 
 export interface PushNotificationPayload {
   title: string;
@@ -283,6 +300,105 @@ export class PushNotificationsService implements OnModuleInit {
         error,
       );
     }
+  }
+
+  /**
+   * Derive the HMAC signing key for push action tokens from JWT_SECRET.
+   * Computed lazily (not cached at construction time) so it always reflects
+   * the current config, even if JWT_SECRET is loaded after this service is
+   * constructed.
+   */
+  private getActionTokenKey(): Buffer | null {
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    if (!jwtSecret) {
+      return null;
+    }
+    return createHmac('sha256', jwtSecret)
+      .update(ACTION_TOKEN_KEY_INFO)
+      .digest();
+  }
+
+  /**
+   * Create a signed, scoped action token that authorizes marking a single
+   * notification as read from an unauthenticated push-notification action
+   * button. Not single-use — see design doc for rationale.
+   */
+  createActionToken(userId: string, notificationId: string): string | null {
+    const key = this.getActionTokenKey();
+    if (!key) {
+      return null;
+    }
+
+    const payload: ActionTokenPayload = {
+      u: userId,
+      n: notificationId,
+      exp: Math.floor(Date.now() / 1000) + ACTION_TOKEN_TTL_SECONDS,
+    };
+
+    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString(
+      'base64url',
+    );
+    const signature = createHmac('sha256', key)
+      .update(payloadB64)
+      .digest('base64url');
+
+    return `${payloadB64}.${signature}`;
+  }
+
+  /**
+   * Verify a push action token. Never throws — returns null for any
+   * malformed, tampered, or expired token.
+   */
+  verifyActionToken(
+    token: string,
+  ): { userId: string; notificationId: string } | null {
+    const key = this.getActionTokenKey();
+    if (!key) {
+      return null;
+    }
+
+    const parts = token.split('.');
+    if (parts.length !== 2) {
+      return null;
+    }
+    const [payloadB64, signature] = parts;
+
+    const expectedSignature = createHmac('sha256', key)
+      .update(payloadB64)
+      .digest('base64url');
+
+    const signatureBuf = Buffer.from(signature, 'base64url');
+    const expectedBuf = Buffer.from(expectedSignature, 'base64url');
+    if (signatureBuf.length !== expectedBuf.length) {
+      return null;
+    }
+    if (!timingSafeEqual(signatureBuf, expectedBuf)) {
+      return null;
+    }
+
+    let payload: ActionTokenPayload;
+    try {
+      payload = JSON.parse(
+        Buffer.from(payloadB64, 'base64url').toString('utf8'),
+      ) as ActionTokenPayload;
+    } catch {
+      return null;
+    }
+
+    if (
+      !payload ||
+      typeof payload.u !== 'string' ||
+      typeof payload.n !== 'string' ||
+      typeof payload.exp !== 'number'
+    ) {
+      return null;
+    }
+
+    if (payload.exp <= Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+
+    return { userId: payload.u, notificationId: payload.n };
   }
 
   /**

@@ -633,6 +633,14 @@ export class NotificationsService {
       const title = this.formatPushTitle(notification);
       const body = this.formatPushBody(notification);
 
+      // Scoped action token authorizing the "Mark as read" push action
+      // button (unauthenticated — the SW has no JWT). Omitted when
+      // JWT_SECRET isn't configured.
+      const markReadToken = this.pushNotificationsService.createActionToken(
+        userId,
+        notification.id,
+      );
+
       await this.pushNotificationsService.sendToUser(userId, {
         title,
         body,
@@ -643,6 +651,7 @@ export class NotificationsService {
           communityId: notification.channel?.communityId,
           directMessageGroupId: notification.directMessageGroupId,
           type: notification.type,
+          ...(markReadToken ? { markReadToken } : {}),
         },
       });
 

@@ -9,6 +9,13 @@ import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { swDbGet, swDbSet, SW_DB_KEYS } from './utils/swDb';
+import {
+  buildNotificationOptions,
+  getMarkReadRequest,
+  getNavigationHash,
+  supportsNotificationActions,
+  type PushNotificationData,
+} from './utils/swPush';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -86,22 +93,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-// Push notification types
-interface PushNotificationData {
-  title: string;
-  body: string;
-  icon?: string;
-  badge?: string;
-  tag?: string;
-  data?: {
-    notificationId?: string;
-    channelId?: string | null;
-    communityId?: string | null;
-    directMessageGroupId?: string | null;
-    type?: string;
-  };
-}
-
 /**
  * Set or clear the app-icon badge flag (Badging API, Chromium-only).
  * Always resolves — feature-detected and error-swallowed so badge support
@@ -134,17 +125,12 @@ self.addEventListener('push', (event: PushEvent) => {
     return;
   }
 
-  // `vibrate` is a non-standard (but widely supported) notification option
-  // missing from the TS lib's NotificationOptions.
-  const options: NotificationOptions & { vibrate: number[] } = {
-    body: data.body,
-    icon: data.icon || '/pwa-192x192.png',
-    badge: data.badge || '/pwa-192x192.png',
-    tag: data.tag,
-    data: data.data,
-    vibrate: [200, 100, 200],
-    requireInteraction: false,
-  };
+  // In SW scope the global `Notification` constructor exists but isn't in
+  // the `webworker` lib types under that name in all contexts — cast as needed.
+  const options = buildNotificationOptions(
+    data,
+    supportsNotificationActions(Notification as unknown),
+  );
 
   event.waitUntil(
     Promise.all([
@@ -163,14 +149,20 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   const data = event.notification.data as PushNotificationData['data'];
 
-  // Determine the path to navigate to (app uses HashRouter, so paths must be under /#/)
-  let hash = '#/';
-  if (data?.communityId && data?.channelId) {
-    hash = `#/community/${data.communityId}/channel/${data.channelId}`;
-  } else if (data?.directMessageGroupId) {
-    hash = `#/direct-messages/${data.directMessageGroupId}`;
+  if (event.action === 'mark-read') {
+    // Best-effort: mark the notification read server-side without opening or
+    // focusing any window. Deliberately does NOT clear the SW-set badge flag
+    // — other unread notifications may still exist, and the app corrects the
+    // badge to the exact count on next launch (see useAppBadge).
+    const request = getMarkReadRequest(data);
+    if (request) {
+      event.waitUntil(fetch(request.url, request.init).catch(() => {}));
+    }
+    return;
   }
 
+  // Determine the path to navigate to (app uses HashRouter, so paths must be under /#/)
+  const hash = getNavigationHash(data);
   const targetUrl = new URL(`/${hash}`, self.location.origin).href;
 
   // Clear the SW-set badge flag, then focus an existing same-origin window
