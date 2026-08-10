@@ -22,7 +22,10 @@ The backend embeds a single-purpose signed token in each push payload
 - **Payload**: `{ u: userId, n: notificationId, exp: epochSeconds }` with a
   7-day expiry (push delivery TTL is 24h, but a displayed notification can be
   clicked days later).
-- **Format**: `base64url(JSON payload) + "." + base64url(HMAC-SHA256(payload))`.
+- **Format**: `payloadB64 + "." + base64url(HMAC-SHA256(key, payloadB64))`
+  where `payloadB64 = base64url(JSON.stringify(payload))` — the MAC is
+  computed over the base64url-encoded payload *string* (the first token
+  part verbatim), not the raw JSON bytes.
 - **Key**: derived from `JWT_SECRET` via `HMAC-SHA256(key=JWT_SECRET,
   msg="semaphore-push-action-v1")`. Never the raw `JWT_SECRET` — a token
   signed with the raw secret and a `sub` claim could be replayed as an API
