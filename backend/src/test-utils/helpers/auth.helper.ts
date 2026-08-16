@@ -4,9 +4,6 @@
  * Utilities for mocking authentication and authorization in tests.
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { ExecutionContext } from '@nestjs/common';
 import { RbacActions } from '@prisma/client';
 import { UserFactory } from '../factories';

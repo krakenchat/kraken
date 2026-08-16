@@ -152,7 +152,9 @@ describe('WebsocketService', () => {
       const mockServer = { emit: mockEmit } as any;
 
       service.setServer(mockServer);
-      const result = looseService.sendToAll('broadcast-event', { data: 'test' });
+      const result = looseService.sendToAll('broadcast-event', {
+        data: 'test',
+      });
 
       expect(result).toBe(true);
       expect(mockEmit).toHaveBeenCalledWith('broadcast-event', {
