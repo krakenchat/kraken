@@ -129,7 +129,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnGatewayInit {
           return;
         }
 
-        (socket.handshake as Record<string, any>).user = new UserEntity(user);
+        (socket as AuthenticatedSocket).handshake.user = new UserEntity(user);
         next();
       };
 

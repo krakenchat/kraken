@@ -11,5 +11,5 @@ export class DebugEmitDto {
   roomId: string;
 
   @IsObject()
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }

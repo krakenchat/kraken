@@ -1,6 +1,8 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import { Request as ExpressRequest } from 'express';
+import { Socket } from 'socket.io';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 @Injectable()
@@ -23,13 +25,18 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   // Support extracting JWT from WebSocket handshake
-  getRequest(context: ExecutionContext): Record<string, any> {
+  // Return type is `unknown` (not `Record<string, any>`) because this
+  // genuinely returns different shapes depending on transport (an Express
+  // Request for http, a handshake-like object for ws) — Passport's base
+  // `getRequest` is itself typed `any`, so callers already treat the result
+  // opaquely.
+  getRequest(context: ExecutionContext): unknown {
     if (context.getType() === 'http') {
-      const req = context.switchToHttp().getRequest<Record<string, any>>();
+      const req = context.switchToHttp().getRequest<ExpressRequest>();
       return req;
     }
     if (context.getType() === 'ws') {
-      const client = context.switchToWs().getClient<Record<string, any>>();
+      const client = context.switchToWs().getClient<Socket>();
       if (
         client &&
         typeof client === 'object' &&

@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { Socket } from 'socket.io';
 import {
   Injectable,
   CanActivate,
@@ -77,7 +78,7 @@ export class RbacGuard implements CanActivate {
       return req.user as UserEntity | undefined;
     }
     if (context.getType() === 'ws') {
-      const client = context.switchToWs().getClient<Record<string, any>>();
+      const client = context.switchToWs().getClient<Socket>();
       if (
         client &&
         typeof client === 'object' &&
@@ -114,7 +115,9 @@ export class RbacGuard implements CanActivate {
       const key = resourceOptions.idKey!;
       switch (resourceOptions.source) {
         case ResourceIdSource.BODY:
-          return (req.body as Record<string, any>)?.[key] as string | undefined;
+          return (req.body as Record<string, unknown>)?.[key] as
+            | string
+            | undefined;
         case ResourceIdSource.QUERY:
           return req.query?.[key] as string | undefined;
         case ResourceIdSource.PARAM:
@@ -132,7 +135,7 @@ export class RbacGuard implements CanActivate {
       if (resourceOptions.source === ResourceIdSource.TEXT_PAYLOAD) {
         return context.switchToWs().getData();
       } else {
-        const data: Record<string, any> = context.switchToWs().getData();
+        const data: Record<string, unknown> = context.switchToWs().getData();
         return data[resourceOptions.idKey!] as string | undefined;
       }
     }
