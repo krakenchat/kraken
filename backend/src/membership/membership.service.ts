@@ -11,6 +11,7 @@ import {
   MembershipResponseDto,
   PaginatedMembershipsResponseDto,
 } from './dto/membership-response.dto';
+import { RbacActions } from '@prisma/client';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
 import { RolesService } from '@/roles/roles.service';
@@ -211,7 +212,7 @@ export class MembershipService {
       Array<{
         id: string;
         name: string;
-        actions: any[];
+        actions: RbacActions[];
         createdAt: Date;
         isDefault: boolean;
         position: number;
