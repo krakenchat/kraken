@@ -3,6 +3,7 @@
 
 services:
   # PostgreSQL for E2E tests (separate from dev)
+  # NOTE: near-duplicate of the postgres service in docker-compose.yml and docker-compose.prod.yml — keep image/healthcheck/env keys in sync.
   postgres-test:
     image: postgres:17
     ports:
@@ -22,6 +23,7 @@ services:
       - e2e-network
 
   # Redis for E2E tests
+  # NOTE: near-duplicate of the redis service in docker-compose.yml and docker-compose.prod.yml — keep image/healthcheck/env keys in sync.
   redis-test:
     image: redis:latest
     ports:

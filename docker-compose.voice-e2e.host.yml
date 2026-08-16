@@ -17,6 +17,7 @@
 services:
   livekit-e2e:
     environment:
+      # NOTE: LIVEKIT_CONFIG is duplicated (with deliberate differences) in docker-compose.yml and docker-compose.voice-e2e.yml — keep keys/ports in sync when editing.
       LIVEKIT_CONFIG: |
         port: 7880
         rtc:
