@@ -40,7 +40,10 @@ export interface ClipMessageCreateResult {
  */
 export async function emitClipMessageCreate(
   eventEmitter: {
-    emitAsync(event: string, payload: ClipMessageCreateEvent): Promise<any[]>;
+    emitAsync(
+      event: string,
+      payload: ClipMessageCreateEvent,
+    ): Promise<unknown[]>;
   },
   payload: ClipMessageCreateEvent,
 ): Promise<ClipMessageCreateResult> {
