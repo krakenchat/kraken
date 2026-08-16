@@ -7,7 +7,7 @@ import {
   EpochBump,
   PermissionsCacheService,
 } from '@/roles/permissions-cache.service';
-import { InstanceRole } from '@prisma/client';
+import { InstanceRole, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { SetupInstanceDto } from './dto/setup-instance.dto';
@@ -103,8 +103,15 @@ export class OnboardingService {
     dto: SetupInstanceDto,
     setupToken: string,
   ): Promise<{
-    adminUser: any;
-    defaultCommunity?: any;
+    // Raw Prisma User row (NOT wrapped in UserEntity / new UserEntity()) —
+    // matches what tx.user.create() actually returns below. Only `.id` is
+    // ever read from this by the caller (OnboardingController), so the
+    // missing UserEntity wrap/exclusion never reaches an HTTP response;
+    // typing it as UserEntity here would misleadingly imply a
+    // sanitization step that isn't happening. Not changed — see Task 3
+    // report.
+    adminUser: User;
+    defaultCommunity: { id: string; name: string } | null;
   }> {
     // Validate setup token
     if (!(await this.validateSetupToken(setupToken))) {
