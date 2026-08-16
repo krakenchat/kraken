@@ -10,6 +10,7 @@ import { CreateDmGroupDto } from './dto/create-dm-group.dto';
 import { AddMembersDto } from './dto/add-members.dto';
 import { DmGroupResponseDto } from './dto/dm-group-response.dto';
 import { RoomEvents } from '@/rooms/room-subscription.events';
+import { SpanDto } from '@/messages/dto/message-response.dto';
 
 @Injectable()
 export class DirectMessagesService {
@@ -373,7 +374,10 @@ export class DirectMessagesService {
     messages: {
       id: string;
       authorId: string | null;
-      spans: any[];
+      // Prisma relation (MessageSpan[]), not the shared `Span[]` DTO shape —
+      // SpanDto already models Prisma's nullable-column convention (see
+      // DmGroupLastMessageDto, which this feeds directly).
+      spans: SpanDto[];
       sentAt: Date;
     }[];
   }): DmGroupResponseDto {
