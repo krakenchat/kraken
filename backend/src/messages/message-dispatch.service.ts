@@ -9,6 +9,7 @@ import {
   LINK_PREVIEWS_QUEUE,
 } from '@/jobs/jobs.constants';
 import { MessageFanoutJobData, LinkPreviewJobData } from '@/jobs/jobs.types';
+import { toWireMessage } from '@/common/utils/message-wire.utils';
 
 /** The shape returned by `MessagesService.create()` — enriched by dispatch(). */
 type DispatchableMessage = Awaited<ReturnType<MessagesService['create']>>;
@@ -16,8 +17,14 @@ type DispatchableMessage = Awaited<ReturnType<MessagesService['create']>>;
 export interface MessageDispatchOptions {
   /** Room to broadcast to — a raw channelId or `RoomName.dmGroup(id)`. */
   room: string;
-  /** Event to emit alongside the enriched message payload. */
-  event: ServerEvents;
+  /**
+   * Event to emit alongside the enriched message payload. Only
+   * NEW_MESSAGE (channel sends) and NEW_DM (DM sends) are ever passed —
+   * narrowed from `ServerEvents` so the payload below type-checks against
+   * `NewMessagePayload` specifically (every ServerEvents member would
+   * require the payload to satisfy every event's payload type at once).
+   */
+  event: ServerEvents.NEW_MESSAGE | ServerEvents.NEW_DM;
   /** Whether to fire mention/DM notification processing for this message. */
   notifications: boolean;
   /** Whether to fire link-preview processing for this message. */
@@ -66,7 +73,7 @@ export class MessageDispatchService {
       this.messagesService.enrichMessageWithFileMetadata(message);
 
     this.websocketService.sendToRoom(opts.room, opts.event, {
-      message: enrichedMessage,
+      message: toWireMessage(enrichedMessage),
     });
 
     // Fire-and-forget: the message-send ack (this method's resolution) must

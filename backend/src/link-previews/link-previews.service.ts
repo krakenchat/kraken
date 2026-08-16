@@ -9,6 +9,8 @@ import {
 } from './link-preview.utils';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { Prisma } from '@prisma/client';
+import { ServerEvents } from '@semaphore-chat/shared';
+import { toWireMessage } from '@/common/utils/message-wire.utils';
 
 /** Full includes for re-reading a message before broadcast */
 const MESSAGE_INCLUDE = {
@@ -53,7 +55,9 @@ export class LinkPreviewsService {
     messageId: string,
     spans: { text?: string | null }[],
     roomId: string,
-    serverEvent: string,
+    // Only ever UPDATE_MESSAGE (re-processed message always broadcasts as
+    // an update) — see LinkPreviewJobData for the same narrowing.
+    serverEvent: typeof ServerEvents.UPDATE_MESSAGE,
   ): Promise<void> {
     const text = flattenSpansToDisplayText(spans);
     if (!text) return;
@@ -106,7 +110,9 @@ export class LinkPreviewsService {
   private async clearAndBroadcast(
     messageId: string,
     roomId: string,
-    serverEvent: string,
+    // Only ever UPDATE_MESSAGE (re-processed message always broadcasts as
+    // an update) — see LinkPreviewJobData for the same narrowing.
+    serverEvent: typeof ServerEvents.UPDATE_MESSAGE,
   ): Promise<void> {
     const existing = await this.databaseService.message.findUnique({
       where: { id: messageId },
@@ -131,7 +137,9 @@ export class LinkPreviewsService {
   private async broadcastMessage(
     messageId: string,
     roomId: string,
-    serverEvent: string,
+    // Only ever UPDATE_MESSAGE (re-processed message always broadcasts as
+    // an update) — see LinkPreviewJobData for the same narrowing.
+    serverEvent: typeof ServerEvents.UPDATE_MESSAGE,
   ): Promise<void> {
     const msg = await this.databaseService.message.findUnique({
       where: { id: messageId },
@@ -181,7 +189,7 @@ export class LinkPreviewsService {
     };
 
     this.websocketService.sendToRoom(roomId, serverEvent, {
-      message: formatted,
+      message: toWireMessage(formatted),
     });
   }
 }

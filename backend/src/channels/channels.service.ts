@@ -11,7 +11,7 @@ import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { ChannelType, Prisma } from '@prisma/client';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@semaphore-chat/shared';
+import { Channel as SharedChannel, ServerEvents } from '@semaphore-chat/shared';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { RoomName } from '@/common/utils/room-name.util';
@@ -19,6 +19,32 @@ import { RoomName } from '@/common/utils/room-name.util';
 @Injectable()
 export class ChannelsService {
   private readonly logger = new Logger(ChannelsService.name);
+
+  /**
+   * Converts a Prisma Channel row into the shared wire-DTO shape.
+   * Prisma's `ChannelType` enum and the shared `ChannelType` enum have
+   * identical string values (TEXT/VOICE) but are structurally distinct TS
+   * types; `createdAt` is a JS Date pre-serialization vs. the shared
+   * type's ISO-string (post-serialization) contract. Both conversions
+   * produce the exact bytes Socket.IO's JSON serialization would already
+   * send — no wire/runtime change, just satisfying the emit's static type.
+   */
+  private toSharedChannel(channel: {
+    id: string;
+    name: string;
+    communityId: string;
+    type: ChannelType;
+    isPrivate: boolean;
+    createdAt: Date;
+    position: number;
+    slowmodeSeconds: number;
+  }): SharedChannel {
+    return {
+      ...channel,
+      type: channel.type as unknown as SharedChannel['type'],
+      createdAt: channel.createdAt.toISOString(),
+    };
+  }
 
   constructor(
     private readonly databaseService: DatabaseService,
@@ -66,7 +92,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(result.communityId),
         ServerEvents.CHANNEL_CREATED,
-        { communityId: result.communityId, channel: result },
+        {
+          communityId: result.communityId,
+          channel: this.toSharedChannel(result),
+        },
       );
 
       return result;
@@ -120,7 +149,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(updated.communityId),
         ServerEvents.CHANNEL_UPDATED,
-        { communityId: updated.communityId, channel: updated },
+        {
+          communityId: updated.communityId,
+          channel: this.toSharedChannel(updated),
+        },
       );
 
       return updated;
@@ -335,7 +367,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
-        { communityId, channels: updatedChannels },
+        {
+          communityId,
+          channels: updatedChannels.map((c) => this.toSharedChannel(c)),
+        },
       );
 
       return updatedChannels;
@@ -385,7 +420,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
-        { communityId, channels: updatedChannels },
+        {
+          communityId,
+          channels: updatedChannels.map((c) => this.toSharedChannel(c)),
+        },
       );
 
       return updatedChannels;

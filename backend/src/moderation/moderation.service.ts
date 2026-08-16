@@ -650,7 +650,9 @@ export class ModerationService {
       ServerEvents.MESSAGE_PINNED,
       {
         messageId,
-        channelId: message.channelId,
+        // Non-null: the `!message.channel` check above already rejected
+        // DM messages, so a channel message always has a channelId.
+        channelId: message.channelId!,
         pinnedBy: moderatorId,
         pinnedAt: new Date().toISOString(),
       },
@@ -705,7 +707,9 @@ export class ModerationService {
       ServerEvents.MESSAGE_UNPINNED,
       {
         messageId,
-        channelId: message.channelId,
+        // Non-null: the `!message.channel` check above already rejected
+        // DM messages, so a channel message always has a channelId.
+        channelId: message.channelId!,
         unpinnedBy: moderatorId,
       },
     );

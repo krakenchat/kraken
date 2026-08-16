@@ -242,7 +242,9 @@ export class MessagesGateway
       const reaction = grouped.find((r) => r.emoji === payload.emoji);
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
         messageId: result.id,
-        reaction: reaction,
+        // Non-null: payload.emoji was just added into result.reactions
+        // above, so groupReactions() output must contain a matching group.
+        reaction: reaction!,
         channelId: result.channelId ?? null,
         directMessageGroupId: result.directMessageGroupId ?? null,
         parentMessageId: result.parentMessageId ?? null,

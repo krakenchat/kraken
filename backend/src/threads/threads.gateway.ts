@@ -32,6 +32,7 @@ import { getSocketUserId } from '@/common/utils/socket.utils';
 import { DatabaseService } from '@/database/database.service';
 import { RoomName } from '@/common/utils/room-name.util';
 import { LinkPreviewsService } from '@/link-previews/link-previews.service';
+import { toWireMessage } from '@/common/utils/message-wire.utils';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -124,7 +125,7 @@ export class ThreadsGateway
     if (roomId) {
       // Emit the new thread reply to the room
       this.websocketService.sendToRoom(roomId, ServerEvents.NEW_THREAD_REPLY, {
-        reply,
+        reply: toWireMessage(reply),
         parentMessageId: payload.parentMessageId,
       });
 
@@ -135,7 +136,10 @@ export class ThreadsGateway
         {
           parentMessageId: payload.parentMessageId,
           replyCount: parentMessage.replyCount,
-          lastReplyAt: parentMessage.lastReplyAt,
+          // Date -> ISO string: same bytes Socket.IO's JSON serialization
+          // would already produce for a raw Date, just satisfying the
+          // payload's post-serialization `string | null` wire type.
+          lastReplyAt: parentMessage.lastReplyAt?.toISOString() ?? null,
           channelId: parentMessage.channelId ?? null,
           directMessageGroupId: parentMessage.directMessageGroupId ?? null,
         },

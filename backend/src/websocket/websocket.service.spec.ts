@@ -4,11 +4,25 @@ import { Server } from 'socket.io';
 
 describe('WebsocketService', () => {
   let service: WebsocketService;
+  // sendToRoom/sendToAll are now generically typed to the real
+  // ServerToClientEvents contract (Task 3, commit 3). These tests
+  // deliberately exercise the generic wrapper mechanism itself (routing,
+  // error handling, arg pass-through) with made-up event names, agnostic
+  // of any specific event contract — so they call through this loosened
+  // view of the same instance rather than the strict public type.
+  let looseService: {
+    setServer: (server: unknown) => void;
+    sendToRoom: (room: string, event: string, payload: unknown) => boolean;
+    sendToAll: (event: string, payload: unknown) => boolean;
+    joinSocketsToRoom: (source: string, rooms: string | string[]) => void;
+    removeSocketsFromRoom: (source: string, rooms: string | string[]) => void;
+  };
 
   beforeEach(async () => {
     const { unit } = await TestBed.solitary(WebsocketService).compile();
 
     service = unit;
+    looseService = service as unknown as typeof looseService;
   });
 
   afterEach(() => {
@@ -28,7 +42,7 @@ describe('WebsocketService', () => {
       // Verify server was set by checking sendToAll returns true
       const mockEmit = jest.fn();
       service.setServer({ emit: mockEmit } as any);
-      service.sendToAll('test-event', {});
+      looseService.sendToAll('test-event', {});
 
       expect(mockEmit).toHaveBeenCalled();
     });
@@ -38,10 +52,10 @@ describe('WebsocketService', () => {
       const mockServer2 = { emit: jest.fn() } as any;
 
       service.setServer(mockServer1);
-      service.sendToAll('event1', {});
+      looseService.sendToAll('event1', {});
 
       service.setServer(mockServer2);
-      service.sendToAll('event2', {});
+      looseService.sendToAll('event2', {});
 
       expect(mockServer1.emit).toHaveBeenCalledWith('event1', {});
       expect(mockServer2.emit).toHaveBeenCalledWith('event2', {});
@@ -54,7 +68,7 @@ describe('WebsocketService', () => {
       const mockServer = { to: mockTo } as any;
 
       service.setServer(mockServer);
-      const result = service.sendToRoom('room-123', 'test-event', {
+      const result = looseService.sendToRoom('room-123', 'test-event', {
         data: 'test',
       });
 
@@ -70,13 +84,13 @@ describe('WebsocketService', () => {
       service.setServer(mockServer);
 
       const payload = { userId: 'user-123', message: 'hello' };
-      service.sendToRoom('room-456', 'message-event', payload);
+      looseService.sendToRoom('room-456', 'message-event', payload);
 
       expect(mockEmit).toHaveBeenCalledWith('message-event', payload);
     });
 
     it('should return false when server is not initialized', () => {
-      const result = service.sendToRoom('room-123', 'test-event', {});
+      const result = looseService.sendToRoom('room-123', 'test-event', {});
 
       expect(result).toBe(false);
     });
@@ -88,7 +102,7 @@ describe('WebsocketService', () => {
       const mockServer = { to: mockTo } as any;
 
       service.setServer(mockServer);
-      const result = service.sendToRoom('room-error', 'test-event', {});
+      const result = looseService.sendToRoom('room-error', 'test-event', {});
 
       expect(result).toBe(false);
     });
@@ -100,9 +114,9 @@ describe('WebsocketService', () => {
 
       service.setServer(mockServer);
 
-      service.sendToRoom('room-1', 'event-1', { data: 1 });
-      service.sendToRoom('room-2', 'event-2', { data: 2 });
-      service.sendToRoom('room-3', 'event-3', { data: 3 });
+      looseService.sendToRoom('room-1', 'event-1', { data: 1 });
+      looseService.sendToRoom('room-2', 'event-2', { data: 2 });
+      looseService.sendToRoom('room-3', 'event-3', { data: 3 });
 
       expect(mockTo).toHaveBeenCalledTimes(3);
       expect(mockTo).toHaveBeenCalledWith('room-1');
@@ -117,9 +131,9 @@ describe('WebsocketService', () => {
 
       service.setServer(mockServer);
 
-      service.sendToRoom('room-123', 'user-joined', { userId: 'user-1' });
-      service.sendToRoom('room-123', 'user-left', { userId: 'user-2' });
-      service.sendToRoom('room-123', 'message-sent', { message: 'hello' });
+      looseService.sendToRoom('room-123', 'user-joined', { userId: 'user-1' });
+      looseService.sendToRoom('room-123', 'user-left', { userId: 'user-2' });
+      looseService.sendToRoom('room-123', 'message-sent', { message: 'hello' });
 
       expect(mockTo).toHaveBeenCalledTimes(3);
       expect(mockEmit).toHaveBeenCalledWith('user-joined', {
@@ -138,7 +152,7 @@ describe('WebsocketService', () => {
       const mockServer = { emit: mockEmit } as any;
 
       service.setServer(mockServer);
-      const result = service.sendToAll('broadcast-event', { data: 'test' });
+      const result = looseService.sendToAll('broadcast-event', { data: 'test' });
 
       expect(result).toBe(true);
       expect(mockEmit).toHaveBeenCalledWith('broadcast-event', {
@@ -153,13 +167,13 @@ describe('WebsocketService', () => {
       service.setServer(mockServer);
 
       const payload = { announcement: 'Server maintenance in 5 minutes' };
-      service.sendToAll('server-announcement', payload);
+      looseService.sendToAll('server-announcement', payload);
 
       expect(mockEmit).toHaveBeenCalledWith('server-announcement', payload);
     });
 
     it('should return false when server is not initialized', () => {
-      const result = service.sendToAll('test-event', {});
+      const result = looseService.sendToAll('test-event', {});
 
       expect(result).toBe(false);
     });
@@ -171,7 +185,7 @@ describe('WebsocketService', () => {
       const mockServer = { emit: mockEmit } as any;
 
       service.setServer(mockServer);
-      const result = service.sendToAll('error-event', {});
+      const result = looseService.sendToAll('error-event', {});
 
       expect(result).toBe(false);
     });
@@ -182,9 +196,9 @@ describe('WebsocketService', () => {
 
       service.setServer(mockServer);
 
-      service.sendToAll('user-online', { userId: 'user-1' });
-      service.sendToAll('user-offline', { userId: 'user-2' });
-      service.sendToAll('system-update', { version: '1.0.0' });
+      looseService.sendToAll('user-online', { userId: 'user-1' });
+      looseService.sendToAll('user-offline', { userId: 'user-2' });
+      looseService.sendToAll('system-update', { version: '1.0.0' });
 
       expect(mockEmit).toHaveBeenCalledTimes(3);
       expect(mockEmit).toHaveBeenCalledWith('user-online', {
@@ -203,7 +217,7 @@ describe('WebsocketService', () => {
       const mockServer = { emit: mockEmit } as any;
 
       service.setServer(mockServer);
-      const result = service.sendToAll('null-event', null);
+      const result = looseService.sendToAll('null-event', null);
 
       expect(result).toBe(true);
       expect(mockEmit).toHaveBeenCalledWith('null-event', null);
@@ -214,7 +228,7 @@ describe('WebsocketService', () => {
       const mockServer = { emit: mockEmit } as any;
 
       service.setServer(mockServer);
-      const result = service.sendToAll('undefined-event', undefined);
+      const result = looseService.sendToAll('undefined-event', undefined);
 
       expect(result).toBe(true);
       expect(mockEmit).toHaveBeenCalledWith('undefined-event', undefined);
@@ -239,7 +253,7 @@ describe('WebsocketService', () => {
         timestamp: Date.now(),
       };
 
-      const result = service.sendToAll('complex-event', complexPayload);
+      const result = looseService.sendToAll('complex-event', complexPayload);
 
       expect(result).toBe(true);
       expect(mockEmit).toHaveBeenCalledWith('complex-event', complexPayload);

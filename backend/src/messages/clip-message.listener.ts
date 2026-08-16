@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { ServerEvents } from '@semaphore-chat/shared';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { RoomName } from '@/common/utils/room-name.util';
+import { toWireMessage } from '@/common/utils/message-wire.utils';
 import {
   CLIP_MESSAGE_CREATE,
   ClipMessageCreateEvent,
@@ -88,13 +89,13 @@ export class ClipMessageListener {
       this.websocketService.sendToRoom(
         event.targetChannelId,
         ServerEvents.NEW_MESSAGE,
-        { message: enrichedMessage },
+        { message: toWireMessage(enrichedMessage) },
       );
     } else if (event.destination === 'dm' && event.targetDirectMessageGroupId) {
       this.websocketService.sendToRoom(
         RoomName.dmGroup(event.targetDirectMessageGroupId),
         ServerEvents.NEW_DM,
-        { message: enrichedMessage },
+        { message: toWireMessage(enrichedMessage) },
       );
     }
 

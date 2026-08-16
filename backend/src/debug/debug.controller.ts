@@ -55,7 +55,21 @@ export class DebugController {
     this.assertOwner(req);
 
     const room = this.resolveRoom(dto.roomType, dto.roomId);
-    const sent = this.websocketService.sendToRoom(room, dto.event, dto.payload);
+    // Admin debug endpoint deliberately emits an arbitrary event/payload
+    // with no fixed contract (that's the point of a raw emit debug tool) —
+    // sendToRoom's generic signature can't express "any event, any
+    // payload" safely. Cast inline (not via a detached variable, which
+    // would lose the `this` binding sendToRoom needs) through a loosened
+    // local signature for this one call, rather than reintroducing `any`
+    // on the DTO or widening sendToRoom's real signature for every other
+    // caller.
+    const sent = (
+      this.websocketService.sendToRoom as (
+        room: string,
+        event: string,
+        payload: unknown,
+      ) => boolean
+    )(room, dto.event, dto.payload);
 
     return {
       success: sent,
