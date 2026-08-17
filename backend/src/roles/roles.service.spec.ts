@@ -2068,8 +2068,10 @@ describe('RolesService', () => {
 
       await service.createDefaultCommunityRoles(communityId);
 
-      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
-        communityId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2084,8 +2086,10 @@ describe('RolesService', () => {
 
       await service.assignUserToCommunityRole(userId, communityId, roleId);
 
-      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
-        userId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'user', userId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2097,8 +2101,10 @@ describe('RolesService', () => {
 
       await service.createMemberRoleForCommunity(communityId);
 
-      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
-        communityId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2133,8 +2139,10 @@ describe('RolesService', () => {
         actions: [RbacActions.CREATE_MESSAGE],
       });
 
-      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
-        communityId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2156,8 +2164,10 @@ describe('RolesService', () => {
         actions: [RbacActions.READ_MESSAGE],
       });
 
-      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
-        communityId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2177,8 +2187,10 @@ describe('RolesService', () => {
 
       await service.deleteRole(roleId, communityId);
 
-      expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
-        communityId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2192,8 +2204,10 @@ describe('RolesService', () => {
 
       await service.removeUserFromCommunityRole(userId, communityId, roleId);
 
-      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
-        userId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'user', userId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2205,7 +2219,11 @@ describe('RolesService', () => {
 
       await service.createDefaultInstanceRole();
 
-      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalled();
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'instance' },
+        undefined,
+        undefined,
+      );
     });
 
     it('createInstanceRole bumps the instance epoch', async () => {
@@ -2270,8 +2288,10 @@ describe('RolesService', () => {
 
       await service.assignUserToInstanceRole(userId, roleId);
 
-      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
-        userId,
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'user', userId },
+        undefined,
+        undefined,
       );
     });
 
@@ -2296,7 +2316,11 @@ describe('RolesService', () => {
 
       await service.createDefaultCommunityCreatorRole();
 
-      expect(permissionsCacheService.bumpInstanceEpoch).toHaveBeenCalled();
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'instance' },
+        undefined,
+        undefined,
+      );
     });
 
     it('reorderRoles bumps the community epoch', async () => {
@@ -2346,22 +2370,18 @@ describe('RolesService', () => {
 
   // ===========================================================================
   // Deferred epoch bumps — when a method runs inside a caller-owned
-  // transaction (tx + pendingBumps collector), it must NOT bump during the
-  // transaction; it records the bump on the collector instead, and the
-  // transaction owner flushes after commit via executeBumps. Bumping while
-  // the transaction is open would let a concurrent reader cache pre-commit
-  // permission data under the post-commit epoch.
+  // transaction (tx + pendingBumps collector), it forwards to
+  // `PermissionsCacheService.bumpNowOrDefer`, which is responsible for
+  // deferring the actual bump onto the collector rather than firing it while
+  // the transaction is still open. That deferral mechanism itself (does it
+  // push onto the collector? does it fall back to an immediate bump when no
+  // collector is given?) is exercised directly against the real
+  // PermissionsCacheService in permissions-cache.service.spec.ts. Here we
+  // only verify each mutation forwards the right EpochBump, tx, and
+  // collector to bumpNowOrDefer.
   // ===========================================================================
   describe('Deferred epoch bumps inside caller-owned transactions', () => {
-    const expectNoImmediateBumps = () => {
-      expect(permissionsCacheService.bumpUserEpoch).not.toHaveBeenCalled();
-      expect(permissionsCacheService.bumpCommunityEpoch).not.toHaveBeenCalled();
-      expect(permissionsCacheService.bumpInstanceEpoch).not.toHaveBeenCalled();
-      expect(permissionsCacheService.executeBump).not.toHaveBeenCalled();
-      expect(permissionsCacheService.executeBumps).not.toHaveBeenCalled();
-    };
-
-    it('createDefaultCommunityRoles defers the community bump when tx-nested', async () => {
+    it('createDefaultCommunityRoles forwards the community bump to bumpNowOrDefer when tx-nested', async () => {
       const communityId = 'community-defer-1';
       const pendingBumps: EpochBump[] = [];
       mockDatabase.role.create.mockResolvedValue(
@@ -2374,11 +2394,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('assignUserToCommunityRole defers the user bump when tx-nested', async () => {
+    it('assignUserToCommunityRole forwards the user bump to bumpNowOrDefer when tx-nested', async () => {
       const userId = 'user-defer-1';
       const communityId = 'community-defer-2';
       const roleId = 'role-defer-1';
@@ -2396,11 +2419,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'user', userId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'user', userId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('createMemberRoleForCommunity defers the community bump when tx-nested', async () => {
+    it('createMemberRoleForCommunity forwards the community bump to bumpNowOrDefer when tx-nested', async () => {
       const communityId = 'community-defer-3';
       const pendingBumps: EpochBump[] = [];
       mockDatabase.role.create.mockResolvedValue(
@@ -2413,11 +2439,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('createCommunityRole defers the community bump when tx-nested', async () => {
+    it('createCommunityRole forwards the community bump to bumpNowOrDefer when tx-nested', async () => {
       const communityId = 'community-defer-4';
       const pendingBumps: EpochBump[] = [];
       mockDatabase.role.findFirst.mockResolvedValue(null);
@@ -2435,11 +2464,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('updateRole defers the community bump when tx-nested', async () => {
+    it('updateRole forwards the community bump to bumpNowOrDefer when tx-nested', async () => {
       const communityId = 'community-defer-5';
       const roleId = 'role-defer-5';
       const pendingBumps: EpochBump[] = [];
@@ -2464,11 +2496,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('deleteRole defers the community bump when tx-nested', async () => {
+    it('deleteRole forwards the community bump to bumpNowOrDefer when tx-nested', async () => {
       const communityId = 'community-defer-6';
       const roleId = 'role-defer-6';
       const pendingBumps: EpochBump[] = [];
@@ -2490,11 +2525,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'community', communityId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'community', communityId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('removeUserFromCommunityRole defers the user bump when tx-nested', async () => {
+    it('removeUserFromCommunityRole forwards the user bump to bumpNowOrDefer when tx-nested', async () => {
       const userId = 'user-defer-2';
       const communityId = 'community-defer-7';
       const roleId = 'role-defer-7';
@@ -2511,11 +2549,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'user', userId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'user', userId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('createDefaultInstanceRole defers the instance bump when tx-nested', async () => {
+    it('createDefaultInstanceRole forwards the instance bump to bumpNowOrDefer when tx-nested', async () => {
       const pendingBumps: EpochBump[] = [];
       mockDatabase.role.findFirst.mockResolvedValue(null);
       mockDatabase.role.create.mockResolvedValue(
@@ -2527,11 +2568,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'instance' }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'instance' },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('assignUserToInstanceRole defers the user bump when tx-nested', async () => {
+    it('assignUserToInstanceRole forwards the user bump to bumpNowOrDefer when tx-nested', async () => {
       const userId = 'user-defer-3';
       const roleId = 'role-defer-8';
       const pendingBumps: EpochBump[] = [];
@@ -2548,11 +2592,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'user', userId }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'user', userId },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('createDefaultCommunityCreatorRole defers the instance bump when tx-nested', async () => {
+    it('createDefaultCommunityCreatorRole forwards the instance bump to bumpNowOrDefer when tx-nested', async () => {
       const pendingBumps: EpochBump[] = [];
       mockDatabase.role.findFirst.mockResolvedValue(null);
       mockDatabase.role.create.mockResolvedValue(
@@ -2564,11 +2611,14 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([{ kind: 'instance' }]);
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'instance' },
+        mockDatabase,
+        pendingBumps,
+      );
     });
 
-    it('does not record a bump when the idempotent create finds an existing role', async () => {
+    it('does not call bumpNowOrDefer when the idempotent create finds an existing role', async () => {
       const pendingBumps: EpochBump[] = [];
       mockDatabase.role.findFirst.mockResolvedValue(
         RoleFactory.build({ communityId: null }),
@@ -2579,11 +2629,10 @@ describe('RolesService', () => {
         pendingBumps,
       );
 
-      expectNoImmediateBumps();
-      expect(pendingBumps).toEqual([]);
+      expect(permissionsCacheService.bumpNowOrDefer).not.toHaveBeenCalled();
     });
 
-    it('falls back to an immediate bump when tx is given without a collector', async () => {
+    it('assignUserToCommunityRole forwards tx without a pendingBumps collector to bumpNowOrDefer', async () => {
       const userId = 'user-defer-fallback';
       const communityId = 'community-defer-8';
       const roleId = 'role-defer-9';
@@ -2599,8 +2648,14 @@ describe('RolesService', () => {
         mockDatabase as any,
       );
 
-      expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
-        userId,
+      // No collector was passed — bumpNowOrDefer itself decides whether to
+      // fall back to an immediate bump (covered in
+      // permissions-cache.service.spec.ts); here we only verify the call is
+      // forwarded with the right (bump, tx, undefined) arguments.
+      expect(permissionsCacheService.bumpNowOrDefer).toHaveBeenCalledWith(
+        { kind: 'user', userId },
+        mockDatabase,
+        undefined,
       );
     });
   });

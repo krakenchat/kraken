@@ -60,47 +60,6 @@ export class RolesService implements OnModuleInit {
     }
   }
 
-  /**
-   * Epoch-bump helper for role mutations that can run inside a caller-owned
-   * transaction. Two modes:
-   *
-   * - Without `tx`: the mutation's write is already committed, so bump
-   *   immediately (awaited) — the invalidation is visible before the
-   *   mutation returns.
-   * - With `tx` + `pendingBumps`: the write is NOT committed yet. Bumping
-   *   now would open a race where a concurrent reader misses under the new
-   *   epoch, reads pre-commit data from the DB, and caches it under the
-   *   post-commit epoch — a stale grant. So instead the bump is recorded on
-   *   the caller's collector; the transaction owner flushes it via
-   *   `PermissionsCacheService.executeBumps` right after `$transaction`
-   *   resolves. On rollback the collected bumps are never executed, which
-   *   is correct (nothing changed in the DB).
-   * - With `tx` but no collector (defensive fallback — every tx caller in
-   *   the codebase passes one): bump immediately anyway. That re-opens the
-   *   narrow pre-commit race above, but silently dropping the bump would be
-   *   strictly worse (guaranteed stale grant for up to the value TTL).
-   */
-  private async bumpNowOrDefer(
-    bump: EpochBump,
-    tx?: Prisma.TransactionClient,
-    pendingBumps?: EpochBump[],
-  ): Promise<void> {
-    if (tx && pendingBumps) {
-      pendingBumps.push(bump);
-      return;
-    }
-    switch (bump.kind) {
-      case 'user':
-        return this.permissionsCacheService.bumpUserEpoch(bump.userId);
-      case 'community':
-        return this.permissionsCacheService.bumpCommunityEpoch(
-          bump.communityId,
-        );
-      case 'instance':
-        return this.permissionsCacheService.bumpInstanceEpoch();
-    }
-  }
-
   async getUserRolesForCommunity(
     userId: string,
     communityId: string,
@@ -244,7 +203,7 @@ export class RolesService implements OnModuleInit {
 
     // Role definitions changed for this community (bump deferred to after
     // commit when running inside a caller-owned transaction).
-    await this.bumpNowOrDefer(
+    await this.permissionsCacheService.bumpNowOrDefer(
       { kind: 'community', communityId },
       tx,
       pendingBumps,
@@ -283,7 +242,11 @@ export class RolesService implements OnModuleInit {
     // Role assignment changed for this user. Like the event emission below,
     // the bump must not happen while a caller-owned transaction is still
     // open — see bumpNowOrDefer for the pre-commit race this avoids.
-    await this.bumpNowOrDefer({ kind: 'user', userId }, tx, pendingBumps);
+    await this.permissionsCacheService.bumpNowOrDefer(
+      { kind: 'user', userId },
+      tx,
+      pendingBumps,
+    );
 
     // Only emit when not called within a transaction (e.g., community creation)
     if (!tx) {
@@ -387,7 +350,7 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.bumpNowOrDefer(
+    await this.permissionsCacheService.bumpNowOrDefer(
       { kind: 'community', communityId },
       tx,
       pendingBumps,
@@ -647,7 +610,7 @@ export class RolesService implements OnModuleInit {
       `Created custom role "${createRoleDto.name}" for community ${communityId}`,
     );
 
-    await this.bumpNowOrDefer(
+    await this.permissionsCacheService.bumpNowOrDefer(
       { kind: 'community', communityId },
       tx,
       pendingBumps,
@@ -781,7 +744,7 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Updated role ${roleId}`);
 
-    await this.bumpNowOrDefer(
+    await this.permissionsCacheService.bumpNowOrDefer(
       { kind: 'community', communityId },
       tx,
       pendingBumps,
@@ -853,7 +816,7 @@ export class RolesService implements OnModuleInit {
 
     this.logger.log(`Deleted role ${roleId}`);
 
-    await this.bumpNowOrDefer(
+    await this.permissionsCacheService.bumpNowOrDefer(
       { kind: 'community', communityId },
       tx,
       pendingBumps,
@@ -901,7 +864,11 @@ export class RolesService implements OnModuleInit {
       `Removed user ${userId} from role ${roleId} in community ${communityId}`,
     );
 
-    await this.bumpNowOrDefer({ kind: 'user', userId }, tx, pendingBumps);
+    await this.permissionsCacheService.bumpNowOrDefer(
+      { kind: 'user', userId },
+      tx,
+      pendingBumps,
+    );
 
     if (!tx) {
       this.eventEmitter.emit(RoomEvents.ROLE_UNASSIGNED, {
@@ -977,7 +944,11 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.bumpNowOrDefer({ kind: 'instance' }, tx, pendingBumps);
+    await this.permissionsCacheService.bumpNowOrDefer(
+      { kind: 'instance' },
+      tx,
+      pendingBumps,
+    );
 
     this.logger.log(`Created default instance admin role: ${role.id}`);
     return role.id;
@@ -1226,7 +1197,11 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.bumpNowOrDefer({ kind: 'user', userId }, tx, pendingBumps);
+    await this.permissionsCacheService.bumpNowOrDefer(
+      { kind: 'user', userId },
+      tx,
+      pendingBumps,
+    );
 
     this.logger.log(
       `Assigned user ${userId} to instance role ${roleId} (${role.name})`,
@@ -1325,7 +1300,11 @@ export class RolesService implements OnModuleInit {
       },
     });
 
-    await this.bumpNowOrDefer({ kind: 'instance' }, tx, pendingBumps);
+    await this.permissionsCacheService.bumpNowOrDefer(
+      { kind: 'instance' },
+      tx,
+      pendingBumps,
+    );
 
     this.logger.log(`Created default Community Creator role: ${role.id}`);
     return role.id;
