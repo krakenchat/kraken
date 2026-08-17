@@ -442,4 +442,37 @@ describe('MessagesGateway', () => {
       expect(websocketService.sendToRoom).not.toHaveBeenCalled();
     });
   });
+
+  describe('handleTypingStart wire normalization (#440)', () => {
+    it('emits the typing payload in JSON wire form — undefined ids dropped, sender excluded', () => {
+      const mockEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockEmit });
+      const mockClient = {
+        handshake: { user: { id: 'user-typing' } },
+        rooms: new Set(['channel-typing']),
+        to: mockTo,
+      } as any;
+
+      gateway.handleTypingStart(
+        { channelId: 'channel-typing' } as any,
+        mockClient,
+      );
+
+      // client.to() (not sendToRoom) so the sender is excluded from the broadcast
+      expect(mockTo).toHaveBeenCalledWith('channel-typing');
+      expect(websocketService.sendToRoom).not.toHaveBeenCalled();
+
+      expect(mockEmit).toHaveBeenCalledTimes(1);
+      const [event, payload] = mockEmit.mock.calls[0];
+      expect(event).toBe(ServerEvents.USER_TYPING);
+      // JSON wire form: the undefined directMessageGroupId is dropped, matching
+      // what same-node clients receive from socket.io's own JSON encoder
+      expect(payload).toEqual({
+        userId: 'user-typing',
+        channelId: 'channel-typing',
+        isTyping: true,
+      });
+      expect('directMessageGroupId' in payload).toBe(false);
+    });
+  });
 });

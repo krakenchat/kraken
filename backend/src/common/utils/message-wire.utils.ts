@@ -11,10 +11,12 @@ import { Message } from '@semaphore-chat/shared';
  * the shared string-literal enums (identical runtime values, different
  * nominal types), and several columns are raw `Date` / `null` on the Prisma
  * side where the shared DTO documents the post-JSON-serialization wire
- * shape (`string` timestamps, `undefined`-style optionals). Safely closing
- * that gap requires a full field-by-field Prisma -> wire-DTO mapper —
- * a genuine refactor, out of scope for a typing-only cleanup pass (callers
- * are the WS emit paths in messages, threads, link-previews, and clips).
+ * shape (`string` timestamps, `undefined`-style optionals). The Date half
+ * of that gap is now closed at runtime by the WebsocketService boundary
+ * (see below); making the *static types* line up without any cast would
+ * still require a full field-by-field Prisma -> wire-DTO mapper — a genuine
+ * refactor, out of scope here (callers are the WS emit paths in messages,
+ * threads, link-previews, and clips).
  *
  * This cast does not change what is actually emitted — it hands the exact
  * same runtime value to `.emit()` that was passed in, just relabeled to

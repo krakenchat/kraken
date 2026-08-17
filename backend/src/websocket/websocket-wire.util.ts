@@ -17,6 +17,13 @@
  * to the same-node path by construction, since that's the same conversion
  * socket.io's own encoder performs.
  *
+ * Caveat: this equivalence holds only for JSON-serializable payloads. If an
+ * event ever carries binary data (`Buffer`/`ArrayBuffer`/`Uint8Array` —
+ * socket.io extracts those as binary attachments instead of JSON-encoding
+ * them), the roundtrip would corrupt it into `{type:'Buffer',data:[...]}`.
+ * No current event in the shared payload map carries binary; exempt such a
+ * payload from this normalization if one is ever added.
+ *
  * Fixes #440.
  */
 export function toWirePayload<T>(payload: T): T {
