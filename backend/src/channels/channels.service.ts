@@ -26,13 +26,13 @@ export class ChannelsService {
    * identical string values (TEXT/VOICE) but are structurally distinct TS
    * types, so `type` is a pure relabeling cast — no value change at all.
    * `createdAt` is cast rather than converted: the shared type's declared
-   * wire shape is a post-serialization ISO string, but this preserves the
-   * existing runtime value (a raw Date, same as before this task) instead
-   * of changing what's actually emitted. Correctness of the Date -> string
-   * wire conversion (this instance uses the Redis adapter, whose notepack
-   * encoding of Date differs from JSON.stringify) is out of scope for this
-   * typing-only pass — see the doc comment in
-   * `@/common/utils/message-wire.utils` for the notepack caveat.
+   * wire shape is a post-serialization ISO string, and this hands the raw
+   * Date straight through — WebsocketService.sendToRoom()/sendToAll() now
+   * JSON-roundtrip every payload (Date -> ISO string, same conversion
+   * socket.io's own same-node encoder performs) immediately before
+   * `.emit()`, so this cast is purely a static-type relabeling and the
+   * runtime already matches it. See toWirePayload in
+   * `@/websocket/websocket-wire.util`. Fixes #440.
    */
   private toSharedChannel(channel: {
     id: string;

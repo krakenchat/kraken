@@ -37,6 +37,7 @@ import { getSocketUserId } from '@/common/utils/socket.utils';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { RoomName } from '@/common/utils/room-name.util';
 import { MessageDispatchService } from './message-dispatch.service';
+import { toWirePayload } from '@/websocket/websocket-wire.util';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -137,14 +138,20 @@ export class MessagesGateway
         channelId: payload.channelId,
       })
       .then((receipt) => {
-        this.server
-          .to(RoomName.user(userId))
-          .emit(ServerEvents.READ_RECEIPT_UPDATED, {
+        this.websocketService.sendToRoom(
+          RoomName.user(userId),
+          ServerEvents.READ_RECEIPT_UPDATED,
+          {
             channelId: receipt.channelId,
             directMessageGroupId: receipt.directMessageGroupId,
             lastReadMessageId: receipt.lastReadMessageId,
-            lastReadAt: receipt.lastReadAt,
-          });
+            // Cast, not converted: WebsocketService.sendToRoom() normalizes
+            // every payload to JSON wire form (Date -> ISO string) right
+            // before `.emit()`, so the runtime already matches this cast.
+            // See toWirePayload in @/websocket/websocket-wire.util. Fixes #440.
+            lastReadAt: receipt.lastReadAt as unknown as string,
+          },
+        );
       })
       .catch((error) =>
         this.logger.error('Failed to auto-mark message as read', error),
@@ -192,14 +199,20 @@ export class MessagesGateway
         directMessageGroupId: payload.directMessageGroupId,
       })
       .then((receipt) => {
-        this.server
-          .to(RoomName.user(userId))
-          .emit(ServerEvents.READ_RECEIPT_UPDATED, {
+        this.websocketService.sendToRoom(
+          RoomName.user(userId),
+          ServerEvents.READ_RECEIPT_UPDATED,
+          {
             channelId: receipt.channelId,
             directMessageGroupId: receipt.directMessageGroupId,
             lastReadMessageId: receipt.lastReadMessageId,
-            lastReadAt: receipt.lastReadAt,
-          });
+            // Cast, not converted: WebsocketService.sendToRoom() normalizes
+            // every payload to JSON wire form (Date -> ISO string) right
+            // before `.emit()`, so the runtime already matches this cast.
+            // See toWirePayload in @/websocket/websocket-wire.util. Fixes #440.
+            lastReadAt: receipt.lastReadAt as unknown as string,
+          },
+        );
       })
       .catch((error) =>
         this.logger.error('Failed to auto-mark DM as read', error),
@@ -300,13 +313,19 @@ export class MessagesGateway
     // Only allow typing in rooms the socket has joined (prevents channel probing)
     if (!client.rooms.has(roomId)) return;
 
-    // Broadcast to room, excluding sender
-    client.to(roomId).emit(ServerEvents.USER_TYPING, {
-      userId,
-      channelId: payload.channelId,
-      directMessageGroupId: payload.directMessageGroupId,
-      isTyping: true,
-    });
+    // Broadcast to room, excluding sender. This bypasses WebsocketService
+    // (client.to().emit() excludes the sender; sendToRoom() would include
+    // them) so it still traverses the Redis adapter directly — normalize
+    // to wire form here too. Fixes #440.
+    client.to(roomId).emit(
+      ServerEvents.USER_TYPING,
+      toWirePayload({
+        userId,
+        channelId: payload.channelId,
+        directMessageGroupId: payload.directMessageGroupId,
+        isTyping: true,
+      }),
+    );
   }
 
   @SubscribeMessage(ClientEvents.TYPING_STOP)
@@ -323,11 +342,16 @@ export class MessagesGateway
     // Only allow typing in rooms the socket has joined (prevents channel probing)
     if (!client.rooms.has(roomId)) return;
 
-    client.to(roomId).emit(ServerEvents.USER_TYPING, {
-      userId,
-      channelId: payload.channelId,
-      directMessageGroupId: payload.directMessageGroupId,
-      isTyping: false,
-    });
+    // See the isTyping: true branch above for why this bypasses
+    // WebsocketService and normalizes directly. Fixes #440.
+    client.to(roomId).emit(
+      ServerEvents.USER_TYPING,
+      toWirePayload({
+        userId,
+        channelId: payload.channelId,
+        directMessageGroupId: payload.directMessageGroupId,
+        isTyping: false,
+      }),
+    );
   }
 }

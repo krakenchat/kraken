@@ -7,13 +7,14 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { ServerEvents } from '@semaphore-chat/shared';
+import { NewNotificationPayload, ServerEvents } from '@semaphore-chat/shared';
 import { Notification } from '@prisma/client';
 import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { RoomName } from '@/common/utils/room-name.util';
 import { SpanDto } from '@/messages/dto/message-response.dto';
+import { WebsocketService } from '@/websocket/websocket.service';
 
 /**
  * Gateway for sending real-time notification events to clients
@@ -38,6 +39,8 @@ export class NotificationsGateway
   server: Server;
 
   private readonly logger = new Logger(NotificationsGateway.name);
+
+  constructor(private readonly websocketService: WebsocketService) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   afterInit(_server: Server) {
@@ -88,18 +91,33 @@ export class NotificationsGateway
   ): void {
     const userRoom = RoomName.user(userId);
 
-    this.server.to(userRoom).emit(ServerEvents.NEW_NOTIFICATION, {
+    this.websocketService.sendToRoom(userRoom, ServerEvents.NEW_NOTIFICATION, {
       notificationId: notification.id,
-      type: notification.type,
+      // Cast, not converted: Prisma's `NotificationType` enum and the
+      // shared string-literal enum have identical runtime values but are
+      // structurally distinct TS types — pure relabeling, no value change.
+      type: notification.type as unknown as NewNotificationPayload['type'],
       messageId: notification.messageId,
       channelId: notification.channelId,
       communityId: notification.channel?.communityId ?? null,
       channelName: notification.channel?.name ?? null,
       directMessageGroupId: notification.directMessageGroupId,
       authorId: notification.authorId,
-      author: notification.author,
-      message: notification.message,
-      createdAt: notification.createdAt,
+      // Cast, not converted: Prisma's nullable relations come back as
+      // `T | null`, not `T | undefined` (the shared DTO's convention) —
+      // same structural-mismatch pattern as `message` below (see the
+      // SpanDto doc comment above).
+      author:
+        notification.author as unknown as NewNotificationPayload['author'],
+      message:
+        notification.message as unknown as NewNotificationPayload['message'],
+      // Cast, not converted: the wire type's declared shape is the
+      // post-serialization ISO string, but this hands the raw Date
+      // straight through — WebsocketService.sendToRoom() normalizes
+      // every payload to JSON wire form (Date -> ISO string) right
+      // before `.emit()`, so the runtime already matches this cast. See
+      // toWirePayload in @/websocket/websocket-wire.util. Fixes #440.
+      createdAt: notification.createdAt as unknown as string,
       read: notification.read,
     });
 
@@ -112,7 +130,7 @@ export class NotificationsGateway
   emitNotificationRead(userId: string, notificationId: string): void {
     const userRoom = RoomName.user(userId);
 
-    this.server.to(userRoom).emit(ServerEvents.NOTIFICATION_READ, {
+    this.websocketService.sendToRoom(userRoom, ServerEvents.NOTIFICATION_READ, {
       notificationId,
     });
 

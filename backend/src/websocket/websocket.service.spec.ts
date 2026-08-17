@@ -1,5 +1,6 @@
 import { TestBed } from '@suites/unit';
 import { WebsocketService } from './websocket.service';
+import { toWirePayload } from './websocket-wire.util';
 import { Server } from 'socket.io';
 
 describe('WebsocketService', () => {
@@ -236,7 +237,13 @@ describe('WebsocketService', () => {
       expect(mockEmit).toHaveBeenCalledWith('undefined-event', undefined);
     });
 
-    it('should handle complex payloads', () => {
+    it('should normalize nested Dates to ISO strings (JSON wire form), not pass the raw Date through', () => {
+      // Fixes #440: prior to the toWirePayload() normalization, this
+      // asserted the raw Date object was passed straight to `.emit()`,
+      // which is exactly the bug — the Redis adapter's notepack encoding
+      // has no Date codec, so cross-replica clients received `{}` for
+      // `lastSeen`. Same-node clients already got the ISO string below via
+      // socket.io's own JSON encoding, so this is now what both paths agree on.
       const mockEmit = jest.fn();
       const mockServer = { emit: mockEmit } as any;
 
@@ -258,7 +265,195 @@ describe('WebsocketService', () => {
       const result = looseService.sendToAll('complex-event', complexPayload);
 
       expect(result).toBe(true);
-      expect(mockEmit).toHaveBeenCalledWith('complex-event', complexPayload);
+      expect(mockEmit).toHaveBeenCalledWith('complex-event', {
+        ...complexPayload,
+        user: {
+          ...complexPayload.user,
+          metadata: {
+            ...complexPayload.user.metadata,
+            lastSeen: complexPayload.user.metadata.lastSeen.toISOString(),
+          },
+        },
+      });
+      // The original object is untouched — normalization returns a new
+      // object via JSON roundtrip rather than mutating the input in place.
+      expect(complexPayload.user.metadata.lastSeen).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('toWirePayload normalization (fixes #440)', () => {
+    it('converts a top-level Date field to an ISO string', () => {
+      const mockEmit = jest.fn();
+      const mockServer = { emit: mockEmit } as any;
+      service.setServer(mockServer);
+
+      const sentAt = new Date('2024-06-15T12:00:00.000Z');
+      looseService.sendToAll('event', { sentAt });
+
+      expect(mockEmit).toHaveBeenCalledWith('event', {
+        sentAt: sentAt.toISOString(),
+      });
+    });
+
+    it('converts Dates nested inside an array element (e.g. a replyTo-like nested message)', () => {
+      const mockEmit = jest.fn();
+      const mockServer = { emit: mockEmit } as any;
+      service.setServer(mockServer);
+
+      const sentAt = new Date('2024-06-15T12:00:00.000Z');
+      const replyToSentAt = new Date('2024-06-14T09:30:00.000Z');
+      const payload = {
+        message: {
+          id: 'msg-1',
+          sentAt,
+          replyTo: {
+            id: 'msg-0',
+            sentAt: replyToSentAt,
+          },
+          reactions: [{ emoji: '👍', reactedAt: replyToSentAt }],
+        },
+      };
+
+      looseService.sendToAll('event', payload);
+
+      expect(mockEmit).toHaveBeenCalledWith('event', {
+        message: {
+          id: 'msg-1',
+          sentAt: sentAt.toISOString(),
+          replyTo: {
+            id: 'msg-0',
+            sentAt: replyToSentAt.toISOString(),
+          },
+          reactions: [{ emoji: '👍', reactedAt: replyToSentAt.toISOString() }],
+        },
+      });
+    });
+
+    it('preserves null', () => {
+      const mockEmit = jest.fn();
+      const mockServer = { emit: mockEmit } as any;
+      service.setServer(mockServer);
+
+      looseService.sendToAll('event', null);
+
+      expect(mockEmit).toHaveBeenCalledWith('event', null);
+    });
+
+    it('drops undefined object fields (JSON semantics)', () => {
+      const mockEmit = jest.fn();
+      const mockServer = { emit: mockEmit } as any;
+      service.setServer(mockServer);
+
+      looseService.sendToAll('event', {
+        id: 'x',
+        channelId: undefined,
+        directMessageGroupId: 'dm-1',
+      });
+
+      expect(mockEmit).toHaveBeenCalledWith('event', {
+        id: 'x',
+        directMessageGroupId: 'dm-1',
+      });
+      const [, sentPayload] = mockEmit.mock.calls[0];
+      expect(
+        Object.prototype.hasOwnProperty.call(sentPayload, 'channelId'),
+      ).toBe(false);
+    });
+
+    it('passes non-object payloads through unchanged', () => {
+      const mockEmit = jest.fn();
+      const mockServer = { emit: mockEmit } as any;
+      service.setServer(mockServer);
+
+      looseService.sendToAll('event', 'plain-string-payload');
+
+      expect(mockEmit).toHaveBeenCalledWith('event', 'plain-string-payload');
+    });
+
+    it('does not mutate the original payload object (returns a new object)', () => {
+      const mockEmit = jest.fn();
+      const mockServer = { emit: mockEmit } as any;
+      service.setServer(mockServer);
+
+      const sentAt = new Date('2024-06-15T12:00:00.000Z');
+      const payload = { id: 'msg-1', sentAt };
+
+      looseService.sendToAll('event', payload);
+
+      expect(payload.sentAt).toBeInstanceOf(Date);
+      expect(payload.sentAt).toBe(sentAt);
+
+      const [, sentPayload] = mockEmit.mock.calls[0];
+      expect(sentPayload).not.toBe(payload);
+    });
+
+    it('normalizes payloads for sendToRoom the same way as sendToAll', () => {
+      const mockEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockEmit });
+      const mockServer = { to: mockTo } as any;
+      service.setServer(mockServer);
+
+      const sentAt = new Date('2024-06-15T12:00:00.000Z');
+      looseService.sendToRoom('room-1', 'event', { id: 'msg-1', sentAt });
+
+      expect(mockEmit).toHaveBeenCalledWith('event', {
+        id: 'msg-1',
+        sentAt: sentAt.toISOString(),
+      });
+    });
+
+    describe('binary payload guard', () => {
+      it('toWirePayload throws on a top-level Buffer instead of corrupting it', () => {
+        expect(() =>
+          toWirePayload({ id: 'msg-1', data: Buffer.from([1, 2, 3]) }),
+        ).toThrow(/carries binary data \(Buffer\)/);
+      });
+
+      it('toWirePayload throws on binary nested at depth (typed array in an array)', () => {
+        expect(() =>
+          toWirePayload({ items: [{ chunk: new Uint8Array([9, 9]) }] }),
+        ).toThrow(/carries binary data \(Uint8Array\)/);
+      });
+
+      it('toWirePayload throws on a raw ArrayBuffer field', () => {
+        expect(() => toWirePayload({ buf: new ArrayBuffer(4) })).toThrow(
+          /carries binary data \(ArrayBuffer\)/,
+        );
+      });
+
+      it('sendToAll fails closed on a binary payload: no emit, error logged, returns false', () => {
+        const mockEmit = jest.fn();
+        const mockServer = { emit: mockEmit } as any;
+        service.setServer(mockServer);
+        const errorSpy = jest.spyOn(service['logger'], 'error');
+
+        const result = looseService.sendToAll('event', {
+          data: Buffer.from([1, 2, 3]),
+        });
+
+        expect(result).toBe(false);
+        expect(mockEmit).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('event'),
+          expect.objectContaining({
+            message: expect.stringContaining('carries binary data'),
+          }),
+        );
+      });
+
+      it('sendToRoom fails closed on a binary payload: no emit, returns false', () => {
+        const mockEmit = jest.fn();
+        const mockTo = jest.fn().mockReturnValue({ emit: mockEmit });
+        const mockServer = { to: mockTo } as any;
+        service.setServer(mockServer);
+
+        const result = looseService.sendToRoom('room-1', 'event', {
+          chunk: new Uint8Array([9]),
+        });
+
+        expect(result).toBe(false);
+        expect(mockEmit).not.toHaveBeenCalled();
+      });
     });
   });
 
