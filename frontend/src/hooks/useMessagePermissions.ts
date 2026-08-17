@@ -59,12 +59,12 @@ export function useMessagePermissions({
   // For DMs, skip RBAC — pin is not supported and delete is ownership-only.
   const canDeleteMessage = useCanPerformAction(
     RBAC_RESOURCES.CHANNEL,
-    isDm ? undefined : message.channelId,
+    isDm ? undefined : (message.channelId ?? undefined),
     RBAC_ACTIONS.DELETE_MESSAGE
   );
   const canPinMessage = useCanPerformAction(
     RBAC_RESOURCES.CHANNEL,
-    isDm ? undefined : message.channelId,
+    isDm ? undefined : (message.channelId ?? undefined),
     RBAC_ACTIONS.PIN_MESSAGE
   );
 

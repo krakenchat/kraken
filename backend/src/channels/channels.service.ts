@@ -24,10 +24,14 @@ export class ChannelsService {
    * Converts a Prisma Channel row into the shared wire-DTO shape.
    * Prisma's `ChannelType` enum and the shared `ChannelType` enum have
    * identical string values (TEXT/VOICE) but are structurally distinct TS
-   * types; `createdAt` is a JS Date pre-serialization vs. the shared
-   * type's ISO-string (post-serialization) contract. Both conversions
-   * produce the exact bytes Socket.IO's JSON serialization would already
-   * send — no wire/runtime change, just satisfying the emit's static type.
+   * types, so `type` is a pure relabeling cast — no value change at all.
+   * `createdAt` is cast rather than converted: the shared type's declared
+   * wire shape is a post-serialization ISO string, but this preserves the
+   * existing runtime value (a raw Date, same as before this task) instead
+   * of changing what's actually emitted. Correctness of the Date -> string
+   * wire conversion (this instance uses the Redis adapter, whose notepack
+   * encoding of Date differs from JSON.stringify) is out of scope for this
+   * typing-only pass — see the Task 3 report.
    */
   private toSharedChannel(channel: {
     id: string;
@@ -42,7 +46,7 @@ export class ChannelsService {
     return {
       ...channel,
       type: channel.type as unknown as SharedChannel['type'],
-      createdAt: channel.createdAt.toISOString(),
+      createdAt: channel.createdAt as unknown as string,
     };
   }
 

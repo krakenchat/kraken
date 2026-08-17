@@ -16,13 +16,19 @@ import { Message } from '@semaphore-chat/shared';
  * a genuine refactor, out of scope for a typing-only cleanup pass (see the
  * Task 3 report for the full list of call sites relying on this cast).
  *
- * The two shapes are wire-compatible: Socket.IO's JSON serialization
- * produces identical bytes whether the raw Prisma object or a "properly"
- * converted one is handed to `.emit()` (Dates serialize to the same ISO
- * string either way; the enum values match 1:1). This cast therefore does
- * not change what is actually emitted — it only satisfies the static type
- * at the WebsocketService boundary.
+ * This cast does not change what is actually emitted — it hands the exact
+ * same runtime value to `.emit()` that was passed in, just relabeled to
+ * satisfy the static type at the WebsocketService boundary. It does NOT
+ * claim the resulting wire bytes match the shared type's documented shape
+ * (e.g. Date -> ISO-string correctness across the Redis adapter is a
+ * separate, deferred concern — see the Task 3 report).
+ *
+ * The parameter is constrained to values that are at least plausibly a
+ * message (has `id`, `spans`, `sentAt`) rather than `unknown`, so this
+ * can't silently launder an unrelated object into a `Message`.
  */
-export function toWireMessage(message: unknown): Message {
-  return message as Message;
+export function toWireMessage<
+  T extends { id: string; spans: unknown[]; sentAt: Date },
+>(message: T): Message {
+  return message as unknown as Message;
 }

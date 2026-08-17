@@ -117,9 +117,7 @@ describe('ThreadsGateway', () => {
         expect.objectContaining({
           parentMessageId: 'parent-msg-1',
           replyCount: 3,
-          // Gateway now serializes to an ISO string to match the shared
-          // payload's post-serialization wire type (Task 3, commit 3).
-          lastReplyAt: mockParentMessage.lastReplyAt.toISOString(),
+          lastReplyAt: mockParentMessage.lastReplyAt,
           channelId: 'ch-1',
           directMessageGroupId: null,
         }),

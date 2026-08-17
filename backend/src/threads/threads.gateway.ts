@@ -136,10 +136,14 @@ export class ThreadsGateway
         {
           parentMessageId: payload.parentMessageId,
           replyCount: parentMessage.replyCount,
-          // Date -> ISO string: same bytes Socket.IO's JSON serialization
-          // would already produce for a raw Date, just satisfying the
-          // payload's post-serialization `string | null` wire type.
-          lastReplyAt: parentMessage.lastReplyAt?.toISOString() ?? null,
+          // Cast, not converted: preserves the existing runtime value
+          // (a raw Date, same as before this task) rather than changing
+          // what's emitted. The payload's declared wire type is a
+          // post-serialization `string | null`; correctness of that
+          // conversion across the Redis adapter (which doesn't always
+          // serialize Date the same way JSON.stringify would) is out of
+          // scope for this typing-only pass — see the Task 3 report.
+          lastReplyAt: parentMessage.lastReplyAt as unknown as string | null,
           channelId: parentMessage.channelId ?? null,
           directMessageGroupId: parentMessage.directMessageGroupId ?? null,
         },

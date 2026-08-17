@@ -382,8 +382,8 @@ function MessageComponentInner({
         {message.replyTo && (
           <QuotePreview
             replyTo={message.replyTo}
-            channelId={message.channelId}
-            directMessageGroupId={message.directMessageGroupId}
+            channelId={message.channelId ?? undefined}
+            directMessageGroupId={message.directMessageGroupId ?? undefined}
           />
         )}
         {isEditing ? (
