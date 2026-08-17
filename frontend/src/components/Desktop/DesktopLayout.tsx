@@ -38,7 +38,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         isLoading={isLoading}
         isError={isError}
         userData={userData}
-        onToggleMenu={() => setIsMenuExpanded(!isMenuExpanded)}
+        onToggleMenu={() => setIsMenuExpanded((expanded) => !expanded)}
         onNotificationCenterOpen={() => setNotificationCenterOpen(true)}
       />
       <NotificationCenter

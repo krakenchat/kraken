@@ -10,8 +10,9 @@ import { isElectron } from "../utils/platform";
 /**
  * Encapsulates the app's logout flow: leave voice (best effort), tear down
  * the local voice connection + socket state, call the logout mutation
- * (sending the Electron refresh token in the body when applicable), clear
- * tokens, then navigate to /login.
+ * (best effort, sending the Electron refresh token in the body when
+ * applicable), then always clear tokens and navigate to /login — local
+ * logout completes even if the server-side revocation fails.
  */
 export function useLogout() {
   const navigate = useNavigate();
@@ -29,11 +30,18 @@ export function useLogout() {
     }
     clearSavedConnection();
     disconnectSocket();
-    // Electron clients must send refresh token in body since cookies don't work cross-origin
-    const refreshToken = isElectron() ? (await getElectronRefreshToken()) ?? undefined : undefined;
-    await logout({ body: { refreshToken } });
-    clearTokens();
-    navigate("/login");
+    try {
+      // Electron clients must send refresh token in body since cookies don't work cross-origin
+      const refreshToken = isElectron() ? (await getElectronRefreshToken()) ?? undefined : undefined;
+      await logout({ body: { refreshToken } });
+    } catch {
+      // Best effort — the server-side session revocation can fail (network
+      // error, already-expired session), but local logout must still
+      // complete: clear tokens and leave the authenticated UI regardless.
+    } finally {
+      clearTokens();
+      navigate("/login");
+    }
   };
 
   return { handleLogout, logoutLoading };

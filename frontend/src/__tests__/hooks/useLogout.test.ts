@@ -133,6 +133,32 @@ describe('useLogout', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/login');
   });
 
+  it('still clears tokens and navigates when the logout mutation rejects', async () => {
+    mockLogoutMutationFn.mockRejectedValueOnce(new Error('network down'));
+    const { result } = renderUseLogout();
+
+    await act(async () => {
+      await result.current.handleLogout();
+    });
+
+    expect(mockClearTokens).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('/login');
+  });
+
+  it('electron: still clears tokens and navigates when fetching the refresh token throws', async () => {
+    mockIsElectronValue = true;
+    mockGetElectronRefreshToken.mockRejectedValueOnce(new Error('ipc failed'));
+    const { result } = renderUseLogout();
+
+    await act(async () => {
+      await result.current.handleLogout();
+    });
+
+    expect(mockLogoutMutationFn).not.toHaveBeenCalled();
+    expect(mockClearTokens).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('/login');
+  });
+
   it('web: sends no refreshToken in the logout body', async () => {
     const { result } = renderUseLogout();
 
