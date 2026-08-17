@@ -3,7 +3,7 @@ import type { Mocked } from '@suites/doubles.jest';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ModerationService } from './moderation.service';
 import { DatabaseService } from '@/database/database.service';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { PermissionsCacheService } from '@/roles/permissions-cache.service';
@@ -25,7 +25,7 @@ import { ServerEvents } from '@semaphore-chat/shared';
 describe('ModerationService', () => {
   let service: ModerationService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
-  let rolesService: Mocked<RolesService>;
+  let communityRolesService: Mocked<CommunityRolesService>;
   let membershipService: Mocked<MembershipService>;
   let websocketService: Mocked<WebsocketService>;
   let eventEmitter: Mocked<EventEmitter2>;
@@ -46,7 +46,7 @@ describe('ModerationService', () => {
       .compile();
 
     service = unit;
-    rolesService = unitRef.get(RolesService);
+    communityRolesService = unitRef.get(CommunityRolesService);
     membershipService = unitRef.get(MembershipService);
     websocketService = unitRef.get(WebsocketService);
     eventEmitter = unitRef.get(EventEmitter2);
@@ -98,7 +98,7 @@ describe('ModerationService', () => {
   // =========================================
   describe('role hierarchy (position-based)', () => {
     const setupBanScaffold = (moderatorRoles: any[], targetRoles: any[]) => {
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles(moderatorRoles) as any)
         .mockResolvedValueOnce(createMockUserRoles(targetRoles) as any);
       membershipService.isMember.mockResolvedValue(true);
@@ -139,7 +139,7 @@ describe('ModerationService', () => {
 
     it('canModerate is false when positions are equal (20 vs 20)', async () => {
       // Both have Moderator (20) → equal → strictly-lower required → cannot moderate
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([mockModeratorRole]) as any)
         .mockResolvedValueOnce(createMockUserRoles([mockModeratorRole]) as any);
 
@@ -150,7 +150,7 @@ describe('ModerationService', () => {
 
     it('user with zero roles can never moderate anyone', async () => {
       // Moderator has no roles → cannot moderate even a Member
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([]) as any) // moderator: no roles
         .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any); // target: Member
 
@@ -214,7 +214,7 @@ describe('ModerationService', () => {
         position: 50,
       };
       // Moderator has "Community Admin" (50), target has "Janitor" (10) → 50 > 10 → cannot moderate
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([renamedAdminRole]) as any)
         .mockResolvedValueOnce(createMockUserRoles([janitorRole]) as any);
 
@@ -227,7 +227,7 @@ describe('ModerationService', () => {
   describe('banUser', () => {
     beforeEach(() => {
       // Setup default mock for role hierarchy (moderator position 10 < target position 100)
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any) // moderator (position 10)
         .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any); // user (position 100)
       membershipService.isMember.mockResolvedValue(true);
@@ -271,7 +271,7 @@ describe('ModerationService', () => {
         expect.objectContaining({ communityId, userId }),
       );
       // removeMemberInternal removes role assignments via a raw
-      // tx.userRoles.deleteMany, bypassing RolesService — banUser must
+      // tx.userRoles.deleteMany, bypassing CommunityRolesService — banUser must
       // bump the target user's epoch explicitly.
       expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
         userId,
@@ -279,8 +279,8 @@ describe('ModerationService', () => {
     });
 
     it('should throw ForbiddenException when moderator has lower rank (higher position number)', async () => {
-      rolesService.getUserRolesForCommunity.mockReset();
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity.mockReset();
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any) // moderator (position 100)
         .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any); // user (position 10)
 
@@ -427,7 +427,7 @@ describe('ModerationService', () => {
   describe('kickUser', () => {
     beforeEach(() => {
       // moderator position 10 < target position 100 → can moderate
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any) // moderator (position 10)
         .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any); // target (position 100)
       membershipService.isMember.mockResolvedValue(true);
@@ -472,7 +472,7 @@ describe('ModerationService', () => {
         expect.objectContaining({ communityId, userId }),
       );
       // removeMemberInternal removes role assignments via a raw
-      // tx.userRoles.deleteMany, bypassing RolesService — kickUser must
+      // tx.userRoles.deleteMany, bypassing CommunityRolesService — kickUser must
       // bump the target user's epoch explicitly.
       expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
         userId,
@@ -480,8 +480,8 @@ describe('ModerationService', () => {
     });
 
     it('should throw ForbiddenException when moderator has lower rank (higher position number)', async () => {
-      rolesService.getUserRolesForCommunity.mockReset();
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity.mockReset();
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any) // moderator (position 100)
         .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any); // target (position 10)
 
@@ -495,7 +495,7 @@ describe('ModerationService', () => {
   describe('timeoutUser', () => {
     beforeEach(() => {
       // moderator position 10 < target position 100 → can moderate
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any) // moderator (position 10)
         .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any); // target (position 100)
       membershipService.isMember.mockResolvedValue(true);
@@ -532,8 +532,8 @@ describe('ModerationService', () => {
     });
 
     it('should throw ForbiddenException when moderator has lower rank (higher position number)', async () => {
-      rolesService.getUserRolesForCommunity.mockReset();
-      rolesService.getUserRolesForCommunity
+      communityRolesService.getUserRolesForCommunity.mockReset();
+      communityRolesService.getUserRolesForCommunity
         .mockResolvedValueOnce(createMockUserRoles([mockMemberRole]) as any) // moderator (position 100)
         .mockResolvedValueOnce(createMockUserRoles([mockAdminRole]) as any); // target (position 10)
 

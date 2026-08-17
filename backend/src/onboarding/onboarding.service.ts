@@ -2,7 +2,8 @@ import { Injectable, ConflictException, Logger, Inject } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import Redis from 'ioredis';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
+import { InstanceRolesService } from '@/roles/instance-roles.service';
 import {
   EpochBump,
   PermissionsCacheService,
@@ -21,7 +22,8 @@ export class OnboardingService {
   constructor(
     private readonly databaseService: DatabaseService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
-    private readonly rolesService: RolesService,
+    private readonly communityRolesService: CommunityRolesService,
+    private readonly instanceRolesService: InstanceRolesService,
     private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
 
@@ -200,14 +202,15 @@ export class OnboardingService {
         });
 
         // Create default roles for the community
-        const adminRoleId = await this.rolesService.createDefaultCommunityRoles(
-          defaultCommunity.id,
-          tx,
-          pendingBumps,
-        );
+        const adminRoleId =
+          await this.communityRolesService.createDefaultCommunityRoles(
+            defaultCommunity.id,
+            tx,
+            pendingBumps,
+          );
 
         // Assign the admin user to the Community Admin role
-        await this.rolesService.assignUserToCommunityRole(
+        await this.communityRolesService.assignUserToCommunityRole(
           adminUser.id,
           defaultCommunity.id,
           adminRoleId,
@@ -243,8 +246,11 @@ export class OnboardingService {
 
       // 3. Create default instance admin role and assign to OWNER
       const instanceAdminRoleId =
-        await this.rolesService.createDefaultInstanceRole(tx, pendingBumps);
-      await this.rolesService.assignUserToInstanceRole(
+        await this.instanceRolesService.createDefaultInstanceRole(
+          tx,
+          pendingBumps,
+        );
+      await this.instanceRolesService.assignUserToInstanceRole(
         adminUser.id,
         instanceAdminRoleId,
         tx,
@@ -255,7 +261,7 @@ export class OnboardingService {
       );
 
       // 4. Create default Community Creator role (available for assignment to users)
-      await this.rolesService.createDefaultCommunityCreatorRole(
+      await this.instanceRolesService.createDefaultCommunityCreatorRole(
         tx,
         pendingBumps,
       );

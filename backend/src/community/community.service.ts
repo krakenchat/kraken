@@ -8,7 +8,7 @@ import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { isPrismaError } from '@/common/utils/prisma.utils';
@@ -23,7 +23,7 @@ export class CommunityService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly channelsService: ChannelsService,
-    private readonly rolesService: RolesService,
+    private readonly communityRolesService: CommunityRolesService,
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
@@ -54,14 +54,15 @@ export class CommunityService {
         );
 
         // Create default roles for the community
-        const adminRoleId = await this.rolesService.createDefaultCommunityRoles(
-          community.id,
-          tx,
-          pendingBumps,
-        );
+        const adminRoleId =
+          await this.communityRolesService.createDefaultCommunityRoles(
+            community.id,
+            tx,
+            pendingBumps,
+          );
 
         // Assign the creator as admin of the community
-        await this.rolesService.assignUserToCommunityRole(
+        await this.communityRolesService.assignUserToCommunityRole(
           creatorId,
           community.id,
           adminRoleId,
@@ -413,7 +414,7 @@ export class CommunityService {
 
     // Role definitions and assignments for this community were removed via
     // raw tx.role.deleteMany / tx.userRoles.deleteMany above (bypasses
-    // RolesService, so they don't self-bump). Bump the community epoch for
+    // CommunityRolesService, so they don't self-bump). Bump the community epoch for
     // completeness/defense-in-depth — in practice no future request can
     // resolve a permission check against this communityId again, since the
     // community and its channels/messages are gone.

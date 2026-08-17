@@ -11,7 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { InviteService } from '../invite/invite.service';
 import { ChannelsService } from '../channels/channels.service';
-import { RolesService } from '../roles/roles.service';
+import { CommunityRolesService } from '../roles/community-roles.service';
 import {
   EpochBump,
   PermissionsCacheService,
@@ -30,7 +30,7 @@ export class UserService {
     private readonly databaseService: DatabaseService,
     private instanceInviteService: InviteService,
     private channelsService: ChannelsService,
-    private rolesService: RolesService,
+    private communityRolesService: CommunityRolesService,
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
@@ -136,24 +136,28 @@ export class UserService {
           try {
             // Assign Member role to the user
             let memberRole =
-              await this.rolesService.getCommunityMemberRole(communityId);
+              await this.communityRolesService.getCommunityMemberRole(
+                communityId,
+              );
 
             // If Member role doesn't exist for this community, create it
             if (!memberRole) {
               this.logger.log(
                 `Member role not found for community ${communityId}, creating it...`,
               );
-              await this.rolesService.createMemberRoleForCommunity(
+              await this.communityRolesService.createMemberRoleForCommunity(
                 communityId,
                 tx,
                 pendingBumps,
               );
               memberRole =
-                await this.rolesService.getCommunityMemberRole(communityId);
+                await this.communityRolesService.getCommunityMemberRole(
+                  communityId,
+                );
             }
 
             if (memberRole) {
-              await this.rolesService.assignUserToCommunityRole(
+              await this.communityRolesService.assignUserToCommunityRole(
                 createdUser.id,
                 communityId,
                 memberRole.id,
