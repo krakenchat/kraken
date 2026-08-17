@@ -10,8 +10,8 @@ import {
 /**
  * RBAC permission verification (hot path — runs on every guarded request).
  *
- * Extracted from RolesService so that verification is separate from role
- * management (CRUD, default-role setup), which remains in RolesService.
+ * Kept separate from role management (CRUD, default-role setup), which
+ * lives in CommunityRolesService and InstanceRolesService.
  *
  * The two `userRoles.findMany` lookups (instance-level and community-level)
  * are cached via PermissionsCacheService — see that service's doc comment

@@ -142,7 +142,8 @@ export class ThreadsGateway
           // post-serialization `string | null`; correctness of that
           // conversion across the Redis adapter (which doesn't always
           // serialize Date the same way JSON.stringify would) is out of
-          // scope for this typing-only pass — see the Task 3 report.
+          // scope for this typing-only pass — see the doc comment in
+          // @/common/utils/message-wire.utils for the notepack caveat.
           lastReplyAt: parentMessage.lastReplyAt as unknown as string | null,
           channelId: parentMessage.channelId ?? null,
           directMessageGroupId: parentMessage.directMessageGroupId ?? null,

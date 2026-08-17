@@ -31,7 +31,8 @@ export class ChannelsService {
    * of changing what's actually emitted. Correctness of the Date -> string
    * wire conversion (this instance uses the Redis adapter, whose notepack
    * encoding of Date differs from JSON.stringify) is out of scope for this
-   * typing-only pass — see the Task 3 report.
+   * typing-only pass — see the doc comment in
+   * `@/common/utils/message-wire.utils` for the notepack caveat.
    */
   private toSharedChannel(channel: {
     id: string;

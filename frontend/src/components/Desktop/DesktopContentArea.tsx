@@ -31,7 +31,7 @@ export const DesktopContentArea: React.FC<{ voiceConnected: boolean; isMenuExpan
         {/*
           Panel-level seam: wraps only the routed page content so a crash in
           any single page/panel leaves the AppBar, community sidebar, and
-          voice bottom bar (siblings of LayoutContentArea, rendered below)
+          voice bottom bar (siblings of DesktopContentArea, rendered below)
           mounted and functional. This is the boundary that keeps the desktop
           shell alive — see App.tsx for the outer RouteErrorBoundary that
           covers everything else (including Layout itself).
