@@ -18,15 +18,37 @@
  * socket.io's own encoder performs.
  *
  * Caveat: this equivalence holds only for JSON-serializable payloads. If an
- * event ever carries binary data (`Buffer`/`ArrayBuffer`/`Uint8Array` —
+ * event ever carries binary data (`Buffer`/`ArrayBuffer`/typed arrays —
  * socket.io extracts those as binary attachments instead of JSON-encoding
  * them), the roundtrip would corrupt it into `{type:'Buffer',data:[...]}`.
- * No current event in the shared payload map carries binary; exempt such a
- * payload from this normalization if one is ever added.
+ * No current event in the shared payload map carries binary, and this
+ * function THROWS if it ever encounters one (anywhere in the payload, at
+ * any depth). WebsocketService's emit wrappers catch that throw, log the
+ * error, and skip the emit entirely — so the first binary event fails
+ * closed (loud error log, nothing delivered) instead of shipping corrupted
+ * data unnoticed. If a binary-carrying event is ever added, exempt its
+ * payload from this normalization at the emit site.
  *
  * Fixes #440.
  */
 export function toWirePayload<T>(payload: T): T {
   if (payload === null || typeof payload !== 'object') return payload;
-  return JSON.parse(JSON.stringify(payload)) as T;
+  return JSON.parse(
+    JSON.stringify(payload, function (key, value: unknown) {
+      // `this` is the holder object, so `this[key]` is the ORIGINAL value —
+      // before JSON.stringify applied its `toJSON` (Buffer.toJSON would have
+      // already disguised a Buffer as `{type:'Buffer',data:[...]}` by the
+      // time `value` reaches this replacer).
+      const original = (this as Record<string, unknown>)[key];
+      if (ArrayBuffer.isView(original) || original instanceof ArrayBuffer) {
+        throw new TypeError(
+          `toWirePayload: WS payload field "${key}" carries binary data ` +
+            `(${original.constructor.name}). JSON wire normalization would ` +
+            `corrupt it — exempt this event's payload from normalization at ` +
+            `the emit site (see websocket-wire.util doc comment).`,
+        );
+      }
+      return value;
+    }),
+  ) as T;
 }
