@@ -38,7 +38,7 @@
     "start": "pnpm run build-electron && pnpm run build-preload && electron .",
     "electron-dev": "concurrently -k \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && pnpm run build-electron && pnpm run build-preload && electron .\"",
     "type-check": "tsc -b",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 45",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 40",
     "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 45 --fix",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
