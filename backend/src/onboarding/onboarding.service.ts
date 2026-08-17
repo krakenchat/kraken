@@ -2,12 +2,13 @@ import { Injectable, ConflictException, Logger, Inject } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 import Redis from 'ioredis';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
+import { InstanceRolesService } from '@/roles/instance-roles.service';
 import {
   EpochBump,
   PermissionsCacheService,
 } from '@/roles/permissions-cache.service';
-import { InstanceRole } from '@prisma/client';
+import { InstanceRole, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { SetupInstanceDto } from './dto/setup-instance.dto';
@@ -21,7 +22,8 @@ export class OnboardingService {
   constructor(
     private readonly databaseService: DatabaseService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
-    private readonly rolesService: RolesService,
+    private readonly communityRolesService: CommunityRolesService,
+    private readonly instanceRolesService: InstanceRolesService,
     private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
 
@@ -103,8 +105,15 @@ export class OnboardingService {
     dto: SetupInstanceDto,
     setupToken: string,
   ): Promise<{
-    adminUser: any;
-    defaultCommunity?: any;
+    // Raw Prisma User row (NOT wrapped in UserEntity / new UserEntity()) —
+    // matches what tx.user.create() actually returns below. Only `.id` is
+    // ever read from this by the caller (OnboardingController), so the
+    // missing UserEntity wrap/exclusion never reaches an HTTP response;
+    // typing it as UserEntity here would misleadingly imply a
+    // sanitization step that isn't happening. Not changed — see Task 3
+    // report.
+    adminUser: User;
+    defaultCommunity: { id: string; name: string } | null;
   }> {
     // Validate setup token
     if (!(await this.validateSetupToken(setupToken))) {
@@ -193,14 +202,15 @@ export class OnboardingService {
         });
 
         // Create default roles for the community
-        const adminRoleId = await this.rolesService.createDefaultCommunityRoles(
-          defaultCommunity.id,
-          tx,
-          pendingBumps,
-        );
+        const adminRoleId =
+          await this.communityRolesService.createDefaultCommunityRoles(
+            defaultCommunity.id,
+            tx,
+            pendingBumps,
+          );
 
         // Assign the admin user to the Community Admin role
-        await this.rolesService.assignUserToCommunityRole(
+        await this.communityRolesService.assignUserToCommunityRole(
           adminUser.id,
           defaultCommunity.id,
           adminRoleId,
@@ -236,8 +246,11 @@ export class OnboardingService {
 
       // 3. Create default instance admin role and assign to OWNER
       const instanceAdminRoleId =
-        await this.rolesService.createDefaultInstanceRole(tx, pendingBumps);
-      await this.rolesService.assignUserToInstanceRole(
+        await this.instanceRolesService.createDefaultInstanceRole(
+          tx,
+          pendingBumps,
+        );
+      await this.instanceRolesService.assignUserToInstanceRole(
         adminUser.id,
         instanceAdminRoleId,
         tx,
@@ -248,7 +261,7 @@ export class OnboardingService {
       );
 
       // 4. Create default Community Creator role (available for assignment to users)
-      await this.rolesService.createDefaultCommunityCreatorRole(
+      await this.instanceRolesService.createDefaultCommunityCreatorRole(
         tx,
         pendingBumps,
       );

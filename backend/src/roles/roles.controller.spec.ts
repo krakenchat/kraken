@@ -1,17 +1,20 @@
 import { TestBed } from '@suites/unit';
 import type { Mocked } from '@suites/doubles.jest';
 import { RolesController } from './roles.controller';
-import { RolesService } from './roles.service';
+import { CommunityRolesService } from './community-roles.service';
+import { InstanceRolesService } from './instance-roles.service';
 
 describe('RolesController', () => {
   let controller: RolesController;
-  let service: Mocked<RolesService>;
+  let service: Mocked<CommunityRolesService>;
+  let instanceService: Mocked<InstanceRolesService>;
 
   beforeEach(async () => {
     const { unit, unitRef } = await TestBed.solitary(RolesController).compile();
 
     controller = unit;
-    service = unitRef.get(RolesService);
+    service = unitRef.get(CommunityRolesService);
+    instanceService = unitRef.get(InstanceRolesService);
   });
 
   afterEach(() => {
@@ -24,6 +27,7 @@ describe('RolesController', () => {
 
   it('should have a service', () => {
     expect(service).toBeDefined();
+    expect(instanceService).toBeDefined();
   });
 
   describe('getMyRolesForCommunity', () => {
@@ -67,12 +71,16 @@ describe('RolesController', () => {
       const req = { user: { id: 'user-789' } } as any;
       const expectedRoles = { roles: [], permissions: [] };
 
-      service.getUserInstanceRoles.mockResolvedValue(expectedRoles as any);
+      instanceService.getUserInstanceRoles.mockResolvedValue(
+        expectedRoles as any,
+      );
 
       const result = await controller.getMyInstanceRoles(req);
 
       expect(result).toEqual(expectedRoles);
-      expect(service.getUserInstanceRoles).toHaveBeenCalledWith('user-789');
+      expect(instanceService.getUserInstanceRoles).toHaveBeenCalledWith(
+        'user-789',
+      );
     });
   });
 
@@ -120,12 +128,14 @@ describe('RolesController', () => {
       const userId = 'user-999';
       const expectedRoles = { roles: [], permissions: [] };
 
-      service.getUserInstanceRoles.mockResolvedValue(expectedRoles as any);
+      instanceService.getUserInstanceRoles.mockResolvedValue(
+        expectedRoles as any,
+      );
 
       const result = await controller.getUserInstanceRoles(userId);
 
       expect(result).toEqual(expectedRoles);
-      expect(service.getUserInstanceRoles).toHaveBeenCalledWith(userId);
+      expect(instanceService.getUserInstanceRoles).toHaveBeenCalledWith(userId);
     });
   });
 

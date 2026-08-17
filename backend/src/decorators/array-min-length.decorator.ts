@@ -16,7 +16,7 @@ export function ArrayMinLength(
       constraints: [min],
       options: validationOptions,
       validator: {
-        validate(value: any) {
+        validate(value: unknown) {
           return Array.isArray(value) && value.length >= min;
         },
         defaultMessage(args: ValidationArguments) {

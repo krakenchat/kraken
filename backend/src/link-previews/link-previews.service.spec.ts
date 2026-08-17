@@ -5,6 +5,7 @@ import { DatabaseService } from '@/database/database.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { createMockDatabase } from '@/test-utils';
 import * as linkPreviewUtils from './link-preview.utils';
+import { ServerEvents } from '@semaphore-chat/shared';
 
 jest.mock('./link-preview.utils', () => {
   const actual = jest.requireActual('./link-preview.utils');
@@ -26,7 +27,7 @@ describe('LinkPreviewsService', () => {
 
   const messageId = 'msg-001';
   const roomId = 'room-abc';
-  const serverEvent = 'message:updated';
+  const serverEvent = ServerEvents.UPDATE_MESSAGE;
 
   beforeEach(async () => {
     mockDatabase = createMockDatabase();

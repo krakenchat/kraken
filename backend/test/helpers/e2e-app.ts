@@ -25,7 +25,7 @@ import { App } from 'supertest/types';
 import { Response } from 'supertest';
 import { AppModule } from '@/app.module';
 import { DatabaseService } from '@/database/database.service';
-import { RolesService } from '@/roles/roles.service';
+import { InstanceRolesService } from '@/roles/instance-roles.service';
 
 export type E2eApp = INestApplication<App>;
 
@@ -130,8 +130,8 @@ export class CapturingLogger implements LoggerService {
 /**
  * Truncate every table in the public schema except _prisma_migrations.
  * Single TRUNCATE ... CASCADE statement — fast, and resets identity columns.
- * Afterwards re-seeds the default instance roles that RolesService creates
- * at boot, so the post-reset state matches a freshly-migrated instance.
+ * Afterwards re-seeds the default instance roles that InstanceRolesService
+ * creates at boot, so the post-reset state matches a freshly-migrated instance.
  *
  * Destructive by design, so it refuses to run unless the database name in
  * DATABASE_URL contains "test" (CI provisions a dedicated `test` database).
@@ -191,7 +191,7 @@ export async function resetDatabase(app: E2eApp): Promise<void> {
 
   // Boot-time seeding ran before the truncate wiped it; restore the default
   // instance roles so instance-level RBAC behaves like production.
-  await app.get(RolesService).ensureDefaultInstanceRolesExist();
+  await app.get(InstanceRolesService).ensureDefaultInstanceRolesExist();
 }
 
 /**

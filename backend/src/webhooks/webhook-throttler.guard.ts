@@ -91,7 +91,7 @@ export class WebhookThrottlerGuard extends ThrottlerGuard {
     return Promise.resolve(process.env.NODE_ENV === 'test');
   }
 
-  protected getTracker(req: Record<string, any>): Promise<string> {
+  protected getTracker(req: Record<string, unknown>): Promise<string> {
     const params = req.params as Record<string, string> | undefined;
     return Promise.resolve(`webhook:${params?.id}`);
   }
@@ -105,7 +105,7 @@ export class WebhookThrottlerGuard extends ThrottlerGuard {
     // `any`-typed return of Function.prototype.bind's lib.es5 overloads,
     // while still capturing `this` lexically.
     const getTracker: ThrottlerOptions['getTracker'] = (
-      req: Record<string, any>,
+      req: Record<string, unknown>,
     ) => this.getTracker(req);
     const generateKey: ThrottlerOptions['generateKey'] = (
       context,

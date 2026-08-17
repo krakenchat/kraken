@@ -1,7 +1,4 @@
-import React, { Suspense, useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import Layout from "./Layout";
-import { useCurrentUser } from "./hooks/useCurrentUser";
+import { Suspense, useState } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
 import { CircularProgress, Box } from "@mui/material";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -12,60 +9,11 @@ import { UpdateToast } from "./components/PWA/UpdateToast";
 import { OfflineBanner } from "./components/PWA/OfflineBanner";
 import { hasServers } from "./utils/serverStorage";
 import { isElectron } from "./utils/platform";
-import { AuthGate } from "./components/AuthGate";
 import { useDeepLinks } from "./hooks/useDeepLinks";
-import { PublicRoute } from "./components/PublicRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AppErrorFallback } from "./components/AppErrorFallback";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
-
-// Eager imports - first-paint routes
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import OnboardingPage from "./pages/OnboardingPage";
-
-// Lazy-loaded routes
-const HomePage = React.lazy(() => import("./pages/HomePage"));
-const CreateCommunityPage = React.lazy(() => import("./pages/CreateCommunityPage"));
-const EditCommunityPage = React.lazy(() => import("./pages/EditCommunityPage"));
-const JoinInvitePage = React.lazy(() => import("./pages/JoinInvitePage"));
-const AdminInvitePage = React.lazy(() => import("./pages/AdminInvitePage"));
-const AdminLayout = React.lazy(() => import("./components/admin/AdminLayout"));
-const AdminDashboard = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminDashboard })));
-const AdminUsersPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminUsersPage })));
-const AdminCommunitiesPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminCommunitiesPage })));
-const AdminSettingsPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminSettingsPage })));
-const AdminRolesPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminRolesPage })));
-const AdminStoragePage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminStoragePage })));
-const AdminDebugPage = React.lazy(() => import("./pages/admin").then(m => ({ default: m.AdminDebugPage })));
-const NotificationDebugPage = React.lazy(() => import("./pages/debug/NotificationDebugPage"));
-const PWADebugPage = React.lazy(() => import("./pages/debug/PWADebugPage"));
-const DirectMessagesPage = React.lazy(() => import("./pages/DirectMessagesPage"));
-const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
-const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
-const ProfileEditPage = React.lazy(() => import("./pages/ProfileEditPage"));
-const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
-const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
-const NotificationsPage = React.lazy(() => import("./pages/NotificationsPage"));
-const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
-
-/** Redirects bare `/profile` to the current user's profile. */
-const ProfileRedirect: React.FC = () => {
-  const { user, isLoading } = useCurrentUser();
-  if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-  if (user?.id) {
-    return <Navigate to={`/profile/${user.id}`} replace />;
-  }
-  return <Navigate to="/" replace />;
-};
+import { AppRoutes } from "./routes";
 
 function App() {
   // Check if running in Electron and needs server configuration
@@ -77,12 +25,11 @@ function App() {
   // configured too. See hooks/useDeepLinks.ts for the full seam rationale.
   useDeepLinks();
 
-  // Show connection wizard for Electron if no servers configured
-  if (showWizard) {
-    return (
-      <ThemeProvider>
-        <CssBaseline />
-        <AutoUpdater />
+  return (
+    <ThemeProvider>
+      <CssBaseline />
+      <AutoUpdater />
+      {showWizard ? (
         <ConnectionWizard
           open={true}
           onComplete={() => {
@@ -91,86 +38,34 @@ function App() {
             window.location.reload();
           }}
         />
-      </ThemeProvider>
-    );
-  }
-
-  return (
-    <ThemeProvider>
-      <CssBaseline />
-      <AutoUpdater />
-      <PWAInstallPrompt />
-      <UpdateToast />
-      <OfflineBanner />
-      {/*
-        App-level boundary: the outermost safety net for render crashes that
-        escape every closer boundary (e.g. RouteErrorBoundary below). It sits
-        inside ThemeProvider so the fallback is themed, and above the routes
-        so it only catches what a route-level boundary didn't. QueryClient
-        (main.tsx) and the auth/socket/notification providers mounted by
-        AuthGate/Layout live below RouteErrorBoundary's panel-level seams, so
-        ordinary page crashes never reach this far and never unmount them —
-        this boundary firing means a full reload is the safest recovery.
-      */}
-      <ErrorBoundary fallback={(error) => <AppErrorFallback error={error} />}>
-        <Suspense fallback={
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'var(--full-dvh)' }}>
-            <CircularProgress />
-          </Box>
-        }>
-          <RouteErrorBoundary>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-              <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-              <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
-              <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/join/:inviteCode" element={<JoinInvitePage />} />
-
-              {/* Authenticated routes — AuthGate validates token + mounts providers */}
-              <Route element={<AuthGate />}>
-                {/* Debug routes — outside Layout so they render on mobile too */}
-                <Route path="debug/pwa" element={<PWADebugPage />} />
-
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<HomePage />} />
-                  <Route path="direct-messages" element={<DirectMessagesPage />} />
-                  <Route path="direct-messages/:dmGroupId" element={<DirectMessagesPage />} />
-                  <Route path="notifications" element={<NotificationsPage />} />
-                  <Route path="friends" element={<FriendsPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-
-                  {/* Admin routes with dedicated layout */}
-                  <Route path="admin" element={<AdminLayout />}>
-                    <Route index element={<AdminDashboard />} />
-                    <Route path="users" element={<AdminUsersPage />} />
-                    <Route path="communities" element={<AdminCommunitiesPage />} />
-                    <Route path="invites" element={<AdminInvitePage />} />
-                    <Route path="roles" element={<AdminRolesPage />} />
-                    <Route path="storage" element={<AdminStoragePage />} />
-                    <Route path="settings" element={<AdminSettingsPage />} />
-                    <Route path="debug" element={<AdminDebugPage />} />
-                  </Route>
-
-                  {/* Debug routes (admin only - access check in component) */}
-                  <Route path="debug/notifications" element={<NotificationDebugPage />} />
-                  <Route path="profile" element={<ProfileRedirect />} />
-                  <Route path="profile/edit" element={<ProfileEditPage />} />
-                  <Route path="profile/:userId" element={<ProfilePage />} />
-                  <Route path="community/create" element={<CreateCommunityPage />} />
-                  <Route path="community/:communityId">
-                    <Route index element={<CommunityPage />} />
-                    <Route path="edit" element={<EditCommunityPage />} />
-                    <Route path="channel/:channelId" element={<CommunityPage />} />
-                  </Route>
-                  <Route path="*" element={<NotFoundPage />} />
-                </Route>
-              </Route>
-            </Routes>
-          </RouteErrorBoundary>
-        </Suspense>
-      </ErrorBoundary>
+      ) : (
+        <>
+          <PWAInstallPrompt />
+          <UpdateToast />
+          <OfflineBanner />
+          {/*
+            App-level boundary: the outermost safety net for render crashes that
+            escape every closer boundary (e.g. RouteErrorBoundary below). It sits
+            inside ThemeProvider so the fallback is themed, and above the routes
+            so it only catches what a route-level boundary didn't. QueryClient
+            (main.tsx) and the auth/socket/notification providers mounted by
+            AuthGate/Layout live below RouteErrorBoundary's panel-level seams, so
+            ordinary page crashes never reach this far and never unmount them —
+            this boundary firing means a full reload is the safest recovery.
+          */}
+          <ErrorBoundary fallback={(error) => <AppErrorFallback error={error} />}>
+            <Suspense fallback={
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'var(--full-dvh)' }}>
+                <CircularProgress />
+              </Box>
+            }>
+              <RouteErrorBoundary>
+                <AppRoutes />
+              </RouteErrorBoundary>
+            </Suspense>
+          </ErrorBoundary>
+        </>
+      )}
     </ThemeProvider>
   );
 }

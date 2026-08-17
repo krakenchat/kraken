@@ -11,9 +11,10 @@ import {
   MembershipResponseDto,
   PaginatedMembershipsResponseDto,
 } from './dto/membership-response.dto';
+import { RbacActions } from '@prisma/client';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { PUBLIC_USER_SELECT } from '@/common/constants/user-select.constant';
 import { RoomEvents } from '@/rooms/room-subscription.events';
@@ -26,7 +27,7 @@ export class MembershipService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly communityService: CommunityService,
-    private readonly rolesService: RolesService,
+    private readonly communityRolesService: CommunityRolesService,
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsCacheService: PermissionsCacheService,
   ) {}
@@ -108,7 +109,7 @@ export class MembershipService {
       // Assign default member role to the user
       try {
         let memberRole =
-          await this.rolesService.getCommunityMemberRole(communityId);
+          await this.communityRolesService.getCommunityMemberRole(communityId);
 
         // If Member role doesn't exist for this community, create it
         if (!memberRole) {
@@ -116,13 +117,17 @@ export class MembershipService {
             `Member role not found for community ${communityId}, creating it...`,
           );
           // Create just the Member role for this community
-          await this.rolesService.createMemberRoleForCommunity(communityId);
+          await this.communityRolesService.createMemberRoleForCommunity(
+            communityId,
+          );
           memberRole =
-            await this.rolesService.getCommunityMemberRole(communityId);
+            await this.communityRolesService.getCommunityMemberRole(
+              communityId,
+            );
         }
 
         if (memberRole) {
-          await this.rolesService.assignUserToCommunityRole(
+          await this.communityRolesService.assignUserToCommunityRole(
             userId,
             communityId,
             memberRole.id,
@@ -211,7 +216,7 @@ export class MembershipService {
       Array<{
         id: string;
         name: string;
-        actions: any[];
+        actions: RbacActions[];
         createdAt: Date;
         isDefault: boolean;
         position: number;
@@ -325,7 +330,7 @@ export class MembershipService {
       });
 
       // Role assignments were removed via the raw tx.userRoles.deleteMany
-      // above (bypasses RolesService, so it doesn't self-bump) — invalidate
+      // above (bypasses CommunityRolesService, so it doesn't self-bump) — invalidate
       // this user's cached permissions now that the transaction committed.
       await this.permissionsCacheService.bumpUserEpoch(userId);
 

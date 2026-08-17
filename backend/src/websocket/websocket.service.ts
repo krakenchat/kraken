@@ -1,16 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
+import {
+  ClientToServerEvents,
+  ServerToClientEvents,
+} from '@semaphore-chat/shared';
+
+type AppServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
 @Injectable()
 export class WebsocketService {
   private readonly logger = new Logger(WebsocketService.name);
-  private server: Server;
+  private server: AppServer;
 
-  setServer(server: Server) {
+  setServer(server: AppServer) {
     this.server = server;
   }
 
-  sendToRoom(room: string, event: string, payload: any): boolean {
+  sendToRoom<E extends keyof ServerToClientEvents>(
+    room: string,
+    event: E,
+    ...args: Parameters<ServerToClientEvents[E]>
+  ): boolean {
     if (!this.server) {
       this.logger.error(
         'Attempted to send to room before server was initialized',
@@ -19,7 +29,7 @@ export class WebsocketService {
     }
 
     try {
-      this.server.to(room).emit(event, payload);
+      this.server.to(room).emit(event, ...args);
       return true;
     } catch (error) {
       this.logger.error(
@@ -74,7 +84,10 @@ export class WebsocketService {
     }
   }
 
-  sendToAll(event: string, payload: any): boolean {
+  sendToAll<E extends keyof ServerToClientEvents>(
+    event: E,
+    ...args: Parameters<ServerToClientEvents[E]>
+  ): boolean {
     if (!this.server) {
       this.logger.error(
         'Attempted to send to all before server was initialized',
@@ -83,7 +96,7 @@ export class WebsocketService {
     }
 
     try {
-      this.server.emit(event, payload);
+      this.server.emit(event, ...args);
       return true;
     } catch (error) {
       this.logger.error(

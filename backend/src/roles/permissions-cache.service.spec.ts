@@ -1,6 +1,9 @@
 import Redis from 'ioredis';
 import { RbacActions } from '@prisma/client';
-import { PermissionsCacheService } from './permissions-cache.service';
+import {
+  PermissionsCacheService,
+  type EpochBump,
+} from './permissions-cache.service';
 
 function makeRedis(overrides: Record<string, any> = {}): Redis {
   return {
@@ -477,6 +480,65 @@ describe('PermissionsCacheService', () => {
       ).resolves.toBeUndefined();
 
       expect(errorSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('bumpNowOrDefer (deferred vs. immediate epoch bumps)', () => {
+    it('bumps immediately when no tx is given', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+
+      await service.bumpNowOrDefer({ kind: 'user', userId: 'user-1' });
+
+      expect(incr).toHaveBeenCalledWith('rbac:epoch:user:user-1');
+    });
+
+    it('bumps immediately for each EpochBump kind when no tx is given', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+
+      await service.bumpNowOrDefer({
+        kind: 'community',
+        communityId: 'community-1',
+      });
+      await service.bumpNowOrDefer({ kind: 'instance' });
+
+      expect(incr.mock.calls.map((c) => c[0])).toEqual([
+        'rbac:epoch:community:community-1',
+        'rbac:epoch:instance',
+      ]);
+    });
+
+    it('records onto the pendingBumps collector instead of bumping when tx + collector are given', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+      const pendingBumps: EpochBump[] = [];
+      const tx = {} as unknown as Parameters<
+        PermissionsCacheService['bumpNowOrDefer']
+      >[1];
+
+      await service.bumpNowOrDefer(
+        { kind: 'community', communityId: 'community-1' },
+        tx,
+        pendingBumps,
+      );
+
+      expect(incr).not.toHaveBeenCalled();
+      expect(pendingBumps).toEqual([
+        { kind: 'community', communityId: 'community-1' },
+      ]);
+    });
+
+    it('falls back to an immediate bump when tx is given without a pendingBumps collector', async () => {
+      const incr = jest.fn().mockResolvedValue(1);
+      const service = new PermissionsCacheService(makeRedis({ incr }));
+      const tx = {} as unknown as Parameters<
+        PermissionsCacheService['bumpNowOrDefer']
+      >[1];
+
+      await service.bumpNowOrDefer({ kind: 'user', userId: 'user-2' }, tx);
+
+      expect(incr).toHaveBeenCalledWith('rbac:epoch:user:user-2');
     });
   });
 

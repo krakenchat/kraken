@@ -11,7 +11,7 @@ import { DatabaseService } from '@/database/database.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
 import { ChannelType, Prisma } from '@prisma/client';
 import { WebsocketService } from '@/websocket/websocket.service';
-import { ServerEvents } from '@semaphore-chat/shared';
+import { Channel as SharedChannel, ServerEvents } from '@semaphore-chat/shared';
 import { isPrismaError } from '@/common/utils/prisma.utils';
 import { RoomEvents } from '@/rooms/room-subscription.events';
 import { RoomName } from '@/common/utils/room-name.util';
@@ -19,6 +19,37 @@ import { RoomName } from '@/common/utils/room-name.util';
 @Injectable()
 export class ChannelsService {
   private readonly logger = new Logger(ChannelsService.name);
+
+  /**
+   * Converts a Prisma Channel row into the shared wire-DTO shape.
+   * Prisma's `ChannelType` enum and the shared `ChannelType` enum have
+   * identical string values (TEXT/VOICE) but are structurally distinct TS
+   * types, so `type` is a pure relabeling cast — no value change at all.
+   * `createdAt` is cast rather than converted: the shared type's declared
+   * wire shape is a post-serialization ISO string, but this preserves the
+   * existing runtime value (a raw Date, same as before this task) instead
+   * of changing what's actually emitted. Correctness of the Date -> string
+   * wire conversion (this instance uses the Redis adapter, whose notepack
+   * encoding of Date differs from JSON.stringify) is out of scope for this
+   * typing-only pass — see the doc comment in
+   * `@/common/utils/message-wire.utils` for the notepack caveat.
+   */
+  private toSharedChannel(channel: {
+    id: string;
+    name: string;
+    communityId: string;
+    type: ChannelType;
+    isPrivate: boolean;
+    createdAt: Date;
+    position: number;
+    slowmodeSeconds: number;
+  }): SharedChannel {
+    return {
+      ...channel,
+      type: channel.type as unknown as SharedChannel['type'],
+      createdAt: channel.createdAt as unknown as string,
+    };
+  }
 
   constructor(
     private readonly databaseService: DatabaseService,
@@ -66,7 +97,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(result.communityId),
         ServerEvents.CHANNEL_CREATED,
-        { communityId: result.communityId, channel: result },
+        {
+          communityId: result.communityId,
+          channel: this.toSharedChannel(result),
+        },
       );
 
       return result;
@@ -120,7 +154,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(updated.communityId),
         ServerEvents.CHANNEL_UPDATED,
-        { communityId: updated.communityId, channel: updated },
+        {
+          communityId: updated.communityId,
+          channel: this.toSharedChannel(updated),
+        },
       );
 
       return updated;
@@ -335,7 +372,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
-        { communityId, channels: updatedChannels },
+        {
+          communityId,
+          channels: updatedChannels.map((c) => this.toSharedChannel(c)),
+        },
       );
 
       return updatedChannels;
@@ -385,7 +425,10 @@ export class ChannelsService {
       this.websocketService.sendToRoom(
         RoomName.community(communityId),
         ServerEvents.CHANNELS_REORDERED,
-        { communityId, channels: updatedChannels },
+        {
+          communityId,
+          channels: updatedChannels.map((c) => this.toSharedChannel(c)),
+        },
       );
 
       return updatedChannels;

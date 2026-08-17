@@ -32,6 +32,7 @@ import { getSocketUserId } from '@/common/utils/socket.utils';
 import { DatabaseService } from '@/database/database.service';
 import { RoomName } from '@/common/utils/room-name.util';
 import { LinkPreviewsService } from '@/link-previews/link-previews.service';
+import { toWireMessage } from '@/common/utils/message-wire.utils';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -124,7 +125,7 @@ export class ThreadsGateway
     if (roomId) {
       // Emit the new thread reply to the room
       this.websocketService.sendToRoom(roomId, ServerEvents.NEW_THREAD_REPLY, {
-        reply,
+        reply: toWireMessage(reply),
         parentMessageId: payload.parentMessageId,
       });
 
@@ -135,7 +136,15 @@ export class ThreadsGateway
         {
           parentMessageId: payload.parentMessageId,
           replyCount: parentMessage.replyCount,
-          lastReplyAt: parentMessage.lastReplyAt,
+          // Cast, not converted: preserves the existing runtime value
+          // (a raw Date, same as before this task) rather than changing
+          // what's emitted. The payload's declared wire type is a
+          // post-serialization `string | null`; correctness of that
+          // conversion across the Redis adapter (which doesn't always
+          // serialize Date the same way JSON.stringify would) is out of
+          // scope for this typing-only pass — see the doc comment in
+          // @/common/utils/message-wire.utils for the notepack caveat.
+          lastReplyAt: parentMessage.lastReplyAt as unknown as string | null,
           channelId: parentMessage.channelId ?? null,
           directMessageGroupId: parentMessage.directMessageGroupId ?? null,
         },

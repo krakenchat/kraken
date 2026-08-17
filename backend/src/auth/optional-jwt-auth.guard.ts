@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { UserEntity } from '@/user/dto/user-response.dto';
 
 /**
  * Optional JWT authentication guard.
@@ -17,7 +18,10 @@ import { AuthGuard } from '@nestjs/passport';
  */
 @Injectable()
 export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
-  handleRequest(err: any, user: any): any {
+  handleRequest<TUser = UserEntity>(
+    err: Error | null,
+    user: TUser | false,
+  ): TUser | null {
     if (err && !(err instanceof UnauthorizedException)) {
       throw err;
     }

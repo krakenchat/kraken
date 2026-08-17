@@ -4,7 +4,7 @@ import { UserService } from './user.service';
 import { DatabaseService } from '@/database/database.service';
 import { InviteService } from '@/invite/invite.service';
 import { ChannelsService } from '@/channels/channels.service';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
 import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import {
   ConflictException,
@@ -28,7 +28,7 @@ describe('UserService', () => {
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let inviteService: Mocked<InviteService>;
   let channelsService: Mocked<ChannelsService>;
-  let rolesService: Mocked<RolesService>;
+  let communityRolesService: Mocked<CommunityRolesService>;
   let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
@@ -42,7 +42,7 @@ describe('UserService', () => {
     service = unit;
     inviteService = unitRef.get(InviteService);
     channelsService = unitRef.get(ChannelsService);
-    rolesService = unitRef.get(RolesService);
+    communityRolesService = unitRef.get(CommunityRolesService);
     permissionsCacheService = unitRef.get(PermissionsCacheService);
 
     // Mock bcrypt
@@ -291,8 +291,10 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
@@ -323,8 +325,10 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
@@ -353,14 +357,18 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
       await service.createUser('invite-code', 'user', 'password');
 
-      expect(rolesService.assignUserToCommunityRole).toHaveBeenCalledWith(
+      expect(
+        communityRolesService.assignUserToCommunityRole,
+      ).toHaveBeenCalledWith(
         newUser.id,
         communityId,
         memberRole.id,
@@ -386,23 +394,21 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole
+      communityRolesService.getCommunityMemberRole
         .mockResolvedValueOnce(null as any) // First call returns null
         .mockResolvedValueOnce(memberRole as any); // Second call returns created role
-      rolesService.createMemberRoleForCommunity.mockResolvedValue(
+      communityRolesService.createMemberRoleForCommunity.mockResolvedValue(
         'role-id-123' as any,
       );
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
       await service.createUser('invite-code', 'user', 'password');
 
-      expect(rolesService.createMemberRoleForCommunity).toHaveBeenCalledWith(
-        communityId,
-        expect.anything(),
-        expect.any(Array),
-      );
+      expect(
+        communityRolesService.createMemberRoleForCommunity,
+      ).toHaveBeenCalledWith(communityId, expect.anything(), expect.any(Array));
     });
 
     it('should not fail user creation if general channel addition fails', async () => {
@@ -422,8 +428,10 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockRejectedValue(
         new Error('Channel error'),
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
@@ -452,7 +460,7 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockRejectedValue(
+      communityRolesService.getCommunityMemberRole.mockRejectedValue(
         new Error('Role error'),
       );
 
@@ -483,10 +491,12 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
       // The (mocked) tx-nested role mutation records its bump on the
       // collector the service passes in, like the real implementation does.
-      rolesService.assignUserToCommunityRole.mockImplementation(((
+      communityRolesService.assignUserToCommunityRole.mockImplementation(((
         userId: string,
         _communityId: string,
         _roleId: string,
@@ -539,8 +549,10 @@ describe('UserService', () => {
       channelsService.addUserToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockImplementation(((
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockImplementation(((
         userId: string,
         _communityId: string,
         _roleId: string,

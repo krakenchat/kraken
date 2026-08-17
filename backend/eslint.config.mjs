@@ -26,7 +26,7 @@ export default tseslint.config(
   },
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/return-await': 'warn',
@@ -34,7 +34,7 @@ export default tseslint.config(
   },
   {
     // Test-specific overrides
-    files: ['**/*.spec.ts', '**/*.test.ts'],
+    files: ['**/*.spec.ts', '**/*.test.ts', 'src/test-utils/**'],
     rules: {
       // Jest expect() with spies is safe despite unbound-method warnings
       '@typescript-eslint/unbound-method': 'off',
@@ -44,6 +44,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 );

@@ -7,7 +7,10 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '@/user/user.service';
 import { UserEntity } from '@/user/dto/user-response.dto';
-import { extractTokenFromHandshake } from '@/common/utils/socket.utils';
+import {
+  extractTokenFromHandshake,
+  AuthenticatedSocket,
+} from '@/common/utils/socket.utils';
 import { Socket } from 'socket.io';
 import { TokenBlacklistService } from './token-blacklist.service';
 
@@ -28,7 +31,7 @@ export class WsJwtAuthGuard implements CanActivate {
     const client = context.switchToWs().getClient<Socket>();
 
     // Short-circuit: user already authenticated by connection middleware
-    if ((client.handshake as Record<string, any>).user) {
+    if ((client as AuthenticatedSocket).handshake.user) {
       return true;
     }
 
@@ -69,7 +72,7 @@ export class WsJwtAuthGuard implements CanActivate {
         return false;
       }
 
-      (client.handshake as Record<string, any>).user = new UserEntity(user);
+      (client as AuthenticatedSocket).handshake.user = new UserEntity(user);
       return true;
     } catch (error) {
       this.logger.error('JWT verification failed', error);

@@ -45,6 +45,7 @@ import {
 } from './dto/message-response.dto';
 import { groupReactions } from '@/common/utils/reactions.utils';
 import { RoomName } from '@/common/utils/room-name.util';
+import { toWireMessage } from '@/common/utils/message-wire.utils';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { randomUUID } from 'crypto';
@@ -264,7 +265,9 @@ export class MessagesController {
       );
       this.websocketService.sendToRoom(roomId, ServerEvents.REACTION_ADDED, {
         messageId: result.id,
-        reaction: reaction,
+        // Non-null: addReactionDto.emoji was just added into result.reactions
+        // above, so groupReactions() output must contain a matching group.
+        reaction: reaction!,
         channelId: result.channelId ?? null,
         directMessageGroupId: result.directMessageGroupId ?? null,
         parentMessageId: result.parentMessageId ?? null,
@@ -344,7 +347,7 @@ export class MessagesController {
       : originalMessage.channelId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
-        message: enrichedMessage,
+        message: toWireMessage(enrichedMessage),
       });
     }
 
@@ -397,7 +400,7 @@ export class MessagesController {
       : originalMessage.channelId;
     if (roomId) {
       this.websocketService.sendToRoom(roomId, ServerEvents.UPDATE_MESSAGE, {
-        message: enrichedMessage,
+        message: toWireMessage(enrichedMessage),
       });
 
       // Re-process link previews if spans changed. Enqueued with a

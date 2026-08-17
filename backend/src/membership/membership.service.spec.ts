@@ -4,7 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MembershipService } from './membership.service';
 import { DatabaseService } from '@/database/database.service';
 import { CommunityService } from '@/community/community.service';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
 import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
@@ -23,7 +23,7 @@ describe('MembershipService', () => {
   let service: MembershipService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let communityService: Mocked<CommunityService>;
-  let rolesService: Mocked<RolesService>;
+  let communityRolesService: Mocked<CommunityRolesService>;
   let eventEmitter: Mocked<EventEmitter2>;
   let permissionsCacheService: Mocked<PermissionsCacheService>;
 
@@ -37,7 +37,7 @@ describe('MembershipService', () => {
 
     service = unit;
     communityService = unitRef.get(CommunityService);
-    rolesService = unitRef.get(RolesService);
+    communityRolesService = unitRef.get(CommunityRolesService);
     eventEmitter = unitRef.get(EventEmitter2);
     permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
@@ -65,8 +65,10 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
@@ -88,14 +90,12 @@ describe('MembershipService', () => {
         community.id,
         user.id,
       );
-      expect(rolesService.getCommunityMemberRole).toHaveBeenCalledWith(
+      expect(communityRolesService.getCommunityMemberRole).toHaveBeenCalledWith(
         community.id,
       );
-      expect(rolesService.assignUserToCommunityRole).toHaveBeenCalledWith(
-        user.id,
-        community.id,
-        memberRole.id,
-      );
+      expect(
+        communityRolesService.assignUserToCommunityRole,
+      ).toHaveBeenCalledWith(user.id, community.id, memberRole.id);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         RoomEvents.MEMBERSHIP_CREATED,
         { userId: user.id, communityId: community.id },
@@ -170,8 +170,10 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockRejectedValue(
         new Error('Channel not found'),
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
@@ -208,13 +210,13 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole
+      communityRolesService.getCommunityMemberRole
         .mockResolvedValueOnce(null as any)
         .mockResolvedValueOnce(memberRole as any);
-      rolesService.createMemberRoleForCommunity.mockResolvedValue(
+      communityRolesService.createMemberRoleForCommunity.mockResolvedValue(
         'member-role-id' as any,
       );
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
@@ -225,9 +227,9 @@ describe('MembershipService', () => {
       const result = await service.create(createDto);
 
       expect(result).toBeDefined();
-      expect(rolesService.createMemberRoleForCommunity).toHaveBeenCalledWith(
-        community.id,
-      );
+      expect(
+        communityRolesService.createMemberRoleForCommunity,
+      ).toHaveBeenCalledWith(community.id);
       expect(loggerLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Member role not found'),
       );
@@ -252,8 +254,10 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(null as any);
-      rolesService.createMemberRoleForCommunity.mockResolvedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        null as any,
+      );
+      communityRolesService.createMemberRoleForCommunity.mockResolvedValue(
         'member-role-id' as any,
       );
 
@@ -289,8 +293,10 @@ describe('MembershipService', () => {
       communityService.addMemberToGeneralChannel.mockResolvedValue(
         undefined as any,
       );
-      rolesService.getCommunityMemberRole.mockResolvedValue(memberRole as any);
-      rolesService.assignUserToCommunityRole.mockRejectedValue(
+      communityRolesService.getCommunityMemberRole.mockResolvedValue(
+        memberRole as any,
+      );
+      communityRolesService.assignUserToCommunityRole.mockRejectedValue(
         new Error('Role assignment failed'),
       );
 
@@ -731,7 +737,7 @@ describe('MembershipService', () => {
         { userId: user.id, communityId: community.id },
       );
       // Role assignments were removed via the raw tx.userRoles.deleteMany
-      // above, which bypasses RolesService — remove() must bump explicitly.
+      // above, which bypasses CommunityRolesService — remove() must bump explicitly.
       expect(permissionsCacheService.bumpUserEpoch).toHaveBeenCalledWith(
         user.id,
       );

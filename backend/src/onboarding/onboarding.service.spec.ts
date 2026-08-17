@@ -2,7 +2,8 @@ import { TestBed } from '@suites/unit';
 import { OnboardingService } from './onboarding.service';
 import { DatabaseService } from '@/database/database.service';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
+import { InstanceRolesService } from '@/roles/instance-roles.service';
 import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import { ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -28,7 +29,8 @@ describe('OnboardingService', () => {
   let service: OnboardingService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let mockRedis: ReturnType<typeof createMockRedis>;
-  let rolesService: Mocked<RolesService>;
+  let communityRolesService: Mocked<CommunityRolesService>;
+  let instanceRolesService: Mocked<InstanceRolesService>;
   let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
@@ -37,9 +39,11 @@ describe('OnboardingService', () => {
     mockDatabase = createMockDatabase();
     mockRedis = createMockRedis();
 
-    const mockRolesService = {
+    const mockCommunityRolesService = {
       createDefaultCommunityRoles: jest.fn(),
       assignUserToCommunityRole: jest.fn(),
+    };
+    const mockInstanceRolesService = {
       createDefaultInstanceRole: jest
         .fn()
         .mockResolvedValue('mock-instance-admin-role-id'),
@@ -54,12 +58,17 @@ describe('OnboardingService', () => {
       .final(mockDatabase)
       .mock(REDIS_CLIENT)
       .final(mockRedis)
-      .mock(RolesService)
-      .final(mockRolesService)
+      .mock(CommunityRolesService)
+      .final(mockCommunityRolesService)
+      .mock(InstanceRolesService)
+      .final(mockInstanceRolesService)
       .compile();
 
     service = unit;
-    rolesService = mockRolesService as unknown as Mocked<RolesService>;
+    communityRolesService =
+      mockCommunityRolesService as unknown as Mocked<CommunityRolesService>;
+    instanceRolesService =
+      mockInstanceRolesService as unknown as Mocked<InstanceRolesService>;
     permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
 
@@ -246,10 +255,10 @@ describe('OnboardingService', () => {
 
         // Mock roles service
         jest
-          .spyOn(rolesService, 'createDefaultCommunityRoles')
+          .spyOn(communityRolesService, 'createDefaultCommunityRoles')
           .mockResolvedValue('admin-role-id');
         jest
-          .spyOn(rolesService, 'assignUserToCommunityRole')
+          .spyOn(communityRolesService, 'assignUserToCommunityRole')
           .mockResolvedValue(undefined);
 
         return callback(mockTx);
@@ -294,14 +303,20 @@ describe('OnboardingService', () => {
       await service.completeSetup(validSetupDto, 'valid-token');
 
       expect(mockDatabase.$transaction).toHaveBeenCalled();
-      expect(rolesService.createDefaultCommunityRoles).toHaveBeenCalled();
+      expect(
+        communityRolesService.createDefaultCommunityRoles,
+      ).toHaveBeenCalled();
     });
 
     it('should create default roles and assign admin', async () => {
       await service.completeSetup(validSetupDto, 'valid-token');
 
-      expect(rolesService.createDefaultCommunityRoles).toHaveBeenCalled();
-      expect(rolesService.assignUserToCommunityRole).toHaveBeenCalled();
+      expect(
+        communityRolesService.createDefaultCommunityRoles,
+      ).toHaveBeenCalled();
+      expect(
+        communityRolesService.assignUserToCommunityRole,
+      ).toHaveBeenCalled();
     });
 
     it('should create welcome message in general channel', async () => {
@@ -399,14 +414,14 @@ describe('OnboardingService', () => {
 
       // The (mocked) tx-nested role mutations record their bumps on the
       // collector the service passes in, like the real implementations do.
-      rolesService.createDefaultInstanceRole.mockImplementation(((
+      instanceRolesService.createDefaultInstanceRole.mockImplementation(((
         _tx: unknown,
         bumps: any[],
       ) => {
         bumps.push({ kind: 'instance' });
         return Promise.resolve('mock-instance-admin-role-id');
       }) as any);
-      rolesService.assignUserToInstanceRole.mockImplementation(((
+      instanceRolesService.assignUserToInstanceRole.mockImplementation(((
         userId: string,
         _roleId: string,
         _tx: unknown,
@@ -415,13 +430,12 @@ describe('OnboardingService', () => {
         bumps.push({ kind: 'user', userId });
         return Promise.resolve();
       }) as any);
-      rolesService.createDefaultCommunityCreatorRole.mockImplementation(((
-        _tx: unknown,
-        bumps: any[],
-      ) => {
-        bumps.push({ kind: 'instance' });
-        return Promise.resolve('mock-community-creator-role-id');
-      }) as any);
+      instanceRolesService.createDefaultCommunityCreatorRole.mockImplementation(
+        ((_tx: unknown, bumps: any[]) => {
+          bumps.push({ kind: 'instance' });
+          return Promise.resolve('mock-community-creator-role-id');
+        }) as any,
+      );
       permissionsCacheService.executeBumps.mockImplementation(() => {
         order.push('flush-bumps');
         return Promise.resolve();
@@ -450,7 +464,7 @@ describe('OnboardingService', () => {
         mockTx.instanceInvite.create.mockResolvedValue(mockInvite);
         return callback(mockTx);
       });
-      rolesService.createDefaultInstanceRole.mockRejectedValue(
+      instanceRolesService.createDefaultInstanceRole.mockRejectedValue(
         new Error('instance role creation failed'),
       );
 

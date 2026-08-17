@@ -74,6 +74,7 @@ services:
       - backend
       - redis
 
+  # NOTE: near-duplicate of the postgres service in docker-compose.prod.yml and docker-compose.e2e.yml — keep image/healthcheck/env keys in sync.
   postgres:
     image: postgres:17
     ports:
@@ -90,6 +91,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # NOTE: near-duplicate of the redis service in docker-compose.prod.yml and docker-compose.e2e.yml — keep image/healthcheck/env keys in sync.
   redis:
     image: redis:latest
     ports:
@@ -105,6 +107,7 @@ services:
   livekit:
     image: livekit/livekit-server:latest
     environment:
+      # NOTE: LIVEKIT_CONFIG is duplicated (with deliberate differences) in docker-compose.voice-e2e.yml and docker-compose.voice-e2e.host.yml — keep keys/ports in sync when editing.
       LIVEKIT_CONFIG: |
         port: 7880
         rtc:

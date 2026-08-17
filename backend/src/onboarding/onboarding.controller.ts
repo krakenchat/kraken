@@ -48,10 +48,8 @@ export class OnboardingController {
     return {
       success: true,
       message: 'Instance setup completed successfully',
-      adminUserId: (result.adminUser as { id: string }).id,
-      defaultCommunityId: (
-        result.defaultCommunity as { id: string } | undefined
-      )?.id,
+      adminUserId: result.adminUser.id,
+      defaultCommunityId: result.defaultCommunity?.id,
     };
   }
 }

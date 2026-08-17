@@ -13,6 +13,7 @@ import { WsJwtAuthGuard } from '@/auth/ws-jwt-auth.guard';
 import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { RoomName } from '@/common/utils/room-name.util';
+import { SpanDto } from '@/messages/dto/message-response.dto';
 
 /**
  * Gateway for sending real-time notification events to clients
@@ -68,7 +69,13 @@ export class NotificationsGateway
       } | null;
       message?: {
         id: string;
-        spans: any[];
+        // Message.spans is a MessageSpan[] relation (Prisma), not the shared
+        // `Span[]` DTO shape — Prisma's nullable columns come back as
+        // `T | null`, not `T | undefined` (`Span`'s convention), so the
+        // shared type doesn't structurally match without a lossy cast.
+        // SpanDto already models the Prisma-nullable shape (see
+        // DmGroupLastMessageDto for the same pattern).
+        spans: SpanDto[];
         channelId: string | null;
         directMessageGroupId: string | null;
       } | null;

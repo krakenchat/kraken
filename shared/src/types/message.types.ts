@@ -56,8 +56,8 @@ export interface LinkPreview {
 
 export interface Message {
   id: string;
-  channelId?: string;
-  directMessageGroupId?: string;
+  channelId?: string | null;
+  directMessageGroupId?: string | null;
   authorId: string | null;
   spans: Span[];
   attachments: FileMetadata[];

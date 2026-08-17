@@ -3,7 +3,7 @@ import type { Mocked } from '@suites/doubles.jest';
 import { CommunityService } from './community.service';
 import { DatabaseService } from '@/database/database.service';
 import { ChannelsService } from '@/channels/channels.service';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
 import { PermissionsCacheService } from '@/roles/permissions-cache.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
@@ -16,7 +16,7 @@ describe('CommunityService', () => {
   let service: CommunityService;
   let mockDatabase: ReturnType<typeof createMockDatabase>;
   let channelsService: Mocked<ChannelsService>;
-  let rolesService: Mocked<RolesService>;
+  let communityRolesService: Mocked<CommunityRolesService>;
   let permissionsCacheService: Mocked<PermissionsCacheService>;
 
   beforeEach(async () => {
@@ -29,7 +29,7 @@ describe('CommunityService', () => {
 
     service = unit;
     channelsService = unitRef.get(ChannelsService);
-    rolesService = unitRef.get(RolesService);
+    communityRolesService = unitRef.get(CommunityRolesService);
     permissionsCacheService = unitRef.get(PermissionsCacheService);
   });
 
@@ -62,10 +62,10 @@ describe('CommunityService', () => {
         isPrivate: false,
         createdAt: new Date(),
       } as any);
-      rolesService.createDefaultCommunityRoles.mockResolvedValue(
+      communityRolesService.createDefaultCommunityRoles.mockResolvedValue(
         'admin-role-id' as any,
       );
-      rolesService.assignUserToCommunityRole.mockResolvedValue(
+      communityRolesService.assignUserToCommunityRole.mockResolvedValue(
         undefined as any,
       );
 
@@ -87,12 +87,12 @@ describe('CommunityService', () => {
         user.id,
         mockDatabase,
       );
-      expect(rolesService.createDefaultCommunityRoles).toHaveBeenCalledWith(
-        community.id,
-        mockDatabase,
-        expect.any(Array),
-      );
-      expect(rolesService.assignUserToCommunityRole).toHaveBeenCalledWith(
+      expect(
+        communityRolesService.createDefaultCommunityRoles,
+      ).toHaveBeenCalledWith(community.id, mockDatabase, expect.any(Array));
+      expect(
+        communityRolesService.assignUserToCommunityRole,
+      ).toHaveBeenCalledWith(
         user.id,
         community.id,
         'admin-role-id',
@@ -119,7 +119,7 @@ describe('CommunityService', () => {
 
       // The (mocked) tx-nested role mutations record their bumps on the
       // collector the service passes in, exactly like the real ones do.
-      rolesService.createDefaultCommunityRoles.mockImplementation(((
+      communityRolesService.createDefaultCommunityRoles.mockImplementation(((
         _id: string,
         _tx: unknown,
         bumps: any[],
@@ -127,7 +127,7 @@ describe('CommunityService', () => {
         bumps.push({ kind: 'community', communityId: community.id });
         return Promise.resolve('admin-role-id');
       }) as any);
-      rolesService.assignUserToCommunityRole.mockImplementation(((
+      communityRolesService.assignUserToCommunityRole.mockImplementation(((
         userId: string,
         _communityId: string,
         _roleId: string,
@@ -175,11 +175,11 @@ describe('CommunityService', () => {
       mockDatabase.community.create.mockResolvedValue(community);
       mockDatabase.membership.create.mockResolvedValue({});
       channelsService.createDefaultGeneralChannel.mockResolvedValue({} as any);
-      rolesService.createDefaultCommunityRoles.mockResolvedValue(
+      communityRolesService.createDefaultCommunityRoles.mockResolvedValue(
         'admin-role-id' as any,
       );
       // Fails after the role mutations would have collected bumps.
-      rolesService.assignUserToCommunityRole.mockRejectedValue(
+      communityRolesService.assignUserToCommunityRole.mockRejectedValue(
         new Error('assignment failed'),
       );
 
@@ -553,7 +553,7 @@ describe('CommunityService', () => {
       });
       // Role definitions and assignments were removed via raw
       // tx.role.deleteMany / tx.userRoles.deleteMany above, bypassing
-      // RolesService — remove() must bump the community epoch explicitly.
+      // CommunityRolesService — remove() must bump the community epoch explicitly.
       expect(permissionsCacheService.bumpCommunityEpoch).toHaveBeenCalledWith(
         community.id,
       );

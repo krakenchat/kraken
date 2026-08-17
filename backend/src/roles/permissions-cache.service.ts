@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
-import { RbacActions } from '@prisma/client';
+import { RbacActions, Prisma } from '@prisma/client';
 import { REDIS_CLIENT } from '@/redis/redis.constants';
 
 /** Cached-value TTL. Old-epoch value keys are never explicitly deleted —
@@ -25,7 +25,8 @@ export type PermissionScope =
 /**
  * A deferred epoch bump, described as data so it can be collected inside a
  * caller-owned transaction and executed only after that transaction commits.
- * See RolesService for the collection side and `executeBumps` for the flush.
+ * See `bumpNowOrDefer` for the collection side (used by CommunityRolesService
+ * and InstanceRolesService) and `executeBumps` for the flush.
  */
 export type EpochBump =
   | { kind: 'user'; userId: string }
@@ -216,6 +217,38 @@ export class PermissionsCacheService {
       seen.add(key);
       await this.executeBump(bump);
     }
+  }
+
+  /**
+   * Epoch-bump helper for role mutations that can run inside a caller-owned
+   * transaction. Two modes:
+   *
+   * - Without `tx`: the mutation's write is already committed, so bump
+   *   immediately (awaited) — the invalidation is visible before the
+   *   mutation returns.
+   * - With `tx` + `pendingBumps`: the write is NOT committed yet. Bumping
+   *   now would open a race where a concurrent reader misses under the new
+   *   epoch, reads pre-commit data from the DB, and caches it under the
+   *   post-commit epoch — a stale grant. So instead the bump is recorded on
+   *   the caller's collector; the transaction owner flushes it via
+   *   `executeBumps` right after `$transaction` resolves. On rollback the
+   *   collected bumps are never executed, which is correct (nothing changed
+   *   in the DB).
+   * - With `tx` but no collector (defensive fallback — every tx caller in
+   *   the codebase passes one): bump immediately anyway. That re-opens the
+   *   narrow pre-commit race above, but silently dropping the bump would be
+   *   strictly worse (guaranteed stale grant for up to the value TTL).
+   */
+  async bumpNowOrDefer(
+    bump: EpochBump,
+    tx?: Prisma.TransactionClient,
+    pendingBumps?: EpochBump[],
+  ): Promise<void> {
+    if (tx && pendingBumps) {
+      pendingBumps.push(bump);
+      return;
+    }
+    return this.executeBump(bump);
   }
 
   // ---------------------------------------------------------------------

@@ -19,5 +19,8 @@ export interface MessageFanoutJobData {
 export interface LinkPreviewJobData {
   messageId: string;
   room: string;
-  event: ServerEvents;
+  // Only ever UPDATE_MESSAGE (re-processed message always broadcasts as an
+  // update) — narrowed from ServerEvents so LinkPreviewsService's payload
+  // type-checks against UpdateMessagePayload specifically.
+  event: typeof ServerEvents.UPDATE_MESSAGE;
 }

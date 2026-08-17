@@ -65,7 +65,7 @@ describe('JwtAuthGuard', () => {
         headers: { authorization: 'Bearer token123' },
       });
 
-      const result = guard.getRequest(context);
+      const result = guard.getRequest(context) as { headers?: unknown };
 
       expect(result.headers).toEqual({ authorization: 'Bearer token123' });
     });
@@ -73,7 +73,7 @@ describe('JwtAuthGuard', () => {
     it('should handle HTTP requests with no authorization header', () => {
       const context = createMockHttpExecutionContext({ headers: {} });
 
-      const result = guard.getRequest(context);
+      const result = guard.getRequest(context) as { headers?: unknown };
 
       expect(result.headers).toEqual({});
     });

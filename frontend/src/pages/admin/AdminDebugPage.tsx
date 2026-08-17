@@ -601,7 +601,7 @@ const AdminDebugPage: React.FC = () => {
                   setChannelId("");
                 }}
               >
-                {(communities ?? []).map((c: any) => (
+                {(communities ?? []).map((c) => (
                   <MenuItem key={c.id} value={c.id}>
                     {c.name}
                   </MenuItem>
@@ -615,7 +615,7 @@ const AdminDebugPage: React.FC = () => {
                 label="Channel"
                 onChange={(e) => setChannelId(e.target.value)}
               >
-                {(channels ?? []).map((ch: any) => (
+                {(channels ?? []).map((ch) => (
                   <MenuItem key={ch.id} value={ch.id}>
                     #{ch.name} ({ch.type})
                   </MenuItem>
@@ -634,10 +634,10 @@ const AdminDebugPage: React.FC = () => {
               label="DM Group"
               onChange={(e) => setDmGroupId(e.target.value)}
             >
-              {(dmGroups ?? []).map((dm: any) => (
+              {(dmGroups ?? []).map((dm) => (
                 <MenuItem key={dm.id} value={dm.id}>
                   {dm.members
-                    ?.map((m: any) => m.user?.username ?? m.userId)
+                    ?.map((m) => m.user?.username ?? m.userId)
                     .join(", ") || dm.id}
                 </MenuItem>
               ))}
@@ -654,7 +654,7 @@ const AdminDebugPage: React.FC = () => {
               label="Community"
               onChange={(e) => setCommunityId(e.target.value)}
             >
-              {(communities ?? []).map((c: any) => (
+              {(communities ?? []).map((c) => (
                 <MenuItem key={c.id} value={c.id}>
                   {c.name}
                 </MenuItem>

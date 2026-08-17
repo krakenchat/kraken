@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '@/database/database.service';
-import { RolesService } from '@/roles/roles.service';
+import { CommunityRolesService } from '@/roles/community-roles.service';
 import { MembershipService } from '@/membership/membership.service';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@semaphore-chat/shared';
@@ -29,7 +29,7 @@ export class ModerationService {
 
   constructor(
     private readonly databaseService: DatabaseService,
-    private readonly rolesService: RolesService,
+    private readonly communityRolesService: CommunityRolesService,
     private readonly membershipService: MembershipService,
     private readonly websocketService: WebsocketService,
     private readonly eventEmitter: EventEmitter2,
@@ -45,7 +45,7 @@ export class ModerationService {
     userId: string,
     communityId: string,
   ): Promise<number> {
-    const userRoles = await this.rolesService.getUserRolesForCommunity(
+    const userRoles = await this.communityRolesService.getUserRolesForCommunity(
       userId,
       communityId,
     );
@@ -178,7 +178,7 @@ export class ModerationService {
     });
 
     // removeMemberInternal removed role assignments via a raw
-    // tx.userRoles.deleteMany (bypasses RolesService, so it doesn't
+    // tx.userRoles.deleteMany (bypasses CommunityRolesService, so it doesn't
     // self-bump) — invalidate the banned user's cached permissions now
     // that the transaction committed.
     await this.permissionsCacheService.bumpUserEpoch(userId);
@@ -352,7 +352,7 @@ export class ModerationService {
     });
 
     // removeMemberInternal removed role assignments via a raw
-    // tx.userRoles.deleteMany (bypasses RolesService, so it doesn't
+    // tx.userRoles.deleteMany (bypasses CommunityRolesService, so it doesn't
     // self-bump) — invalidate the kicked user's cached permissions now
     // that the transaction committed.
     await this.permissionsCacheService.bumpUserEpoch(userId);
@@ -650,7 +650,9 @@ export class ModerationService {
       ServerEvents.MESSAGE_PINNED,
       {
         messageId,
-        channelId: message.channelId,
+        // Non-null: the `!message.channel` check above already rejected
+        // DM messages, so a channel message always has a channelId.
+        channelId: message.channelId!,
         pinnedBy: moderatorId,
         pinnedAt: new Date().toISOString(),
       },
@@ -705,7 +707,9 @@ export class ModerationService {
       ServerEvents.MESSAGE_UNPINNED,
       {
         messageId,
-        channelId: message.channelId,
+        // Non-null: the `!message.channel` check above already rejected
+        // DM messages, so a channel message always has a channelId.
+        channelId: message.channelId!,
         unpinnedBy: moderatorId,
       },
     );
