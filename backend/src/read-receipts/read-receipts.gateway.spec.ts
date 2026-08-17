@@ -3,6 +3,7 @@ import type { Mocked } from '@suites/doubles.jest';
 import { ReadReceiptsGateway } from './read-receipts.gateway';
 import { ReadReceiptsService } from './read-receipts.service';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { WebsocketService } from '@/websocket/websocket.service';
 import { WsException } from '@nestjs/websockets';
 import { ServerEvents } from '@semaphore-chat/shared';
 
@@ -10,8 +11,7 @@ describe('ReadReceiptsGateway', () => {
   let gateway: ReadReceiptsGateway;
   let readReceiptsService: Mocked<ReadReceiptsService>;
   let notificationsService: Mocked<NotificationsService>;
-  let mockServer: { to: jest.Mock };
-  let mockRoom: { emit: jest.Mock };
+  let websocketService: Mocked<WebsocketService>;
 
   const makeClient = (overrides: Record<string, unknown> = {}) =>
     ({
@@ -34,10 +34,7 @@ describe('ReadReceiptsGateway', () => {
     gateway = unit;
     readReceiptsService = unitRef.get(ReadReceiptsService);
     notificationsService = unitRef.get(NotificationsService);
-
-    mockRoom = { emit: jest.fn() };
-    mockServer = { to: jest.fn().mockReturnValue(mockRoom) };
-    gateway.server = mockServer as any;
+    websocketService = unitRef.get(WebsocketService);
   });
 
   afterEach(() => {
@@ -91,8 +88,8 @@ describe('ReadReceiptsGateway', () => {
     it('emits READ_RECEIPT_UPDATED to user room', async () => {
       await gateway.handleMarkAsRead(channelPayload as any, makeClient());
 
-      expect(mockServer.to).toHaveBeenCalledWith('user:user-1');
-      expect(mockRoom.emit).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-1',
         ServerEvents.READ_RECEIPT_UPDATED,
         expect.objectContaining({
           channelId: 'ch-1',
@@ -104,10 +101,12 @@ describe('ReadReceiptsGateway', () => {
     it('does NOT emit to a channel room for channel contexts (privacy)', async () => {
       await gateway.handleMarkAsRead(channelPayload as any, makeClient());
 
-      const toCalls = mockServer.to.mock.calls.map((c: unknown[]) => c[0]);
-      expect(toCalls).not.toContain('channel:ch-1');
+      const roomCalls = (
+        websocketService.sendToRoom as jest.Mock
+      ).mock.calls.map((c: unknown[]) => c[0]);
+      expect(roomCalls).not.toContain('channel:ch-1');
       // Should only emit to the user room
-      expect(toCalls).toEqual(['user:user-1']);
+      expect(roomCalls).toEqual(['user:user-1']);
     });
 
     it('also emits to DM room for DM contexts with user identity', async () => {
@@ -121,18 +120,28 @@ describe('ReadReceiptsGateway', () => {
       await gateway.handleMarkAsRead(dmPayload as any, makeClient());
 
       // First call: user room
-      expect(mockServer.to).toHaveBeenCalledWith('user:user-1');
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-1',
+        ServerEvents.READ_RECEIPT_UPDATED,
+        expect.anything(),
+      );
       // Second call: DM room
-      expect(mockServer.to).toHaveBeenCalledWith('dm:dm-1');
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'dm:dm-1',
+        ServerEvents.READ_RECEIPT_UPDATED,
+        expect.anything(),
+      );
 
       // The DM room emission should include user identity
-      const dmEmitCall = mockRoom.emit.mock.calls.find(
+      const dmEmitCall = (
+        websocketService.sendToRoom as jest.Mock
+      ).mock.calls.find(
         (call: unknown[]) =>
-          call[0] === ServerEvents.READ_RECEIPT_UPDATED &&
-          (call[1] as Record<string, unknown>).userId === 'user-1',
+          call[0] === 'dm:dm-1' &&
+          call[1] === ServerEvents.READ_RECEIPT_UPDATED,
       );
       expect(dmEmitCall).toBeDefined();
-      expect(dmEmitCall![1]).toMatchObject({
+      expect(dmEmitCall![2]).toMatchObject({
         userId: 'user-1',
         username: 'alice',
         displayName: 'Alice',

@@ -21,6 +21,7 @@ import { WsThrottleGuard } from '@/auth/ws-throttle.guard';
 import { WsLoggingExceptionFilter } from '@/websocket/ws-exception.filter';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { RoomName } from '@/common/utils/room-name.util';
+import { WebsocketService } from '@/websocket/websocket.service';
 
 @UseFilters(WsLoggingExceptionFilter)
 @WebSocketGateway({
@@ -45,6 +46,7 @@ export class ReadReceiptsGateway
   constructor(
     private readonly readReceiptsService: ReadReceiptsService,
     private readonly notificationsService: NotificationsService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -94,29 +96,41 @@ export class ReadReceiptsGateway
         channelId: readReceipt.channelId,
         directMessageGroupId: readReceipt.directMessageGroupId,
         lastReadMessageId: readReceipt.lastReadMessageId,
-        lastReadAt: readReceipt.lastReadAt,
+        // Cast, not converted: the wire type's declared shape is the
+        // post-serialization ISO string, but this hands the raw Date
+        // straight through — WebsocketService.sendToRoom() normalizes
+        // every payload to JSON wire form (Date -> ISO string) right
+        // before `.emit()`, so the runtime already matches this cast. See
+        // toWirePayload in @/websocket/websocket-wire.util. Fixes #440.
+        lastReadAt: readReceipt.lastReadAt as unknown as string,
       };
 
       // Emit to all of the user's connected sessions (including this one)
       // This ensures that if the user has the app open on multiple devices,
       // all sessions stay in sync
       const userRoom = RoomName.user(userId);
-      this.server
-        .to(userRoom)
-        .emit(ServerEvents.READ_RECEIPT_UPDATED, receiptPayload);
+      this.websocketService.sendToRoom(
+        userRoom,
+        ServerEvents.READ_RECEIPT_UPDATED,
+        receiptPayload,
+      );
 
       // Also emit to the channel/DM room so other users can see real-time "seen by" updates
       // Only do this for DMs where "seen by" is shown (privacy-conscious approach)
       if (readReceipt.directMessageGroupId) {
         const dmRoom = RoomName.dmGroup(readReceipt.directMessageGroupId);
-        this.server.to(dmRoom).emit(ServerEvents.READ_RECEIPT_UPDATED, {
-          ...receiptPayload,
-          // Include user info so other clients can update "seen by" without refetching
-          userId,
-          username: user.username,
-          displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
-        });
+        this.websocketService.sendToRoom(
+          dmRoom,
+          ServerEvents.READ_RECEIPT_UPDATED,
+          {
+            ...receiptPayload,
+            // Include user info so other clients can update "seen by" without refetching
+            userId,
+            username: user.username,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+          },
+        );
       }
 
       this.logger.debug(

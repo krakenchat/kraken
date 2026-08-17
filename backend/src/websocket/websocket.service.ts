@@ -4,6 +4,7 @@ import {
   ClientToServerEvents,
   ServerToClientEvents,
 } from '@semaphore-chat/shared';
+import { toWirePayload } from './websocket-wire.util';
 
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
@@ -29,7 +30,11 @@ export class WebsocketService {
     }
 
     try {
-      this.server.to(room).emit(event, ...args);
+      // Normalize to JSON wire form before handing off to the adapter — see
+      // toWirePayload doc comment (fixes #440: notepack has no Date codec,
+      // so raw Dates would otherwise arrive as `{}` on other replicas).
+      const wireArgs = args.map((arg) => toWirePayload(arg)) as typeof args;
+      this.server.to(room).emit(event, ...wireArgs);
       return true;
     } catch (error) {
       this.logger.error(
@@ -96,7 +101,11 @@ export class WebsocketService {
     }
 
     try {
-      this.server.emit(event, ...args);
+      // Normalize to JSON wire form before handing off to the adapter — see
+      // toWirePayload doc comment (fixes #440: notepack has no Date codec,
+      // so raw Dates would otherwise arrive as `{}` on other replicas).
+      const wireArgs = args.map((arg) => toWirePayload(arg)) as typeof args;
+      this.server.emit(event, ...wireArgs);
       return true;
     } catch (error) {
       this.logger.error(

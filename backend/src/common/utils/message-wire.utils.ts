@@ -19,10 +19,13 @@ import { Message } from '@semaphore-chat/shared';
  * This cast does not change what is actually emitted — it hands the exact
  * same runtime value to `.emit()` that was passed in, just relabeled to
  * satisfy the static type at the WebsocketService boundary. It does NOT
- * claim the resulting wire bytes match the shared type's documented shape
- * (e.g. Date -> ISO-string correctness across the Redis adapter is a
- * separate, deferred concern: the adapter's notepack encoding delivers raw
- * Date fields as empty objects to clients connected to OTHER replicas).
+ * itself perform the Date -> ISO-string wire conversion; that runtime gap
+ * (the Redis adapter's notepack encoding has no Date codec, so raw Date
+ * fields arrived as empty objects on clients connected to OTHER replicas)
+ * is resolved centrally at the WebsocketService boundary — see
+ * `toWirePayload` in `@/websocket/websocket-wire.util`, which JSON-roundtrips
+ * every payload before `.emit()` so the runtime now matches the type
+ * declared here. Fixes #440.
  *
  * The parameter is constrained to values that are at least plausibly a
  * message (has `id`, `spans`, `sentAt`) rather than `unknown`, so this

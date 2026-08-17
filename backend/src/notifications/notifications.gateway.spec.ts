@@ -1,21 +1,19 @@
 import { TestBed } from '@suites/unit';
 import { NotificationsGateway } from './notifications.gateway';
+import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@semaphore-chat/shared';
+import type { Mocked } from '@suites/doubles.jest';
 
 describe('NotificationsGateway', () => {
   let gateway: NotificationsGateway;
-  let mockServer: { to: jest.Mock };
-  let mockRoom: { emit: jest.Mock };
+  let websocketService: Mocked<WebsocketService>;
 
   beforeEach(async () => {
-    const { unit } = await TestBed.solitary(NotificationsGateway).compile();
+    const { unit, unitRef } =
+      await TestBed.solitary(NotificationsGateway).compile();
 
     gateway = unit;
-
-    // Set up mock server chain: server.to(room).emit(event, data)
-    mockRoom = { emit: jest.fn() };
-    mockServer = { to: jest.fn().mockReturnValue(mockRoom) };
-    gateway.server = mockServer as any;
+    websocketService = unitRef.get(WebsocketService);
   });
 
   afterEach(() => {
@@ -59,8 +57,8 @@ describe('NotificationsGateway', () => {
 
       gateway.emitNotificationToUser(userId, notification);
 
-      expect(mockServer.to).toHaveBeenCalledWith('user:user-123');
-      expect(mockRoom.emit).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-123',
         ServerEvents.NEW_NOTIFICATION,
         expect.objectContaining({
           notificationId: 'n-1',
@@ -89,7 +87,8 @@ describe('NotificationsGateway', () => {
 
       gateway.emitNotificationToUser(userId, notification);
 
-      expect(mockRoom.emit).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-123',
         ServerEvents.NEW_NOTIFICATION,
         expect.objectContaining({
           communityId: null,
@@ -106,8 +105,8 @@ describe('NotificationsGateway', () => {
 
       gateway.emitNotificationRead(userId, notificationId);
 
-      expect(mockServer.to).toHaveBeenCalledWith('user:user-123');
-      expect(mockRoom.emit).toHaveBeenCalledWith(
+      expect(websocketService.sendToRoom).toHaveBeenCalledWith(
+        'user:user-123',
         ServerEvents.NOTIFICATION_READ,
         { notificationId: 'n-1' },
       );

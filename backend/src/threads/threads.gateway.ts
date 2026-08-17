@@ -136,14 +136,14 @@ export class ThreadsGateway
         {
           parentMessageId: payload.parentMessageId,
           replyCount: parentMessage.replyCount,
-          // Cast, not converted: preserves the existing runtime value
-          // (a raw Date, same as before this task) rather than changing
-          // what's emitted. The payload's declared wire type is a
-          // post-serialization `string | null`; correctness of that
-          // conversion across the Redis adapter (which doesn't always
-          // serialize Date the same way JSON.stringify would) is out of
-          // scope for this typing-only pass — see the doc comment in
-          // @/common/utils/message-wire.utils for the notepack caveat.
+          // Cast, not converted: this hands the raw Date straight through
+          // to WebsocketService.sendToRoom() unchanged — no per-call-site
+          // conversion needed. The payload's declared wire type is the
+          // post-serialization `string | null` shape; WebsocketService now
+          // normalizes every payload to that JSON wire form (Date -> ISO
+          // string) right before `.emit()`, so this cast is purely a
+          // static-type relabeling and the runtime already matches it.
+          // See toWirePayload in @/websocket/websocket-wire.util. Fixes #440.
           lastReplyAt: parentMessage.lastReplyAt as unknown as string | null,
           channelId: parentMessage.channelId ?? null,
           directMessageGroupId: parentMessage.directMessageGroupId ?? null,
