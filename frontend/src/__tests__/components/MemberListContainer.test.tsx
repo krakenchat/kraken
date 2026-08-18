@@ -274,3 +274,72 @@ describe('MemberListContainer paginated community members', () => {
     ]);
   });
 });
+
+describe('MemberListContainer version-skew tolerance (pre-0.4.0 backends)', () => {
+  beforeEach(() => {
+    capturedPropsHistory = [];
+  });
+
+  it('renders members when the server returns a legacy plain array instead of the { members, continuationToken } envelope', async () => {
+    server.use(
+      http.get(`${BASE_URL}/api/membership/community/community-legacy`, () =>
+        // Pre-0.4.0 backends respond with a bare array of memberships
+        // instead of the cursor envelope a v0.4.0+ client expects.
+        HttpResponse.json([
+          membershipFixture('a', 'alice', 'Alice'),
+          membershipFixture('b', 'bob', 'Bob'),
+        ]),
+      ),
+      http.get(`${BASE_URL}/api/presence/users/:userIds`, () =>
+        HttpResponse.json({ presence: { 'user-a': false, 'user-b': false } }),
+      ),
+    );
+
+    renderWithProviders(
+      <MemberListContainer
+        contextType={VoiceSessionType.Channel}
+        contextId="channel-legacy"
+        communityId="community-legacy"
+        isPrivate={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('member-list-mock')).toHaveTextContent('2');
+    });
+
+    const props = capturedPropsHistory[capturedPropsHistory.length - 1];
+    expect(props.members.map((m) => m.id)).toEqual(['user-a', 'user-b']);
+    // No continuationToken on the legacy array shape, so pagination
+    // correctly stops after the one full page.
+    expect(props.hasMore).toBe(false);
+  });
+
+  it('renders an empty member list without crashing when the page shape is unrecognized', async () => {
+    server.use(
+      http.get(`${BASE_URL}/api/membership/community/community-malformed`, () =>
+        // Neither the cursor envelope nor a plain array — must not throw.
+        HttpResponse.json({}),
+      ),
+      http.get(`${BASE_URL}/api/presence/users/:userIds`, () =>
+        HttpResponse.json({ presence: {} }),
+      ),
+    );
+
+    renderWithProviders(
+      <MemberListContainer
+        contextType={VoiceSessionType.Channel}
+        contextId="channel-malformed"
+        communityId="community-malformed"
+        isPrivate={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('member-list-mock')).toBeInTheDocument();
+    });
+
+    const props = capturedPropsHistory[capturedPropsHistory.length - 1];
+    expect(props.members).toEqual([]);
+  });
+});

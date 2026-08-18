@@ -7,7 +7,7 @@ import {
   channelMembershipControllerFindAllForChannelOptions,
 } from "../../api-client/@tanstack/react-query.gen";
 import { membershipControllerFindAllForCommunity } from "../../api-client/sdk.gen";
-import type { RoleDto } from "../../api-client/types.gen";
+import type { RoleDto, MembershipResponseDto } from "../../api-client/types.gen";
 import {
   communityMembersQueryKey,
   MEMBER_LIST_PAGE_SIZE,
@@ -112,7 +112,18 @@ const MemberListContainer: React.FC<MemberListContainerProps> = ({
   });
 
   const communityMembers = React.useMemo(
-    () => communityMembersData?.pages.flatMap((page) => page.members),
+    () =>
+      communityMembersData?.pages.flatMap((page) => {
+        // Version-skew tolerance: pre-0.4.0 backends return a plain
+        // membership array instead of the { members, continuationToken }
+        // envelope (auto-updated desktop clients can race ahead of
+        // self-hosted servers). Treat the array as a single full page, and
+        // fall back to an empty page for any other unrecognized shape
+        // rather than letting `undefined` entries reach the filter/map
+        // below and crash the whole community screen.
+        if (Array.isArray(page)) return page as MembershipResponseDto[];
+        return page?.members ?? [];
+      }),
     [communityMembersData],
   );
 
