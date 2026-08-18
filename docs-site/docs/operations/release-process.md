@@ -13,6 +13,26 @@ Semaphore Chat uses a tag-based release workflow with support for full releases,
 
 ## Creating a Release
 
+### Pre-release checks
+
+The Docker publish workflow gates image publishing on a Trivy scan against the **live** advisory database, so a release can fail on advisories published after the last green PR run. Scan and patch dependencies *before* tagging:
+
+```bash
+# Scan the lockfile against current advisories (same severity gate as CI)
+docker run --rm -v "$PWD:/repo" aquasec/trivy fs \
+  --severity HIGH,CRITICAL --ignore-unfixed \
+  --ignorefile /repo/.trivyignore --scanners vuln /repo/pnpm-lock.yaml
+```
+
+If it reports findings, bump the affected packages to their fixed versions — for transitive dependencies, add a `pnpm.overrides` entry in the root `package.json` and regenerate the lockfile:
+
+```bash
+docker compose run --rm -v "$PWD:/workspace" backend \
+  sh -c 'cd /workspace && pnpm install --lockfile-only'
+```
+
+Then rebuild images (`docker compose build`), re-run the test suites, and re-scan before proceeding. This keeps the release atomic — otherwise a failed image publish requires a `docker-v*` hotfix tag from a later commit, and the `latest` tag must be repointed manually (component tags don't apply it).
+
 ### Full Release
 
 ```bash
