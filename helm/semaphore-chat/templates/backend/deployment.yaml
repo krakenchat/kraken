@@ -40,8 +40,9 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
-          {{- if .Values.fileStorage.s3.enabled }}
+          {{- if or .Values.fileStorage.s3.enabled .Values.backend.extraEnv }}
           env:
+            {{- if .Values.fileStorage.s3.enabled }}
             - name: S3_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -52,6 +53,10 @@ spec:
                 secretKeyRef:
                   name: {{ if .Values.fileStorage.s3.existingSecret }}{{ .Values.fileStorage.s3.existingSecret }}{{ else }}{{ include "semaphore-chat.fullname" . }}-s3-secret{{ end }}
                   key: {{ if .Values.fileStorage.s3.existingSecret }}{{ .Values.fileStorage.s3.existingSecretSecretAccessKeyKey }}{{ else }}S3_SECRET_ACCESS_KEY{{ end }}
+            {{- end }}
+            {{- with .Values.backend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           envFrom:
             - configMapRef:

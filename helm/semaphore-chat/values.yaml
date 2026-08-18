@@ -86,6 +86,21 @@ backend:
   # Affinity for pod assignment
   affinity: {}
 
+  # Extra environment variables for the backend container.
+  # Use for optional features not covered by first-class values
+  # (e.g. TENOR_API_KEY, SMTP_* for password-reset email, JOB_WORKER_CONCURRENCY).
+  # Supports the full k8s EnvVar schema, so secrets can use valueFrom.secretKeyRef.
+  # Example:
+  #   extraEnv:
+  #     - name: TENOR_API_KEY
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: my-tenor-secret
+  #           key: TENOR_API_KEY
+  #     - name: JOB_WORKER_CONCURRENCY
+  #       value: "4"
+  extraEnv: []
+
   # Pod annotations
   podAnnotations: {}
 
