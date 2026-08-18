@@ -5,15 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.1] - 2026-08-18
 
 ### Changed
 
 - **GIF Search Provider: Giphy** — Switched the GIF search backend from Tenor to Giphy behind a new swappable provider interface; the API contract is unchanged. The picker now shows the required "Powered by GIPHY" attribution.
 
+### Fixed
+
+- **Replay Orphan Segment Sweep** — Replay egress segment directories no longer accumulate forever when their session row is gone (crashed recordings, missed egress webhooks, failed cleanup attempts, DB resets). An hourly reconciliation cron now deletes segment directories older than a grace period that no active session references. New env vars: `REPLAY_ORPHAN_SWEEP_ENABLED` (default `true`), `REPLAY_ORPHAN_SWEEP_GRACE_HOURS` (default `24`). Observed in production as ~5GB of orphaned recordings accumulating over 9 months.
+
 ### Upgrade notes
 
 - `GIPHY_API_KEY` replaces `TENOR_API_KEY` (deprecated, ignored, startup warning). Instances using GIF search must swap the env var; nothing else changes.
+- The replay orphan sweep is on by default and will delete any leftover orphaned segment directories (older than 24h, unreferenced by an active session) within an hour of upgrading — this is the intended cleanup of the accumulated leak. Set `REPLAY_ORPHAN_SWEEP_ENABLED=false` beforehand if you want to inspect those directories first.
 
 ## [0.4.0] - 2026-08-18
 
