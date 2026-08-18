@@ -243,4 +243,47 @@ describe('StorageService', () => {
       expect(localProvider.getFileUrl).toHaveBeenCalledWith('/test/file.txt');
     });
   });
+
+  describe('listSegmentDirectories', () => {
+    it('should list directory entries under the configured segments prefix', async () => {
+      localProvider.listDirectories.mockResolvedValue([
+        'session-1',
+        'session-2',
+      ]);
+
+      const result = await service.listSegmentDirectories();
+
+      expect(result).toEqual(['session-1', 'session-2']);
+      expect(localProvider.listDirectories).toHaveBeenCalledWith(
+        '/app/storage/replay-segments',
+      );
+    });
+
+    it('should return an empty array when the segments root does not exist', async () => {
+      localProvider.listDirectories.mockResolvedValue([]);
+
+      const result = await service.listSegmentDirectories();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getSegmentDirectoryStats', () => {
+    it('should stat a segment directory resolved against the segments prefix', async () => {
+      const stats = {
+        size: 4096,
+        mtime: new Date('2026-01-01T00:00:00Z'),
+        ctime: new Date('2026-01-01T00:00:00Z'),
+      };
+      localProvider.getFileStatsWithPrefix.mockResolvedValue(stats);
+
+      const result = await service.getSegmentDirectoryStats('session-1');
+
+      expect(result).toEqual(stats);
+      expect(localProvider.getFileStatsWithPrefix).toHaveBeenCalledWith(
+        'session-1',
+        '/app/storage/replay-segments',
+      );
+    });
+  });
 });

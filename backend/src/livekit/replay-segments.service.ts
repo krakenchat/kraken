@@ -10,6 +10,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { EgressClient } from 'livekit-server-sdk';
 import { DatabaseService } from '@/database/database.service';
 import { StorageService } from '@/storage/storage.service';
+import { FileStats } from '@/storage/interfaces/storage-provider.interface';
 import { WebsocketService } from '@/websocket/websocket.service';
 import { ServerEvents } from '@semaphore-chat/shared';
 import { RoomName } from '@/common/utils/room-name.util';
@@ -31,6 +32,8 @@ import { EGRESS_CLIENT } from './providers/egress-client.provider';
 export class ReplaySegmentsService {
   private readonly logger = new Logger(ReplaySegmentsService.name);
   private readonly cleanupAgeMinutes: number;
+  private readonly orphanSweepEnabled: boolean;
+  private readonly orphanSweepGraceHours: number;
   private readonly REMUX_CACHE_DIR = '/tmp/hls-remux-cache';
   private readonly REMUX_CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
@@ -48,8 +51,21 @@ export class ReplaySegmentsService {
       10,
     );
 
+    // Filesystem reconciliation sweep (issue: segment directories with no
+    // matching egressSession row orphan permanently — see
+    // sweepOrphanedSegmentDirectories doc). Defaults to enabled.
+    this.orphanSweepEnabled =
+      this.configService.get<string>('REPLAY_ORPHAN_SWEEP_ENABLED') !== 'false';
+    this.orphanSweepGraceHours = parseInt(
+      this.configService.get<string>('REPLAY_ORPHAN_SWEEP_GRACE_HOURS') || '24',
+      10,
+    );
+
     this.logger.log('ReplaySegmentsService initialized');
     this.logger.log(`Cleanup age: ${this.cleanupAgeMinutes} minutes`);
+    this.logger.log(
+      `Orphan directory sweep: ${this.orphanSweepEnabled ? 'enabled' : 'disabled'} (grace: ${this.orphanSweepGraceHours}h)`,
+    );
   }
 
   /**
@@ -228,6 +244,107 @@ export class ReplaySegmentsService {
     } catch (error) {
       this.logger.error(
         `Orphaned session cleanup job failed: ${getErrorMessage(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Sweep segment directories on disk that have no matching `egressSession`
+   * DB row (or whose row is no longer active).
+   *
+   * Every other cleanup path here starts from a DB row (graceful stop,
+   * egress-ended webhook, cleanupOldSegments, cleanupOrphanedSessions) — none
+   * of them can catch a directory whose row was wiped, whose webhook was
+   * missed, or whose one-time `deleteSegmentDirectory` call failed after the
+   * row was already marked 'stopped'. This is a filesystem-first pass:
+   * list what's actually on disk, and delete anything old enough and not
+   * claimed by a currently-active session.
+   *
+   * Runs hourly at :30 (offset from cleanupOrphanedSessions at :00) so the
+   * two sweeps don't overlap. A directory must be older than
+   * REPLAY_ORPHAN_SWEEP_GRACE_HOURS (default 24h) before it's eligible —
+   * comfortably longer than any legitimate in-progress session — to avoid
+   * racing a session that is starting up or between webhook and DB write.
+   */
+  @Cron('30 * * * *')
+  async sweepOrphanedSegmentDirectories(): Promise<void> {
+    if (!this.orphanSweepEnabled) {
+      this.logger.debug(
+        'Orphaned segment directory sweep disabled via REPLAY_ORPHAN_SWEEP_ENABLED',
+      );
+      return;
+    }
+
+    try {
+      const dirNames = await this.storageService.listSegmentDirectories();
+
+      if (dirNames.length === 0) {
+        this.logger.debug('No segment directories found to sweep');
+        return;
+      }
+
+      // Query active sessions once per sweep, not per directory.
+      const activeSessions = await this.databaseService.egressSession.findMany({
+        where: { status: 'active' },
+      });
+      // segmentPath is stored as the flat sessionId directory name (see
+      // startReplayBuffer), the same form readdir yields here — so exact Set
+      // membership is correct; no prefix/substring matching involved.
+      const activeSegmentPaths = new Set(
+        activeSessions.map((session) => session.segmentPath),
+      );
+
+      const cutoffDate = new Date(
+        Date.now() - this.orphanSweepGraceHours * 60 * 60 * 1000,
+      );
+
+      let deletedCount = 0;
+      let skippedActiveCount = 0;
+      let skippedYoungCount = 0;
+
+      for (const dirName of dirNames) {
+        if (activeSegmentPaths.has(dirName)) {
+          skippedActiveCount++;
+          continue;
+        }
+
+        let stats: FileStats;
+        try {
+          stats = await this.storageService.getSegmentDirectoryStats(dirName);
+        } catch (error) {
+          this.logger.debug(
+            `Failed to stat segment directory ${dirName}, skipping: ${getErrorMessage(error)}`,
+          );
+          continue;
+        }
+
+        if (stats.mtime >= cutoffDate) {
+          skippedYoungCount++;
+          continue;
+        }
+
+        try {
+          await this.storageService.deleteSegmentDirectory(dirName, {
+            recursive: true,
+            force: true,
+          });
+          deletedCount++;
+        } catch (error) {
+          this.logger.warn(
+            `Failed to delete orphaned segment directory ${dirName}: ${getErrorMessage(error)}`,
+          );
+        }
+      }
+
+      const summary = `Swept ${deletedCount} orphaned segment directories (skipped ${skippedActiveCount} active, ${skippedYoungCount} young)`;
+      if (deletedCount > 0) {
+        this.logger.log(summary);
+      } else {
+        this.logger.debug(summary);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Orphaned segment directory sweep failed: ${getErrorMessage(error)}`,
       );
     }
   }

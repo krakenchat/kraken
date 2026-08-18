@@ -180,6 +180,18 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   S3_FORCE_PATH_STYLE?: string;
+
+  // Replay segment orphan sweep — filesystem-first cleanup pass that catches
+  // segment directories with no matching (or no longer active) egressSession
+  // DB row (wiped row, missed webhook, a failed one-time cleanup). See
+  // ReplaySegmentsService.sweepOrphanedSegmentDirectories.
+  @IsOptional()
+  @IsString()
+  REPLAY_ORPHAN_SWEEP_ENABLED?: string;
+
+  @IsOptional()
+  @IsString()
+  REPLAY_ORPHAN_SWEEP_GRACE_HOURS?: string;
 }
 
 /**

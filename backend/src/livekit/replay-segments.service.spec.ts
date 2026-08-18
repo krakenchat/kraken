@@ -470,4 +470,171 @@ describe('ReplaySegmentsService', () => {
       expect(databaseService.egressSession.update).toHaveBeenCalled();
     });
   });
+
+  describe('sweepOrphanedSegmentDirectories', () => {
+    beforeEach(() => {
+      databaseService.egressSession.findMany.mockResolvedValue([]);
+      storageService.listSegmentDirectories.mockResolvedValue([]);
+      storageService.getSegmentDirectoryStats.mockResolvedValue({
+        size: 0,
+        mtime: new Date(),
+        ctime: new Date(),
+      });
+      storageService.deleteSegmentDirectory.mockResolvedValue(undefined);
+    });
+
+    it('deletes a directory older than the grace period with no active session referencing it', async () => {
+      storageService.listSegmentDirectories.mockResolvedValue(['orphan-old']);
+      storageService.getSegmentDirectoryStats.mockResolvedValue({
+        size: 0,
+        mtime: new Date(Date.now() - 30 * 60 * 60 * 1000), // 30h old
+        ctime: new Date(),
+      });
+      databaseService.egressSession.findMany.mockResolvedValue([]);
+
+      await service.sweepOrphanedSegmentDirectories();
+
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'orphan-old',
+        { recursive: true, force: true },
+      );
+    });
+
+    it('skips a directory younger than the grace period', async () => {
+      storageService.listSegmentDirectories.mockResolvedValue(['young-dir']);
+      storageService.getSegmentDirectoryStats.mockResolvedValue({
+        size: 0,
+        mtime: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1h old
+        ctime: new Date(),
+      });
+      databaseService.egressSession.findMany.mockResolvedValue([]);
+
+      await service.sweepOrphanedSegmentDirectories();
+
+      expect(storageService.deleteSegmentDirectory).not.toHaveBeenCalled();
+    });
+
+    it('skips a directory referenced by an active session, exact-match only (prefix sharing does not protect a different dir)', async () => {
+      storageService.listSegmentDirectories.mockResolvedValue([
+        'session-1',
+        'session-1-decoy',
+      ]);
+      storageService.getSegmentDirectoryStats.mockResolvedValue({
+        size: 0,
+        mtime: new Date(Date.now() - 30 * 60 * 60 * 1000), // old enough to delete
+        ctime: new Date(),
+      });
+      databaseService.egressSession.findMany.mockResolvedValue([
+        { id: 'active-1', segmentPath: 'session-1', status: 'active' },
+      ]);
+
+      await service.sweepOrphanedSegmentDirectories();
+
+      // The active session's exact directory must be protected...
+      expect(storageService.deleteSegmentDirectory).not.toHaveBeenCalledWith(
+        'session-1',
+        expect.anything(),
+      );
+      // ...but a directory that merely shares its prefix is NOT protected.
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'session-1-decoy',
+        { recursive: true, force: true },
+      );
+    });
+
+    it('does not list or delete anything when disabled via REPLAY_ORPHAN_SWEEP_ENABLED=false', async () => {
+      const { unit, unitRef } = await TestBed.solitary(ReplaySegmentsService)
+        .mock(EGRESS_CLIENT)
+        .final(mockEgressClient)
+        .mock(ConfigService)
+        .final({
+          get: jest.fn().mockImplementation((key: string) => {
+            const config: Record<string, string> = {
+              REPLAY_SEGMENT_CLEANUP_AGE_MINUTES: '20',
+              REPLAY_ORPHAN_SWEEP_ENABLED: 'false',
+            };
+            return config[key];
+          }),
+        })
+        .compile();
+
+      const disabledService = unit;
+      const disabledStorageService = unitRef.get(StorageService);
+
+      await disabledService.sweepOrphanedSegmentDirectories();
+
+      expect(
+        disabledStorageService.listSegmentDirectories,
+      ).not.toHaveBeenCalled();
+      expect(
+        disabledStorageService.deleteSegmentDirectory,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('continues sweeping the rest when one directory delete throws', async () => {
+      storageService.listSegmentDirectories.mockResolvedValue([
+        'orphan-a',
+        'orphan-b',
+      ]);
+      storageService.getSegmentDirectoryStats.mockResolvedValue({
+        size: 0,
+        mtime: new Date(Date.now() - 30 * 60 * 60 * 1000),
+        ctime: new Date(),
+      });
+      databaseService.egressSession.findMany.mockResolvedValue([]);
+      storageService.deleteSegmentDirectory
+        .mockRejectedValueOnce(new Error('disk error'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.sweepOrphanedSegmentDirectories(),
+      ).resolves.toBeUndefined();
+
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'orphan-a',
+        { recursive: true, force: true },
+      );
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'orphan-b',
+        { recursive: true, force: true },
+      );
+    });
+
+    it('does not throw and deletes nothing when the segments root is missing', async () => {
+      storageService.listSegmentDirectories.mockResolvedValue([]);
+
+      await expect(
+        service.sweepOrphanedSegmentDirectories(),
+      ).resolves.toBeUndefined();
+
+      expect(storageService.getSegmentDirectoryStats).not.toHaveBeenCalled();
+      expect(storageService.deleteSegmentDirectory).not.toHaveBeenCalled();
+    });
+
+    it('skips a directory when stat fails, without stopping the sweep', async () => {
+      storageService.listSegmentDirectories.mockResolvedValue([
+        'unstattable',
+        'orphan-ok',
+      ]);
+      databaseService.egressSession.findMany.mockResolvedValue([]);
+      storageService.getSegmentDirectoryStats
+        .mockRejectedValueOnce(new Error('ENOENT'))
+        .mockResolvedValueOnce({
+          size: 0,
+          mtime: new Date(Date.now() - 30 * 60 * 60 * 1000),
+          ctime: new Date(),
+        });
+
+      await service.sweepOrphanedSegmentDirectories();
+
+      expect(storageService.deleteSegmentDirectory).not.toHaveBeenCalledWith(
+        'unstattable',
+        expect.anything(),
+      );
+      expect(storageService.deleteSegmentDirectory).toHaveBeenCalledWith(
+        'orphan-ok',
+        { recursive: true, force: true },
+      );
+    });
+  });
 });

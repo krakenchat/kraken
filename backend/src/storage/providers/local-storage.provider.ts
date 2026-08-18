@@ -128,6 +128,31 @@ export class LocalStorageProvider implements IStorageProvider {
   }
 
   /**
+   * Lists the first-level directory entries of `dirPath`, filtering out
+   * plain files. Returns `[]` (rather than throwing) when `dirPath` itself
+   * does not exist — callers sweeping a segments root that hasn't been
+   * created yet should treat that as "nothing to sweep", not an error.
+   */
+  async listDirectories(dirPath: string): Promise<string[]> {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name);
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as NodeJS.ErrnoException).code === 'ENOENT'
+      ) {
+        return [];
+      }
+      this.logger.error(`Failed to list directories in ${dirPath}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Gets file statistics (size, modification time, creation time)
    */
   async getFileStats(path: string): Promise<FileStats> {

@@ -86,6 +86,8 @@ Configuration for the replay buffer / screen recording feature. Requires LiveKit
 | `REPLAY_SEGMENTS_PATH` | Backend storage path for replay metadata | `/app/storage/replay-segments` |
 | `REPLAY_EGRESS_OUTPUT_PATH` | LiveKit egress output path (must be accessible by egress pods) | `/out` |
 | `REPLAY_SEGMENT_CLEANUP_AGE_MINUTES` | How long to keep replay segments before cleanup | `20` |
+| `REPLAY_ORPHAN_SWEEP_ENABLED` | Hourly reconciliation sweep that deletes segment directories no session references anymore (crashed recordings, missed webhooks, failed cleanups). Set `false` to disable | `true` |
+| `REPLAY_ORPHAN_SWEEP_GRACE_HOURS` | Minimum directory age before the orphan sweep may delete it | `24` |
 
 ### Reverse proxy
 

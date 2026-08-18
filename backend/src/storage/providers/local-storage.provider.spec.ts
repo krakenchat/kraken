@@ -228,6 +228,43 @@ describe('LocalStorageProvider', () => {
     });
   });
 
+  describe('listDirectories', () => {
+    it('should return only directory entries, using withFileTypes', async () => {
+      (fs.readdir as jest.Mock).mockResolvedValue([
+        { name: 'session-1', isDirectory: () => true },
+        { name: 'session-2', isDirectory: () => true },
+        { name: 'stray-file.txt', isDirectory: () => false },
+      ]);
+
+      const result = await provider.listDirectories('/test/segments-root');
+
+      expect(result).toEqual(['session-1', 'session-2']);
+      expect(fs.readdir).toHaveBeenCalledWith('/test/segments-root', {
+        withFileTypes: true,
+      });
+    });
+
+    it('should return empty array when the root does not exist (ENOENT)', async () => {
+      const error: NodeJS.ErrnoException = new Error('not found');
+      error.code = 'ENOENT';
+      (fs.readdir as jest.Mock).mockRejectedValue(error);
+
+      const result = await provider.listDirectories('/test/missing-root');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate non-ENOENT errors', async () => {
+      const error: NodeJS.ErrnoException = new Error('Permission denied');
+      error.code = 'EACCES';
+      (fs.readdir as jest.Mock).mockRejectedValue(error);
+
+      await expect(provider.listDirectories('/test/no-access')).rejects.toThrow(
+        'Permission denied',
+      );
+    });
+  });
+
   describe('getFileStats', () => {
     it('should return file statistics', async () => {
       const mockStats = {

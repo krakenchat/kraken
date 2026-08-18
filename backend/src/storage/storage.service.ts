@@ -327,4 +327,26 @@ export class StorageService {
   async segmentDirectoryExists(relativeDir: string): Promise<boolean> {
     return this.directoryExistsWithPrefix(relativeDir, this.segmentsPrefix);
   }
+
+  /**
+   * Lists the first-level directory names directly under the segments root
+   * (REPLAY_SEGMENTS_PATH). Used by the orphaned-segment-directory sweep to
+   * discover session directories on disk independent of the `egressSession`
+   * DB rows. Returns `[]` when the segments root itself does not exist yet.
+   * @returns Directory names (e.g. session IDs), not full paths
+   */
+  async listSegmentDirectories(): Promise<string[]> {
+    return this.localStorageProvider.listDirectories(this.segmentsPrefix);
+  }
+
+  /**
+   * Stats a segment directory (not a file — `fs.stat` works identically for
+   * both) resolved against the segments prefix. Used by the orphaned sweep
+   * to read a directory's mtime.
+   * @param relativeDir - Relative directory path (e.g., "sessionId")
+   * @returns Directory statistics, notably `mtime`
+   */
+  async getSegmentDirectoryStats(relativeDir: string): Promise<FileStats> {
+    return this.getFileStatsWithPrefix(relativeDir, this.segmentsPrefix);
+  }
 }
