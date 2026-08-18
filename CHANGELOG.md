@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.2] - 2026-08-18
+
+### Changed
+
+- **Inline GIF Embeds** — Messages consisting solely of a GIF URL (what the GIF picker sends) now render the animated GIF inline, Discord-style — no raw URL text, no generic link-preview card. Applies retroactively to existing GIF messages (including legacy Tenor ones); broken media URLs fall back to the old link rendering.
 
 ### Fixed
 
