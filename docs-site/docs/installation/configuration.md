@@ -133,6 +133,47 @@ Generate VAPID keys:
 docker compose run --rm backend npx web-push generate-vapid-keys
 ```
 
+### Password reset email (SMTP)
+
+Self-service password reset is optional. The feature is auto-disabled — no error at startup, the reset endpoints and UI simply stay off — unless `SMTP_HOST`, `SMTP_FROM`, **and** `PUBLIC_APP_URL` are all set.
+
+| Variable | Description | Default |
+|----------|------------|---------|
+| `SMTP_HOST` | Hostname of the SMTP server | *(unset — feature disabled)* |
+| `SMTP_PORT` | SMTP port | `587` |
+| `SMTP_SECURE` | `true` for implicit TLS (typically port 465). `false` uses STARTTLS. | `false` |
+| `SMTP_USER` | *(Optional)* SMTP auth username | |
+| `SMTP_PASS` | *(Optional)* SMTP auth password | |
+| `SMTP_FROM` | From address for outbound mail, e.g. `"Semaphore Chat <noreply@your-instance.com>"` | *(unset — feature disabled)* |
+| `PUBLIC_APP_URL` | Public base URL of the instance, used to build password-reset links in emails, e.g. `https://chat.your-instance.com` | *(unset — feature disabled)* |
+
+!!! note "SMTP_USER and SMTP_PASS"
+    These must be set together or not at all — startup validation fails if only one is provided.
+
+!!! warning "SMTP_HOST requires SMTP_FROM"
+    Startup validation fails if `SMTP_HOST` is set without `SMTP_FROM`.
+
+!!! note "PUBLIC_APP_URL has a second use"
+    It's also used to build absolute incoming-webhook execution URLs. When unset, webhook URLs are returned as relative API paths instead.
+
+### GIF search (Tenor)
+
+| Variable | Description | Default |
+|----------|------------|---------|
+| `TENOR_API_KEY` | Tenor API key — get a free one at [tenor.com/developer/dashboard](https://tenor.com/developer/dashboard) | *(unset — feature disabled)* |
+
+!!! note "Disabled when absent"
+    Without `TENOR_API_KEY`, the GIF picker is hidden in the UI and the `/gifs` endpoints return `503`.
+
+### Background jobs (BullMQ)
+
+Message-notification fan-out and link previews run on a BullMQ background queue. It reuses the app's existing `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` / `REDIS_DB` variables but opens its own Redis connection (BullMQ requires `maxRetriesPerRequest: null`). Processors run in-process in the backend container — no separate worker deployment is needed.
+
+| Variable | Description | Default |
+|----------|------------|---------|
+| `JOB_WORKER_CONCURRENCY` | Max jobs processed in parallel per queue per process | `4` |
+| `CHANNEL_MESSAGE_MEMBER_THRESHOLD` | Max community size for `CHANNEL_MESSAGE` notification fan-out. Public channels in communities above this member count skip fan-out (logged as a warning) to protect the database on self-hosted instances | `5000` |
+
 ### Thumbnail backfill
 
 On startup, Semaphore Chat retries thumbnail generation for video files that don't have one yet (e.g. uploaded before thumbnail support existed, or whose generation failed). This is deferred and batched so it can't spike memory at boot: at most one ffmpeg frame-extraction child process runs at a time (capped at 30s), and the database working set per batch is just `THUMBNAIL_BACKFILL_BATCH_SIZE` rows of `{ id, storagePath }`.

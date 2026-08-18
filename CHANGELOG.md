@@ -5,11 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] - 2026-08-18
+
+### Added
+
+- **S3 Object Storage** — S3-compatible object storage backend for file uploads, selectable per-deployment alongside local filesystem storage (#427)
+- **Password Reset via Email** — Self-service password reset flow over SMTP (#412)
+- **Tenor GIF Picker** — GIF picker in the message composer, backed by a server-side Tenor search proxy (#411)
+- **Incoming Channel Webhooks** — Create incoming webhooks per channel to post messages from external services (#413), with a per-webhook-id rate limit on the execute endpoint (#419)
+- **Background Job Queue** — BullMQ-backed queue for async notification fan-out, with batched eligibility checks for large channels (#429)
+- **Optimistic Message Sending** — Messages appear immediately with pending/failed states while the send round-trips (#431)
+- **Cursor-Paginated Member Lists** — Community member lists use cursor pagination, with list caps applied consistently across the API (#430)
+- **Push Mark-as-Read** — Action button on push notifications to mark the originating message read without opening the app (#438)
+- **Electron Deep Links** — `semaphore://` custom protocol for deep-linking into the desktop app (#432)
+- **Electron Hardening** — Explicit sandboxing, origin-checked permission requests, and secure-storage transparency for the desktop app (#420)
+- **Electron PR Smoke Build** — CI now produces a smoke build of the desktop app on every PR (#421)
+- **Accessibility: Mention/Emoji/Menus** — Keyboard navigation and ARIA support for the mention dropdown, emoji picker, and menus (#428)
+- **Accessibility: Message List** — Keyboard navigation and screen-reader announcements for the message list (#434)
+- **Error Boundaries** — App-level and route-level error boundaries so a component crash no longer blanks the whole page (#418)
+- **Helm S3 Configuration** — New `fileStorage.s3.*` values to configure S3-compatible object storage from the chart, with the multi-replica-guard relaxed accordingly (#433)
+- **Helm `backend.extraEnv`** — Inject arbitrary env vars into the backend container for optional features (Tenor, SMTP, job tuning)
+
+### Changed
+
+- **Message Dispatch Pipeline** — Consolidated message send/broadcast logic into a shared dispatch pipeline with Redis-backed WS throttle state (#422)
+- **Single Virtualized Message List** — `virtua` is now the only message-list renderer, removing the legacy non-virtualized fallback (#426)
+- **RBAC Permission Cache** — Redis-backed permission cache with epoch-based invalidation, cutting repeated permission-check DB load (#423)
+- **Presence Re-render Fix** — Presence events no longer re-render whole member lists (#424)
 
 ### Fixed
 
-- **Helm Chart** — Merged duplicate `redis.master` keys in values.yaml (the second `master:` block was silently clobbering the first, so the bundled Redis deployed without persistence). Changed unsafe defaults: `backend.replicaCount` now defaults to `1` (was `2`) and `fileStorage.enabled` now defaults to `true` (was `false`), so a fresh install doesn't silently lose uploaded files. The uploads PVC `accessMode` is now auto-selected (new `fileStorage.accessMode`, default `""`): `ReadWriteOnce` at 1 potential backend replica (works on any storage class, including RWO-only default provisioners), `ReadWriteMany` once the backend can scale beyond 1 — previously the chart always hardcoded `ReadWriteMany`, which left the PVC `Pending` forever on RWO-only clusters at default settings. Added render-time guards that fail `helm template`/`helm install` if (a) the backend's *potential* replica count — `backend.replicaCount`, or HPA `maxReplicas` when autoscaling is enabled (not `minReplicas`, which could otherwise be bypassed by an HPA scaling up later) — is `> 1` while `fileStorage.enabled=false` (set `fileStorage.allowEphemeral=true` to opt out), or (b) `fileStorage.accessMode` is explicitly forced to `ReadWriteOnce` while potential replicas `> 1`. **Behavior change for existing installs upgrading without pinning these values explicitly — PVC `accessModes` are immutable, so releases that already created a `ReadWriteMany` uploads PVC should pin `fileStorage.accessMode: ReadWriteMany` explicitly (see NOTES.txt on upgrade).**
+- **WebSocket Payload Serialization** — WS payloads are normalized to JSON wire form at emit, so raw `Date` fields no longer arrive as `{}` on clients connected to a different replica (notepack encoding under the Redis adapter) (#441)
+- **Unread Badges** — Stopped peer DM reads from wiping unread badges on other devices; auto-read now gates on window focus (#436)
+- **Live-Edge Detachment** — Fixed cache corruption and stranding at the `MESSAGE_MAX_PAGES` cap, including virtua-prepend detection at the cap (#404) (#415, #416)
+- **Thumbnail Backfill OOM** — Batched and deferred thumbnail backfill on startup to avoid OOM on large instances (#410)
+- **Trivy Findings** — Cleared newly flagged HIGH/CRITICAL vulnerabilities in the backend Docker image (#437)
+- **E2E Compose Isolation** — E2E stack now runs under a dedicated Docker Compose project name, preventing collisions with dev containers (#414)
+- **Electron CI Publish** — Restored `--publish never` for Linux electron-builder CI builds (#435)
+- **Helm Chart** — Merged duplicate `redis.master` keys in values.yaml (the second `master:` block was silently clobbering the first, so the bundled Redis deployed without persistence). Changed unsafe defaults: `backend.replicaCount` now defaults to `1` (was `2`) and `fileStorage.enabled` now defaults to `true` (was `false`), so a fresh install doesn't silently lose uploaded files. The uploads PVC `accessMode` is now auto-selected (new `fileStorage.accessMode`, default `""`): `ReadWriteOnce` at 1 potential backend replica (works on any storage class, including RWO-only default provisioners), `ReadWriteMany` once the backend can scale beyond 1 — previously the chart always hardcoded `ReadWriteMany`, which left the PVC `Pending` forever on RWO-only clusters at default settings. Added render-time guards that fail `helm template`/`helm install` if (a) the backend's *potential* replica count — `backend.replicaCount`, or HPA `maxReplicas` when autoscaling is enabled (not `minReplicas`, which could otherwise be bypassed by an HPA scaling up later) — is `> 1` while `fileStorage.enabled=false` (set `fileStorage.allowEphemeral=true` to opt out), or (b) `fileStorage.accessMode` is explicitly forced to `ReadWriteOnce` while potential replicas `> 1`. **Behavior change for existing installs upgrading without pinning these values explicitly — PVC `accessModes` are immutable, so releases that already created a `ReadWriteMany` uploads PVC should pin `fileStorage.accessMode: ReadWriteMany` explicitly (see NOTES.txt on upgrade).** (#417)
+
+### Upgrade notes
+
+No breaking API changes in this release. All new environment variables are optional, and the features they gate are off by default — the one exception is thumbnail backfill, which is on by default but deliberately throttled (batched, delayed on startup, and rate-limited) so it doesn't spike memory or CPU on upgrade.
+
+**Database migrations** — three new migrations are included and run automatically via the Helm pre-upgrade migrate Job (or the backend entrypoint's migration step under Docker Compose): `add_password_reset_tokens`, `add_channel_webhooks`, `membership_community_page_index`.
+
+**New optional environment variables** (full reference: https://docs.semaphorechat.app/installation/configuration/):
+
+- *S3 file storage* — `STORAGE_TYPE=S3` opts in; `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` are required when enabled; `S3_ENDPOINT` (custom/self-hosted endpoints, e.g. MinIO) and `S3_FORCE_PATH_STYLE` are optional. Leave `STORAGE_TYPE` unset to keep local filesystem storage.
+- *SMTP password reset* — `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`. The feature auto-disables unless `SMTP_HOST`, `SMTP_FROM`, and `PUBLIC_APP_URL` are all set. `PUBLIC_APP_URL` is also used to build absolute URLs for incoming-webhook execution endpoints, so set it even if you don't use SMTP.
+- *GIF search* — `TENOR_API_KEY`. Without it, the GIF picker is hidden in the UI and the `/gifs` search endpoint returns 503.
+- *Background jobs* — `JOB_WORKER_CONCURRENCY` (default `4`, max jobs processed in parallel per queue per process) and `CHANNEL_MESSAGE_MEMBER_THRESHOLD` (default `5000` — public channels in communities above this member count skip `CHANNEL_MESSAGE` notification fan-out entirely, logged as a warning, to protect the database).
+- *Thumbnail backfill* — `THUMBNAIL_BACKFILL_ENABLED` (default `true`), `THUMBNAIL_BACKFILL_BATCH_SIZE`, `THUMBNAIL_BACKFILL_STARTUP_DELAY_MS`, `THUMBNAIL_BACKFILL_THROTTLE_MS`.
+
+**Helm-specific notes** (full reference: https://docs.semaphorechat.app/installation/kubernetes/):
+
+- New `fileStorage.s3.*` values (`enabled`, `bucket`, `region`, `endpoint`, `forcePathStyle`, plus secret-backed credentials) configure S3 object storage from the chart, as an alternative to the PVC-backed local storage path.
+- New `backend.extraEnv` lets you inject the environment variables above that don't have first-class chart values yet (SMTP, Tenor, job tuning) without forking the chart.
+- Carried over from the `#417` fix in this release and worth re-flagging on upgrade: `backend.replicaCount` now defaults to `1` (was `2`), `fileStorage.enabled` now defaults to `true` (was `false`), and the uploads PVC `accessMode` is now auto-selected instead of hardcoded to `ReadWriteMany`. Existing installs with a `ReadWriteMany` uploads PVC should pin `fileStorage.accessMode: ReadWriteMany` explicitly before upgrading, since PVC `accessModes` are immutable.
+
+**Multi-replica note**: WebSocket state is now Redis-backed (message-dispatch pipeline, #422) and notification fan-out runs through BullMQ on the same Redis instance (#429). Redis is now load-bearing for messaging correctness — not just scaling — at more than one backend replica; size and monitor it accordingly.
 
 ## [0.1.2] - 2026-03-12
 

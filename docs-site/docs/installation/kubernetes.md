@@ -296,6 +296,41 @@ fileStorage:
 !!! note "Mixed mode: S3 plus the local PVC"
     `fileStorage.enabled` and `fileStorage.s3.enabled` are independent switches. If both are `true`, the uploads PVC stays mounted alongside S3 — this is "mixed mode," for files that were uploaded while `STORAGE_TYPE=LOCAL` was active before you switched to S3. New uploads go to S3, but pre-existing local files keep being served from the PVC, so the PVC's `accessMode`/RWX requirements (and the render-time guard) still apply to it at more than one backend replica. Once no LOCAL-storage files remain, set `fileStorage.enabled: false` to drop the PVC (and its RWX requirement) entirely — at that point the backend can scale to any replica count with no shared storage of any kind.
 
+### Optional feature environment variables
+
+Optional backend features new in v0.4.0 — Tenor GIF search, SMTP password reset, and background-job tuning — are configured via plain environment variables with no dedicated chart values. Set them with `backend.extraEnv`, added to the chart in this release, which accepts full Kubernetes `EnvVar` objects:
+
+```yaml
+backend:
+  extraEnv:
+    - name: PUBLIC_APP_URL
+      value: "https://semaphore.yourdomain.com"
+    - name: SMTP_HOST
+      value: "smtp.example.com"
+    - name: SMTP_FROM
+      value: "Semaphore Chat <noreply@yourdomain.com>"
+    - name: TENOR_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: my-semaphore-secrets
+          key: TENOR_API_KEY
+    - name: SMTP_USER
+      valueFrom:
+        secretKeyRef:
+          name: my-semaphore-secrets
+          key: SMTP_USER
+    - name: SMTP_PASS
+      valueFrom:
+        secretKeyRef:
+          name: my-semaphore-secrets
+          key: SMTP_PASS
+```
+
+!!! note "Using secrets.existingSecret instead"
+    If you use `secrets.existingSecret` (see [Secrets management](#secrets-management)), extra keys added to that same Secret are injected automatically — the backend loads it via `envFrom.secretRef`, so no `extraEnv` entry is needed for values that already live there.
+
+See [Configuration](configuration.md) for the full backend environment variable reference.
+
 ### Replay storage (LiveKit egress)
 
 The replay/clip capture feature requires LiveKit egress and the Semaphore Chat backend to share a storage volume for HLS segment access. Both the egress service and backend pods must be able to read and write to the same path. Enable a `ReadWriteMany` PVC:
