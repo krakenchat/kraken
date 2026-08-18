@@ -99,6 +99,18 @@ describe('GifPickerPopover', () => {
     expect(searchRequests).toHaveLength(0);
   });
 
+  it('shows the Powered by GIPHY attribution while the picker is open', async () => {
+    setup();
+
+    expect(await screen.findByText('Powered by GIPHY')).toBeInTheDocument();
+  });
+
+  it('shows the Powered by GIPHY attribution even before results load', () => {
+    setup();
+
+    expect(screen.getByText('Powered by GIPHY')).toBeInTheDocument();
+  });
+
   it('does not render anything when closed', () => {
     renderWithProviders(
       <GifPickerPopover open={false} anchorEl={null} onClose={vi.fn()} onSelect={vi.fn()} />,

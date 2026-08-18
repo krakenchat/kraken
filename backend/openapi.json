@@ -7413,7 +7413,7 @@
             }
           }
         },
-        "summary": "Search Tenor GIFs by query term.",
+        "summary": "Search GIFs by query term.",
         "tags": [
           "Gifs"
         ]
@@ -7452,7 +7452,7 @@
             }
           }
         },
-        "summary": "Fetch Tenor's currently featured/trending GIFs (shown when the search\nbox is empty).",
+        "summary": "Fetch currently featured/trending GIFs (shown when the search box is\nempty).",
         "tags": [
           "Gifs"
         ]
@@ -12428,7 +12428,7 @@
           },
           "gifSearchEnabled": {
             "type": "boolean",
-            "description": "Whether the Tenor GIF picker is available (TENOR_API_KEY configured)."
+            "description": "Whether the Giphy GIF picker is available (GIPHY_API_KEY configured)."
           },
           "passwordResetEnabled": {
             "type": "boolean"
@@ -13388,11 +13388,11 @@
           },
           "url": {
             "type": "string",
-            "description": "Full-size animated GIF URL (media_formats.gif.url) — sent as message content."
+            "description": "Full-size animated GIF URL (Giphy: images.original.url) — sent as message content."
           },
           "previewUrl": {
             "type": "string",
-            "description": "Small animated preview used in the picker grid (media_formats.tinygif.url)."
+            "description": "Small animated preview used in the picker grid (Giphy: images.fixed_height.url)."
           },
           "width": {
             "type": "number"
@@ -13421,7 +13421,7 @@
           },
           "next": {
             "type": "string",
-            "description": "Tenor's pagination cursor for the next page; undefined when exhausted."
+            "description": "Opaque pagination cursor for the next page; undefined when exhausted."
           }
         },
         "required": [

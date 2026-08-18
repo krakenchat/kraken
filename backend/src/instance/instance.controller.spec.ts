@@ -86,7 +86,7 @@ describe('InstanceController', () => {
       expect(result.maxFileSizeBytes).toBe(1073741824);
     });
 
-    it('should set gifSearchEnabled to false when TENOR_API_KEY is not configured', async () => {
+    it('should set gifSearchEnabled to false when GIPHY_API_KEY is not configured', async () => {
       const mockSettings = {
         id: 'settings-1',
         name: 'Test Instance',
@@ -105,7 +105,7 @@ describe('InstanceController', () => {
       expect(result.gifSearchEnabled).toBe(false);
     });
 
-    it('should set gifSearchEnabled to true when TENOR_API_KEY is configured', async () => {
+    it('should set gifSearchEnabled to true when GIPHY_API_KEY is configured', async () => {
       const mockSettings = {
         id: 'settings-1',
         name: 'Test Instance',
@@ -118,7 +118,7 @@ describe('InstanceController', () => {
       };
       service.getSettings.mockResolvedValue(mockSettings as any);
       configService.get.mockImplementation((key: string) =>
-        key === 'TENOR_API_KEY' ? 'tenor-key-123' : undefined,
+        key === 'GIPHY_API_KEY' ? 'giphy-key-123' : undefined,
       );
 
       const result = await controller.getPublicSettings();

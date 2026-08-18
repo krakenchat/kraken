@@ -234,6 +234,21 @@ const GifPickerContent: React.FC<{
           </Box>
         )}
       </Box>
+
+      {/* Attribution required by Giphy's API terms */}
+      <Box
+        sx={{
+          px: 1.5,
+          py: 0.5,
+          borderTop: "1px solid",
+          borderColor: "divider",
+          flexShrink: 0,
+        }}
+      >
+        <Typography variant="caption" color="text.secondary" align="right" display="block">
+          Powered by GIPHY
+        </Typography>
+      </Box>
     </Box>
   );
 };

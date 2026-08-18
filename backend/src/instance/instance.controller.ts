@@ -45,7 +45,7 @@ export class InstanceController {
       name: settings.name,
       registrationMode: settings.registrationMode,
       maxFileSizeBytes: Number(settings.maxFileSizeBytes),
-      gifSearchEnabled: Boolean(this.configService.get('TENOR_API_KEY')),
+      gifSearchEnabled: Boolean(this.configService.get('GIPHY_API_KEY')),
       passwordResetEnabled: this.mailerService.isEnabled,
     };
   }

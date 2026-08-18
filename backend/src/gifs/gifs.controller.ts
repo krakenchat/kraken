@@ -19,7 +19,7 @@ export class GifsController {
   constructor(private readonly gifsService: GifsService) {}
 
   /**
-   * Search Tenor GIFs by query term.
+   * Search GIFs by query term.
    */
   @Get('search')
   @ApiOkResponse({ type: GifSearchResponseDto })
@@ -34,8 +34,8 @@ export class GifsController {
   }
 
   /**
-   * Fetch Tenor's currently featured/trending GIFs (shown when the search
-   * box is empty).
+   * Fetch currently featured/trending GIFs (shown when the search box is
+   * empty).
    */
   @Get('featured')
   @ApiOkResponse({ type: GifSearchResponseDto })

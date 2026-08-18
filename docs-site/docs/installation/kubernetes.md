@@ -298,7 +298,7 @@ fileStorage:
 
 ### Optional feature environment variables
 
-Optional backend features new in v0.4.0 — Tenor GIF search, SMTP password reset, and background-job tuning — are configured via plain environment variables with no dedicated chart values. Set them with `backend.extraEnv`, added to the chart in this release, which accepts full Kubernetes `EnvVar` objects:
+Optional backend features new in v0.4.0 — Giphy GIF search, SMTP password reset, and background-job tuning — are configured via plain environment variables with no dedicated chart values. Set them with `backend.extraEnv`, added to the chart in this release, which accepts full Kubernetes `EnvVar` objects:
 
 ```yaml
 backend:
@@ -309,11 +309,11 @@ backend:
       value: "smtp.example.com"
     - name: SMTP_FROM
       value: "Semaphore Chat <noreply@yourdomain.com>"
-    - name: TENOR_API_KEY
+    - name: GIPHY_API_KEY
       valueFrom:
         secretKeyRef:
           name: my-semaphore-secrets
-          key: TENOR_API_KEY
+          key: GIPHY_API_KEY
     - name: SMTP_USER
       valueFrom:
         secretKeyRef:

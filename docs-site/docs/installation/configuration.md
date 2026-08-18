@@ -156,14 +156,16 @@ Self-service password reset is optional. The feature is auto-disabled — no err
 !!! note "PUBLIC_APP_URL has a second use"
     It's also used to build absolute incoming-webhook execution URLs. When unset, webhook URLs are returned as relative API paths instead.
 
-### GIF search (Tenor)
+### GIF search (Giphy)
 
 | Variable | Description | Default |
 |----------|------------|---------|
-| `TENOR_API_KEY` | Tenor API key — get a free one at [tenor.com/developer/dashboard](https://tenor.com/developer/dashboard) | *(unset — feature disabled)* |
+| `GIPHY_API_KEY` | Giphy API key — get a free one at [developers.giphy.com/dashboard](https://developers.giphy.com/dashboard/) | *(unset — feature disabled)* |
 
 !!! note "Disabled when absent"
-    Without `TENOR_API_KEY`, the GIF picker is hidden in the UI and the `/gifs` endpoints return `503`.
+    Without `GIPHY_API_KEY`, the GIF picker is hidden in the UI and the `/gifs` endpoints return `503`.
+
+`TENOR_API_KEY` from v0.4.0 is deprecated and ignored — replace it with `GIPHY_API_KEY`.
 
 ### Background jobs (BullMQ)
 

@@ -92,11 +92,11 @@ export class EnvironmentVariables {
   @IsString()
   THUMBNAIL_BACKFILL_THROTTLE_MS?: string;
 
-  // GIF search (Tenor) — feature is disabled when absent, no production
+  // GIF search (Giphy) — feature is disabled when absent, no production
   // requirement.
   @IsOptional()
   @IsString()
-  TENOR_API_KEY?: string;
+  GIPHY_API_KEY?: string;
 
   // Background jobs (BullMQ) — queued notification fan-out + link previews.
   @IsOptional()
