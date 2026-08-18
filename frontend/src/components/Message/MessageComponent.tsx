@@ -22,7 +22,8 @@ import { MessageToolbar } from "./MessageToolbar";
 import { renderMessageSpans } from "./MessageSpan";
 import { Container } from "./MessageComponentStyles";
 import { useMessageActions } from "./useMessageActions";
-import { isUserMentioned, isSoleTenorGifLink } from "./messageUtils";
+import { isUserMentioned, getMessageLoneGifUrl } from "./messageUtils";
+import { GifEmbed } from "./GifEmbed";
 import UserAvatar from "../Common/UserAvatar";
 import ConfirmDialog from "../Common/ConfirmDialog";
 import { ThreadReplyBadge } from "../Thread/ThreadReplyBadge";
@@ -109,6 +110,14 @@ function MessageComponentInner({
 
   // Check if this message mentions the current user
   const isMentioned = isUserMentioned(message, currentUser?.id);
+
+  // Discord-style GIF embed: a message whose entire content is a lone GIF
+  // URL (sent by the GIF picker, or a legacy Tenor-era message) renders as
+  // an inline <img> instead of raw link text + a link-preview card. If the
+  // image fails to load, fall back to the original rendering rather than
+  // showing nothing.
+  const [gifEmbedFailed, setGifEmbedFailed] = useState(false);
+  const gifUrl = gifEmbedFailed ? null : getMessageLoneGifUrl(message);
 
   // Use extracted hook for cleaner permission logic
   const messagePermissions = useMessagePermissions({
@@ -397,13 +406,15 @@ function MessageComponentInner({
           />
         ) : (
           <>
-            {!isSoleTenorGifLink(message) && (
+            {gifUrl ? (
+              <GifEmbed url={gifUrl} onError={() => setGifEmbedFailed(true)} />
+            ) : (
               <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                 {renderMessageSpans(message.spans, emojiById)}
               </Typography>
             )}
             <MessageAttachments attachments={message.attachments} />
-            <MessageLinkPreviews linkPreviews={message.linkPreviews} />
+            {!gifUrl && <MessageLinkPreviews linkPreviews={message.linkPreviews} />}
             <MessageReactions
               messageId={message.id}
               reactions={message.reactions}

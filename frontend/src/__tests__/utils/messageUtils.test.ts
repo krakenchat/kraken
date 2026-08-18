@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUserMentioned, isSoleTenorGifLink } from '../../components/Message/messageUtils';
+import { isUserMentioned, getLoneGifUrl, getMessageLoneGifUrl } from '../../components/Message/messageUtils';
 import { SpanType } from '../../types/message.type';
 import { createMessage } from '../test-utils/factories';
 
@@ -61,92 +61,150 @@ describe('isUserMentioned', () => {
   });
 });
 
-describe('isSoleTenorGifLink', () => {
-  const tenorUrl = 'https://media.tenor.com/abc123/cat.gif';
-
-  it('returns true for a sole media.tenor.com URL with a matching image preview', () => {
-    const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl }],
-      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl, siteName: 'media.tenor.com' }],
-    });
-    expect(isSoleTenorGifLink(message)).toBe(true);
+describe('getLoneGifUrl', () => {
+  it('returns the URL for a lone Giphy media URL', () => {
+    const url = 'https://media.giphy.com/media/abc123/giphy.gif';
+    expect(getLoneGifUrl(url)).toBe(url);
   });
 
-  it('returns false when there is no link preview', () => {
-    const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl }],
-    });
-    expect(isSoleTenorGifLink(message)).toBe(false);
+  it('returns the URL for a numbered Giphy CDN host (media4.giphy.com)', () => {
+    const url = 'https://media4.giphy.com/media/abc123/giphy.gif';
+    expect(getLoneGifUrl(url)).toBe(url);
   });
 
-  it('returns false when the link preview has no imageUrl', () => {
-    const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl }],
-      linkPreviews: [{ url: tenorUrl, siteName: 'media.tenor.com' }],
-    });
-    expect(isSoleTenorGifLink(message)).toBe(false);
+  it('returns the URL for a lone Tenor media URL (legacy)', () => {
+    const url = 'https://media.tenor.com/abc123/cat.gif';
+    expect(getLoneGifUrl(url)).toBe(url);
   });
 
-  it('returns false for a non-Tenor URL', () => {
-    const otherUrl = 'https://example.com/image.gif';
-    const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: otherUrl }],
-      linkPreviews: [{ url: otherUrl, imageUrl: otherUrl }],
-    });
-    expect(isSoleTenorGifLink(message)).toBe(false);
+  it('returns the URL for a numbered Tenor CDN host (media3.tenor.com)', () => {
+    const url = 'https://media3.tenor.com/abc123/cat.gif';
+    expect(getLoneGifUrl(url)).toBe(url);
   });
 
-  it('returns false when there is more than one span', () => {
+  it('returns the URL for a .gif path on any other host', () => {
+    const url = 'https://example.com/images/cat.gif';
+    expect(getLoneGifUrl(url)).toBe(url);
+  });
+
+  it('is case-insensitive for the .gif extension', () => {
+    const url = 'https://example.com/images/cat.GIF';
+    expect(getLoneGifUrl(url)).toBe(url);
+  });
+
+  it('returns the URL when .gif is followed by a query string', () => {
+    const url = 'https://example.com/images/cat.gif?width=200&quality=80';
+    expect(getLoneGifUrl(url)).toBe(url);
+  });
+
+  it('returns null when the URL has surrounding text', () => {
+    expect(getLoneGifUrl('check this out https://media.giphy.com/media/abc/giphy.gif')).toBeNull();
+    expect(getLoneGifUrl('https://media.giphy.com/media/abc/giphy.gif look at this')).toBeNull();
+  });
+
+  it('returns null when there are two URLs', () => {
+    expect(
+      getLoneGifUrl(
+        'https://media.giphy.com/media/abc/giphy.gif https://media.tenor.com/xyz/cat.gif',
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null for a non-GIF URL', () => {
+    expect(getLoneGifUrl('https://example.com/page.html')).toBeNull();
+  });
+
+  it('returns the URL for a .gif path even on a giphy-lookalike hostname (path rule, not host rule)', () => {
+    expect(getLoneGifUrl('https://notgiphy.com/media/abc/giphy.gif')).toBe(
+      'https://notgiphy.com/media/abc/giphy.gif',
+    );
+  });
+
+  it('returns null for a non-.gif path on a giphy-lookalike hostname', () => {
+    expect(getLoneGifUrl('https://notgiphy.com/media/abc/giphy.png')).toBeNull();
+  });
+
+  it('returns null for empty content', () => {
+    expect(getLoneGifUrl('')).toBeNull();
+  });
+
+  it('returns null for undefined content', () => {
+    expect(getLoneGifUrl(undefined)).toBeNull();
+  });
+
+  it('returns null for null content', () => {
+    expect(getLoneGifUrl(null)).toBeNull();
+  });
+
+  it('returns null for garbage (unparsable) content', () => {
+    expect(getLoneGifUrl('not a url at all')).toBeNull();
+  });
+
+  it('returns null for whitespace-only content', () => {
+    expect(getLoneGifUrl('   \n\t  ')).toBeNull();
+  });
+
+  it('trims surrounding whitespace around an otherwise-lone URL', () => {
+    const url = 'https://media.giphy.com/media/abc/giphy.gif';
+    expect(getLoneGifUrl(`  ${url}  `)).toBe(url);
+  });
+});
+
+describe('getMessageLoneGifUrl', () => {
+  const giphyUrl = 'https://media.giphy.com/media/abc123/giphy.gif';
+
+  it('returns the URL for a sole non-code PLAINTEXT span containing a GIF URL', () => {
+    const message = createMessage({
+      spans: [{ type: SpanType.PLAINTEXT, text: giphyUrl }],
+    });
+    expect(getMessageLoneGifUrl(message)).toBe(giphyUrl);
+  });
+
+  it('returns null when there is more than one span', () => {
     const message = createMessage({
       spans: [
         { type: SpanType.PLAINTEXT, text: 'check this out ' },
-        { type: SpanType.PLAINTEXT, text: tenorUrl },
+        { type: SpanType.PLAINTEXT, text: giphyUrl },
       ],
-      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
     });
-    expect(isSoleTenorGifLink(message)).toBe(false);
+    expect(getMessageLoneGifUrl(message)).toBeNull();
   });
 
-  it('returns false when the span has surrounding text besides the URL', () => {
+  it('returns null when the message has attachments', () => {
     const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: `look at this ${tenorUrl}` }],
-      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
-    });
-    expect(isSoleTenorGifLink(message)).toBe(false);
-  });
-
-  it('returns false when the message has attachments', () => {
-    const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl }],
-      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
+      spans: [{ type: SpanType.PLAINTEXT, text: giphyUrl }],
       attachments: [
         { id: 'file-1', filename: 'a.png', mimeType: 'image/png', fileType: 'IMAGE', size: 10 },
       ],
     });
-    expect(isSoleTenorGifLink(message)).toBe(false);
+    expect(getMessageLoneGifUrl(message)).toBeNull();
   });
 
-  it('returns false for a non-PLAINTEXT sole span', () => {
+  it('returns null for a non-PLAINTEXT sole span', () => {
     const message = createMessage({
-      spans: [{ type: SpanType.USER_MENTION, text: tenorUrl, userId: 'user-1' }],
-      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
+      spans: [{ type: SpanType.USER_MENTION, text: giphyUrl, userId: 'user-1' }],
     });
-    expect(isSoleTenorGifLink(message)).toBe(false);
+    expect(getMessageLoneGifUrl(message)).toBeNull();
   });
 
-  it('returns false when the sole span is an inline-code span', () => {
+  it('returns null when the sole span is an inline-code span', () => {
     const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl, code: true }],
-      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
+      spans: [{ type: SpanType.PLAINTEXT, text: giphyUrl, code: true }],
     });
-    expect(isSoleTenorGifLink(message)).toBe(false);
+    expect(getMessageLoneGifUrl(message)).toBeNull();
   });
 
-  it('returns true when the sole span has other formatting flags (bold)', () => {
+  it('returns the URL when the sole span has other formatting flags (bold)', () => {
     const message = createMessage({
-      spans: [{ type: SpanType.PLAINTEXT, text: tenorUrl, bold: true }],
-      linkPreviews: [{ url: tenorUrl, imageUrl: tenorUrl }],
+      spans: [{ type: SpanType.PLAINTEXT, text: giphyUrl, bold: true }],
     });
-    expect(isSoleTenorGifLink(message)).toBe(true);
+    expect(getMessageLoneGifUrl(message)).toBe(giphyUrl);
+  });
+
+  it('returns null for a plain-text message', () => {
+    const message = createMessage({
+      spans: [{ type: SpanType.PLAINTEXT, text: 'hello world' }],
+    });
+    expect(getMessageLoneGifUrl(message)).toBeNull();
   });
 });
