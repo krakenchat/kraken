@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Linux .deb Auto-Update** — Desktop auto-update on .deb installs failed with `Command pkexec exited with code 127`: electron-updater 6.8.3 (current upstream included) wraps the install command in literal single quotes inside `bash -c`, so bash resolves the whole string as one nonexistent command name. Patched via `pnpm patch` to drop the bogus quoting on the pkexec/sudo path. **Note for existing .deb installs**: the updater that runs is the one already installed, so 0.4.x .deb users must install the next release manually once (`sudo dpkg -i <deb>`); auto-update works again from then on. AppImage users are unaffected.
+
 ## [0.4.1] - 2026-08-18
 
 ### Changed

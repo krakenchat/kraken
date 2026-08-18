@@ -10,6 +10,7 @@ WORKDIR /app
 
 # Copy root workspace config + shared and backend package.json for dependency install
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY patches ./patches
 COPY shared/package.json ./shared/
 COPY backend/package.json ./backend/
 COPY backend/prisma ./backend/prisma

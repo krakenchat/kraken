@@ -6,6 +6,7 @@ WORKDIR /app
 
 # Copy root workspace config + shared and frontend package.json for dependency install
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY patches ./patches
 COPY shared/package.json ./shared/
 COPY frontend/package.json ./frontend/
 

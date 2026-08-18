@@ -17,6 +17,11 @@ overrides:
   socket.io-parser: ^4.2.7
   tar: ^7.5.19
 
+patchedDependencies:
+  electron-updater@6.8.3:
+    hash: 796f0088952a25b321a57ee043b6e7888ede147498ee5c49e641878d506c6e69
+    path: patches/electron-updater@6.8.3.patch
+
 importers:
 
   .:
@@ -315,7 +320,7 @@ importers:
         version: 1.0.6(electron@38.8.2)
       electron-updater:
         specifier: ^6.3.9
-        version: 6.8.3
+        version: 6.8.3(patch_hash=796f0088952a25b321a57ee043b6e7888ede147498ee5c49e641878d506c6e69)
       hls.js:
         specifier: ^1.6.15
         version: 1.6.15
@@ -12607,7 +12612,7 @@ snapshots:
 
   electron-to-chromium@1.5.286: {}
 
-  electron-updater@6.8.3:
+  electron-updater@6.8.3(patch_hash=796f0088952a25b321a57ee043b6e7888ede147498ee5c49e641878d506c6e69):
     dependencies:
       builder-util-runtime: 9.7.0
       fs-extra: 10.1.0
