@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useRef, useEffect, useMemo } from "react";
 import { VideoLayoutMode } from "../types/videoLayout";
 import { getCachedItem, setCachedItem } from "../utils/storage";
-import { defaultPlacement } from "../utils/pipPosition";
+import { defaultPlacement, isValidPlacement } from "../utils/pipPosition";
 
 export enum VoiceSessionType {
   Channel = 'channel',
@@ -290,7 +290,7 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (persistedCollapsedRef.current === state.pipCollapsed) return;
     persistedCollapsedRef.current = state.pipCollapsed;
     const saved = getCachedItem<unknown>(PIP_PLACEMENT_KEY);
-    const base = saved && typeof saved === 'object' ? saved as Record<string, unknown> : defaultPlacement();
+    const base = isValidPlacement(saved) ? saved : defaultPlacement();
     setCachedItem(PIP_PLACEMENT_KEY, { ...base, collapsed: state.pipCollapsed });
   }, [state.pipCollapsed]);
 

@@ -9,7 +9,7 @@ import {
 } from '../../contexts/VoiceContext';
 import { VideoLayoutMode } from '../../types/videoLayout';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
-import { defaultPlacement, type PipPlacement } from '../../utils/pipPosition';
+import { defaultPlacement, isValidPlacement, type PipPlacement } from '../../utils/pipPosition';
 
 function TestConsumer() {
   const { stageMounted, showVideoTiles, pipCollapsed, isConnected, layoutMode, pinnedTileId, spotlightTileId } = useVoice();
@@ -278,6 +278,25 @@ describe('VoiceContext reducer', () => {
         size: { width: 500, height: 400 },
         collapsed: true,
       });
+    });
+
+    it('discards a partial/corrupted persisted record instead of merging onto it', async () => {
+      // Simulates a record left behind by an older code path that only wrote
+      // `collapsed` — missing anchor/offset/size/docked makes it invalid.
+      setCachedItem('semaphore_pip_placement', { collapsed: true });
+
+      const user = userEvent.setup();
+      render(
+        <VoiceProvider>
+          <TestConsumer />
+        </VoiceProvider>,
+      );
+
+      await user.click(screen.getByText('Expand Pip'));
+
+      const saved = getCachedItem<PipPlacement>('semaphore_pip_placement');
+      expect(isValidPlacement(saved)).toBe(true);
+      expect(saved?.collapsed).toBe(false);
     });
 
     it('does not write to storage on mount when nothing changed', () => {

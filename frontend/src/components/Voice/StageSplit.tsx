@@ -70,6 +70,21 @@ export const StageSplit: React.FC<StageSplitProps> = ({
     setCachedItem(storageKey, ratioRef.current);
   }, [storageKey]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    let delta = 0;
+    if (e.key === 'ArrowUp') delta = -0.05;
+    else if (e.key === 'ArrowDown') delta = 0.05;
+    else return;
+    e.preventDefault();
+    // Round to avoid binary floating-point drift (0.5 + 0.05 !== 0.55) from
+    // repeated key presses showing up in flexBasis/aria-valuenow.
+    const next = clampRatio(Math.round((ratioRef.current + delta) * 1000) / 1000, minRatio, maxRatio);
+    setRatio(next);
+    // Keyboard adjustments persist immediately (unlike drag, there's no
+    // continuous move stream to debounce against).
+    setCachedItem(storageKey, next);
+  }, [minRatio, maxRatio, storageKey]);
+
   useEffect(() => {
     if (!isDragging) return;
     window.addEventListener('pointermove', handlePointerMove);
@@ -90,13 +105,24 @@ export const StageSplit: React.FC<StageSplitProps> = ({
     >
       <Box
         data-testid="stage-split-top"
-        sx={{ flexBasis: `${ratio * 100}%`, minHeight: 0, overflow: 'hidden' }}
+        // Round to hundredths of a percent — `ratio * 100` alone can surface
+        // binary floating-point noise (e.g. 0.55 * 100 === 55.00000000000001)
+        // for ratios reached via keyboard increments.
+        sx={{ flexBasis: `${Math.round(ratio * 10000) / 100}%`, minHeight: 0, overflow: 'hidden' }}
       >
         {top}
       </Box>
       <Box
         data-testid="stage-split-divider"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-valuenow={Math.round(ratio * 100)}
+        aria-valuemin={Math.round(minRatio * 100)}
+        aria-valuemax={Math.round(maxRatio * 100)}
+        aria-label="Resize video area"
+        tabIndex={0}
         onPointerDown={handlePointerDown}
+        onKeyDown={handleKeyDown}
         sx={{
           height: 8,
           flexShrink: 0,
@@ -105,6 +131,10 @@ export const StageSplit: React.FC<StageSplitProps> = ({
           backgroundColor: isDragging ? alpha(theme.palette.primary.main, 0.3) : 'transparent',
           '&:hover': {
             backgroundColor: alpha(theme.palette.primary.main, 0.2),
+          },
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: -2,
           },
         }}
       />
