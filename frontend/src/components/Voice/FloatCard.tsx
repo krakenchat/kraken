@@ -27,36 +27,58 @@ import { VoiceSessionType } from '../../contexts/VoiceContext';
 import { getFloatNavigationTarget } from '../../utils/voiceNavigation';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
 import { VOICE_BAR_HEIGHT } from '../../constants/layout';
+import {
+  PipAnchor,
+  PipPlacement,
+  Point,
+  Size,
+  Viewport,
+  toAbsolute,
+  fromAbsolute,
+  clampSizeToViewport,
+  hitTestDockZone,
+  defaultPlacement,
+} from '../../utils/pipPosition';
 import UserAvatar from '../Common/UserAvatar';
 import VideoTile from './VideoTile';
+import DockZonesOverlay from './DockZonesOverlay';
 
 // Constants
-const PIP_SETTINGS_KEY = 'semaphore_pip_settings';
-const MIN_WIDTH = 320;
-const MIN_HEIGHT = 240;
-const DEFAULT_WIDTH = 480;
-const DEFAULT_HEIGHT = 360;
+const PIP_PLACEMENT_KEY = 'semaphore_pip_placement';
 const HEADER_HEIGHT = 36;
+// Approximate collapsed-pill footprint, used only to anchor it to the same
+// corner as the card — the pill's real size can vary slightly with content,
+// but EDGE_PADDING clamping keeps it fully on-screen regardless.
+const PILL_SIZE: Size = { width: 200, height: 52 };
 
-interface PipSettings {
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  isMinimized: boolean;
+const ANCHORS: readonly PipAnchor[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+function isValidPlacement(value: unknown): value is PipPlacement {
+  if (!value || typeof value !== 'object') return false;
+  const p = value as Record<string, unknown>;
+  const offset = p.offset as Record<string, unknown> | undefined;
+  const size = p.size as Record<string, unknown> | undefined;
+  return (
+    typeof p.anchor === 'string' && (ANCHORS as string[]).includes(p.anchor) &&
+    !!offset && typeof offset.x === 'number' && typeof offset.y === 'number' &&
+    !!size && typeof size.width === 'number' && typeof size.height === 'number' &&
+    typeof p.docked === 'boolean' &&
+    typeof p.collapsed === 'boolean'
+  );
 }
 
-const clampSize = (width: number, height: number) => ({
-  width: Math.max(MIN_WIDTH, Math.min(width, window.innerWidth - 16)),
-  height: Math.max(MIN_HEIGHT, Math.min(height, window.innerHeight - VOICE_BAR_HEIGHT - 16)),
-});
+function loadInitialPlacement(): PipPlacement {
+  const saved = getCachedItem<unknown>(PIP_PLACEMENT_KEY);
+  return isValidPlacement(saved) ? saved : defaultPlacement();
+}
 
-const getDefaultSettings = (): PipSettings => ({
-  position: {
-    x: window.innerWidth - DEFAULT_WIDTH - 16,
-    y: window.innerHeight - DEFAULT_HEIGHT - VOICE_BAR_HEIGHT - 16
-  },
-  size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
-  isMinimized: false,
-});
+function computeViewport(isConnected: boolean): Viewport {
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    bottomInset: isConnected ? VOICE_BAR_HEIGHT : 0,
+  };
+}
 
 /**
  * Active-speaker float card ("Stage, Float, Dock" — the Float piece). Shown
@@ -64,6 +86,11 @@ const getDefaultSettings = (): PipSettings => ({
  * embedded stage isn't mounted. Content is a single tile chosen by
  * useFloatTileSelection (watched screen share > active speaker's camera >
  * avatar), not the full VideoTiles grid.
+ *
+ * Position is anchor-relative (see utils/pipPosition.ts) so it survives
+ * viewport resizes and supports opt-in corner docking. `placement` is the
+ * persisted source of truth; `dragPos`/`liveSize` are transient absolute
+ * values used only while a drag or resize gesture is in flight.
  */
 export const FloatCard: React.FC = () => {
   const theme = useTheme();
@@ -74,28 +101,15 @@ export const FloatCard: React.FC = () => {
   const selection = useFloatTileSelection();
   const [isCardHovered, setIsCardHovered] = useState(false);
 
-  // Load saved settings or use defaults, clamping size on initial load
-  const [settings, setSettings] = useState<PipSettings>(() => {
-    const saved = getCachedItem<PipSettings>(PIP_SETTINGS_KEY);
-    if (saved) {
-      const clamped = clampSize(saved.size.width, saved.size.height);
-      // Re-constrain position with clamped size
-      const maxX = window.innerWidth - clamped.width - 8;
-      const maxY = window.innerHeight - clamped.height - VOICE_BAR_HEIGHT - 8;
-      // Strip any persisted isMaximized field (removed feature) so old users
-      // don't restore into a stuck-maximized layout.
-      const { isMaximized: _isMaximized, ...rest } = saved as PipSettings & { isMaximized?: boolean };
-      return {
-        ...rest,
-        size: clamped,
-        position: {
-          x: Math.max(8, Math.min(saved.position.x, maxX)),
-          y: Math.max(8, Math.min(saved.position.y, maxY)),
-        },
-      };
-    }
-    return getDefaultSettings();
-  });
+  const [placement, setPlacement] = useState<PipPlacement>(loadInitialPlacement);
+  const [viewport, setViewport] = useState<Viewport>(() => computeViewport(state.isConnected));
+
+  // Transient gesture state — absolute pixel position/size while a
+  // drag/resize is in progress. null when idle, so rendered position/size
+  // falls back to deriving from `placement` via toAbsolute.
+  const [dragPos, setDragPos] = useState<Point | null>(null);
+  const [liveSize, setLiveSize] = useState<Size | null>(null);
+  const [pointerPos, setPointerPos] = useState<Point | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -105,54 +119,34 @@ export const FloatCard: React.FC = () => {
   // finger produces its own pointer events on the window listeners — without
   // this filter it would teleport the overlay or end the gesture.
   const activePointerIdRef = useRef<number | null>(null);
-  // Tracked (unread) so window resizes force a re-render even when clamping
-  // leaves size/position unchanged.
-  const [, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   const pipRef = useRef<HTMLDivElement>(null);
 
-  // Save settings to localStorage
-  const saveSettings = useCallback((newSettings: PipSettings) => {
-    setSettings(newSettings);
-    setCachedItem(PIP_SETTINGS_KEY, newSettings);
-  }, []);
-
-  // Constrain position within viewport
-  const constrainPosition = useCallback((x: number, y: number, width: number, height: number) => {
-    const maxX = window.innerWidth - width - 8;
-    const maxY = window.innerHeight - height - VOICE_BAR_HEIGHT - 8;
-    return {
-      x: Math.max(8, Math.min(x, maxX)),
-      y: Math.max(8, Math.min(y, maxY)),
-    };
-  }, []);
-
-  // Handle window resize - clamp both size and position
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
-      setSettings(prev => {
-        const clamped = clampSize(prev.size.width, prev.size.height);
-        const constrained = constrainPosition(
-          prev.position.x,
-          prev.position.y,
-          clamped.width,
-          clamped.height
-        );
-        const sizeChanged = clamped.width !== prev.size.width || clamped.height !== prev.size.height;
-        const posChanged = constrained.x !== prev.position.x || constrained.y !== prev.position.y;
-        if (sizeChanged || posChanged) {
-          const newSettings = { ...prev, size: clamped, position: constrained };
-          setCachedItem(PIP_SETTINGS_KEY, newSettings);
-          return newSettings;
-        }
+  // Position is derived (toAbsolute), so viewport changes only need to
+  // re-clamp size — the old dedicated position-clamp effect is gone.
+  const recomputeViewport = useCallback(() => {
+    const vp = computeViewport(state.isConnected);
+    setViewport(vp);
+    setPlacement(prev => {
+      const clampedSize = clampSizeToViewport(prev.size, vp);
+      if (clampedSize.width === prev.size.width && clampedSize.height === prev.size.height) {
         return prev;
-      });
-    };
+      }
+      const next = { ...prev, size: clampedSize };
+      setCachedItem(PIP_PLACEMENT_KEY, next);
+      return next;
+    });
+  }, [state.isConnected]);
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [constrainPosition]);
+  // Re-derive on mount and whenever the voice bar's presence changes.
+  useEffect(() => {
+    recomputeViewport();
+  }, [recomputeViewport]);
+
+  useEffect(() => {
+    window.addEventListener('resize', recomputeViewport);
+    return () => window.removeEventListener('resize', recomputeViewport);
+  }, [recomputeViewport]);
 
   // Drag handlers
   const handleDragStart = useCallback((e: React.PointerEvent) => {
@@ -160,30 +154,37 @@ export const FloatCard: React.FC = () => {
     if (activePointerIdRef.current !== null) return;
     e.preventDefault();
     activePointerIdRef.current = e.pointerId;
+    const abs = toAbsolute(placement, viewport);
+    setDragOffset({ x: e.clientX - abs.x, y: e.clientY - abs.y });
+    setDragPos(abs);
+    setPointerPos({ x: e.clientX, y: e.clientY });
     setIsDragging(true);
-    setDragOffset({
-      x: e.clientX - settings.position.x,
-      y: e.clientY - settings.position.y,
-    });
-  }, [settings.position]);
+  }, [placement, viewport]);
 
   const handleDragMove = useCallback((e: PointerEvent) => {
-    if (!isDragging) return;
     if (e.pointerId !== activePointerIdRef.current) return;
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
-    const constrained = constrainPosition(newX, newY, settings.size.width, settings.size.height);
-    setSettings(prev => ({ ...prev, position: constrained }));
-  }, [isDragging, dragOffset, settings.size, constrainPosition]);
+    setDragPos({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+    setPointerPos({ x: e.clientX, y: e.clientY });
+  }, [dragOffset]);
 
   const handleDragEnd = useCallback((e: PointerEvent) => {
     if (e.pointerId !== activePointerIdRef.current) return;
     activePointerIdRef.current = null;
-    if (isDragging) {
-      setIsDragging(false);
-      saveSettings(settings);
-    }
-  }, [isDragging, settings, saveSettings]);
+    if (!isDragging) return;
+    setIsDragging(false);
+    setPointerPos(null);
+    const dropPos = dragPos;
+    setDragPos(null);
+    if (!dropPos) return;
+    // Dock decision is made off the pointer's drop location, not the card's
+    // position — matches the highlighted zone the user was looking at.
+    const zone = hitTestDockZone({ x: e.clientX, y: e.clientY }, viewport);
+    const nextPlacement: PipPlacement = zone
+      ? { ...placement, anchor: zone, offset: { x: 0, y: 0 }, docked: true }
+      : { ...placement, ...fromAbsolute(dropPos, placement.size, viewport), docked: false };
+    setPlacement(nextPlacement);
+    setCachedItem(PIP_PLACEMENT_KEY, nextPlacement);
+  }, [isDragging, dragPos, placement, viewport]);
 
   // Resize handlers
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
@@ -191,48 +192,43 @@ export const FloatCard: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     activePointerIdRef.current = e.pointerId;
+    // Freeze the top-left corner for the gesture; only size tracks the
+    // pointer, so the card grows toward the bottom-right handle in place.
+    setDragPos(toAbsolute(placement, viewport));
+    setLiveSize(placement.size);
+    setResizeStart({ x: e.clientX, y: e.clientY, width: placement.size.width, height: placement.size.height });
     setIsResizing(true);
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: settings.size.width,
-      height: settings.size.height,
-    });
-  }, [settings.size]);
+  }, [placement, viewport]);
 
   const handleResizeMove = useCallback((e: PointerEvent) => {
-    if (!isResizing) return;
     if (e.pointerId !== activePointerIdRef.current) return;
     const deltaX = e.clientX - resizeStart.x;
     const deltaY = e.clientY - resizeStart.y;
-    setSettings(prev => {
-      const maxWidth = window.innerWidth - prev.position.x - 8;
-      const maxHeight = window.innerHeight - prev.position.y - VOICE_BAR_HEIGHT - 8;
-      const newWidth = Math.max(MIN_WIDTH, Math.min(resizeStart.width + deltaX, maxWidth));
-      const newHeight = Math.max(MIN_HEIGHT, Math.min(resizeStart.height + deltaY, maxHeight));
-      return {
-        ...prev,
-        size: { width: newWidth, height: newHeight },
-      };
-    });
-  }, [isResizing, resizeStart]);
+    setLiveSize(clampSizeToViewport(
+      { width: resizeStart.width + deltaX, height: resizeStart.height + deltaY },
+      viewport
+    ));
+  }, [resizeStart, viewport]);
 
   const handleResizeEnd = useCallback((e: PointerEvent) => {
     if (e.pointerId !== activePointerIdRef.current) return;
     activePointerIdRef.current = null;
-    if (isResizing) {
-      setIsResizing(false);
-      // Constrain position after resize
-      const constrained = constrainPosition(
-        settings.position.x,
-        settings.position.y,
-        settings.size.width,
-        settings.size.height
-      );
-      const newSettings = { ...settings, position: constrained };
-      saveSettings(newSettings);
-    }
-  }, [isResizing, settings, constrainPosition, saveSettings]);
+    if (!isResizing) return;
+    setIsResizing(false);
+    const finalSize = liveSize;
+    const frozenPos = dragPos;
+    setLiveSize(null);
+    setDragPos(null);
+    if (!finalSize || !frozenPos) return;
+    // Docked: keep the anchor, just store the new size (position re-derives
+    // from the anchor). Free: recompute the anchor/offset from the frozen
+    // top-left so the card doesn't jump on the next render.
+    const nextPlacement: PipPlacement = placement.docked
+      ? { ...placement, size: finalSize }
+      : { ...placement, size: finalSize, ...fromAbsolute(frozenPos, finalSize, viewport) };
+    setPlacement(nextPlacement);
+    setCachedItem(PIP_PLACEMENT_KEY, nextPlacement);
+  }, [isResizing, liveSize, dragPos, placement, viewport]);
 
   // Global pointer event listeners for drag/resize (pointer events unify mouse
   // and touch, so this works for touch tablets as well as mouse users)
@@ -264,10 +260,12 @@ export const FloatCard: React.FC = () => {
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
-  // Toggle minimize (collapse to pill)
-  const toggleMinimize = useCallback(() => {
-    saveSettings({ ...settings, isMinimized: !settings.isMinimized });
-  }, [settings, saveSettings]);
+  // Toggle collapse (card <-> pill)
+  const toggleCollapsed = useCallback(() => {
+    const next = { ...placement, collapsed: !placement.collapsed };
+    setPlacement(next);
+    setCachedItem(PIP_PLACEMENT_KEY, next);
+  }, [placement]);
 
   const displayName = state.contextType === VoiceSessionType.Dm
     ? state.dmGroupName || 'DM Call'
@@ -285,7 +283,8 @@ export const FloatCard: React.FC = () => {
   }, [state, navigate]);
 
   // Minimized view (pill)
-  if (settings.isMinimized) {
+  if (placement.collapsed) {
+    const pillPos = toAbsolute(placement, viewport, PILL_SIZE);
     return (
       <Paper
         ref={pipRef}
@@ -293,8 +292,8 @@ export const FloatCard: React.FC = () => {
         elevation={8}
         sx={{
           position: 'fixed',
-          right: 16,
-          bottom: VOICE_BAR_HEIGHT + 16,
+          left: pillPos.x,
+          top: pillPos.y,
           zIndex: 1200,
           borderRadius: 2,
           overflow: 'hidden',
@@ -304,7 +303,7 @@ export const FloatCard: React.FC = () => {
             transform: 'scale(1.05)',
           },
         }}
-        onClick={toggleMinimize}
+        onClick={toggleCollapsed}
       >
         <Box
           sx={{
@@ -333,186 +332,191 @@ export const FloatCard: React.FC = () => {
   }
 
   const isLocalSelection = !!selection && state.room?.localParticipant === selection.participant;
+  const renderedPos = dragPos ?? toAbsolute(placement, viewport);
+  const renderedSize = liveSize ?? placement.size;
 
   return (
-    <Paper
-      ref={pipRef}
-      elevation={8}
-      onMouseEnter={() => setIsCardHovered(true)}
-      onMouseLeave={() => setIsCardHovered(false)}
-      sx={{
-        position: 'fixed',
-        left: settings.position.x,
-        top: settings.position.y,
-        width: settings.size.width,
-        height: settings.size.height,
-        zIndex: 1200,
-        borderRadius: 2,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        border: `1px solid ${theme.palette.divider}`,
-        userSelect: isDragging || isResizing ? 'none' : 'auto',
-      }}
-    >
-      {/* Header - Draggable */}
-      <Box
+    <>
+      {isDragging && <DockZonesOverlay viewport={viewport} pointerPosition={pointerPos} />}
+      <Paper
+        ref={pipRef}
+        elevation={8}
+        onMouseEnter={() => setIsCardHovered(true)}
+        onMouseLeave={() => setIsCardHovered(false)}
         sx={{
-          height: HEADER_HEIGHT,
-          backgroundColor: alpha(theme.palette.background.paper, 0.95),
-          borderBottom: `1px solid ${theme.palette.divider}`,
+          position: 'fixed',
+          left: renderedPos.x,
+          top: renderedPos.y,
+          width: renderedSize.width,
+          height: renderedSize.height,
+          zIndex: 1200,
+          borderRadius: 2,
+          overflow: 'hidden',
           display: 'flex',
-          alignItems: 'center',
-          gap: 0.5,
-          px: 1,
-          cursor: isDragging ? 'grabbing' : 'grab',
-          flexShrink: 0,
-          // Prevent the browser treating a touch-drag on the header as a scroll
-          touchAction: 'none',
+          flexDirection: 'column',
+          border: `1px solid ${theme.palette.divider}`,
+          userSelect: isDragging || isResizing ? 'none' : 'auto',
         }}
-        onPointerDown={handleDragStart}
       >
-        <DragIndicator fontSize="small" sx={{ color: 'text.secondary' }} />
-        <Typography variant="caption" fontWeight="medium" noWrap sx={{ maxWidth: 200 }}>
-          {displayName}
-        </Typography>
-      </Box>
+        {/* Header - Draggable */}
+        <Box
+          sx={{
+            height: HEADER_HEIGHT,
+            backgroundColor: alpha(theme.palette.background.paper, 0.95),
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            px: 1,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            flexShrink: 0,
+            // Prevent the browser treating a touch-drag on the header as a scroll
+            touchAction: 'none',
+          }}
+          onPointerDown={handleDragStart}
+        >
+          <DragIndicator fontSize="small" sx={{ color: 'text.secondary' }} />
+          <Typography variant="caption" fontWeight="medium" noWrap sx={{ maxWidth: 200 }}>
+            {displayName}
+          </Typography>
+        </Box>
 
-      {/* Video Content — single tile from useFloatTileSelection */}
-      <Box
-        data-testid="float-card-body"
-        sx={{ flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative', cursor: 'pointer' }}
-        onClick={handleCardClick}
-      >
-        {!selection ? null : selection.kind === 'avatar' ? (
-          <Box
-            sx={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'grey.800',
-              position: 'relative',
-            }}
-          >
-            <Box sx={{ height: 'min(120px, 60%)', aspectRatio: '1 / 1', flexShrink: 1, minHeight: 32 }}>
-              <UserAvatar userId={selection.participant.identity} displayName={selection.participant.name} size="fluid" />
-            </Box>
+        {/* Video Content — single tile from useFloatTileSelection */}
+        <Box
+          data-testid="float-card-body"
+          sx={{ flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative', cursor: 'pointer' }}
+          onClick={handleCardClick}
+        >
+          {!selection ? null : selection.kind === 'avatar' ? (
             <Box
               sx={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                backgroundImage: `linear-gradient(transparent, ${alpha(theme.palette.background.paper, 0.85)})`,
-                p: 1,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'grey.800',
+                position: 'relative',
               }}
             >
-              <Typography
-                variant="caption"
-                sx={{ color: 'white', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}
+              <Box sx={{ height: 'min(120px, 60%)', aspectRatio: '1 / 1', flexShrink: 1, minHeight: 32 }}>
+                <UserAvatar userId={selection.participant.identity} displayName={selection.participant.name} size="fluid" />
+              </Box>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  backgroundImage: `linear-gradient(transparent, ${alpha(theme.palette.background.paper, 0.85)})`,
+                  p: 1,
+                }}
               >
-                {selection.participant.name || selection.participant.identity}
-                {isLocalSelection && ' (You)'}
-              </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'white', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}
+                >
+                  {selection.participant.name || selection.participant.identity}
+                  {isLocalSelection && ' (You)'}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-        ) : (
-          <VideoTile
-            participant={selection.participant}
-            videoTrack={selection.kind === 'camera' ? selection.publication : undefined}
-            screenTrack={selection.kind === 'screen' ? selection.publication : undefined}
-            isLocal={isLocalSelection}
-            isReplayBufferActive={isReplayBufferActive}
-          />
-        )}
+          ) : (
+            <VideoTile
+              participant={selection.participant}
+              videoTrack={selection.kind === 'camera' ? selection.publication : undefined}
+              screenTrack={selection.kind === 'screen' ? selection.publication : undefined}
+              isLocal={isLocalSelection}
+              isReplayBufferActive={isReplayBufferActive}
+            />
+          )}
 
-        {/* Hover control strip — mirrors VoiceBottomBar's mic/camera actions */}
+          {/* Hover control strip — mirrors VoiceBottomBar's mic/camera actions */}
+          <Box
+            className="pip-controls"
+            data-testid="float-card-controls"
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 1,
+              p: 1,
+              backgroundImage: `linear-gradient(transparent, ${alpha(theme.palette.common.black, 0.6)})`,
+              opacity: isCardHovered ? 1 : 0,
+              transition: 'opacity 0.15s ease',
+              '@media (hover: none)': {
+                opacity: 1,
+              },
+            }}
+          >
+            <Tooltip title={isMicrophoneEnabled ? 'Mute' : 'Unmute'}>
+              <IconButton
+                size="small"
+                onClick={actions.toggleMute}
+                sx={{
+                  backgroundColor: alpha(theme.palette.background.paper, 0.7),
+                  color: !isMicrophoneEnabled ? theme.palette.error.main : theme.palette.text.primary,
+                }}
+              >
+                {isMicrophoneEnabled ? <Mic fontSize="small" /> : <MicOff fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}>
+              <IconButton
+                size="small"
+                onClick={actions.toggleVideo}
+                sx={{
+                  backgroundColor: alpha(theme.palette.background.paper, 0.7),
+                  color: isCameraEnabled ? theme.palette.primary.main : theme.palette.text.primary,
+                }}
+              >
+                {isCameraEnabled ? <Videocam fontSize="small" /> : <VideocamOff fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Minimize">
+              <IconButton
+                size="small"
+                onClick={toggleCollapsed}
+                sx={{
+                  backgroundColor: alpha(theme.palette.background.paper, 0.7),
+                  color: theme.palette.text.primary,
+                }}
+              >
+                <Minimize fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        {/* Resize Handle */}
         <Box
-          className="pip-controls"
-          data-testid="float-card-controls"
-          onClick={(e) => e.stopPropagation()}
           sx={{
             position: 'absolute',
-            bottom: 0,
-            left: 0,
             right: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 1,
-            p: 1,
-            backgroundImage: `linear-gradient(transparent, ${alpha(theme.palette.common.black, 0.6)})`,
-            opacity: isCardHovered ? 1 : 0,
-            transition: 'opacity 0.15s ease',
-            '@media (hover: none)': {
-              opacity: 1,
+            bottom: 0,
+            width: 20,
+            height: 20,
+            cursor: 'se-resize',
+            touchAction: 'none',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              right: 4,
+              bottom: 4,
+              width: 8,
+              height: 8,
+              borderRight: `2px solid ${theme.palette.text.secondary}`,
+              borderBottom: `2px solid ${theme.palette.text.secondary}`,
             },
           }}
-        >
-          <Tooltip title={isMicrophoneEnabled ? 'Mute' : 'Unmute'}>
-            <IconButton
-              size="small"
-              onClick={actions.toggleMute}
-              sx={{
-                backgroundColor: alpha(theme.palette.background.paper, 0.7),
-                color: !isMicrophoneEnabled ? theme.palette.error.main : theme.palette.text.primary,
-              }}
-            >
-              {isMicrophoneEnabled ? <Mic fontSize="small" /> : <MicOff fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}>
-            <IconButton
-              size="small"
-              onClick={actions.toggleVideo}
-              sx={{
-                backgroundColor: alpha(theme.palette.background.paper, 0.7),
-                color: isCameraEnabled ? theme.palette.primary.main : theme.palette.text.primary,
-              }}
-            >
-              {isCameraEnabled ? <Videocam fontSize="small" /> : <VideocamOff fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Minimize">
-            <IconButton
-              size="small"
-              onClick={toggleMinimize}
-              sx={{
-                backgroundColor: alpha(theme.palette.background.paper, 0.7),
-                color: theme.palette.text.primary,
-              }}
-            >
-              <Minimize fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
-
-      {/* Resize Handle */}
-      <Box
-        sx={{
-          position: 'absolute',
-          right: 0,
-          bottom: 0,
-          width: 20,
-          height: 20,
-          cursor: 'se-resize',
-          touchAction: 'none',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            right: 4,
-            bottom: 4,
-            width: 8,
-            height: 8,
-            borderRight: `2px solid ${theme.palette.text.secondary}`,
-            borderBottom: `2px solid ${theme.palette.text.secondary}`,
-          },
-        }}
-        onPointerDown={handleResizeStart}
-      />
-    </Paper>
+          onPointerDown={handleResizeStart}
+        />
+      </Paper>
+    </>
   );
 };
 

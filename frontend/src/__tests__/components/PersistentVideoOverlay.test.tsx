@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { PersistentVideoOverlay } from '../../components/Voice/PersistentVideoOverlay';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
+import { toAbsolute, defaultPlacement, dockZoneRects, EDGE_PADDING, type PipPlacement } from '../../utils/pipPosition';
+import { VOICE_BAR_HEIGHT } from '../../constants/layout';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
   const { createClient, createConfig } = await import('../../api-client/client');
@@ -328,11 +330,7 @@ describe('PersistentVideoOverlay', () => {
         ['remote-1', { identity: 'remote-1' }],
         ['remote-2', { identity: 'remote-2' }],
       ]);
-      setCachedItem('semaphore_pip_settings', {
-        position: { x: 0, y: 0 },
-        size: { width: 480, height: 360 },
-        isMinimized: true,
-      });
+      setCachedItem('semaphore_pip_placement', { ...defaultPlacement(), collapsed: true });
 
       renderWithProviders(<PersistentVideoOverlay />);
 
@@ -350,7 +348,7 @@ describe('PersistentVideoOverlay', () => {
       await user.click(minimizeIcon.closest('button')!);
 
       expect(screen.getByTestId('float-card-pill')).toBeInTheDocument();
-      expect(getCachedItem<{ isMinimized: boolean }>('semaphore_pip_settings')?.isMinimized).toBe(true);
+      expect(getCachedItem<PipPlacement>('semaphore_pip_placement')?.collapsed).toBe(true);
     });
 
     it('renders VideoTile for a camera selection', () => {
@@ -377,11 +375,7 @@ describe('PersistentVideoOverlay', () => {
     });
 
     it('clicking the pill expands back to the full card', async () => {
-      setCachedItem('semaphore_pip_settings', {
-        position: { x: 0, y: 0 },
-        size: { width: 480, height: 360 },
-        isMinimized: true,
-      });
+      setCachedItem('semaphore_pip_placement', { ...defaultPlacement(), collapsed: true });
 
       const { user } = renderWithProviders(<PersistentVideoOverlay />);
 
@@ -389,6 +383,60 @@ describe('PersistentVideoOverlay', () => {
 
       expect(screen.queryByTestId('float-card-pill')).not.toBeInTheDocument();
       expect(screen.getByTestId('float-card-body')).toBeInTheDocument();
+    });
+
+    it('dragging the header into a dock zone persists a docked placement at that anchor', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const vp = { width: window.innerWidth, height: window.innerHeight, bottomInset: VOICE_BAR_HEIGHT };
+      const startAbs = toAbsolute(defaultPlacement(), vp);
+      const bottomLeftZone = dockZoneRects(vp).find((z) => z.anchor === 'bottom-left')!;
+      const dropPoint = { x: bottomLeftZone.x + 10, y: bottomLeftZone.y + 10 };
+
+      const header = screen.getByTestId('DragIndicatorIcon');
+      fireEvent.pointerDown(header, { pointerId: 1, clientX: startAbs.x + 20, clientY: startAbs.y + 10 });
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: dropPoint.x, clientY: dropPoint.y }));
+      });
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: dropPoint.x, clientY: dropPoint.y }));
+      });
+
+      const placement = getCachedItem<PipPlacement>('semaphore_pip_placement');
+      expect(placement).toMatchObject({ anchor: 'bottom-left', docked: true, offset: { x: 0, y: 0 } });
+    });
+
+    it('dragging the header outside every dock zone persists the exact free drop position', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const vp = { width: window.innerWidth, height: window.innerHeight, bottomInset: VOICE_BAR_HEIGHT };
+      const { size } = defaultPlacement();
+      const startAbs = toAbsolute(defaultPlacement(), vp);
+      const dragGrabOffset = { x: 20, y: 10 };
+      const pointerDownAt = { x: startAbs.x + dragGrabOffset.x, y: startAbs.y + dragGrabOffset.y };
+      // A drop point safely inside the reachable free-placement range (not
+      // clamped, not in a corner dock zone), so the round trip through
+      // fromAbsolute/toAbsolute is an identity.
+      const maxX = vp.width - size.width - EDGE_PADDING;
+      const maxY = vp.height - vp.bottomInset - size.height - EDGE_PADDING;
+      const expectedDropPos = { x: Math.round(maxX / 2), y: Math.round(maxY / 2) };
+      const pointerMoveTo = {
+        x: expectedDropPos.x + dragGrabOffset.x,
+        y: expectedDropPos.y + dragGrabOffset.y,
+      };
+
+      const header = screen.getByTestId('DragIndicatorIcon');
+      fireEvent.pointerDown(header, { pointerId: 1, clientX: pointerDownAt.x, clientY: pointerDownAt.y });
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: pointerMoveTo.x, clientY: pointerMoveTo.y }));
+      });
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: pointerMoveTo.x, clientY: pointerMoveTo.y }));
+      });
+
+      const placement = getCachedItem<PipPlacement>('semaphore_pip_placement');
+      expect(placement?.docked).toBe(false);
+      expect(toAbsolute(placement!, vp)).toEqual(expectedDropPos);
     });
   });
 });
