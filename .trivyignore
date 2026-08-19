@@ -44,6 +44,10 @@ CVE-2026-27904
 CVE-2026-4926
 # socket.io-parser
 CVE-2026-33151
+# extract-zip (dev/build-time only: @electron/get unpacks the Electron binary
+# at install; not shipped in app.asar or images. No fixed version upstream yet
+# — remove when one lands.) Added 2026-08-19 pre-v0.4.3 audit.
+CVE-2026-56876
 
 # --- frontend image: OS packages from the nginx/alpine base (bump base image) ---
 # libxml2
