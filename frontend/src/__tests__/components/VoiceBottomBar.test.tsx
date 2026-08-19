@@ -20,6 +20,8 @@ const mockActions = {
   toggleVideo: vi.fn(),
   toggleScreenShare: vi.fn(),
   setShowVideoTiles: vi.fn(),
+  setPipCollapsed: vi.fn(),
+  revealVideoTiles: vi.fn(),
   leaveVoiceChannel: vi.fn(),
   switchAudioInputDevice: vi.fn(),
   switchVideoInputDevice: vi.fn(),
@@ -44,6 +46,7 @@ const defaultVoiceState: VoiceState & { room: null } = {
   isDeafened: false,
   isServerMuted: false,
   showVideoTiles: false,
+  pipCollapsed: false,
   screenShareAudioFailed: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
@@ -489,6 +492,80 @@ describe('VoiceBottomBar', () => {
     renderWithProviders(<VoiceBottomBar />);
 
     expect(screen.queryByRole('button', { name: /show video tiles/i })).not.toBeInTheDocument();
+  });
+
+  it('"Show Video Tiles" button reveals (show + un-collapse) rather than just showing', async () => {
+    voiceState = { ...defaultVoiceState, showVideoTiles: false };
+    vi.mocked(useVoiceConnection).mockReturnValue({
+      state: voiceState,
+      actions: mockActions,
+    } as never);
+
+    const { user } = renderWithProviders(<VoiceBottomBar />);
+
+    await user.click(screen.getByRole('button', { name: /show video tiles/i }));
+
+    expect(mockActions.revealVideoTiles).toHaveBeenCalled();
+    expect(mockActions.setShowVideoTiles).not.toHaveBeenCalled();
+  });
+
+  describe('settings menu video-tiles toggle', () => {
+    async function openSettingsMenu(user: ReturnType<typeof renderWithProviders>['user']) {
+      const settingsIcon = screen.getByTestId('SettingsIcon');
+      await user.click(settingsIcon.closest('button')!);
+    }
+
+    it('expanded (shown, not collapsed): "Hide Video Tiles" collapses the pill', async () => {
+      voiceState = { ...defaultVoiceState, showVideoTiles: true, pipCollapsed: false };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: voiceState,
+        actions: mockActions,
+      } as never);
+
+      const { user } = renderWithProviders(<VoiceBottomBar />);
+      await openSettingsMenu(user);
+
+      const item = await screen.findByText('Hide Video Tiles');
+      await user.click(item);
+
+      expect(mockActions.setPipCollapsed).toHaveBeenCalledWith(true);
+      expect(mockActions.revealVideoTiles).not.toHaveBeenCalled();
+      expect(mockActions.setShowVideoTiles).not.toHaveBeenCalled();
+    });
+
+    it('hidden (showVideoTiles false): "Show Video Tiles" reveals fully', async () => {
+      voiceState = { ...defaultVoiceState, showVideoTiles: false, pipCollapsed: false };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: voiceState,
+        actions: mockActions,
+      } as never);
+
+      const { user } = renderWithProviders(<VoiceBottomBar />);
+      await openSettingsMenu(user);
+
+      const item = await screen.findByText('Show Video Tiles');
+      await user.click(item);
+
+      expect(mockActions.revealVideoTiles).toHaveBeenCalled();
+      expect(mockActions.setPipCollapsed).not.toHaveBeenCalled();
+    });
+
+    it('collapsed to a pill (showVideoTiles true, pipCollapsed true): "Show Video Tiles" reveals fully', async () => {
+      voiceState = { ...defaultVoiceState, showVideoTiles: true, pipCollapsed: true };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: voiceState,
+        actions: mockActions,
+      } as never);
+
+      const { user } = renderWithProviders(<VoiceBottomBar />);
+      await openSettingsMenu(user);
+
+      const item = await screen.findByText('Show Video Tiles');
+      await user.click(item);
+
+      expect(mockActions.revealVideoTiles).toHaveBeenCalled();
+      expect(mockActions.setPipCollapsed).not.toHaveBeenCalled();
+    });
   });
 
   describe('speakerphone toggle (#109)', () => {

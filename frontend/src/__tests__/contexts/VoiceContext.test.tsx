@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -8,15 +8,18 @@ import {
   VoiceActionType,
 } from '../../contexts/VoiceContext';
 import { VideoLayoutMode } from '../../types/videoLayout';
+import { setCachedItem } from '../../utils/storage';
+import { defaultPlacement } from '../../utils/pipPosition';
 
 function TestConsumer() {
-  const { stageMounted, showVideoTiles, isConnected, layoutMode, pinnedTileId, spotlightTileId } = useVoice();
+  const { stageMounted, showVideoTiles, pipCollapsed, isConnected, layoutMode, pinnedTileId, spotlightTileId } = useVoice();
   const { dispatch } = useVoiceDispatch();
 
   return (
     <div>
       <span data-testid="stage-mounted">{String(stageMounted)}</span>
       <span data-testid="show-video-tiles">{String(showVideoTiles)}</span>
+      <span data-testid="pip-collapsed">{String(pipCollapsed)}</span>
       <span data-testid="is-connected">{String(isConnected)}</span>
       <span data-testid="layout-mode">{layoutMode}</span>
       <span data-testid="pinned-tile-id">{String(pinnedTileId)}</span>
@@ -33,6 +36,12 @@ function TestConsumer() {
       </button>
       <button onClick={() => dispatch({ type: VoiceActionType.SetShowVideoTiles, payload: true })}>
         Show Video Tiles
+      </button>
+      <button onClick={() => dispatch({ type: VoiceActionType.SetPipCollapsed, payload: true })}>
+        Collapse Pip
+      </button>
+      <button onClick={() => dispatch({ type: VoiceActionType.SetPipCollapsed, payload: false })}>
+        Expand Pip
       </button>
       <button onClick={() => dispatch({ type: VoiceActionType.SetDisconnected })}>
         Disconnect
@@ -63,6 +72,10 @@ function TestConsumer() {
 }
 
 describe('VoiceContext reducer', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it('stageMounted defaults to false', () => {
     render(
       <VoiceProvider>
@@ -134,6 +147,74 @@ describe('VoiceContext reducer', () => {
     expect(screen.getByTestId('stage-mounted')).toHaveTextContent('false');
     expect(screen.getByTestId('show-video-tiles')).toHaveTextContent('true');
     expect(screen.getByTestId('is-connected')).toHaveTextContent('false');
+  });
+
+  it('pipCollapsed defaults to false with no persisted placement', () => {
+    render(
+      <VoiceProvider>
+        <TestConsumer />
+      </VoiceProvider>,
+    );
+
+    expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('false');
+  });
+
+  it('SetPipCollapsed(true) sets pipCollapsed to true, SetPipCollapsed(false) sets it back', async () => {
+    const user = userEvent.setup();
+    render(
+      <VoiceProvider>
+        <TestConsumer />
+      </VoiceProvider>,
+    );
+
+    await user.click(screen.getByText('Collapse Pip'));
+    expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('true');
+
+    await user.click(screen.getByText('Expand Pip'));
+    expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('false');
+  });
+
+  it('SetDisconnected preserves pipCollapsed alongside showVideoTiles', async () => {
+    const user = userEvent.setup();
+    render(
+      <VoiceProvider>
+        <TestConsumer />
+      </VoiceProvider>,
+    );
+
+    await user.click(screen.getByText('Show Video Tiles'));
+    await user.click(screen.getByText('Collapse Pip'));
+    expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('true');
+
+    await user.click(screen.getByText('Disconnect'));
+
+    expect(screen.getByTestId('is-connected')).toHaveTextContent('false');
+    expect(screen.getByTestId('show-video-tiles')).toHaveTextContent('true');
+    expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('true');
+  });
+
+  it('lazily initializes pipCollapsed from the persisted pip placement (collapsed: true)', () => {
+    setCachedItem('semaphore_pip_placement', { ...defaultPlacement(), collapsed: true });
+
+    render(
+      <VoiceProvider>
+        <TestConsumer />
+      </VoiceProvider>,
+    );
+
+    expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('true');
+  });
+
+  it('lazily initializes pipCollapsed from the persisted pip placement (collapsed: false)', () => {
+    setCachedItem('semaphore_pip_placement', { ...defaultPlacement(), collapsed: false });
+
+    render(
+      <VoiceProvider>
+        <TestConsumer />
+      </VoiceProvider>,
+    );
+
+    expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('false');
   });
 
   it('layoutMode/pinnedTileId/spotlightTileId default to Grid/null/null', () => {

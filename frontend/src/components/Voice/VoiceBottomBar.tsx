@@ -533,7 +533,7 @@ export const VoiceBottomBar: React.FC = () => {
             {!state.showVideoTiles && state.isConnected && (
               <Tooltip title="Show Video Tiles" arrow={!isMobile}>
                 <IconButton
-                  onClick={() => actions.setShowVideoTiles(true)}
+                  onClick={() => actions.revealVideoTiles()}
                   size={isMobile ? "medium" : "medium"}
                   sx={{
                     minWidth: isMobile ? 48 : "auto",
@@ -599,11 +599,17 @@ export const VoiceBottomBar: React.FC = () => {
         >
           <MenuItem
             onClick={() => {
-              actions.setShowVideoTiles(!state.showVideoTiles);
+              // Expanded (shown + not collapsed to a pill) collapses to the pill;
+              // anything else (hidden, or already a pill) reveals it fully again.
+              if (state.showVideoTiles && !state.pipCollapsed) {
+                actions.setPipCollapsed(true);
+              } else {
+                actions.revealVideoTiles();
+              }
               handleSettingsClose();
             }}
           >
-            {state.showVideoTiles ? "Hide Video Tiles" : "Show Video Tiles"}
+            {state.showVideoTiles && !state.pipCollapsed ? "Hide Video Tiles" : "Show Video Tiles"}
           </MenuItem>
           <MenuItem onClick={handleDeviceSettingsOpen}>
             Voice & Video Settings

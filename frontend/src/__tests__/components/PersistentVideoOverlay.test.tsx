@@ -3,7 +3,7 @@ import { screen, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { PersistentVideoOverlay } from '../../components/Voice/PersistentVideoOverlay';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
-import { getCachedItem, setCachedItem } from '../../utils/storage';
+import { getCachedItem } from '../../utils/storage';
 import { toAbsolute, defaultPlacement, dockZoneRects, EDGE_PADDING, type PipPlacement } from '../../utils/pipPosition';
 import { VOICE_BAR_HEIGHT } from '../../constants/layout';
 
@@ -31,6 +31,8 @@ const mockActions = {
   toggleVideo: vi.fn(),
   toggleScreenShare: vi.fn(),
   setShowVideoTiles: vi.fn(),
+  setPipCollapsed: vi.fn(),
+  revealVideoTiles: vi.fn(),
   leaveVoiceChannel: vi.fn(),
   switchAudioInputDevice: vi.fn(),
   switchVideoInputDevice: vi.fn(),
@@ -81,6 +83,7 @@ const defaultConnectionState: {
   currentDmGroupId: string | null;
   dmGroupName: string | null;
   stageMounted: boolean;
+  pipCollapsed: boolean;
   room: typeof mockRoom;
 } = {
   isConnected: true,
@@ -91,6 +94,7 @@ const defaultConnectionState: {
   currentDmGroupId: null,
   dmGroupName: null,
   stageMounted: false,
+  pipCollapsed: false,
   room: mockRoom,
 };
 let mockConnectionState = { ...defaultConnectionState };
@@ -330,7 +334,11 @@ describe('PersistentVideoOverlay', () => {
         ['remote-1', { identity: 'remote-1' }],
         ['remote-2', { identity: 'remote-2' }],
       ]);
-      setCachedItem('semaphore_pip_placement', { ...defaultPlacement(), collapsed: true });
+      mockConnectionState = { ...defaultConnectionState, pipCollapsed: true };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: mockConnectionState,
+        actions: mockActions,
+      } as never);
 
       renderWithProviders(<PersistentVideoOverlay />);
 
@@ -339,15 +347,28 @@ describe('PersistentVideoOverlay', () => {
       expect(screen.getByText('3')).toBeInTheDocument();
     });
 
-    it('collapse control shows the pill', async () => {
-      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+    it('collapse control dispatches SetPipCollapsed(true); context flipping it shows the pill and persists it', async () => {
+      const { user, rerender } = renderWithProviders(<PersistentVideoOverlay />);
 
       expect(screen.queryByTestId('float-card-pill')).not.toBeInTheDocument();
 
       const minimizeIcon = screen.getByTestId('MinimizeIcon');
       await user.click(minimizeIcon.closest('button')!);
 
+      expect(mockActions.setPipCollapsed).toHaveBeenCalledWith(true);
+
+      // Collapsed/expanded is driven by context (state.pipCollapsed), not local
+      // component state — simulate the context updating in response to the dispatch.
+      mockConnectionState = { ...mockConnectionState, pipCollapsed: true };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: mockConnectionState,
+        actions: mockActions,
+      } as never);
+      rerender(<PersistentVideoOverlay />);
+
       expect(screen.getByTestId('float-card-pill')).toBeInTheDocument();
+      // FloatCard mirrors the context-driven collapsed flag back into the
+      // persisted placement so semaphore_pip_placement stays the on-disk record.
       expect(getCachedItem<PipPlacement>('semaphore_pip_placement')?.collapsed).toBe(true);
     });
 
@@ -374,12 +395,25 @@ describe('PersistentVideoOverlay', () => {
       expect(tile).toHaveAttribute('data-kind', 'screen');
     });
 
-    it('clicking the pill expands back to the full card', async () => {
-      setCachedItem('semaphore_pip_placement', { ...defaultPlacement(), collapsed: true });
+    it('clicking the pill dispatches SetPipCollapsed(false); context flipping it restores the full card', async () => {
+      mockConnectionState = { ...defaultConnectionState, pipCollapsed: true };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: mockConnectionState,
+        actions: mockActions,
+      } as never);
 
-      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+      const { user, rerender } = renderWithProviders(<PersistentVideoOverlay />);
 
       await user.click(screen.getByTestId('float-card-pill'));
+
+      expect(mockActions.setPipCollapsed).toHaveBeenCalledWith(false);
+
+      mockConnectionState = { ...mockConnectionState, pipCollapsed: false };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: mockConnectionState,
+        actions: mockActions,
+      } as never);
+      rerender(<PersistentVideoOverlay />);
 
       expect(screen.queryByTestId('float-card-pill')).not.toBeInTheDocument();
       expect(screen.getByTestId('float-card-body')).toBeInTheDocument();

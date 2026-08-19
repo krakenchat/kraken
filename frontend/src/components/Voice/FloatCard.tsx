@@ -143,6 +143,19 @@ export const FloatCard: React.FC = () => {
     recomputeViewport();
   }, [recomputeViewport]);
 
+  // Context (state.pipCollapsed) is the single source of truth for
+  // collapsed/expanded — it can change from outside this component (e.g. the
+  // VoiceBottomBar settings menu). Mirror it into the persisted placement so
+  // semaphore_pip_placement stays the one on-disk record of the pill state.
+  useEffect(() => {
+    setPlacement(prev => {
+      if (prev.collapsed === state.pipCollapsed) return prev;
+      const next = { ...prev, collapsed: state.pipCollapsed };
+      setCachedItem(PIP_PLACEMENT_KEY, next);
+      return next;
+    });
+  }, [state.pipCollapsed]);
+
   useEffect(() => {
     window.addEventListener('resize', recomputeViewport);
     return () => window.removeEventListener('resize', recomputeViewport);
@@ -260,12 +273,11 @@ export const FloatCard: React.FC = () => {
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
-  // Toggle collapse (card <-> pill)
+  // Toggle collapse (card <-> pill). Source of truth is context
+  // (state.pipCollapsed); the effect above persists the change.
   const toggleCollapsed = useCallback(() => {
-    const next = { ...placement, collapsed: !placement.collapsed };
-    setPlacement(next);
-    setCachedItem(PIP_PLACEMENT_KEY, next);
-  }, [placement]);
+    actions.setPipCollapsed(!state.pipCollapsed);
+  }, [actions, state.pipCollapsed]);
 
   const displayName = state.contextType === VoiceSessionType.Dm
     ? state.dmGroupName || 'DM Call'
@@ -283,7 +295,7 @@ export const FloatCard: React.FC = () => {
   }, [state, navigate]);
 
   // Minimized view (pill)
-  if (placement.collapsed) {
+  if (state.pipCollapsed) {
     const pillPos = toAbsolute(placement, viewport, PILL_SIZE);
     return (
       <Paper

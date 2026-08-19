@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useRef, useEffect, useMemo } from "react";
 import { VideoLayoutMode } from "../types/videoLayout";
+import { getCachedItem } from "../utils/storage";
 
 export enum VoiceSessionType {
   Channel = 'channel',
@@ -20,6 +21,7 @@ export interface VoiceState {
   dmGroupName: string | null;
   isDeafened: boolean;
   showVideoTiles: boolean;
+  pipCollapsed: boolean;
   screenShareAudioFailed: boolean;
   selectedAudioInputId: string | null;
   selectedAudioOutputId: string | null;
@@ -43,6 +45,7 @@ export enum VoiceActionType {
   SetConnectionError = 'SET_CONNECTION_ERROR',
   SetDeafened = 'SET_DEAFENED',
   SetShowVideoTiles = 'SET_SHOW_VIDEO_TILES',
+  SetPipCollapsed = 'SET_PIP_COLLAPSED',
   SetScreenShareAudioFailed = 'SET_SCREEN_SHARE_AUDIO_FAILED',
   SetSelectedAudioInputId = 'SET_SELECTED_AUDIO_INPUT_ID',
   SetSelectedAudioOutputId = 'SET_SELECTED_AUDIO_OUTPUT_ID',
@@ -69,6 +72,7 @@ export type VoiceAction =
   | { type: VoiceActionType.SetConnectionError; payload: string }
   | { type: VoiceActionType.SetDeafened; payload: boolean }
   | { type: VoiceActionType.SetShowVideoTiles; payload: boolean }
+  | { type: VoiceActionType.SetPipCollapsed; payload: boolean }
   | { type: VoiceActionType.SetScreenShareAudioFailed; payload: boolean }
   | { type: VoiceActionType.SetSelectedAudioInputId; payload: string | null }
   | { type: VoiceActionType.SetSelectedAudioOutputId; payload: string | null }
@@ -100,6 +104,7 @@ const initialState: VoiceState = {
   dmGroupName: null,
   isDeafened: false,
   showVideoTiles: false,
+  pipCollapsed: false,
   screenShareAudioFailed: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
@@ -154,9 +159,12 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
         createdAt: null,
       };
     case VoiceActionType.SetDisconnected:
+      // showVideoTiles and pipCollapsed are persisted-natured UI prefs (the
+      // pill/panel should stay however the user left it, not reset on hangup).
       return {
         ...initialState,
         showVideoTiles: state.showVideoTiles,
+        pipCollapsed: state.pipCollapsed,
       };
     case VoiceActionType.SetConnectionError:
       return { ...state, isConnecting: false, connectionError: action.payload };
@@ -164,6 +172,8 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
       return { ...state, isDeafened: action.payload };
     case VoiceActionType.SetShowVideoTiles:
       return { ...state, showVideoTiles: action.payload };
+    case VoiceActionType.SetPipCollapsed:
+      return { ...state, pipCollapsed: action.payload };
     case VoiceActionType.SetScreenShareAudioFailed:
       return { ...state, screenShareAudioFailed: action.payload };
     case VoiceActionType.SetSelectedAudioInputId:
@@ -244,8 +254,21 @@ const VoiceDispatchContext = createContext<{
   stateRef: React.RefObject<VoiceState>;
 } | null>(null);
 
+// Same on-disk record FloatCard reads/writes (utils/pipPosition.ts's
+// PipPlacement); read narrowly here so the pill's collapsed state survives a
+// reload without pulling in the full placement geometry/validation.
+const PIP_PLACEMENT_KEY = 'semaphore_pip_placement';
+
+function initVoiceState(base: VoiceState): VoiceState {
+  const saved = getCachedItem<unknown>(PIP_PLACEMENT_KEY);
+  const collapsed = !!saved && typeof saved === 'object' && typeof (saved as { collapsed?: unknown }).collapsed === 'boolean'
+    ? (saved as { collapsed: boolean }).collapsed
+    : base.pipCollapsed;
+  return { ...base, pipCollapsed: collapsed };
+}
+
 export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(voiceReducer, initialState);
+  const [state, dispatch] = useReducer(voiceReducer, initialState, initVoiceState);
   const stateRef = useRef(state);
 
   useEffect(() => {

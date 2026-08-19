@@ -153,6 +153,7 @@ function createMockDeps(overrides: Partial<{
       isDeafened: overrides.isDeafened ?? false,
       isServerMuted: overrides.isServerMuted ?? false,
       showVideoTiles: false,
+      pipCollapsed: false,
       screenShareAudioFailed: false,
       selectedAudioInputId: null,
       selectedAudioOutputId: null,

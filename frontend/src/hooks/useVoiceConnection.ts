@@ -181,6 +181,21 @@ export const useVoiceConnection = () => {
     [dispatch]
   );
 
+  const handleSetPipCollapsed = useCallback(
+    (collapsed: boolean) => {
+      dispatch({ type: VoiceActionType.SetPipCollapsed, payload: collapsed });
+    },
+    [dispatch]
+  );
+
+  // Reveal the video panel expanded — used by every "show video tiles"
+  // call site so a screen-share auto-show (or any other reveal) can't leave
+  // the user looking at a pill instead of the panel they expected to see.
+  const handleRevealVideoTiles = useCallback(() => {
+    dispatch({ type: VoiceActionType.SetShowVideoTiles, payload: true });
+    dispatch({ type: VoiceActionType.SetPipCollapsed, payload: false });
+  }, [dispatch]);
+
   const handleSwitchAudioInputDevice = useCallback(
     async (deviceId: string) => {
       await switchAudioInputDevice(deviceId, getDeps());
@@ -223,6 +238,8 @@ export const useVoiceConnection = () => {
       toggleMute: handleToggleMute,
       toggleDeafen: handleToggleDeafen,
       setShowVideoTiles: handleSetShowVideoTiles,
+      setPipCollapsed: handleSetPipCollapsed,
+      revealVideoTiles: handleRevealVideoTiles,
       switchAudioInputDevice: handleSwitchAudioInputDevice,
       switchAudioOutputDevice: handleSwitchAudioOutputDevice,
       switchVideoInputDevice: handleSwitchVideoInputDevice,

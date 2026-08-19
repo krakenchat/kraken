@@ -88,7 +88,7 @@ export function Channel({ channel }: ChannelProps) {
         if (voiceState.currentChannelId === channel.id && voiceState.isConnected) {
           // Already connected to this channel, navigate to the stage
           navigate(`/community/${communityId}/channel/${channel.id}`);
-          voiceActions.setShowVideoTiles(true);
+          voiceActions.revealVideoTiles();
         } else {
           // Join the voice channel
           await voiceActions.joinVoiceChannel(
