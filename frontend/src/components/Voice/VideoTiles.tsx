@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import {
   Box,
-  Typography,
   IconButton,
   Tooltip,
 } from '@mui/material';
@@ -45,16 +44,11 @@ interface VideoTileData {
   screenTrack?: TrackPublication;
   audioTrack?: TrackPublication;
   isLocal: boolean;
-  tileType: 'camera' | 'screen' | 'placeholder-camera' | 'placeholder-screen';
+  tileType: 'camera' | 'screen' | 'placeholder-camera' | 'placeholder-screen' | 'avatar';
   tileId: string; // unique identifier for this tile
 }
 
-interface VideoTilesProps {
-  isFullscreen?: boolean;
-  onExitFullscreen?: () => void;
-}
-
-export const VideoTiles: React.FC<VideoTilesProps> = () => {
+export const VideoTiles: React.FC = () => {
   const theme = useTheme();
   const { state } = useVoiceConnection();
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
@@ -117,14 +111,17 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     const localParticipant = state.room.localParticipant;
     const participants = Array.from(state.room.remoteParticipants.values());
 
-    // Add local participant tiles (hidden ones become placeholders)
+    // Add local participant tiles (hidden ones become placeholders); if none
+    // of this produces a tile, an avatar tile is added below.
+    // Pick the microphone publication explicitly — a screen share with audio also
+    // publishes a ScreenShareAudio track, which must not drive the mic indicator.
+    const localAudioTrack = Array.from(localParticipant.audioTrackPublications.values()).find(
+      (track: TrackPublication) => track.source === Track.Source.Microphone
+    );
+    const localTileCountBefore = tiles.length;
+
     if (isCameraEnabled || isScreenShareEnabled) {
       const videoTracks = Array.from(localParticipant.videoTrackPublications.values());
-      // Pick the microphone publication explicitly — a screen share with audio also
-      // publishes a ScreenShareAudio track, which must not drive the mic indicator.
-      const audioTrack = Array.from(localParticipant.audioTrackPublications.values()).find(
-        (track: TrackPublication) => track.source === Track.Source.Microphone
-      );
 
       const videoTrack = videoTracks.find((track: TrackPublication) =>
         track.source !== 'screen_share' && track.source !== 'screen_share_audio'
@@ -148,7 +145,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           tiles.push({
             participant: localParticipant,
             videoTrack,
-            audioTrack,
+            audioTrack: localAudioTrack,
             isLocal: true,
             tileType: 'camera',
             tileId: `${localParticipant.identity}-camera`
@@ -167,13 +164,25 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           tiles.push({
             participant: localParticipant,
             screenTrack,
-            audioTrack,
+            audioTrack: localAudioTrack,
             isLocal: true,
             tileType: 'screen',
             tileId: `${localParticipant.identity}-screen`
           });
         }
       }
+    }
+
+    // No camera/screen tile produced for the local participant — fall back
+    // to an avatar tile so they always appear in the grid.
+    if (tiles.length === localTileCountBefore) {
+      tiles.push({
+        participant: localParticipant,
+        audioTrack: localAudioTrack,
+        isLocal: true,
+        tileType: 'avatar',
+        tileId: `${localParticipant.identity}-avatar`
+      });
     }
 
     // Add remote participant tiles — only subscribed (watched) tracks get real tiles;
@@ -195,6 +204,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
 
       const isWatchingCamera = watchingCameras.has(participant.identity);
       const isWatchingScreen = watchingScreenShares.has(participant.identity);
+      const tileCountBefore = tiles.length;
 
       // Camera tile
       if (videoTrack && !videoTrack.isMuted) {
@@ -237,6 +247,18 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           });
         }
       }
+
+      // No camera/screen tile produced for this participant — fall back to
+      // an avatar tile so every connected participant appears in the grid.
+      if (tiles.length === tileCountBefore) {
+        tiles.push({
+          participant,
+          audioTrack,
+          isLocal: false,
+          tileType: 'avatar',
+          tileId: `${participant.identity}-avatar`
+        });
+      }
     });
 
     return tiles;
@@ -263,6 +285,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     state.room.on(RoomEvent.TrackMuted, handleTrackChange);
     state.room.on(RoomEvent.TrackUnmuted, handleTrackChange);
     state.room.on(RoomEvent.ParticipantDisconnected, handleTrackChange);
+    state.room.on(RoomEvent.ParticipantConnected, handleTrackChange);
 
     return () => {
       state.room?.localParticipant.off('trackPublished', handleTrackChange);
@@ -274,6 +297,7 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
       state.room?.off(RoomEvent.TrackMuted, handleTrackChange);
       state.room?.off(RoomEvent.TrackUnmuted, handleTrackChange);
       state.room?.off(RoomEvent.ParticipantDisconnected, handleTrackChange);
+      state.room?.off(RoomEvent.ParticipantConnected, handleTrackChange);
     };
   }, [state.room]);
 
@@ -323,30 +347,6 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
     return null;
   }
 
-  if (videoTiles.length === 0) {
-    // Show a placeholder when connected but no video tracks
-    return (
-      <Box sx={{ 
-        width: '100%', 
-        height: '100%', 
-        backgroundColor: 'grey.900', 
-        p: 2,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: 2
-      }}>
-        <Typography variant="h5" color="white">
-          🔊 Connected to {state.channelName}
-        </Typography>
-        <Typography variant="body1" color="grey.400" textAlign="center">
-          Enable your camera or screen share to see video tiles here.
-        </Typography>
-      </Box>
-    );
-  }
-
   // Layout rendering functions
   const renderGridLayout = () => {
     const cols = getGridCols(videoTiles.length);
@@ -383,9 +383,9 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
               isSpotlighted={spotlightTileId === tile.tileId}
               isPlaceholder={tile.tileType.startsWith('placeholder')}
               placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
-              onWatch={() => handleWatchTile(tile)}
+              onWatch={tile.tileType === 'avatar' ? undefined : () => handleWatchTile(tile)}
               onStopWatching={
-                tile.tileType.startsWith('placeholder') ? undefined :
+                tile.tileType.startsWith('placeholder') || tile.tileType === 'avatar' ? undefined :
                 tile.isLocal ? () => handleHideLocalTile(tile) :
                 () => handleStopWatchingTile(tile)
               }
@@ -418,7 +418,11 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
             isReplayBufferActive={isReplayBufferActive}
             onToggleFullscreen={() => handleTileSpotlight(pinnedTile.tileId)}
             isSpotlighted={spotlightTileId === pinnedTile.tileId}
-            onStopWatching={pinnedTile.isLocal ? () => handleHideLocalTile(pinnedTile) : () => handleStopWatchingTile(pinnedTile)}
+            onStopWatching={
+              pinnedTile.tileType === 'avatar' ? undefined :
+              pinnedTile.isLocal ? () => handleHideLocalTile(pinnedTile) :
+              () => handleStopWatchingTile(pinnedTile)
+            }
           />
         </Box>
 
@@ -449,9 +453,9 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
                   isSpotlighted={spotlightTileId === tile.tileId}
                   isPlaceholder={tile.tileType.startsWith('placeholder')}
                   placeholderType={tile.tileType === 'placeholder-camera' ? 'camera' : tile.tileType === 'placeholder-screen' ? 'screen' : undefined}
-                  onWatch={() => handleWatchAndPin(tile)}
+                  onWatch={tile.tileType === 'avatar' ? undefined : () => handleWatchAndPin(tile)}
                   onStopWatching={
-                    tile.tileType.startsWith('placeholder') ? undefined :
+                    tile.tileType.startsWith('placeholder') || tile.tileType === 'avatar' ? undefined :
                     tile.isLocal ? () => handleHideLocalTile(tile) :
                     () => handleStopWatchingTile(tile)
                   }
@@ -479,7 +483,11 @@ export const VideoTiles: React.FC<VideoTilesProps> = () => {
           isReplayBufferActive={isReplayBufferActive}
           onToggleFullscreen={() => handleTileSpotlight(spotlightedTile.tileId)}
           isSpotlighted={true}
-          onStopWatching={spotlightedTile.isLocal ? () => handleHideLocalTile(spotlightedTile) : () => handleStopWatchingTile(spotlightedTile)}
+          onStopWatching={
+            spotlightedTile.tileType === 'avatar' ? undefined :
+            spotlightedTile.isLocal ? () => handleHideLocalTile(spotlightedTile) :
+            () => handleStopWatchingTile(spotlightedTile)
+          }
         />
       </Box>
     );
