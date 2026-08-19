@@ -14,7 +14,6 @@ import {
 import { styled } from "@mui/material/styles";
 import { getDmDisplayName } from "../utils/dmHelpers";
 import { setActiveDmGroupId } from "../utils/activeDmTracking";
-import { useVideoOverlay } from "../contexts/VideoOverlayContext";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import TwoColumnLayout from "../components/Common/TwoColumnLayout";
 import { useResponsive } from "../hooks/useResponsive";
@@ -48,7 +47,6 @@ const DirectMessagesPage: React.FC = () => {
   const { isMobile } = useResponsive();
   const { user: currentUser } = useCurrentUser();
   const { data: pendingRequests } = useQuery(friendsControllerGetPendingRequestsOptions());
-  const { setPageContainer } = useVideoOverlay();
 
   // Count of incoming friend requests for badge
   const incomingRequestCount = pendingRequests?.received?.length || 0;
@@ -216,7 +214,6 @@ const DirectMessagesPage: React.FC = () => {
           )}
         </>
       }
-      contentRef={setPageContainer}
     >
       {selectedDmGroupId ? (
         <>

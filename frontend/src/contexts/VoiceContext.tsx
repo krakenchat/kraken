@@ -20,7 +20,6 @@ export interface VoiceState {
   isDeafened: boolean;
   showVideoTiles: boolean;
   screenShareAudioFailed: boolean;
-  requestMaximize: boolean;
   selectedAudioInputId: string | null;
   selectedAudioOutputId: string | null;
   selectedVideoInputId: string | null;
@@ -43,7 +42,6 @@ export enum VoiceActionType {
   SetScreenShareAudioFailed = 'SET_SCREEN_SHARE_AUDIO_FAILED',
   SetSelectedAudioInputId = 'SET_SELECTED_AUDIO_INPUT_ID',
   SetSelectedAudioOutputId = 'SET_SELECTED_AUDIO_OUTPUT_ID',
-  SetRequestMaximize = 'SET_REQUEST_MAXIMIZE',
   SetSelectedVideoInputId = 'SET_SELECTED_VIDEO_INPUT_ID',
   SetWasMutedBeforeDeafen = 'SET_WAS_MUTED_BEFORE_DEAFEN',
   SetServerMuted = 'SET_SERVER_MUTED',
@@ -67,7 +65,6 @@ export type VoiceAction =
   | { type: VoiceActionType.SetScreenShareAudioFailed; payload: boolean }
   | { type: VoiceActionType.SetSelectedAudioInputId; payload: string | null }
   | { type: VoiceActionType.SetSelectedAudioOutputId; payload: string | null }
-  | { type: VoiceActionType.SetRequestMaximize; payload: boolean }
   | { type: VoiceActionType.SetSelectedVideoInputId; payload: string | null }
   | { type: VoiceActionType.SetWasMutedBeforeDeafen; payload: boolean }
   | { type: VoiceActionType.SetServerMuted; payload: boolean }
@@ -94,7 +91,6 @@ const initialState: VoiceState = {
   isDeafened: false,
   showVideoTiles: false,
   screenShareAudioFailed: false,
-  requestMaximize: false,
   selectedAudioInputId: null,
   selectedAudioOutputId: null,
   selectedVideoInputId: null,
@@ -157,8 +153,6 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
       return { ...state, showVideoTiles: action.payload };
     case VoiceActionType.SetScreenShareAudioFailed:
       return { ...state, screenShareAudioFailed: action.payload };
-    case VoiceActionType.SetRequestMaximize:
-      return { ...state, requestMaximize: action.payload };
     case VoiceActionType.SetSelectedAudioInputId:
       return { ...state, selectedAudioInputId: action.payload };
     case VoiceActionType.SetSelectedAudioOutputId:

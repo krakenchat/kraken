@@ -14,13 +14,9 @@ import {
   OpenInFull,
   DragIndicator,
   People,
-  Fullscreen,
-  FullscreenExit,
 } from '@mui/icons-material';
-import { useLocation } from 'react-router-dom';
-import { useVoice, useVoiceDispatch, VoiceSessionType, VoiceActionType } from '../../contexts/VoiceContext';
+import { useVoice, VoiceSessionType } from '../../contexts/VoiceContext';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
-import { useVideoOverlay } from '../../contexts/VideoOverlayContext';
 import { useResponsive } from '../../hooks/useResponsive';
 import { VideoTiles } from './VideoTiles';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
@@ -38,7 +34,6 @@ interface PipSettings {
   position: { x: number; y: number };
   size: { width: number; height: number };
   isMinimized: boolean;
-  isMaximized: boolean;
 }
 
 const clampSize = (width: number, height: number) => ({
@@ -53,15 +48,12 @@ const getDefaultSettings = (): PipSettings => ({
   },
   size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
   isMinimized: false,
-  isMaximized: false,
 });
 
 export const PersistentVideoOverlay: React.FC = () => {
   const theme = useTheme();
   const voiceState = useVoice();
-  const { dispatch } = useVoiceDispatch();
   const { actions } = useVoiceConnection();
-  const { containerElement } = useVideoOverlay();
   const { isMobile } = useResponsive();
 
   // Load saved settings or use defaults, clamping size on initial load
@@ -72,9 +64,11 @@ export const PersistentVideoOverlay: React.FC = () => {
       // Re-constrain position with clamped size
       const maxX = window.innerWidth - clamped.width - 8;
       const maxY = window.innerHeight - clamped.height - VOICE_BAR_HEIGHT - 8;
+      // Strip any persisted isMaximized field (removed feature) so old users
+      // don't restore into a stuck-maximized layout.
+      const { isMaximized: _isMaximized, ...rest } = saved as PipSettings & { isMaximized?: boolean };
       return {
-        ...saved,
-        isMaximized: saved.isMaximized ?? false,
+        ...rest,
         size: clamped,
         position: {
           x: Math.max(8, Math.min(saved.position.x, maxX)),
@@ -93,59 +87,11 @@ export const PersistentVideoOverlay: React.FC = () => {
   // finger produces its own pointer events on the window listeners — without
   // this filter it would teleport the overlay or end the gesture.
   const activePointerIdRef = useRef<number | null>(null);
-  // Track window size for maximized mode re-renders
+  // Tracked (unread) so window resizes force a re-render even when clamping
+  // leaves size/position unchanged.
   const [, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-  // Track the video overlay container's bounds for maximized positioning
-  const [containerBounds, setContainerBounds] = useState<DOMRect | null>(null);
-
   const pipRef = useRef<HTMLDivElement>(null);
-
-  // Auto-restore PIP from maximized when navigating to a different page
-  const location = useLocation();
-  const prevPathnameRef = useRef(location.pathname);
-
-  useEffect(() => {
-    if (location.pathname !== prevPathnameRef.current) {
-      prevPathnameRef.current = location.pathname;
-      // Skip restore if requestMaximize is pending (channel click → maximize)
-      if (voiceState.requestMaximize) return;
-      setSettings(prev => {
-        if (!prev.isMaximized) return prev;
-        const updated = { ...prev, isMaximized: false };
-        setCachedItem(PIP_SETTINGS_KEY, updated);
-        return updated;
-      });
-    }
-  }, [location.pathname, voiceState.requestMaximize]);
-
-  // Observe the content container's bounds for dynamic maximize positioning
-  useEffect(() => {
-    if (!containerElement) return;
-
-    const updateBounds = () => setContainerBounds(containerElement.getBoundingClientRect());
-    updateBounds();
-
-    const observer = new ResizeObserver(updateBounds);
-    observer.observe(containerElement);
-    window.addEventListener('resize', updateBounds);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateBounds);
-    };
-  }, [containerElement]);
-
-  // Handle requestMaximize from channel click
-  useEffect(() => {
-    if (voiceState.requestMaximize) {
-      setSettings(prev => {
-        const updated = { ...prev, isMaximized: true, isMinimized: false };
-        setCachedItem(PIP_SETTINGS_KEY, updated);
-        return updated;
-      });
-      dispatch({ type: VoiceActionType.SetRequestMaximize, payload: false });
-    }
-  }, [voiceState.requestMaximize, dispatch]);
 
   // Save settings to localStorage
   const saveSettings = useCallback((newSettings: PipSettings) => {
@@ -168,7 +114,6 @@ export const PersistentVideoOverlay: React.FC = () => {
     const handleResize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
       setSettings(prev => {
-        if (prev.isMaximized) return prev;
         const clamped = clampSize(prev.size.width, prev.size.height);
         const constrained = constrainPosition(
           prev.position.x,
@@ -193,7 +138,6 @@ export const PersistentVideoOverlay: React.FC = () => {
 
   // Drag handlers
   const handleDragStart = useCallback((e: React.PointerEvent) => {
-    if (settings.isMaximized) return;
     if ((e.target as HTMLElement).closest('.pip-controls')) return;
     if (activePointerIdRef.current !== null) return;
     e.preventDefault();
@@ -203,7 +147,7 @@ export const PersistentVideoOverlay: React.FC = () => {
       x: e.clientX - settings.position.x,
       y: e.clientY - settings.position.y,
     });
-  }, [settings.position, settings.isMaximized]);
+  }, [settings.position]);
 
   const handleDragMove = useCallback((e: PointerEvent) => {
     if (!isDragging) return;
@@ -225,7 +169,6 @@ export const PersistentVideoOverlay: React.FC = () => {
 
   // Resize handlers
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
-    if (settings.isMaximized) return;
     if (activePointerIdRef.current !== null) return;
     e.preventDefault();
     e.stopPropagation();
@@ -237,7 +180,7 @@ export const PersistentVideoOverlay: React.FC = () => {
       width: settings.size.width,
       height: settings.size.height,
     });
-  }, [settings.size, settings.isMaximized]);
+  }, [settings.size]);
 
   const handleResizeMove = useCallback((e: PointerEvent) => {
     if (!isResizing) return;
@@ -308,11 +251,6 @@ export const PersistentVideoOverlay: React.FC = () => {
     saveSettings({ ...settings, isMinimized: !settings.isMinimized });
   }, [settings, saveSettings]);
 
-  // Toggle maximize
-  const toggleMaximize = useCallback(() => {
-    saveSettings({ ...settings, isMaximized: !settings.isMaximized });
-  }, [settings, saveSettings]);
-
   // Get participant count
   const getParticipantCount = () => {
     const room = (window as unknown as { __livekit_room?: { remoteParticipants?: Map<string, unknown> } }).__livekit_room;
@@ -328,6 +266,12 @@ export const PersistentVideoOverlay: React.FC = () => {
   const shouldShow = voiceState.isConnected && voiceState.showVideoTiles;
 
   if (!shouldShow) {
+    return null;
+  }
+
+  // The embedded stage already renders the session's video; suppress the
+  // floating overlay so the same tiles aren't shown twice on desktop.
+  if (!isMobile && voiceState.stageMounted) {
     return null;
   }
 
@@ -384,14 +328,6 @@ export const PersistentVideoOverlay: React.FC = () => {
     ? voiceState.dmGroupName || 'DM Call'
     : voiceState.channelName || 'Voice';
 
-  // Compute effective position and size based on maximize state + container bounds
-  const effectivePosition = settings.isMaximized && containerBounds
-    ? { x: containerBounds.left, y: containerBounds.top }
-    : settings.position;
-  const effectiveSize = settings.isMaximized && containerBounds
-    ? { width: containerBounds.width, height: containerBounds.height }
-    : settings.size;
-
   // Minimized view
   if (settings.isMinimized) {
     return (
@@ -446,16 +382,16 @@ export const PersistentVideoOverlay: React.FC = () => {
       elevation={8}
       sx={{
         position: 'fixed',
-        left: effectivePosition.x,
-        top: effectivePosition.y,
-        width: effectiveSize.width,
-        height: effectiveSize.height,
+        left: settings.position.x,
+        top: settings.position.y,
+        width: settings.size.width,
+        height: settings.size.height,
         zIndex: 1200,
-        borderRadius: settings.isMaximized ? 0 : 2,
+        borderRadius: 2,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        border: settings.isMaximized ? 'none' : `1px solid ${theme.palette.divider}`,
+        border: `1px solid ${theme.palette.divider}`,
         userSelect: isDragging || isResizing ? 'none' : 'auto',
       }}
     >
@@ -469,17 +405,15 @@ export const PersistentVideoOverlay: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           px: 1,
-          cursor: settings.isMaximized ? 'default' : (isDragging ? 'grabbing' : 'grab'),
+          cursor: isDragging ? 'grabbing' : 'grab',
           flexShrink: 0,
           // Prevent the browser treating a touch-drag on the header as a scroll
-          touchAction: settings.isMaximized ? 'auto' : 'none',
+          touchAction: 'none',
         }}
         onPointerDown={handleDragStart}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {!settings.isMaximized && (
-            <DragIndicator fontSize="small" sx={{ color: 'text.secondary' }} />
-          )}
+          <DragIndicator fontSize="small" sx={{ color: 'text.secondary' }} />
           <Typography variant="caption" fontWeight="medium" noWrap sx={{ maxWidth: 200 }}>
             {displayName}
           </Typography>
@@ -488,11 +422,6 @@ export const PersistentVideoOverlay: React.FC = () => {
           <Tooltip title="Minimize">
             <IconButton size="small" onClick={toggleMinimize}>
               <Minimize fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={settings.isMaximized ? 'Restore' : 'Maximize'}>
-            <IconButton size="small" onClick={toggleMaximize}>
-              {settings.isMaximized ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Close video">
@@ -511,31 +440,29 @@ export const PersistentVideoOverlay: React.FC = () => {
         <VideoTiles />
       </Box>
 
-      {/* Resize Handle - hidden when maximized */}
-      {!settings.isMaximized && (
-        <Box
-          sx={{
+      {/* Resize Handle */}
+      <Box
+        sx={{
+          position: 'absolute',
+          right: 0,
+          bottom: 0,
+          width: 20,
+          height: 20,
+          cursor: 'se-resize',
+          touchAction: 'none',
+          '&::after': {
+            content: '""',
             position: 'absolute',
-            right: 0,
-            bottom: 0,
-            width: 20,
-            height: 20,
-            cursor: 'se-resize',
-            touchAction: 'none',
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              right: 4,
-              bottom: 4,
-              width: 8,
-              height: 8,
-              borderRight: `2px solid ${theme.palette.text.secondary}`,
-              borderBottom: `2px solid ${theme.palette.text.secondary}`,
-            },
-          }}
-          onPointerDown={handleResizeStart}
-        />
-      )}
+            right: 4,
+            bottom: 4,
+            width: 8,
+            height: 8,
+            borderRight: `2px solid ${theme.palette.text.secondary}`,
+            borderBottom: `2px solid ${theme.palette.text.secondary}`,
+          },
+        }}
+        onPointerDown={handleResizeStart}
+      />
     </Paper>
   );
 };

@@ -53,7 +53,6 @@ function createVoiceState(overrides: Partial<VoiceState> = {}): VoiceState {
     isDeafened: false,
     showVideoTiles: false,
     screenShareAudioFailed: false,
-    requestMaximize: false,
     selectedAudioInputId: null,
     selectedAudioOutputId: null,
     selectedVideoInputId: null,

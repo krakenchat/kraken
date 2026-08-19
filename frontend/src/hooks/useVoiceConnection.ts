@@ -202,10 +202,6 @@ export const useVoiceConnection = () => {
     [getDeps]
   );
 
-  const handleRequestMaximize = useCallback(() => {
-    dispatch({ type: VoiceActionType.SetRequestMaximize, payload: true });
-  }, [dispatch]);
-
   const handlePlaySoundboard = useCallback(
     async (fileId: string) => {
       await playSoundboard(fileId, getDeps());
@@ -230,7 +226,6 @@ export const useVoiceConnection = () => {
       switchAudioInputDevice: handleSwitchAudioInputDevice,
       switchAudioOutputDevice: handleSwitchAudioOutputDevice,
       switchVideoInputDevice: handleSwitchVideoInputDevice,
-      requestMaximize: handleRequestMaximize,
       playSoundboard: handlePlaySoundboard,
       watchCamera: trackActions?.watchCamera ?? undefined,
       stopWatchingCamera: trackActions?.stopWatchingCamera ?? undefined,

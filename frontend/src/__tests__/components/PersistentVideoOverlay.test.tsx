@@ -21,7 +21,6 @@ const mockActions = {
   leaveVoiceChannel: vi.fn(),
   switchAudioInputDevice: vi.fn(),
   switchVideoInputDevice: vi.fn(),
-  requestMaximize: vi.fn(),
   joinVoiceChannel: vi.fn(),
   joinDmVoice: vi.fn(),
   toggleAudio: vi.fn(),
@@ -33,7 +32,7 @@ const defaultVoiceState = {
   channelName: 'General Voice',
   contextType: 'channel' as const,
   showVideoTiles: true,
-  requestMaximize: false,
+  stageMounted: false,
   dmGroupName: null,
 };
 
@@ -53,12 +52,6 @@ vi.mock('../../hooks/useVoiceConnection', () => ({
   useVoiceConnection: vi.fn(() => ({
     state: mockVoiceState,
     actions: mockActions,
-  })),
-}));
-
-vi.mock('../../contexts/VideoOverlayContext', () => ({
-  useVideoOverlay: vi.fn(() => ({
-    containerElement: null,
   })),
 }));
 
@@ -157,17 +150,42 @@ describe('PersistentVideoOverlay', () => {
     expect(mockActions.setShowVideoTiles).toHaveBeenCalledWith(false);
   });
 
-  it('desktop PiP has minimize, maximize, and close buttons', () => {
+  it('desktop PiP has minimize and close buttons', () => {
     renderWithProviders(<PersistentVideoOverlay />);
 
     expect(screen.getByTestId('MinimizeIcon')).toBeInTheDocument();
-    expect(screen.getByTestId('FullscreenIcon')).toBeInTheDocument();
     expect(screen.getByTestId('CloseIcon')).toBeInTheDocument();
+    expect(screen.queryByTestId('FullscreenIcon')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('FullscreenExitIcon')).not.toBeInTheDocument();
   });
 
   it('desktop PiP has drag indicator', () => {
     renderWithProviders(<PersistentVideoOverlay />);
 
     expect(screen.getByTestId('DragIndicatorIcon')).toBeInTheDocument();
+  });
+
+  it('returns null on desktop when the embedded stage is mounted', () => {
+    mockVoiceState = { ...defaultVoiceState, stageMounted: true };
+    vi.mocked(useVoice).mockReturnValue(mockVoiceState as never);
+
+    const { container } = renderWithProviders(<PersistentVideoOverlay />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('still renders the mobile overlay when the embedded stage is mounted', () => {
+    mockVoiceState = { ...defaultVoiceState, stageMounted: true };
+    vi.mocked(useVoice).mockReturnValue(mockVoiceState as never);
+    vi.mocked(useResponsive).mockReturnValue({
+      isMobile: true,
+      isTablet: false,
+      isDesktop: false,
+      isPortrait: true,
+      deviceType: 'phone',
+    } as never);
+
+    renderWithProviders(<PersistentVideoOverlay />);
+
+    expect(screen.getByTestId('video-tiles')).toBeInTheDocument();
   });
 });

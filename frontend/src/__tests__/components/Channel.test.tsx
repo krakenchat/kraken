@@ -13,7 +13,6 @@ vi.mock('../../api-client/client.gen', async (importOriginal) => {
 
 const mockJoinVoiceChannel = vi.fn();
 const mockSetShowVideoTiles = vi.fn();
-const mockRequestMaximize = vi.fn();
 const mockLeaveVoiceChannel = vi.fn();
 
 vi.mock('../../hooks/useVoiceConnection', () => ({
@@ -26,7 +25,6 @@ vi.mock('../../hooks/useVoiceConnection', () => ({
     actions: {
       joinVoiceChannel: mockJoinVoiceChannel,
       setShowVideoTiles: mockSetShowVideoTiles,
-      requestMaximize: mockRequestMaximize,
       leaveVoiceChannel: mockLeaveVoiceChannel,
     },
   })),
@@ -81,7 +79,6 @@ describe('Channel', () => {
       actions: {
         joinVoiceChannel: mockJoinVoiceChannel,
         setShowVideoTiles: mockSetShowVideoTiles,
-        requestMaximize: mockRequestMaximize,
         leaveVoiceChannel: mockLeaveVoiceChannel,
       } as never,
     });
@@ -146,7 +143,6 @@ describe('Channel', () => {
       actions: {
         joinVoiceChannel: mockJoinVoiceChannel,
         setShowVideoTiles: mockSetShowVideoTiles,
-        requestMaximize: mockRequestMaximize,
         leaveVoiceChannel: mockLeaveVoiceChannel,
       } as never,
     });
@@ -159,7 +155,6 @@ describe('Channel', () => {
     await user.click(screen.getByText('voice'));
 
     expect(mockSetShowVideoTiles).toHaveBeenCalledWith(true);
-    expect(mockRequestMaximize).toHaveBeenCalled();
   });
 
   it('shows error notification when voice join fails', async () => {
