@@ -1,24 +1,111 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, act, within } from '@testing-library/react';
+import { useSyncExternalStore } from 'react';
 import { renderWithProviders } from '../test-utils';
 import { VideoTiles } from '../../components/Voice/VideoTiles';
-import { VoiceSessionType } from '../../contexts/VoiceContext';
+import { VoiceSessionType, VoiceActionType } from '../../contexts/VoiceContext';
+import { VideoLayoutMode } from '../../types/videoLayout';
 
 let mockWatchingCameras = new Set<string>();
 let mockWatchingScreenShares = new Set<string>();
+
+// layoutMode/pinnedTileId/spotlightTileId now live in VoiceContext's reducer
+// (Task 5). Rather than statically mock them, this tiny external store mirrors
+// the reducer's toggle semantics so dispatching from VideoTiles actually
+// updates what useVoice() returns and re-renders the component — the same
+// click-driven assertions the "layout modes and pinning" tests rely on.
+let mockLayoutMode: VideoLayoutMode = VideoLayoutMode.Grid;
+let mockPinnedTileId: string | null = null;
+let mockSpotlightTileId: string | null = null;
+type MockLayoutSnapshot = {
+  layoutMode: VideoLayoutMode;
+  pinnedTileId: string | null;
+  spotlightTileId: string | null;
+};
+let mockLayoutSnapshot: MockLayoutSnapshot = {
+  layoutMode: mockLayoutMode,
+  pinnedTileId: mockPinnedTileId,
+  spotlightTileId: mockSpotlightTileId,
+};
+const mockLayoutListeners = new Set<() => void>();
+
+function mockCommitLayoutSnapshot() {
+  mockLayoutSnapshot = {
+    layoutMode: mockLayoutMode,
+    pinnedTileId: mockPinnedTileId,
+    spotlightTileId: mockSpotlightTileId,
+  };
+  mockLayoutListeners.forEach((listener) => listener());
+}
+
+function mockResetLayoutState() {
+  mockLayoutMode = VideoLayoutMode.Grid;
+  mockPinnedTileId = null;
+  mockSpotlightTileId = null;
+  mockCommitLayoutSnapshot();
+}
+
+function mockSubscribeLayoutState(listener: () => void) {
+  mockLayoutListeners.add(listener);
+  return () => mockLayoutListeners.delete(listener);
+}
+
+function mockGetLayoutSnapshot() {
+  return mockLayoutSnapshot;
+}
+
+function mockDispatchLayoutAction(action: { type: string; payload?: unknown }) {
+  switch (action.type) {
+    case VoiceActionType.SetLayoutMode: {
+      mockLayoutMode = action.payload as VideoLayoutMode;
+      if (mockLayoutMode !== VideoLayoutMode.Spotlight) mockSpotlightTileId = null;
+      break;
+    }
+    case VoiceActionType.TogglePinTile: {
+      const id = action.payload as string;
+      if (mockPinnedTileId === id) {
+        mockPinnedTileId = null;
+      } else {
+        mockPinnedTileId = id;
+        mockLayoutMode = VideoLayoutMode.Sidebar;
+      }
+      break;
+    }
+    case VoiceActionType.ToggleSpotlightTile: {
+      const id = action.payload as string;
+      if (mockLayoutMode === VideoLayoutMode.Spotlight && mockSpotlightTileId === id) {
+        mockSpotlightTileId = null;
+        mockLayoutMode = VideoLayoutMode.Grid;
+      } else {
+        mockSpotlightTileId = id;
+        mockLayoutMode = VideoLayoutMode.Spotlight;
+      }
+      break;
+    }
+    default:
+      return; // other action types are no-ops in this mock — nothing else under test dispatches them
+  }
+  mockCommitLayoutSnapshot();
+}
 
 vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../contexts/VoiceContext')>();
   return {
     ...actual,
-    useVoice: vi.fn(() => ({
-      isDeafened: false,
-      watchingCameras: mockWatchingCameras,
-      watchingScreenShares: mockWatchingScreenShares,
-      hiddenLocalTiles: new Set<string>(),
-    })),
+    useVoice: vi.fn(() => {
+      const layout = useSyncExternalStore(mockSubscribeLayoutState, mockGetLayoutSnapshot);
+      return {
+        isDeafened: false,
+        watchingCameras: mockWatchingCameras,
+        watchingScreenShares: mockWatchingScreenShares,
+        hiddenLocalTiles: new Set<string>(),
+        layoutMode: layout.layoutMode,
+        pinnedTileId: layout.pinnedTileId,
+        spotlightTileId: layout.spotlightTileId,
+      };
+    }),
     useVoiceDispatch: vi.fn(() => ({
-      dispatch: vi.fn(),
+      dispatch: vi.fn(mockDispatchLayoutAction),
       stateRef: { current: {} },
     })),
   };
@@ -243,6 +330,7 @@ describe('VideoTiles', () => {
     buildMockRoom();
     mockWatchingCameras = new Set<string>();
     mockWatchingScreenShares = new Set<string>();
+    mockResetLayoutState();
     voiceState = { ...defaultVoiceState, room: mockRoom };
     vi.mocked(useVoiceConnection).mockReturnValue({
       state: voiceState,

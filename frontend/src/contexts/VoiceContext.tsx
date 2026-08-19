@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useRef, useEffect, useMemo } from "react";
+import { VideoLayoutMode } from "../types/videoLayout";
 
 export enum VoiceSessionType {
   Channel = 'channel',
@@ -29,6 +30,9 @@ export interface VoiceState {
   watchingScreenShares: Set<string>;
   hiddenLocalTiles: Set<string>;
   stageMounted: boolean;
+  layoutMode: VideoLayoutMode;
+  pinnedTileId: string | null;
+  spotlightTileId: string | null;
 }
 
 export enum VoiceActionType {
@@ -52,6 +56,9 @@ export enum VoiceActionType {
   HideLocalTile = 'HIDE_LOCAL_TILE',
   ShowLocalTile = 'SHOW_LOCAL_TILE',
   SetStageMounted = 'SET_STAGE_MOUNTED',
+  SetLayoutMode = 'SET_LAYOUT_MODE',
+  TogglePinTile = 'TOGGLE_PIN_TILE',
+  ToggleSpotlightTile = 'TOGGLE_SPOTLIGHT_TILE',
 }
 
 export type VoiceAction =
@@ -74,7 +81,10 @@ export type VoiceAction =
   | { type: VoiceActionType.StopWatchingScreenShare; payload: string }
   | { type: VoiceActionType.HideLocalTile; payload: string }
   | { type: VoiceActionType.ShowLocalTile; payload: string }
-  | { type: VoiceActionType.SetStageMounted; payload: boolean };
+  | { type: VoiceActionType.SetStageMounted; payload: boolean }
+  | { type: VoiceActionType.SetLayoutMode; payload: VideoLayoutMode }
+  | { type: VoiceActionType.TogglePinTile; payload: string }
+  | { type: VoiceActionType.ToggleSpotlightTile; payload: string };
 
 const initialState: VoiceState = {
   isConnected: false,
@@ -100,6 +110,9 @@ const initialState: VoiceState = {
   watchingScreenShares: new Set<string>(),
   hiddenLocalTiles: new Set<string>(),
   stageMounted: false,
+  layoutMode: VideoLayoutMode.Grid,
+  pinnedTileId: null,
+  spotlightTileId: null,
 };
 
 function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
@@ -201,6 +214,24 @@ function voiceReducer(state: VoiceState, action: VoiceAction): VoiceState {
     }
     case VoiceActionType.SetStageMounted:
       return { ...state, stageMounted: action.payload };
+    case VoiceActionType.SetLayoutMode:
+      return {
+        ...state,
+        layoutMode: action.payload,
+        ...(action.payload !== VideoLayoutMode.Spotlight ? { spotlightTileId: null } : {}),
+      };
+    case VoiceActionType.TogglePinTile: {
+      if (state.pinnedTileId === action.payload) {
+        return { ...state, pinnedTileId: null };
+      }
+      return { ...state, pinnedTileId: action.payload, layoutMode: VideoLayoutMode.Sidebar };
+    }
+    case VoiceActionType.ToggleSpotlightTile: {
+      if (state.layoutMode === VideoLayoutMode.Spotlight && state.spotlightTileId === action.payload) {
+        return { ...state, spotlightTileId: null, layoutMode: VideoLayoutMode.Grid };
+      }
+      return { ...state, spotlightTileId: action.payload, layoutMode: VideoLayoutMode.Spotlight };
+    }
     default:
       return state;
   }

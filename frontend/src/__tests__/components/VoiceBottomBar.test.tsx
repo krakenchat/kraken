@@ -3,6 +3,7 @@ import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { VoiceBottomBar } from '../../components/Voice/VoiceBottomBar';
 import { VoiceSessionType, type VoiceState } from '../../contexts/VoiceContext';
+import { VideoLayoutMode } from '../../types/videoLayout';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
   const { createClient, createConfig } = await import('../../api-client/client');
@@ -52,6 +53,9 @@ const defaultVoiceState: VoiceState & { room: null } = {
   watchingScreenShares: new Set<string>(),
   hiddenLocalTiles: new Set<string>(),
   stageMounted: false,
+  layoutMode: VideoLayoutMode.Grid,
+  pinnedTileId: null,
+  spotlightTileId: null,
   room: null,
 };
 

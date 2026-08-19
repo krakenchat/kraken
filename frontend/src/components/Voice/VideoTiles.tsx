@@ -17,6 +17,10 @@ import { useReplayBufferState } from '../../contexts/ReplayBufferContext';
 import { useVoice, useVoiceDispatch, VoiceActionType } from '../../contexts/VoiceContext';
 import { useTrackSubscriptionActions } from '../../hooks/useTrackSubscription';
 import VideoTile from './VideoTile';
+import { VideoLayoutMode } from '../../types/videoLayout';
+
+// Re-exported so existing importers of VideoLayoutMode from this module keep working.
+export { VideoLayoutMode };
 
 // Constants
 const GRID_CONSTANTS = {
@@ -31,12 +35,6 @@ import type {
   RemoteParticipant,
   LocalParticipant,
 } from 'livekit-client';
-
-enum VideoLayoutMode {
-  Grid = 'grid',
-  Sidebar = 'sidebar',
-  Spotlight = 'spotlight',
-}
 
 interface VideoTileData {
   participant: RemoteParticipant | LocalParticipant;
@@ -54,12 +52,9 @@ export const VideoTiles: React.FC = () => {
   const { isCameraEnabled, isScreenShareEnabled } = useLocalMediaState();
   const { isMobile, isPortrait } = useResponsive();
   const { isReplayBufferActive } = useReplayBufferState();
-  const { watchingCameras, watchingScreenShares, hiddenLocalTiles } = useVoice();
+  const { watchingCameras, watchingScreenShares, hiddenLocalTiles, layoutMode, pinnedTileId, spotlightTileId } = useVoice();
   const { dispatch } = useVoiceDispatch();
   const trackActions = useTrackSubscriptionActions();
-  const [layoutMode, setLayoutMode] = useState<VideoLayoutMode>(VideoLayoutMode.Grid);
-  const [pinnedTileId, setPinnedTileId] = useState<string | null>(null);
-  const [spotlightTileId, setSpotlightTileId] = useState<string | null>(null);
   const [trackUpdate, setTrackUpdate] = useState(0); // Force re-render on track changes
 
   // Define callbacks before any early returns (React hooks must be called unconditionally)
@@ -80,28 +75,12 @@ export const VideoTiles: React.FC = () => {
   }, [isMobile, isPortrait]);
 
   const handleTilePin = useCallback((tileId: string) => {
-    setPinnedTileId(prev => prev === tileId ? null : tileId);
-    setLayoutMode(prev => {
-      if (prev !== VideoLayoutMode.Sidebar && pinnedTileId !== tileId) {
-        return VideoLayoutMode.Sidebar;
-      }
-      return prev;
-    });
-  }, [pinnedTileId]);
+    dispatch({ type: VoiceActionType.TogglePinTile, payload: tileId });
+  }, [dispatch]);
 
   const handleTileSpotlight = useCallback((tileId: string) => {
-    setLayoutMode(prevLayout => {
-      if (prevLayout === VideoLayoutMode.Spotlight && spotlightTileId === tileId) {
-        // If we're in spotlight mode and clicking the same tile, go back to grid
-        setSpotlightTileId(null);
-        return VideoLayoutMode.Grid;
-      } else {
-        // Otherwise, spotlight this tile
-        setSpotlightTileId(tileId);
-        return VideoLayoutMode.Spotlight;
-      }
-    });
-  }, [spotlightTileId]);
+    dispatch({ type: VoiceActionType.ToggleSpotlightTile, payload: tileId });
+  }, [dispatch]);
 
   // Memoize video tiles to avoid recalculating on every render
   const videoTiles = useMemo((): VideoTileData[] => {
@@ -329,12 +308,17 @@ export const VideoTiles: React.FC = () => {
     dispatch({ type: VoiceActionType.HideLocalTile, payload: type });
   }, [dispatch]);
 
-  // Watch + pin a placeholder tile (subscribe then make it the main sidebar view)
+  // Watch + pin a placeholder tile (subscribe then make it the main sidebar view).
+  // TogglePinTile flips pin state, so only dispatch if this tile isn't already
+  // pinned — avoids unpinning a stale pinnedTileId left over from a prior
+  // watch/unwatch cycle on the same tile.
   const handleWatchAndPin = useCallback((tile: VideoTileData) => {
     handleWatchTile(tile);
     const realTileId = tile.tileId.replace('placeholder-', '');
-    setPinnedTileId(realTileId);
-  }, [handleWatchTile]);
+    if (pinnedTileId !== realTileId) {
+      dispatch({ type: VoiceActionType.TogglePinTile, payload: realTileId });
+    }
+  }, [handleWatchTile, pinnedTileId, dispatch]);
 
   // Filter out placeholder tiles for focused layouts
   const watchedTiles = useMemo(
@@ -520,7 +504,7 @@ export const VideoTiles: React.FC = () => {
             <Tooltip title="Grid Layout">
               <IconButton
                 size="small"
-                onClick={() => setLayoutMode(VideoLayoutMode.Grid)}
+                onClick={() => dispatch({ type: VoiceActionType.SetLayoutMode, payload: VideoLayoutMode.Grid })}
                 sx={{
                   backgroundColor: layoutMode === VideoLayoutMode.Grid ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
                   color: theme.palette.text.primary,
@@ -536,7 +520,7 @@ export const VideoTiles: React.FC = () => {
             <Tooltip title="Sidebar Layout">
               <IconButton
                 size="small"
-                onClick={() => setLayoutMode(VideoLayoutMode.Sidebar)}
+                onClick={() => dispatch({ type: VoiceActionType.SetLayoutMode, payload: VideoLayoutMode.Sidebar })}
                 sx={{
                   backgroundColor: layoutMode === VideoLayoutMode.Sidebar ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
                   color: theme.palette.text.primary,
@@ -552,7 +536,7 @@ export const VideoTiles: React.FC = () => {
             <Tooltip title="Spotlight Layout">
               <IconButton
                 size="small"
-                onClick={() => setLayoutMode(VideoLayoutMode.Spotlight)}
+                onClick={() => dispatch({ type: VoiceActionType.SetLayoutMode, payload: VideoLayoutMode.Spotlight })}
                 sx={{
                   backgroundColor: layoutMode === VideoLayoutMode.Spotlight ? alpha(theme.palette.primary.main, 0.8) : theme.palette.action.hover,
                   color: theme.palette.text.primary,
