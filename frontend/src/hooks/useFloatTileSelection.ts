@@ -18,9 +18,21 @@ export interface FloatTileSelection {
   publication?: TrackPublication;
 }
 
-/** Same "has a usable publication" idiom used across the app (VideoTile, useParticipantTracks): exists + not muted. */
+/**
+ * "Has a usable publication" — exists, not muted, AND subscribed (its track has
+ * actually been attached). Camera/ScreenShare/ScreenShareAudio publications start
+ * unsubscribed (see useTrackSubscription.ts) until watched, so checking existence +
+ * !isMuted alone (the idiom used elsewhere for already-watched/gridded tiles) isn't
+ * enough here: the float card can pick a participant whose camera was never opted
+ * into via the full grid, and handing VideoTile an unsubscribed publication renders a
+ * blank tile (publication.track is undefined) instead of falling back to the avatar.
+ * `TrackPublication.isSubscribed` reflects the real subscription state for both
+ * remote publications (false until setSubscribed(true) resolves a track) and local
+ * ones (always true once published), so this works without a separate watch-state
+ * parameter.
+ */
 function hasLivePublication(pub: TrackPublication | undefined | null): pub is TrackPublication {
-  return !!pub && !pub.isMuted;
+  return !!pub && !pub.isMuted && pub.isSubscribed;
 }
 
 function findParticipant(room: Room, identity: string): AnyParticipant | undefined {

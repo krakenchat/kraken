@@ -10,10 +10,18 @@ import { selectFloatTile } from '../../hooks/useFloatTileSelection';
 interface StubPublication {
   source: string;
   isMuted: boolean;
+  isSubscribed: boolean;
 }
 
-function publication(source: 'camera' | 'screen_share', isMuted = false): StubPublication {
-  return { source, isMuted };
+// Defaults to subscribed=true: most cases below represent a publication that's
+// already watched/gridded. Regression cases for the "never watched" gap pass
+// isSubscribed: false explicitly.
+function publication(
+  source: 'camera' | 'screen_share',
+  isMuted = false,
+  isSubscribed = true,
+): StubPublication {
+  return { source, isMuted, isSubscribed };
 }
 
 function createParticipant(
@@ -123,6 +131,34 @@ describe('selectFloatTile', () => {
 
     expect(result?.kind).toBe('camera');
     expect(result?.participant).toBe(camUser);
+  });
+
+  it('falls back to avatar when the active speaker has a live camera publication that was never watched/subscribed', () => {
+    const local = createParticipant('local-user');
+    // Camera exists and is unmuted, but isSubscribed: false — e.g. a fresh float
+    // session where the full VideoTiles grid was never opened to opt in.
+    const speaker = createParticipant('speaker-1', { camera: publication('camera', false, false) });
+    const room = createRoom(local, [speaker]);
+
+    const result = selectFloatTile(room, new Set(), [speaker as unknown as never]);
+
+    expect(result).toEqual({ kind: 'avatar', participant: speaker });
+  });
+
+  it('skips an active speaker whose camera is unsubscribed, falling through to a later speaker with a subscribed camera', () => {
+    const local = createParticipant('local-user');
+    const unwatched = createParticipant('speaker-1', { camera: publication('camera', false, false) });
+    const watched = createParticipant('speaker-2', { camera: publication('camera', false, true) });
+    const room = createRoom(local, [unwatched, watched]);
+
+    const result = selectFloatTile(
+      room,
+      new Set(),
+      [unwatched as unknown as never, watched as unknown as never],
+    );
+
+    expect(result?.kind).toBe('camera');
+    expect(result?.participant).toBe(watched);
   });
 
   it('ignores a muted camera publication when selecting', () => {
