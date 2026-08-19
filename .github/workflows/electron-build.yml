@@ -127,6 +127,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Launch the packed app and require the ELECTRON_SMOKE_OK readiness
+      # marker (printed by main.ts under ELECTRON_SMOKE=1). Liveness is NOT
+      # a valid check: a main-process startup crash leaves the process alive
+      # behind Electron's error dialog — exactly how the v0.4.0-v0.4.2
+      # Windows crash shipped with green CI.
+      - name: Smoke test packed app
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          $env:ELECTRON_SMOKE = '1'
+          $p = Start-Process -FilePath "release\win-unpacked\Semaphore Chat.exe" `
+            -RedirectStandardOutput smoke-out.log -RedirectStandardError smoke-err.log -PassThru
+          if (-not $p.WaitForExit(60000)) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          }
+          Get-Process -Name "Semaphore Chat" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          $out = (Get-Content smoke-out.log -Raw -ErrorAction SilentlyContinue) + "`n" + (Get-Content smoke-err.log -Raw -ErrorAction SilentlyContinue)
+          Write-Host $out
+          if ($out -notmatch 'ELECTRON_SMOKE_OK') {
+            Write-Error "Electron smoke test FAILED: packed app never reached ready state (no ELECTRON_SMOKE_OK)"
+            exit 1
+          }
+
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
@@ -213,6 +236,17 @@ jobs:
         run: pnpm run build:all && pnpm run electron-builder:linux AppImage deb rpm --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same readiness-marker smoke test as the Windows job (see comment
+      # there). xvfb provides a display; --no-sandbox because the unpacked
+      # chrome-sandbox helper isn't SUID on the runner.
+      - name: Smoke test packed app
+        working-directory: frontend
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+          ELECTRON_SMOKE=1 xvfb-run -a timeout 60 ./release/linux-unpacked/semaphore-chat --no-sandbox > smoke.log 2>&1 || true
+          cat smoke.log
+          grep -q ELECTRON_SMOKE_OK smoke.log || { echo "Electron smoke test FAILED: packed app never reached ready state (no ELECTRON_SMOKE_OK)"; exit 1; }
 
       - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
